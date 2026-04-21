@@ -13,7 +13,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: {
       agencyId: session.user.agencyId,
-      role: { in: ["progressor", "admin"] },
+      role: { in: ["sales_progressor", "admin"] },
     },
     select: { id: true, name: true, role: true },
     orderBy: { name: "asc" },
