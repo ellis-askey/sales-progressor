@@ -1,3 +1,4 @@
+"use client";
 // components/layout/AppShell.tsx — Sprint 8: Completing, Solicitors, Comms, Reports nav items
 
 import Link from "next/link";
