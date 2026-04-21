@@ -212,7 +212,7 @@ export default async function TransactionDetailPage({
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           {/* File health banner (conditional) */}
-          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack === "on_track"} />
+          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           {/* Compact meta strip */}
           <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"

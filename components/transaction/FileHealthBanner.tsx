@@ -4,15 +4,17 @@ import { useTabContext } from "./TabContext";
 
 type Props = {
   overdueCount: number;
-  onTrack: boolean;
+  onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
 };
 
 export function FileHealthBanner({ overdueCount, onTrack }: Props) {
   const { setActiveTab } = useTabContext();
 
-  if (overdueCount === 0 && onTrack) return null;
+  const isBehind = onTrack === "at_risk" || onTrack === "off_track";
 
-  const isRed = overdueCount > 0 && !onTrack;
+  if (overdueCount === 0 && !isBehind) return null;
+
+  const isRed = overdueCount > 0 && isBehind;
 
   return (
     <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
@@ -34,7 +36,7 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
               {overdueCount} reminder{overdueCount !== 1 ? "s" : ""} overdue
             </p>
           )}
-          {!onTrack && (
+          {isBehind && (
             <p className={`text-xs ${isRed ? "text-red-600" : "text-amber-600"}`}>
               File may be behind schedule
             </p>

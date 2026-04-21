@@ -66,7 +66,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Seed reminder logs before redirect so they exist on first page load
-    await evaluateTransactionReminders(tx.id).catch(() => null);
+    await evaluateTransactionReminders(tx.id).catch((err) => {
+      console.error(`[reminders] Failed to evaluate on creation for tx ${tx.id}:`, err);
+    });
 
     return NextResponse.json(tx, { status: 201 });
   } catch (err: unknown) {

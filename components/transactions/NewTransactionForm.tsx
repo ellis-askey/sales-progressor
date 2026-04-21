@@ -1,7 +1,7 @@
 "use client";
 // components/transactions/NewTransactionForm.tsx
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
@@ -15,6 +15,7 @@ function emptyContact(): ContactEntry {
 export function NewTransactionForm({ userRole, redirectBase = "/transactions" }: { userRole?: string; redirectBase?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
   const isAgent = userRole === "negotiator";
   const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
   const [form, setForm] = useState({
@@ -50,7 +51,9 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!form.streetAddress || !form.tenure || !form.purchaseType) return;
+    submittingRef.current = true;
     setLoading(true);
 
     const address = [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ");
@@ -86,6 +89,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
       sessionStorage.setItem("newTransaction", form.streetAddress || "New file");
       router.push(`${redirectBase}/${tx.id}`);
     } else {
+      submittingRef.current = false;
       setLoading(false);
     }
   }

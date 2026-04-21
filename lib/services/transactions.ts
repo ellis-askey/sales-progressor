@@ -361,9 +361,9 @@ export async function createTransaction(input: CreateTransactionInput) {
   const twelveWeekTarget = new Date();
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  // Auto-set exchange date to 10 weeks out if not provided
+  // Auto-set exchange date to 12 weeks out if not provided
   const autoExchangeDate = new Date();
-  autoExchangeDate.setDate(autoExchangeDate.getDate() + 70);
+  autoExchangeDate.setDate(autoExchangeDate.getDate() + 84);
 
   const tx = await prisma.propertyTransaction.create({
     data: {
@@ -436,15 +436,17 @@ async function autoSetNotRequired(
     });
   }
 
-  // Log to activity timeline
-  if (notRequiredCodes.length > 0) {
+  // Log to activity timeline — only if there's a valid user to attribute it to
+  const txRecord = await prisma.propertyTransaction.findUnique({ where: { id: transactionId }, select: { assignedUserId: true } });
+  const createdById = txRecord?.assignedUserId ?? null;
+  if (notRequiredCodes.length > 0 && createdById) {
     await prisma.communicationRecord.create({
       data: {
         transactionId,
         type: "internal_note",
         contactIds: [],
         content: `File created as ${tenure ?? "unknown tenure"} / ${(purchaseType ?? "unknown purchase type").replace("_", " ")}. The following milestones were automatically set to not required: ${notRequiredCodes.join(", ")}.`,
-        createdById: (await prisma.propertyTransaction.findUnique({ where: { id: transactionId }, select: { assignedUserId: true } }))?.assignedUserId ?? "",
+        createdById,
       },
     });
   }

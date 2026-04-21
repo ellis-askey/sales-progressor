@@ -163,23 +163,26 @@ export function calculateProgress(
   const twelveWeekTarget = new Date(createdAt);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  // Weeks elapsed since file creation
+  // Time elapsed since file creation
   const msElapsed = now.getTime() - createdAt.getTime();
   const weeksElapsed = Math.floor(msElapsed / (7 * 86400000));
+  const daysElapsed = msElapsed / 86400000;
 
   // Predicted exchange date based on velocity
+  // Requires at least 1 day of history before extrapolating, to avoid wildly
+  // optimistic predictions on the first few hours of a new file.
   let predictedExchangeDate: Date | null = null;
 
   if (overridePredictedDate) {
     predictedExchangeDate = overridePredictedDate;
-  } else if (percent > 0 && weeksElapsed > 0) {
-    // If we're X% done in Y weeks, extrapolate to 100%
-    const weeksTo100 = (weeksElapsed / percent) * 100;
+  } else if (percent > 0 && daysElapsed >= 1) {
+    const effectiveWeeks = Math.max(daysElapsed / 7, 1 / 7);
+    const weeksTo100 = (effectiveWeeks / percent) * 100;
     const predicted = new Date(createdAt);
     predicted.setDate(predicted.getDate() + Math.round(weeksTo100 * 7));
     predictedExchangeDate = predicted;
   } else {
-    // No progress yet — default to 12 week target
+    // Less than 1 day old or no progress — default to 12 week target
     predictedExchangeDate = twelveWeekTarget;
   }
 
