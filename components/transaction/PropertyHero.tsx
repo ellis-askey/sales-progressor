@@ -97,9 +97,9 @@ export function PropertyHero({
         }}
       />
 
-      <div className="relative px-8 pt-6 pb-7">
-        {/* Top row: back link + agency + status */}
-        <div className="flex items-center justify-between mb-5">
+      <div className="relative px-8 pt-6 pb-8">
+        {/* Row 1: breadcrumb + status */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Link
               href={backHref}
@@ -111,65 +111,69 @@ export function PropertyHero({
               {backHref === "/agent/dashboard" ? "My Files" : "Dashboard"}
             </Link>
             <span className="text-slate-600 text-xs">·</span>
-            <span className="text-xs text-slate-500">{agencyName}</span>
+            <span className="text-xs text-slate-500 font-medium">{agencyName}</span>
           </div>
 
-          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ring-1 ${statusStyle.bg}`}>
+          <span className={`inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ${statusStyle.bg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
             {statusStyle.label}
           </span>
         </div>
 
-        {/* Address */}
+        {/* Row 2: address */}
         <div className="mb-5">
-          <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">{line1}</h1>
-          {line2 && <p className="text-sm text-slate-400 mt-0.5">{line2}</p>}
+          <h1 className="text-[1.6rem] font-bold text-white leading-tight tracking-tight">{line1}</h1>
+          {line2 && <p className="text-sm text-slate-400 mt-0.5 font-medium">{line2}</p>}
         </div>
 
-        {/* Bottom row: pills + stats */}
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          {/* Left: pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {tenure && (
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 text-slate-300 ring-1 ring-white/10">
-                {formatTenure(tenure)}
-              </span>
-            )}
-            {purchaseType && (
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 text-slate-300 ring-1 ring-white/10">
-                {formatPurchaseType(purchaseType)}
-              </span>
-            )}
+        {/* Row 3: price + meta + progress */}
+        <div className="flex items-end justify-between gap-6 flex-wrap">
+
+          {/* Left: price headline + property pills */}
+          <div>
             {price && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 text-white ring-1 ring-white/10">
-                {price}
-              </span>
+              <p className="text-xl font-bold text-white tracking-tight mb-2.5">{price}</p>
             )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {tenure && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/12 text-slate-200 ring-1 ring-white/25">
+                  {formatTenure(tenure)}
+                </span>
+              )}
+              {purchaseType && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/12 text-slate-200 ring-1 ring-white/25">
+                  {formatPurchaseType(purchaseType)}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Right: progress + countdown */}
-          <div className="flex items-center gap-5">
+          {/* Right: exchange countdown + progress */}
+          <div className="flex items-end gap-6">
             {days !== null && (
               <div className="text-right">
-                <p className="text-xs text-slate-500 mb-0.5">Exchange target</p>
-                <p className={`text-sm font-semibold ${days < 0 ? "text-red-400" : days <= 14 ? "text-amber-400" : "text-slate-200"}`}>
-                  {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days} days`}
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Exchange</p>
+                <p className={`text-base font-bold tabular-nums ${
+                  days < 0 ? "text-red-400" : days <= 14 ? "text-amber-400" : "text-slate-100"
+                }`}>
+                  {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d`}
                 </p>
               </div>
             )}
-            <div className="min-w-[120px]">
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs text-slate-500">Progress</p>
-                <p className="text-xs font-semibold text-white">{percent}%</p>
+            <div className="min-w-[140px]">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Progress</p>
+                <p className="text-sm font-bold text-white tabular-nums">{percent}%</p>
               </div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${barColor}`}
+                  className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                   style={{ width: `${Math.max(percent, 2)}%` }}
                 />
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>

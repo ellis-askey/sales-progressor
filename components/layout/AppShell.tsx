@@ -46,13 +46,15 @@ export function AppShell({
     <div className="flex min-h-screen">
       <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-[#e4e9f0]/60"
              style={{ boxShadow: "var(--shadow-sidebar)" }}>
-        <div className="px-5 py-5 border-b border-[#e4e9f0]/50">
-          <div className="flex items-center gap-2.5">
+        <div className="px-5 py-5 border-b border-[#e4e9f0]/60">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}>
+                 style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", boxShadow: "0 3px 10px rgba(37,99,235,0.40)" }}>
               <House className="w-4 h-4 text-white" weight="fill" />
             </div>
-            <span className="text-sm font-semibold text-gray-800 leading-tight">Sales Progressor</span>
+            <div>
+              <p className="text-sm font-bold text-gray-900 leading-tight tracking-tight">Sales Progressor</p>
+            </div>
           </div>
         </div>
 
@@ -61,15 +63,22 @@ export function AppShell({
             const isActive = activePath === href;
             return (
               <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                   isActive
-                    ? "bg-blue-500 text-white font-medium shadow-sm"
-                    : "text-gray-500 hover:text-gray-800 hover:bg-white/70"
-                }`}>
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-white" : "text-gray-400"}`} />
-                <span className="flex-1">{label}</span>
+                    ? "text-white"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/80 hover:shadow-sm"
+                }`}
+                style={isActive ? {
+                  background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
+                  boxShadow: "0 4px 14px rgba(37,99,235,0.38), 0 1px 3px rgba(0,0,0,0.08)",
+                } : undefined}
+              >
+                <Icon className={`w-4 h-4 flex-shrink-0 transition-colors duration-150 ${
+                  isActive ? "text-white/90" : "text-gray-400 group-hover:text-gray-600"
+                }`} />
+                <span className="flex-1 tracking-tight">{label}</span>
                 {badge && (
-                  <span className={`text-xs font-medium rounded-full px-1.5 py-0.5 min-w-[20px] text-center ${
+                  <span className={`text-xs font-semibold rounded-full px-1.5 py-0.5 min-w-[20px] text-center tabular-nums ${
                     isActive ? "bg-white/20 text-white" : badge.color
                   }`}>
                     {badge.count}
@@ -82,12 +91,12 @@ export function AppShell({
 
         <div className="px-4 py-4 border-t border-[#e4e9f0]/50">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                 style={{ background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" }}>
-              <span className="text-xs font-semibold text-blue-700">{session.user.name?.charAt(0) ?? "?"}</span>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 flex-shrink-0"
+                 style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", boxShadow: "0 2px 6px rgba(37,99,235,0.30)" }}>
+              <span className="text-xs font-bold text-white">{session.user.name?.charAt(0) ?? "?"}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-700 truncate">{session.user.name}</p>
+              <p className="text-xs font-semibold text-gray-800 truncate">{session.user.name}</p>
               <p className="text-xs text-gray-400 truncate capitalize">{session.user.role.replace("_", " ")}</p>
             </div>
           </div>
