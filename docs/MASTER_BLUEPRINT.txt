@@ -1,0 +1,1665 @@
+Done — I’ve set up the master blueprint document and we can now build into that instead of letting everything live in chat.
+The first thing to lock properly is the top layer:
+* product summary
+* build philosophy
+* users and roles
+* V1 scope
+* technical direction
+* build order
+Here’s the version I’d put in as our starting truth.
+1. Product Summary
+Working product name
+Sales Progressor
+What the product does
+Sales Progressor is a transaction management and workflow platform for residential property sales. It helps estate agents and sales progressors manage files from sale agreed through to exchange and completion using structured milestones, reminders, tasks, communication tools, and exchange forecasting.
+Who it is for
+Independent estate agents, agency branches, agency groups, and dedicated sales progressors managing residential sales.
+Core value proposition
+It replaces manual chasing, spreadsheets, scattered notes, and inbox-led progression with a structured system that improves visibility, consistency, communication, and control.
+What it replaces
+* spreadsheets
+* inbox chasing
+* diary-only follow ups
+* memory-based task management
+* disconnected updates between agents, clients, and solicitors
+* vague exchange forecasting
+What success looks like
+* files are clearly structured and visible
+* outstanding actions are surfaced instead of remembered
+* reminders generate reliably
+* agents can see likely exchanges by month
+* updates are faster and more consistent
+* the business becomes less dependent on one person holding everything in their head
+2. Build Philosophy
+Primary goal of rebuild
+Create a coded version of Sales Progressor that preserves the strength of the existing Bubble workflow logic while giving more control, scalability, polish, and room for deeper automation and AI features.
+What must be preserved from the Bubble app
+* the transaction-centred workflow
+* separate vendor and purchaser milestone logic
+* reminder rule engine
+* milestone completion tracking with active/inactive state
+* exchange gating using blocking milestones
+* time-sensitive date logic where relevant
+* predicted exchange visibility
+* clear task/chase workflow
+* operational simplicity
+What should improve in the coded version
+* cleaner data model
+* more robust automation and job handling
+* stronger UI and dashboard experience
+* better performance
+* easier AI integration
+* better auditability of logic
+* more controlled permissions and role handling
+* cleaner expansion path for portal/comms features
+What is explicitly out of scope for V1
+* overbuilt AI agent behaviour
+* fully autonomous communication sending
+* unnecessary customisation complexity
+* broad marketplace style functionality
+* feature sprawl unrelated to sales progression
+3. Users and Roles
+User types
+* agency owner/admin
+* sales progressor
+* negotiator/agent
+* optional read-only/internal viewer
+* later: external portal user/client view
+Agency structure
+Users belong to an agency. Transactions belong to an agency. Visibility and filtering should respect agency membership and role permissions.
+Permissions overview
+* admins can manage users, settings, configuration, and all files
+* sales progressors can manage active files, milestones, reminders, tasks, and comms
+* negotiators can view relevant files, updates, and forecasts, with more limited edit powers
+* external users are not part of V1 core unless explicitly added later
+7. V1 Scope
+Must have in V1
+* user authentication
+* agency and user structure
+* property transactions
+* contacts/parties
+* milestone definitions
+* milestone completions
+* reminder rules
+* reminder logs
+* chase tasks
+* dashboard views
+* transaction detail page
+* exchange forecast visibility
+* notes/comms records
+* core filtering/search
+Nice to have later
+* AI generated updates and chases
+* WhatsApp integration
+* client portal
+* richer analytics
+* advanced automations
+* document ingestion
+* cross-channel communication workflows
+Not included in V1
+* full email sync
+* full client accounts/accounting system
+* highly bespoke per-agency workflow builders
+* broad third party integration suite
+* autonomous AI operators
+8. Technical Direction
+Suggested stack
+* Next.js
+* TypeScript
+* Tailwind
+* Postgres
+* Prisma
+* NextAuth or equivalent auth layer
+* hosted frontend on Vercel
+Hosting and deployment
+* app frontend on Vercel
+* database hosted separately
+* background jobs handled through a reliable job/cron layer
+Authentication
+Email/password or magic link to start, with role based access by agency.
+Database
+Postgres with Prisma as ORM.
+Background jobs
+Daily and scheduled reminder generation must run through a proper background job system, not front-end triggered behaviour.
+AI integration approach
+AI should sit on top of structured transaction data later, not replace core workflow logic.
+9. Build Order
+Phase 0: Blueprint and rules
+Lock scope, naming, entities, and business rules.
+Phase 1: Foundation
+Repo, stack, auth, database, agency/user structure.
+Phase 2: Transactions core
+Transactions, contacts, detail pages, core CRUD.
+Phase 3: Milestones engine
+Definitions, completions, side logic, active/inactive handling.
+Phase 4: Reminder engine
+Rules, logs, due dates, scheduled generation, duplicate protection.
+Phase 5: Tasks and dashboard
+Chase tasks, work queues, overview screens, filtering.
+Phase 6: Communications
+Notes, communication records, structured updates.
+Phase 7: Forecasting and portal
+Predicted exchanges, forward visibility, optional external views.
+Phase 8: AI layer
+Generation, summarisation, drafting, suggestions.
+10. Naming Conventions
+Canonical product terms
+* Agency
+* User
+* Property Transaction
+* Contact
+* Milestone Definition
+* Milestone Completion
+* Reminder Rule
+* Reminder Log
+* Chase Task
+* Communication Record
+* Forecast Record
+Terms to avoid changing later
+Anything above. We keep these stable.
+12. Current Sprint
+Goal
+Define the blueprint, scope, stack, and core entities clearly enough that we can start architecture work without drift.
+Included work
+* product summary
+* build philosophy
+* user roles
+* V1 scope
+* technical direction
+* build order
+* naming conventions
+Excluded work
+* coding
+* detailed schema implementation
+* UI design
+* reminder logic deep dive
+Done definition
+We have a stable master blueprint that we can use as the reference point for all future work.
+If you want, next I’ll turn this into the actual filled document and then move straight into the Core Entities section, which is the next thing to get right.
+
+Good — this is exactly the right pace.
+We’ve now done the first truly critical step properly:
+?? the core entities are defined and locked into the blueprint
+This is the foundation. Everything else sits on top of this.
+
+Where we are now (important checkpoint)
+We now have:
+* product clarity ?
+* scope clarity ?
+* build order ?
+* data model (high level) ?
+That means:
+?? we’ve removed about 70% of future chaos risk already
+
+When you should go to Claude
+?? NOT yet
+You still stay here.
+Reason:
+We haven’t defined:
+* the business rules properly
+* the logic behind these entities
+* the hard parts (reminders, milestones, exchange gating)
+If you go to Claude now, it will:
+* guess logic
+* invent behaviour
+* create subtle bugs
+* force rewrites later
+
+Next step (this is the big one)
+Now we define:
+?? Business Rules (the brain of the system)
+This is where your app actually lives.
+Because your app is NOT:
+“store data and show it”
+It is:
+“interpret state and trigger behaviour”
+
+Why this step matters so much
+Your Bubble app works because of:
+* milestone sequencing
+* active vs inactive completions
+* prerequisite logic
+* reminder generation rules
+* time-sensitive behaviour
+* exchange gating
+* “ready to exchange” logic
+* duplicate prevention
+* daily job logic
+If we get this wrong:
+?? the rebuild fails, even if UI looks good
+If we get this right:
+?? the rebuild becomes clean, powerful, and stable
+
+What we’ll do next (cleanly)
+We won’t try to do all rules at once.
+We’ll break it into controlled sections:
+6. Business Rules (we will fill this properly)
+We’ll go through:
+1. Milestone logic
+2. Milestone completion behaviour
+3. Vendor vs purchaser structure
+4. Exchange gating (blocks_exchange)
+5. “Ready to exchange” logic
+6. Time-sensitive milestones
+7. Reminder rule logic
+8. Reminder generation (daily job)
+9. Duplicate prevention
+10. Task creation logic
+
+Your role here (important)
+I will propose the structure and logic.
+You sanity check it against:
+?? how your app actually behaves in the real world
+This is where your experience matters more than anything.
+
+One rule for this phase
+We do NOT move on until:
+* logic is clear
+* edge cases are covered
+* wording is precise
+* you say “yes, that matches reality”
+
+Next move
+Let’s start with the most important piece:
+?? Milestone Logic + Completion Behaviour
+This is the base layer everything else depends on.
+
+If you’re ready, say:
+?? “milestones”
+and we’ll define it properly (this is where it starts getting properly real).
+Perfect. This is the first part we really need to get right.
+What milestones are in this system
+Milestones are not just labels on a progress bar.
+In Sales Progressor, a milestone does three jobs:
+1. it shows where the transaction is
+2. it helps control what should happen next
+3. it acts as a trigger for reminders, tasks, and exchange readiness logic
+So the milestone system needs to be treated as core business logic, not just UI.
+
+Proposed milestone model
+1. Milestone Definitions are templates
+A Milestone Definition is the master version of a milestone.
+Examples:
+* Solicitor instructed
+* Draft contract received
+* Searches ordered
+* Enquiries raised
+* Mortgage offer issued
+* Signed contracts returned
+* Deposit transferred
+* Ready to exchange
+These live at the system level and define:
+* name
+* side
+* order
+* whether it blocks exchange
+* whether it is time sensitive
+They are not tied to one file until a completion is created.
+
+2. Milestone Completions are transaction specific
+A Milestone Completion is the record that says:
+this milestone has been completed on this transaction
+So:
+* the definition is the template
+* the completion is the instance on a real file
+This is the right model because a milestone can be completed:
+* once on one file
+* later on another file
+* deactivated/reactivated if needed
+
+3. Vendor and purchaser milestones stay separate
+This is non negotiable.
+Even if milestone names feel similar, vendor side and purchaser side must remain separate because:
+* they progress differently
+* they trigger different reminders
+* they can block exchange independently
+* they can complete at different times
+So the system should never treat “signed contracts returned” as one universal milestone unless it is explicitly separated by side.
+That means:
+* Vendor signed and returned contracts
+* Purchaser signed and returned contracts
+are separate definitions.
+
+Completion behaviour
+4. Milestones are completed by creating a completion record
+When a user marks a milestone complete, the system should create a Milestone Completion record.
+That record should include:
+* transaction
+* milestone definition
+* active state
+* completed at timestamp
+* optional completed by user
+So the milestone itself is not “ticked” on the definition.
+A completion record is created against the file.
+
+5. Completions must use active/inactive state, not hard deletion
+This is really important.
+If a user re-clicks, reverses, or corrects a milestone, we should not delete history.
+Instead:
+* old completion can become inactive
+* new completion can become active if needed
+Why this is right:
+* preserves audit trail
+* avoids weird hidden data loss
+* makes reminder logic safer
+* mirrors how your Bubble logic already works
+So for any transaction + milestone definition:
+* there may be multiple completion records over time
+* but only one should normally be active
+
+6. Active completion is the live truth
+For system logic, the only completion that counts is the active one.
+That means:
+* progress state
+* prerequisite logic
+* reminder triggers
+* exchange checks
+should use:
+active completion exists = yes/no
+Inactive completions are history, not current truth.
+
+7. Completion timestamps matter
+Every active completion should store when it was completed.
+This matters because:
+* some reminders are based on completion timing
+* reporting/timeline views need chronology
+* time sensitive follow ups may depend on it
+So completed_at is not optional in practice.
+
+Sequence and order
+8. Milestones should have an order index
+Each milestone definition should have an order_index within its side.
+This does not mean the system blindly forces strict linear progression.
+It does mean:
+* UI can display the progression logically
+* system can reason about “before” and “after”
+* reminders can use preceding milestone concepts
+* exchange checks can understand what stage the file is broadly at
+So order exists for structure, but not every later milestone must require every earlier milestone unless explicitly defined.
+That distinction matters.
+
+9. Order is guidance, not the only logic
+This is important because property transactions are messy.
+A file may not move in a perfectly tidy sequence every time.
+So:
+* order helps orient the system
+* but true logic should rely on rules and completions, not just “everything above must be done”
+Otherwise you get false blocks and weird exceptions.
+
+Availability and prerequisites
+10. Some milestones may have prerequisite logic
+A milestone may only become meaningfully available once another milestone is complete.
+Example:
+* you would not normally complete “draft contract received” before “solicitor instructed”
+So each milestone may optionally have:
+* prerequisite milestone(s)
+This is not necessarily about hard blocking the UI at first.
+It may simply be used to:
+* validate workflow
+* power logic
+* flag odd states
+* guide what can trigger reminders
+We should decide later whether prerequisites are:
+* soft guidance only
+* or hard restrictions in the UI
+My recommendation for V1:
+store the logic, but don’t over-police the UI initially
+That keeps the system practical.
+
+What this means in practice
+The milestone engine should follow these rules
+Rule 1
+Milestone Definitions are templates, not file progress.
+Rule 2
+Progress on a file is represented by Milestone Completions.
+Rule 3
+Vendor and purchaser milestones remain separate definitions.
+Rule 4
+A milestone completion is never the definition itself being edited. It is a separate record tied to a transaction.
+Rule 5
+Completions are deactivated, not deleted, when reversed or superseded.
+Rule 6
+Only active completions count for live logic.
+Rule 7
+Completions carry timestamps and should ideally also store who completed them.
+Rule 8
+Milestone order exists for structure and reasoning, but should not be the only enforcement mechanism.
+Rule 9
+Prerequisites may exist, but strict lockout should be used carefully.
+
+My recommendation for the blueprint wording
+This is what I’d lock in next:
+6.1 Milestone logic
+* Milestone Definitions are template records that define the progression structure for each side of the transaction.
+* Property Transactions do not store milestone progress directly on the transaction record.
+* Progress is represented through Milestone Completions tied to a transaction and milestone definition.
+* Vendor and purchaser milestones remain separate definitions even where the milestone names are similar.
+* Milestone Definitions include order, side, and core behaviour flags such as blocks_exchange and time_sensitive.
+6.2 Milestone completion behaviour
+* Marking a milestone complete creates a Milestone Completion record for that transaction.
+* Milestone Completions use is_active state rather than hard deletion.
+* Only active completions count as the current truth for logic, progress display, and reminder generation.
+* Inactive completions remain as historical records for auditability.
+* Completion records store at minimum the transaction, milestone definition, active state, and completion timestamp.
+* Milestone ordering supports structure and system reasoning, but does not by itself define all business logic.
+
+Do not go to Claude yet
+Still stay here.
+Why:
+we still need to define:
+* exchange gating
+* ready to exchange logic
+* reminder rule logic
+* time sensitive milestone behaviour
+Those are the parts Claude would guess badly if we jumped now.
+
+What I need from you now
+Pressure test this milestone logic against your real app.
+Tell me:
+1. does this match how you want milestones to behave overall?
+2. do you want prerequisites to be soft or hard in V1?
+3. when a milestone is reversed, do you always want the previous completion kept as inactive history?
+Once you confirm, I’ll lock this into the blueprint and move to:
+exchange gating + blocks exchange.
+Perfect. That’s a genuinely important rule and it makes the system better.
+We’ve now locked these milestone truths:
+* buyer and seller milestones are hard ordered
+* agent side milestones are flexible
+* if someone completes a later agent milestone while an earlier related one is missing, the system should prompt to complete the earlier one too
+* reversals keep history as inactive, not deleted
+That is exactly the sort of detail Claude would never infer properly on its own.
+Still do not go to Claude
+Not yet.
+We are still in definition mode, and the next piece is just as important:
+Exchange gating
+This is where we define:
+* what blocks_exchange really means
+* how “ready to exchange” is actually determined
+* what should and should not block it
+* whether exchange/completion milestones are excluded from the “everything done” check
+That piece matters because a lot of your workflow logic hangs off it.
+Next section
+I’m going to propose the rules for:
+* blocks_exchange
+* ready to exchange
+* how the system decides a file can generate exchange-related reminders
+Say:
+exchange gating
+and I’ll do that next.
+Good. This is one of the most important parts of the whole rebuild.
+Because “ready to exchange” sounds simple, but in your system it is not just:
+someone clicks a checkbox
+It is:
+the system deciding that all genuinely exchange-blocking conditions have been satisfied, while ignoring things that should not prevent the check from happening.
+That distinction is everything.
+Proposed exchange gating model
+1. blocks_exchange lives on milestone definitions
+Each milestone definition can carry a boolean flag:
+* blocks_exchange = yes
+* blocks_exchange = no
+This means:
+if this milestone is still incomplete on the transaction, it counts as something that prevents the file being considered ready to exchange
+This is the cleanest approach because it keeps exchange logic tied to the milestone structure itself, not buried in random conditions elsewhere.
+
+2. Exchange readiness is not a manual status first
+The system should not treat “ready to exchange” as just a free-floating status someone manually selects.
+It should primarily be a derived state based on milestone completion logic.
+Manual override may exist later if you want one, but the core truth should be:
+the file is ready to exchange when all required exchange-blocking milestones that apply have active completions
+That is much safer and far more consistent.
+
+3. Exchange gating should check both sides of the transaction
+A transaction is only genuinely ready to exchange when the required blocking milestones on:
+* vendor side
+* purchaser side
+* relevant agent side, if any
+have all been completed.
+It cannot just look at one side.
+
+4. Only active completions count
+Like everything else in this system:
+* active completion = counts
+* inactive completion = history only
+So when checking whether a blocking milestone is satisfied, the system must check for an active milestone completion.
+
+5. Not every milestone should block exchange
+This is really important.
+There will be milestones that are useful for tracking and workflow, but should not be part of the exchange gate.
+Examples of likely exchange blockers:
+* signed contracts returned
+* deposit transferred
+* solicitor instructed
+* draft contract pack received
+* key legal / mortgage / enquiry milestones where relevant
+Examples of things that may not block exchange:
+* informational admin steps
+* internal housekeeping
+* later completion-only items
+* milestones that are helpful but not essential to exchange readiness
+So blocks_exchange needs to be selective, not broad by default.
+
+6. Exchange and completion milestones themselves should be excluded from the blocking test
+This is a key rule.
+When the system checks whether the file is ready to exchange, it should not require:
+* exchange itself
+* completion itself
+* any milestone that only happens after exchange readiness
+Otherwise you get nonsense circular logic:
+“You are not ready to exchange until exchange is complete.”
+So the rule should be:
+readiness is determined by all relevant blocking milestones that occur before exchange, excluding exchange and completion milestones themselves
+This matches how you described it before.
+
+7. “Ready to exchange” reminder logic should only unlock once the gate is passed
+The system should not generate exchange-readiness reminders too early.
+So for reminders like:
+* confirm solicitor is ready to exchange
+* exchange date agreement prompts
+* related pre-exchange follow ups
+there should be a condition like:
+only generate once all non-exchange blocking milestones are satisfied
+That way those reminders only appear when the file is actually in the right stage.
+
+8. Readiness should be recalculable, not one-time
+This is also important.
+A file may become ready to exchange, then later something changes:
+* a milestone is reversed
+* a correction is made
+* something is re-opened
+* data is adjusted
+So “ready to exchange” should not be a one-time permanent event unless explicitly locked.
+It should be a derived/recomputable state the system can evaluate whenever needed.
+That gives you safer logic and avoids drift between reality and system state.
+
+9. “Ready to exchange” can still have a milestone or reminder layer
+This part matters for UX.
+Even though readiness is derived, you may still want:
+* a visible “ready to exchange” milestone
+* a reminder rule tied to readiness
+* UI sections that say “Exchange ready”
+That is fine.
+But the important design principle is:
+the visible label is downstream of the gate, not the source of truth for the gate
+In other words:
+* derived state first
+* visible operational marker second
+
+Practical rule set
+Exchange readiness rule
+A transaction is considered ready to exchange when:
+1. all milestone definitions flagged blocks_exchange = yes
+2. that are relevant to the transaction
+3. and occur before exchange/completion
+4. have an active milestone completion
+That is the cleanest core rule.
+
+Reminder unlock rule
+Reminder rules related to exchange readiness should only generate when:
+* exchange readiness condition = true
+This includes things like:
+* confirm solicitor is ready to exchange
+* start exchange coordination
+* pre-exchange date alignment tasks
+
+Reversal rule
+If a blocking milestone that was previously complete becomes inactive again, the file should no longer be treated as ready to exchange until the condition is restored.
+That keeps the state honest.
+
+One thing we should define carefully
+There is one subtle but important point:
+“Relevant to the transaction”
+Some blocking milestones may only apply in certain cases.
+For example, not every transaction has the same shape:
+* mortgage vs cash buyer
+* search-dependent steps
+* chain complexity
+* optional internal steps
+So eventually we may want:
+* milestone applicability rules
+or
+* transaction type / flags that determine whether a blocking milestone is expected
+For now, the clean V1 rule is:
+only milestones that exist in the active progression model for that transaction can block exchange
+That keeps the logic usable without overengineering it.
+
+Blueprint wording I’d lock in
+6.13 Exchange gating uses blocking milestone definitions
+Exchange gating is controlled by milestone definitions flagged as blocks_exchange = yes.
+6.14 A file is ready to exchange only when all relevant blocking milestones are actively complete
+A transaction is considered ready to exchange only when all relevant pre-exchange blocking milestones have an active completion.
+6.15 Exchange and completion milestones do not count as prerequisites for exchange readiness
+Milestones that represent exchange itself, completion itself, or post-exchange events are excluded from the readiness gate.
+6.16 Exchange-related reminders unlock only after readiness is satisfied
+Reminder rules and tasks tied to exchange readiness must only generate once the exchange gate is satisfied.
+6.17 Exchange readiness is recalculable
+Exchange readiness is a derived state and must be recalculated if milestone completion states change.
+6.18 Reversing a blocking milestone removes exchange readiness
+If an active completion on a blocking milestone is reversed or becomes inactive, the transaction should no longer be considered ready to exchange unless the condition is restored.
+
+Do not go to Claude yet
+Still no.
+We still need:
+* time-sensitive milestones
+* reminder rules
+* reminder logs
+* daily generation behaviour
+* duplicate prevention
+* task creation
+Those are the engine.
+
+Pressure test this for me
+I need you to confirm whether this matches your real-world logic:
+1. Do you agree that “ready to exchange” should be derived, not just manually set?
+2. Do you agree exchange and completion milestones themselves must be excluded from the blocking check?
+3. Do you want agent-side milestones to be able to block exchange too, where flagged, or only buyer/seller side?
+Once you confirm, I’ll lock this into the blueprint and move to:
+time-sensitive milestones.
+Perfect. That’s a strong rule and it gives us something much cleaner than a vague checkbox system.
+We’ve now locked these truths:
+* readiness to exchange is derived
+* exchange/completion milestones are excluded from the gate
+* agent-side flow can stay operationally flexible
+* that flexibility does not allow agents to bypass exchange gating
+* a milestone can be explicitly marked not required
+* “not required” must be visible and auditable, not an invisible workaround
+That last one is especially important. It means later we’ll probably want milestone state to be more like:
+* incomplete
+* complete
+* not required
+rather than a simplistic tick/no tick model.
+Do not go to Claude yet
+Still no.
+We’re still defining the engine. The next piece is:
+Time-sensitive milestones
+This is where we define the difference between:
+* a milestone being confirmed
+and
+* the real-world event date the reminder logic should actually use
+Like your valuation/survey example.
+This matters because otherwise the coded version will generate the wrong dates even if everything else looks right.
+Say:
+time sensitive
+and I’ll do that next.
+Good. This is another one that looks small on the surface but is actually a core logic rule.
+Because in your system, some milestones are not really about:
+when we confirmed it in the app
+They are about:
+when the real-world event is actually due to happen or actually happened
+That changes the reminder logic completely.
+Proposed time-sensitive milestone model
+1. Some milestones need an event date, not just a completion date
+Most milestones can work off:
+* completion confirmed
+* completed at timestamp
+But some milestones need a separate event date.
+Example:
+* Mortgage valuation booked
+* Level 2 survey booked
+* Level 3 survey booked
+Why:
+because the follow up should not be based on:
+the day someone ticked “booked”
+It should be based on:
+the actual valuation date or survey date
+That is the whole point of time sensitivity.
+
+2. Completion date and event date are not the same thing
+For time-sensitive milestones, we need to store both:
+* completed_at = when the user marked the milestone complete
+* event_date = when the real-world booked event is taking place, or took place
+These must remain separate.
+Because someone might confirm on Monday:
+“valuation booked”
+but the valuation itself might be on Friday.
+If the system uses Monday, the reminder comes too early.
+If it uses Friday, it works properly.
+
+3. Time-sensitive logic should live on the milestone definition
+The milestone definition should carry:
+* time_sensitive = yes/no
+This tells the system:
+this milestone requires event-based logic, not just completion-based logic
+That way the behaviour is driven by the milestone type, not improvised per file.
+
+4. Time-sensitive milestones should require an event date when completed
+If a milestone definition is marked time_sensitive = yes, then when a user completes it, the UI should require:
+* event date
+* optionally event notes if useful later
+So for example:
+* user marks “Mortgage valuation booked” complete
+* system asks for the actual valuation date
+That becomes part of the completion record.
+This should be a hard requirement for those milestone types.
+
+5. Reminder generation should use event date for time-sensitive milestones
+This is the main rule.
+For time-sensitive milestones:
+* reminder due dates should be based on event_date
+* not on completed_at
+So if your rule is:
+create a chase 7 days after the valuation date
+the system should calculate:
+event_date + 7 days
+not:
+completion date + 7 days
+
+6. Event date can be future dated
+This is important.
+A time-sensitive milestone may be completed today even though the event is in the future.
+Example:
+* survey booked today
+* survey happening next week
+That is fine.
+The milestone can still be complete, because the booking has happened.
+But the logic that follows should wait for the actual event date.
+So the system must be comfortable with:
+* active completion exists
+* event date is in the future
+That is not an error.
+
+7. If event date changes, downstream due dates should update
+Another important rule.
+If someone changes:
+* valuation date
+* survey date
+then any downstream reminder logic that depends on that date should be recalculated.
+Otherwise the system becomes stale and starts chasing at the wrong time.
+So for time-sensitive milestones:
+* date edits must trigger a recalculation of dependent next due dates
+
+8. Time-sensitive milestones can still count as complete
+This is subtle but important.
+A booked event milestone should still count as:
+* complete for progress display
+* complete for any logic where “booking confirmed” is the relevant state
+It is only the date-driven follow up logic that should use event_date.
+So:
+* completion truth = booking exists
+* scheduling truth = actual event date
+That distinction keeps the system sane.
+
+9. Not every date field should become time-sensitive
+We should keep this narrow and deliberate.
+Only milestones where the real-world event date matters to follow-up logic should use this pattern.
+Otherwise the system gets overcomplicated.
+For now, the obvious examples are:
+* mortgage valuation booked
+* level 2 survey booked
+* level 3 survey booked
+Later you can expand if needed.
+
+Practical rule set
+Rule 1
+Time-sensitive behaviour is defined at the milestone definition level.
+Rule 2
+Time-sensitive milestones require an event date on completion.
+Rule 3
+Completion timestamp and event date are separate fields.
+Rule 4
+Reminder due dates for time-sensitive milestones are calculated from event date, not completion date.
+Rule 5
+If event date changes, dependent reminder dates must be recalculated.
+Rule 6
+A time-sensitive milestone can still count as complete even if the event date is in the future.
+
+What this means for the data model
+We likely want the Milestone Completion record to include:
+* completed_at
+* event_date nullable
+* maybe event_date_type later if ever needed, but not necessary now
+That gives us enough to support the logic properly.
+
+Blueprint wording I’d lock in
+6.21 Time-sensitive behaviour is defined by milestone definition
+Milestone Definitions may be flagged as time_sensitive = yes where reminder and follow-up logic must use a real-world event date rather than only the completion timestamp.
+6.22 Time-sensitive milestone completions require an event date
+When a time-sensitive milestone is completed, the completion record must store the relevant event date.
+6.23 Completion timestamp and event date are separate
+For time-sensitive milestones, completed_at records when the system action occurred, while event_date records when the real-world booked event is scheduled or took place.
+6.24 Dependent reminder logic uses event date
+Reminder due dates and downstream scheduling logic tied to time-sensitive milestones must be calculated from event_date, not completed_at.
+6.25 Event date changes trigger recalculation
+If the event date on a time-sensitive milestone completion is amended, dependent reminder dates must be recalculated.
+6.26 Time-sensitive milestones can be complete before the event occurs
+A time-sensitive milestone may count as complete once the underlying booking or action is confirmed, even if the related event date is still in the future.
+What I need from you
+Pressure test two things:
+1. Do you want event date stored directly on Milestone Completion for these milestones?
+2. Do you want the system to allow editing of event date later and automatically refresh dependent reminder dates?
+Do not go to Claude yet
+Still not yet.
+The next section after this is the real engine:
+Reminder Rules and Reminder Generation
+That is the last major architecture-heavy piece before we can even think about moving toward implementation.
+Perfect. We’ve now locked:
+* event_date lives on Milestone Completion as the logic source
+* important dates can also be surfaced on the Property Transaction for visibility/reporting
+* editing an event date must:
+o recalculate dependent reminder dates
+o create an audit/activity entry
+That’s exactly the right split between:
+* truth for logic
+* convenience for visibility
+Still do not go to Claude
+Not yet.
+We’re still defining the core engine, and the next part is the biggest one left:
+Reminder Rules + Reminder Generation
+This is where we define:
+* what a reminder rule actually is
+* what a reminder log actually is
+* when logs are created
+* how next_due_date is set
+* what the daily job does
+* how duplicates are prevented
+* how exchange-ready reminders are gated
+* how time-sensitive milestones feed into this
+Once this bit is done, we’ll be much closer to the point where I tell you:
+?? now go to Claude
+Because after that, the core architecture is largely in place.
+Next step
+Say:
+reminder rules
+and I’ll do the next section properly.
+Good. This is the heart of the engine.
+If milestones tell us where the file is, reminder rules tell us what should happen because of that.
+This is also the part most likely to become messy if it isn’t defined properly first.
+Proposed reminder model
+1. Reminder Rules are templates, not live reminders
+A Reminder Rule is a system definition that explains:
+when a certain condition is met, create or update a reminder for this kind of follow up
+So a Reminder Rule is not the thing a user acts on directly.
+It defines:
+* what milestone or event triggers it
+* what milestone or situation it relates to
+* how many days after the trigger it should become due
+* whether it depends on exchange readiness
+* whether it uses a time-sensitive event date
+This keeps the logic reusable and consistent.
+
+2. Reminder Logs are live transaction-specific reminder instances
+A Reminder Log is the actual reminder instance created for a specific transaction from a Reminder Rule.
+So:
+* Reminder Rule = template
+* Reminder Log = live instance on a file
+That means a Reminder Log should carry:
+* transaction
+* reminder rule
+* next due date
+* status
+* maybe last evaluated/generated timestamp later if useful
+* audit trail/history eventually
+This is the right split because the same rule can apply to hundreds of files, but each file needs its own live state.
+
+3. Reminder Rules should connect anchor and target logic
+A reminder rule should usually represent something like:
+once anchor milestone/event happens, create follow up logic relating to target milestone or target action
+Examples:
+* once solicitor instructed is complete, set reminder for ID/AML checks
+* once valuation booked is complete, set reminder 7 days after the valuation date
+* once contracts signed and deposit transferred are complete, allow ready-to-exchange reminder flow
+So each rule should be able to express:
+* anchor
+* target
+* delay
+* condition flags
+That matches your current model well.
+
+4. Anchor drives due date creation
+The anchor is the thing that starts the rule.
+That could be:
+* a milestone completion
+* a time-sensitive event date
+* an exchange-ready state
+In normal cases:
+* anchor milestone is completed
+* due date becomes anchor date + delay
+In time-sensitive cases:
+* anchor milestone is completed
+* due date becomes event date + delay
+In exchange-ready cases:
+* due date becomes active only once readiness condition is true
+
+5. next_due_date belongs on the Reminder Log
+The live due date for a reminder should sit on the Reminder Log, not only be calculated ad hoc every time.
+Why:
+* it is easier to display
+* easier to filter
+* easier to generate chase tasks from
+* easier to audit changes
+* easier to understand why something is due
+So the system should calculate the due date and store it on the Reminder Log.
+
+6. Reminder generation should be idempotent
+This is one of the biggest rules in the whole app.
+The daily process must be safe to run repeatedly without creating duplicates or corrupting state.
+That means:
+* if a relevant Reminder Log already exists and is active, the system updates or leaves it alone
+* it does not blindly create another one
+* if the due date changes, it updates the existing live log where appropriate
+* if the rule is no longer valid, it can deactivate/cancel the log depending on the scenario
+In plain English:
+running the job twice should not create double reminders
+
+7. One live Reminder Log per transaction + rule + active state
+For a given transaction and reminder rule, there should normally be only one live active Reminder Log at a time.
+History can exist:
+* old inactive logs
+* cancelled logs
+* completed logs
+But the live system should not have:
+* multiple active logs representing the same current reminder condition
+That is the cleanest anti-duplicate rule.
+
+8. Reminder status should be explicit
+A Reminder Log should have a status like:
+* active
+* completed
+* cancelled
+* inactive
+We can finalise naming later, but the idea is:
+* active = live and relevant
+* completed = resolved
+* cancelled/inactive = no longer relevant or superseded
+This matters for clean filtering and auditability.
+
+9. Reminder Rules can be gated by exchange readiness
+Some reminder rules should only exist once a file becomes exchange ready.
+Example:
+* confirm solicitor is ready to exchange
+These rules should not generate early just because some milestone happened.
+So a Reminder Rule should support a flag like:
+* requires_exchange_ready = yes/no
+If yes:
+* the rule only becomes valid once the derived exchange-readiness condition is true
+This maps neatly to your existing approach.
+
+10. Reminder Rules must respect “not required”
+If a milestone or condition has been explicitly marked:
+* not required
+then the reminder engine must treat that as satisfying the relevant condition where appropriate.
+Example:
+* deposit transferred is marked not required because funds are from sale proceeds
+* exchange gating should still pass if all other relevant blockers are satisfied
+That means reminder evaluation cannot just check:
+completion yes/no
+It needs to check:
+complete OR explicitly not required
+
+11. Time-sensitive rules must use event date, not completion date
+This follows directly from what we already defined.
+If the anchor milestone is time-sensitive, then:
+* due date = event_date + delay
+* not completed_at + delay
+So Reminder Rules should either:
+* infer this from the milestone definition
+or
+* explicitly support date source
+For clarity, I’d say:
+the system infers it from the anchor milestone definition.
+
+12. Reminder Rules should be auditable and understandable
+A user or admin should later be able to understand:
+* why a reminder exists
+* what triggered it
+* what date it used
+* when that due date changed
+So even if we do not expose every detail in V1 UI, the system design should preserve that traceability.
+That means a Reminder Log should eventually be able to show:
+* source rule
+* source anchor
+* calculated due date
+* current status
+* last updated reason
+
+Practical rule set
+Rule 1
+Reminder Rules are reusable templates, not live reminders.
+Rule 2
+Reminder Logs are transaction-specific live instances generated from Reminder Rules.
+Rule 3
+Reminder due dates are stored on Reminder Logs as next_due_date.
+Rule 4
+For any transaction and reminder rule, there should normally be only one active live Reminder Log.
+Rule 5
+Reminder generation must be idempotent and duplicate-safe.
+Rule 6
+Exchange-related reminder rules only activate when exchange readiness is satisfied.
+Rule 7
+Where a relevant milestone is marked not required, reminder evaluation must treat that explicitly rather than assuming incomplete.
+Rule 8
+If the anchor milestone is time-sensitive, due dates use event_date, not completed_at.
+Rule 9
+Reminder logs must be auditable and understandable.
+
+What I’d add to the data model
+Reminder Rule
+Fields I’d expect at high level:
+* id
+* name
+* anchor_milestone_definition_id
+* target_milestone_definition_id or target_action_type
+* delay_days
+* requires_exchange_ready
+* active
+* maybe side later if needed
+* maybe description
+Reminder Log
+Fields I’d expect:
+* id
+* transaction_id
+* reminder_rule_id
+* next_due_date
+* status
+* created_at
+* updated_at
+* source_date_used
+* status_reason optional
+You do not need every one of these perfect yet, but this is the shape.
+
+One thing to decide carefully
+There is an important distinction:
+Is the target always another milestone?
+Sometimes yes.
+Sometimes no.
+Examples:
+* “ID/AML checks” feels milestone-linked
+* “confirm solicitor is ready to exchange” is almost more of an action/check than a milestone completion
+* some reminders may be operational chases rather than milestone completions
+So I think we should allow Reminder Rules to point to either:
+* a target milestone definition
+or
+* a target action type / reminder purpose
+That keeps it flexible without hacking everything into milestone-only logic.
+
+Blueprint wording I’d lock in
+6.28 Reminder Rules are reusable templates
+Reminder Rules define when reminder logic should apply, based on anchor events, delays, gating conditions, and target purpose.
+6.29 Reminder Logs are live transaction-specific instances
+Reminder Logs are transaction-specific records generated from Reminder Rules and represent the live reminder state for a file.
+6.30 Reminder Logs store the live due date
+The live due date for a reminder is stored on the Reminder Log as next_due_date.
+6.31 Reminder generation must be idempotent
+Reminder generation must be safe to run repeatedly without creating duplicate active logs for the same transaction and rule state.
+6.32 One active reminder log per transaction and rule
+For a given transaction and reminder rule, the system should normally allow only one active live Reminder Log at a time.
+6.33 Exchange-gated reminder rules unlock only when readiness is satisfied
+Reminder Rules that depend on exchange readiness must only generate once the transaction satisfies exchange gating conditions.
+6.34 Reminder evaluation must respect not required milestone state
+Where a relevant milestone is explicitly marked not required, reminder evaluation must treat that state appropriately rather than treating the milestone as incomplete.
+6.35 Time-sensitive anchor logic uses event date
+Where the anchor milestone is time-sensitive, reminder due dates must be calculated using the milestone event date rather than the completion timestamp.
+6.36 Reminder logic must be auditable
+The system must preserve enough information to explain why a reminder exists, what date was used to calculate it, and when its state changed.
+Do not go to Claude yet
+Still not yet.
+We’re close, but the next piece is still part of the engine:
+Reminder generation workflow
+That is the operational layer:
+* when the job runs
+* what it checks
+* whether it creates logs or tasks first
+* how task creation works
+* how overdue is determined
+* what gets regenerated vs updated
+That is the last major definition piece before I tell you:
+?? now it makes sense to start preparing Claude work.
+Pressure test this for me
+Three key questions:
+1. Do you agree one live active Reminder Log per transaction + rule is the right default?
+2. Do you want Reminder Rules to support targets that are not always milestones, like exchange checks and other actions?
+3. When a rule becomes invalid later, do you generally want the existing live Reminder Log:
+o deactivated/cancelled
+o or left completed/history-only but no longer active?
+Once you answer those, I’ll do:
+reminder generation workflow.
+Perfect. That’s now a strong rule:
+* one live reminder log per transaction + rule
+* reminder targets can be milestone outcomes or operational actions
+* if a rule stops applying, the live log is deactivated, not left hanging around as active
+That’s the right behaviour.
+Still do not go to Claude
+Not yet.
+We’ve defined the rule objects, but we still need the operational workflow:
+Reminder generation workflow
+This is the last big engine piece before it makes sense to start implementation planning.
+
+What this section needs to define
+We need to lock:
+1. when the generation process runs
+2. what it checks
+3. whether it creates reminder logs or chase tasks first
+4. when tasks are created from reminders
+5. how overdue is determined
+6. how due dates are updated if source logic changes
+7. what happens when a reminder becomes invalid
+8. how exchange-gated reminders are held back
+9. how time-sensitive reminder dates are calculated
+10. how the job stays duplicate-safe
+
+Proposed reminder generation workflow
+1. The system should have a scheduled recurring job
+There should be a recurring background job that evaluates reminder rules across active transactions.
+This should be:
+* automated
+* central
+* not dependent on users opening pages
+* not dependent on front-end events firing
+This replaces the fragile feeling of UI-led automation.
+For now, the exact time does not matter architecturally, but the principle does:
+reminder evaluation runs from a scheduled backend job
+
+2. The job should evaluate active transactions only
+The reminder generation process should only evaluate transactions where reminder logic is still relevant.
+Normally this means:
+* active transactions
+* maybe on hold transactions depending on your chosen behaviour later
+* not completed
+* not withdrawn
+My recommendation for V1:
+* active only
+* optionally pause on-hold files unless you later choose otherwise
+That keeps the logic clean.
+
+3. The job should evaluate reminder rules against each transaction state
+For each relevant transaction, the job should:
+* inspect milestone completion state
+* inspect not required state
+* inspect exchange readiness
+* inspect event dates where relevant
+* inspect existing reminder logs
+* determine whether each rule is:
+o valid and active
+o not yet valid
+o due for update
+o no longer valid
+This means the reminder engine is really:
+transaction state + rule definitions ? live reminder log state
+
+4. Reminder Logs should be created before Chase Tasks
+This is important.
+The system should not create chase tasks directly from raw milestone logic.
+Instead:
+1. evaluate rule
+2. create or update Reminder Log
+3. if Reminder Log is due/eligible, create Chase Task from it
+That is cleaner because Reminder Logs become the stable middle layer between:
+* system logic
+* human tasks
+This also makes auditing much easier.
+
+5. Reminder Logs should be created or updated, not blindly recreated
+For each transaction + rule:
+if no active log exists and rule is now valid
+* create a new active Reminder Log
+* set next_due_date
+if active log exists and rule is still valid
+* leave it alone if date/state unchanged
+* update it if source date or rule condition changed
+if active log exists and rule is no longer valid
+* deactivate it
+This is the idempotent behaviour we want.
+
+6. next_due_date should come from the correct date source
+When calculating next_due_date:
+normal milestones
+use:
+* completed_at + delay_days
+time-sensitive milestones
+use:
+* event_date + delay_days
+exchange-ready rules
+use:
+* the date readiness became true, or immediate due logic depending on how we want those handled
+We should decide one subtle point there:
+For exchange-gated rules, do you want:
+* due immediately when ready
+or
+* due ready date + delay
+My guess is:
+most of these should be immediate or same day, unless the rule says otherwise.
+
+7. Chase Tasks should be created from eligible Reminder Logs
+A Chase Task should be created only when a Reminder Log is due and actionable.
+That means the logic should be something like:
+* Reminder Log is active
+* next_due_date <= today
+* no current open Chase Task already exists for that live reminder state
+Then:
+* create Chase Task
+This keeps tasks from being created too early.
+
+8. Only one open Chase Task per live reminder state
+Just like reminder logs, tasks also need duplicate protection.
+For a given active Reminder Log:
+* there should normally be only one current open Chase Task representing that live reminder state
+If the existing open task is still active, do not create another.
+If it has been completed and the reminder remains live and later becomes due again, then a new task may be created depending on recurrence model.
+For now, the safest V1 rule is:
+* one open task per active live reminder state
+
+9. Overdue is derived from due date and task status
+A reminder or task becomes overdue when:
+* it is still active/open
+* and the due date has passed
+So overdue is not a separate magical state.
+It is derived from:
+* current status
+* due date vs today
+This keeps things consistent and easy to reason about.
+
+10. Rule invalidation deactivates live Reminder Logs and should also close the task path
+If a Reminder Log becomes invalid because:
+* milestone reversed
+* exchange readiness lost
+* rule conditions no longer met
+* milestone marked not required changes logic
+then:
+* active Reminder Log should be deactivated
+* any linked open Chase Task should either be deactivated/cancelled or marked no longer relevant
+My recommendation:
+use a clean inactive/cancelled state, not silent disappearance.
+That preserves traceability.
+
+11. On-hold files should probably pause generation
+This is a decision worth locking now or soon.
+My recommendation:
+* if transaction status = on_hold
+* reminder generation pauses
+* existing active logs/tasks can remain visible but not generate new operational churn unless manually resumed
+That usually matches real-life expectations better than continuing to chase everything on hold.
+If you want a different rule, we can set it.
+
+12. Reminder generation should produce audit/activity entries for meaningful changes
+The system should log meaningful lifecycle events like:
+* reminder log created
+* due date changed
+* reminder log deactivated
+* chase task created
+* chase task deactivated because reminder became invalid
+Not every low-level evaluation needs a visible activity line, but key state changes should be auditable.
+
+Practical workflow summary
+Daily recurring job
+Runs on a schedule and evaluates active transactions.
+For each transaction
+Checks:
+* current milestone state
+* active/inactive completions
+* not required state
+* exchange readiness
+* event dates
+* reminder rule definitions
+* existing active reminder logs
+Then for each rule
+* create log if newly valid
+* update log if still valid but date/state changed
+* deactivate log if no longer valid
+Then
+* create chase task only when active log is due
+* do not duplicate open tasks
+* mark overdue based on due date
+That is the clean shape.
+
+Blueprint wording I’d lock in
+6.39 Reminder generation runs from a scheduled backend process
+Reminder rule evaluation must run from a recurring backend job rather than relying on front-end activity.
+6.40 Reminder generation evaluates active transactions against current rule conditions
+The scheduled process evaluates each relevant active transaction against milestone state, not required state, event dates, exchange readiness, and reminder rule definitions.
+6.41 Reminder Logs are created or updated before Chase Tasks are generated
+Reminder Logs act as the system layer between reminder logic and human task creation. Chase Tasks are created from eligible Reminder Logs rather than directly from milestone logic.
+6.42 Valid rules create or update live Reminder Logs
+If a rule becomes newly valid, the system creates a live Reminder Log. If the rule remains valid and source conditions change, the existing live Reminder Log is updated.
+6.43 Invalid rules deactivate live Reminder Logs
+If a rule no longer applies because source conditions are no longer met, the live Reminder Log is deactivated.
+6.44 Chase Tasks are created only from due active Reminder Logs
+A Chase Task is only created when its related Reminder Log is active, due, and does not already have an equivalent open live task.
+6.45 Duplicate open Chase Tasks must be prevented
+For a given live reminder state, the system should normally allow only one open Chase Task at a time.
+6.46 Overdue state is derived
+Overdue state is derived from active/open status and due date rather than stored as a separate uncontrolled state.
+6.47 Rule invalidation should also deactivate related open task paths
+Where a live Reminder Log is deactivated because a rule no longer applies, related open Chase Tasks should also be deactivated or marked no longer relevant in an auditable way.
+6.48 On hold transactions pause reminder generation
+Transactions marked on hold should pause reminder generation unless intentionally resumed by later logic or manual action.
+6.49 Meaningful reminder lifecycle changes must be auditable
+The system must record meaningful reminder lifecycle changes such as creation, due date recalculation, deactivation, and task creation.
+
+Two key questions before I lock this
+1. Do you agree that Reminder Logs should come before Chase Tasks, with tasks generated from logs rather than directly from rules?
+2. Do you want on hold files to pause reminder generation by default?
+
+When you should go to Claude
+Still not yet.
+But we’re getting close.
+Once this section is confirmed, the engine blueprint is mostly in place. After that, the next sensible move will be:
+* lock the remaining blueprint sections cleanly
+* then I’ll tell you it’s time to go to Claude for either:
+o the written blueprint docs
+o or the first implementation-phase repo setup
+So we’re close, but not there quite yet.
+Sales Progressor Rebuild Master Blueprint
+1. Product Summary
+1.1 Working product name
+1.2 What the product does
+1.3 Who it is for
+1.4 Core value proposition
+1.5 What it replaces
+1.6 What success looks like
+2. Build Philosophy
+2.1 Primary goal of rebuild
+2.2 What must be preserved from the Bubble app
+2.3 What should improve in the coded version
+2.4 What is explicitly out of scope for V1
+3. Users and Roles
+3.1 User types
+3.2 Agency structure
+3.3 Permissions overview
+4. Core Product Modules
+4.1 Transactions core
+4.2 Milestones engine
+4.3 Reminder engine
+4.4 Chase tasks
+4.5 Communications
+4.6 Dashboard and reporting
+4.7 Exchange forecasting
+4.8 Portal and external views
+4.9 AI support layer
+5. Core Entities
+This is the backbone of the entire system. Everything else sits on top of these.
+5.1 Agency
+Represents a business using the platform.
+Fields:
+* id
+* name
+* created_at
+Relationships:
+* has many Users
+* has many Property Transactions
+
+5.2 User
+Represents an individual within an agency.
+Fields:
+* id
+* name
+* email
+* role (admin, sales_progressor, negotiator, viewer)
+* agency_id
+Relationships:
+* belongs to Agency
+* has many Property Transactions (assigned)
+
+5.3 Contact
+Represents a person involved in a transaction.
+Fields:
+* id
+* name
+* phone
+* email
+* role_type (vendor, purchaser, solicitor, broker, other)
+Relationships:
+* linked to Property Transactions
+
+5.4 Property Transaction
+The core object. Everything revolves around this.
+Fields:
+* id
+* property_address
+* status (active, on_hold, completed, withdrawn)
+* agency_id
+* assigned_user_id
+* expected_exchange_date (optional)
+* key_event_dates (optional summary fields for visibility, including survey or valuation dates where useful)
+Relationships:
+* belongs to Agency
+* belongs to User (assigned)
+* has many Contacts
+* has many Milestone Completions
+* has many Reminder Logs
+* has many Chase Tasks
+* has many Communication Records
+* has many Notes
+
+5.5 Milestone Definition
+Defines the structure of progression (template level).
+Fields:
+* id
+* name
+* side (vendor or purchaser)
+* order_index
+* blocks_exchange (boolean)
+* time_sensitive (boolean)
+Relationships:
+* used by many Milestone Completions
+
+5.6 Milestone Completion
+Represents a milestone being completed on a specific transaction.
+Fields:
+* id
+* transaction_id
+* milestone_definition_id
+* is_active (boolean)
+* completed_at
+* event_date (optional, required for time-sensitive milestones)
+* is_not_required (boolean, optional if handled here rather than separate status layer)
+* status_reason (optional)
+Relationships:
+* belongs to Property Transaction
+* belongs to Milestone Definition
+5.7 Reminder Rule
+Defines when reminders should be created.
+Fields:
+* id
+* name
+* anchor_milestone_id
+* target_milestone_id (optional)
+* target_action_type (optional)
+* delay_days
+* is_ready_to_exchange_flag (boolean)
+* is_active (boolean)
+Relationships:
+* used to generate Reminder Logs
+
+5.8 Reminder Log
+Instance of a reminder for a transaction.
+Fields:
+* id
+* transaction_id
+* reminder_rule_id
+* next_due_date
+* status (active, completed, cancelled, inactive)
+* source_date_used (optional)
+* status_reason (optional)
+* created_at
+* updated_at
+Relationships:
+* belongs to Property Transaction
+* belongs to Reminder Rule
+
+5.9 Chase Task
+Actionable task created from reminders.
+Fields:
+* id
+* transaction_id
+* reminder_log_id
+* assigned_user_id
+* due_date
+* status (pending, done, cancelled, inactive)
+Relationships:
+* belongs to Property Transaction
+* belongs to Reminder Log
+* belongs to User
+
+5.10 Communication Record
+Tracks messages and updates.
+Fields:
+* id
+* transaction_id
+* type (client_update, solicitor_chase, internal_note)
+* content
+* created_at
+Relationships:
+* belongs to Property Transaction
+
+5.11 Note
+General notes attached to a transaction.
+Fields:
+* id
+* transaction_id
+* content
+* created_at
+Relationships:
+* belongs to Property Transaction
+
+5.12 Forecast Record
+Represents projected exchange timing.
+Fields:
+* id
+* transaction_id
+* predicted_exchange_month
+Relationships:
+* belongs to Property Transaction
+6. Non Negotiable Business Rules
+6.1 Vendor and purchaser milestones remain separate
+Vendor and purchaser milestones remain separate definitions even where the names are similar.
+6.2 Milestone completions use active and inactive state
+Milestone Completions use active and inactive state rather than hard deletion so that history is preserved.
+6.3 Exchange readiness is gated by blocking milestones
+Exchange readiness is controlled by milestone logic and blocking milestone rules rather than by simple status labels.
+6.4 Time sensitive milestones use real event dates where relevant
+Time sensitive milestones must use the relevant real-world event date where needed rather than only the date the milestone was confirmed complete.
+6.5 Reminder generation must avoid duplicates
+Reminder generation must never create duplicate live reminder logs for the same transaction and rule state.
+6.6 Reminder logic must be auditable
+Reminder generation and state changes must be traceable and understandable.
+6.7 Milestone Definitions are templates and progress is recorded through Milestone Completions
+Milestone Definitions define the progression structure. Actual file progress is represented through Milestone Completions tied to a transaction.
+6.8 Only active completions count as live truth
+Only active Milestone Completions count for logic, progress display, reminder generation, and exchange checks.
+6.9 Buyer and seller milestones use hard sequence enforcement
+Buyer and seller milestone flows use a defined order. Users should not normally be able to complete milestones out of sequence on those sides.
+6.10 Agent-side milestones may be completed in flexible order
+Agent-side milestones may be completed in any order where operationally useful.
+6.11 Later milestone completion can prompt completion of missing earlier agent-side milestone
+If an agent-side milestone is completed and an expected earlier related milestone is still incomplete, the system should prompt the user to also complete the earlier milestone where appropriate.
+6.12 Completion history is preserved when milestones are reversed or corrected
+When a milestone is reversed, corrected, or superseded, prior completion records remain in history as inactive rather than being deleted.
+6.13 Exchange gating uses blocking milestone definitions
+Exchange gating is controlled by milestone definitions flagged as blocks_exchange = yes.
+6.14 A file is ready to exchange only when all relevant blocking milestones are actively complete or explicitly marked not required
+A transaction is considered ready to exchange only when all relevant pre-exchange blocking milestones either have an active completion or have been explicitly marked not required for that transaction.
+6.15 Exchange and completion milestones do not count as prerequisites for exchange readiness
+Milestones that represent exchange itself, completion itself, or post-exchange events are excluded from the readiness gate.
+6.16 Exchange-related reminders unlock only after readiness is satisfied
+Reminder rules and tasks tied to exchange readiness must only generate once the exchange gate is satisfied.
+6.17 Exchange readiness is recalculable
+Exchange readiness is a derived state and must be recalculated if milestone completion states change.
+6.18 Reversing a blocking milestone removes exchange readiness
+If an active completion on a blocking milestone is reversed or becomes inactive, the transaction should no longer be considered ready to exchange unless the condition is restored.
+6.19 Agent-side flexibility does not override exchange gating
+Agent-side milestones may be managed with more operational flexibility, but users must not be able to confirm that a buyer or seller solicitor is ready to exchange unless all relevant exchange-gating milestones are either complete or explicitly marked not required.
+6.20 Not required milestone handling must be explicit and auditable
+Where a milestone does not apply to a transaction, such as deposit transferred being unnecessary because funds are coming from proceeds of sale, the system must support an explicit not required state that is visible and auditable rather than silently bypassing the milestone.
+6.21 Time-sensitive behaviour is defined by milestone definition
+Milestone Definitions may be flagged as time_sensitive = yes where reminder and follow-up logic must use a real-world event date rather than only the completion timestamp.
+6.22 Time-sensitive milestone completions require an event date
+When a time-sensitive milestone is completed, the completion record must store the relevant event date.
+6.23 Completion timestamp and event date are separate
+For time-sensitive milestones, completed_at records when the system action occurred, while event_date records when the real-world booked event is scheduled or took place.
+6.24 Dependent reminder logic uses event date
+Reminder due dates and downstream scheduling logic tied to time-sensitive milestones must be calculated from event_date, not completed_at.
+6.25 Event date changes trigger recalculation and audit logging
+If the event date on a time-sensitive milestone completion is amended, dependent reminder dates must be recalculated and the change must be captured in audit history or activity.
+6.26 Time-sensitive milestones can be complete before the event occurs
+A time-sensitive milestone may count as complete once the underlying booking or action is confirmed, even if the related event date is still in the future.
+6.27 Key time-sensitive dates may also be surfaced on the Property Transaction for visibility
+Important event dates such as valuation or survey dates may also be surfaced on the Property Transaction record for visibility and reporting, but the Milestone Completion remains the source of truth for milestone-driven logic.
+6.28 Reminder Rules are reusable templates
+Reminder Rules define when reminder logic should apply, based on anchor events, delays, gating conditions, and target purpose.
+6.29 Reminder Logs are live transaction-specific instances
+Reminder Logs are transaction-specific records generated from Reminder Rules and represent the live reminder state for a file.
+6.30 Reminder Logs store the live due date
+The live due date for a reminder is stored on the Reminder Log as next_due_date.
+6.31 Reminder generation must be idempotent
+Reminder generation must be safe to run repeatedly without creating duplicate active logs for the same transaction and rule state.
+6.32 One active reminder log per transaction and rule
+For a given transaction and reminder rule, the system should normally allow only one active live Reminder Log at a time.
+6.33 Exchange-gated reminder rules unlock only when readiness is satisfied
+Reminder Rules that depend on exchange readiness must only generate once the transaction satisfies exchange gating conditions.
+6.34 Reminder evaluation must respect not required milestone state
+Where a relevant milestone is explicitly marked not required, reminder evaluation must treat that state appropriately rather than treating the milestone as incomplete.
+6.35 Time-sensitive anchor logic uses event date
+Where the anchor milestone is time-sensitive, reminder due dates must be calculated using the milestone event date rather than the completion timestamp.
+6.36 Reminder logic must be auditable
+The system must preserve enough information to explain why a reminder exists, what date was used to calculate it, and when its state changed.
+6.37 Reminder rules may target milestone outcomes or operational actions
+Reminder Rules may point either to milestone-related follow-up logic or to operational actions such as exchange-readiness checks.
+6.38 When a reminder rule becomes invalid, the live Reminder Log is deactivated
+If a Reminder Rule no longer applies to a transaction because the underlying conditions are no longer met, the existing live Reminder Log should be deactivated rather than left active.
+6.39 Reminder generation runs from a scheduled backend process
+Reminder rule evaluation must run from a recurring backend job rather than relying on front-end activity.
+6.40 Reminder generation evaluates active transactions against current rule conditions
+The scheduled process evaluates each relevant active transaction against milestone state, not required state, event dates, exchange readiness, and reminder rule definitions.
+6.41 Reminder Logs are created or updated before Chase Tasks are generated
+Reminder Logs act as the system layer between reminder logic and human task creation. Chase Tasks are created from eligible Reminder Logs rather than directly from milestone logic.
+6.42 Valid rules create or update live Reminder Logs
+If a rule becomes newly valid, the system creates a live Reminder Log. If the rule remains valid and source conditions change, the existing live Reminder Log is updated.
+6.43 Invalid rules deactivate live Reminder Logs
+If a rule no longer applies because source conditions are no longer met, the live Reminder Log is deactivated.
+6.44 Chase Tasks are created only from due active Reminder Logs
+A Chase Task is only created when its related Reminder Log is active, due, and does not already have an equivalent open live task.
+6.45 Duplicate open Chase Tasks must be prevented
+For a given live reminder state, the system should normally allow only one open Chase Task at a time.
+6.46 Overdue state is derived
+Overdue state is derived from active or open status and due date rather than stored as a separate uncontrolled state.
+6.47 Rule invalidation should also deactivate related open task paths
+Where a live Reminder Log is deactivated because a rule no longer applies, related open Chase Tasks should also be deactivated or marked no longer relevant in an auditable way.
+6.48 On hold transactions pause reminder generation
+Transactions marked on hold should pause reminder generation unless intentionally resumed by later logic or manual action.
+6.49 Meaningful reminder lifecycle changes must be auditable
+The system must record meaningful reminder lifecycle changes such as creation, due date recalculation, deactivation, and task creation.
+7. V1 Scope
+7.1 Must have in V1
+7.2 Nice to have later
+7.3 Not included in V1
+8. Technical Direction
+8.1 Suggested stack
+8.2 Hosting and deployment
+8.3 Authentication
+8.4 Database
+8.5 Background jobs
+8.6 AI integration approach
+9. Build Order
+9.1 Phase 0: Blueprint and rules
+9.2 Phase 1: Foundation
+9.3 Phase 2: Transactions core
+9.4 Phase 3: Milestones engine
+9.5 Phase 4: Reminder engine
+9.6 Phase 5: Tasks and dashboard
+9.7 Phase 6: Communications
+9.8 Phase 7: Forecasting and portal
+9.9 Phase 8: AI layer
+10. Naming Conventions
+10.1 Canonical product terms
+* Agency
+* User
+* Contact
+* Property Transaction
+* Milestone Definition
+* Milestone Completion
+* Reminder Rule
+* Reminder Log
+* Chase Task
+* Communication Record
+* Forecast Record
+* Vendor side milestones
+* Purchaser side milestones
+* Agent side milestones
+10.2 Terms to avoid changing later
+11. Decision Log
+* No decisions logged yet.
+12. Current Sprint
+Goal
+Included work
+Excluded work
+Done definition
+

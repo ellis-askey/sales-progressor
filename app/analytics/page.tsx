@@ -1,0 +1,215 @@
+import { requireSession } from "@/lib/session";
+import { getAnalytics } from "@/lib/services/analytics";
+import { AppShell } from "@/components/layout/AppShell";
+import { getWorkQueueCounts } from "@/lib/services/tasks";
+import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
+
+function fmt(n: number) {
+  return "£" + n.toLocaleString("en-GB");
+}
+
+function BarChart({
+  data,
+  keys,
+  colors,
+  height = 120,
+}: {
+  data: { label: string; values: number[] }[];
+  keys: string[];
+  colors: string[];
+  height?: number;
+}) {
+  const allValues = data.flatMap((d) => d.values);
+  const max = Math.max(...allValues, 1);
+  const barW = Math.max(8, Math.floor(500 / (data.length * (keys.length + 0.5))));
+  const gap = Math.max(2, Math.floor(barW * 0.3));
+  const groupW = keys.length * barW + (keys.length - 1) * gap;
+  const groupGap = Math.max(4, barW);
+  const totalW = data.length * (groupW + groupGap);
+
+  return (
+    <div className="overflow-x-auto">
+      <svg width={Math.max(totalW, 400)} height={height + 32} style={{ display: "block" }}>
+        {data.map((d, gi) => {
+          const gx = gi * (groupW + groupGap);
+          return (
+            <g key={gi} transform={`translate(${gx}, 0)`}>
+              {d.values.map((v, ki) => {
+                const bh = (v / max) * height;
+                const bx = ki * (barW + gap);
+                return (
+                  <g key={ki}>
+                    <rect
+                      x={bx} y={height - bh} width={barW} height={bh}
+                      rx={2} fill={colors[ki]} opacity={0.85}
+                    />
+                    {v > 0 && (
+                      <text x={bx + barW / 2} y={height - bh - 3} textAnchor="middle"
+                        fontSize={9} fill="#6b7280" fontFamily="-apple-system, sans-serif">
+                        {v}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+              <text x={groupW / 2} y={height + 18} textAnchor="middle"
+                fontSize={9} fill="#9ca3af" fontFamily="-apple-system, sans-serif">
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-2">
+        {keys.map((k, i) => (
+          <div key={k} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: colors[i] }} />
+            <span className="text-xs text-gray-400">{k}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, color = "text-gray-800" }: {
+  label: string; value: string; sub?: string; color?: string;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-4"
+         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className={`text-2xl font-bold tracking-tight ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+export default async function AnalyticsPage() {
+  const session = await requireSession();
+  const [data, taskCounts, todoCount] = await Promise.all([
+    getAnalytics(session.user.agencyId),
+    getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
+    countManualTasksDueToday(session.user.agencyId).catch(() => 0),
+  ]);
+
+  const chartData = data.monthlyVolume.map((m) => ({
+    label: m.month,
+    values: [m.created, m.exchanged, m.completed],
+  }));
+
+  return (
+    <AppShell session={session} activePath="/analytics" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
+      {/* Header */}
+      <div className="relative overflow-hidden"
+           style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)" }}>
+        <div className="absolute inset-0 opacity-[0.04]"
+             style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+        <div className="relative px-8 pt-6 pb-7">
+          <p className="text-xs text-slate-500 mb-4 font-medium tracking-wide uppercase">Reporting</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Analytics</h1>
+          <p className="text-sm text-slate-400 mt-0.5">{session.user.name} · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+        </div>
+      </div>
+
+      <div className="px-8 py-7 space-y-6">
+
+        {/* ── KPI strip ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Active files" value={String(data.totalActive)} color="text-emerald-600" />
+          <StatCard label="Pipeline value" value={fmt(data.pipelineValue)} sub="across active files" color="text-blue-600" />
+          <StatCard
+            label="Avg days to exchange"
+            value={data.avgDaysToExchange !== null ? `${data.avgDaysToExchange}d` : "—"}
+            sub={data.avgDaysToExchange !== null ? "from instruction" : "no exchanges yet"}
+          />
+          <StatCard
+            label="Completion rate"
+            value={data.conversionRate !== null ? `${data.conversionRate}%` : "—"}
+            sub={`${data.totalCompleted} completed · ${data.totalWithdrawn} withdrawn`}
+          />
+        </div>
+
+        {/* ── Monthly volume chart ── */}
+        <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-5"
+             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <p className="text-sm font-semibold text-gray-800 mb-1">Monthly activity</p>
+          <p className="text-xs text-gray-400 mb-5">Files created, exchanged, and completed — last 12 months</p>
+          <BarChart
+            data={chartData}
+            keys={["Created", "Exchanged", "Completed"]}
+            colors={["#93c5fd", "#3b82f6", "#10b981"]}
+            height={130}
+          />
+        </div>
+
+        {/* ── Progressor breakdown ── */}
+        <div className="bg-white rounded-xl border border-[#e4e9f0]"
+             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div className="px-5 py-4 border-b border-[#f0f4f8]">
+            <p className="text-sm font-semibold text-gray-800">Files by progressor</p>
+          </div>
+          {data.progressorStats.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-gray-400">No data yet</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400 uppercase tracking-wide">
+                  <th className="px-5 py-3 text-left font-medium">Progressor</th>
+                  <th className="px-5 py-3 text-right font-medium">Active</th>
+                  <th className="px-5 py-3 text-right font-medium">Completed</th>
+                  <th className="px-5 py-3 text-right font-medium">Pipeline value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0f4f8]">
+                {data.progressorStats.map((p) => (
+                  <tr key={p.name} className="hover:bg-gray-50/50">
+                    <td className="px-5 py-3.5 font-medium text-gray-700">{p.name}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                        {p.active}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-right text-gray-500">{p.completed}</td>
+                    <td className="px-5 py-3.5 text-right font-medium text-gray-700">
+                      {p.pipelineValue > 0 ? fmt(p.pipelineValue) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* ── File status breakdown ── */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Active",    value: data.totalActive,    color: "bg-emerald-500" },
+            { label: "Completed", value: data.totalCompleted, color: "bg-blue-500" },
+            { label: "Withdrawn", value: data.totalWithdrawn, color: "bg-gray-300" },
+          ].map(({ label, value, color }) => {
+            const total = data.totalActive + data.totalCompleted + data.totalWithdrawn;
+            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+            return (
+              <div key={label} className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-4"
+                   style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                  <p className="text-xs font-medium text-gray-500">{label}</p>
+                </div>
+                <p className="text-3xl font-bold text-gray-800">{value}</p>
+                <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{pct}% of all files</p>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
+    </AppShell>
+  );
+}

@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Production build
+build/
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Prisma generated
+prisma/generated/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+
+# Vercel
+.vercel

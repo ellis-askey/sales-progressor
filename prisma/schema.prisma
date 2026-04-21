@@ -1,0 +1,487 @@
+// Sales Progressor - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Agency {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  transactions   PropertyTransaction[]
+  solicitorFirms SolicitorFirm[]
+  manualTasks    ManualTask[]
+  chains         PropertyChain[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  password     String?
+  role         UserRole   @default(viewer)
+  agencyId     String
+  firmName     String?
+  progressorId String?
+  clientType   ClientType @default(standard)
+  legacyFee    Int?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  agency               Agency                @relation(fields: [agencyId], references: [id])
+  progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
+  managedAgents        User[]                @relation("ProgressorAgents")
+  assignedTransactions PropertyTransaction[] @relation("AssignedUser")
+  agentFiles           PropertyTransaction[] @relation("AgentFiles")
+  milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
+  chaseTasks           ChaseTask[]
+  communications       CommunicationRecord[] @relation("CommCreatedBy")
+
+  emailVerified        DateTime?
+  image                String?
+  accounts             Account[]
+  sessions             Session[]
+  transactionNotes     TransactionNote[]
+  createdManualTasks   ManualTask[]      @relation("ManualTaskCreator")
+  assignedManualTasks  ManualTask[]      @relation("ManualTaskAssignee")
+}
+
+enum UserRole {
+  admin
+  sales_progressor
+  negotiator
+  viewer
+}
+
+enum ClientType {
+  legacy
+  standard
+}
+
+enum ServiceType {
+  self_managed
+  outsourced
+}
+
+enum ProgressedBy {
+  progressor
+  agent
+}
+
+model PropertyTransaction {
+  id                           String            @id @default(cuid())
+  propertyAddress              String
+  status                       TransactionStatus @default(active)
+  agencyId                     String
+  assignedUserId               String?
+  agentUserId                  String?
+  progressedBy                 ProgressedBy      @default(progressor)
+  serviceType                  ServiceType       @default(self_managed)
+  expectedExchangeDate         DateTime?
+  purchasePrice                Int?
+  tenure                       Tenure?
+  purchaseType                 PurchaseType?
+  twelveWeekTarget             DateTime?
+  predictedExchangeDate        DateTime?
+  overridePredictedDate        DateTime?
+  completionDate               DateTime?
+  agentFeeAmount               Int?
+  agentFeePercent              Decimal?
+  agentFeeIsVatInclusive       Boolean?
+  notes                        String?
+  vendorSolicitorFirmId        String?
+  vendorSolicitorContactId     String?
+  purchaserSolicitorFirmId     String?
+  purchaserSolicitorContactId  String?
+  createdAt                    DateTime          @default(now())
+  updatedAt                    DateTime          @updatedAt
+
+  agency                     Agency                @relation(fields: [agencyId], references: [id])
+  assignedUser               User?                 @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  agentUser                  User?                 @relation("AgentFiles", fields: [agentUserId], references: [id])
+  contacts                   Contact[]
+  vendorSolicitorFirm        SolicitorFirm?        @relation("VendorSolicitorFirm",    fields: [vendorSolicitorFirmId],    references: [id])
+  vendorSolicitorContact     SolicitorContact?     @relation("VendorSolicitorContact",  fields: [vendorSolicitorContactId],  references: [id])
+  purchaserSolicitorFirm     SolicitorFirm?        @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
+  purchaserSolicitorContact  SolicitorContact?     @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
+  milestoneCompletions       MilestoneCompletion[]
+  reminderLogs               ReminderLog[]
+  chaseTasks                 ChaseTask[]
+  communications             CommunicationRecord[]
+  priceHistory               PriceHistory[]
+  transactionNotes           TransactionNote[]
+  manualTasks                ManualTask[]
+  chainLinks                 ChainLink[]
+}
+
+enum TransactionStatus {
+  active
+  on_hold
+  completed
+  withdrawn
+}
+
+enum Tenure {
+  freehold
+  leasehold
+}
+
+enum PurchaseType {
+  mortgage
+  cash
+  cash_from_proceeds
+}
+
+model PriceHistory {
+  id            String   @id @default(cuid())
+  transactionId String
+  oldPrice      Int?
+  newPrice      Int
+  changedById   String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
+
+model Contact {
+  id                    String      @id @default(cuid())
+  propertyTransactionId String
+  name                  String
+  phone                 String?
+  email                 String?
+  roleType              ContactRole
+  portalToken           String?     @unique
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
+}
+
+model SolicitorFirm {
+  id        String   @id @default(cuid())
+  agencyId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency   Agency             @relation(fields: [agencyId], references: [id])
+  handlers SolicitorContact[]
+  vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorFirm")
+  purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorFirm")
+
+  @@unique([agencyId, name])
+}
+
+model SolicitorContact {
+  id        String   @id @default(cuid())
+  firmId    String
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firm SolicitorFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
+  purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
+}
+
+enum ContactRole {
+  vendor
+  purchaser
+  solicitor
+  broker
+  other
+}
+
+// ─── MilestoneDefinition ──────────────────────────────────────────────────────
+
+model MilestoneDefinition {
+  id              String        @id @default(cuid())
+  code            String        @unique
+  name            String
+  side            MilestoneSide
+  orderIndex      Int
+  blocksExchange  Boolean       @default(true)
+  timeSensitive   Boolean       @default(false)
+  isExchangeGate  Boolean       @default(false)
+  isPostExchange  Boolean       @default(false)
+  summaryTemplate String        @default("")
+  weight          Int           @default(2)
+  createdAt       DateTime      @default(now())
+
+  completions   MilestoneCompletion[]
+  reminderRules ReminderRule[]        @relation("AnchorMilestone")
+}
+
+enum MilestoneSide {
+  vendor
+  purchaser
+}
+
+model MilestoneCompletion {
+  id                    String    @id @default(cuid())
+  transactionId         String
+  milestoneDefinitionId String
+  isActive              Boolean   @default(true)
+  completedAt           DateTime  @default(now())
+  eventDate             DateTime?
+  isNotRequired         Boolean   @default(false)
+  notRequiredReason     String?
+  completedById         String?
+  statusReason          String?
+  summaryText           String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  transaction         PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
+  completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
+
+  @@index([transactionId, milestoneDefinitionId])
+  @@index([transactionId, completedAt])
+}
+
+// ─── ReminderRule ─────────────────────────────────────────────────────────────
+
+model ReminderRule {
+  id                    String   @id @default(cuid())
+  name                  String
+  description           String?
+  anchorMilestoneId     String?
+  targetMilestoneCode   String?
+  graceDays             Int      @default(3)
+  repeatEveryDays       Int      @default(5)
+  escalateAfterChases   Int      @default(3)
+  requiresExchangeReady Boolean  @default(false)
+  useEventDate          Boolean  @default(false)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  anchorMilestone MilestoneDefinition? @relation("AnchorMilestone", fields: [anchorMilestoneId], references: [id])
+  reminderLogs    ReminderLog[]
+}
+
+model ReminderLog {
+  id             String            @id @default(cuid())
+  transactionId  String
+  reminderRuleId String
+  status         ReminderLogStatus @default(active)
+  nextDueDate    DateTime
+  sourceDateUsed DateTime?
+  statusReason   String?
+  snoozedUntil   DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  transaction  PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  reminderRule ReminderRule        @relation(fields: [reminderRuleId], references: [id])
+  chaseTasks   ChaseTask[]
+
+  @@index([transactionId, reminderRuleId])
+  @@index([status, nextDueDate])
+}
+
+enum ReminderLogStatus {
+  active
+  completed
+  cancelled
+  inactive
+}
+
+model ChaseTask {
+  id            String          @id @default(cuid())
+  transactionId String
+  reminderLogId String
+  assignedToId  String?
+  dueDate       DateTime
+  status        ChaseTaskStatus @default(pending)
+  priority      TaskPriority    @default(normal)
+  chaseCount    Int             @default(0)
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  transaction    PropertyTransaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  reminderLog    ReminderLog           @relation(fields: [reminderLogId], references: [id])
+  assignedTo     User?                 @relation(fields: [assignedToId], references: [id])
+  communications CommunicationRecord[]
+
+  @@index([transactionId])
+  @@index([status, dueDate])
+  @@index([priority, status])
+}
+
+enum ChaseTaskStatus {
+  pending
+  done
+  cancelled
+  inactive
+}
+
+enum TaskPriority {
+  normal
+  escalated
+}
+
+model CommunicationRecord {
+  id              String      @id @default(cuid())
+  transactionId   String
+  chaseTaskId     String?
+  type            CommType
+  method          CommMethod?
+  contactIds      String[]
+  content         String
+  generatedText   String?
+  tone            String?
+  wasAiGenerated  Boolean     @default(false)
+  wasEdited       Boolean     @default(false)
+  visibleToClient Boolean     @default(false)
+  ccEmails        String?
+  createdById     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdBy   User                @relation("CommCreatedBy", fields: [createdById], references: [id])
+  chaseTask   ChaseTask?          @relation(fields: [chaseTaskId], references: [id])
+
+  @@index([transactionId, createdAt])
+  @@index([chaseTaskId])
+}
+
+enum CommType {
+  internal_note
+  outbound
+  inbound
+}
+
+enum CommMethod {
+  email
+  phone
+  sms
+  voicemail
+  whatsapp
+  post
+}
+
+model TransactionNote {
+  id            String   @id @default(cuid())
+  transactionId String
+  content       String
+  createdAt     DateTime @default(now())
+  createdById   String?
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdBy   User?               @relation(fields: [createdById], references: [id])
+
+  @@index([transactionId, createdAt])
+}
+
+// ─── ManualTask ───────────────────────────────────────────────────────────────
+
+model ManualTask {
+  id             String           @id @default(cuid())
+  agencyId       String
+  transactionId  String?
+  title          String
+  notes          String?
+  status         ManualTaskStatus @default(open)
+  assignedToId   String?
+  dueDate        DateTime?
+  isAgentRequest Boolean          @default(false)
+  createdById    String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  agency      Agency               @relation(fields: [agencyId], references: [id])
+  transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  assignedTo  User?                @relation("ManualTaskAssignee", fields: [assignedToId], references: [id])
+  createdBy   User                 @relation("ManualTaskCreator", fields: [createdById], references: [id])
+
+  @@index([agencyId, status])
+  @@index([transactionId])
+}
+
+enum ManualTaskStatus {
+  open
+  done
+}
+
+// ─── Chain ───────────────────────────────────────────────────────────────────
+
+model PropertyChain {
+  id        String   @id @default(cuid())
+  agencyId  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency Agency      @relation(fields: [agencyId], references: [id])
+  links  ChainLink[]
+}
+
+model ChainLink {
+  id              String   @id @default(cuid())
+  chainId         String
+  position        Int
+  transactionId   String?
+  externalAddress String?
+  externalStatus  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  chain       PropertyChain        @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  transaction PropertyTransaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([chainId, position])
+}
+
+// ─── NextAuth ─────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
+
+:root {
+  /* Backgrounds */
+  --bg-base:        #f0f4f8;
+  --bg-sidebar:     #ffffff;
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #f7f9fc;
+  --bg-input:       #f7f9fc;
+
+  /* Borders */
+  --border:         #e4e9f0;
+  --border-focus:   #3b82f6;
+
+  /* Brand */
+  --brand:          #3b82f6;
+  --brand-hover:    #2563eb;
+  --brand-light:    #eff6ff;
+  --brand-mid:      #dbeafe;
+
+  /* Text */
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
+  --text-placeholder: #c4cdd8;
+
+  /* Status */
+  --status-active-text:     #16a34a;
+  --status-active-bg:       #f0fdf4;
+  --status-active-border:   #bbf7d0;
+  --status-onhold-text:     #d97706;
+  --status-onhold-bg:       #fffbeb;
+  --status-onhold-border:   #fde68a;
+  --status-completed-text:  #64748b;
+  --status-completed-bg:    #f8fafc;
+  --status-completed-border:#e2e8f0;
+  --status-withdrawn-text:  #dc2626;
+  --status-withdrawn-bg:    #fef2f2;
+  --status-withdrawn-border:#fecaca;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px 0 rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 4px 0 rgba(0,0,0,0.06);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d9e0; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #b0bcc8; }
+
+/* ─── Form resets ────────────────────────────────────────────────────────── */
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
