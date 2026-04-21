@@ -67,8 +67,8 @@ export function PropertyHero({
     <div
       className="relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #080f1e 0%, #0b1525 50%, #0a1535 100%)",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        background: "transparent",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
       }}
     >
       {/* Window-grid overlay — architectural glass-facade effect */}
