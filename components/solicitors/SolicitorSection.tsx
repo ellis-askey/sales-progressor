@@ -205,7 +205,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
 
   return (
     <section>
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+      <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-3">
         Solicitors
         {saving && <span className="ml-2 text-gray-300 font-normal normal-case">Saving…</span>}
       </h2>

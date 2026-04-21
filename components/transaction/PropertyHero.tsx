@@ -67,23 +67,33 @@ export function PropertyHero({
     <div
       className="relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #0f1e38 0%, #0b1525 55%, #0d1f40 100%)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "linear-gradient(135deg, #080f1e 0%, #0b1525 50%, #0a1535 100%)",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
       }}
     >
-      {/* Dot grid texture */}
+      {/* Window-grid overlay — architectural glass-facade effect */}
       <div
-        className="absolute inset-0 opacity-[0.035]"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          opacity: 0.045,
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), " +
+            "linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
+          backgroundSize: "80px 60px",
         }}
       />
-      {/* Subtle radial glow — top right */}
+      {/* Blue radial glow — top right corner */}
       <div
-        className="absolute -top-20 -right-20 w-64 h-64 rounded-full pointer-events-none"
+        className="absolute -top-24 -right-16 w-80 h-80 rounded-full pointer-events-none"
         style={{
-          background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 65%)",
+        }}
+      />
+      {/* Indigo accent — bottom left */}
+      <div
+        className="absolute -bottom-16 -left-12 w-56 h-56 rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)",
         }}
       />
 

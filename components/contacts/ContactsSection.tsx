@@ -160,7 +160,7 @@ export function ContactsSection({
       {/* ── Section header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-gray-700">Contacts</h2>
+          <h2 className="text-sm font-semibold text-gray-400">Contacts</h2>
           {contacts.length > 0 && (
             <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 font-medium">
               {contacts.length}

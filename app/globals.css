@@ -104,30 +104,36 @@ body {
  */
 
 .glass-page {
-  background: linear-gradient(160deg, #0b1525 0%, #0f1e36 40%, #0a1628 70%, #111827 100%);
+  /* Multi-layer: coloured light sources + dot grid + deep dark base */
+  background:
+    radial-gradient(ellipse 55% 45% at 8%  8%,  rgba(59,130,246,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 55% at 92% 92%, rgba(99,102,241,0.17) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 30% at 55% 108%,rgba(139,92,246,0.13) 0%, transparent 55%),
+    radial-gradient(circle, rgba(255,255,255,0.022) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(160deg, #070e1c 0%, #0c1827 40%, #070c1a 70%, #0b101e 100%);
   min-height: 100vh;
 }
 
 /* Auto-glass all standard white cards within a dark glass page */
 .glass-page .rounded-xl.bg-white,
 .glass-page .rounded-2xl.bg-white {
-  background: rgba(255, 255, 255, 0.91) !important;
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
-  border-color: rgba(255, 255, 255, 0.55) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  border-color: rgba(255, 255, 255, 0.68) !important;
   box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.28),
-    0 1px 4px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    0 8px 32px rgba(0, 0, 0, 0.32),
+    0 2px 8px  rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98) !important;
 }
 
 /* Dark frosted glass for the sticky tab bar */
 .glass-page .glass-tab-bar {
-  background: rgba(8, 15, 30, 0.82) !important;
+  background: rgba(6, 12, 24, 0.88) !important;
   backdrop-filter: blur(28px) saturate(1.4) !important;
   -webkit-backdrop-filter: blur(28px) saturate(1.4) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.30) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.40) !important;
 }
 
 /* Inactive tab text — white on dark bar */
@@ -139,7 +145,25 @@ body {
   background: rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Dividers inside glass cards keep their look */
+/* Section headings floating between cards on dark background */
+.glass-page section > div h2,
+.glass-page section > h2 {
+  color: rgba(255, 255, 255, 0.60) !important;
+}
+
+/* Contact count badge between cards */
+.glass-page section > div span[class*="bg-gray-100"] {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+/* Action links/buttons between cards (e.g. "+ Add contact") */
+.glass-page section > div > div > button[class*="text-blue"],
+.glass-page section > div > button[class*="text-blue"] {
+  color: rgba(147, 197, 253, 0.85) !important;
+}
+
+/* Dividers inside glass cards */
 .glass-page .divide-\[#f0f4f8\] > :not(:last-child) {
   border-color: rgba(228, 233, 240, 0.5) !important;
 }
