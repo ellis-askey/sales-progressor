@@ -112,14 +112,13 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
   });
 
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
       {/* Header */}
-      <div className="grid border-b border-[#f0f4f8] bg-gray-50/60"
+      <div className="grid border-b border-white/20 bg-white/10"
            style={{ gridTemplateColumns: "4px minmax(0,1fr) 160px 160px 110px 120px" }}>
         <div />
         {["Property", "Assigned To", "Exchange Target", "Status", "Risk"].map((col) => (
-          <div key={col} className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          <div key={col} className="px-4 py-3 text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
             {col}
           </div>
         ))}
@@ -135,8 +134,8 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
           <Link
             key={tx.id}
             href={`${basePath}/${tx.id}`}
-            className={`grid items-center hover:bg-[#f7f9fc] transition-colors group ${
-              i !== sorted.length - 1 ? "border-b border-[#f0f4f8]" : ""
+            className={`grid items-center hover:bg-white/20 transition-colors group ${
+              i !== sorted.length - 1 ? "border-b border-white/15" : ""
             }`}
             style={{ gridTemplateColumns: "4px minmax(0,1fr) 160px 160px 110px 120px" }}
           >
@@ -153,19 +152,19 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
                         : null,
                       daysStuckOnMilestone: tx.health.daysStuckOnMilestone,
                     });
-                    return r.level === "high" ? "bg-red-400" : r.level === "medium" ? "bg-amber-400" : "bg-emerald-400";
+                    return r.level === "high" ? "bg-red-500" : r.level === "medium" ? "bg-amber-400" : "bg-emerald-500";
                   })()
-                : "bg-emerald-400"
+                : "bg-emerald-500"
             }`} />
 
             {/* Property + next action */}
             <div className="px-4 py-3.5 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate leading-snug group-hover:text-blue-600 transition-colors">
+              <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug group-hover:text-blue-600 transition-colors">
                 {line}
               </p>
-              {location && <p className="text-xs text-gray-400 mt-0.5 truncate">{location}</p>}
+              {location && <p className="text-xs text-slate-900/40 mt-0.5 truncate">{location}</p>}
               {health?.nextActionLabel && (
-                <p className="text-xs text-orange-600 mt-1 truncate font-medium">
+                <p className="text-xs text-orange-600 mt-1 truncate font-semibold">
                   → {health.nextActionLabel}
                 </p>
               )}
@@ -175,13 +174,13 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
             <div className="px-4 py-3.5">
               {tx.assignedUser ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[10px] font-semibold text-blue-600">{initials}</span>
+                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-white">{initials}</span>
                   </div>
-                  <span className="text-sm text-gray-600 truncate">{tx.assignedUser.name}</span>
+                  <span className="text-sm text-slate-900/70 truncate">{tx.assignedUser.name}</span>
                 </div>
               ) : (
-                <span className="text-sm text-gray-300 italic">Unassigned</span>
+                <span className="text-sm text-slate-900/30 italic">Unassigned</span>
               )}
             </div>
 
@@ -190,7 +189,7 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
               {tx.expectedExchangeDate ? (
                 <ExchangeCountdown date={tx.expectedExchangeDate} />
               ) : (
-                <span className="text-sm text-gray-300">—</span>
+                <span className="text-sm text-slate-900/30">—</span>
               )}
             </div>
 
@@ -201,7 +200,7 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
 
             {/* Risk */}
             <div className="px-4 py-3.5">
-              {tx.health ? <RiskBadge raw={tx.health} /> : <span className="text-gray-300 text-xs">—</span>}
+              {tx.health ? <RiskBadge raw={tx.health} /> : <span className="text-slate-900/30 text-xs">—</span>}
             </div>
           </Link>
         );
