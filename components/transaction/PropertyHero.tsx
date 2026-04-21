@@ -67,7 +67,7 @@ export function PropertyHero({
     <div
       className="relative overflow-hidden"
       style={{
-        background: "transparent",
+        background: "linear-gradient(to bottom, rgba(5,8,15,0.55) 0%, rgba(5,8,15,0.35) 100%)",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
       }}
     >
