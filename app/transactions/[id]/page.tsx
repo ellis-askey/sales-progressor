@@ -208,6 +208,7 @@ export default async function TransactionDetailPage({
 
   return (
     <AppShell session={session} activePath="/dashboard" todoCount={todoCount}>
+      <div className="glass-page">
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
@@ -358,6 +359,7 @@ export default async function TransactionDetailPage({
           <ActivityTimeline entries={activityEntries} transactionId={transaction.id} />
         </div>
       </PropertyFileTabs>
+      </div>
     </AppShell>
   );
 }

@@ -5,31 +5,26 @@
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 
 :root {
-  /* Backgrounds */
   --bg-base:        #eef2f8;
   --bg-sidebar:     rgba(255,255,255,0.92);
   --bg-card:        #ffffff;
   --bg-card-hover:  #f7f9fc;
   --bg-input:       #f7f9fc;
 
-  /* Borders */
   --border:         #e4e9f0;
   --border-subtle:  rgba(228,233,240,0.65);
   --border-focus:   #3b82f6;
 
-  /* Brand */
   --brand:          #3b82f6;
   --brand-hover:    #2563eb;
   --brand-light:    #eff6ff;
   --brand-mid:      #dbeafe;
 
-  /* Text */
   --text-primary:   #111827;
   --text-secondary: #4b5563;
   --text-muted:     #9ca3af;
   --text-placeholder: #c4cdd8;
 
-  /* Status */
   --status-active-text:     #16a34a;
   --status-active-bg:       #f0fdf4;
   --status-active-border:   #bbf7d0;
@@ -43,16 +38,13 @@
   --status-withdrawn-bg:    #fef2f2;
   --status-withdrawn-border:#fecaca;
 
-  /* Premium shadow system */
-  --shadow-xs:   0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.03);
-  --shadow-md:   0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
-  --shadow-lg:   0 4px 16px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.06);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.04);
-  --shadow-glass: 0 1px 1px rgba(0,0,0,0.02),
-                  0 4px 16px rgba(0,0,0,0.06),
-                  0 16px 40px rgba(0,0,0,0.04),
-                  inset 0 1px 0 rgba(255,255,255,0.8);
+  --shadow-xs:     0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.03);
+  --shadow-md:     0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  --shadow-lg:     0 4px 16px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.06);
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.04);
+  --shadow-glass:  0 1px 1px rgba(0,0,0,0.02), 0 4px 16px rgba(0,0,0,0.06),
+                   0 16px 40px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8);
   --shadow-sidebar: 2px 0 20px rgba(0,0,0,0.05), 1px 0 0 rgba(228,233,240,0.5);
 }
 
@@ -60,13 +52,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html {
-  min-height: 100%;
-}
+html { min-height: 100%; }
 
 body {
   min-height: 100vh;
-  /* Subtle blue-violet gradient — gives glass surfaces something to reflect */
   background: linear-gradient(145deg, #eef2f8 0%, #e8ecf7 35%, #eff2f9 65%, #eaecf6 100%);
   color: var(--text-primary);
   font-family: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
@@ -74,9 +63,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Glass utility classes ──────────────────────────────────────────────── */
+/* ─── Glass utilities (light context) ───────────────────────────────────── */
 
-/* Frosted glass card — use on floating panels */
 .glass-card {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px) saturate(1.4);
@@ -85,32 +73,75 @@ body {
   box-shadow: var(--shadow-glass);
 }
 
-/* Sidebar — high-opacity frosted surface */
 .glass-sidebar {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(32px) saturate(1.2);
   -webkit-backdrop-filter: blur(32px) saturate(1.2);
 }
 
-/* Elevated panel — modals, popovers, dropdowns */
 .glass-panel {
   background: rgba(255, 255, 255, 0.80);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
   border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 8px 32px rgba(0,0,0,0.08),
-    0 2px 8px rgba(0,0,0,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.9);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04),
+              inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
-/* Tab bar — sticky frosted bar at top of pages */
 .glass-tab-bar {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px) saturate(1.3);
   -webkit-backdrop-filter: blur(20px) saturate(1.3);
   border-bottom: 1px solid rgba(228, 233, 240, 0.7);
   box-shadow: 0 1px 0 rgba(228,233,240,0.4), 0 4px 16px rgba(0,0,0,0.03);
+}
+
+/* ─── Glass Page (dark context) ─────────────────────────────────────────── */
+/*
+ * Wrap any page in .glass-page to activate the full dark glassmorphism theme.
+ * Every .rounded-xl.bg-white and .rounded-2xl.bg-white card is auto-glassed
+ * via the rules below — no per-component changes needed.
+ */
+
+.glass-page {
+  background: linear-gradient(160deg, #0b1525 0%, #0f1e36 40%, #0a1628 70%, #111827 100%);
+  min-height: 100vh;
+}
+
+/* Auto-glass all standard white cards within a dark glass page */
+.glass-page .rounded-xl.bg-white,
+.glass-page .rounded-2xl.bg-white {
+  background: rgba(255, 255, 255, 0.91) !important;
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Dark frosted glass for the sticky tab bar */
+.glass-page .glass-tab-bar {
+  background: rgba(8, 15, 30, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.4) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.30) !important;
+}
+
+/* Inactive tab text — white on dark bar */
+.glass-page .glass-tab-bar button[data-active="false"] {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+.glass-page .glass-tab-bar button[data-active="false"]:hover {
+  color: rgba(255, 255, 255, 0.80) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Dividers inside glass cards keep their look */
+.glass-page .divide-\[#f0f4f8\] > :not(:last-child) {
+  border-color: rgba(228, 233, 240, 0.5) !important;
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */

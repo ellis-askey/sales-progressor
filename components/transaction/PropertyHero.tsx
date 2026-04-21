@@ -67,15 +67,23 @@ export function PropertyHero({
     <div
       className="relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)",
+        background: "linear-gradient(135deg, #0f1e38 0%, #0b1525 55%, #0d1f40 100%)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      {/* Subtle dot grid texture */}
+      {/* Dot grid texture */}
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.035]"
         style={{
           backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
           backgroundSize: "24px 24px",
+        }}
+      />
+      {/* Subtle radial glow — top right */}
+      <div
+        className="absolute -top-20 -right-20 w-64 h-64 rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
         }}
       />
 

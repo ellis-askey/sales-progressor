@@ -190,7 +190,7 @@ export default async function AgentTransactionDetailPage({
   );
 
   return (
-    <div>
+    <div className="glass-page">
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}

@@ -16,31 +16,33 @@ export function PropertyFileTabs({ tabs, children, sidebar }: Props) {
 
   return (
     <TabContext.Provider value={{ setActiveTab: setActive }}>
-      {/* ── Sticky glass tab bar ──────────────────────────────────────── */}
+      {/* ── Sticky tab bar — dark glass in .glass-page, light glass otherwise ── */}
       <div className="sticky top-0 z-20 glass-tab-bar">
-        <div className="px-8 py-2 flex items-center gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActive(tab.key)}
-              className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-xl ${
-                active === tab.key
-                  ? "bg-blue-500 text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-black/5"
-              }`}
-            >
-              {tab.label}
-              {tab.badge != null && tab.badge > 0 && (
-                <span className={`text-xs rounded-full px-1.5 py-0.5 font-medium leading-none ${
-                  active === tab.key
-                    ? "bg-white/20 text-white"
-                    : "bg-orange-100 text-orange-600"
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="px-8 py-2.5 flex items-center gap-1">
+          {tabs.map((tab) => {
+            const isActive = active === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActive(tab.key)}
+                data-active={String(isActive)}
+                className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-xl ${
+                  isActive
+                    ? "bg-blue-500 text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-black/5"
+                }`}
+              >
+                {tab.label}
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className={`text-xs rounded-full px-1.5 py-0.5 font-medium leading-none ${
+                    isActive ? "bg-white/20 text-white" : "bg-orange-100 text-orange-600"
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -54,7 +56,7 @@ export function PropertyFileTabs({ tabs, children, sidebar }: Props) {
           ))}
         </div>
 
-        <div className="w-72 flex-shrink-0 sticky top-[52px]">
+        <div className="w-72 flex-shrink-0 sticky top-[53px]">
           {sidebar}
         </div>
       </div>
