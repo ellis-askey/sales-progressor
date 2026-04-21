@@ -1,5 +1,6 @@
 // app/api/contacts/route.ts
 // POST: create a contact on a transaction
+// PATCH: update a contact's details
 // DELETE: remove a contact
 
 import { NextRequest, NextResponse } from "next/server";
@@ -7,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { ContactRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -35,6 +37,35 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Failed to create contact";
     return NextResponse.json({ error: message }, { status: 403 });
   }
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+
+  const body = await req.json();
+  const { id, name, phone, email } = body;
+
+  if (!id || !name?.trim()) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const existing = await prisma.contact.findFirst({
+    where: { id, transaction: { agencyId: session.user.agencyId } },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const updated = await prisma.contact.update({
+    where: { id },
+    data: {
+      name: name.trim(),
+      phone: phone?.trim() || null,
+      email: email?.trim() || null,
+    },
+  });
+
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(req: NextRequest) {

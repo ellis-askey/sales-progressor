@@ -7,7 +7,7 @@ import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
-import { getNotesForTransaction } from "@/lib/services/transaction-notes";
+import type { ActivityEntry } from "@/lib/services/comms";
 import { listManualTasksForTransaction, countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { calculateProgress } from "@/lib/services/fees";
 import { AppShell } from "@/components/layout/AppShell";
@@ -24,6 +24,7 @@ import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
 import { NewTransactionToast } from "@/components/transaction/NewTransactionToast";
 import { ManualTaskList } from "@/components/todos/ManualTaskList";
+import { AssignControl } from "@/components/transaction/AssignControl";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { RemindersWidget } from "@/components/transaction/RemindersWidget";
@@ -42,13 +43,12 @@ export default async function TransactionDetailPage({
   const { id } = await params;
   const session = await requireSession();
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, notes, manualTasks, todoCount] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount] = await Promise.all([
     getTransaction(id, session.user.agencyId),
     getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
     getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
     getActivityTimeline(id, session.user.agencyId).catch(() => []),
     getLastUpdate(id).catch(() => null),
-    getNotesForTransaction(id).catch(() => []),
     listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
   ]);
@@ -80,6 +80,18 @@ export default async function TransactionDetailPage({
     transaction.createdAt,
     transaction.overridePredictedDate ?? null
   );
+
+  // Exchange confirmed when VM12 (vendor exchanged) or PM16 (purchaser exchanged) is complete
+  const exchangeConfirmed = allMilestones.some(
+    (m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete
+  );
+
+  // Internal notes from activity timeline (D1: unified source)
+  const internalNotes = (activityEntries as ActivityEntry[])
+    .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
+      e.kind === "comm" && e.type === "internal_note"
+    )
+    .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
   // Key event dates from time-sensitive milestone completions
   const keyDates = [
@@ -189,6 +201,7 @@ export default async function TransactionDetailPage({
         serviceType={transaction.serviceType}
         progress={progress}
         keyDates={keyDates}
+        exchangeConfirmed={exchangeConfirmed}
       />
     </>
   );
@@ -222,9 +235,11 @@ export default async function TransactionDetailPage({
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>
               <MetaField label="Assigned to">
-                <span className="text-sm text-gray-700">
-                  {transaction.assignedUser?.name ?? <span className="text-gray-300 italic">Unassigned</span>}
-                </span>
+                <AssignControl
+                  transactionId={transaction.id}
+                  currentAssigneeId={transaction.assignedUserId ?? null}
+                  currentAssigneeName={transaction.assignedUser?.name ?? null}
+                />
               </MetaField>
               <MetaField label="Last progress">
                 {lastUpdate ? (
@@ -291,7 +306,7 @@ export default async function TransactionDetailPage({
           <PropertyIntelCard transactionId={transaction.id} />
 
           {/* Notes */}
-          <TransactionNotes transactionId={transaction.id} initialNotes={notes} />
+          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} />
         </div>
 
         {/* ── Tab 1: Milestones ────────────────────────────────────────── */}

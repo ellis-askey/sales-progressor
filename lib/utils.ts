@@ -31,6 +31,15 @@ export function titleCase(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function normalizePhone(phone: string): string {
+  const cleaned = phone.trim();
+  if (!cleaned) return cleaned;
+  const digits = cleaned.replace(/[\s\-().]/g, "");
+  if (digits.startsWith("+44")) return digits;
+  if (/^0[1-9]/.test(digits)) return "+44" + digits.slice(1);
+  return cleaned;
+}
+
 /** Human-readable labels for transaction statuses */
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
   active:    "Active",

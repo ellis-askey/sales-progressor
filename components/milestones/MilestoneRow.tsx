@@ -48,12 +48,18 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
   const [currentPercent, setCurrentPercent] = useState(0);
   const [projectedPercent, setProjectedPercent] = useState(0);
 
+  // Completion date prompt (after exchange confirmed)
+  const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
+  const [completionInput, setCompletionInput] = useState("");
+  const [savingCompletion, setSavingCompletion] = useState(false);
+
   const isCompleted = def.isComplete;
   const isNotRequired = def.isNotRequired;
   const isDone = isCompleted || isNotRequired;
   const isGate = def.isExchangeGate;
   const isPost = def.isPostExchange;
   const isPM4 = def.code === "PM4";
+  const isExchangeMilestone = def.code === "VM12" || def.code === "PM16";
 
   async function handleConfirmClick() {
     setError(null);
@@ -103,6 +109,9 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
       const count = impliedIds.length;
       addToast("Milestone confirmed", "success", count > 0 ? `+ ${count} implied milestone${count > 1 ? "s" : ""} also completed` : def.name);
       fireConfetti();
+      if (isExchangeMilestone) {
+        setShowCompletionPrompt(true);
+      }
       onRefresh();
     } finally { setLoading(false); }
   }
@@ -177,6 +186,20 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
       setNotRequiredReason("");
       onRefresh();
     } finally { setLoading(false); }
+  }
+
+  async function saveCompletionDate() {
+    if (!completionInput) { setShowCompletionPrompt(false); return; }
+    setSavingCompletion(true);
+    await fetch("/api/transactions/price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactionId, completionDate: completionInput }),
+    });
+    setSavingCompletion(false);
+    setShowCompletionPrompt(false);
+    setCompletionInput("");
+    onRefresh();
   }
 
   const isBlocked = !isDone && !def.isAvailable;
@@ -360,6 +383,37 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
               </button>
             </div>
             <p className="text-xs text-gray-400 text-center mt-3">You can undo this later from the milestone timeline</p>
+          </div>
+        </div>
+      )}
+
+      {/* Completion date prompt (after exchange confirmed) */}
+      {showCompletionPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl border border-[#e4e9f0] shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Exchange confirmed</h3>
+            <p className="text-sm text-gray-500 mb-4">When is the expected completion date?</p>
+            <input
+              type="date"
+              value={completionInput}
+              onChange={(e) => setCompletionInput(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400 mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={saveCompletionDate}
+                disabled={savingCompletion || !completionInput}
+                className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
+              >
+                {savingCompletion ? "Saving…" : "Set completion date"}
+              </button>
+              <button
+                onClick={() => { setShowCompletionPrompt(false); setCompletionInput(""); }}
+                className="flex-1 py-2.5 rounded-lg border border-[#e4e9f0] text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
           </div>
         </div>
       )}

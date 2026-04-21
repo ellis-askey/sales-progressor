@@ -61,9 +61,10 @@ type Props = {
   serviceType?: ServiceType;
   progress: ProgressResult;
   keyDates?: KeyDate[];
+  exchangeConfirmed?: boolean;
 };
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, serviceType, progress, keyDates = [] }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, serviceType, progress, keyDates = [], exchangeConfirmed = false }: Props) {
   const router = useRouter();
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(
@@ -82,6 +83,10 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
       : ""
   );
   const [saving, setSaving] = useState(false);
+  const [editingAgentFee, setEditingAgentFee] = useState(false);
+  const [agentFeeType, setAgentFeeType] = useState<"amount" | "percent">("amount");
+  const [agentFeeInput, setAgentFeeInput] = useState("");
+  const [agentFeeVat, setAgentFeeVat] = useState<"inclusive" | "exclusive">("exclusive");
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
@@ -128,6 +133,31 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
     });
     setSaving(false);
     setEditingCompletion(false);
+    router.refresh();
+  }
+
+  async function saveAgentFee() {
+    setSaving(true);
+    const vatInclusive = agentFeeVat === "inclusive";
+    const body: Record<string, unknown> = {
+      transactionId: transaction.id,
+      agentFeeIsVatInclusive: vatInclusive,
+      agentFeeAmount: null,
+      agentFeePercent: null,
+    };
+    if (agentFeeType === "amount") {
+      body.agentFeeAmount = Math.round(parseFloat(agentFeeInput) * 100);
+    } else {
+      body.agentFeePercent = parseFloat(agentFeeInput);
+    }
+    await fetch("/api/transactions/price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    setEditingAgentFee(false);
+    setAgentFeeInput("");
     router.refresh();
   }
 
@@ -212,29 +242,33 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Completion date</p>
-            {editingCompletion ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={completionInput}
-                  onChange={(e) => setCompletionInput(e.target.value)}
-                  className="px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
-                />
-                <button onClick={saveCompletion} disabled={saving}
-                  className="text-xs text-blue-500 hover:text-blue-700">Save</button>
-                <button onClick={() => setEditingCompletion(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-              </div>
+            {exchangeConfirmed ? (
+              editingCompletion ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={completionInput}
+                    onChange={(e) => setCompletionInput(e.target.value)}
+                    className="px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                  />
+                  <button onClick={saveCompletion} disabled={saving}
+                    className="text-xs text-blue-500 hover:text-blue-700">Save</button>
+                  <button onClick={() => setEditingCompletion(false)}
+                    className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-medium ${transaction.completionDate ? "text-emerald-600" : "text-gray-400"}`}>
+                    {transaction.completionDate
+                      ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                      : "Not set"}
+                  </p>
+                  <button onClick={() => setEditingCompletion(true)}
+                    className="text-xs text-gray-300 hover:text-gray-500">Edit</button>
+                </div>
+              )
             ) : (
-              <div className="flex items-center gap-2">
-                <p className={`text-sm font-medium ${transaction.completionDate ? "text-emerald-600" : "text-gray-400"}`}>
-                  {transaction.completionDate
-                    ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                    : "Not set"}
-                </p>
-                <button onClick={() => setEditingCompletion(true)}
-                  className="text-xs text-gray-300 hover:text-gray-500">Edit</button>
-              </div>
+              <p className="text-sm text-gray-300 italic">Set once exchange is confirmed</p>
             )}
           </div>
 
@@ -351,35 +385,89 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
           </div>
 
           {/* Agent fee */}
-          {(transaction.agentFeeAmount || transaction.agentFeePercent) && (
-            <div className="pt-2 border-t border-[#f0f4f8]">
-              <p className="text-xs text-gray-400 mb-0.5">Agent fee</p>
-              {transaction.agentFeeAmount ? (
-                <p className="text-sm font-medium text-gray-700">
-                  {formatFee(transaction.agentFeeAmount)}
-                  {transaction.agentFeeIsVatInclusive !== null && (
-                    <span className="ml-1 text-xs text-gray-400">
-                      {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
-                    </span>
-                  )}
-                </p>
-              ) : transaction.agentFeePercent ? (
-                <p className="text-sm font-medium text-gray-700">
-                  {Number(transaction.agentFeePercent).toFixed(2)}%
-                  {transaction.agentFeeIsVatInclusive !== null && (
-                    <span className="ml-1 text-xs text-gray-400">
-                      {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
-                    </span>
-                  )}
-                  {transaction.purchasePrice && (
-                    <span className="ml-1 text-xs text-gray-500">
-                      = {formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}
-                    </span>
-                  )}
-                </p>
-              ) : null}
+          <div className="pt-2 border-t border-[#f0f4f8]">
+            <div className="flex items-center justify-between mb-0.5">
+              <p className="text-xs text-gray-400">Agent fee</p>
+              {!editingAgentFee && (
+                <button onClick={() => setEditingAgentFee(true)}
+                  className="text-xs text-gray-300 hover:text-gray-500">
+                  {transaction.agentFeeAmount || transaction.agentFeePercent ? "Edit" : "Set"}
+                </button>
+              )}
             </div>
-          )}
+            {editingAgentFee ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAgentFeeType("amount")}
+                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "amount" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-[#e4e9f0] text-gray-500"}`}
+                  >
+                    Fixed £
+                  </button>
+                  <button
+                    onClick={() => setAgentFeeType("percent")}
+                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "percent" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-[#e4e9f0] text-gray-500"}`}
+                  >
+                    %
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">{agentFeeType === "amount" ? "£" : ""}</span>
+                  <input
+                    type="number"
+                    value={agentFeeInput}
+                    onChange={(e) => setAgentFeeInput(e.target.value)}
+                    placeholder={agentFeeType === "amount" ? "e.g. 1500" : "e.g. 1.5"}
+                    className="w-24 px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                  />
+                  <span className="text-xs text-gray-500">{agentFeeType === "percent" ? "%" : ""}</span>
+                </div>
+                <select
+                  value={agentFeeVat}
+                  onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
+                  className="w-full px-2 py-1 text-xs border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                >
+                  <option value="exclusive">+ VAT</option>
+                  <option value="inclusive">Inc VAT</option>
+                </select>
+                <div className="flex gap-2">
+                  <button onClick={saveAgentFee} disabled={saving || !agentFeeInput}
+                    className="flex-1 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors">
+                    {saving ? "…" : "Save"}
+                  </button>
+                  <button onClick={() => { setEditingAgentFee(false); setAgentFeeInput(""); }}
+                    className="flex-1 py-1.5 text-xs text-gray-400 hover:text-gray-600 border border-[#e4e9f0] rounded-lg">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : transaction.agentFeeAmount ? (
+              <p className="text-sm font-medium text-gray-700">
+                {formatFee(transaction.agentFeeAmount)}
+                {transaction.agentFeeIsVatInclusive !== null && (
+                  <span className="ml-1 text-xs text-gray-400">
+                    {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
+                  </span>
+                )}
+              </p>
+            ) : transaction.agentFeePercent ? (
+              <p className="text-sm font-medium text-gray-700">
+                {Number(transaction.agentFeePercent).toFixed(2)}%
+                {transaction.agentFeeIsVatInclusive !== null && (
+                  <span className="ml-1 text-xs text-gray-400">
+                    {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
+                  </span>
+                )}
+                {transaction.purchasePrice && (
+                  <span className="ml-1 text-xs text-gray-500">
+                    = {formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}
+                  </span>
+                )}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-300 italic">Not set</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

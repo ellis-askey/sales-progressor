@@ -8,7 +8,7 @@ type Note = {
   id: string;
   content: string;
   createdAt: Date | string;
-  createdBy: { id: string; name: string } | null;
+  createdByName: string;
 };
 
 type Props = {
@@ -35,10 +35,15 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/transaction-notes", {
+      const res = await fetch("/api/comms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId, content: draft.trim() }),
+        body: JSON.stringify({
+          transactionId,
+          type: "internal_note",
+          content: draft.trim(),
+          contactIds: [],
+        }),
       });
       if (!res.ok) throw new Error("Failed to save");
       setDraft("");
@@ -53,7 +58,7 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
   async function handleDelete(id: string) {
     setDeleting(id);
     try {
-      await fetch(`/api/transaction-notes?id=${id}`, { method: "DELETE" });
+      await fetch(`/api/comms?id=${id}`, { method: "DELETE" });
       router.refresh();
     } finally {
       setDeleting(null);
@@ -96,8 +101,8 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
       {initialNotes.length > 0 && (
         <div className="space-y-2.5">
           {visible.map((note) => {
-            const initials = note.createdBy?.name
-              ? note.createdBy.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+            const initials = note.createdByName
+              ? note.createdByName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
               : "?";
             return (
               <div
@@ -105,15 +110,12 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
                 className="group bg-white rounded-xl border border-[#e4e9f0] px-4 py-3.5 flex items-start gap-3"
                 style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
               >
-                {/* Author avatar */}
                 <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5">
                   {initials}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-gray-600">
-                      {note.createdBy?.name ?? "Unknown"}
-                    </span>
+                    <span className="text-xs font-semibold text-gray-600">{note.createdByName}</span>
                     <span className="text-xs text-gray-300">{relativeDate(note.createdAt)}</span>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">

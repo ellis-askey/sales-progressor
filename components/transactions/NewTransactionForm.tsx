@@ -5,6 +5,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
+import { titleCase, normalizePhone } from "@/lib/utils";
 
 type ContactEntry = { name: string; phone: string; email: string };
 
@@ -62,8 +63,18 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
       : null;
 
     const contacts = [
-      ...vendors.filter((v) => v.name.trim()).map((v) => ({ ...v, roleType: "vendor" as const })),
-      ...purchasers.filter((p) => p.name.trim()).map((p) => ({ ...p, roleType: "purchaser" as const })),
+      ...vendors.filter((v) => v.name.trim()).map((v) => ({
+        name: titleCase(v.name),
+        phone: v.phone.trim() ? normalizePhone(v.phone) : "",
+        email: v.email.trim(),
+        roleType: "vendor" as const,
+      })),
+      ...purchasers.filter((p) => p.name.trim()).map((p) => ({
+        name: titleCase(p.name),
+        phone: p.phone.trim() ? normalizePhone(p.phone) : "",
+        email: p.email.trim(),
+        roleType: "purchaser" as const,
+      })),
     ];
 
     const res = await fetch("/api/transactions", {
@@ -94,7 +105,11 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
     }
   }
 
-  const canSubmit = form.streetAddress && form.tenure && form.purchaseType;
+  const hasVendor = vendors.some((v) => v.name.trim());
+  const hasPurchaser = purchasers.some((p) => p.name.trim());
+  const requiresContacts = isAgent && progressedBy === "progressor";
+  const canSubmit = !!form.streetAddress && !!form.tenure && !!form.purchaseType &&
+    (!requiresContacts || (hasVendor && hasPurchaser));
 
   return (
     <form onSubmit={submit}>
@@ -260,7 +275,15 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
               {loading ? "Creating…" : "Create transaction"}
             </button>
             {!canSubmit && (
-              <p className="text-xs text-gray-400 mt-2">Address, tenure and purchase type are required</p>
+              <p className="text-xs text-gray-400 mt-2">
+                {requiresContacts && !hasVendor && !hasPurchaser
+                  ? "Add at least one vendor and one purchaser before sending to a progressor"
+                  : requiresContacts && !hasVendor
+                  ? "Add at least one vendor before sending to a progressor"
+                  : requiresContacts && !hasPurchaser
+                  ? "Add at least one purchaser before sending to a progressor"
+                  : "Address, tenure and purchase type are required"}
+              </p>
             )}
           </div>
         </div>

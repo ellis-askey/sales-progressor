@@ -372,6 +372,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       assignedUserId: input.assignedUserId ?? null,
       agentUserId: input.agentUserId ?? null,
       progressedBy: input.progressedBy ?? "progressor",
+      serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",
       expectedExchangeDate: input.expectedExchangeDate ?? autoExchangeDate,
       purchasePrice: input.purchasePrice ?? null,
       tenure: input.tenure ?? null,

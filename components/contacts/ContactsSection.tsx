@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase } from "@/lib/utils";
+import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -71,6 +71,9 @@ export function ContactsSection({
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
+  const [editSaving, setEditSaving] = useState(false);
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -110,6 +113,34 @@ export function ContactsSection({
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function startEdit(contact: Contact) {
+    setEditingId(contact.id);
+    setEditForm({ name: contact.name, phone: contact.phone ?? "", email: contact.email ?? "" });
+  }
+
+  async function handleEdit(contactId: string) {
+    setEditSaving(true);
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: contactId,
+          name: titleCase(editForm.name),
+          phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null,
+          email: editForm.email.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      setEditingId(null);
+      router.refresh();
+    } catch {
+      // keep form open on error
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -153,65 +184,109 @@ export function ContactsSection({
           {contacts.map((contact, i) => {
             const role = contact.roleType as ContactRole;
             const initials = contact.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+            const isEditing = editingId === contact.id;
             return (
               <div
                 key={contact.id}
-                className={`flex items-center justify-between px-5 py-4 ${
-                  i !== contacts.length - 1 ? "border-b border-[#f0f4f8]" : ""
-                }`}
+                className={`px-5 py-4 ${i !== contacts.length - 1 ? "border-b border-[#f0f4f8]" : ""}`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  {/* Initials avatar */}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${ROLE_AVATAR[role] ?? "bg-gray-100 text-gray-500"}`}>
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="text-sm font-semibold text-gray-800">{contact.name}</span>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
-                        {CONTACT_ROLE_LABELS[role]}
-                      </span>
+                {isEditing ? (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="Full name"
+                        className="px-2 py-1.5 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                      />
+                      <input
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="Phone"
+                        className="px-2 py-1.5 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                      />
+                      <input
+                        value={editForm.email}
+                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                        placeholder="Email"
+                        className="px-2 py-1.5 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                      />
                     </div>
-                    {/* Icon rows for email / phone */}
-                    <div className="flex flex-col gap-0.5">
-                      {contact.email && (
-                        <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                          </svg>
-                          {contact.email}
-                        </a>
-                      )}
-                      {contact.phone && (
-                        <a href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-600 transition-colors">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                          </svg>
-                          {contact.phone}
-                        </a>
-                      )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(contact.id)}
+                        disabled={editSaving || !editForm.name.trim()}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                      >
+                        {editSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                <div className="ml-4 flex items-center gap-2 flex-shrink-0">
-                  {contact.portalToken && (role === "vendor" || role === "purchaser") && (
-                    <button
-                      onClick={() => copyPortalLink(contact.portalToken!)}
-                      className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
-                      title="Copy portal link"
-                    >
-                      {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(contact.id)}
-                    disabled={deleting === contact.id}
-                    className="text-xs text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40"
-                  >
-                    {deleting === contact.id ? "…" : "Remove"}
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${ROLE_AVATAR[role] ?? "bg-gray-100 text-gray-500"}`}>
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-sm font-semibold text-gray-800">{contact.name}</span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                            {CONTACT_ROLE_LABELS[role]}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          {contact.email && (
+                            <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors">
+                              <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                              </svg>
+                              {contact.email}
+                            </a>
+                          )}
+                          {contact.phone && (
+                            <a href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-600 transition-colors">
+                              <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                              </svg>
+                              {contact.phone}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex items-center gap-2 flex-shrink-0">
+                      {contact.portalToken && (role === "vendor" || role === "purchaser") && (
+                        <button
+                          onClick={() => copyPortalLink(contact.portalToken!)}
+                          className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
+                          title="Copy portal link"
+                        >
+                          {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => startEdit(contact)}
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(contact.id)}
+                        disabled={deleting === contact.id}
+                        className="text-xs text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40"
+                      >
+                        {deleting === contact.id ? "…" : "Remove"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
