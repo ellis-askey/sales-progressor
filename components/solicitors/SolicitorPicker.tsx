@@ -126,9 +126,9 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     <>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+          <span className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</span>
           {value && (
-            <button type="button" onClick={clear} className="text-xs text-gray-300 hover:text-gray-500 transition-colors">
+            <button type="button" onClick={clear} className="text-xs text-slate-900/30 hover:text-slate-900/50 transition-colors">
               Clear
             </button>
           )}
@@ -147,21 +147,21 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
               }
             }}
             placeholder="Search firm name…"
-            className={`w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-1 transition-all ${
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-all text-slate-900/80 placeholder:text-slate-900/30 ${
               firmSelected
                 ? "border-blue-300 focus:border-blue-400 focus:ring-blue-400 bg-blue-50/30"
-                : "border-[#e4e9f0] focus:border-blue-400 focus:ring-blue-400"
+                : "border-white/30 bg-white/40 focus:border-blue-400 focus:ring-blue-400"
             }`}
           />
 
           {showDropdown && query.trim() && (
-            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-[#e4e9f0] rounded-xl shadow-lg overflow-hidden">
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden">
               {searchError ? (
                 <div>
                   <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
-                  <div className="border-t border-[#f0f4f8]">
+                  <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-blue-50 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
                       <span>+</span> Add "{query}" as new firm
                     </button>
                   </div>
@@ -170,23 +170,23 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
                 <>
                   {firms.map((f) => (
                     <button key={f.id} type="button" onMouseDown={() => selectFirm(f)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors">
+                      className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors">
                       {f.name}
                     </button>
                   ))}
-                  <div className="border-t border-[#f0f4f8]">
+                  <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-blue-50 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
                       <span>+</span> Add "{query}" as new firm
                     </button>
                   </div>
                 </>
               ) : (
                 <div>
-                  <p className="px-4 py-2.5 text-sm text-gray-400">No matching firms</p>
-                  <div className="border-t border-[#f0f4f8]">
+                  <p className="px-4 py-2.5 text-sm text-slate-900/40">No matching firms</p>
+                  <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-blue-50 font-medium flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
                       <span>+</span> Add "{query}" as new firm
                     </button>
                   </div>
@@ -198,9 +198,9 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
 
         {/* Case handler dropdown */}
         {firmSelected && (
-          <div className="pl-3 space-y-2 border-l-2 border-blue-100">
+          <div className="pl-3 space-y-2 border-l-2 border-blue-200/60">
             {loadingHandlers ? (
-              <p className="text-xs text-gray-400">Loading handlers…</p>
+              <p className="text-xs text-slate-900/40">Loading handlers…</p>
             ) : (
               <select
                 value={value?.contactId ?? ""}
@@ -209,7 +209,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
                   if (h) selectHandler(h);
                   else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
                 }}
-                className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400"
+                className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400"
               >
                 <option value="">
                   {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
@@ -223,9 +223,9 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
             {value?.contactId && (
               <div className="grid grid-cols-2 gap-2">
                 <input readOnly value={value.phone ?? ""} placeholder="Phone"
-                  className="px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg bg-gray-50 text-gray-500" />
+                  className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
                 <input readOnly value={value.email ?? ""} placeholder="Email"
-                  className="px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg bg-gray-50 text-gray-500" />
+                  className="px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/20 text-slate-900/50" />
               </div>
             )}
           </div>

@@ -15,7 +15,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   return (
     <div className="relative flex-shrink-0 w-20 h-20">
       <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="#f1f5f9" strokeWidth="8" />
+        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(15,23,42,0.08)" strokeWidth="8" />
         <circle
           cx="40" cy="40" r={r} fill="none"
           stroke={stroke} strokeWidth="8"
@@ -26,8 +26,8 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-gray-800 leading-none">{percent}</span>
-        <span className="text-[10px] text-gray-400 font-medium">%</span>
+        <span className="text-lg font-bold text-slate-900/80 leading-none">{percent}</span>
+        <span className="text-[10px] text-slate-900/40 font-medium">%</span>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
     on_track: { bg: "bg-green-100",  text: "text-green-700",  label: "On track" },
     at_risk:  { bg: "bg-amber-100",  text: "text-amber-700",  label: "At risk" },
     off_track:{ bg: "bg-red-100",    text: "text-red-700",    label: "Off track" },
-    unknown:  { bg: "bg-gray-100",   text: "text-gray-500",   label: "No data yet" },
+    unknown:  { bg: "bg-white/30",    text: "text-slate-900/50", label: "No data yet" },
   };
   const trackStyle = onTrackColors[progress.onTrack];
 

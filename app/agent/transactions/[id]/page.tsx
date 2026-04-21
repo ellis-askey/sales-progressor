@@ -209,25 +209,24 @@ export default async function AgentTransactionDetailPage({
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
-          <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div className="grid grid-cols-3 divide-x divide-[#f0f4f8]">
+          <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+            <div className="grid grid-cols-3 divide-x divide-white/20">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>
               <MetaField label="Assigned to">
-                <span className="text-sm text-gray-700">
-                  {transaction.assignedUser?.name ?? <span className="text-gray-300 italic">Unassigned</span>}
+                <span className="text-sm text-slate-900/80">
+                  {transaction.assignedUser?.name ?? <span className="text-slate-900/30 italic">Unassigned</span>}
                 </span>
               </MetaField>
               <MetaField label="Last progress">
                 {lastUpdate ? (
                   <div>
-                    <p className="text-sm text-gray-700 leading-snug line-clamp-2">{lastUpdate.summaryText}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{relativeDate(lastUpdate.completedAt)}</p>
+                    <p className="text-sm text-slate-900/80 leading-snug line-clamp-2">{lastUpdate.summaryText}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">{relativeDate(lastUpdate.completedAt)}</p>
                   </div>
                 ) : (
-                  <span className="text-sm text-gray-300 italic">No progress yet</span>
+                  <span className="text-sm text-slate-900/30 italic">No progress yet</span>
                 )}
               </MetaField>
             </div>
@@ -290,7 +289,7 @@ export default async function AgentTransactionDetailPage({
               purchaserGateReady={milestoneData.purchaserGateReady}
             />
           ) : (
-            <p className="text-sm text-gray-400 text-center py-12">No milestone data available</p>
+            <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>
           )}
         </div>
 
@@ -331,7 +330,7 @@ export default async function AgentTransactionDetailPage({
 function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="px-5 py-4">
-      <p className="text-xs font-medium text-gray-400 mb-1.5">{label}</p>
+      <p className="text-xs font-medium text-slate-900/40 mb-1.5">{label}</p>
       {children}
     </div>
   );

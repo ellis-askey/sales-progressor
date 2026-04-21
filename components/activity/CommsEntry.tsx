@@ -22,7 +22,7 @@ const METHODS: { value: CommMethod; label: string; color: string; icon: string }
   { value: "sms",       label: "SMS",       color: "bg-green-100 text-green-700 border-green-200",    icon: "💬" },
   { value: "voicemail", label: "Voicemail", color: "bg-teal-100 text-teal-700 border-teal-200",       icon: "📱" },
   { value: "whatsapp",  label: "WhatsApp",  color: "bg-green-100 text-green-700 border-green-200",    icon: "📲" },
-  { value: "post",      label: "Post",      color: "bg-gray-100 text-gray-700 border-gray-200",       icon: "📮" },
+  { value: "post",      label: "Post",      color: "bg-white/30 text-slate-900/70 border-white/30",   icon: "📮" },
 ];
 
 export function CommsEntry({ transactionId, contacts }: Props) {
@@ -94,7 +94,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full text-left px-4 py-3 rounded-xl border border-dashed border-[#d1dae6] text-sm text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-white transition-all"
+        className="w-full text-left px-4 py-3 rounded-xl border border-dashed border-white/30 text-sm text-slate-900/40 hover:text-slate-900/70 hover:border-white/50 hover:bg-white/20 transition-all"
       >
         + Add a note or log a communication…
       </button>
@@ -102,11 +102,10 @@ export function CommsEntry({ transactionId, contacts }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
 
       {/* Step indicator + start over */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#f0f4f8] bg-gray-50/50">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/10">
         <div className="flex items-center gap-2">
           {[1, 2, 3, 4].map((s) => {
             const isActive = step === s;
@@ -118,16 +117,16 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 <div className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium ${
                   isDone ? "bg-green-500 text-white" :
                   isActive ? "bg-blue-500 text-white" :
-                  "bg-gray-200 text-gray-400"
+                  "bg-white/30 text-slate-900/50"
                 }`}>
                   {isDone ? "✓" : s}
                 </div>
-                {s < 4 && !isSkipped && <div className="w-4 h-px bg-gray-200" />}
+                {s < 4 && !isSkipped && <div className="w-4 h-px bg-white/30" />}
               </div>
             );
           })}
         </div>
-        <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={reset} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
           Start over
         </button>
       </div>
@@ -136,23 +135,23 @@ export function CommsEntry({ transactionId, contacts }: Props) {
         {/* Step 1: Type */}
         {step === 1 && (
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-3">What type of entry is this?</p>
+            <p className="text-xs font-medium text-slate-900/50 mb-3">What type of entry is this?</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => selectType("internal_note")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#e4e9f0] text-sm font-medium text-gray-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-amber-50/60 hover:border-amber-200/60 hover:text-amber-700 transition-all"
               >
                 <span>📝</span> Internal note
               </button>
               <button
                 onClick={() => selectType("outbound")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#e4e9f0] text-sm font-medium text-gray-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-blue-50/60 hover:border-blue-200/60 hover:text-blue-700 transition-all"
               >
                 <span>→</span> Outbound
               </button>
               <button
                 onClick={() => selectType("inbound")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#e4e9f0] text-sm font-medium text-gray-700 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-green-50/60 hover:border-green-200/60 hover:text-green-700 transition-all"
               >
                 <span>←</span> Inbound
               </button>
@@ -165,8 +164,8 @@ export function CommsEntry({ transactionId, contacts }: Props) {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <TypeBadge type={type!} />
-              <span className="text-xs text-gray-400">→</span>
-              <p className="text-xs font-medium text-gray-500">How was this communication made?</p>
+              <span className="text-xs text-slate-900/40">→</span>
+              <p className="text-xs font-medium text-slate-900/50">How was this communication made?</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {METHODS.map((m) => (
@@ -188,8 +187,8 @@ export function CommsEntry({ transactionId, contacts }: Props) {
             <div className="flex items-center gap-2 mb-3">
               <TypeBadge type={type!} />
               <MethodBadge method={method!} />
-              <span className="text-xs text-gray-400">→</span>
-              <p className="text-xs font-medium text-gray-500">Who was involved?</p>
+              <span className="text-xs text-slate-900/40">→</span>
+              <p className="text-xs font-medium text-slate-900/50">Who was involved?</p>
             </div>
             <div className="flex flex-wrap gap-2 mb-3">
               {contacts.map((c) => {
@@ -200,12 +199,12 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                     onClick={() => toggleContact(c.id)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                       selected
-                        ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
-                        : "border-[#e4e9f0] text-gray-600 hover:bg-gray-50"
+                        ? "bg-blue-50/60 border-blue-300/60 text-blue-700 font-medium"
+                        : "border-white/30 text-slate-900/60 hover:bg-white/20"
                     }`}
                   >
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                      selected ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500"
+                      selected ? "bg-blue-500 text-white" : "bg-white/30 text-slate-900/50"
                     }`}>
                       {c.name.charAt(0)}
                     </div>
@@ -231,7 +230,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 <TypeBadge type={type!} />
                 {method && <MethodBadge method={method} />}
                 {selectedContacts.length > 0 && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-slate-900/50">
                     {contacts.filter((c) => selectedContacts.includes(c.id)).map((c) => c.name.split(" ")[0]).join(", ")}
                   </span>
                 )}
@@ -242,7 +241,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
               onChange={(e) => setContent(e.target.value)}
               placeholder={type === "internal_note" ? "Add an internal note…" : "What was discussed or communicated?"}
               rows={4}
-              className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400 resize-none placeholder:text-gray-300"
+              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400 resize-none placeholder:text-slate-900/30"
               autoFocus
             />
             <div className="flex items-center justify-between mt-2">
@@ -254,7 +253,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 >
                   {loading ? "Saving…" : "Save"}
                 </button>
-                <button onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">
+                <button onClick={reset} className="text-xs text-slate-900/40 hover:text-slate-900/70">
                   Cancel
                 </button>
               </div>
@@ -263,14 +262,14 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                   <div
                     onClick={() => setVisibleToClient((v) => !v)}
                     className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 cursor-pointer ${
-                      visibleToClient ? "bg-[#3a7bd5]" : "bg-gray-200"
+                      visibleToClient ? "bg-blue-500" : "bg-white/30"
                     }`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5 ml-0.5 ${
                       visibleToClient ? "translate-x-4" : "translate-x-0"
                     }`} />
                   </div>
-                  <span className="text-xs text-gray-500">Share with client</span>
+                  <span className="text-xs text-slate-900/50">Share with client</span>
                 </label>
               )}
             </div>

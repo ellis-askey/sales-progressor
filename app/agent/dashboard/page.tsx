@@ -86,7 +86,7 @@ export default async function AgentDashboard({
 
         {/* Filter tabs + transaction list */}
         <div>
-          <div className="flex items-center gap-1 mb-5 bg-white rounded-xl border border-[#e4e9f0] p-1 w-fit shadow-sm">
+          <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
             {([
               { value: "all",       label: "All",       count: transactions.length },
               { value: "active",    label: "Active",    count: counts.active },
@@ -102,13 +102,13 @@ export default async function AgentDashboard({
                   scroll={false}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-blue-500 text-white shadow-sm"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      ? "bg-white/60 text-slate-900/90 shadow-sm"
+                      : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"
                   }`}
                 >
                   {label}
                   <span className={`text-xs rounded-full px-1.5 py-0.5 font-normal ${
-                    isActive ? "bg-blue-400 text-white" : "bg-gray-100 text-gray-500"
+                    isActive ? "bg-blue-50/80 text-blue-600" : "bg-white/30 text-slate-900/50"
                   }`}>
                     {count}
                   </span>
@@ -118,7 +118,7 @@ export default async function AgentDashboard({
           </div>
 
           {filtered.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#e4e9f0] shadow-sm">
+            <div className="glass-card">
               <EmptyState
                 title={activeFilter === "all" ? "No files yet" : `No ${activeFilter.replace("_", " ")} files`}
                 description={activeFilter === "all" ? "Your sales will appear here once they're added." : "Try a different filter."}

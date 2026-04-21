@@ -39,9 +39,9 @@ function toSelection(info: SolicitorInfo): SolicitorSelection | null {
 
 const RATING_STYLE: Record<string, { label: string; color: string }> = {
   fast:    { label: "Fast",    color: "text-emerald-600" },
-  average: { label: "Average", color: "text-gray-500" },
+  average: { label: "Average", color: "text-slate-900/50" },
   slow:    { label: "Slow",    color: "text-red-600" },
-  unknown: { label: "—",       color: "text-gray-300" },
+  unknown: { label: "—",       color: "text-slate-900/30" },
 };
 
 function SolicitorIntelBadge({ firmId }: { firmId: string }) {
@@ -68,7 +68,7 @@ function SolicitorIntelBadge({ firmId }: { firmId: string }) {
           <p className="text-xs leading-snug">{intel.warning}</p>
         </div>
       )}
-      <div className="flex items-center gap-4 text-xs text-gray-400">
+      <div className="flex items-center gap-4 text-xs text-slate-900/40">
         <span>{intel.totalFiles} file{intel.totalFiles !== 1 ? "s" : ""} on record</span>
         {intel.avgWeeksToExchange !== null && (
           <span>Avg {intel.avgWeeksToExchange}w to exchange</span>
@@ -100,12 +100,12 @@ function SolicitorCard({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+          <p className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</p>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => { onChange(draft); setEditing(false); }}
               className="text-xs text-blue-500 hover:text-blue-600 font-medium">Save</button>
             <button type="button" onClick={() => { setDraft(toSelection(info)); setEditing(false); }}
-              className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+              className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
           </div>
         </div>
         <SolicitorPicker label={editLabel} value={draft} onChange={setDraft} />
@@ -120,9 +120,9 @@ function SolicitorCard({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">{label}</p>
         <button type="button" onClick={() => setEditing(true)}
-          className="text-xs text-gray-300 hover:text-blue-500 transition-colors">
+          className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors">
           {info.firm ? "Edit" : "+ Add"}
         </button>
       </div>
@@ -143,13 +143,13 @@ function SolicitorCard({
               )}
               <div className="flex flex-col gap-0.5 mt-1">
                 {info.contact?.phone && (
-                  <a href={`tel:${info.contact.phone}`} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-green-600 transition-colors">
+                  <a href={`tel:${info.contact.phone}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
                     <Phone className="w-3 h-3 flex-shrink-0" weight="regular" />
                     {info.contact.phone}
                   </a>
                 )}
                 {info.contact?.email && (
-                  <a href={`mailto:${info.contact.email}`} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors">
+                  <a href={`mailto:${info.contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
                     <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
                     {info.contact.email}
                   </a>
@@ -200,9 +200,9 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
 
   return (
     <section>
-      <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-3">
+      <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
         Solicitors
-        {saving && <span className="ml-2 text-gray-300 font-normal normal-case">Saving…</span>}
+        {saving && <span className="ml-2 text-slate-900/30 font-normal normal-case">Saving…</span>}
       </h2>
       <div className="glass-card divide-y divide-white/20">
         <div className="px-5 py-4">

@@ -70,16 +70,16 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
       style={{ background: "rgba(0,0,0,0.35)" }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+        className="glass-card-strong rounded-2xl shadow-2xl w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 pt-6 pb-4 border-b border-[#f0f4f8]">
+        <div className="px-6 pt-6 pb-4 border-b border-white/20">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-gray-800">Add solicitor firm</h2>
+            <h2 className="text-base font-semibold text-slate-900/90">Add solicitor firm</h2>
             <button
               type="button"
               onClick={onClose}
-              className="text-gray-300 hover:text-gray-500 transition-colors text-xl leading-none"
+              className="text-slate-900/30 hover:text-slate-900/60 transition-colors text-xl leading-none"
             >
               ×
             </button>
@@ -89,7 +89,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* Firm name */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+            <label className="block text-xs font-medium text-slate-900/60 mb-1.5">
               Firm name <span className="text-red-400">*</span>
             </label>
             <input
@@ -98,44 +98,44 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
               onChange={(e) => setFirmName(e.target.value)}
               placeholder="e.g. Carter & Wells Solicitors"
               required
-              className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             />
           </div>
 
           {/* Case handler (optional) */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-              Case handler <span className="font-normal normal-case text-gray-300">(optional — can add later)</span>
+            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
+              Case handler <span className="font-normal normal-case text-slate-900/30">(optional — can add later)</span>
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Full name</label>
+                <label className="block text-xs font-medium text-slate-900/60 mb-1.5">Full name</label>
                 <input
                   value={handlerName}
                   onChange={(e) => setHandlerName(e.target.value)}
                   placeholder="e.g. Sarah Patel"
-                  className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400"
+                  className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Mobile</label>
+                  <label className="block text-xs font-medium text-slate-900/60 mb-1.5">Mobile</label>
                   <input
                     type="tel"
                     value={handlerPhone}
                     onChange={(e) => setHandlerPhone(e.target.value)}
                     placeholder="07700 900 000"
-                    className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400"
+                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                  <label className="block text-xs font-medium text-slate-900/60 mb-1.5">Email</label>
                   <input
                     type="email"
                     value={handlerEmail}
                     onChange={(e) => setHandlerEmail(e.target.value)}
                     placeholder="s.patel@firm.co.uk"
-                    className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400"
+                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
                   />
                 </div>
               </div>
@@ -157,7 +157,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              className="px-4 py-2.5 text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 rounded-lg transition-colors"
             >
               Cancel
             </button>
