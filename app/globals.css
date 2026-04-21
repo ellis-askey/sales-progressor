@@ -6,14 +6,15 @@
 
 :root {
   /* Backgrounds */
-  --bg-base:        #f0f4f8;
-  --bg-sidebar:     #ffffff;
+  --bg-base:        #eef2f8;
+  --bg-sidebar:     rgba(255,255,255,0.92);
   --bg-card:        #ffffff;
   --bg-card-hover:  #f7f9fc;
   --bg-input:       #f7f9fc;
 
   /* Borders */
   --border:         #e4e9f0;
+  --border-subtle:  rgba(228,233,240,0.65);
   --border-focus:   #3b82f6;
 
   /* Brand */
@@ -42,30 +43,82 @@
   --status-withdrawn-bg:    #fef2f2;
   --status-withdrawn-border:#fecaca;
 
-  /* Shadows */
-  --shadow-sm:   0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow-md:   0 4px 12px 0 rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-card: 0 1px 4px 0 rgba(0,0,0,0.06);
+  /* Premium shadow system */
+  --shadow-xs:   0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.03);
+  --shadow-md:   0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  --shadow-lg:   0 4px 16px rgba(0,0,0,0.08), 0 16px 48px rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.04);
+  --shadow-glass: 0 1px 1px rgba(0,0,0,0.02),
+                  0 4px 16px rgba(0,0,0,0.06),
+                  0 16px 40px rgba(0,0,0,0.04),
+                  inset 0 1px 0 rgba(255,255,255,0.8);
+  --shadow-sidebar: 2px 0 20px rgba(0,0,0,0.05), 1px 0 0 rgba(228,233,240,0.5);
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────── */
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body {
-  background-color: var(--bg-base);
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  /* Subtle blue-violet gradient — gives glass surfaces something to reflect */
+  background: linear-gradient(145deg, #eef2f8 0%, #e8ecf7 35%, #eff2f9 65%, #eaecf6 100%);
   color: var(--text-primary);
   font-family: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Glass utility classes ──────────────────────────────────────────────── */
+
+/* Frosted glass card — use on floating panels */
+.glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-glass);
+}
+
+/* Sidebar — high-opacity frosted surface */
+.glass-sidebar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(32px) saturate(1.2);
+  -webkit-backdrop-filter: blur(32px) saturate(1.2);
+}
+
+/* Elevated panel — modals, popovers, dropdowns */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.08),
+    0 2px 8px rgba(0,0,0,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* Tab bar — sticky frosted bar at top of pages */
+.glass-tab-bar {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-bottom: 1px solid rgba(228, 233, 240, 0.7);
+  box-shadow: 0 1px 0 rgba(228,233,240,0.4), 0 4px 16px rgba(0,0,0,0.03);
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d9e0; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #b0bcc8; }
+::-webkit-scrollbar-thumb { background: rgba(209,217,224,0.8); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(176,188,200,0.9); }
 
 /* ─── Form resets ────────────────────────────────────────────────────────── */
 

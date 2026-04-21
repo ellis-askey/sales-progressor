@@ -22,14 +22,15 @@ export function AgentShell({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen bg-[#f0f4f8]">
-      <aside className="w-56 flex-shrink-0 flex flex-col bg-white border-r border-[#e4e9f0]"
-             style={{ boxShadow: "1px 0 0 0 #e4e9f0" }}>
+    <div className="flex min-h-screen">
+      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-[#e4e9f0]/60"
+             style={{ boxShadow: "var(--shadow-sidebar)" }}>
 
-        <div className="px-5 py-5 border-b border-[#f0f4f8]">
+        <div className="px-5 py-5 border-b border-[#e4e9f0]/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
-              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                 style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}>
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
             </div>
@@ -47,20 +48,23 @@ export function AgentShell({
             const isActive = pathname.startsWith(href);
             return (
               <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                  isActive
+                    ? "bg-blue-500 text-white font-medium shadow-sm"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-white/70"
                 }`}>
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-blue-500" : "text-gray-400"}`} />
+                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-white" : "text-gray-400"}`} />
                 <span>{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-[#f0f4f8]">
+        <div className="px-4 py-4 border-t border-[#e4e9f0]/50">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-semibold text-blue-600">{session.user.name?.charAt(0) ?? "?"}</span>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                 style={{ background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" }}>
+              <span className="text-xs font-semibold text-blue-700">{session.user.name?.charAt(0) ?? "?"}</span>
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-gray-700 truncate">{session.user.name}</p>
