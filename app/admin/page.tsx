@@ -51,42 +51,41 @@ export default async function AdminPage() {
 
         {/* Agent accounts */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Agent Accounts</h2>
+          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Agent Accounts</h2>
           <AgentManager agents={agents} progressors={progressors} agencyId={session.user.agencyId} />
         </section>
 
         {/* Internal user fee structures */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Fee Structures (Internal Users)</h2>
+          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Fee Structures (Internal Users)</h2>
           <AgentFeeManager users={users} />
         </section>
 
         {/* Milestone definitions */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Milestone Definitions</h2>
-          <p className="text-xs text-gray-400 mb-4">Read-only. {milestoneDefs.length} definitions across vendor and purchaser sides.</p>
+          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Milestone Definitions</h2>
+          <p className="text-xs text-slate-900/40 mb-4">Read-only. {milestoneDefs.length} definitions across vendor and purchaser sides.</p>
           <div className="space-y-6">
             {[{ label: "Vendor", defs: vendorDefs }, { label: "Purchaser", defs: purchaserDefs }].map(({ label, defs }) => (
               <div key={label}>
-                <p className="text-sm font-medium text-gray-600 mb-2">{label} side</p>
-                <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-                     style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <p className="text-sm font-medium text-slate-900/60 mb-2">{label} side</p>
+                <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[#f0f4f8] bg-gray-50">
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 w-12">#</th>
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Name</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Blocks exch.</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Time sensitive</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Exchange gate</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Post exchange</th>
+                      <tr className="border-b border-white/20 bg-white/10">
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40 w-12">#</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Name</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Blocks exch.</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Time sensitive</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Exchange gate</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Post exchange</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#f0f4f8]">
+                    <tbody className="divide-y divide-white/15">
                       {defs.map((d) => (
-                        <tr key={d.id} className={d.isExchangeGate || d.isPostExchange ? "bg-amber-50/30" : ""}>
-                          <td className="px-4 py-2.5 text-xs text-gray-400">{d.orderIndex}</td>
-                          <td className="px-4 py-2.5 text-gray-700">{d.name}</td>
+                        <tr key={d.id} className={d.isExchangeGate || d.isPostExchange ? "bg-amber-50/20" : ""}>
+                          <td className="px-4 py-2.5 text-xs text-slate-900/40">{d.orderIndex}</td>
+                          <td className="px-4 py-2.5 text-slate-900/80">{d.name}</td>
                           <td className="px-3 py-2.5 text-center">{d.blocksExchange ? <Flag color="blue" /> : <Dash />}</td>
                           <td className="px-3 py-2.5 text-center">{d.timeSensitive ? <Flag color="amber" /> : <Dash />}</td>
                           <td className="px-3 py-2.5 text-center">{d.isExchangeGate ? <Flag color="green" /> : <Dash />}</td>
@@ -103,37 +102,36 @@ export default async function AdminPage() {
 
         {/* Reminder rules */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Reminder Rules</h2>
-          <p className="text-xs text-gray-400 mb-4">Read-only. {reminderRules.length} active rules.</p>
-          <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Reminder Rules</h2>
+          <p className="text-xs text-slate-900/40 mb-4">Read-only. {reminderRules.length} active rules.</p>
+          <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#f0f4f8] bg-gray-50">
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Rule name</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Anchor</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Target code</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Grace days</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Repeat every</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Escalate after</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Exch. gated</th>
+                <tr className="border-b border-white/20 bg-white/10">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Rule name</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Anchor</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Target code</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Grace days</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Repeat every</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Escalate after</th>
+                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Exch. gated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#f0f4f8]">
+              <tbody className="divide-y divide-white/15">
                 {reminderRules.map((r) => (
-                  <tr key={r.id} className={r.requiresExchangeReady ? "bg-green-50/30" : ""}>
-                    <td className="px-4 py-2.5 text-gray-700">{r.name}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500">
+                  <tr key={r.id} className={r.requiresExchangeReady ? "bg-emerald-50/20" : ""}>
+                    <td className="px-4 py-2.5 text-slate-900/80">{r.name}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-900/50">
                       {r.anchorMilestone ? (
                         <span title={r.anchorMilestone.name}>{r.anchorMilestone.code}</span>
                       ) : (
-                        <span className="text-gray-300 italic">File creation</span>
+                        <span className="text-slate-900/30 italic">File creation</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500">{r.targetMilestoneCode ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-gray-600">{r.graceDays}d</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-gray-600">{r.repeatEveryDays}d</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-gray-600">{r.escalateAfterChases} chases</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-900/50">{r.targetMilestoneCode ?? <span className="text-slate-900/30">—</span>}</td>
+                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.graceDays}d</td>
+                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.repeatEveryDays}d</td>
+                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.escalateAfterChases} chases</td>
                     <td className="px-3 py-2.5 text-center">{r.requiresExchangeReady ? <Flag color="green" /> : <Dash />}</td>
                   </tr>
                 ))}
@@ -160,5 +158,5 @@ function Flag({ color }: { color: "blue" | "amber" | "green" | "gray" }) {
 }
 
 function Dash() {
-  return <span className="text-gray-200 text-xs">—</span>;
+  return <span className="text-slate-900/20 text-xs">—</span>;
 }

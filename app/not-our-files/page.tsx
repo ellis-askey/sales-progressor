@@ -52,10 +52,10 @@ export default async function NotOurFilesPage() {
     withdrawn: "Withdrawn",
   };
   const statusColor: Record<string, string> = {
-    active: "bg-emerald-100 text-emerald-700",
-    on_hold: "bg-amber-100 text-amber-700",
-    completed: "bg-blue-100 text-blue-700",
-    withdrawn: "bg-gray-100 text-gray-500",
+    active: "bg-emerald-100/80 text-emerald-700",
+    on_hold: "bg-amber-100/80 text-amber-700",
+    completed: "bg-blue-100/80 text-blue-700",
+    withdrawn: "bg-white/30 text-slate-900/50",
   };
 
   return (
@@ -81,7 +81,7 @@ export default async function NotOurFilesPage() {
 
       <div className="space-y-6 mt-7">
         {transactions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0]" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div className="glass-card">
             <EmptyState
               title="No agent-progressed files"
               description="When agents choose to self-progress a sale, their files will appear here."
@@ -89,17 +89,17 @@ export default async function NotOurFilesPage() {
           </div>
         ) : (
           Array.from(byAgent.values()).map((agent) => (
-            <div key={agent.email} className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-              <div className="px-5 py-3 border-b border-[#f0f4f8] bg-gray-50 flex items-center justify-between">
+            <div key={agent.email} className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+              <div className="px-5 py-3 border-b border-white/20 bg-white/10 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{agent.name}</p>
-                  <p className="text-xs text-gray-400">{agent.email}</p>
+                  <p className="text-sm font-semibold text-slate-900/90">{agent.name}</p>
+                  <p className="text-xs text-slate-900/40">{agent.email}</p>
                 </div>
-                <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-medium bg-white/30 text-slate-900/60 px-2.5 py-1 rounded-full">
                   {agent.files.length} file{agent.files.length !== 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="divide-y divide-[#f0f4f8]">
+              <div className="divide-y divide-white/15">
                 {agent.files.map((tx) => {
                   const vendors = tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name);
                   const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name);
@@ -108,21 +108,21 @@ export default async function NotOurFilesPage() {
                     <Link
                       key={tx.id}
                       href={`/transactions/${tx.id}`}
-                      className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors group"
+                      className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 hover:bg-white/20 transition-colors group"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+                        <p className="text-sm font-medium text-slate-900/90 group-hover:text-blue-600 transition-colors truncate">
                           {tx.propertyAddress}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
-                          {vendors.length > 0 && <span className="text-xs text-gray-400">Vendor: {vendors.join(" & ")}</span>}
-                          {purchasers.length > 0 && <span className="text-xs text-gray-400">Purchaser: {purchasers.join(" & ")}</span>}
+                          {vendors.length > 0 && <span className="text-xs text-slate-900/40">Vendor: {vendors.join(" & ")}</span>}
+                          {purchasers.length > 0 && <span className="text-xs text-slate-900/40">Purchaser: {purchasers.join(" & ")}</span>}
                           {tx.purchasePrice && (
-                            <span className="text-xs text-gray-300">· £{tx.purchasePrice.toLocaleString("en-GB")}</span>
+                            <span className="text-xs text-slate-900/30">· £{tx.purchasePrice.toLocaleString("en-GB")}</span>
                           )}
                         </div>
                         {lastMilestone && (
-                          <p className="text-xs text-gray-400 mt-1 truncate">
+                          <p className="text-xs text-slate-900/40 mt-1 truncate">
                             Last: {lastMilestone.summaryText ?? "Milestone completed"} ·{" "}
                             {new Date(lastMilestone.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                           </p>

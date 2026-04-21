@@ -7,11 +7,11 @@ type Props = {
 };
 
 const urgencyConfig = {
-  overdue:   { dot: "bg-red-500",    label: "text-red-600",    badge: "bg-red-50 text-red-600" },
-  this_week: { dot: "bg-amber-500",  label: "text-amber-700",  badge: "bg-amber-50 text-amber-700" },
-  next_week: { dot: "bg-blue-500",   label: "text-blue-600",   badge: "bg-blue-50 text-blue-600" },
-  later:     { dot: "bg-gray-400",   label: "text-gray-600",   badge: "bg-gray-100 text-gray-500" },
-  no_date:   { dot: "bg-gray-300",   label: "text-gray-500",   badge: "bg-gray-100 text-gray-400" },
+  overdue:   { dot: "bg-red-500",    label: "text-red-600",    badge: "bg-red-50/60 text-red-600" },
+  this_week: { dot: "bg-amber-500",  label: "text-amber-700",  badge: "bg-amber-50/60 text-amber-700" },
+  next_week: { dot: "bg-blue-500",   label: "text-blue-600",   badge: "bg-blue-50/60 text-blue-600" },
+  later:     { dot: "bg-slate-400",  label: "text-slate-900/60", badge: "bg-white/30 text-slate-900/50" },
+  no_date:   { dot: "bg-slate-300",  label: "text-slate-900/50", badge: "bg-white/30 text-slate-900/40" },
 };
 
 export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props) {
@@ -20,19 +20,18 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
   const total = groups.reduce((n, g) => n + g.transactions.length, 0);
 
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0]"
-         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-      <div className="px-5 py-4 border-b border-[#f0f4f8] flex items-center justify-between">
+    <div className="glass-card">
+      <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-gray-800">Exchanged — Awaiting Completion</p>
-          <p className="text-xs text-gray-400 mt-0.5">Files that have exchanged but not yet completed</p>
+          <p className="text-sm font-semibold text-slate-900/90">Exchanged — Awaiting Completion</p>
+          <p className="text-xs text-slate-900/40 mt-0.5">Files that have exchanged but not yet completed</p>
         </div>
-        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+        <span className="text-xs font-medium text-emerald-600 bg-emerald-50/60 px-2.5 py-1 rounded-full">
           {total} file{total !== 1 ? "s" : ""}
         </span>
       </div>
 
-      <div className="divide-y divide-[#f0f4f8]">
+      <div className="divide-y divide-white/15">
         {groups.map((group) => {
           const cfg = urgencyConfig[group.urgency];
           return (
@@ -42,7 +41,7 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
                 <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.label}`}>
                   {group.label}
                 </span>
-                <span className="text-xs text-gray-300 ml-auto">
+                <span className="text-xs text-slate-900/30 ml-auto">
                   {group.transactions.length} file{group.transactions.length !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -59,17 +58,17 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
                       className="flex items-center justify-between group"
                     >
                       <div className="min-w-0">
-                        <span className="text-sm text-gray-700 group-hover:text-blue-600 transition-colors truncate block">
+                        <span className="text-sm text-slate-900/70 group-hover:text-blue-600 transition-colors truncate block">
                           {tx.propertyAddress}
                         </span>
                         {tx.purchasers.length > 0 && (
-                          <span className="text-xs text-gray-400">{tx.purchasers.join(" & ")}</span>
+                          <span className="text-xs text-slate-900/40">{tx.purchasers.join(" & ")}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0 ml-3 text-right">
                         {tx.completionDate ? (
                           <>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-slate-900/40">
                               {new Date(tx.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                             </span>
                             {daysUntil !== null && (
@@ -83,7 +82,7 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
                             )}
                           </>
                         ) : (
-                          <span className="text-xs text-gray-300 italic">No date set</span>
+                          <span className="text-xs text-slate-900/30 italic">No date set</span>
                         )}
                       </div>
                     </Link>

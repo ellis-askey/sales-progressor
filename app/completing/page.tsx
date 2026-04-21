@@ -8,11 +8,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import type { PostExchangeGroupDetailed } from "@/lib/services/transactions";
 
 const urgencyConfig = {
-  overdue:   { dot: "bg-red-500",   header: "bg-red-50 border-red-100",   label: "text-red-600",   badge: "bg-red-100 text-red-700" },
-  this_week: { dot: "bg-amber-500", header: "bg-amber-50 border-amber-100", label: "text-amber-700", badge: "bg-amber-100 text-amber-700" },
-  next_week: { dot: "bg-blue-500",  header: "bg-blue-50 border-blue-100", label: "text-blue-600",  badge: "bg-blue-100 text-blue-700" },
-  later:     { dot: "bg-gray-400",  header: "bg-gray-50 border-gray-100", label: "text-gray-600",  badge: "bg-gray-100 text-gray-600" },
-  no_date:   { dot: "bg-gray-300",  header: "bg-gray-50 border-gray-100", label: "text-gray-500",  badge: "bg-gray-100 text-gray-400" },
+  overdue:   { dot: "bg-red-500",   header: "bg-red-50/40 border-white/20",   label: "text-red-600",   badge: "bg-red-100/80 text-red-700" },
+  this_week: { dot: "bg-amber-500", header: "bg-amber-50/40 border-white/20", label: "text-amber-700", badge: "bg-amber-100/80 text-amber-700" },
+  next_week: { dot: "bg-blue-500",  header: "bg-blue-50/40 border-white/20",  label: "text-blue-600",  badge: "bg-blue-100/80 text-blue-700" },
+  later:     { dot: "bg-slate-400", header: "bg-white/10 border-white/20",    label: "text-slate-900/60", badge: "bg-white/30 text-slate-900/60" },
+  no_date:   { dot: "bg-slate-300", header: "bg-white/10 border-white/20",    label: "text-slate-900/50", badge: "bg-white/30 text-slate-900/40" },
 };
 
 function fmt(n: number) {
@@ -28,15 +28,14 @@ function daysLabel(d: number) {
 function CompletingGroup({ group }: { group: PostExchangeGroupDetailed }) {
   const cfg = urgencyConfig[group.urgency];
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
       <div className={`px-5 py-3 border-b flex items-center gap-2.5 ${cfg.header}`}>
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
         <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.label}`}>{group.label}</span>
-        <span className="ml-auto text-xs text-gray-400">{group.transactions.length} file{group.transactions.length !== 1 ? "s" : ""}</span>
+        <span className="ml-auto text-xs text-slate-900/40">{group.transactions.length} file{group.transactions.length !== 1 ? "s" : ""}</span>
       </div>
 
-      <div className="divide-y divide-[#f0f4f8]">
+      <div className="divide-y divide-white/15">
         {group.transactions.map((tx) => {
           const days = tx.completionDate
             ? Math.round((new Date(tx.completionDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000)
@@ -44,31 +43,31 @@ function CompletingGroup({ group }: { group: PostExchangeGroupDetailed }) {
 
           return (
             <Link key={tx.id} href={`/transactions/${tx.id}`}
-                  className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors group">
+                  className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4 hover:bg-white/20 transition-colors group">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+                <p className="text-sm font-medium text-slate-900/90 group-hover:text-blue-600 transition-colors truncate">
                   {tx.propertyAddress}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
                   {tx.vendors.length > 0 && (
-                    <span className="text-xs text-gray-400">Vendor: {tx.vendors.join(" & ")}</span>
+                    <span className="text-xs text-slate-900/40">Vendor: {tx.vendors.join(" & ")}</span>
                   )}
                   {tx.purchasers.length > 0 && (
-                    <span className="text-xs text-gray-400">Purchaser: {tx.purchasers.join(" & ")}</span>
+                    <span className="text-xs text-slate-900/40">Purchaser: {tx.purchasers.join(" & ")}</span>
                   )}
                   {tx.assignedUserName && (
-                    <span className="text-xs text-gray-300">· {tx.assignedUserName}</span>
+                    <span className="text-xs text-slate-900/30">· {tx.assignedUserName}</span>
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
                   {tx.vendorSolicitorFirmName && (
-                    <span className="text-xs text-gray-400">V Sol: {tx.vendorSolicitorFirmName}</span>
+                    <span className="text-xs text-slate-900/40">V Sol: {tx.vendorSolicitorFirmName}</span>
                   )}
                   {tx.purchaserSolicitorFirmName && (
-                    <span className="text-xs text-gray-400">P Sol: {tx.purchaserSolicitorFirmName}</span>
+                    <span className="text-xs text-slate-900/40">P Sol: {tx.purchaserSolicitorFirmName}</span>
                   )}
                   {tx.purchasePrice && (
-                    <span className="text-xs text-gray-400">{fmt(tx.purchasePrice)}</span>
+                    <span className="text-xs text-slate-900/40">{fmt(tx.purchasePrice)}</span>
                   )}
                 </div>
               </div>
@@ -76,7 +75,7 @@ function CompletingGroup({ group }: { group: PostExchangeGroupDetailed }) {
               <div className="flex flex-col items-end justify-center gap-1 flex-shrink-0">
                 {tx.completionDate ? (
                   <>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-slate-900/80">
                       {new Date(tx.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                     {days !== null && (
@@ -86,7 +85,7 @@ function CompletingGroup({ group }: { group: PostExchangeGroupDetailed }) {
                     )}
                   </>
                 ) : (
-                  <span className="text-xs text-gray-300 italic">No date set</span>
+                  <span className="text-xs text-slate-900/30 italic">No date set</span>
                 )}
               </div>
             </Link>
@@ -130,7 +129,7 @@ export default async function CompletingPage() {
 
       <div className="px-8 py-7 space-y-5">
         {groups.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0]" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div className="glass-card">
             <EmptyState
               title="No files awaiting completion"
               description="Files that have exchanged but not yet completed will appear here."

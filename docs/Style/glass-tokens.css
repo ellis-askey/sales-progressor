@@ -1,0 +1,149 @@
+/* ============================================================
+   GLASS DESIGN SYSTEM
+   Apple Control Center-inspired frosted glass primitives.
+   Single source of truth — do not duplicate these values
+   in components. Reference them via the utility classes below.
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Core frost fill — layered gradient, not flat colour.
+       The subtle top-to-bottom variation is what makes it
+       read as glass rather than as a translucent rectangle. */
+    --glass-fill: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.72) 0%,
+      rgb(255 255 255 / 0.58) 100%
+    );
+
+    /* Darker variant for glass over busy backgrounds */
+    --glass-fill-strong: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.82) 0%,
+      rgb(255 255 255 / 0.68) 100%
+    );
+
+    /* Hairline border — 1px at low opacity white,
+       gives the edge definition Apple uses */
+    --glass-border: rgb(255 255 255 / 0.35);
+    --glass-border-strong: rgb(255 255 255 / 0.5);
+
+    /* The inner top-edge highlight. This is the single
+       detail that sells the gloss. It simulates light
+       catching the top bevel of the glass. */
+    --glass-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.6);
+
+    /* Shadow stack — larger and softer than you'd expect.
+       Two layers: a tight shadow for definition and a
+       wide diffuse one for depth. */
+    --glass-shadow-sm:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 4px 12px rgb(0 0 0 / 0.06);
+    --glass-shadow-md:
+      0 2px 4px rgb(0 0 0 / 0.04),
+      0 8px 24px rgb(0 0 0 / 0.08),
+      0 16px 48px rgb(0 0 0 / 0.06);
+    --glass-shadow-lg:
+      0 4px 8px rgb(0 0 0 / 0.04),
+      0 16px 40px rgb(0 0 0 / 0.1),
+      0 32px 80px rgb(0 0 0 / 0.08);
+
+    /* Blur values — Control Center uses ~20px, we go
+       slightly higher because web blur is less convincing
+       than native at the same value */
+    --glass-blur: 24px;
+    --glass-blur-strong: 32px;
+
+    /* Saturation boost — Apple cranks saturation behind
+       the blur so colours don't go washed-out grey.
+       This is the second detail most implementations miss. */
+    --glass-saturate: 180%;
+
+    /* Radius scale — Apple uses larger radii than web default */
+    --glass-radius-sm: 12px;
+    --glass-radius-md: 16px;
+    --glass-radius-lg: 20px;
+    --glass-radius-xl: 28px;
+  }
+}
+
+/* ============================================================
+   UTILITY CLASSES
+   Use these instead of composing raw backdrop-blur etc.
+   ============================================================ */
+
+@layer components {
+  /* Base glass card — use for most surfaces */
+  .glass-card {
+    background: var(--glass-fill);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius-lg);
+    box-shadow:
+      var(--glass-shadow-md),
+      var(--glass-highlight);
+  }
+
+  /* Stronger glass — use over photography or vivid backgrounds */
+  .glass-card-strong {
+    background: var(--glass-fill-strong);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border-strong);
+    border-radius: var(--glass-radius-lg);
+    box-shadow:
+      var(--glass-shadow-lg),
+      var(--glass-highlight);
+  }
+
+  /* Subtle glass — use for nested surfaces inside a glass-card */
+  .glass-subtle {
+    background: rgb(255 255 255 / 0.4);
+    backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: var(--glass-radius-md);
+  }
+
+  /* Glass button — interactive, slightly more opaque */
+  .glass-button {
+    background: rgb(255 255 255 / 0.6);
+    backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    box-shadow:
+      var(--glass-shadow-sm),
+      var(--glass-highlight);
+    transition: all 0.2s ease;
+  }
+
+  .glass-button:hover {
+    background: rgb(255 255 255 / 0.75);
+    box-shadow:
+      var(--glass-shadow-md),
+      var(--glass-highlight);
+  }
+
+  /* Glass navbar / top bar */
+  .glass-nav {
+    background: rgb(255 255 255 / 0.65);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  /* Required: glass needs visual interest behind it.
+     This utility gives any page a soft colour wash that
+     makes the glass effect visible. Apply to <body> or
+     a full-height page wrapper. */
+  .glass-page-bg {
+    background:
+      radial-gradient(ellipse at top left, rgb(180 200 255 / 0.4), transparent 50%),
+      radial-gradient(ellipse at top right, rgb(255 200 220 / 0.35), transparent 50%),
+      radial-gradient(ellipse at bottom, rgb(200 220 255 / 0.3), transparent 60%),
+      linear-gradient(180deg, #f5f7fa 0%, #e8ecf3 100%);
+    min-height: 100vh;
+  }
+}

@@ -47,37 +47,34 @@ export default async function DashboardPage({
 
         {/* ── Task summary strip ────────────────────────────────────────── */}
         {taskCounts && taskCounts.pending > 0 && (
-          <div
-            className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-4 flex items-center justify-between"
-            style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
-          >
+          <div className="glass-card px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Open tasks</p>
-                <p className="text-2xl font-semibold text-gray-800">{taskCounts.pending}</p>
+                <p className="text-xs text-slate-900/40 mb-0.5">Open tasks</p>
+                <p className="text-2xl font-semibold text-slate-900/90">{taskCounts.pending}</p>
               </div>
               {taskCounts.overdue > 0 && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Overdue</p>
+                  <p className="text-xs text-slate-900/40 mb-0.5">Overdue</p>
                   <p className="text-2xl font-semibold text-orange-500">{taskCounts.overdue}</p>
                 </div>
               )}
               {taskCounts.escalated > 0 && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Escalated</p>
+                  <p className="text-xs text-slate-900/40 mb-0.5">Escalated</p>
                   <p className="text-2xl font-semibold text-red-500">{taskCounts.escalated}</p>
                 </div>
               )}
               {taskCounts.mine > 0 && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Assigned to me</p>
+                  <p className="text-xs text-slate-900/40 mb-0.5">Assigned to me</p>
                   <p className="text-2xl font-semibold text-blue-500">{taskCounts.mine}</p>
                 </div>
               )}
             </div>
             <Link
               href="/tasks"
-              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50/60 hover:bg-blue-100/60 rounded-lg transition-colors"
             >
               View work queue →
             </Link>
@@ -96,7 +93,7 @@ export default async function DashboardPage({
 
         {/* ── Filter tabs ───────────────────────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-1 mb-5 bg-white rounded-xl border border-[#e4e9f0] p-1 w-fit shadow-sm">
+          <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
             {([
               { value: "all",       label: "All",       count: transactions.length },
               { value: "active",    label: "Active",    count: counts.active },
@@ -113,12 +110,12 @@ export default async function DashboardPage({
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-blue-500 text-white shadow-sm"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      : "text-slate-900/50 hover:text-slate-900/70 hover:bg-white/40"
                   }`}
                 >
                   {label}
                   <span className={`text-xs rounded-full px-1.5 py-0.5 font-normal ${
-                    isActive ? "bg-blue-400 text-white" : "bg-gray-100 text-gray-500"
+                    isActive ? "bg-blue-400 text-white" : "bg-white/30 text-slate-900/50"
                   }`}>
                     {count}
                   </span>
@@ -128,7 +125,7 @@ export default async function DashboardPage({
           </div>
 
           {filtered.length === 0 ? (
-            <div className="bg-white rounded-xl border border-[#e4e9f0] shadow-sm">
+            <div className="glass-card">
               <EmptyState
                 title={activeFilter === "all" ? "No transactions yet" : `No ${activeFilter.replace("_", " ")} transactions`}
                 description={activeFilter === "all" ? "Create your first property transaction to get started." : "Try a different filter."}

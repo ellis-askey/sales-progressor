@@ -8,9 +8,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import type { CommType, CommMethod } from "@prisma/client";
 
 const typeConfig: Record<CommType, { label: string; color: string; dot: string }> = {
-  outbound:      { label: "Outbound", color: "bg-blue-50 text-blue-700",   dot: "bg-blue-400" },
-  inbound:       { label: "Inbound",  color: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-400" },
-  internal_note: { label: "Note",     color: "bg-gray-100 text-gray-500",  dot: "bg-gray-300" },
+  outbound:      { label: "Outbound", color: "bg-blue-50/60 text-blue-700",   dot: "bg-blue-400" },
+  inbound:       { label: "Inbound",  color: "bg-emerald-50/60 text-emerald-700", dot: "bg-emerald-400" },
+  internal_note: { label: "Note",     color: "bg-white/30 text-slate-900/50",  dot: "bg-slate-300" },
 };
 
 const methodLabel: Partial<Record<CommMethod, string>> = {
@@ -58,20 +58,19 @@ export default async function CommsPage() {
 
       <div className="px-8 py-7">
         {entries.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0]" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div className="glass-card">
             <EmptyState
               title="No communications yet"
               description="Communications logged against transactions will appear here."
             />
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-               style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div className="divide-y divide-[#f0f4f8]">
+          <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+            <div className="divide-y divide-white/15">
               {entries.map((entry) => {
                 const cfg = typeConfig[entry.type];
                 return (
-                  <div key={entry.id} className="px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
+                  <div key={entry.id} className="px-5 py-3.5 hover:bg-white/20 transition-colors">
                     <div className="flex items-start gap-3">
                       <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
                       <div className="min-w-0 flex-1">
@@ -84,11 +83,11 @@ export default async function CommsPage() {
                             {cfg.label}{entry.method ? ` · ${methodLabel[entry.method] ?? entry.method}` : ""}
                           </span>
                           {entry.wasAiGenerated && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 font-medium">AI</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-violet-50/60 text-violet-600 font-medium">AI</span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-700 line-clamp-2">{entry.content}</p>
-                        <p className="text-xs text-gray-400 mt-1">{entry.createdByName} · {timeAgo(entry.createdAt)}</p>
+                        <p className="text-sm text-slate-900/80 line-clamp-2">{entry.content}</p>
+                        <p className="text-xs text-slate-900/40 mt-1">{entry.createdByName} · {timeAgo(entry.createdAt)}</p>
                       </div>
                     </div>
                   </div>

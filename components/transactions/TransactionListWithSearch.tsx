@@ -37,7 +37,7 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by address…"
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-[#e4e9f0] rounded-xl bg-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-white/30 rounded-xl bg-white/50 backdrop-blur-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-slate-900/80 placeholder:text-slate-900/30"
         />
         {query && (
           <button
@@ -50,8 +50,8 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-8 text-center">
-          <p className="text-sm text-gray-400">No transactions match "{query}"</p>
+        <div className="glass-card px-5 py-8 text-center">
+          <p className="text-sm text-slate-900/40">No transactions match "{query}"</p>
         </div>
       ) : (
         <TransactionTable transactions={filtered} basePath={basePath} />

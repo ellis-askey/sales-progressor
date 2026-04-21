@@ -1,5 +1,4 @@
 "use client";
-// components/tasks/WorkQueue.tsx
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -71,7 +70,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
   return (
     <div>
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-5 bg-white rounded-xl border border-[#e4e9f0] p-1 w-fit shadow-sm">
+      <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
         {tabs.map(({ value, label, count, color }) => {
           const isActive = activeFilter === value;
           return (
@@ -79,7 +78,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? value === "snoozed" ? "bg-purple-500 text-white shadow-sm" : "bg-blue-500 text-white shadow-sm"
-                  : `${color ?? "text-gray-500"} hover:text-gray-700 hover:bg-gray-50`
+                  : `${color ?? "text-slate-900/50"} hover:text-slate-900/70 hover:bg-white/40`
               }`}
             >
               {label}
@@ -89,7 +88,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                     ? value === "snoozed" ? "bg-purple-400 text-white" : "bg-blue-400 text-white"
                     : count > 0 && color
                     ? value === "snoozed" ? "bg-purple-100 text-purple-700" : "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-500"
+                    : "bg-white/30 text-slate-900/50"
                 }`}>
                   {count}
                 </span>
@@ -102,36 +101,35 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
       {/* Snoozed view */}
       {activeFilter === "snoozed" ? (
         snoozedItems.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-12 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <p className="text-sm font-medium text-gray-600">No snoozed reminders</p>
-            <p className="text-xs text-gray-400 mt-1">Snoozed tasks will reappear here automatically when they wake up</p>
+          <div className="glass-card px-5 py-12 text-center">
+            <p className="text-sm font-medium text-slate-900/60">No snoozed reminders</p>
+            <p className="text-xs text-slate-900/40 mt-1">Snoozed tasks will reappear here automatically when they wake up</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {snoozedItems.map((item) => {
               const addressParts = item.transaction.propertyAddress.split(",");
               return (
-                <div key={item.id} className="bg-white rounded-xl border border-purple-100 border-l-4 border-l-purple-300 overflow-hidden"
-                     style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div key={item.id} className="glass-card border-l-4 border-l-purple-400">
                   <div className="px-5 py-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="min-w-0">
                         <Link href={`/transactions/${item.transaction.id}`}
-                          className="text-sm font-semibold text-gray-800 hover:text-blue-600 transition-colors leading-tight block truncate">
+                          className="text-sm font-semibold text-slate-900/90 hover:text-blue-600 transition-colors leading-tight block truncate">
                           {addressParts[0].trim()}
                         </Link>
                         {addressParts.length > 1 && (
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{addressParts.slice(1).join(",").trim()}</p>
+                          <p className="text-xs text-slate-900/40 truncate mt-0.5">{addressParts.slice(1).join(",").trim()}</p>
                         )}
                       </div>
-                      <span className="text-xs font-medium px-2 py-1 rounded-lg flex-shrink-0 bg-purple-100 text-purple-700">
+                      <span className="text-xs font-medium px-2 py-1 rounded-lg flex-shrink-0 bg-purple-100/80 text-purple-700">
                         Wakes {formatDate(item.snoozedUntil)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-700 mb-3">{item.reminderRule.name.replace(/^Chase:\s*/i, "")}</p>
-                    <div className="flex items-center gap-2 pt-3 border-t border-[#f0f4f8]">
+                    <p className="text-sm text-slate-900/70 mb-3">{item.reminderRule.name.replace(/^Chase:\s*/i, "")}</p>
+                    <div className="flex items-center gap-2 pt-3 border-t border-white/20">
                       <button onClick={() => handleWakeup(item.id)} disabled={loadingId === item.id}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-purple-200 text-purple-600 hover:bg-purple-50 disabled:opacity-40">
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-purple-200/60 text-purple-600 hover:bg-purple-50/60 disabled:opacity-40">
                         {loadingId === item.id ? "…" : "Wake up now"}
                       </button>
                       <Link href={`/transactions/${item.transaction.id}`} className="ml-auto text-xs text-blue-500 hover:text-blue-600 transition-colors">
@@ -147,19 +145,19 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
       ) : (
         /* Task list for all other filters */
         filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-12 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+          <div className="glass-card px-5 py-12 text-center">
+            <div className="w-10 h-10 rounded-full bg-green-100/80 flex items-center justify-center mx-auto mb-3">
               <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm font-medium text-slate-900/60">
               {activeFilter === "overdue" ? "No overdue tasks" :
                activeFilter === "escalated" ? "No escalated tasks" :
                activeFilter === "mine" ? "No tasks assigned to you" :
                "All caught up"}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-slate-900/40 mt-1">
               {activeFilter === "all" ? "Tasks will appear here when reminders become due" : "Try a different filter"}
             </p>
           </div>

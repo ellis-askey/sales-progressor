@@ -45,7 +45,7 @@ export default async function SolicitorsPage() {
 
       <div className="px-8 py-7 space-y-4">
         {firms.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0]" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <div className="glass-card">
             <EmptyState
               title="No solicitor firms yet"
               description="Solicitor firms are added when you create or edit a transaction."
@@ -53,20 +53,19 @@ export default async function SolicitorsPage() {
           </div>
         ) : (
           firms.map((firm) => (
-            <div key={firm.id} className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-                 style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div key={firm.id} className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
               {/* Firm header */}
-              <div className="px-5 py-4 border-b border-[#f0f4f8] flex items-center justify-between">
+              <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50/60 flex items-center justify-center flex-shrink-0">
                     <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
                     </svg>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800">{firm.name}</p>
+                  <p className="text-sm font-semibold text-slate-900/90">{firm.name}</p>
                 </div>
                 {firm.totalActiveFiles > 0 && (
-                  <span className="text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-medium bg-emerald-50/60 text-emerald-700 px-2.5 py-1 rounded-full">
                     {firm.totalActiveFiles} active file{firm.totalActiveFiles !== 1 ? "s" : ""}
                   </span>
                 )}
@@ -74,14 +73,14 @@ export default async function SolicitorsPage() {
 
               {/* Contacts */}
               {firm.contacts.length === 0 ? (
-                <div className="px-5 py-4 text-sm text-gray-400 italic">No contacts recorded</div>
+                <div className="px-5 py-4 text-sm text-slate-900/40 italic">No contacts recorded</div>
               ) : (
-                <div className="divide-y divide-[#f0f4f8]">
+                <div className="divide-y divide-white/15">
                   {firm.contacts.map((contact) => (
                     <div key={contact.id} className="px-5 py-3.5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-700">{contact.name}</p>
+                          <p className="text-sm font-medium text-slate-900/80">{contact.name}</p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                             {contact.email && (
                               <a href={`mailto:${contact.email}`}
@@ -91,7 +90,7 @@ export default async function SolicitorsPage() {
                             )}
                             {contact.phone && (
                               <a href={`tel:${contact.phone}`}
-                                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                                 className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
                                 {contact.phone}
                               </a>
                             )}
@@ -103,10 +102,10 @@ export default async function SolicitorsPage() {
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {contact.activeFiles.map((f) => (
                             <Link key={`${f.id}-${f.role}`} href={`/transactions/${f.id}`}
-                                  className="inline-flex items-center gap-1 text-xs bg-gray-50 hover:bg-blue-50 border border-[#e4e9f0] hover:border-blue-200 text-gray-600 hover:text-blue-600 rounded-md px-2 py-0.5 transition-colors">
+                                  className="inline-flex items-center gap-1 text-xs bg-white/30 hover:bg-blue-50/60 border border-white/30 hover:border-blue-200/60 text-slate-900/60 hover:text-blue-600 rounded-md px-2 py-0.5 transition-colors">
                               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${f.role === "vendor" ? "bg-purple-400" : "bg-blue-400"}`} />
                               <span className="truncate max-w-[180px]">{f.propertyAddress}</span>
-                              <span className="text-gray-300 capitalize">({f.role})</span>
+                              <span className="text-slate-900/30 capitalize">({f.role})</span>
                             </Link>
                           ))}
                         </div>

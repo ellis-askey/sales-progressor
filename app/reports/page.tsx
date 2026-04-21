@@ -11,12 +11,11 @@ function fmt(n: number) {
 
 function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-         style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-      <div className="px-5 py-4 border-b border-[#f0f4f8] flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-800">{title}</p>
+    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+      <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-900/90">{title}</p>
         {count !== undefined && (
-          <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">{count}</span>
+          <span className="text-xs font-medium bg-white/30 text-slate-900/60 px-2.5 py-1 rounded-full">{count}</span>
         )}
       </div>
       {children}
@@ -54,12 +53,11 @@ export default async function ReportsPage() {
           {[
             { label: "Active files",      value: String(report.totalActiveFiles),   color: "text-emerald-600" },
             { label: "Pipeline value",    value: fmt(report.totalPipelineValue),     color: "text-blue-600" },
-            { label: "Milestones (7d)",   value: String(report.milestonesCompleted.length), color: "text-gray-800" },
-            { label: "Overdue tasks",     value: String(report.overdueTaskCount),   color: report.overdueTaskCount > 0 ? "text-orange-500" : "text-gray-800" },
+            { label: "Milestones (7d)",   value: String(report.milestonesCompleted.length), color: "text-slate-900/90" },
+            { label: "Overdue tasks",     value: String(report.overdueTaskCount),   color: report.overdueTaskCount > 0 ? "text-orange-500" : "text-slate-900/90" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-4"
-                 style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-              <p className="text-xs text-gray-400 mb-1">{label}</p>
+            <div key={label} className="glass-card px-5 py-4">
+              <p className="text-xs text-slate-900/40 mb-1">{label}</p>
               <p className={`text-2xl font-bold tracking-tight ${color}`}>{value}</p>
             </div>
           ))}
@@ -68,15 +66,15 @@ export default async function ReportsPage() {
         {/* ── Files exchanged ── */}
         <Section title="Exchanged this week" count={report.filesExchanged.length}>
           {report.filesExchanged.length === 0 ? (
-            <div className="px-5 py-6 text-sm text-gray-400 text-center">No exchanges this week</div>
+            <div className="px-5 py-6 text-sm text-slate-900/40 text-center">No exchanges this week</div>
           ) : (
-            <div className="divide-y divide-[#f0f4f8]">
+            <div className="divide-y divide-white/15">
               {report.filesExchanged.map((f) => (
                 <Link key={f.id} href={`/transactions/${f.id}`}
-                      className="flex items-center justify-between px-5 py-3 hover:bg-gray-50/60 transition-colors group">
-                  <span className="text-sm text-gray-700 group-hover:text-blue-600 transition-colors">{f.propertyAddress}</span>
+                      className="flex items-center justify-between px-5 py-3 hover:bg-white/20 transition-colors group">
+                  <span className="text-sm text-slate-900/80 group-hover:text-blue-600 transition-colors">{f.propertyAddress}</span>
                   {f.completionDate && (
-                    <span className="text-xs text-gray-400 flex-shrink-0 ml-3">
+                    <span className="text-xs text-slate-900/40 flex-shrink-0 ml-3">
                       Completion: {new Date(f.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                   )}
@@ -89,14 +87,14 @@ export default async function ReportsPage() {
         {/* ── Files added ── */}
         <Section title="New files this week" count={report.filesAdded.length}>
           {report.filesAdded.length === 0 ? (
-            <div className="px-5 py-6 text-sm text-gray-400 text-center">No new files this week</div>
+            <div className="px-5 py-6 text-sm text-slate-900/40 text-center">No new files this week</div>
           ) : (
-            <div className="divide-y divide-[#f0f4f8]">
+            <div className="divide-y divide-white/15">
               {report.filesAdded.map((f) => (
                 <Link key={f.id} href={`/transactions/${f.id}`}
-                      className="flex items-center justify-between px-5 py-3 hover:bg-gray-50/60 transition-colors group">
-                  <span className="text-sm text-gray-700 group-hover:text-blue-600 transition-colors">{f.propertyAddress}</span>
-                  <span className="text-xs text-gray-400 flex-shrink-0 ml-3">
+                      className="flex items-center justify-between px-5 py-3 hover:bg-white/20 transition-colors group">
+                  <span className="text-sm text-slate-900/80 group-hover:text-blue-600 transition-colors">{f.propertyAddress}</span>
+                  <span className="text-xs text-slate-900/40 flex-shrink-0 ml-3">
                     {new Date(f.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </span>
                 </Link>
@@ -108,17 +106,17 @@ export default async function ReportsPage() {
         {/* ── Milestones completed ── */}
         <Section title="Milestones completed this week" count={report.milestonesCompleted.length}>
           {report.milestonesCompleted.length === 0 ? (
-            <div className="px-5 py-6 text-sm text-gray-400 text-center">No milestones logged this week</div>
+            <div className="px-5 py-6 text-sm text-slate-900/40 text-center">No milestones logged this week</div>
           ) : (
-            <div className="divide-y divide-[#f0f4f8]">
+            <div className="divide-y divide-white/15">
               {report.milestonesCompleted.map((m, i) => (
                 <Link key={i} href={`/transactions/${m.transactionId}`}
-                      className="grid grid-cols-[1fr_auto] gap-4 px-5 py-3 hover:bg-gray-50/60 transition-colors group">
+                      className="grid grid-cols-[1fr_auto] gap-4 px-5 py-3 hover:bg-white/20 transition-colors group">
                   <div className="min-w-0">
-                    <p className="text-sm text-gray-700 group-hover:text-blue-600 transition-colors truncate">{m.propertyAddress}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{m.milestoneName}{m.completedByName ? ` · ${m.completedByName}` : ""}</p>
+                    <p className="text-sm text-slate-900/80 group-hover:text-blue-600 transition-colors truncate">{m.propertyAddress}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">{m.milestoneName}{m.completedByName ? ` · ${m.completedByName}` : ""}</p>
                   </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0 self-center">
+                  <span className="text-xs text-slate-900/40 flex-shrink-0 self-center">
                     {new Date(m.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </span>
                 </Link>
