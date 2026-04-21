@@ -31,7 +31,7 @@ const RISK_DOT: Record<string, string> = {
 const RISK_BORDER: Record<string, string> = {
   high:   "border-red-200 bg-red-50",
   medium: "border-amber-200 bg-amber-50",
-  low:    "border-[#e4e9f0] bg-white",
+  low:    "border-white/20 bg-white/10",
 };
 
 function LinkCard({ link, isThis, isWeakest }: { link: ChainLinkData; isThis: boolean; isWeakest: boolean }) {
@@ -59,30 +59,30 @@ function LinkCard({ link, isThis, isWeakest }: { link: ChainLinkData; isThis: bo
       <div className="flex items-start gap-3">
         <span className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${RISK_DOT[risk]}`} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-800 leading-snug truncate">{line1}</p>
-          {line2 && <p className="text-xs text-gray-400 mt-0.5 truncate">{line2}</p>}
+          <p className="text-sm font-semibold text-slate-900/90 leading-snug truncate">{line1}</p>
+          {line2 && <p className="text-xs text-slate-900/40 mt-0.5 truncate">{line2}</p>}
 
           {link.transaction ? (
             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
               {stuck !== null && (
-                <span className={`text-xs ${stuck >= 21 ? "text-red-600 font-medium" : stuck >= 10 ? "text-amber-600" : "text-gray-400"}`}>
+                <span className={`text-xs ${stuck >= 21 ? "text-red-600 font-medium" : stuck >= 10 ? "text-amber-600" : "text-slate-900/40"}`}>
                   {stuck === 0 ? "Active today" : `${stuck}d since last milestone`}
                 </span>
               )}
               {link.transaction.vendorSolicitorFirm && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-900/40">
                   V: {link.transaction.vendorSolicitorFirm.name}
                 </span>
               )}
               {link.transaction.purchaserSolicitorFirm && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-900/40">
                   P: {link.transaction.purchaserSolicitorFirm.name}
                 </span>
               )}
             </div>
           ) : (
             <div className="mt-1.5">
-              <span className="text-xs text-gray-400 italic">
+              <span className="text-xs text-slate-900/40 italic">
                 {link.externalStatus ?? "External — status unknown"}
               </span>
             </div>
@@ -97,8 +97,8 @@ function ChainConnector() {
   return (
     <div className="flex items-center justify-center h-6">
       <div className="flex flex-col items-center gap-0.5">
-        <span className="w-px h-2 bg-gray-200" />
-        <svg className="w-3.5 h-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <span className="w-px h-2 bg-white/30" />
+        <svg className="w-3.5 h-3.5 text-slate-900/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       </div>
@@ -118,7 +118,7 @@ export function ChainMap({ chain, currentTransactionId }: { chain: ChainData; cu
   return (
     <div className="space-y-0">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
           Chain · {links.length} link{links.length !== 1 ? "s" : ""}
         </p>
         {weakestId && (

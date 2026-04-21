@@ -10,12 +10,12 @@ export default async function AgentNewTransactionPage() {
       <div className="px-1 pb-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">New Transaction</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Add a new property file</p>
+            <h1 className="text-xl font-bold text-slate-900/90">New Transaction</h1>
+            <p className="text-sm text-slate-900/40 mt-0.5">Add a new property file</p>
           </div>
           <Link
             href="/agent/dashboard"
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors"
+            className="text-sm text-slate-900/40 hover:text-slate-900/80 transition-colors"
           >
             ← My Files
           </Link>

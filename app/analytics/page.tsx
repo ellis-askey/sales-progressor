@@ -66,7 +66,7 @@ function BarChart({
         {keys.map((k, i) => (
           <div key={k} className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: colors[i] }} />
-            <span className="text-xs text-gray-400">{k}</span>
+            <span className="text-xs text-slate-900/40">{k}</span>
           </div>
         ))}
       </div>

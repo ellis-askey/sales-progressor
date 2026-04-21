@@ -54,8 +54,7 @@ export function AddManualTaskForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-xl border border-blue-200 p-4 space-y-3"
-      style={{ boxShadow: "0 1px 4px rgba(59,130,246,0.08)" }}
+      className="glass-card border border-blue-200/60 p-4 space-y-3"
     >
       {transactionAddress && (
         <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>
@@ -67,27 +66,27 @@ export function AddManualTaskForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="w-full text-sm text-gray-800 placeholder-gray-300 border-0 outline-none bg-transparent font-medium"
+        className="w-full text-sm text-slate-900/80 placeholder:text-slate-900/30 border-0 outline-none bg-transparent font-medium"
       />
       <textarea
         placeholder="Notes (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={2}
-        className="w-full text-xs text-gray-500 placeholder-gray-300 border-0 outline-none bg-transparent resize-none"
+        className="w-full text-xs text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none"
       />
-      <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
+      <div className="flex items-center gap-3 pt-1 border-t border-white/20">
         <input
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className="text-xs text-gray-500 border-0 outline-none bg-transparent"
+          className="text-xs text-slate-900/50 border-0 outline-none bg-transparent"
         />
         <div className="flex-1" />
         <button
           type="button"
           onClick={() => { setOpen(false); setTitle(""); setNotes(""); setDueDate(""); }}
-          className="text-xs text-gray-400 hover:text-gray-600"
+          className="text-xs text-slate-900/40 hover:text-slate-900/70"
         >
           Cancel
         </button>

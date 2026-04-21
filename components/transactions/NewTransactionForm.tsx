@@ -366,7 +366,7 @@ function ContactSection({ label, contacts, onChange, onAdd, onRemove }: ContactS
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Full name <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-medium text-slate-900/60 mb-1.5">Full name <span className="text-red-400">*</span></label>
               <input
                 value={contact.name}
                 onChange={(e) => onChange(i, "name", e.target.value)}

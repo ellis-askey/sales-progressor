@@ -42,25 +42,25 @@ function ExchangeCountdown({ date }: { date: Date }) {
   if (days < 0) return (
     <div>
       <p className="text-xs font-semibold text-red-500">{Math.abs(days)}d overdue</p>
-      <p className="text-xs text-gray-400">{formatDate(date)}</p>
+      <p className="text-xs text-slate-900/40">{formatDate(date)}</p>
     </div>
   );
   if (days === 0) return (
     <div>
       <p className="text-xs font-semibold text-amber-500">Today</p>
-      <p className="text-xs text-gray-400">{formatDate(date)}</p>
+      <p className="text-xs text-slate-900/40">{formatDate(date)}</p>
     </div>
   );
   if (days <= 21) return (
     <div>
       <p className="text-xs font-semibold text-amber-600">{days} days</p>
-      <p className="text-xs text-gray-400">{formatDate(date)}</p>
+      <p className="text-xs text-slate-900/40">{formatDate(date)}</p>
     </div>
   );
   return (
     <div>
-      <p className="text-sm text-gray-600">{formatDate(date)}</p>
-      <p className="text-xs text-gray-400">{days}d away</p>
+      <p className="text-sm text-slate-900/70">{formatDate(date)}</p>
+      <p className="text-xs text-slate-900/40">{days}d away</p>
     </div>
   );
 }

@@ -32,18 +32,17 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Notes</h2>
+        <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Notes</h2>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
-            className="text-xs text-gray-300 hover:text-blue-500 transition-colors"
+            className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors"
           >
             {initialNotes ? "Edit" : "+ Add"}
           </button>
         )}
       </div>
-      <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-4"
-           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div className="glass-card px-5 py-4">
         {editing ? (
           <div className="space-y-3">
             <textarea
@@ -52,7 +51,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
               rows={4}
               autoFocus
               placeholder="Add notes about this transaction…"
-              className="w-full px-3 py-2.5 text-sm border border-[#e4e9f0] rounded-lg bg-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
+              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
             />
             <div className="flex items-center gap-2">
               <button
@@ -64,16 +63,16 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
               </button>
               <button
                 onClick={() => { setDraft(initialNotes ?? ""); setEditing(false); }}
-                className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                className="px-3 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors"
               >
                 Cancel
               </button>
             </div>
           </div>
         ) : initialNotes ? (
-          <p className="text-sm text-gray-700 whitespace-pre-wrap">{initialNotes}</p>
+          <p className="text-sm text-slate-900/80 whitespace-pre-wrap">{initialNotes}</p>
         ) : (
-          <p className="text-sm text-gray-300 italic">No notes yet</p>
+          <p className="text-sm text-slate-900/30 italic">No notes yet</p>
         )}
       </div>
     </section>

@@ -7,7 +7,7 @@ import type { EmailParseResult } from "@/lib/services/email-parse";
 const CONFIDENCE_STYLE = {
   high:   { label: "High confidence", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
   medium: { label: "Medium confidence", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
-  low:    { label: "Low confidence",   color: "text-gray-600",   bg: "bg-gray-50 border-gray-200" },
+  low:    { label: "Low confidence",   color: "text-slate-900/60", bg: "bg-white/20 border-white/30" },
 };
 
 export function EmailParseWidget({ transactionId }: { transactionId: string }) {
@@ -72,11 +72,11 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full px-5 py-4 flex items-center justify-between hover:bg-white/20 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
@@ -85,17 +85,17 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
             </svg>
           </div>
           <div className="text-left">
-            <p className="text-sm font-semibold text-gray-800">Parse email from solicitor</p>
-            <p className="text-xs text-gray-400">Paste an email — AI will suggest which milestones to mark complete</p>
+            <p className="text-sm font-semibold text-slate-900/90">Parse email from solicitor</p>
+            <p className="text-xs text-slate-900/40">Paste an email — AI will suggest which milestones to mark complete</p>
           </div>
         </div>
-        <svg className={`w-4 h-4 text-gray-300 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`w-4 h-4 text-slate-900/30 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       </button>
 
       {open && (
-        <div className="border-t border-[#f0f4f8] px-5 py-4 space-y-4">
+        <div className="border-t border-white/20 px-5 py-4 space-y-4">
           {!result && (
             <>
               <textarea
@@ -103,7 +103,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                 placeholder="Paste the email content here…"
                 value={emailText}
                 onChange={(e) => setEmailText(e.target.value)}
-                className="w-full text-sm border border-[#e4e9f0] rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-gray-300"
+                className="w-full text-sm border border-white/30 rounded-xl px-4 py-3 bg-white/40 text-slate-900/80 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-slate-900/30"
               />
               <div className="flex items-center gap-2">
                 <button
@@ -114,7 +114,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                 >
                   {loading ? "Analysing…" : "Analyse email"}
                 </button>
-                <button type="button" onClick={reset} className="text-sm text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={reset} className="text-sm text-slate-900/40 hover:text-slate-900/70">
                   Cancel
                 </button>
               </div>
@@ -126,11 +126,11 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
             <div className="space-y-4">
               {/* Summary */}
               {result.extractedSummary && (
-                <div className="bg-gray-50 border border-[#e4e9f0] rounded-xl px-4 py-3">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Email summary</p>
-                  <p className="text-sm text-gray-700 leading-snug">{result.extractedSummary}</p>
+                <div className="glass-subtle rounded-xl px-4 py-3">
+                  <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Email summary</p>
+                  <p className="text-sm text-slate-900/80 leading-snug">{result.extractedSummary}</p>
                   {result.senderClue && (
-                    <p className="text-xs text-gray-400 mt-1">Sender appears to be: {result.senderClue}</p>
+                    <p className="text-xs text-slate-900/40 mt-1">Sender appears to be: {result.senderClue}</p>
                   )}
                 </div>
               )}
@@ -138,12 +138,12 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
               {/* Suggestions */}
               {result.noMatch || result.suggestions.length === 0 ? (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-400">No milestone matches found in this email.</p>
-                  <p className="text-xs text-gray-300 mt-1">The email may be informational or relate to something not tracked.</p>
+                  <p className="text-sm text-slate-900/40">No milestone matches found in this email.</p>
+                  <p className="text-xs text-slate-900/30 mt-1">The email may be informational or relate to something not tracked.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">
                     Suggested milestones to mark complete
                   </p>
                   {result.suggestions.map((s) => {
@@ -153,8 +153,8 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                       <div key={s.milestoneId} className={`border rounded-xl px-4 py-3 ${cfg.bg}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 leading-snug">{s.milestoneName}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 leading-snug">{s.reason}</p>
+                            <p className="text-sm font-semibold text-slate-900/90 leading-snug">{s.milestoneName}</p>
+                            <p className="text-xs text-slate-900/50 mt-0.5 leading-snug">{s.reason}</p>
                             <p className={`text-xs mt-1 font-medium ${cfg.color}`}>{cfg.label}</p>
                           </div>
                           {done ? (
@@ -169,7 +169,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                               type="button"
                               onClick={() => confirmMilestone(s.milestoneId, s.milestoneName)}
                               disabled={confirming === s.milestoneId}
-                              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+                              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg glass-subtle border border-white/30 text-slate-900/70 hover:bg-white/40 font-medium transition-colors disabled:opacity-50"
                             >
                               {confirming === s.milestoneId ? "Confirming…" : "Mark complete"}
                             </button>
@@ -181,7 +181,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                 </div>
               )}
 
-              <button type="button" onClick={reset} className="text-xs text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={reset} className="text-xs text-slate-900/40 hover:text-slate-900/70">
                 ← Parse another email
               </button>
             </div>

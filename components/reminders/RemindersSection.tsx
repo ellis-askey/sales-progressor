@@ -199,7 +199,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
             </span>
           )}
         </div>
-        <button onClick={runEngine} disabled={loading === "engine"} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+        <button onClick={runEngine} disabled={loading === "engine"} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
           {loading === "engine" ? "Running…" : "↻ Run engine"}
         </button>
       </div>

@@ -150,7 +150,7 @@ function Flag({ color }: { color: "blue" | "amber" | "green" | "gray" }) {
     blue:  "bg-blue-100 text-blue-600",
     amber: "bg-amber-100 text-amber-600",
     green: "bg-green-100 text-green-600",
-    gray:  "bg-gray-100 text-gray-500",
+    gray:  "bg-white/20 text-slate-900/50",
   }[color];
   return (
     <span className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${cls}`}>✓</span>

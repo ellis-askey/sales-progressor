@@ -45,7 +45,7 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="text-sm border border-[#e4e9f0] rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400 bg-white"
+          className="text-sm border border-white/30 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400 bg-white/40 text-slate-900/80"
         >
           <option value="">Unassigned</option>
           {users.map((u) => (
@@ -57,7 +57,7 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
           {saving ? "…" : "Save"}
         </button>
         <button onClick={() => setEditing(false)}
-          className="text-xs text-gray-400 hover:text-gray-600">
+          className="text-xs text-slate-900/40 hover:text-slate-900/70">
           Cancel
         </button>
       </div>
@@ -66,11 +66,11 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-700">
-        {currentAssigneeName ?? <span className="text-gray-300 italic">Unassigned</span>}
+      <span className="text-sm text-slate-900/80">
+        {currentAssigneeName ?? <span className="text-slate-900/30 italic">Unassigned</span>}
       </span>
       <button onClick={() => setEditing(true)}
-        className="text-xs text-gray-300 hover:text-gray-500 transition-colors">
+        className="text-xs text-slate-900/30 hover:text-slate-900/60 transition-colors">
         {currentAssigneeName ? "Change" : "Assign"}
       </button>
     </div>

@@ -70,26 +70,26 @@ export default function RegisterPage() {
   const isValid = name.trim() && email.trim() && password && confirmPassword && termsAccepted;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f4f8] px-4 py-8">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(145deg, #1e293b 0%, #1e3a5f 45%, #0f172a 100%)" }}>
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(59,130,246,0.10) 0%, transparent 70%)" }} />
+      <div className="relative w-full max-w-sm">
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500 shadow-sm mb-4">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 4px 20px rgba(59,130,246,0.5), 0 1px 4px rgba(0,0,0,0.25)" }}>
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round"
                 d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">Create your account</h1>
-          <p className="text-sm text-gray-400 mt-1">For estate agents and negotiators</p>
+          <h1 className="text-xl font-semibold text-white tracking-tight">Create your account</h1>
+          <p className="text-sm text-blue-200/60 mt-1">For estate agents and negotiators</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#e4e9f0] p-6 space-y-4"
-             style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
+        <div className="rounded-2xl p-6 space-y-4" style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(28px) saturate(1.6)", WebkitBackdropFilter: "blur(28px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.6)", boxShadow: "0 8px 40px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)" }}>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Full name</label>
+              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Full name</label>
               <input
                 type="text"
                 value={name}
@@ -97,12 +97,12 @@ export default function RegisterPage() {
                 placeholder="Sarah Jones"
                 required
                 autoComplete="name"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Work email</label>
+              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Work email</label>
               <input
                 type="email"
                 value={email}
@@ -110,13 +110,13 @@ export default function RegisterPage() {
                 placeholder="sarah@youragency.co.uk"
                 required
                 autoComplete="email"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                Agency name <span className="text-gray-300 font-normal">(optional)</span>
+              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">
+                Agency name <span className="text-slate-900/30 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -124,12 +124,12 @@ export default function RegisterPage() {
                 onChange={(e) => setFirmName(e.target.value)}
                 placeholder="e.g. Hartwell & Partners"
                 autoComplete="organization"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -138,12 +138,12 @@ export default function RegisterPage() {
                   placeholder="Min. 8 characters"
                   required
                   autoComplete="new-password"
-                  className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
+                  className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900/40 hover:text-slate-900/70 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -160,7 +160,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Confirm password</label>
+              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Confirm password</label>
               <input
                 type={showPassword ? "text" : "password"}
                 value={confirmPassword}
@@ -168,7 +168,7 @@ export default function RegisterPage() {
                 placeholder="Re-enter password"
                 required
                 autoComplete="new-password"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
 
@@ -181,7 +181,7 @@ export default function RegisterPage() {
                   className="sr-only"
                 />
                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                  termsAccepted ? "bg-blue-500 border-blue-500" : "border-gray-300 bg-white group-hover:border-blue-300"
+                  termsAccepted ? "bg-blue-500 border-blue-500" : "border-white/40 bg-white/20 group-hover:border-blue-300"
                 }`}>
                   {termsAccepted && (
                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -190,7 +190,7 @@ export default function RegisterPage() {
                   )}
                 </div>
               </div>
-              <span className="text-xs text-gray-500 leading-relaxed">
+              <span className="text-xs text-slate-900/50 leading-relaxed">
                 I agree to the{" "}
                 <a href="#" className="text-blue-500 hover:text-blue-600 underline underline-offset-2">Terms of Service</a>
                 {" "}and{" "}
@@ -211,7 +211,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 pt-1">
+          <p className="text-center text-xs text-slate-900/40 pt-1">
             Already have an account?{" "}
             <Link href="/login" className="text-blue-500 hover:text-blue-600 font-medium">
               Sign in
@@ -220,9 +220,9 @@ export default function RegisterPage() {
 
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-blue-200/40 mt-6">
           Internal team member?{" "}
-          <span className="text-gray-500">Contact your administrator for access.</span>
+          <span className="text-blue-200/60">Contact your administrator for access.</span>
         </p>
 
       </div>

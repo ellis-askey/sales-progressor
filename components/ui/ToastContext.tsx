@@ -103,9 +103,9 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number)
       >
         {icons[toast.type]}
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 leading-snug">{toast.message}</p>
+          <p className="text-sm font-medium text-slate-900/90 leading-snug">{toast.message}</p>
           {toast.subtext && (
-            <p className="text-xs text-gray-400 mt-0.5 leading-snug">{toast.subtext}</p>
+            <p className="text-xs text-slate-900/50 mt-0.5 leading-snug">{toast.subtext}</p>
           )}
         </div>
       </div>

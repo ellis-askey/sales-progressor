@@ -26,7 +26,7 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
     <div className="space-y-3">
       <div className="relative">
         <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900/30 pointer-events-none"
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round"
@@ -42,7 +42,7 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
         {query && (
           <button
             onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900/30 hover:text-slate-900/60"
           >
             ×
           </button>

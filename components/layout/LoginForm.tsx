@@ -37,7 +37,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1.5">
+        <label className="block text-xs font-medium text-slate-900/50 mb-1.5">
           Email address
         </label>
         <input
@@ -47,12 +47,12 @@ export function LoginForm() {
           required
           autoComplete="email"
           placeholder="you@agency.co.uk"
-          className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+          className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1.5">
+        <label className="block text-xs font-medium text-slate-900/50 mb-1.5">
           Password
         </label>
         <div className="relative">
@@ -63,12 +63,12 @@ export function LoginForm() {
             required
             autoComplete="current-password"
             placeholder="••••••••"
-            className="w-full px-3 py-2.5 rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
+            className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900/40 hover:text-slate-900/70 transition-colors"
             tabIndex={-1}
           >
             {showPassword ? (
@@ -96,7 +96,7 @@ export function LoginForm() {
         {loading ? "Signing in…" : "Sign in"}
       </button>
 
-      <p className="text-center text-xs text-gray-400 pt-1">
+      <p className="text-center text-xs text-slate-900/40 pt-1">
         Estate agent?{" "}
         <Link href="/register" className="text-blue-500 hover:text-blue-600 font-medium">
           Create an account

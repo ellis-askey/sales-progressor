@@ -56,14 +56,14 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
             return (
               <div key={r.id} className={`px-4 py-3 flex items-center gap-3 ${isOverdue ? "bg-red-50/60" : ""}`}>
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  isOverdue ? "bg-red-500" : isToday ? "bg-orange-500" : "bg-gray-300"
+                  isOverdue ? "bg-red-500" : isToday ? "bg-orange-500" : "bg-slate-900/20"
                 }`} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-xs font-semibold truncate ${isOverdue ? "text-slate-900/90" : "text-slate-900/80"}`}>
                     {r.ruleName}
                   </p>
                   <p className={`text-xs mt-0.5 font-medium ${
-                    isOverdue ? "text-red-600" : isToday ? "text-orange-600" : "text-gray-400"
+                    isOverdue ? "text-red-600" : isToday ? "text-orange-600" : "text-slate-900/40"
                   }`}>
                     {isOverdue
                       ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue`

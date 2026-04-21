@@ -67,10 +67,10 @@ export function ManualTaskList({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-gray-700">
+          <h2 className="text-sm font-semibold text-slate-900/80">
             To-Do
             {open.length > 0 && (
-              <span className="ml-2 text-xs font-medium bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+              <span className="ml-2 text-xs font-medium bg-blue-50/80 text-blue-600 px-2 py-0.5 rounded-full">
                 {open.length}
               </span>
             )}
@@ -78,7 +78,7 @@ export function ManualTaskList({
           {showDone && done.length > 0 && (
             <button
               onClick={() => setFilter(filter === "open" ? "all" : "open")}
-              className="text-xs text-gray-400 hover:text-gray-600"
+              className="text-xs text-slate-900/40 hover:text-slate-900/70"
             >
               {filter === "open" ? `Show ${done.length} done` : "Hide done"}
             </button>
@@ -93,7 +93,7 @@ export function ManualTaskList({
 
       {/* List */}
       {visible.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-300">
+        <div className="text-center py-8 text-sm text-slate-900/30">
           {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
         </div>
       ) : (
@@ -103,7 +103,7 @@ export function ManualTaskList({
           ))}
           {filter === "all" && done.length > 0 && (
             <>
-              <div className="text-xs text-gray-300 font-medium pt-2 pb-1">Done</div>
+              <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Done</div>
               {done.map((task) => (
                 <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
               ))}

@@ -15,7 +15,7 @@ const COMM_TYPE_LABEL: Record<string, string> = {
 };
 
 const COMM_TYPE_DOT: Record<string, string> = {
-  internal_note: "bg-gray-300",
+  internal_note: "bg-slate-900/20",
   outbound: "bg-blue-400",
   inbound: "bg-emerald-400",
 };

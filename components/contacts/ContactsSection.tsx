@@ -46,7 +46,7 @@ const ROLE_AVATAR: Record<ContactRole, string> = {
   purchaser: "bg-emerald-100 text-emerald-700",
   solicitor: "bg-violet-100 text-violet-700",
   broker:    "bg-amber-100 text-amber-700",
-  other:     "bg-gray-100 text-gray-500",
+  other:     "bg-white/20 text-slate-900/50",
 };
 
 /** Light badge per contact role */
@@ -55,7 +55,7 @@ const ROLE_BADGE: Record<ContactRole, string> = {
   purchaser: "bg-green-50   text-green-700  border-green-100",
   solicitor: "bg-violet-50  text-violet-700 border-violet-100",
   broker:    "bg-amber-50   text-amber-700  border-amber-100",
-  other:     "bg-gray-50    text-gray-500   border-gray-100",
+  other:     "bg-white/20   text-slate-900/50 border-white/20",
 };
 
 export function ContactsSection({

@@ -19,7 +19,7 @@ const EPC_COLOURS: Record<string, { bg: string; text: string }> = {
   A: { bg: "bg-green-600",  text: "text-white" },
   B: { bg: "bg-green-500",  text: "text-white" },
   C: { bg: "bg-lime-500",   text: "text-white" },
-  D: { bg: "bg-yellow-400", text: "text-gray-800" },
+  D: { bg: "bg-yellow-400", text: "text-slate-900/90" },
   E: { bg: "bg-orange-400", text: "text-white" },
   F: { bg: "bg-orange-600", text: "text-white" },
   G: { bg: "bg-red-600",    text: "text-white" },

@@ -46,7 +46,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
         title="Change status"
       >
         <StatusBadge status={currentStatus} />
-        <svg className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -54,14 +54,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-8 z-20 bg-white border border-[#e4e9f0] rounded-xl shadow-lg overflow-hidden min-w-[140px]"
-               style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.10)" }}>
+          <div className="absolute left-0 top-8 z-20 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]">
             {STATUSES.map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => changeStatus(value)}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2 ${
-                  value === currentStatus ? "font-medium text-gray-900" : "text-gray-600"
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/40 transition-colors flex items-center gap-2 ${
+                  value === currentStatus ? "font-medium text-slate-900/90" : "text-slate-900/70"
                 }`}
               >
                 {value === currentStatus && (
