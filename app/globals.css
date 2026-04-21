@@ -140,15 +140,15 @@ body {
 .glass-page .rounded-xl.bg-white,
 .glass-page .rounded-2xl.bg-white {
   position: relative;
-  background: rgba(255, 255, 255, 0.10) !important;
-  backdrop-filter: blur(36px) saturate(160%);
-  -webkit-backdrop-filter: blur(36px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(165%);
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.42) !important;
   border-radius: 20px;
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.10),
-    0 2px 10px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+    0 12px 34px rgba(0, 0, 0, 0.12),
+    0 3px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
   overflow: hidden;
 }
 
@@ -160,9 +160,9 @@ body {
   border-radius: inherit;
   background: linear-gradient(
     135deg,
-    rgba(255,255,255,0.22) 0%,
-    rgba(255,255,255,0.10) 38%,
-    rgba(255,255,255,0.03) 60%,
+    rgba(255,255,255,0.30) 0%,
+    rgba(255,255,255,0.16) 38%,
+    rgba(255,255,255,0.06) 62%,
     rgba(255,255,255,0.00) 100%
   );
   pointer-events: none;
@@ -177,8 +177,8 @@ body {
   border-radius: inherit;
   background: radial-gradient(
     circle at 18% 0%,
-    rgba(255,255,255,0.16),
-    transparent 52%
+    rgba(255,255,255,0.20),
+    transparent 54%
   );
   opacity: 1;
   pointer-events: none;
