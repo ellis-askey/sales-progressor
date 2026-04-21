@@ -114,14 +114,14 @@ body {
 /* Dark glass panels — photo bleeds through */
 .glass-page .rounded-xl.bg-white,
 .glass-page .rounded-2xl.bg-white {
-  background: rgba(18, 20, 28, 0.62) !important;
-  backdrop-filter: blur(32px) saturate(1.6);
-  -webkit-backdrop-filter: blur(32px) saturate(1.6);
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(18, 20, 28, 0.40) !important;
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow:
-    0 8px 40px rgba(0,0,0,0.35),
-    0 2px 8px rgba(0,0,0,0.20),
-    inset 0 1px 0 rgba(255,255,255,0.12) !important;
+    0 8px 40px rgba(0,0,0,0.30),
+    0 2px 8px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.22) !important;
 }
 
 /* ── Text color inversion (gray → white) inside dark glass cards ── */
