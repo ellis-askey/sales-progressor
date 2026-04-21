@@ -4,8 +4,8 @@ import { getTransaction } from "@/lib/services/transactions";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
+import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
-import { getNotesForTransaction } from "@/lib/services/transaction-notes";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
 import { calculateProgress } from "@/lib/services/fees";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
@@ -38,13 +38,12 @@ export default async function AgentTransactionDetailPage({
   const { id } = await params;
   const session = await requireSession();
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, notes, manualTasks] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks] = await Promise.all([
     getTransaction(id, session.user.agencyId),
     getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
     getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
     getActivityTimeline(id, session.user.agencyId).catch(() => []),
     getLastUpdate(id).catch(() => null),
-    getNotesForTransaction(id).catch(() => []),
     listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
   ]);
 
@@ -74,6 +73,16 @@ export default async function AgentTransactionDetailPage({
     transaction.createdAt,
     transaction.overridePredictedDate ?? null
   );
+
+  const exchangeConfirmed = allMilestones.some(
+    (m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete
+  );
+
+  const internalNotes = (activityEntries as ActivityEntry[])
+    .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
+      e.kind === "comm" && e.type === "internal_note"
+    )
+    .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
   const keyDates = [
     ...(milestoneData?.vendor ?? []),
@@ -176,6 +185,7 @@ export default async function AgentTransactionDetailPage({
       serviceType={transaction.serviceType}
       progress={progress}
       keyDates={keyDates}
+      exchangeConfirmed={exchangeConfirmed}
     />
   );
 
@@ -197,7 +207,7 @@ export default async function AgentTransactionDetailPage({
       <PropertyFileTabs tabs={tabs} sidebar={sidebar}>
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
-          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack === "on_track"} />
+          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
                style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -265,7 +275,7 @@ export default async function AgentTransactionDetailPage({
           </div>
 
           <PropertyIntelCard transactionId={transaction.id} />
-          <TransactionNotes transactionId={transaction.id} initialNotes={notes} />
+          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} />
         </div>
 
         {/* ── Tab 1: Milestones ────────────────────────────────────────── */}
