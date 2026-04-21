@@ -75,30 +75,29 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
     <div className="space-y-4">
       {/* Agent list */}
       {agents.length > 0 && (
-        <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden"
-             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#f0f4f8] bg-gray-50">
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Agent</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Firm</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400">Assigned progressor</th>
-                <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-400">Files</th>
+              <tr className="border-b border-white/20 bg-white/10">
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Agent</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Firm</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Assigned progressor</th>
+                <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Files</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f0f4f8]">
+            <tbody className="divide-y divide-white/15">
               {agents.map((a) => (
                 <tr key={a.id}>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400">{a.email}</p>
+                    <p className="text-sm font-medium text-slate-900/90">{a.name}</p>
+                    <p className="text-xs text-slate-900/40">{a.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{a.firmName ?? <span className="text-gray-300 italic">—</span>}</td>
+                  <td className="px-4 py-3 text-sm text-slate-900/60">{a.firmName ?? <span className="text-slate-900/30 italic">—</span>}</td>
                   <td className="px-4 py-3">
                     <select
                       value={a.progressorId ?? ""}
                       onChange={(e) => assignProgressor(a.id, e.target.value)}
-                      className="text-sm border border-[#e4e9f0] rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400"
+                      className="text-sm border border-white/30 rounded-lg px-2 py-1 bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80"
                     >
                       <option value="">Unassigned</option>
                       {progressors.map((p) => (
@@ -106,7 +105,7 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-3 text-center text-sm text-gray-600">{a._count.agentFiles}</td>
+                  <td className="px-3 py-3 text-center text-sm text-slate-900/60">{a._count.agentFiles}</td>
                 </tr>
               ))}
             </tbody>
@@ -115,35 +114,34 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
       )}
 
       {agents.length === 0 && !creating && (
-        <p className="text-sm text-gray-400 italic">No agent accounts yet.</p>
+        <p className="text-sm text-slate-900/40 italic">No agent accounts yet.</p>
       )}
 
       {/* Create form */}
       {creating ? (
-        <div className="bg-white rounded-xl border border-[#e4e9f0] p-5 space-y-3"
-             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-          <p className="text-sm font-semibold text-gray-700">Create agent account</p>
+        <div className="glass-card p-5 space-y-3">
+          <p className="text-sm font-semibold text-slate-900/80">Create agent account</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Full name</label>
+              <label className="text-xs text-slate-900/40 mb-1 block">Full name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Sarah Jones"
-                className="w-full px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400" />
+                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Email</label>
+              <label className="text-xs text-slate-900/40 mb-1 block">Email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@agency.co.uk"
-                className="w-full px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400" />
+                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Estate agency</label>
+              <label className="text-xs text-slate-900/40 mb-1 block">Estate agency</label>
               <input type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Hartwell & Partners"
-                className="w-full px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400" />
+                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
             </div>
             {progressors.length > 0 && (
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Assign progressor</label>
+                <label className="text-xs text-slate-900/40 mb-1 block">Assign progressor</label>
                 <select value={progressorId} onChange={(e) => setProgressorId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400">
+                  className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80">
                   <option value="">— select —</option>
                   {progressors.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -159,7 +157,7 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
               {saving ? "Creating…" : "Create account"}
             </button>
             <button onClick={() => { setCreating(false); setError(""); }}
-              className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+              className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
           </div>
         </div>
       ) : (

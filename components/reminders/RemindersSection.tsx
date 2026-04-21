@@ -82,18 +82,17 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
       <button
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
-        className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40"
+        className="px-3 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40"
       >
         Snooze
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-30 bg-white rounded-xl border border-[#e4e9f0] shadow-lg overflow-hidden min-w-[130px]"
-             style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+        <div className="absolute left-0 top-full mt-1 z-30 glass-card-strong min-w-[130px]">
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
               onClick={() => { onSnooze(taskId, opt.hours); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
             >
               {opt.label}
             </button>
@@ -193,7 +192,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
     <section>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reminders & Tasks</h2>
+          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Reminders & Tasks</h2>
           {escalatedCount > 0 && (
             <span className="text-xs bg-red-100 text-red-600 rounded-full px-2 py-0.5 font-medium">
               {escalatedCount} escalated
@@ -205,19 +204,19 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
         </button>
       </div>
 
-      <div className="flex items-center gap-1 mb-4 bg-gray-50 rounded-xl border border-[#e4e9f0] p-1 w-fit">
+      <div className="flex items-center gap-1 mb-4 glass-subtle p-1 w-fit">
         {tabs.map(({ key, label, count }) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              tab === key ? "bg-white text-gray-800 shadow-sm border border-[#e4e9f0]" : "text-gray-500 hover:text-gray-700"
+              tab === key ? "bg-white/60 text-slate-900/90 shadow-sm" : "text-slate-900/50 hover:text-slate-900/70"
             }`}
           >
             {label}
             {count > 0 && (
               <span className={`text-xs rounded-full px-1.5 py-0.5 ${
                 tab === key
-                  ? key === "snoozed" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
-                  : "bg-gray-100 text-gray-500"
+                  ? key === "snoozed" ? "bg-purple-50/80 text-purple-600" : "bg-blue-50/80 text-blue-600"
+                  : "bg-white/30 text-slate-900/50"
               }`}>{count}</span>
             )}
           </button>
@@ -227,9 +226,9 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
       {/* ── Active ──────────────────────────────────────────────────────── */}
       {tab === "active" && (
         activeLogs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-8 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <p className="text-sm text-gray-400">No active reminders</p>
-            <p className="text-xs text-gray-300 mt-1">Tasks appear here once their grace period has passed.</p>
+          <div className="glass-card px-5 py-8 text-center">
+            <p className="text-sm text-slate-900/40">No active reminders</p>
+            <p className="text-xs text-slate-900/30 mt-1">Tasks appear here once their grace period has passed.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -243,33 +242,33 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
               const openTask = log.chaseTasks.find((t) => t.status === "pending");
               const isEscalated = openTask?.priority === "escalated";
 
-              let borderColor = "border-[#e4e9f0]";
-              let headerBg = "bg-gray-50 text-gray-500";
+              let borderColor = "";
+              let headerBg = "bg-white/20 text-slate-900/50";
               let headerLabel = `Due ${formatDate(log.nextDueDate)}`;
 
               if (isEscalated) {
-                borderColor = "border-red-300"; headerBg = "bg-red-50 text-red-700";
+                borderColor = "border-red-300"; headerBg = "bg-red-50/60 text-red-700";
                 headerLabel = `Escalated · ${openTask!.chaseCount} chases sent`;
               } else if (isOverdue) {
-                borderColor = "border-orange-200"; headerBg = "bg-orange-50 text-orange-600";
+                borderColor = "border-orange-200"; headerBg = "bg-orange-50/60 text-orange-600";
                 headerLabel = `Overdue · ${openTask ? `follow-up ${openTask.chaseCount + 1}` : "pending"}`;
               } else if (isDueToday) {
-                borderColor = "border-amber-200"; headerBg = "bg-amber-50 text-amber-600";
+                borderColor = "border-amber-200"; headerBg = "bg-amber-50/60 text-amber-600";
                 headerLabel = "Due today";
               }
 
               return (
-                <div key={log.id} className={`bg-white rounded-xl border overflow-hidden ${borderColor}`} style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <div key={log.id} className={`glass-card ${borderColor ? `border ${borderColor}` : ""}`} style={{ clipPath: "inset(0 round 20px)" }}>
                   <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`}>
                     <span>{headerLabel}</span>
                     {openTask && <span className="text-xs opacity-70">repeats every {log.reminderRule.repeatEveryDays}d · escalates after {log.reminderRule.escalateAfterChases}</span>}
                   </div>
                   <div className="px-5 py-3">
-                    <p className={`text-sm font-medium ${isEscalated ? "text-red-800" : "text-gray-800"}`}>
+                    <p className={`text-sm font-medium ${isEscalated ? "text-red-700" : "text-slate-900/90"}`}>
                       {stripChase(log.reminderRule.name)}
                     </p>
                     {log.reminderRule.targetMilestoneCode && (
-                      <p className="text-xs text-gray-400 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
+                      <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
                     )}
                     {openTask && (
                       <div className="mt-3 flex items-center gap-2">
@@ -297,23 +296,23 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
       {/* ── Coming up ───────────────────────────────────────────────────── */}
       {tab === "upcoming" && (
         upcomingLogs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-8 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <p className="text-sm text-gray-400">Nothing due in the next 3 days</p>
+          <div className="glass-card px-5 py-8 text-center">
+            <p className="text-sm text-slate-900/40">Nothing due in the next 3 days</p>
           </div>
         ) : (
           <div className="space-y-2">
             {upcomingLogs
               .slice().sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())
               .map((log) => (
-                <div key={log.id} className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-                  <div className="px-4 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 flex items-center justify-between">
+                <div key={log.id} className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+                  <div className="px-4 py-1.5 text-xs font-medium bg-blue-50/60 text-blue-600 flex items-center justify-between">
                     <span>Due {formatDate(log.nextDueDate)}</span>
                     <span className="opacity-60">{log.reminderRule.graceDays}d grace</span>
                   </div>
                   <div className="px-5 py-3">
-                    <p className="text-sm font-medium text-gray-800">{stripChase(log.reminderRule.name)}</p>
+                    <p className="text-sm font-medium text-slate-900/90">{stripChase(log.reminderRule.name)}</p>
                     {log.reminderRule.targetMilestoneCode && (
-                      <p className="text-xs text-gray-400 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
+                      <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
                     )}
                   </div>
                 </div>
@@ -325,14 +324,14 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
       {/* ── Snoozed ─────────────────────────────────────────────────────── */}
       {tab === "snoozed" && (
         snoozedLogs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-8 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <p className="text-sm text-gray-400">No snoozed reminders</p>
+          <div className="glass-card px-5 py-8 text-center">
+            <p className="text-sm text-slate-900/40">No snoozed reminders</p>
           </div>
         ) : (
           <div className="space-y-2">
             {snoozedLogs.map((log) => (
-              <div key={log.id} className="bg-white rounded-xl border border-purple-100 overflow-hidden" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-                <div className="px-4 py-1.5 text-xs font-medium bg-purple-50 text-purple-600 flex items-center justify-between">
+              <div key={log.id} className="glass-card border border-purple-200/60" style={{ clipPath: "inset(0 round 20px)" }}>
+                <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between">
                   <span>Snoozed until {formatDate(log.snoozedUntil!)}</span>
                   <button onClick={() => handleWakeup(log.id)} disabled={loading === log.id}
                     className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-40">
@@ -340,9 +339,9 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
                   </button>
                 </div>
                 <div className="px-5 py-3">
-                  <p className="text-sm font-medium text-gray-700">{stripChase(log.reminderRule.name)}</p>
+                  <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
                   {log.reminderRule.targetMilestoneCode && (
-                    <p className="text-xs text-gray-400 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
                   )}
                 </div>
               </div>
@@ -354,15 +353,15 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
       {/* ── Completed ───────────────────────────────────────────────────── */}
       {tab === "completed" && (
         completedLogs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-[#e4e9f0] px-5 py-8 text-center" style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <p className="text-sm text-gray-400">No completed reminders yet</p>
+          <div className="glass-card px-5 py-8 text-center">
+            <p className="text-sm text-slate-900/40">No completed reminders yet</p>
           </div>
         ) : (
           <div className="space-y-1.5">
             {completedLogs.map((log) => (
-              <div key={log.id} className="bg-gray-50 rounded-lg border border-[#e4e9f0] px-4 py-2.5">
-                <p className="text-xs font-medium text-gray-500">{stripChase(log.reminderRule.name)}</p>
-                <p className="text-xs text-gray-400 mt-0.5 capitalize">{log.status}{log.statusReason ? ` · ${log.statusReason}` : ""}</p>
+              <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5">
+                <p className="text-xs font-medium text-slate-900/60">{stripChase(log.reminderRule.name)}</p>
+                <p className="text-xs text-slate-900/40 mt-0.5 capitalize">{log.status}{log.statusReason ? ` · ${log.statusReason}` : ""}</p>
               </div>
             ))}
           </div>
