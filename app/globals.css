@@ -131,84 +131,125 @@ body {
   display: none;
 }
 
-/* ── Frosted acrylic panels ──────────────────────────────────────────────── */
+/* ── Glass Design System tokens ──────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    --glass-fill:         linear-gradient(180deg, rgb(255 255 255 / 0.72) 0%, rgb(255 255 255 / 0.58) 100%);
+    --glass-fill-strong:  linear-gradient(180deg, rgb(255 255 255 / 0.82) 0%, rgb(255 255 255 / 0.68) 100%);
+    --glass-border:       rgb(255 255 255 / 0.35);
+    --glass-border-strong:rgb(255 255 255 / 0.50);
+    --glass-highlight:    inset 0 1px 0 0 rgb(255 255 255 / 0.60);
+    --glass-shadow-sm:    0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.06);
+    --glass-shadow-md:    0 2px 4px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08), 0 16px 48px rgb(0 0 0 / 0.06);
+    --glass-shadow-lg:    0 4px 8px rgb(0 0 0 / 0.04), 0 16px 40px rgb(0 0 0 / 0.10), 0 32px 80px rgb(0 0 0 / 0.08);
+    --glass-blur:         24px;
+    --glass-blur-strong:  32px;
+    --glass-saturate:     180%;
+    --glass-radius-sm:    12px;
+    --glass-radius-md:    16px;
+    --glass-radius-lg:    20px;
+    --glass-radius-xl:    28px;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: var(--glass-fill);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius-lg);
+    box-shadow: var(--glass-shadow-md), var(--glass-highlight);
+  }
+  .glass-card-strong {
+    background: var(--glass-fill-strong);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border-strong);
+    border-radius: var(--glass-radius-lg);
+    box-shadow: var(--glass-shadow-lg), var(--glass-highlight);
+  }
+  .glass-subtle {
+    background: rgb(255 255 255 / 0.40);
+    backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: var(--glass-radius-md);
+  }
+  .glass-button {
+    background: rgb(255 255 255 / 0.60);
+    backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    box-shadow: var(--glass-shadow-sm), var(--glass-highlight);
+    transition: all 0.2s ease;
+  }
+  .glass-button:hover {
+    background: rgb(255 255 255 / 0.75);
+    box-shadow: var(--glass-shadow-md), var(--glass-highlight);
+  }
+  .glass-nav {
+    background: rgb(255 255 255 / 0.65);
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .glass-page-bg {
+    background:
+      radial-gradient(ellipse at top left,  rgb(180 200 255 / 0.40), transparent 50%),
+      radial-gradient(ellipse at top right, rgb(255 200 220 / 0.35), transparent 50%),
+      radial-gradient(ellipse at bottom,    rgb(200 220 255 / 0.30), transparent 60%),
+      linear-gradient(180deg, #f5f7fa 0%, #e8ecf3 100%);
+    min-height: 100vh;
+  }
+}
+
+/* ── Fallback: any bg-white card inside glass-page gets system treatment ── */
 .glass-page .rounded-xl.bg-white,
 .glass-page .rounded-2xl.bg-white {
-  position: relative;
-  background: rgba(255, 255, 255, 0.55) !important;
-  backdrop-filter: blur(64px) saturate(165%);
-  -webkit-backdrop-filter: blur(64px) saturate(165%);
-  border: 1px solid rgba(255, 255, 255, 0.42) !important;
-  border-radius: 20px;
-  box-shadow:
-    0 12px 34px rgba(0, 0, 0, 0.12),
-    0 3px 12px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
+  background: var(--glass-fill) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius-lg);
+  box-shadow: var(--glass-shadow-md), var(--glass-highlight) !important;
 }
-
 .glass-page .rounded-xl.bg-white::before,
-.glass-page .rounded-2xl.bg-white::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  clip-path: inset(0 round 20px);
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.30) 0%,
-    rgba(255,255,255,0.16) 38%,
-    rgba(255,255,255,0.06) 62%,
-    rgba(255,255,255,0.00) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
+.glass-page .rounded-2xl.bg-white::before,
 .glass-page .rounded-xl.bg-white::after,
-.glass-page .rounded-2xl.bg-white::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  clip-path: inset(0 round 20px);
-  background: radial-gradient(
-    circle at 18% 0%,
-    rgba(255,255,255,0.20),
-    transparent 54%
-  );
-  opacity: 1;
-  pointer-events: none;
-  z-index: 0;
-}
+.glass-page .rounded-2xl.bg-white::after { display: none; }
 
-/* Dark frosted glass for the sticky tab bar */
-.glass-page .glass-tab-bar {
+/* ── Dark tab bar / nav on photo background ───────────────────────────── */
+.glass-page .glass-tab-bar,
+.glass-page .glass-nav {
   background: rgba(6, 12, 24, 0.82) !important;
-  backdrop-filter: blur(28px) saturate(1.4) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(1.4) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
   box-shadow: 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.40) !important;
 }
-
-/* Inactive tab text — white on dark bar */
-.glass-page .glass-tab-bar button[data-active="false"] {
+.glass-page .glass-tab-bar button[data-active="false"],
+.glass-page .glass-nav button[data-active="false"] {
   color: rgba(255, 255, 255, 0.42) !important;
 }
-.glass-page .glass-tab-bar button[data-active="false"]:hover {
+.glass-page .glass-tab-bar button[data-active="false"]:hover,
+.glass-page .glass-nav button[data-active="false"]:hover {
   color: rgba(255, 255, 255, 0.80) !important;
   background: rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Section headings + badges floating between panels on the photo background */
+/* ── Section headings between cards on the photo background ───────────── */
 .glass-page section > div h2,
 .glass-page section > h2 {
   color: rgba(255, 255, 255, 0.90) !important;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
-
 .glass-page section > div span[class*="bg-gray-100"] {
   background: rgba(255, 255, 255, 0.20) !important;
   color: rgba(255, 255, 255, 0.80) !important;
 }
-
 .glass-page section > div > div > button[class*="text-blue"],
 .glass-page section > div > button[class*="text-blue"] {
   color: rgba(219, 234, 254, 0.90) !important;

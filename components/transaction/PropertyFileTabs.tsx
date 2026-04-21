@@ -17,7 +17,7 @@ export function PropertyFileTabs({ tabs, children, sidebar }: Props) {
   return (
     <TabContext.Provider value={{ setActiveTab: setActive }}>
       {/* ── Sticky tab bar — dark glass in .glass-page, light glass otherwise ── */}
-      <div className="sticky top-0 z-20 glass-tab-bar">
+      <div className="sticky top-0 z-20 glass-nav">
         <div className="px-8 py-2.5 flex items-center gap-1">
           {tabs.map((tab) => {
             const isActive = active === tab.key;

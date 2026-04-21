@@ -35,8 +35,8 @@ const EMPTY_FORM = {
 };
 
 const INPUT =
-  "w-full px-3 py-2 rounded-lg border border-[#e4e9f0] bg-white text-sm text-gray-800 " +
-  "placeholder-gray-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all";
+  "w-full px-3 py-2 rounded-xl border border-white/30 bg-white/40 text-sm text-slate-900/90 " +
+  "placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100/50 transition-all";
 
 const SELECT = INPUT + " pr-8";
 
@@ -180,8 +180,7 @@ export function ContactsSection({
 
       {/* ── Existing contacts ────────────────────────────────────────────── */}
       {contacts.length > 0 && (
-        <div className="bg-white rounded-xl border border-[#e4e9f0] overflow-hidden mb-4"
-             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div className="glass-card mb-4">
           {contacts.map((contact, i) => {
             const role = contact.roleType as ContactRole;
             const initials = contact.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -189,7 +188,7 @@ export function ContactsSection({
             return (
               <div
                 key={contact.id}
-                className={`px-5 py-4 ${i !== contacts.length - 1 ? "border-b border-[#f0f4f8]" : ""}`}
+                className={`px-5 py-4 ${i !== contacts.length - 1 ? "border-b border-white/15" : ""}`}
               >
                 {isEditing ? (
                   <div className="space-y-2.5">
@@ -237,7 +236,7 @@ export function ContactsSection({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className="text-sm font-semibold text-gray-800">{contact.name}</span>
+                          <span className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
                             {CONTACT_ROLE_LABELS[role]}
                           </span>
@@ -292,8 +291,7 @@ export function ContactsSection({
 
       {/* Empty state (no contacts, no form) */}
       {contacts.length === 0 && !showForm && (
-        <div className="bg-white rounded-xl border border-[#e4e9f0]"
-             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div className="glass-card">
           <EmptyState
             title="No contacts yet"
             description="Add vendors, purchasers, solicitors, and other parties."
@@ -311,14 +309,13 @@ export function ContactsSection({
 
       {/* ── Add contact form ─────────────────────────────────────────────── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-blue-200 p-5"
-             style={{ boxShadow: "0 1px 4px rgba(59,130,246,0.08)" }}>
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">New contact</h3>
+        <div className="glass-card-strong p-5">
+          <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Full name <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
+                  Full name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -331,8 +328,8 @@ export function ContactsSection({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Role <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
+                  Role <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="roleType"
@@ -346,7 +343,7 @@ export function ContactsSection({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
                 <input
                   type="email"
                   name="email"
@@ -357,7 +354,7 @@ export function ContactsSection({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Phone</label>
+                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
                 <input
                   type="tel"
                   name="phone"

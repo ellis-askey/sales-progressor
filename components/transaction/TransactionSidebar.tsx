@@ -173,19 +173,17 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
     <div className="space-y-4">
 
       {/* Progress card */}
-      <div className="bg-white rounded-xl border border-[#e4e9f0] p-5"
-           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Progress</p>
+      <div className="glass-card p-5">
+        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
-          {/* Circular ring */}
           <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
 
           <div className="flex-1 space-y-2">
-            <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${trackStyle.bg} ${trackStyle.text}`}>
+            <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full ${trackStyle.bg} ${trackStyle.text}`}>
               {trackStyle.label}
             </span>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-slate-900/40">
               {progress.weeksElapsed} week{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
             </p>
           </div>
@@ -193,14 +191,13 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
       </div>
 
       {/* Exchange dates card */}
-      <div className="bg-white rounded-xl border border-[#e4e9f0] p-5"
-           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Exchange Forecast</p>
+      <div className="glass-card p-5">
+        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">12-week target</p>
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-xs text-slate-900/40 mb-0.5">12-week target</p>
+            <p className="text-sm font-semibold text-slate-900/90">
               {progress.twelveWeekTarget
                 ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                 : "—"}
@@ -208,40 +205,40 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Predicted exchange</p>
+            <p className="text-xs text-slate-900/40 mb-0.5">Predicted exchange</p>
             {editingOverride ? (
               <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={overrideInput}
                   onChange={(e) => setOverrideInput(e.target.value)}
-                  className="px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                  className="px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
                 />
                 <button onClick={saveOverride} disabled={saving}
-                  className="text-xs text-blue-500 hover:text-blue-700">Save</button>
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
                 <button onClick={() => setEditingOverride(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <p className={`text-sm font-medium ${
-                  transaction.overridePredictedDate ? "text-blue-600" : "text-gray-700"
+                <p className={`text-sm font-semibold ${
+                  transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"
                 }`}>
                   {progress.predictedExchangeDate
                     ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                     : "—"}
                   {transaction.overridePredictedDate && (
-                    <span className="ml-1 text-xs text-blue-400">(overridden)</span>
+                    <span className="ml-1 text-xs text-blue-500">(overridden)</span>
                   )}
                 </p>
                 <button onClick={() => setEditingOverride(true)}
-                  className="text-xs text-gray-300 hover:text-gray-500">Edit</button>
+                  className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
               </div>
             )}
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Completion date</p>
+            <p className="text-xs text-slate-900/40 mb-0.5">Completion date</p>
             {exchangeConfirmed ? (
               editingCompletion ? (
                 <div className="flex items-center gap-2">
@@ -249,35 +246,35 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                     type="date"
                     value={completionInput}
                     onChange={(e) => setCompletionInput(e.target.value)}
-                    className="px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                    className="px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
                   />
                   <button onClick={saveCompletion} disabled={saving}
-                    className="text-xs text-blue-500 hover:text-blue-700">Save</button>
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
                   <button onClick={() => setEditingCompletion(false)}
-                    className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                    className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <p className={`text-sm font-medium ${transaction.completionDate ? "text-emerald-600" : "text-gray-400"}`}>
+                  <p className={`text-sm font-semibold ${transaction.completionDate ? "text-emerald-700" : "text-slate-900/40"}`}>
                     {transaction.completionDate
                       ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                       : "Not set"}
                   </p>
                   <button onClick={() => setEditingCompletion(true)}
-                    className="text-xs text-gray-300 hover:text-gray-500">Edit</button>
+                    className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
                 </div>
               )
             ) : (
-              <p className="text-sm text-gray-300 italic">Set once exchange is confirmed</p>
+              <p className="text-sm text-slate-900/30 italic">Set once exchange is confirmed</p>
             )}
           </div>
 
           {progress.weeksRemaining !== null && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Weeks to exchange</p>
-              <p className={`text-sm font-medium ${
+              <p className="text-xs text-slate-900/40 mb-0.5">Weeks to exchange</p>
+              <p className={`text-sm font-semibold ${
                 progress.weeksRemaining < 0 ? "text-red-600" :
-                progress.weeksRemaining <= 2 ? "text-amber-600" : "text-gray-700"
+                progress.weeksRemaining <= 2 ? "text-amber-600" : "text-slate-900/90"
               }`}>
                 {progress.weeksRemaining < 0
                   ? `${Math.abs(progress.weeksRemaining)} weeks overdue`
@@ -287,17 +284,17 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
           )}
 
           {keyDates.length > 0 && (
-            <div className="pt-3 border-t border-[#f0f4f8]">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Key Dates</p>
+            <div className="pt-3 border-t border-white/20">
+              <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-2">Key Dates</p>
               <div className="space-y-2">
                 {keyDates.map((kd) => {
                   const isPast = kd.eventDate < new Date();
                   return (
                     <div key={kd.name}>
-                      <p className="text-xs text-gray-400 leading-snug">{kd.name}</p>
-                      <p className={`text-sm font-medium ${isPast ? "text-gray-400" : "text-gray-700"}`}>
+                      <p className="text-xs text-slate-900/40 leading-snug">{kd.name}</p>
+                      <p className={`text-sm font-semibold ${isPast ? "text-slate-900/40" : "text-slate-900/90"}`}>
                         {kd.eventDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                        {isPast && <span className="ml-1 text-xs text-gray-300">(past)</span>}
+                        {isPast && <span className="ml-1 text-xs text-slate-900/30">(past)</span>}
                       </p>
                     </div>
                   );
@@ -310,55 +307,53 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Agent card */}
       {agentUser && (
-        <div className="bg-white rounded-xl border border-[#e4e9f0] p-5"
-             style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Agent</p>
+            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Agent</p>
             {serviceType && (
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                serviceType === "outsourced" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                serviceType === "outsourced" ? "bg-blue-100 text-blue-700" : "bg-slate-900/8 text-slate-900/60"
               }`}>
                 {serviceType === "outsourced" ? "Outsourced to us" : "Self-managed"}
               </span>
             )}
           </div>
-          <p className="text-sm font-medium text-gray-800">{agentUser.name}</p>
-          {agentUser.firmName && <p className="text-xs text-gray-500">{agentUser.firmName}</p>}
-          <p className="text-xs text-gray-400 mt-0.5">{agentUser.email}</p>
+          <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
+          {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
+          <p className="text-xs text-slate-900/40 mt-0.5">{agentUser.email}</p>
         </div>
       )}
 
       {/* Price & fees card */}
-      <div className="bg-white rounded-xl border border-[#e4e9f0] p-5"
-           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Price & Fees</p>
+      <div className="glass-card p-5">
+        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Price & Fees</p>
 
         <div className="space-y-3">
           {/* Purchase price */}
           <div>
-            <p className="text-xs text-gray-400 mb-1">Purchase price</p>
+            <p className="text-xs text-slate-900/40 mb-1">Purchase price</p>
             {editingPrice ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">£</span>
+                <span className="text-sm text-slate-900/60">£</span>
                 <input
                   type="number"
                   value={priceInput}
                   onChange={(e) => setPriceInput(e.target.value)}
                   placeholder="e.g. 325000"
-                  className="w-32 px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                  className="w-32 px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
                 />
                 <button onClick={savePrice} disabled={saving}
-                  className="text-xs text-blue-500 hover:text-blue-700 font-medium">Save</button>
+                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold">Save</button>
                 <button onClick={() => setEditingPrice(false)}
-                  className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-gray-800">
+                <p className="text-sm font-bold text-slate-900/90">
                   {formatPrice(transaction.purchasePrice)}
                 </p>
                 <button onClick={() => setEditingPrice(true)}
-                  className="text-xs text-gray-300 hover:text-gray-500">Edit</button>
+                  className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
               </div>
             )}
           </div>
@@ -366,31 +361,31 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
           {/* Tenure + purchase type */}
           <div className="flex items-center gap-2 flex-wrap">
             {transaction.tenure && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
                 {transaction.tenure}
               </span>
             )}
             {transaction.purchaseType && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
                 {transaction.purchaseType.replace("_", " ")}
               </span>
             )}
           </div>
 
           {/* Our fee */}
-          <div className="pt-2 border-t border-[#f0f4f8]">
-            <p className="text-xs text-gray-400 mb-0.5">Our fee</p>
-            <p className="text-sm font-semibold text-gray-800">{formatFee(ourFee.fee)}</p>
-            <p className="text-xs text-gray-400">{ourFee.label}</p>
+          <div className="pt-2 border-t border-white/20">
+            <p className="text-xs text-slate-900/40 mb-0.5">Our fee</p>
+            <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
+            <p className="text-xs text-slate-900/40">{ourFee.label}</p>
           </div>
 
           {/* Agent fee */}
-          <div className="pt-2 border-t border-[#f0f4f8]">
+          <div className="pt-2 border-t border-white/20">
             <div className="flex items-center justify-between mb-0.5">
-              <p className="text-xs text-gray-400">Agent fee</p>
+              <p className="text-xs text-slate-900/40">Agent fee</p>
               {!editingAgentFee && (
                 <button onClick={() => setEditingAgentFee(true)}
-                  className="text-xs text-gray-300 hover:text-gray-500">
+                  className="text-xs text-slate-900/30 hover:text-slate-900/60">
                   {transaction.agentFeeAmount || transaction.agentFeePercent ? "Edit" : "Set"}
                 </button>
               )}
@@ -400,72 +395,72 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                 <div className="flex gap-2">
                   <button
                     onClick={() => setAgentFeeType("amount")}
-                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "amount" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-[#e4e9f0] text-gray-500"}`}
+                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "amount" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-white/30 text-slate-900/50 bg-white/30"}`}
                   >
                     Fixed £
                   </button>
                   <button
                     onClick={() => setAgentFeeType("percent")}
-                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "percent" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-[#e4e9f0] text-gray-500"}`}
+                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "percent" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-white/30 text-slate-900/50 bg-white/30"}`}
                   >
                     %
                   </button>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-500">{agentFeeType === "amount" ? "£" : ""}</span>
+                  <span className="text-xs text-slate-900/50">{agentFeeType === "amount" ? "£" : ""}</span>
                   <input
                     type="number"
                     value={agentFeeInput}
                     onChange={(e) => setAgentFeeInput(e.target.value)}
                     placeholder={agentFeeType === "amount" ? "e.g. 1500" : "e.g. 1.5"}
-                    className="w-24 px-2 py-1 text-sm border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                    className="w-24 px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
                   />
-                  <span className="text-xs text-gray-500">{agentFeeType === "percent" ? "%" : ""}</span>
+                  <span className="text-xs text-slate-900/50">{agentFeeType === "percent" ? "%" : ""}</span>
                 </div>
                 <select
                   value={agentFeeVat}
                   onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
-                  className="w-full px-2 py-1 text-xs border border-[#e4e9f0] rounded-lg focus:outline-none focus:border-blue-400"
+                  className="w-full px-2 py-1 text-xs border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
                 >
                   <option value="exclusive">+ VAT</option>
                   <option value="inclusive">Inc VAT</option>
                 </select>
                 <div className="flex gap-2">
                   <button onClick={saveAgentFee} disabled={saving || !agentFeeInput}
-                    className="flex-1 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors">
+                    className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors">
                     {saving ? "…" : "Save"}
                   </button>
                   <button onClick={() => { setEditingAgentFee(false); setAgentFeeInput(""); }}
-                    className="flex-1 py-1.5 text-xs text-gray-400 hover:text-gray-600 border border-[#e4e9f0] rounded-lg">
+                    className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle">
                     Cancel
                   </button>
                 </div>
               </div>
             ) : transaction.agentFeeAmount ? (
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-semibold text-slate-900/90">
                 {formatFee(transaction.agentFeeAmount)}
                 {transaction.agentFeeIsVatInclusive !== null && (
-                  <span className="ml-1 text-xs text-gray-400">
+                  <span className="ml-1 text-xs text-slate-900/40">
                     {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
                   </span>
                 )}
               </p>
             ) : transaction.agentFeePercent ? (
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-semibold text-slate-900/90">
                 {Number(transaction.agentFeePercent).toFixed(2)}%
                 {transaction.agentFeeIsVatInclusive !== null && (
-                  <span className="ml-1 text-xs text-gray-400">
+                  <span className="ml-1 text-xs text-slate-900/40">
                     {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
                   </span>
                 )}
                 {transaction.purchasePrice && (
-                  <span className="ml-1 text-xs text-gray-500">
+                  <span className="ml-1 text-xs text-slate-900/50">
                     = {formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}
                   </span>
                 )}
               </p>
             ) : (
-              <p className="text-sm text-gray-300 italic">Not set</p>
+              <p className="text-sm text-slate-900/30 italic">Not set</p>
             )}
           </div>
         </div>

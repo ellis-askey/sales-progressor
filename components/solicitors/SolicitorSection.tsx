@@ -59,7 +59,7 @@ function SolicitorIntelBadge({ firmId }: { firmId: string }) {
   const { label, color } = RATING_STYLE[intel.rating];
 
   return (
-    <div className="mt-2 pt-2 border-t border-[#f0f4f8]">
+    <div className="mt-2 pt-2 border-t border-white/20">
       {intel.warning && (
         <div className="flex items-start gap-1.5 mb-2 text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
           <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -137,9 +137,9 @@ function SolicitorCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-800 leading-snug">{info.firm.name}</p>
+              <p className="text-sm font-semibold text-slate-900/90 leading-snug">{info.firm.name}</p>
               {info.contact && (
-                <p className="text-xs text-gray-500 mt-0.5">{info.contact.name}</p>
+                <p className="text-xs text-slate-900/60 mt-0.5">{info.contact.name}</p>
               )}
               <div className="flex flex-col gap-0.5 mt-1">
                 {info.contact?.phone && (
@@ -160,7 +160,7 @@ function SolicitorCard({
           <SolicitorIntelBadge firmId={info.firm.id} />
         </>
       ) : (
-        <p className="text-sm text-gray-300 italic">None added</p>
+        <p className="text-sm text-slate-900/30 italic">None added</p>
       )}
     </div>
   );
@@ -204,8 +204,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
         Solicitors
         {saving && <span className="ml-2 text-gray-300 font-normal normal-case">Saving…</span>}
       </h2>
-      <div className="bg-white rounded-xl border border-[#e4e9f0] divide-y divide-[#f0f4f8]"
-           style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div className="glass-card divide-y divide-white/20">
         <div className="px-5 py-4">
           <SolicitorCard
             label="Vendor solicitor"
