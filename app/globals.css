@@ -140,16 +140,15 @@ body {
 .glass-page .rounded-xl.bg-white,
 .glass-page .rounded-2xl.bg-white {
   position: relative;
-  background: rgba(255, 255, 255, 0.46) !important;
-  backdrop-filter: blur(28px) saturate(165%);
-  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(64px) saturate(165%);
+  -webkit-backdrop-filter: blur(64px) saturate(165%);
   border: 1px solid rgba(255, 255, 255, 0.42) !important;
   border-radius: 20px;
   box-shadow:
     0 12px 34px rgba(0, 0, 0, 0.12),
     0 3px 12px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
-  overflow: hidden;
 }
 
 .glass-page .rounded-xl.bg-white::before,
@@ -157,7 +156,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  clip-path: inset(0 round 20px);
   background: linear-gradient(
     135deg,
     rgba(255,255,255,0.30) 0%,
@@ -174,7 +173,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  clip-path: inset(0 round 20px);
   background: radial-gradient(
     circle at 18% 0%,
     rgba(255,255,255,0.20),
