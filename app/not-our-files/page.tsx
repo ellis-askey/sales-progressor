@@ -62,7 +62,7 @@ export default async function NotOurFilesPage() {
     <AppShell session={session} activePath="/not-our-files" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7">
-          <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Progressor Dashboard</p>
+          <p className="glass-section-label text-label-secondary-on-dark mb-4">Progressor Dashboard</p>
           <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">Agent-Progressed Files</h1>
           <p className="text-sm text-slate-400 mt-1">Files being self-progressed by agents — read-only overview</p>
           <div className="flex items-center gap-2 mt-4">

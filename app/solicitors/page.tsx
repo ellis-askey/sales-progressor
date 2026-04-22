@@ -21,18 +21,18 @@ export default async function SolicitorsPage() {
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7 flex items-start justify-between">
           <div>
-            <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Reference</p>
+            <p className="glass-section-label text-label-secondary-on-dark mb-4">Reference</p>
             <h1 className="text-2xl font-bold text-white tracking-tight">Solicitors</h1>
             <p className="text-sm text-slate-400 mt-0.5">All firms and handlers across your pipeline</p>
           </div>
           {firms.length > 0 && (
             <div className="mt-4 flex items-center gap-6">
               <div className="text-right">
-                <p className="text-2xl font-semibold text-white">{firms.length}</p>
+                <p className="text-2xl font-semibold text-white tabular-nums">{firms.length}</p>
                 <p className="text-xs text-slate-400">firms</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-semibold text-white">{totalContacts}</p>
+                <p className="text-2xl font-semibold text-white tabular-nums">{totalContacts}</p>
                 <p className="text-xs text-slate-400">contacts</p>
               </div>
             </div>

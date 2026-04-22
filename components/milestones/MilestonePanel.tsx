@@ -230,7 +230,7 @@ export function MilestonePanel({
                   }`}
                 >
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${allDone ? "bg-emerald-400" : sc.dot}`} />
-                  <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-slate-900/60">
+                  <span className="glass-section-label text-slate-900/60">
                     {section.label}
                   </span>
                   {!(isCollapsed && allDone) && <div className="flex-1 h-px bg-white/30" />}

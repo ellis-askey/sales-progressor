@@ -120,7 +120,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
           {/* Address */}
           <div>
-            <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Property Address</h2>
+            <h2 className="glass-section-label text-slate-900/40 mb-3">Property Address</h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-900/60 mb-1.5">Street address <span className="text-red-400">*</span></label>
@@ -128,7 +128,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                   value={form.streetAddress}
                   onChange={(e) => setField("streetAddress", e.target.value)}
                   placeholder="e.g. 14 Elmwood Avenue"
-                  className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                  className="glass-input w-full px-3 py-2.5 text-sm"
                   required
                 />
               </div>
@@ -139,7 +139,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                     value={form.city}
                     onChange={(e) => setField("city", e.target.value)}
                     placeholder="e.g. Bristol"
-                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                    className="glass-input w-full px-3 py-2.5 text-sm"
                   />
                 </div>
                 <div>
@@ -148,7 +148,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                     value={form.postcode}
                     onChange={(e) => setField("postcode", e.target.value.toUpperCase())}
                     placeholder="e.g. BS6 7TH"
-                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                    className="glass-input w-full px-3 py-2.5 text-sm"
                   />
                 </div>
               </div>
@@ -157,7 +157,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
           {/* Tenure */}
           <div>
-            <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Tenure <span className="text-red-400">*</span></h2>
+            <h2 className="glass-section-label text-slate-900/40 mb-3">Tenure <span className="text-red-400">*</span></h2>
             <div className="flex gap-3">
               {([["freehold", "Freehold", "Management pack not required"], ["leasehold", "Leasehold", "Management pack required"]] as [Tenure, string, string][]).map(([value, label, note]) => (
                 <button
@@ -179,7 +179,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
           {/* Purchase type */}
           <div>
-            <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Purchase Type <span className="text-red-400">*</span></h2>
+            <h2 className="glass-section-label text-slate-900/40 mb-3">Purchase Type <span className="text-red-400">*</span></h2>
             <div className="flex gap-3">
               {([
                 ["mortgage", "Mortgage", "All mortgage milestones apply"],
@@ -205,7 +205,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
           {/* Purchase price */}
           <div>
-            <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Purchase Price</h2>
+            <h2 className="glass-section-label text-slate-900/40 mb-3">Purchase Price</h2>
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-900/50 font-medium">£</span>
               <input
@@ -213,7 +213,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                 value={form.purchasePrice}
                 onChange={(e) => setField("purchasePrice", e.target.value)}
                 placeholder="e.g. 325000"
-                className="w-48 px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                className="glass-input w-48 px-3 py-2.5 text-sm"
               />
               <span className="text-xs text-slate-900/40">Optional</span>
             </div>
@@ -221,20 +221,20 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
 
           {/* Notes */}
           <div>
-            <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Notes</h2>
+            <h2 className="glass-section-label text-slate-900/40 mb-3">Notes</h2>
             <textarea
               value={form.notes}
               onChange={(e) => setField("notes", e.target.value)}
               placeholder="Any context about this transaction…"
               rows={3}
-              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
             />
           </div>
 
           {/* Who progresses? — agents only */}
           {isAgent && (
             <div>
-              <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Who will progress this file?</h2>
+              <h2 className="glass-section-label text-slate-900/40 mb-3">Who will progress this file?</h2>
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -371,7 +371,7 @@ function ContactSection({ label, contacts, onChange, onAdd, onRemove }: ContactS
                 value={contact.name}
                 onChange={(e) => onChange(i, "name", e.target.value)}
                 placeholder="e.g. John Smith"
-                className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                className="glass-input w-full px-3 py-2.5 text-sm"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -382,7 +382,7 @@ function ContactSection({ label, contacts, onChange, onAdd, onRemove }: ContactS
                   value={contact.phone}
                   onChange={(e) => onChange(i, "phone", e.target.value)}
                   placeholder="e.g. 07700 900000"
-                  className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                  className="glass-input w-full px-3 py-2.5 text-sm"
                 />
               </div>
               <div>
@@ -392,7 +392,7 @@ function ContactSection({ label, contacts, onChange, onAdd, onRemove }: ContactS
                   value={contact.email}
                   onChange={(e) => onChange(i, "email", e.target.value)}
                   placeholder="e.g. john@email.com"
-                  className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                  className="glass-input w-full px-3 py-2.5 text-sm"
                 />
               </div>
             </div>

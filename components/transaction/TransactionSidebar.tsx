@@ -174,7 +174,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Progress card */}
       <div className="glass-card p-5">
-        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Progress</p>
+        <p className="glass-section-label text-slate-900/40 mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
           <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
@@ -192,7 +192,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Exchange dates card */}
       <div className="glass-card p-5">
-        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Exchange Forecast</p>
+        <p className="glass-section-label text-slate-900/40 mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
           <div>
@@ -285,7 +285,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
           {keyDates.length > 0 && (
             <div className="pt-3 border-t border-white/20">
-              <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-2">Key Dates</p>
+              <p className="glass-section-label text-slate-900/40 mb-2">Key Dates</p>
               <div className="space-y-2">
                 {keyDates.map((kd) => {
                   const isPast = kd.eventDate < new Date();
@@ -309,7 +309,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
       {agentUser && (
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em]">Agent</p>
+            <p className="glass-section-label text-slate-900/40">Agent</p>
             {serviceType && (
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                 serviceType === "outsourced" ? "bg-blue-100 text-blue-700" : "bg-slate-900/8 text-slate-900/60"
@@ -326,7 +326,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Price & fees card */}
       <div className="glass-card p-5">
-        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Price & Fees</p>
+        <p className="glass-section-label text-slate-900/40 mb-4">Price & Fees</p>
 
         <div className="space-y-3">
           {/* Purchase price */}

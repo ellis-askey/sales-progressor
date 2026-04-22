@@ -37,7 +37,7 @@ export default async function ReportsPage() {
     <AppShell session={session} activePath="/reports" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7">
-          <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Reporting</p>
+          <p className="glass-section-label text-label-secondary-on-dark mb-4">Reporting</p>
           <h1 className="text-2xl font-bold text-white tracking-tight">Weekly Snapshot</h1>
           <p className="text-sm text-slate-400 mt-0.5">{periodLabel}</p>
         </div>
@@ -55,7 +55,7 @@ export default async function ReportsPage() {
           ].map(({ label, value, color }) => (
             <div key={label} className="glass-card px-5 py-4">
               <p className="text-xs text-slate-900/40 mb-1">{label}</p>
-              <p className={`text-2xl font-bold tracking-tight ${color}`}>{value}</p>
+              <p className={`text-2xl font-bold tracking-tight tabular-nums ${color}`}>{value}</p>
             </div>
           ))}
         </div>

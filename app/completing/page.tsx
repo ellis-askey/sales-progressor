@@ -111,13 +111,13 @@ export default async function CompletingPage() {
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7 flex items-start justify-between">
           <div>
-            <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Pipeline</p>
+            <p className="glass-section-label text-label-secondary-on-dark mb-4">Pipeline</p>
             <h1 className="text-2xl font-bold text-white tracking-tight">Completing Soon</h1>
             <p className="text-sm text-slate-400 mt-0.5">Exchanged files awaiting completion</p>
           </div>
           {total > 0 && (
             <div className="mt-4 flex items-baseline gap-1.5">
-              <span className="text-3xl font-semibold text-white">{total}</span>
+              <span className="text-3xl font-semibold text-white tabular-nums">{total}</span>
               <span className="text-sm text-slate-400">file{total !== 1 ? "s" : ""}</span>
             </div>
           )}

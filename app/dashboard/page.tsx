@@ -173,7 +173,7 @@ function DashboardHero({
     <div className="glass-panel-dark relative overflow-hidden">
       <div className="relative px-8 pt-6 pb-7">
         {/* Top row: role label */}
-        <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">
+        <p className="glass-section-label text-label-secondary-on-dark mb-4">
           {roleLabel}
         </p>
 
@@ -224,7 +224,7 @@ function DashboardHero({
 function StatChip({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span className={`text-2xl font-semibold tracking-tight ${color}`}>{value}</span>
+      <span className={`text-2xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</span>
       <span className="text-xs text-label-tertiary-on-dark">{label}</span>
     </div>
   );

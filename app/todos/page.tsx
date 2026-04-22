@@ -20,7 +20,7 @@ export default async function TodosPage() {
       {/* Header */}
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7">
-          <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">
+          <p className="glass-section-label text-label-secondary-on-dark mb-4">
             {session.user.name}
           </p>
           <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">To-Do</h1>

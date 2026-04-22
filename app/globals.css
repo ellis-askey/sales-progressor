@@ -244,7 +244,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    color: rgba(255, 255, 255, 0.55);
+    /* No colour set — pair with text-slate-900/40 on glass-card or text-label-secondary-on-dark on glass-panel-dark */
   }
 
 }
