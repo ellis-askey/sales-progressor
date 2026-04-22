@@ -6,9 +6,9 @@
 
 @layer base {
   :root {
-    /* Glass fills — Phase 1 refinement: lower opacity → more photo bleeding through */
-    --glass-fill:          linear-gradient(180deg, rgb(255 255 255 / 0.38) 0%, rgb(255 255 255 / 0.26) 100%);
-    --glass-fill-strong:   linear-gradient(180deg, rgb(255 255 255 / 0.52) 0%, rgb(255 255 255 / 0.40) 100%);
+    /* Glass fills — Phase 2 adjustment: +18pp opacity, photo still bleeds through */
+    --glass-fill:          linear-gradient(180deg, rgb(255 255 255 / 0.56) 0%, rgb(255 255 255 / 0.44) 100%);
+    --glass-fill-strong:   linear-gradient(180deg, rgb(255 255 255 / 0.68) 0%, rgb(255 255 255 / 0.56) 100%);
 
     /* Glass borders */
     --glass-border:        rgb(255 255 255 / 0.35);
@@ -22,8 +22,8 @@
     --glass-shadow-md:     0 2px 4px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08), 0 16px 48px rgb(0 0 0 / 0.06);
     --glass-shadow-lg:     0 4px 8px rgb(0 0 0 / 0.04), 0 16px 40px rgb(0 0 0 / 0.10), 0 32px 80px rgb(0 0 0 / 0.08);
 
-    /* Glass blur / saturation / radius — increased blur compensates for lower opacity */
-    --glass-blur:          32px;
+    /* Glass blur / saturation / radius */
+    --glass-blur:          40px;
     --glass-blur-strong:   40px;
     --glass-saturate:      200%;
     --glass-radius-sm:     12px;
@@ -74,13 +74,11 @@ body {
  */
 
 .glass-card {
-  /* Fill opacity 0.82 → 0.38/0.26 gradient; compensated by blur 20px → 32px */
-  backdrop-filter: blur(32px) saturate(200%) brightness(1.08);
-  -webkit-backdrop-filter: blur(32px) saturate(200%) brightness(1.08);
-  /* Gradient border fakes chromatic edge refraction; fill clips to padding-box */
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
   border: 1px solid transparent;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.38) 0%, rgb(255 255 255 / 0.26) 100%) padding-box,
+    linear-gradient(180deg, rgb(255 255 255 / 0.56) 0%, rgb(255 255 255 / 0.44) 100%) padding-box,
     linear-gradient(135deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.15) 50%, rgba(200,220,255,0.30) 100%) border-box;
   /* Directional edge-light from upper-left; drop shadows unchanged */
   box-shadow:

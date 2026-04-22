@@ -122,7 +122,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
   }
 
   return (
-    <div className={`glass-card border-l-4 ${borderLeft}`}>
+    <div className={`glass-card border-l-4 ${borderLeft} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg`}>
       <div className="px-5 py-4">
         {/* Top row */}
         <div className="flex items-start justify-between gap-3 mb-2">
@@ -179,7 +179,7 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
           <button
             onClick={() => onAction(task.id, "complete")}
             disabled={loading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 border border-white/30 text-slate-900/60 hover:border-green-500 hover:text-green-600"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 border border-slate-900/20 text-slate-900/70 hover:bg-white/50 hover:border-slate-900/30 hover:text-slate-900/90"
           >
             {loading ? "…" : "Mark done"}
           </button>

@@ -60,12 +60,9 @@ export default async function NotOurFilesPage() {
 
   return (
     <AppShell session={session} activePath="/not-our-files" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
-      <div
-        className="glass-panel-dark relative overflow-hidden"
-        style={{ margin: "-28px -20px 0", padding: "24px 20px 28px" }}
-      >
-        <div className="relative">
-          <p className="text-xs text-label-secondary-on-dark mb-2 font-medium tracking-wide uppercase">Progressor Dashboard</p>
+      <div className="glass-panel-dark relative overflow-hidden">
+        <div className="relative px-8 pt-6 pb-7">
+          <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Progressor Dashboard</p>
           <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">Agent-Progressed Files</h1>
           <p className="text-sm text-slate-400 mt-1">Files being self-progressed by agents — read-only overview</p>
           <div className="flex items-center gap-2 mt-4">
@@ -78,7 +75,7 @@ export default async function NotOurFilesPage() {
         </div>
       </div>
 
-      <div className="space-y-6 mt-7">
+      <div className="px-8 py-7 space-y-6">
         {transactions.length === 0 ? (
           <div className="glass-card">
             <EmptyState
