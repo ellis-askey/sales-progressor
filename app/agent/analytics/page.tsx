@@ -30,69 +30,69 @@ export default async function AgentAnalyticsPage() {
   const maxBar = Math.max(...Object.values(months), 1);
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Your analytics</h1>
-        <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>An overview of your sales pipeline.</p>
+    <div className="space-y-5">
+      <div className="mb-2">
+        <h1 className="text-xl font-extrabold text-slate-900/90 mb-1">Your analytics</h1>
+        <p className="text-sm text-slate-900/50">An overview of your sales pipeline.</p>
       </div>
 
       {/* Key metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+      <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Total files submitted", value: transactions.length },
           { label: "Exchanged", value: exchanged.length },
           { label: "Completed", value: transactions.filter((t) => t.hasCompleted).length },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", border: "1px solid #e5e7eb" }}>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: "0 0 8px" }}>{label}</p>
-            <p style={{ fontSize: 32, fontWeight: 800, color: "#111827", margin: 0 }}>{value}</p>
+          <div key={label} className="glass-card px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">{label}</p>
+            <p className="text-3xl font-extrabold text-slate-900/90">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Value metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-        <div style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", border: "1px solid #e5e7eb" }}>
-          <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: "0 0 8px" }}>Total pipeline value</p>
-          <p style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>{fmt(totalValue)}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="glass-card px-5 py-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">Total pipeline value</p>
+          <p className="text-2xl font-bold text-slate-900/90">{fmt(totalValue)}</p>
         </div>
-        <div style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", border: "1px solid #e5e7eb" }}>
-          <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: "0 0 8px" }}>Value exchanged</p>
-          <p style={{ fontSize: 24, fontWeight: 700, color: "#059669", margin: 0 }}>{fmt(exchangedValue)}</p>
+        <div className="glass-card px-5 py-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">Value exchanged</p>
+          <p className="text-2xl font-bold text-emerald-600">{fmt(exchangedValue)}</p>
         </div>
       </div>
 
       {/* Service split */}
-      <div style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", border: "1px solid #e5e7eb", marginBottom: 28 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: "0 0 14px" }}>Service split</p>
-        <div style={{ display: "flex", gap: 32 }}>
+      <div className="glass-card px-5 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-4">Service split</p>
+        <div className="flex gap-8">
           {[
-            { label: "Self-managed (£59/mo)", value: transactions.filter((t) => t.serviceType === "self_managed").length, color: "#2563eb" },
-            { label: "Outsourced to us", value: transactions.filter((t) => t.serviceType === "outsourced").length, color: "#059669" },
+            { label: "Self-managed (£59/mo)", value: transactions.filter((t) => t.serviceType === "self_managed").length, color: "text-blue-600" },
+            { label: "Outsourced to us", value: transactions.filter((t) => t.serviceType === "outsourced").length, color: "text-emerald-600" },
           ].map(({ label, value, color }) => (
             <div key={label}>
-              <p style={{ fontSize: 28, fontWeight: 700, color, margin: "0 0 4px" }}>{value}</p>
-              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>{label}</p>
+              <p className={`text-3xl font-bold mb-1 ${color}`}>{value}</p>
+              <p className="text-sm text-slate-900/50">{label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Files per month chart */}
-      <div style={{ background: "#fff", borderRadius: 12, padding: "18px 20px", border: "1px solid #e5e7eb" }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", margin: "0 0 16px" }}>Files submitted (last 6 months)</p>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 120 }}>
+      <div className="glass-card px-5 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-4">Files submitted (last 6 months)</p>
+        <div className="flex items-end gap-3 h-28">
           {Object.entries(months).map(([month, count]) => (
-            <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{count || ""}</span>
-              <div style={{
-                width: "100%",
-                height: `${count > 0 ? Math.max((count / maxBar) * 80, 8) : 4}px`,
-                background: count > 0 ? "#2563eb" : "#f1f5f9",
-                borderRadius: "4px 4px 0 0",
-                transition: "height 0.3s ease",
-              }} />
-              <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>{month}</span>
+            <div key={month} className="flex-1 flex flex-col items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-900/60">{count || ""}</span>
+              <div
+                className="w-full rounded-t-sm transition-[height] duration-300"
+                style={{
+                  height: `${count > 0 ? Math.max((count / maxBar) * 80, 8) : 4}px`,
+                  background: count > 0 ? "rgba(37,99,235,0.75)" : "rgba(255,255,255,0.15)",
+                }}
+              />
+              <span className="text-[10px] text-slate-900/40 text-center">{month}</span>
             </div>
           ))}
         </div>

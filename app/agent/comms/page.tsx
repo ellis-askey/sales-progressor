@@ -28,52 +28,47 @@ export default async function AgentCommsPage() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Updates</h1>
-        <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>
-          Updates from your sales progressor on your files.
-        </p>
+    <div className="space-y-7">
+      <div>
+        <h1 className="text-xl font-extrabold text-slate-900/90 mb-1">Updates</h1>
+        <p className="text-sm text-slate-900/50">Updates from your sales progressor on your files.</p>
       </div>
 
       {comms.length === 0 && (
-        <div style={{ textAlign: "center", padding: "64px 0", color: "#9ca3af" }}>
-          <p style={{ fontSize: 16, marginBottom: 4 }}>No updates yet</p>
-          <p style={{ fontSize: 14 }}>Your progressor will post updates here as your sales progress.</p>
+        <div className="text-center py-16">
+          <p className="text-base text-slate-900/50 mb-1">No updates yet</p>
+          <p className="text-sm text-slate-900/40">Your progressor will post updates here as your sales progress.</p>
         </div>
       )}
 
       {Object.entries(byTx).map(([txId, entries]) => (
-        <div key={txId} style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", margin: 0 }}>
-              {entries[0].transaction.propertyAddress}
-            </p>
+        <div key={txId}>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-sm font-bold text-slate-900/80">{entries[0].transaction.propertyAddress}</p>
             <AgentFlagButton transactionId={txId} address={entries[0].transaction.propertyAddress} />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="space-y-2">
             {entries.map((c) => (
-              <div key={c.id} style={{ background: "#fff", borderRadius: 10, padding: "14px 16px", border: "1px solid #e5e7eb" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                      padding: "2px 7px", borderRadius: 20,
-                      background: c.type === "inbound" ? "#f0fdf4" : "#eff6ff",
-                      color: c.type === "inbound" ? "#059669" : "#2563eb",
-                    }}>
+              <div key={c.id} className="glass-card px-4 py-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-[0.05em] px-2 py-0.5 rounded-full ${
+                      c.type === "inbound"
+                        ? "bg-emerald-50/60 text-emerald-600"
+                        : "bg-blue-50/60 text-blue-600"
+                    }`}>
                       {c.type === "inbound" ? "Received" : "Sent"}
                     </span>
                     {c.method && (
-                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{METHOD_LABEL[c.method] ?? c.method}</span>
+                      <span className="text-[11px] text-slate-900/40">{METHOD_LABEL[c.method] ?? c.method}</span>
                     )}
                   </div>
-                  <span style={{ fontSize: 11, color: "#9ca3af" }}>{fmtDate(c.createdAt)}</span>
+                  <span className="text-[11px] text-slate-900/40">{fmtDate(c.createdAt)}</span>
                 </div>
-                <p style={{ fontSize: 14, color: "#374151", margin: 0, lineHeight: 1.5 }}>{c.content}</p>
+                <p className="text-sm text-slate-900/80 leading-relaxed">{c.content}</p>
                 {c.createdBy && (
-                  <p style={{ fontSize: 11, color: "#9ca3af", margin: "8px 0 0" }}>— {c.createdBy.name}</p>
+                  <p className="text-[11px] text-slate-900/40 mt-2">— {c.createdBy.name}</p>
                 )}
               </div>
             ))}

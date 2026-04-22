@@ -24,7 +24,7 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
 
   if (sent) {
     return (
-      <div style={{ fontSize: 12, color: "#059669", fontWeight: 600, padding: "6px 12px", background: "#f0fdf4", borderRadius: 8 }}>
+      <div className="text-xs font-semibold text-emerald-600 px-3 py-1.5 bg-emerald-50/60 rounded-lg">
         Sent!
       </div>
     );
@@ -34,7 +34,7 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
     return (
       <button
         onClick={() => setOpen(true)}
-        style={{ fontSize: 12, fontWeight: 600, color: "#fff", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "7px 14px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+        className="text-xs font-semibold text-white bg-white/15 border border-white/20 rounded-lg px-3.5 py-1.5 whitespace-nowrap flex-shrink-0 hover:bg-white/25 transition-colors"
       >
         {label ?? "Flag to progressor"}
       </button>
@@ -42,27 +42,27 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
   }
 
   return (
-    <div style={{ flexShrink: 0, width: 240 }} onClick={(e) => e.stopPropagation()}>
-      <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>Flag for: {address.substring(0, 30)}…</p>
+    <div className="flex-shrink-0 w-60" onClick={(e) => e.stopPropagation()}>
+      <p className="text-[11px] text-slate-900/40 mb-1.5">Flag for: {address.substring(0, 30)}…</p>
       <textarea
         autoFocus
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="e.g. Client called in, asked about exchange date"
         rows={3}
-        style={{ width: "100%", fontSize: 12, padding: "8px 10px", border: "1px solid #e5e7eb", borderRadius: 8, resize: "none", outline: "none", boxSizing: "border-box" }}
+        className="w-full text-xs px-2.5 py-2 border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100/50 box-border"
       />
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+      <div className="flex gap-2 mt-1.5">
         <button
           onClick={submit}
           disabled={sending || !message.trim()}
-          style={{ fontSize: 12, fontWeight: 600, padding: "6px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
+          className="text-xs font-semibold px-3.5 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-md transition-colors"
         >
           {sending ? "Sending…" : "Send"}
         </button>
         <button
           onClick={() => { setOpen(false); setMessage(""); }}
-          style={{ fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}
+          className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
         >
           Cancel
         </button>
