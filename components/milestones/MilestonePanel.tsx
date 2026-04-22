@@ -113,11 +113,23 @@ export function MilestonePanel({
           100% { transform: translateX(300%); }
         }
         .ms-shimmer-anim { animation: ms-shimmer 2.4s ease-in-out infinite; }
+
+        @keyframes ms-node-pop {
+          0%   { transform: scale(0.4); opacity: 0; }
+          55%  { transform: scale(1.12); opacity: 1; }
+          75%  { transform: scale(0.96); }
+          100% { transform: scale(1); }
+        }
+        .ms-node-pop { animation: ms-node-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ms-node-pop { animation: none; }
+        }
       `}</style>
 
       {/* ── Exchange readiness banner ──────────────────────────────────── */}
       {exchangeReady ? (
-        <div className="mb-5 px-4 py-3 rounded-xl bg-emerald-50/60 border border-emerald-200/60 flex items-center gap-3">
+        <div className="mb-5 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-400/25 flex items-center gap-3 animate-enter">
           <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -218,7 +230,7 @@ export function MilestonePanel({
                   }`}
                 >
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${allDone ? "bg-emerald-400" : sc.dot}`} />
-                  <span className={`text-xs font-semibold uppercase tracking-wide ${allDone ? "text-emerald-600" : sc.label}`}>
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.07em] text-slate-900/60">
                     {section.label}
                   </span>
                   {!(isCollapsed && allDone) && <div className="flex-1 h-px bg-white/30" />}

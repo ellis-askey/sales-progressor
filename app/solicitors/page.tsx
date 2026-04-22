@@ -18,13 +18,10 @@ export default async function SolicitorsPage() {
 
   return (
     <AppShell session={session} activePath="/solicitors" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
-      <div className="relative overflow-hidden"
-           style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)" }}>
-        <div className="absolute inset-0 opacity-[0.04]"
-             style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+      <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7 flex items-start justify-between">
           <div>
-            <p className="text-xs text-slate-500 mb-4 font-medium tracking-wide uppercase">Reference</p>
+            <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">Reference</p>
             <h1 className="text-2xl font-bold text-white tracking-tight">Solicitors</h1>
             <p className="text-sm text-slate-400 mt-0.5">All firms and handlers across your pipeline</p>
           </div>

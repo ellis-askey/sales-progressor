@@ -1,7 +1,7 @@
 "use client";
 // components/milestones/MilestoneRow.tsx
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/ToastContext";
@@ -28,6 +28,8 @@ async function fireConfetti() {
 export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [flashing, setFlashing] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showEventDate, setShowEventDate] = useState(false);
   const [eventDate, setEventDate] = useState("");
@@ -109,6 +111,10 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
       const count = impliedIds.length;
       addToast("Milestone confirmed", "success", count > 0 ? `+ ${count} implied milestone${count > 1 ? "s" : ""} also completed` : def.name);
       fireConfetti();
+      // Flash the row: bg-emerald-400/15 for 600ms then fade (150ms transition)
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      setFlashing(true);
+      flashTimer.current = setTimeout(() => setFlashing(false), 750);
       if (isExchangeMilestone) {
         setShowCompletionPrompt(true);
       }
@@ -206,21 +212,22 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
   const canBeNR = NR_ALLOWED.has(def.code);
 
   let rowBg = "";
-  if (isDone) rowBg = isNotRequired ? "bg-white/10" : "bg-green-50/40";
-  if (!isDone && isBlocked) rowBg = "bg-white/10";
-  if (isGate && !isDone && !isBlocked) rowBg = "bg-amber-50/60";
-  if (isPost) rowBg = "bg-white/5";
+  if (flashing) rowBg = "bg-emerald-400/15";
+  else if (isDone) rowBg = isNotRequired ? "bg-white/10" : "bg-green-50/40";
+  else if (!isDone && isBlocked) rowBg = "bg-white/10";
+  else if (isGate && !isDone && !isBlocked) rowBg = "bg-amber-50/60";
+  else if (isPost) rowBg = "bg-white/5";
 
   // N/R milestones are rendered in the NotRequired section, not here
   if (isNotRequired) return null;
 
   return (
     <>
-      <div className={`flex items-start gap-3 pl-4 pr-5 py-3.5 border-b border-white/15 last:border-0 ${rowBg}`}>
+      <div className={`flex items-start gap-3 pl-4 pr-5 py-3.5 border-b border-white/15 last:border-0 transition-colors duration-[150ms] ${rowBg}`}>
         {/* Timeline node */}
         <div className="mt-0.5 flex-shrink-0 z-10 relative">
           {isDone ? (
-            <div className="w-6 h-6 rounded-full bg-emerald-500 border-2 border-emerald-400 flex items-center justify-center shadow-sm">
+            <div className="ms-node-pop w-6 h-6 rounded-full bg-emerald-500 border-2 border-emerald-400 flex items-center justify-center shadow-sm">
               <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>

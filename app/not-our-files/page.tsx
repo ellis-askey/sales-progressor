@@ -61,20 +61,19 @@ export default async function NotOurFilesPage() {
   return (
     <AppShell session={session} activePath="/not-our-files" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
       <div
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)", margin: "-28px -20px 0", padding: "24px 20px 28px" }}
+        className="glass-panel-dark relative overflow-hidden"
+        style={{ margin: "-28px -20px 0", padding: "24px 20px 28px" }}
       >
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
         <div className="relative">
-          <p className="text-xs text-slate-500 mb-2 font-medium tracking-wide uppercase">Progressor Dashboard</p>
+          <p className="text-xs text-label-secondary-on-dark mb-2 font-medium tracking-wide uppercase">Progressor Dashboard</p>
           <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">Agent-Progressed Files</h1>
           <p className="text-sm text-slate-400 mt-1">Files being self-progressed by agents — read-only overview</p>
           <div className="flex items-center gap-2 mt-4">
             <span className="text-2xl font-semibold text-white">{transactions.length}</span>
-            <span className="text-xs text-slate-500">total files</span>
+            <span className="text-xs text-label-tertiary-on-dark">total files</span>
             <div className="w-px h-5 bg-white/10 mx-2" />
             <span className="text-2xl font-semibold text-slate-300">{byAgent.size}</span>
-            <span className="text-xs text-slate-500">agent{byAgent.size !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-label-tertiary-on-dark">agent{byAgent.size !== 1 ? "s" : ""}</span>
           </div>
         </div>
       </div>

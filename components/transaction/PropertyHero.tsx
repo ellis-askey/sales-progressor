@@ -24,10 +24,10 @@ const STATUS_STYLE: Record<TransactionStatus, { bg: string; dot: string; label: 
 };
 
 const TRACK_BAR: Record<string, string> = {
-  on_track: "bg-emerald-400",
-  at_risk:  "bg-amber-400",
+  on_track:  "bg-emerald-400",
+  at_risk:   "bg-amber-400",
   off_track: "bg-red-400",
-  unknown:  "bg-blue-400",
+  unknown:   "bg-blue-400",
 };
 
 function formatPrice(pence: number | null): string | null {
@@ -64,14 +64,8 @@ export function PropertyHero({
   const price = formatPrice(purchasePrice);
 
   return (
-    <div
-      className="relative overflow-hidden"
-      style={{
-        background: "linear-gradient(to bottom, rgba(5,8,15,0.55) 0%, rgba(5,8,15,0.35) 100%)",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      {/* Window-grid overlay — architectural glass-facade effect */}
+    <div className="glass-panel-dark relative overflow-hidden">
+      {/* Window-grid overlay — architectural glass-facade texture */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -82,22 +76,19 @@ export function PropertyHero({
           backgroundSize: "80px 60px",
         }}
       />
-      {/* Blue radial glow — top right corner */}
+      {/* Blue radial glow — top right */}
       <div
         className="absolute -top-24 -right-16 w-80 h-80 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 65%)",
-        }}
+        style={{ background: "radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 65%)" }}
       />
       {/* Indigo accent — bottom left */}
       <div
         className="absolute -bottom-16 -left-12 w-56 h-56 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)",
-        }}
+        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)" }}
       />
 
-      <div className="relative px-8 pt-6 pb-8">
+      {/* Content — animate-enter fires on mount for entrance choreography */}
+      <div className="relative px-8 pt-6 pb-8 animate-enter">
         {/* Row 1: breadcrumb + status */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -120,10 +111,10 @@ export function PropertyHero({
           </span>
         </div>
 
-        {/* Row 2: address */}
+        {/* Row 2: address — Large Title scale (34px) with corrected line2 spacing */}
         <div className="mb-5">
-          <h1 className="text-[1.6rem] font-bold text-white leading-tight tracking-tight">{line1}</h1>
-          {line2 && <p className="text-sm text-slate-400 mt-0.5 font-medium">{line2}</p>}
+          <h1 className="text-[2.125rem] font-bold text-white leading-tight tracking-tight">{line1}</h1>
+          {line2 && <p className="text-sm text-slate-400 mt-1 font-medium">{line2}</p>}
         </div>
 
         {/* Row 3: price + meta + progress */}

@@ -15,7 +15,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   return (
     <div className="relative flex-shrink-0 w-20 h-20">
       <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(15,23,42,0.08)" strokeWidth="8" />
+        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
         <circle
           cx="40" cy="40" r={r} fill="none"
           stroke={stroke} strokeWidth="8"
@@ -174,7 +174,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Progress card */}
       <div className="glass-card p-5">
-        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Progress</p>
+        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
           <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
@@ -192,7 +192,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Exchange dates card */}
       <div className="glass-card p-5">
-        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Exchange Forecast</p>
+        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
           <div>
@@ -285,7 +285,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
           {keyDates.length > 0 && (
             <div className="pt-3 border-t border-white/20">
-              <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-2">Key Dates</p>
+              <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-2">Key Dates</p>
               <div className="space-y-2">
                 {keyDates.map((kd) => {
                   const isPast = kd.eventDate < new Date();
@@ -309,7 +309,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
       {agentUser && (
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Agent</p>
+            <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em]">Agent</p>
             {serviceType && (
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                 serviceType === "outsourced" ? "bg-blue-100 text-blue-700" : "bg-slate-900/8 text-slate-900/60"
@@ -326,7 +326,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
 
       {/* Price & fees card */}
       <div className="glass-card p-5">
-        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Price & Fees</p>
+        <p className="text-[0.6875rem] font-semibold text-slate-900/40 uppercase tracking-[0.07em] mb-4">Price & Fees</p>
 
         <div className="space-y-3">
           {/* Purchase price */}

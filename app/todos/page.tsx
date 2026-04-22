@@ -18,19 +18,9 @@ export default async function TodosPage() {
   return (
     <AppShell session={session} activePath="/todos" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
       {/* Header */}
-      <div
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-        />
+      <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7">
-          <p className="text-xs text-slate-500 mb-4 font-medium tracking-wide uppercase">
+          <p className="text-xs text-label-secondary-on-dark mb-4 font-medium tracking-wide uppercase">
             {session.user.name}
           </p>
           <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">To-Do</h1>
