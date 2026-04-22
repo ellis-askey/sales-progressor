@@ -32,7 +32,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Notes</h2>
+        <h2 className="glass-section-label text-slate-900/40">Notes</h2>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
@@ -51,7 +51,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
               rows={4}
               autoFocus
               placeholder="Add notes about this transaction…"
-              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 resize-none"
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
             />
             <div className="flex items-center gap-2">
               <button

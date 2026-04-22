@@ -212,7 +212,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   type="date"
                   value={overrideInput}
                   onChange={(e) => setOverrideInput(e.target.value)}
-                  className="px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
+                  className="glass-input px-2 py-1 text-sm"
                 />
                 <button onClick={saveOverride} disabled={saving}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
@@ -246,7 +246,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                     type="date"
                     value={completionInput}
                     onChange={(e) => setCompletionInput(e.target.value)}
-                    className="px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
+                    className="glass-input px-2 py-1 text-sm"
                   />
                   <button onClick={saveCompletion} disabled={saving}
                     className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
@@ -340,7 +340,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   value={priceInput}
                   onChange={(e) => setPriceInput(e.target.value)}
                   placeholder="e.g. 325000"
-                  className="w-32 px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
+                  className="glass-input w-32 px-2 py-1 text-sm"
                 />
                 <button onClick={savePrice} disabled={saving}
                   className="text-xs text-blue-600 hover:text-blue-800 font-semibold">Save</button>
@@ -413,14 +413,14 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                     value={agentFeeInput}
                     onChange={(e) => setAgentFeeInput(e.target.value)}
                     placeholder={agentFeeType === "amount" ? "e.g. 1500" : "e.g. 1.5"}
-                    className="w-24 px-2 py-1 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
+                    className="glass-input w-24 px-2 py-1 text-sm"
                   />
                   <span className="text-xs text-slate-900/50">{agentFeeType === "percent" ? "%" : ""}</span>
                 </div>
                 <select
                   value={agentFeeVat}
                   onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
-                  className="w-full px-2 py-1 text-xs border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400"
+                  className="glass-input w-full px-2 py-1 text-xs"
                 >
                   <option value="exclusive">+ VAT</option>
                   <option value="inclusive">Inc VAT</option>

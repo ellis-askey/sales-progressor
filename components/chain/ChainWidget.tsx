@@ -156,12 +156,12 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
                         placeholder="Property address"
                         value={link.externalAddress ?? ""}
                         onChange={(e) => updateLink(i, { externalAddress: e.target.value })}
-                        className="w-full text-sm border border-white/30 rounded-lg px-3 py-2 bg-white/40 focus:outline-none focus:ring-2 focus:ring-blue-300 text-slate-900/80 placeholder:text-slate-900/30"
+                        className="glass-input w-full text-sm px-3 py-2"
                       />
                       <select
                         value={link.externalStatus ?? "Unknown"}
                         onChange={(e) => updateLink(i, { externalStatus: e.target.value })}
-                        className="text-sm border border-white/30 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white/40 text-slate-900/80"
+                        className="glass-input text-sm px-3 py-2"
                       >
                         {EXTERNAL_STATUSES.map((s) => (
                           <option key={s} value={s}>{s}</option>

@@ -47,7 +47,7 @@ export function LoginForm() {
           required
           autoComplete="email"
           placeholder="you@agency.co.uk"
-          className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+          className="glass-input w-full px-3 py-2.5 text-sm"
         />
       </div>
 
@@ -63,7 +63,7 @@ export function LoginForm() {
             required
             autoComplete="current-password"
             placeholder="••••••••"
-            className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
+            className="glass-input w-full px-3 py-2.5 text-sm pr-10"
           />
           <button
             type="button"

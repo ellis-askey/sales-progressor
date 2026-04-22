@@ -241,7 +241,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
               onChange={(e) => setContent(e.target.value)}
               placeholder={type === "internal_note" ? "Add an internal note…" : "What was discussed or communicated?"}
               rows={4}
-              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400 resize-none placeholder:text-slate-900/30"
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
               autoFocus
             />
             <div className="flex items-center justify-between mt-2">

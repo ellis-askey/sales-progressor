@@ -50,7 +50,7 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
         onChange={(e) => setMessage(e.target.value)}
         placeholder="e.g. Client called in, asked about exchange date"
         rows={3}
-        className="w-full text-xs px-2.5 py-2 border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 resize-none focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100/50 box-border"
+        className="glass-input w-full text-xs px-2.5 py-2 resize-none box-border"
       />
       <div className="flex gap-2 mt-1.5">
         <button

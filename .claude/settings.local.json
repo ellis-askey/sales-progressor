@@ -62,7 +62,10 @@
       "Bash(git remote *)",
       "Bash(git fetch *)",
       "Bash(git log *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(\"C:/Users/ellis/AppData/Local/Programs/Python/Python311/python.exe\" --version)",
+      "Bash(npm --version)",
+      "Bash(xargs wc *)"
     ]
   }
 }

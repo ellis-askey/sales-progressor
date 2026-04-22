@@ -98,7 +98,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
               onChange={(e) => setFirmName(e.target.value)}
               placeholder="e.g. Carter & Wells Solicitors"
               required
-              className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+              className="glass-input w-full px-3 py-2.5 text-sm"
             />
           </div>
 
@@ -114,7 +114,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
                   value={handlerName}
                   onChange={(e) => setHandlerName(e.target.value)}
                   placeholder="e.g. Sarah Patel"
-                  className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                  className="glass-input w-full px-3 py-2.5 text-sm"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -125,7 +125,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
                     value={handlerPhone}
                     onChange={(e) => setHandlerPhone(e.target.value)}
                     placeholder="07700 900 000"
-                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                    className="glass-input w-full px-3 py-2.5 text-sm"
                   />
                 </div>
                 <div>
@@ -135,7 +135,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
                     value={handlerEmail}
                     onChange={(e) => setHandlerEmail(e.target.value)}
                     placeholder="s.patel@firm.co.uk"
-                    className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                    className="glass-input w-full px-3 py-2.5 text-sm"
                   />
                 </div>
               </div>

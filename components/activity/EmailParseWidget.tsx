@@ -103,7 +103,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                 placeholder="Paste the email content here…"
                 value={emailText}
                 onChange={(e) => setEmailText(e.target.value)}
-                className="w-full text-sm border border-white/30 rounded-xl px-4 py-3 bg-white/40 text-slate-900/80 resize-none focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-slate-900/30"
+                className="glass-input w-full text-sm px-4 py-3 resize-none"
               />
               <div className="flex items-center gap-2">
                 <button

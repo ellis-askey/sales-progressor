@@ -45,7 +45,7 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="text-sm border border-white/30 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-400 bg-white/40 text-slate-900/80"
+          className="glass-input text-sm px-2 py-1"
         >
           <option value="">Unassigned</option>
           {users.map((u) => (

@@ -97,7 +97,7 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
                     <select
                       value={a.progressorId ?? ""}
                       onChange={(e) => assignProgressor(a.id, e.target.value)}
-                      className="text-sm border border-white/30 rounded-lg px-2 py-1 bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80"
+                      className="glass-input text-sm px-2 py-1"
                     >
                       <option value="">Unassigned</option>
                       {progressors.map((p) => (
@@ -125,23 +125,23 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
             <div>
               <label className="text-xs text-slate-900/40 mb-1 block">Full name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Sarah Jones"
-                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
+                className="glass-input w-full px-3 py-2 text-sm" />
             </div>
             <div>
               <label className="text-xs text-slate-900/40 mb-1 block">Email</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@agency.co.uk"
-                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
+                className="glass-input w-full px-3 py-2 text-sm" />
             </div>
             <div>
               <label className="text-xs text-slate-900/40 mb-1 block">Estate agency</label>
               <input type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Hartwell & Partners"
-                className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80 placeholder:text-slate-900/30" />
+                className="glass-input w-full px-3 py-2 text-sm" />
             </div>
             {progressors.length > 0 && (
               <div>
                 <label className="text-xs text-slate-900/40 mb-1 block">Assign progressor</label>
                 <select value={progressorId} onChange={(e) => setProgressorId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80">
+                  className="glass-input w-full px-3 py-2 text-sm">
                   <option value="">— select —</option>
                   {progressors.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>

@@ -102,7 +102,7 @@ export function AgentFeeManager({ users }: { users: User[] }) {
                     value={edit.legacyFee}
                     onChange={(e) => updateEdit(user.id, "legacyFee", e.target.value)}
                     placeholder="220"
-                    className="w-20 px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 focus:outline-none focus:border-blue-400 text-slate-900/80"
+                    className="glass-input w-20 px-2 py-1.5 text-sm"
                   />
                 </div>
               ) : (

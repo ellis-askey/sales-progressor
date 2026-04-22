@@ -34,11 +34,8 @@ const EMPTY_FORM = {
   phone:    "",
 };
 
-const INPUT =
-  "w-full px-3 py-2 rounded-xl border border-white/30 bg-white/40 text-sm text-slate-900/90 " +
-  "placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100/50 transition-all";
-
-const SELECT = INPUT + " pr-8";
+const INPUT = "glass-input w-full px-3 py-2 text-sm";
+const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
 
 /** Avatar colour per role */
 const ROLE_AVATAR: Record<ContactRole, string> = {
@@ -197,19 +194,19 @@ export function ContactsSection({
                         value={editForm.name}
                         onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                         placeholder="Full name"
-                        className="px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                        className="glass-input px-2 py-1.5 text-sm"
                       />
                       <input
                         value={editForm.phone}
                         onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                         placeholder="Phone"
-                        className="px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                        className="glass-input px-2 py-1.5 text-sm"
                       />
                       <input
                         value={editForm.email}
                         onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
                         placeholder="Email"
-                        className="px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400"
+                        className="glass-input px-2 py-1.5 text-sm"
                       />
                     </div>
                     <div className="flex gap-2">

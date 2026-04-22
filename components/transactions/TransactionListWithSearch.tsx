@@ -37,7 +37,7 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by address…"
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-white/30 rounded-xl bg-white/50 backdrop-blur-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-slate-900/80 placeholder:text-slate-900/30"
+          className="glass-input w-full pl-9 pr-4 py-2.5 text-sm"
         />
         {query && (
           <button

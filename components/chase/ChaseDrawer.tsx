@@ -294,7 +294,7 @@ export function ChaseDrawer({
             onChange={(e) => setMessage(e.target.value)}
             placeholder={channel === "email" ? "Generate a message or type your own..." : "Generate a WhatsApp message or type your own..."}
             rows={12}
-            className="w-full flex-1 rounded-lg border border-white/30 bg-white/40 px-3 py-2.5 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 resize-none"
+            className="glass-input w-full flex-1 px-3 py-2.5 text-sm resize-none"
           />
 
           {generatedText && message !== generatedText && message.length > 0 && (

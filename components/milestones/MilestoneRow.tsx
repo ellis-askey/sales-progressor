@@ -279,7 +279,7 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
               <div>
                 <label className="block text-xs text-slate-900/50 mb-1">Event date <span className="text-red-400">*</span></label>
                 <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
-                  className="px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400" />
+                  className="glass-input px-2 py-1.5 text-sm" />
               </div>
               <button onClick={() => checkImplied(eventDate)} disabled={!eventDate || loading}
                 className="mt-5 px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300">Confirm</button>
@@ -294,7 +294,7 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
                 <label className="block text-xs text-slate-900/50 mb-1">Reason <span className="text-red-400">*</span></label>
                 <input type="text" value={notRequiredReason} onChange={(e) => setNotRequiredReason(e.target.value)}
                   placeholder="e.g. No survey needed" autoFocus
-                  className="w-full px-2 py-1.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400" />
+                  className="glass-input w-full px-2 py-1.5 text-sm" />
               </div>
               <button onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
                 className="mt-5 px-3 py-1.5 text-xs font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40">Confirm</button>
@@ -404,7 +404,7 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
               type="date"
               value={completionInput}
               onChange={(e) => setCompletionInput(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400 mb-4"
+              className="glass-input w-full px-3 py-2 text-sm mb-4"
             />
             <div className="flex gap-3">
               <button

@@ -147,11 +147,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
               }
             }}
             placeholder="Search firm name…"
-            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-1 transition-all text-slate-900/80 placeholder:text-slate-900/30 ${
-              firmSelected
-                ? "border-blue-300 focus:border-blue-400 focus:ring-blue-400 bg-blue-50/30"
-                : "border-white/30 bg-white/40 focus:border-blue-400 focus:ring-blue-400"
-            }`}
+            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : ""}`}
           />
 
           {showDropdown && query.trim() && (
@@ -209,7 +205,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
                   if (h) selectHandler(h);
                   else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
                 }}
-                className="w-full px-3 py-2.5 text-sm border border-white/30 rounded-lg bg-white/40 text-slate-900/80 focus:outline-none focus:border-blue-400"
+                className="glass-input w-full px-3 py-2.5 text-sm"
               >
                 <option value="">
                   {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
