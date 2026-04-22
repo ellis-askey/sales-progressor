@@ -1,8 +1,5 @@
 "use client";
 
-// components/chase/ChaseButton.tsx
-// Sprint 7: Opens the ChaseDrawer with task context pre-loaded.
-
 import { useState } from "react";
 import { ChaseDrawer } from "./ChaseDrawer";
 
@@ -39,7 +36,7 @@ export function ChaseButton({
     <>
       <button
         onClick={() => setDrawerOpen(true)}
-        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-sp-brand text-white hover:bg-sp-brand-hover transition-colors"
+        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors"
       >
         Chase
       </button>

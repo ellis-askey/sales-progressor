@@ -231,13 +231,13 @@ export function ContactsSection({
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${ROLE_AVATAR[role] ?? "bg-gray-100 text-gray-500"}`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${ROLE_AVATAR[role] ?? "bg-white/20 text-slate-900/50"}`}>
                         {initials}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
                           <span className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-white/20 text-slate-900/50 border-white/20"}`}>
                             {CONTACT_ROLE_LABELS[role]}
                           </span>
                         </div>
