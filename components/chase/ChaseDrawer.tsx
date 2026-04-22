@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Mail, MessageSquare, Sparkles, Send, Loader2, ChevronDown } from "lucide-react";
+import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown } from "@phosphor-icons/react";
 
 type Channel = "email" | "whatsapp";
 type Tone = "Friendly" | "Professional" | "Polite Yet Firm" | "Chase Up" | "Urgent" | "Final Reminder";
@@ -184,7 +184,7 @@ export function ChaseDrawer({
             <p className="text-xs text-slate-900/40 mt-0.5 truncate max-w-[280px]">{milestoneName}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/30 text-slate-900/40 transition-colors">
-            <X size={16} />
+            <X size={16} weight="bold" />
           </button>
         </div>
 
@@ -221,7 +221,7 @@ export function ChaseDrawer({
                   : "bg-white/30 text-slate-900/70 border-white/30 hover:border-blue-400"
               }`}
             >
-              <Mail size={14} /> Email
+              <EnvelopeSimple size={14} /> Email
             </button>
             <button
               onClick={() => setChannel("whatsapp")}
@@ -231,7 +231,7 @@ export function ChaseDrawer({
                   : "bg-white/30 text-slate-900/70 border-white/30 hover:border-green-500"
               }`}
             >
-              <MessageSquare size={14} /> WhatsApp
+              <ChatText size={14} /> WhatsApp
             </button>
           </div>
         </div>
@@ -248,7 +248,7 @@ export function ChaseDrawer({
               className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 hover:border-blue-400 transition-colors"
             >
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TONE_COLOURS[tone]}`}>{tone}</span>
-              <ChevronDown size={14} className="text-slate-900/40" />
+              <CaretDown size={14} className="text-slate-900/40" />
             </button>
             {toneMenuOpen && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg z-10 overflow-hidden">
@@ -277,8 +277,8 @@ export function ChaseDrawer({
             className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium disabled:opacity-60 transition-colors"
           >
             {isGenerating
-              ? <><Loader2 size={14} className="animate-spin" />Generating...</>
-              : <><Sparkles size={14} />Generate message</>}
+              ? <><CircleNotch size={14} className="animate-spin" />Generating...</>
+              : <><Sparkle size={14} />Generate message</>}
           </button>
 
           {generatedContext?.primaryContact && (
@@ -318,8 +318,8 @@ export function ChaseDrawer({
             }`}
           >
             {isSending
-              ? <><Loader2 size={14} className="animate-spin" />Sending...</>
-              : <><Send size={14} />{channel === "whatsapp" ? "Open WhatsApp" : "Send chase"}</>}
+              ? <><CircleNotch size={14} className="animate-spin" />Sending...</>
+              : <><PaperPlaneTilt size={14} />{channel === "whatsapp" ? "Open WhatsApp" : "Send chase"}</>}
           </button>
           <p className="text-xs text-slate-900/40 text-center mt-2">
             {channel === "whatsapp"
