@@ -56,7 +56,7 @@ html { min-height: 100%; }
 
 body {
   min-height: 100vh;
-  background: linear-gradient(145deg, #eef2f8 0%, #e8ecf7 35%, #eff2f9 65%, #eaecf6 100%);
+  background: transparent;
   color: var(--text-primary);
   font-family: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
@@ -122,9 +122,6 @@ body {
   position: relative;
   z-index: 0;
   min-height: 100vh;
-  background:
-    linear-gradient(rgba(8, 10, 18, 0.22), rgba(8, 10, 18, 0.30)),
-    url('/hero-bg.jpg') center center / cover no-repeat;
 }
 
 .glass-page::before {

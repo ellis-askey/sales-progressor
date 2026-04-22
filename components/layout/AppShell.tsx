@@ -44,7 +44,12 @@ export function AppShell({
   return (
     <AppShellClient>
     <div className="flex min-h-screen">
-      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-white/20"
+      {/* Fixed photo backdrop — viewport-level so backdrop-filter on glass cards can sample it */}
+      <div className="fixed inset-0 -z-10" style={{
+        background: "linear-gradient(rgba(8,12,25,0.52), rgba(6,10,22,0.58)), url('/hero-bg.jpg') center center / cover no-repeat",
+      }} />
+
+      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-white/10 sticky top-0 h-screen overflow-y-auto"
              style={{ boxShadow: "var(--shadow-sidebar)" }}>
         <div className="px-5 py-5 border-b border-white/20">
           <div className="flex items-center gap-3">
@@ -104,7 +109,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 min-h-screen">{children}</main>
     </div>
     </AppShellClient>
   );

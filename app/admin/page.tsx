@@ -51,20 +51,20 @@ export default async function AdminPage() {
 
         {/* Agent accounts */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Agent Accounts</h2>
+          <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-4">Agent Accounts</h2>
           <AgentManager agents={agents} progressors={progressors} agencyId={session.user.agencyId} />
         </section>
 
         {/* Internal user fee structures */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-4">Fee Structures (Internal Users)</h2>
+          <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-4">Fee Structures (Internal Users)</h2>
           <AgentFeeManager users={users} />
         </section>
 
         {/* Milestone definitions */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Milestone Definitions</h2>
-          <p className="text-xs text-slate-900/40 mb-4">Read-only. {milestoneDefs.length} definitions across vendor and purchaser sides.</p>
+          <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Milestone Definitions</h2>
+          <p className="text-xs text-white/45 mb-4">Read-only. {milestoneDefs.length} definitions across vendor and purchaser sides.</p>
           <div className="space-y-6">
             {[{ label: "Vendor", defs: vendorDefs }, { label: "Purchaser", defs: purchaserDefs }].map(({ label, defs }) => (
               <div key={label}>
@@ -102,8 +102,8 @@ export default async function AdminPage() {
 
         {/* Reminder rules */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Reminder Rules</h2>
-          <p className="text-xs text-slate-900/40 mb-4">Read-only. {reminderRules.length} active rules.</p>
+          <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Reminder Rules</h2>
+          <p className="text-xs text-white/45 mb-4">Read-only. {reminderRules.length} active rules.</p>
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
             <table className="w-full text-sm">
               <thead>
