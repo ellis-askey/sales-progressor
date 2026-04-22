@@ -6,6 +6,7 @@ import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { PostExchangeStrip } from "@/components/transactions/PostExchangeStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 import type { TransactionStatus } from "@prisma/client";
 
 export default async function AgentDashboard({
@@ -32,16 +33,9 @@ export default async function AgentDashboard({
   return (
     <>
       {/* Hero */}
-      <div
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e3a5f 100%)", margin: "-28px -20px 0", padding: "24px 20px 28px" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
-        />
-        <div className="relative">
-          <p className="text-xs text-slate-500 mb-4 font-medium tracking-wide uppercase">
+      <div className="glass-panel-dark relative overflow-hidden">
+        <div className="relative px-8 pt-6 pb-7">
+          <p className="glass-section-label text-label-secondary-on-dark mb-4">
             {session.user.firmName ?? "Agent Portal"}
           </p>
           <div className="flex items-start justify-between mb-6">
@@ -54,9 +48,7 @@ export default async function AgentDashboard({
                 href="/agent/transactions/new"
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+                <Plus size={16} weight="bold" />
                 New Transaction
               </Link>
               <AgentFlagButton transactionId={null} address="general" label="Flag to progressor" />
@@ -72,7 +64,7 @@ export default async function AgentDashboard({
         </div>
       </div>
 
-      <div className="space-y-7 mt-7">
+      <div className="px-8 py-7 space-y-7">
 
         {/* Exchanged — awaiting completion */}
         {postExchangeGroups.length > 0 && (
@@ -141,8 +133,8 @@ export default async function AgentDashboard({
 function StatChip({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span className={`text-2xl font-semibold tracking-tight ${color}`}>{value}</span>
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className={`text-2xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</span>
+      <span className="text-xs text-label-tertiary-on-dark">{label}</span>
     </div>
   );
 }

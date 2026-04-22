@@ -30,11 +30,16 @@ export default async function AgentAnalyticsPage() {
   const maxBar = Math.max(...Object.values(months), 1);
 
   return (
-    <div className="space-y-5">
-      <div className="mb-2">
-        <h1 className="text-xl font-extrabold text-slate-900/90 mb-1">Your analytics</h1>
-        <p className="text-sm text-slate-900/50">An overview of your sales pipeline.</p>
+    <>
+      <div className="glass-panel-dark relative overflow-hidden">
+        <div className="relative px-8 pt-6 pb-7">
+          <p className="glass-section-label text-label-secondary-on-dark mb-4">Agent Portal</p>
+          <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">Analytics</h1>
+          <p className="text-sm text-slate-400 mt-1">An overview of your sales pipeline.</p>
+        </div>
       </div>
+
+      <div className="px-8 py-7 space-y-5">
 
       {/* Key metrics */}
       <div className="grid grid-cols-3 gap-3">
@@ -44,7 +49,7 @@ export default async function AgentAnalyticsPage() {
           { label: "Completed", value: transactions.filter((t) => t.hasCompleted).length },
         ].map(({ label, value }) => (
           <div key={label} className="glass-card px-5 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">{label}</p>
+            <p className="glass-section-label text-slate-900/40 mb-2">{label}</p>
             <p className="text-3xl font-extrabold text-slate-900/90">{value}</p>
           </div>
         ))}
@@ -53,18 +58,18 @@ export default async function AgentAnalyticsPage() {
       {/* Value metrics */}
       <div className="grid grid-cols-2 gap-3">
         <div className="glass-card px-5 py-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">Total pipeline value</p>
+          <p className="glass-section-label text-slate-900/40 mb-2">Total pipeline value</p>
           <p className="text-2xl font-bold text-slate-900/90">{fmt(totalValue)}</p>
         </div>
         <div className="glass-card px-5 py-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-2">Value exchanged</p>
+          <p className="glass-section-label text-slate-900/40 mb-2">Value exchanged</p>
           <p className="text-2xl font-bold text-emerald-600">{fmt(exchangedValue)}</p>
         </div>
       </div>
 
       {/* Service split */}
       <div className="glass-card px-5 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-4">Service split</p>
+        <p className="glass-section-label text-slate-900/40 mb-4">Service split</p>
         <div className="flex gap-8">
           {[
             { label: "Self-managed (£59/mo)", value: transactions.filter((t) => t.serviceType === "self_managed").length, color: "text-blue-600" },
@@ -80,7 +85,7 @@ export default async function AgentAnalyticsPage() {
 
       {/* Files per month chart */}
       <div className="glass-card px-5 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-900/40 mb-4">Files submitted (last 6 months)</p>
+        <p className="glass-section-label text-slate-900/40 mb-4">Files submitted (last 6 months)</p>
         <div className="flex items-end gap-3 h-28">
           {Object.entries(months).map(([month, count]) => (
             <div key={month} className="flex-1 flex flex-col items-center gap-1.5">
@@ -97,6 +102,7 @@ export default async function AgentAnalyticsPage() {
           ))}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
