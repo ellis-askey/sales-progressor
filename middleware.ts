@@ -42,6 +42,13 @@ export default withAuth(
     return NextResponse.next();
   },
   {
+    callbacks: {
+      // Portal routes are token-authenticated (no admin session needed)
+      authorized: ({ req, token }) => {
+        if (req.nextUrl.pathname.startsWith("/portal")) return true;
+        return !!token;
+      },
+    },
     pages: { signIn: "/login" },
   }
 );
