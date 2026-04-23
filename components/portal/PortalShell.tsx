@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { P } from "./portal-ui";
 import { PortalInstallPrompt } from "./PortalInstallPrompt";
 import { PortalPushPrompt } from "./PortalPushPrompt";
@@ -19,6 +20,13 @@ type Props = {
 export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
+
+  // Clear the home screen badge whenever the user opens the portal
+  useEffect(() => {
+    if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  }, [pathname]);
 
   const isHome     = pathname === base || pathname === base + "/";
   const isProgress = pathname.startsWith(base + "/progress");
