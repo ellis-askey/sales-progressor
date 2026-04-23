@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { P } from "@/components/portal/portal-ui";
+import { PortalMessageCompose } from "@/components/portal/PortalMessageCompose";
 
 type MethodStyle = { label: string; bg: string; color: string };
 
@@ -18,7 +19,6 @@ function groupLabel(date: Date): string {
   const now = new Date();
   const d = new Date(date);
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7)  return "This week";
@@ -29,23 +29,17 @@ function groupLabel(date: Date): string {
 function groupTimeline(entries: TimelineEntry[]): { label: string; items: TimelineEntry[] }[] {
   const groups: { label: string; items: TimelineEntry[] }[] = [];
   const seen = new Set<string>();
-
   for (const e of entries) {
     const label = groupLabel(e.createdAt);
-    if (!seen.has(label)) {
-      seen.add(label);
-      groups.push({ label, items: [] });
-    }
+    if (!seen.has(label)) { seen.add(label); groups.push({ label, items: [] }); }
     groups[groups.length - 1].items.push(e);
   }
-
   return groups;
 }
 
 function fmtTime(d: Date) {
   return new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
-
 function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
@@ -60,14 +54,18 @@ export default async function PortalUpdatesPage({
   if (!data) notFound();
 
   const { contact, transaction } = data;
-  const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
-  const saleWord  = side === "vendor" ? "sale" : "purchase";
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
-  const timeline = await getPortalTimeline(transaction.id, side);
+  const timeline = await getPortalTimeline(transaction.id, side, contact.id);
   const groups   = groupTimeline(timeline);
 
   return (
     <div className="space-y-5">
+
+      {/* ── Message compose ─────────────────────────────────────────── */}
+      <PortalMessageCompose token={token} />
+
+      {/* ── Timeline ────────────────────────────────────────────────── */}
       {timeline.length === 0 ? (
         <div
           className="rounded-2xl px-5 py-10 text-center"
@@ -82,10 +80,10 @@ export default async function PortalUpdatesPage({
             </svg>
           </div>
           <p className="text-[16px] font-semibold mb-1" style={{ color: P.textPrimary }}>
-            No updates yet
+            Nothing yet
           </p>
           <p className="text-[14px]" style={{ color: P.textSecondary }}>
-            Milestone progress and {saleWord} updates will appear here.
+            Milestone completions, updates, and messages will appear here.
           </p>
         </div>
       ) : (
@@ -100,6 +98,8 @@ export default async function PortalUpdatesPage({
 
             <div className="space-y-2">
               {group.items.map((entry) => {
+
+                /* ── Milestone event ── */
                 if (entry.type === "milestone") {
                   return (
                     <div
@@ -125,39 +125,75 @@ export default async function PortalUpdatesPage({
                             : entry.completedByName
                               ? `Confirmed by ${entry.completedByName}`
                               : "Milestone confirmed"}
-                          {" · "}
-                          {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                          {" · "}{fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
                         </p>
                       </div>
                     </div>
                   );
                 }
 
-                // type === "update"
-                const method = entry.method ? METHOD_STYLES[entry.method] : null;
+                /* ── Agent update ── */
+                if (entry.type === "update") {
+                  const method = entry.method ? METHOD_STYLES[entry.method] : null;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl px-5 py-4"
+                      style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
+                    >
+                      {method && (
+                        <span
+                          className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
+                          style={{ background: method.bg, color: method.color }}
+                        >
+                          {method.label}
+                        </span>
+                      )}
+                      <p className="text-[14px] leading-relaxed whitespace-pre-line" style={{ color: P.textPrimary }}>
+                        {entry.content}
+                      </p>
+                      <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
+                        {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                      </p>
+                    </div>
+                  );
+                }
+
+                /* ── Message ── */
+                // fromClient = message sent by this user (right-aligned, coral)
+                // !fromClient = message from progressor (left-aligned, white/blue)
+                const isOwn = entry.fromClient;
                 return (
                   <div
                     key={entry.id}
-                    className="rounded-2xl px-5 py-4"
-                    style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
+                    className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                   >
-                    {method && (
-                      <span
-                        className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
-                        style={{ background: method.bg, color: method.color }}
-                      >
-                        {method.label}
-                      </span>
-                    )}
-                    <p
-                      className="text-[14px] leading-relaxed whitespace-pre-line"
-                      style={{ color: P.textPrimary }}
+                    <div
+                      className="max-w-[85%] rounded-2xl px-4 py-3"
+                      style={{
+                        background: isOwn ? P.primary : P.cardBg,
+                        boxShadow: isOwn ? "none" : P.shadowSm,
+                        borderRadius: isOwn ? "20px 20px 4px 20px" : "20px 20px 20px 4px",
+                      }}
                     >
-                      {entry.content}
-                    </p>
-                    <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
-                      {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
-                    </p>
+                      {!isOwn && entry.sentByName && (
+                        <p className="text-[11px] font-bold mb-1" style={{ color: P.accent }}>
+                          {entry.sentByName}
+                        </p>
+                      )}
+                      <p
+                        className="text-[14px] leading-relaxed"
+                        style={{ color: isOwn ? "#FFFFFF" : P.textPrimary }}
+                      >
+                        {entry.content}
+                      </p>
+                      <p
+                        className="text-[11px] mt-1.5"
+                        style={{ color: isOwn ? "rgba(255,255,255,0.65)" : P.textMuted }}
+                      >
+                        {fmtTime(entry.createdAt)}
+                      </p>
+                    </div>
                   </div>
                 );
               })}

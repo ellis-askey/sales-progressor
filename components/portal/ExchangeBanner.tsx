@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { P } from "./portal-ui";
 
@@ -128,6 +129,16 @@ export function CompletionBanner({ token, saleWord, completionDate }: { token: s
           Completed {fmtDate(completionDate)}
         </p>
       )}
+      <Link
+        href={`/portal/${token}/complete`}
+        className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
+        style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+      >
+        View your completion guide
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </Link>
     </div>
   );
 }

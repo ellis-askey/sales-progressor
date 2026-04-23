@@ -504,14 +504,23 @@ export type TimelineEntry =
       content: string;
       method: string | null;
       createdAt: Date;
+    }
+  | {
+      type: "message";
+      id: string;
+      content: string;
+      fromClient: boolean;
+      sentByName: string | null;
+      createdAt: Date;
     };
 
 export async function getPortalTimeline(
   transactionId: string,
-  side: "vendor" | "purchaser"
+  side: "vendor" | "purchaser",
+  contactId: string
 ): Promise<TimelineEntry[]> {
   return withRetry(async () => {
-    const [completions, updates] = await Promise.all([
+    const [completions, updates, messages] = await Promise.all([
       prisma.milestoneCompletion.findMany({
         where: { transactionId, isActive: true, isNotRequired: false },
         include: {
@@ -524,6 +533,11 @@ export async function getPortalTimeline(
         where: { transactionId, visibleToClient: true },
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, method: true, createdAt: true },
+      }),
+      prisma.portalMessage.findMany({
+        where: { transactionId, contactId },
+        include: { sentBy: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
       }),
     ]);
 
@@ -546,7 +560,16 @@ export async function getPortalTimeline(
       createdAt: u.createdAt,
     }));
 
-    const all = [...milestoneEntries, ...updateEntries];
+    const messageEntries: TimelineEntry[] = messages.map((m) => ({
+      type: "message" as const,
+      id: m.id,
+      content: m.content,
+      fromClient: m.fromClient,
+      sentByName: m.fromClient ? null : (m.sentBy?.name ?? null),
+      createdAt: m.createdAt,
+    }));
+
+    const all = [...milestoneEntries, ...updateEntries, ...messageEntries];
     all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return all;
   });

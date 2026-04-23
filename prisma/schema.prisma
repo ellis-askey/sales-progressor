@@ -47,6 +47,7 @@ model User {
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
   chaseTasks           ChaseTask[]
   communications       CommunicationRecord[] @relation("CommCreatedBy")
+  sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
 
   emailVerified        DateTime?
   image                String?
@@ -131,6 +132,7 @@ model PropertyTransaction {
   transactionNotes           TransactionNote[]
   manualTasks                ManualTask[]
   chainLinks                 ChainLink[]
+  portalMessages             PortalMessage[]
 }
 
 enum TransactionStatus {
@@ -176,6 +178,7 @@ model Contact {
 
   transaction       PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
   pushSubscriptions PortalPushSubscription[]
+  portalMessages    PortalMessage[]
 }
 
 model PortalPushSubscription {
@@ -187,6 +190,22 @@ model PortalPushSubscription {
   createdAt DateTime @default(now())
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+model PortalMessage {
+  id            String    @id @default(cuid())
+  transactionId String
+  contactId     String
+  content       String
+  fromClient    Boolean   @default(true)
+  sentById      String?
+  createdAt     DateTime  @default(now())
+
+  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact       Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sentBy        User?               @relation("PortalMessagesSentBy", fields: [sentById], references: [id])
+
+  @@index([transactionId, contactId, createdAt])
 }
 
 model SolicitorFirm {
