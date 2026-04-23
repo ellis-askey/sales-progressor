@@ -259,6 +259,10 @@ export async function portalCompleteMilestone(input: {
     def.name
   ).catch(() => {});
 
+  if (def.code === "VM12" || def.code === "PM16") {
+    sendExchangeCompletionPack(contact.propertyTransactionId).catch(() => {});
+  }
+
   return completion;
 }
 
@@ -357,6 +361,85 @@ function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
 <p><a href="${ctaUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
 </body></html>`;
+}
+
+async function sendExchangeCompletionPack(transactionId: string): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      completionDate: true,
+      contacts: {
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
+    },
+  });
+  if (!tx) return;
+
+  const base        = process.env.NEXTAUTH_URL ?? "";
+  const address     = tx.propertyAddress;
+  const completionStr = tx.completionDate
+    ? new Date(tx.completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : null;
+  const dateBlurb = completionStr ? ` on <strong>${completionStr}</strong>` : "";
+  const datePlain = completionStr ? ` on ${completionStr}` : "";
+
+  const vendors    = tx.contacts.filter((c) => c.roleType === "vendor"    && c.email);
+  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.email);
+
+  const vendorBodyHtml = `
+    <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. The sale is now legally committed.</p>
+    <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
+    <ul style="padding-left:20px;line-height:2">
+      <li>Your solicitor will handle the transfer of funds — you don't need to be at the property.</li>
+      <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
+      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to your agent).</li>
+      <li>Leave appliance manuals, warranties, and service records — the buyer is entitled to these.</li>
+      <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
+    </ul>`;
+  const vendorBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to your agent).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`;
+
+  const purchaserBodyHtml = `
+    <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. Your purchase is now legally committed.</p>
+    <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
+    <ul style="padding-left:20px;line-height:2">
+      <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
+      <li>Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.</li>
+      <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
+      <li>Make sure your buildings insurance is active from today — you are now legally the owner.</li>
+      <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
+    </ul>`;
+  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- Make sure your buildings insurance is active from today — you are now legally the owner.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+
+  for (const c of vendors) {
+    const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
+    await sendEmail({
+      to: c.email!,
+      subject: `Contracts exchanged — what happens next for your sale`,
+      text: `Hi ${c.name},\n\n${vendorBodyPlain}\n\nView your portal: ${portalUrl}`,
+      html: portalEmailHtml({
+        greeting: `Hi ${c.name},`,
+        body: vendorBodyHtml,
+        ctaText: "View your portal",
+        ctaUrl: portalUrl,
+      }),
+    }).catch(() => {});
+  }
+
+  for (const c of purchasers) {
+    const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
+    await sendEmail({
+      to: c.email!,
+      subject: `Contracts exchanged — what happens next for your purchase`,
+      text: `Hi ${c.name},\n\n${purchaserBodyPlain}\n\nView your portal: ${portalUrl}`,
+      html: portalEmailHtml({
+        greeting: `Hi ${c.name},`,
+        body: purchaserBodyHtml,
+        ctaText: "View your portal",
+        ctaUrl: portalUrl,
+      }),
+    }).catch(() => {});
+  }
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {

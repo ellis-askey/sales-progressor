@@ -21,6 +21,7 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
     label:           getMilestoneCopy(m.code).label,
     who:             getMilestoneCopy(m.code).who,
     whoLabel:        WHO_LABELS[getMilestoneCopy(m.code).who] ?? getMilestoneCopy(m.code).who,
+    description:     getMilestoneCopy(m.code).description ?? null,
   }));
 }
 

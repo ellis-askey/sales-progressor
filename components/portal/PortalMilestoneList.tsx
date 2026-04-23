@@ -20,6 +20,7 @@ type Milestone = {
   who: string;
   whoLabel: string;
   confirmedByClient: boolean;
+  description?: string | null;
 };
 
 type Props = {
@@ -65,6 +66,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState<string | null>(null);
   const [showOtherSide, setShowOtherSide] = useState(false);
+  const [helpMilestone, setHelpMilestone] = useState<Milestone | null>(null);
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -199,6 +201,17 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                           </div>
 
+                          {m.description && (
+                            <button
+                              onClick={() => setHelpMilestone(m)}
+                              className="flex-shrink-0 self-center w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
+                              style={{ background: P.border, color: P.textMuted }}
+                              aria-label="What does this mean?"
+                            >
+                              ?
+                            </button>
+                          )}
+
                           {canConfirm && (
                             <button
                               onClick={() => openSheet(m.id)}
@@ -277,6 +290,61 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           </div>
         )}
       </div>
+
+      {/* ── Bottom sheet: milestone help / glossary ───────────── */}
+      {helpMilestone && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setHelpMilestone(null)}>
+          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div
+            className="relative w-full max-w-lg mx-auto"
+            style={{
+              background: "#FFFFFF",
+              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
+              boxShadow: P.shadowXl,
+              paddingBottom: "env(safe-area-inset-bottom, 16px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
+            </div>
+            <button
+              onClick={() => setHelpMilestone(null)}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <div className="px-6 pb-6 pt-2">
+              <span
+                className="inline-block text-[11px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full mb-3"
+                style={
+                  helpMilestone.who === "you"
+                    ? { background: P.primaryBg, color: P.primaryText }
+                    : { background: P.accentBg, color: P.accent }
+                }
+              >
+                {helpMilestone.whoLabel}
+              </span>
+              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+                {helpMilestone.label}
+              </p>
+              <p className="text-[14px] leading-relaxed" style={{ color: P.textSecondary }}>
+                {helpMilestone.description}
+              </p>
+              <button
+                onClick={() => setHelpMilestone(null)}
+                className="w-full mt-6 py-4 rounded-xl text-[15px] font-bold text-white"
+                style={{ background: P.primary, borderRadius: P.radiusMd }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom sheet confirm ──────────────────────────────── */}
       {confirmingMilestone && (

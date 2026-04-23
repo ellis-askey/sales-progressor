@@ -47,6 +47,14 @@ export function ExchangeBanner({ token, completionDate }: Props) {
     }
   }, [token]);
 
+  const days = completionDate
+    ? Math.round((new Date(completionDate).getTime() - Date.now()) / 86400000)
+    : null;
+
+  const isToday    = days === 0;
+  const isPast     = days !== null && days < 0;
+  const isImminant = days !== null && days > 0 && days <= 7;
+
   return (
     <div
       className="rounded-2xl px-5 py-5"
@@ -55,18 +63,37 @@ export function ExchangeBanner({ token, completionDate }: Props) {
       <p className="text-[11px] font-bold uppercase tracking-[0.10em] text-white/70 mb-1">
         Contracts exchanged
       </p>
-      <p className="text-[22px] font-semibold text-white leading-snug">
+      <p className="text-[20px] font-semibold text-white leading-snug">
         Your transaction is now legally committed
       </p>
 
-      {completionDate && (
+      {completionDate && days !== null && (
         <div
-          className="mt-4 rounded-xl px-4 py-3"
+          className="mt-4 rounded-xl px-4 py-3 flex items-center justify-between"
           style={{ background: "rgba(255,255,255,0.18)" }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">Completion</p>
-          <p className="text-[17px] font-bold text-white mt-0.5">{fmtDate(completionDate)}</p>
-          <p className="text-[13px] text-white/75">{daysUntil(completionDate)}</p>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">
+              {isPast ? "Completed" : "Completion"}
+            </p>
+            <p className="text-[16px] font-semibold text-white mt-0.5">{fmtDate(completionDate)}</p>
+          </div>
+          {!isPast && (
+            <div className="text-right">
+              {isToday ? (
+                <p className="text-[22px] font-bold text-white">Today!</p>
+              ) : (
+                <>
+                  <p className={`text-[36px] font-black text-white leading-none tabular-nums ${isImminant ? "animate-pulse" : ""}`}>
+                    {days}
+                  </p>
+                  <p className="text-[11px] text-white/70 font-semibold uppercase tracking-wide">
+                    {days === 1 ? "day to go" : "days to go"}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
