@@ -276,7 +276,7 @@ export async function logPortalMilestoneConfirm(
     where: { id: transactionId },
     select: {
       propertyAddress: true,
-      assignedUser: { select: { id: true } },
+      assignedUser: { select: { id: true, name: true, email: true } },
       contacts: {
         select: { id: true, name: true, email: true, roleType: true, portalToken: true },
       },
@@ -295,6 +295,30 @@ export async function logPortalMilestoneConfirm(
       createdById: tx.assignedUser.id,
     },
   });
+
+  // Notify the assigned progressor immediately
+  if (tx.assignedUser.email) {
+    const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${transactionId}`;
+    sendEmail({
+      to: tx.assignedUser.email,
+      subject: `Client confirmed: "${milestoneLabel}" — ${tx.propertyAddress}`,
+      text: [
+        `Hi ${tx.assignedUser.name.split(" ")[0]},`,
+        "",
+        `${contactName} has just confirmed "${milestoneLabel}" on ${tx.propertyAddress} via their portal.`,
+        "",
+        `View file: ${dashUrl}`,
+      ].join("\n"),
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+<p style="margin:0 0 20px;font-size:15px">Hi ${tx.assignedUser.name.split(" ")[0]},</p>
+<div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px">
+  <p style="margin:0 0 4px;font-size:13px;color:#8b91a3">${tx.propertyAddress}</p>
+  <p style="margin:0;font-size:15px;font-weight:600;color:#1a1d29">${contactName} confirmed "${milestoneLabel}"</p>
+</div>
+<p><a href="${dashUrl}" style="display:inline-block;background:#3B82F6;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View file</a></p>
+</body></html>`,
+    }).catch(() => {});
+  }
 
   const base = process.env.NEXTAUTH_URL ?? "";
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);

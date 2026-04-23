@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import type { CommType, CommMethod } from "@prisma/client";
 import { pushToTransaction } from "@/lib/services/push";
+import { sendEmail } from "@/lib/email";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,16 +147,19 @@ export async function createCommunicationRecord(input: CreateCommInput) {
     });
   }
 
-  // Fire push notification to subscribed contacts when a client-visible update is logged
+  // Notify subscribed contacts when a client-visible update is logged
   if (input.visibleToClient) {
     const preview = input.content.length > 100
       ? input.content.slice(0, 97) + "…"
       : input.content;
+
     pushToTransaction(input.transactionId, {
       title: "New update on your property",
       body: preview,
       urlPath: "/updates",
     }).catch(() => {});
+
+    emailVisibleUpdateToClients(input.transactionId, input.content).catch(() => {});
   }
 
   return record;
@@ -204,4 +208,55 @@ export async function deleteCommunicationRecord(id: string, agencyId: string) {
   });
   if (!comm) throw new Error("Not found");
   return prisma.communicationRecord.delete({ where: { id } });
+}
+
+async function emailVisibleUpdateToClients(transactionId: string, content: string): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      agency: { select: { name: true } },
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] } },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
+    },
+  });
+  if (!tx) return;
+
+  const base      = process.env.NEXTAUTH_URL ?? "";
+  const address   = tx.propertyAddress;
+  const agency    = tx.agency.name;
+
+  for (const c of tx.contacts) {
+    if (!c.email || !c.portalToken) continue;
+    const saleWord  = c.roleType === "vendor" ? "sale" : "purchase";
+    const firstName = c.name.split(" ")[0];
+    const portalUrl = `${base}/portal/${c.portalToken}/updates`;
+
+    await sendEmail({
+      to: c.email,
+      subject: `Update on your ${saleWord} — ${address}`,
+      text: [
+        `Hi ${firstName},`,
+        "",
+        `There's a new update on your ${saleWord} at ${address}:`,
+        "",
+        content,
+        "",
+        `View your portal: ${portalUrl}`,
+        "",
+        agency,
+      ].join("\n"),
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+<p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#FF6B4A">${agency}</p>
+<p style="margin:0 0 20px;font-size:14px;color:#4a5162">${address}</p>
+<p style="margin:0 0 16px;font-size:15px">Hi ${firstName},</p>
+<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#8b91a3;text-transform:uppercase;letter-spacing:0.06em">New update</p>
+<div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px;font-size:14px;line-height:1.6;color:#1a1d29;white-space:pre-wrap">${content}</div>
+<p><a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View in portal</a></p>
+<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">You're receiving this because you have a ${saleWord} in progress with ${agency}.</p>
+</body></html>`,
+    }).catch(() => {});
+  }
 }
