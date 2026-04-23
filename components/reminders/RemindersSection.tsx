@@ -1,9 +1,11 @@
 "use client";
 // components/reminders/RemindersSection.tsx
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { formatDate } from "@/lib/utils";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
 
 type ChaseTask = {
   id: string;
@@ -105,6 +107,8 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
 
 export function RemindersSection({ transactionId, reminderLogs, completedMilestoneCodes }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("active");
 
@@ -145,39 +149,34 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
     l.chaseTasks.some((t) => t.status === "pending" && t.priority === "escalated")
   ).length;
 
-  async function handleTaskAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
+  function handleTaskAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
     setLoading(taskId);
-    try {
-      await fetch("/api/reminders/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, action, ...(snoozeHours ? { snoozeHours } : {}) }),
-      });
-      router.refresh();
-    } finally {
-      setLoading(null);
-    }
+    startTransition(async () => {
+      try {
+        if (action === "complete") await completeTaskAction(taskId, pathname);
+        else if (action === "snooze" && snoozeHours) await snoozeTaskAction(taskId, snoozeHours, pathname);
+      } finally {
+        setLoading(null);
+      }
+    });
   }
 
-  async function handleWakeup(logId: string) {
+  function handleWakeup(logId: string) {
     setLoading(logId);
-    try {
-      await fetch("/api/reminders/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logId, action: "wakeup" }),
-      });
-      router.refresh();
-    } finally {
-      setLoading(null);
-    }
+    startTransition(async () => {
+      try {
+        await wakeupReminderAction(logId, pathname);
+      } finally {
+        setLoading(null);
+      }
+    });
   }
 
   async function runEngine() {
     setLoading("engine");
     try {
       await fetch("/api/reminders/run", { method: "POST" });
-      router.refresh();
+      startTransition(() => router.refresh()); // pending SA migration (no SA for run-engine yet)
     } finally { setLoading(null); }
   }
 
@@ -199,7 +198,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
             </span>
           )}
         </div>
-        <button onClick={runEngine} disabled={loading === "engine"} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
+        <button onClick={runEngine} disabled={loading === "engine" || isPending} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
           {loading === "engine" ? "Running…" : "↻ Run engine"}
         </button>
       </div>
@@ -272,7 +271,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
                     )}
                     {openTask && (
                       <div className="mt-3 flex items-center gap-2">
-                        <button onClick={() => handleTaskAction(openTask.id, "complete")} disabled={loading === openTask.id}
+                        <button onClick={() => handleTaskAction(openTask.id, "complete")} disabled={loading === openTask.id || isPending}
                           className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                             isEscalated ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"
                           }`}>
@@ -281,7 +280,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
                         <SnoozeDropdown
                           taskId={openTask.id}
                           onSnooze={(id, hours) => handleTaskAction(id, "snooze", hours)}
-                          disabled={loading === openTask.id}
+                          disabled={loading === openTask.id || isPending}
                         />
                       </div>
                     )}
@@ -333,7 +332,7 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
               <div key={log.id} className="glass-card border border-purple-200/60" style={{ clipPath: "inset(0 round 20px)" }}>
                 <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between">
                   <span>Snoozed until {formatDate(log.snoozedUntil!)}</span>
-                  <button onClick={() => handleWakeup(log.id)} disabled={loading === log.id}
+                  <button onClick={() => handleWakeup(log.id)} disabled={loading === log.id || isPending}
                     className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-40">
                     {loading === log.id ? "…" : "Wake up →"}
                   </button>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
-import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
+import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
+import { reverseMilestoneAction } from "@/app/actions/milestones";
 
 type EnrichedDef = MilestoneDefinition & {
   activeCompletion: MilestoneCompletion | null;
@@ -15,33 +15,26 @@ type EnrichedDef = MilestoneDefinition & {
 type Props = {
   def: EnrichedDef;
   transactionId: string;
-  onRefresh: () => void;
 };
 
-export function NotRequiredRow({ def, transactionId, onRefresh }: Props) {
-  const router = useRouter();
+export function NotRequiredRow({ def, transactionId }: Props) {
   const [loading, setLoading] = useState(false);
-  // PM4-specific modal state
   const [showMortgageModal, setShowMortgageModal] = useState(false);
 
   const isPM4 = def.code === "PM4";
 
-  async function doReinstate(newPurchaseType?: string) {
+  async function doReinstate(newPurchaseType?: PurchaseType) {
     setLoading(true);
     setShowMortgageModal(false);
     try {
-      await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "reverse",
-          transactionId,
-          milestoneDefinitionId: def.id,
-          ...(newPurchaseType ? { newPurchaseType } : {}),
-        }),
+      await reverseMilestoneAction({
+        transactionId,
+        milestoneDefinitionId: def.id,
+        ...(newPurchaseType ? { newPurchaseType } : {}),
       });
-      router.refresh();
-      onRefresh();
+      // revalidatePath in reverseMilestoneAction triggers automatic page re-render
+    } catch {
+      // silent — optimistic pattern; page re-renders on success
     } finally {
       setLoading(false);
     }
@@ -79,7 +72,6 @@ export function NotRequiredRow({ def, transactionId, onRefresh }: Props) {
         </button>
       </div>
 
-      {/* PM4 reinstate modal — ask about mortgage buyer */}
       {showMortgageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="glass-card-strong rounded-2xl w-full max-w-sm mx-4" style={{ clipPath: "inset(0 round 16px)" }}>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { relativeDate } from "@/lib/utils";
+import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 
 type Note = {
   id: string;
@@ -19,7 +19,7 @@ type Props = {
 const PAGE_SIZE = 5;
 
 export function TransactionNotes({ transactionId, initialNotes }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -29,40 +29,33 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
   const visible = expanded ? initialNotes : initialNotes.slice(0, PAGE_SIZE);
   const hidden = initialNotes.length - PAGE_SIZE;
 
-  async function handleAdd(e: React.FormEvent) {
+  function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!draft.trim()) return;
+    const content = draft.trim();
     setSaving(true);
     setError(null);
-    try {
-      const res = await fetch("/api/comms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId,
-          type: "internal_note",
-          content: draft.trim(),
-          contactIds: [],
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      setDraft("");
-      router.refresh();
-    } catch {
-      setError("Failed to save note");
-    } finally {
-      setSaving(false);
-    }
+    setDraft("");
+    startTransition(async () => {
+      try {
+        await addNoteAction(transactionId, content);
+      } catch {
+        setError("Failed to save note");
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     setDeleting(id);
-    try {
-      await fetch(`/api/comms?id=${id}`, { method: "DELETE" });
-      router.refresh();
-    } finally {
-      setDeleting(null);
-    }
+    startTransition(async () => {
+      try {
+        await deleteCommAction(id, transactionId);
+      } finally {
+        setDeleting(null);
+      }
+    });
   }
 
   return (
@@ -87,7 +80,7 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
             )}
             <button
               type="submit"
-              disabled={saving || !draft.trim()}
+              disabled={saving || isPending || !draft.trim()}
               className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-200 text-white rounded-lg transition-colors"
             >
               {saving ? "Saving…" : "Add note"}
@@ -122,7 +115,7 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
                 </div>
                 <button
                   onClick={() => handleDelete(note.id)}
-                  disabled={deleting === note.id}
+                  disabled={deleting === note.id || isPending}
                   className="flex-shrink-0 text-xs text-slate-900/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-40 mt-0.5"
                 >
                   {deleting === note.id ? "…" : "Delete"}

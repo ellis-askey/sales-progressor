@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
+import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 
 type Milestone = {
   id: string;
@@ -54,7 +54,12 @@ async function fireConfetti() {
 }
 
 export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side }: Props) {
-  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [optimisticMilestones, addOptimistic] = useOptimistic(
+    milestones,
+    (current, confirmedId: string) =>
+      current.map((m) => m.id !== confirmedId ? m : { ...m, isComplete: true })
+  );
   const [confirming, setConfirming]       = useState<string | null>(null);
   const [eventDate, setEventDate]         = useState("");
   const [loading, setLoading]             = useState(false);
@@ -64,7 +69,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
 
-  const byCode      = new Map(milestones.map((m) => [m.code, m]));
+  const byCode      = new Map(optimisticMilestones.map((m) => [m.code, m]));
   const otherByCode = new Map(otherSideMilestones.map((m) => [m.code, m]));
 
   const activeGroupIdx = groups.findIndex((g) =>
@@ -95,33 +100,30 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setError(null);
   }
 
-  async function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
+  function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
     if (isTimeSensitive && !eventDate) {
       setError("Please enter the date for this step.");
       return;
     }
+    const ed = eventDate || null;
+    setConfirming(null);
+    setEventDate("");
     setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/portal/milestone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, milestoneDefinitionId: milestoneId, eventDate: eventDate || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to confirm");
-      setConfirming(null);
-      setEventDate("");
-      await fireConfetti();
-      router.refresh();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+    startTransition(async () => {
+      addOptimistic(milestoneId);
+      try {
+        await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed });
+        await fireConfetti();
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+        setConfirming(milestoneId);
+      } finally {
+        setLoading(false);
+      }
+    });
   }
 
-  const confirmingMilestone = confirming ? milestones.find((m) => m.id === confirming) ?? null : null;
+  const confirmingMilestone = confirming ? optimisticMilestones.find((m) => m.id === confirming) ?? null : null;
 
   return (
     <>

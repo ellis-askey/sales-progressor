@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastContext";
 import { useTabContext } from "./TabContext";
+import { confirmMilestoneAction } from "@/app/actions/milestones";
 
 type NextMilestone = {
   id: string;
@@ -27,12 +27,10 @@ function MilestoneQuickComplete({
   milestone,
   label,
   transactionId,
-  onDone,
 }: {
   milestone: NextMilestone | null;
   label: string;
   transactionId: string;
-  onDone: () => void;
 }) {
   const { addToast } = useToast();
   const { setActiveTab } = useTabContext();
@@ -97,21 +95,18 @@ function MilestoneQuickComplete({
     setLoading(true);
     setShowImplied(false);
     try {
-      await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
-          transactionId,
-          milestoneDefinitionId: milestone!.id,
-          impliedIds,
-        }),
+      await confirmMilestoneAction({
+        transactionId,
+        milestoneDefinitionId: milestone!.id,
+        impliedIds,
       });
       addToast("Milestone confirmed", "success", milestone!.name);
       await fireConfetti();
-      onDone();
-    } catch {
-      addToast("Failed to complete milestone", "error");
+      // revalidatePath in confirmMilestoneAction triggers automatic page re-render —
+      // no onDone() / router.refresh() needed here.
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to complete milestone";
+      addToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -176,8 +171,6 @@ function MilestoneQuickComplete({
 }
 
 export function NextMilestoneWidget({ transactionId, vendorNext, purchaserNext }: Props) {
-  const router = useRouter();
-
   if (!vendorNext && !purchaserNext) return null;
 
   return (
@@ -195,13 +188,11 @@ export function NextMilestoneWidget({ transactionId, vendorNext, purchaserNext }
           milestone={vendorNext}
           label="Vendor"
           transactionId={transactionId}
-          onDone={() => router.refresh()}
         />
         <MilestoneQuickComplete
           milestone={purchaserNext}
           label="Purchaser"
           transactionId={transactionId}
-          onDone={() => router.refresh()}
         />
       </div>
     </div>

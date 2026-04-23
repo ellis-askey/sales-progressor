@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Props = {
   transactionId: string;
@@ -9,9 +8,9 @@ type Props = {
 };
 
 export function NotesEditor({ transactionId, initialNotes }: Props) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(initialNotes ?? "");
+  const [savedNotes, setSavedNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -22,7 +21,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: draft.trim() || null }),
       });
-      router.refresh();
+      setSavedNotes(draft.trim() || null);
       setEditing(false);
     } finally {
       setSaving(false);
@@ -38,7 +37,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
             onClick={() => setEditing(true)}
             className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors"
           >
-            {initialNotes ? "Edit" : "+ Add"}
+            {savedNotes ? "Edit" : "+ Add"}
           </button>
         )}
       </div>
@@ -62,15 +61,15 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
                 {saving ? "Saving…" : "Save"}
               </button>
               <button
-                onClick={() => { setDraft(initialNotes ?? ""); setEditing(false); }}
+                onClick={() => { setDraft(savedNotes ?? ""); setEditing(false); }}
                 className="px-3 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors"
               >
                 Cancel
               </button>
             </div>
           </div>
-        ) : initialNotes ? (
-          <p className="text-sm text-slate-900/80 whitespace-pre-wrap">{initialNotes}</p>
+        ) : savedNotes ? (
+          <p className="text-sm text-slate-900/80 whitespace-pre-wrap">{savedNotes}</p>
         ) : (
           <p className="text-sm text-slate-900/30 italic">No notes yet</p>
         )}

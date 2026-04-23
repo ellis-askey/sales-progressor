@@ -1,9 +1,9 @@
 // lib/services/milestones.ts — Sprint 5: generates summaryText on completion
 
 import { prisma } from "@/lib/prisma";
-import { generateSummaryText } from "@/lib/services/summary";
+import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
-import type { MilestoneSide, MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
+import type { MilestoneSide, MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = MilestoneDefinition & {
   activeCompletion: MilestoneCompletion | null;
@@ -285,44 +285,65 @@ export async function bulkCompleteMilestones(
   completedById: string,
   completedByName: string
 ) {
+  if (milestoneDefinitionIds.length === 0) return [];
+
   const baseTime = new Date();
-  const results = [];
+
+  // 1 query: fetch all definitions at once (was: N separate findUnique calls)
+  const defs = await prisma.milestoneDefinition.findMany({
+    where: { id: { in: milestoneDefinitionIds } },
+    select: { id: true, code: true, summaryTemplate: true },
+  });
+  const defMap = new Map(defs.map((d) => [d.id, d]));
+
+  // 1 query: deactivate all existing completions at once (was: N separate updateMany calls)
+  await prisma.milestoneCompletion.updateMany({
+    where: { transactionId, milestoneDefinitionId: { in: milestoneDefinitionIds }, isActive: true },
+    data: { isActive: false, statusReason: "Superseded by bulk completion" },
+  });
+
+  // 1 query: resolve template tokens once if any def needs a summary (was: N separate contact lookups)
+  const needsSummary = defs.some((d) => d.summaryTemplate);
+  const tokens = needsSummary ? await resolveTemplateTokens(transactionId, completedByName) : null;
+
+  const summaryTexts = milestoneDefinitionIds.map((defId) => {
+    const def = defMap.get(defId);
+    if (!def?.summaryTemplate || !tokens) return null;
+    let text = def.summaryTemplate;
+    for (const [key, value] of Object.entries(tokens)) {
+      text = text.replaceAll(`{${key}}`, value);
+    }
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  });
+
   // Stagger completedAt by 1ms per entry so the activity timeline preserves
   // logical order (earliest prerequisite first, clicked milestone lands last).
-  for (let i = 0; i < milestoneDefinitionIds.length; i++) {
-    const defId = milestoneDefinitionIds[i];
-    const completedAt = new Date(baseTime.getTime() + i);
+  // All creates run concurrently (was: serial).
+  const results = await Promise.all(
+    milestoneDefinitionIds.map((defId, i) =>
+      prisma.milestoneCompletion.create({
+        data: {
+          transactionId,
+          milestoneDefinitionId: defId,
+          isActive: true,
+          isNotRequired: false,
+          completedAt: new Date(baseTime.getTime() + i),
+          completedById,
+          summaryText: summaryTexts[i],
+          statusReason: "Bulk completed via implied predecessor",
+        },
+      })
+    )
+  );
 
-    const def = await prisma.milestoneDefinition.findUnique({
-      where: { id: defId },
-      select: { code: true, summaryTemplate: true },
-    });
-    const summaryText = def?.summaryTemplate
-      ? await generateSummaryText(transactionId, def.summaryTemplate, completedByName)
-      : null;
+  // Reminder auto-completes run concurrently (was: serial)
+  await Promise.all(
+    milestoneDefinitionIds.map((defId) => {
+      const def = defMap.get(defId);
+      return def?.code ? autoCompleteRemindersForMilestone(transactionId, def.code) : Promise.resolve();
+    })
+  );
 
-    await prisma.milestoneCompletion.updateMany({
-      where: { transactionId, milestoneDefinitionId: defId, isActive: true },
-      data: { isActive: false, statusReason: "Superseded by bulk completion" },
-    });
-    const result = await prisma.milestoneCompletion.create({
-      data: {
-        transactionId,
-        milestoneDefinitionId: defId,
-        isActive: true,
-        isNotRequired: false,
-        completedAt,
-        completedById,
-        summaryText,
-        statusReason: "Bulk completed via implied predecessor",
-      },
-    });
-    results.push(result);
-
-    if (def?.code) {
-      await autoCompleteRemindersForMilestone(transactionId, def.code);
-    }
-  }
   return results;
 }
 
@@ -360,27 +381,35 @@ export async function bulkReverseMilestones(
   completedById: string,
   completedByName: string
 ) {
-  for (const defId of milestoneDefinitionIds) {
-    const def = await prisma.milestoneDefinition.findUnique({
-      where: { id: defId },
-      select: { name: true },
-    });
+  if (milestoneDefinitionIds.length === 0) return;
 
-    await prisma.milestoneCompletion.updateMany({
-      where: { transactionId, milestoneDefinitionId: defId, isActive: true },
-      data: { isActive: false, statusReason: "Reversed as downstream of another reversal" },
-    });
+  // 1 query: fetch all definitions at once (was: N separate findUnique calls)
+  const defs = await prisma.milestoneDefinition.findMany({
+    where: { id: { in: milestoneDefinitionIds } },
+    select: { id: true, name: true },
+  });
+  const nameMap = new Map(defs.map((d) => [d.id, d.name]));
 
-    await prisma.communicationRecord.create({
-      data: {
-        transactionId,
-        type: "internal_note",
-        contactIds: [],
-        content: `${completedByName} marked "${def?.name ?? "milestone"}" as incomplete (downstream of another reversal).`,
-        createdById: completedById,
-      },
-    });
-  }
+  // 1 query: deactivate all completions at once (was: N separate updateMany calls)
+  await prisma.milestoneCompletion.updateMany({
+    where: { transactionId, milestoneDefinitionId: { in: milestoneDefinitionIds }, isActive: true },
+    data: { isActive: false, statusReason: "Reversed as downstream of another reversal" },
+  });
+
+  // Audit notes run concurrently (was: serial)
+  await Promise.all(
+    milestoneDefinitionIds.map((defId) =>
+      prisma.communicationRecord.create({
+        data: {
+          transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: `${completedByName} marked "${nameMap.get(defId) ?? "milestone"}" as incomplete (downstream of another reversal).`,
+          createdById: completedById,
+        },
+      })
+    )
+  );
 }
 
 export async function bulkMarkNotRequired(
@@ -389,24 +418,147 @@ export async function bulkMarkNotRequired(
   completedById: string,
   reason: string
 ) {
-  for (const defId of milestoneDefinitionIds) {
-    await prisma.milestoneCompletion.updateMany({
-      where: { transactionId, milestoneDefinitionId: defId, isActive: true },
-      data: { isActive: false, statusReason: "Cascaded not required" },
+  if (milestoneDefinitionIds.length === 0) return;
+
+  // 1 query: deactivate all at once (was: N separate updateMany calls)
+  await prisma.milestoneCompletion.updateMany({
+    where: { transactionId, milestoneDefinitionId: { in: milestoneDefinitionIds }, isActive: true },
+    data: { isActive: false, statusReason: "Cascaded not required" },
+  });
+
+  // Creates run concurrently (was: serial)
+  const now = new Date();
+  await Promise.all(
+    milestoneDefinitionIds.map((defId) =>
+      prisma.milestoneCompletion.create({
+        data: {
+          transactionId,
+          milestoneDefinitionId: defId,
+          isActive: true,
+          isNotRequired: true,
+          completedAt: now,
+          completedById,
+          notRequiredReason: reason,
+          statusReason: "Cascaded not required",
+        },
+      })
+    )
+  );
+}
+
+// Codes that cascade N/R when their anchor is marked N/R (mirrors NR_CASCADE in route handler)
+export const NR_CASCADE: Record<string, string[]> = {
+  PM4: ["PM5", "PM6"],
+  PM7: ["PM20"],
+};
+
+export async function markNotRequiredWithCascade(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  completedById: string;
+  completedByName: string;
+  reason: string;
+  purchaseType?: PurchaseType;
+}) {
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+
+  if (def?.code && NR_CASCADE[def.code]) {
+    const cascadeCodes = NR_CASCADE[def.code];
+    const cascadeDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: cascadeCodes } },
+      select: { id: true },
     });
-    await prisma.milestoneCompletion.create({
-      data: {
-        transactionId,
-        milestoneDefinitionId: defId,
-        isActive: true,
-        isNotRequired: true,
-        completedAt: new Date(),
-        completedById,
-        notRequiredReason: reason,
-        statusReason: "Cascaded not required",
-      },
+    if (cascadeDefs.length > 0) {
+      await bulkMarkNotRequired(
+        cascadeDefs.map((d) => d.id),
+        input.transactionId,
+        input.completedById,
+        input.reason
+      );
+    }
+  }
+
+  if (input.purchaseType) {
+    await prisma.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { purchaseType: input.purchaseType },
     });
   }
+
+  return markNotRequired(
+    input.transactionId,
+    input.milestoneDefinitionId,
+    input.completedById,
+    input.completedByName,
+    input.reason
+  );
+}
+
+export async function reverseMilestoneWithCascade(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  completedById: string;
+  completedByName: string;
+  reason?: string;
+  downstreamIds?: string[];
+  newPurchaseType?: PurchaseType;
+}) {
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+
+  if (def?.code && NR_CASCADE[def.code]) {
+    const cascadeCodes = NR_CASCADE[def.code];
+    const cascadeDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: cascadeCodes } },
+      select: { id: true },
+    });
+    const nrCascaded = await prisma.milestoneCompletion.findMany({
+      where: {
+        transactionId: input.transactionId,
+        milestoneDefinitionId: { in: cascadeDefs.map((d) => d.id) },
+        isActive: true,
+        isNotRequired: true,
+      },
+      select: { milestoneDefinitionId: true },
+    });
+    if (nrCascaded.length > 0) {
+      await bulkReverseMilestones(
+        nrCascaded.map((c) => c.milestoneDefinitionId),
+        input.transactionId,
+        input.completedById,
+        input.completedByName
+      );
+    }
+  }
+
+  if (input.newPurchaseType) {
+    await prisma.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { purchaseType: input.newPurchaseType },
+    });
+  }
+
+  if (input.downstreamIds && input.downstreamIds.length > 0) {
+    await bulkReverseMilestones(
+      input.downstreamIds,
+      input.transactionId,
+      input.completedById,
+      input.completedByName
+    );
+  }
+
+  return reverseMilestone(
+    input.transactionId,
+    input.milestoneDefinitionId,
+    input.completedById,
+    input.completedByName,
+    input.reason
+  );
 }
 
 export async function markNotRequired(

@@ -194,6 +194,74 @@ export async function logPortalView(token: string): Promise<void> {
   // No email — the portal bell on the dashboard handles this notification
 }
 
+export async function portalCompleteMilestone(input: {
+  token: string;
+  milestoneDefinitionId: string;
+  eventDate?: string | null;
+}) {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+  });
+  if (!contact) throw new Error("Invalid token");
+
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+
+  const def = await prisma.milestoneDefinition.findFirst({
+    where: { id: input.milestoneDefinitionId, side },
+  });
+  if (!def) throw new Error("Milestone not found");
+
+  if (def.timeSensitive && !input.eventDate) {
+    throw new Error("Date required for this milestone");
+  }
+
+  const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
+  if (prereqCodes.length > 0) {
+    const prereqDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: prereqCodes }, side },
+      select: { id: true, code: true },
+    });
+    for (const prereq of prereqDefs) {
+      const done = await prisma.milestoneCompletion.findFirst({
+        where: {
+          transactionId: contact.propertyTransactionId,
+          milestoneDefinitionId: prereq.id,
+          isActive: true,
+          isNotRequired: false,
+        },
+      });
+      if (!done) throw new Error(`Complete "${prereq.code}" first`);
+    }
+  }
+
+  await prisma.milestoneCompletion.updateMany({
+    where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: input.milestoneDefinitionId, isActive: true },
+    data: { isActive: false },
+  });
+
+  const completion = await prisma.milestoneCompletion.create({
+    data: {
+      transactionId: contact.propertyTransactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      isActive: true,
+      isNotRequired: false,
+      completedAt: new Date(),
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+      statusReason: "Confirmed by client via portal",
+    },
+  });
+
+  logPortalMilestoneConfirm(
+    contact.propertyTransactionId,
+    contact.id,
+    contact.name,
+    def.name
+  ).catch(() => {});
+
+  return completion;
+}
+
 export async function logPortalMilestoneConfirm(
   transactionId: string,
   contactId: string,

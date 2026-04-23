@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
@@ -52,10 +51,7 @@ export function MilestonePanel({
   vendorGateReady,
   purchaserGateReady,
 }: Props) {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
-
-  function refresh() { router.refresh(); }
 
   const milestones = activeTab === "vendor" ? vendor : purchaser;
   const gateReady = activeTab === "vendor" ? vendorGateReady : purchaserGateReady;
@@ -252,7 +248,7 @@ export function MilestonePanel({
                   <div className="glass-card relative mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
                     <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
                     {rows.map((def) => (
-                      <MilestoneRow key={def.id} def={def} transactionId={transactionId} onRefresh={refresh} />
+                      <MilestoneRow key={def.id} def={def} transactionId={transactionId} />
                     ))}
                   </div>
                 )}
@@ -293,7 +289,7 @@ export function MilestonePanel({
               {!nrCollapsed && (
                 <div className="glass-card mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
                   {nrMilestones.map((def) => (
-                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} onRefresh={refresh} />
+                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
                   ))}
                 </div>
               )}

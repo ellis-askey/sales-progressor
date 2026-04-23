@@ -2,9 +2,9 @@
 // components/transaction/StatusControl.tsx
 // Inline status selector for the transaction detail page.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { changeStatusAction } from "@/app/actions/transactions";
 import type { TransactionStatus } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
@@ -20,28 +20,28 @@ type Props = {
 };
 
 export function StatusControl({ transactionId, currentStatus }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  async function changeStatus(next: TransactionStatus) {
+  function changeStatus(next: TransactionStatus) {
     if (next === currentStatus) { setOpen(false); return; }
     setSaving(true);
     setOpen(false);
-    await fetch("/api/transactions/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactionId, status: next }),
+    startTransition(async () => {
+      try {
+        await changeStatusAction(transactionId, next);
+      } finally {
+        setSaving(false);
+      }
     });
-    setSaving(false);
-    router.refresh();
   }
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        disabled={saving}
+        disabled={saving || isPending}
         className="flex items-center gap-1.5 group"
         title="Change status"
       >

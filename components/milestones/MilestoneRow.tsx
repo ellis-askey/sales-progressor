@@ -1,10 +1,12 @@
 "use client";
 // components/milestones/MilestoneRow.tsx
 
-import { useState, useRef } from "react";
-import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
+import { useState, useRef, useOptimistic, useTransition } from "react";
+import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/ToastContext";
+import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction } from "@/app/actions/milestones";
+import { saveCompletionDateAction } from "@/app/actions/transactions";
 
 type Props = {
   def: MilestoneDefinition & {
@@ -14,7 +16,6 @@ type Props = {
     isAvailable: boolean;
   };
   transactionId: string;
-  onRefresh: () => void;
 };
 
 // Only these milestones can be marked N/R by the user
@@ -25,11 +26,18 @@ async function fireConfetti() {
   confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"] });
 }
 
-export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
+export function MilestoneRow({ def, transactionId }: Props) {
   const { addToast } = useToast();
+  const [, startTransition] = useTransition();
+  const [optimisticState, addOptimistic] = useOptimistic(
+    { isComplete: def.isComplete, isNotRequired: def.isNotRequired },
+    (_, action: "complete" | "not_required" | "reverse") => {
+      if (action === "complete")     return { isComplete: true,  isNotRequired: false };
+      if (action === "not_required") return { isComplete: false, isNotRequired: true  };
+      return                                { isComplete: false, isNotRequired: false };
+    }
+  );
   const [loading, setLoading] = useState(false);
-  const [flashing, setFlashing] = useState(false);
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showEventDate, setShowEventDate] = useState(false);
   const [eventDate, setEventDate] = useState("");
@@ -55,8 +63,8 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
   const [completionInput, setCompletionInput] = useState("");
   const [savingCompletion, setSavingCompletion] = useState(false);
 
-  const isCompleted = def.isComplete;
-  const isNotRequired = def.isNotRequired;
+  const isCompleted = optimisticState.isComplete;
+  const isNotRequired = optimisticState.isNotRequired;
   const isDone = isCompleted || isNotRequired;
   const isGate = def.isExchangeGate;
   const isPost = def.isPostExchange;
@@ -84,42 +92,29 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
     } catch { setLoading(false); }
   }
 
-  async function doComplete(impliedIds: string[], ed?: string) {
-    setLoading(true);
+  function doComplete(impliedIds: string[], ed?: string) {
+    setShowImpliedModal(false);
+    setShowEventDate(false);
+    setEventDate("");
     setError(null);
-    try {
-      const res = await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
+    startTransition(async () => {
+      addOptimistic("complete");
+      try {
+        await confirmMilestoneAction({
           transactionId,
           milestoneDefinitionId: def.id,
           eventDate: ed || eventDate || null,
           impliedIds,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Could not complete this milestone.");
-        setShowImpliedModal(false);
-        return;
+        });
+        const count = impliedIds.length;
+        addToast("Milestone confirmed", "success", count > 0 ? `+ ${count} implied milestone${count > 1 ? "s" : ""} also completed` : def.name);
+        fireConfetti();
+        if (isExchangeMilestone) setShowCompletionPrompt(true);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Could not complete this milestone.";
+        setError(message);
       }
-      setShowImpliedModal(false);
-      setShowEventDate(false);
-      setEventDate("");
-      const count = impliedIds.length;
-      addToast("Milestone confirmed", "success", count > 0 ? `+ ${count} implied milestone${count > 1 ? "s" : ""} also completed` : def.name);
-      fireConfetti();
-      // Flash the row: bg-emerald-400/15 for 600ms then fade (150ms transition)
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      setFlashing(true);
-      flashTimer.current = setTimeout(() => setFlashing(false), 750);
-      if (isExchangeMilestone) {
-        setShowCompletionPrompt(true);
-      }
-      onRefresh();
-    } finally { setLoading(false); }
+    });
   }
 
   async function handleReverseClick() {
@@ -139,19 +134,19 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
     } catch { setLoading(false); }
   }
 
-  async function doReverse(downstreamIds: string[]) {
-    setLoading(true);
-    try {
-      await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reverse", transactionId, milestoneDefinitionId: def.id, downstreamIds }),
-      });
-      setShowReverseModal(false);
-      const count = downstreamIds.length;
-      addToast("Milestone reversed", "info", count > 0 ? `+ ${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name);
-      onRefresh();
-    } finally { setLoading(false); }
+  function doReverse(downstreamIds: string[]) {
+    setShowReverseModal(false);
+    startTransition(async () => {
+      addOptimistic("reverse");
+      try {
+        await reverseMilestoneAction({ transactionId, milestoneDefinitionId: def.id, downstreamIds });
+        const count = downstreamIds.length;
+        addToast("Milestone reversed", "info", count > 0 ? `+ ${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Could not reverse this milestone.";
+        setError(message);
+      }
+    });
   }
 
   // PM4 N/R — show purchase type modal first
@@ -164,58 +159,51 @@ export function MilestoneRow({ def, transactionId, onRefresh }: Props) {
     }
   }
 
-  async function doNotRequired(purchaseType?: string) {
-    setLoading(true);
-    setError(null);
+  function doNotRequired(purchaseType?: PurchaseType) {
     const finalReason = isPM4
       ? (purchaseType === "cash" ? "Cash buyer" : "Cash from proceeds")
       : notRequiredReason;
-    try {
-      const res = await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "not_required",
+    setShowNotRequired(false);
+    setShowPurchaseTypeModal(false);
+    setNotRequiredReason("");
+    setError(null);
+    startTransition(async () => {
+      addOptimistic("not_required");
+      try {
+        await markNotRequiredAction({
           transactionId,
           milestoneDefinitionId: def.id,
           reason: finalReason,
           ...(purchaseType ? { purchaseType } : {}),
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Could not mark as not required.");
-        return;
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Could not mark as not required.";
+        setError(message);
       }
-      setShowNotRequired(false);
-      setShowPurchaseTypeModal(false);
-      setNotRequiredReason("");
-      onRefresh();
-    } finally { setLoading(false); }
+    });
   }
 
-  async function saveCompletionDate() {
+  function saveCompletionDate() {
     if (!completionInput) { setShowCompletionPrompt(false); return; }
-    setSavingCompletion(true);
-    await fetch("/api/transactions/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactionId, completionDate: completionInput }),
-    });
-    setSavingCompletion(false);
     setShowCompletionPrompt(false);
     setCompletionInput("");
-    onRefresh();
+    setSavingCompletion(true);
+    startTransition(async () => {
+      try {
+        await saveCompletionDateAction(transactionId, completionInput);
+      } finally {
+        setSavingCompletion(false);
+      }
+    });
   }
 
   const isBlocked = !isDone && !def.isAvailable;
   const canBeNR = NR_ALLOWED.has(def.code);
 
   let rowBg = "";
-  if (flashing) rowBg = "bg-emerald-400/15";
-  else if (isDone) rowBg = isNotRequired ? "bg-white/10" : "bg-green-50/40";
-  else if (!isDone && isBlocked) rowBg = "bg-white/10";
-  else if (isGate && !isDone && !isBlocked) rowBg = "bg-amber-50/60";
+  if (isDone) rowBg = isNotRequired ? "bg-white/10" : "bg-green-50/40";
+  else if (isBlocked) rowBg = "bg-white/10";
+  else if (isGate && !isBlocked) rowBg = "bg-amber-50/60";
   else if (isPost) rowBg = "bg-white/5";
 
   // N/R milestones are rendered in the NotRequired section, not here

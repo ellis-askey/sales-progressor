@@ -3,8 +3,8 @@
 // 3-step communication entry: type → method → contacts → content
 // "Start over" resets to step 1.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { logCommAction } from "@/app/actions/comms";
 
 type Contact = { id: string; name: string; roleType: string };
 
@@ -26,7 +26,7 @@ const METHODS: { value: CommMethod; label: string; color: string; icon: string }
 ];
 
 export function CommsEntry({ transactionId, contacts }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [type, setType] = useState<CommType | null>(null);
   const [method, setMethod] = useState<CommMethod | null>(null);
@@ -66,27 +66,18 @@ export function CommsEntry({ transactionId, contacts }: Props) {
     );
   }
 
-  async function submit() {
+  function submit() {
     if (!content.trim()) return;
     setLoading(true);
-    try {
-      await fetch("/api/comms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId,
-          type,
-          method,
-          contactIds: selectedContacts,
-          content,
-          visibleToClient,
-        }),
-      });
-      reset();
-      router.refresh();
-    } finally {
-      setLoading(false);
-    }
+    const snap = { type: type!, method: method ?? null, contactIds: selectedContacts, content, visibleToClient };
+    reset();
+    startTransition(async () => {
+      try {
+        await logCommAction({ transactionId, ...snap });
+      } finally {
+        setLoading(false);
+      }
+    });
   }
 
   // Collapsed state — just a prompt
@@ -248,7 +239,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={submit}
-                  disabled={!content.trim() || loading}
+                  disabled={!content.trim() || loading || isPending}
                   className="px-4 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
                 >
                   {loading ? "Saving…" : "Save"}

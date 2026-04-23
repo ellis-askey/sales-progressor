@@ -33,9 +33,9 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   );
 }
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
+import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction } from "@/app/actions/transactions";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 
@@ -65,7 +65,7 @@ type Props = {
 };
 
 export function TransactionSidebar({ transaction, assignedUser, agentUser, serviceType, progress, keyDates = [], exchangeConfirmed = false }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(
     transaction.purchasePrice ? String(transaction.purchasePrice / 100) : ""
@@ -92,73 +92,47 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
     : { fee: null, label: "No agent assigned" };
 
-  async function savePrice() {
-    setSaving(true);
+  function savePrice() {
     const pence = Math.round(parseFloat(priceInput) * 100);
-    if (isNaN(pence)) { setSaving(false); return; }
-    await fetch(`/api/transactions/price`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactionId: transaction.id, purchasePrice: pence }),
-    });
-    setSaving(false);
+    if (isNaN(pence)) return;
+    setSaving(true);
     setEditingPrice(false);
-    router.refresh();
+    startTransition(async () => {
+      try { await savePriceAction(transaction.id, pence); }
+      finally { setSaving(false); }
+    });
   }
 
-  async function saveOverride() {
+  function saveOverride() {
     setSaving(true);
-    await fetch(`/api/transactions/price`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        transactionId: transaction.id,
-        overridePredictedDate: overrideInput || null,
-      }),
-    });
-    setSaving(false);
     setEditingOverride(false);
-    router.refresh();
+    startTransition(async () => {
+      try { await saveOverrideDateAction(transaction.id, overrideInput || null); }
+      finally { setSaving(false); }
+    });
   }
 
-  async function saveCompletion() {
+  function saveCompletion() {
     setSaving(true);
-    await fetch(`/api/transactions/price`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        transactionId: transaction.id,
-        completionDate: completionInput || null,
-      }),
-    });
-    setSaving(false);
     setEditingCompletion(false);
-    router.refresh();
+    startTransition(async () => {
+      try { await saveCompletionDateAction(transaction.id, completionInput || null); }
+      finally { setSaving(false); }
+    });
   }
 
-  async function saveAgentFee() {
+  function saveAgentFee() {
     setSaving(true);
-    const vatInclusive = agentFeeVat === "inclusive";
-    const body: Record<string, unknown> = {
-      transactionId: transaction.id,
-      agentFeeIsVatInclusive: vatInclusive,
-      agentFeeAmount: null,
-      agentFeePercent: null,
-    };
-    if (agentFeeType === "amount") {
-      body.agentFeeAmount = Math.round(parseFloat(agentFeeInput) * 100);
-    } else {
-      body.agentFeePercent = parseFloat(agentFeeInput);
-    }
-    await fetch("/api/transactions/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setSaving(false);
     setEditingAgentFee(false);
     setAgentFeeInput("");
-    router.refresh();
+    const vatInclusive = agentFeeVat === "inclusive";
+    const amount = agentFeeType === "amount" ? Math.round(parseFloat(agentFeeInput) * 100) : null;
+    const percent = agentFeeType === "percent" ? parseFloat(agentFeeInput) : null;
+    startTransition(async () => {
+      try {
+        await saveAgentFeeAction({ transactionId: transaction.id, agentFeeAmount: amount, agentFeePercent: percent, agentFeeIsVatInclusive: vatInclusive });
+      } finally { setSaving(false); }
+    });
   }
 
   const onTrackColors = {
@@ -214,7 +188,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   onChange={(e) => setOverrideInput(e.target.value)}
                   className="glass-input px-2 py-1 text-sm"
                 />
-                <button onClick={saveOverride} disabled={saving}
+                <button onClick={saveOverride} disabled={saving || isPending}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
                 <button onClick={() => setEditingOverride(false)}
                   className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
@@ -248,7 +222,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                     onChange={(e) => setCompletionInput(e.target.value)}
                     className="glass-input px-2 py-1 text-sm"
                   />
-                  <button onClick={saveCompletion} disabled={saving}
+                  <button onClick={saveCompletion} disabled={saving || isPending}
                     className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
                   <button onClick={() => setEditingCompletion(false)}
                     className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
@@ -342,7 +316,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   placeholder="e.g. 325000"
                   className="glass-input w-32 px-2 py-1 text-sm"
                 />
-                <button onClick={savePrice} disabled={saving}
+                <button onClick={savePrice} disabled={saving || isPending}
                   className="text-xs text-blue-600 hover:text-blue-800 font-semibold">Save</button>
                 <button onClick={() => setEditingPrice(false)}
                   className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>

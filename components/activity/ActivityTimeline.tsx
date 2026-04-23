@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { formatDate } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
+import { deleteCommAction } from "@/app/actions/comms";
 
 type Props = {
   entries: ActivityEntry[];
@@ -29,21 +29,19 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export function ActivityTimeline({ entries, transactionId }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   const visible = showAll ? entries : entries.slice(0, 10);
   const hasMore = entries.length > 10;
 
-  async function deleteComm(id: string) {
+  function deleteComm(id: string) {
     setDeletingId(id);
-    try {
-      await fetch(`/api/comms?id=${id}`, { method: "DELETE" });
-      router.refresh();
-    } finally {
-      setDeletingId(null);
-    }
+    startTransition(async () => {
+      try { await deleteCommAction(id, transactionId); }
+      finally { setDeletingId(null); }
+    });
   }
 
   if (entries.length === 0) {
@@ -136,7 +134,7 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                     ))}
                     <button
                       onClick={() => deleteComm(entry.id)}
-                      disabled={deletingId === entry.id}
+                      disabled={deletingId === entry.id || isPending}
                       className="ml-auto text-xs text-slate-900/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       {deletingId === entry.id ? "…" : "Delete"}

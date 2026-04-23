@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ChainMap } from "./ChainMap";
 import type { ChainData } from "@/lib/services/chains";
 
@@ -16,7 +15,6 @@ type NewLink = {
 };
 
 export function ChainWidget({ transactionId }: { transactionId: string }) {
-  const router = useRouter();
   const [chain, setChain] = useState<ChainData | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -57,7 +55,6 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
       await fetch(`/api/chains/${chain.id}`, { method: "DELETE" });
       setChain(null);
       setLinks([{ position: 1, transactionId, externalAddress: null, externalStatus: null }]);
-      router.refresh();
     } finally {
       setSaving(false);
     }

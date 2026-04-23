@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
+import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Phone, EnvelopeSimple, Buildings } from "@phosphor-icons/react";
 
 type SolicitorIntel = {
@@ -167,21 +167,18 @@ function SolicitorCard({
 }
 
 export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
-  async function save(patch: Record<string, string | null>) {
+  function save(patch: Parameters<typeof saveSolicitorsAction>[1]) {
     setSaving(true);
-    try {
-      await fetch(`/api/transactions/${transactionId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
+    startTransition(async () => {
+      try {
+        await saveSolicitorsAction(transactionId, patch);
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   function handleVendorChange(sel: SolicitorSelection | null) {
@@ -202,7 +199,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
     <section>
       <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
         Solicitors
-        {saving && <span className="ml-2 text-slate-900/30 font-normal normal-case">Saving…</span>}
+        {(saving || isPending) && <span className="ml-2 text-slate-900/30 font-normal normal-case">Saving…</span>}
       </h2>
       <div className="glass-card divide-y divide-white/20">
         <div className="px-5 py-4">

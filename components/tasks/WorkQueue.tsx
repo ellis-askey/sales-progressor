@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useOptimistic, useTransition } from "react";
+import { useRouter } from "next/navigation"; // pending SA migration (onChased only)
+import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { formatDate } from "@/lib/utils";
 import type { WorkQueueTask, WorkQueueCounts, SnoozedItem } from "@/lib/services/tasks";
@@ -17,43 +19,48 @@ type Props = {
 };
 
 export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter(); // pending SA migration (onChased only)
+  const pathname = usePathname();
+  const [, startTransition] = useTransition();
+  const [optimisticTasks, addOptimistic] = useOptimistic(
+    tasks,
+    (current, { taskId, action }: { taskId: string; action: "complete" | "snooze" }) =>
+      current.map((t) => t.id !== taskId ? t : { ...t, status: action === "complete" ? "done" : "snoozed" })
+  );
   const [activeFilter, setActiveFilter] = useState<Filter>("all");
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
-  const filtered = tasks.filter((task) => {
+  const filtered = optimisticTasks.filter((task) => {
     if (activeFilter === "mine") return task.assignedTo?.id === currentUserId || task.transaction.assignedUserId === currentUserId;
     if (activeFilter === "overdue") return new Date(task.dueDate) < today && task.status === "pending";
     if (activeFilter === "escalated") return task.priority === "escalated" && task.status === "pending";
     return task.status === "pending";
   });
 
-  async function handleAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
+  function handleAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
     setLoadingId(taskId);
-    try {
-      await fetch("/api/reminders/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, action, ...(snoozeHours ? { snoozeHours } : {}) }),
-      });
-      startTransition(() => router.refresh());
-    } finally {
-      setLoadingId(null);
-    }
+    startTransition(async () => {
+      addOptimistic({ taskId, action });
+      try {
+        if (action === "complete") {
+          await completeTaskAction(taskId, pathname);
+        } else if (action === "snooze" && snoozeHours) {
+          await snoozeTaskAction(taskId, snoozeHours, pathname);
+        }
+        // revalidatePath in server action triggers page re-render
+      } finally {
+        setLoadingId(null);
+      }
+    });
   }
 
   async function handleWakeup(logId: string) {
     setLoadingId(logId);
     try {
-      await fetch("/api/reminders/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logId, action: "wakeup" }),
-      });
-      startTransition(() => router.refresh());
+      await wakeupReminderAction(logId, pathname);
+      // revalidatePath in server action triggers automatic page re-render
     } finally {
       setLoadingId(null);
     }
@@ -168,8 +175,8 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                 key={task.id}
                 task={task}
                 onAction={handleAction}
-                onChased={() => startTransition(() => router.refresh())}
-                loading={loadingId === task.id || isPending}
+                onChased={() => router.refresh()} // pending SA migration
+                loading={loadingId === task.id}
               />
             ))}
           </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { assignProgressorAction } from "@/app/actions/admin";
 
 type Agent = {
   id: string;
@@ -21,7 +22,7 @@ type Props = {
 };
 
 export function AgentManager({ agents, progressors, agencyId }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,27 +49,18 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
     // Assign progressor if selected
     if (progressorId) {
       const { id: newUserId } = await res.json().catch(() => ({})) || {};
-      if (newUserId) {
-        await fetch("/api/admin/agents", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ agentId: newUserId, progressorId }),
-        });
-      }
+      if (newUserId) await assignProgressorAction(newUserId, progressorId);
     }
     setSaving(false);
     setCreating(false);
     setName(""); setEmail(""); setFirmName(""); setProgressorId("");
-    router.refresh();
+    window.location.reload(); // createAgent uses /api/register (email send) — full reload is simplest here
   }
 
-  async function assignProgressor(agentId: string, pid: string) {
-    await fetch("/api/admin/agents", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentId, progressorId: pid || null }),
+  function assignProgressor(agentId: string, pid: string) {
+    startTransition(async () => {
+      await assignProgressorAction(agentId, pid || null);
     });
-    router.refresh();
   }
 
   return (
@@ -152,7 +144,7 @@ export function AgentManager({ agents, progressors, agencyId }: Props) {
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex items-center gap-2 pt-1">
-            <button onClick={createAgent} disabled={saving || !name.trim() || !email.trim()}
+            <button onClick={createAgent} disabled={saving || isPending || !name.trim() || !email.trim()}
               className="px-4 py-2 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors">
               {saving ? "Creating…" : "Create account"}
             </button>

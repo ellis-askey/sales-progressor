@@ -2,9 +2,9 @@
 // components/admin/AgentFeeManager.tsx
 // Manage clientType and legacyFee per agent
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import type { ClientType, UserRole } from "@prisma/client";
+import { saveAgentFeeSettingsAction } from "@/app/actions/admin";
 
 type User = {
   id: string;
@@ -16,7 +16,7 @@ type User = {
 };
 
 export function AgentFeeManager({ users }: { users: User[] }) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, { clientType: ClientType; legacyFee: string }>>({});
 
@@ -34,20 +34,16 @@ export function AgentFeeManager({ users }: { users: User[] }) {
     }));
   }
 
-  async function save(user: User) {
+  function save(user: User) {
     const edit = getEdit(user);
     setSaving(user.id);
-    await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: user.id,
-        clientType: edit.clientType,
-        legacyFee: edit.legacyFee,
-      }),
+    startTransition(async () => {
+      try {
+        await saveAgentFeeSettingsAction({ userId: user.id, clientType: edit.clientType, legacyFee: edit.legacyFee });
+      } finally {
+        setSaving(null);
+      }
     });
-    setSaving(null);
-    router.refresh();
   }
 
   const agents = users.filter((u) => u.role !== "viewer");
@@ -123,7 +119,7 @@ export function AgentFeeManager({ users }: { users: User[] }) {
               )}
               <button
                 onClick={() => save(user)}
-                disabled={saving === user.id}
+                disabled={saving === user.id || isPending}
                 className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors ml-2"
               >
                 {saving === user.id ? "…" : "Save"}

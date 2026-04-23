@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { confirmMilestoneAction } from "@/app/actions/milestones";
 import type { EmailParseResult } from "@/lib/services/email-parse";
 
 const CONFIDENCE_STYLE = {
@@ -11,7 +11,7 @@ const CONFIDENCE_STYLE = {
 };
 
 export function EmailParseWidget({ transactionId }: { transactionId: string }) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [emailText, setEmailText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,26 +41,16 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
     }
   }
 
-  async function confirmMilestone(milestoneId: string, milestoneName: string) {
+  function confirmMilestone(milestoneId: string, milestoneName: string) {
     setConfirming(milestoneId);
-    try {
-      const res = await fetch("/api/milestones", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
-          transactionId,
-          milestoneDefinitionId: milestoneId,
-          summaryText: `Confirmed via email: ${result?.extractedSummary ?? milestoneName}`,
-        }),
-      });
-      if (res.ok) {
+    startTransition(async () => {
+      try {
+        await confirmMilestoneAction({ transactionId, milestoneDefinitionId: milestoneId });
         setConfirmed((prev) => new Set([...prev, milestoneId]));
-        router.refresh();
+      } finally {
+        setConfirming(null);
       }
-    } finally {
-      setConfirming(null);
-    }
+    });
   }
 
   function reset() {
@@ -109,7 +99,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                 <button
                   type="button"
                   onClick={parseEmail}
-                  disabled={loading || !emailText.trim()}
+                  disabled={loading || isPending || !emailText.trim()}
                   className="px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
                 >
                   {loading ? "Analysing…" : "Analyse email"}
@@ -168,7 +158,7 @@ export function EmailParseWidget({ transactionId }: { transactionId: string }) {
                             <button
                               type="button"
                               onClick={() => confirmMilestone(s.milestoneId, s.milestoneName)}
-                              disabled={confirming === s.milestoneId}
+                              disabled={confirming === s.milestoneId || isPending}
                               className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg glass-subtle border border-white/30 text-slate-900/70 hover:bg-white/40 font-medium transition-colors disabled:opacity-50"
                             >
                               {confirming === s.milestoneId ? "Confirming…" : "Mark complete"}

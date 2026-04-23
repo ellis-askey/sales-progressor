@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
+import { assignUserAction } from "@/app/actions/transactions";
 
 type User = { id: string; name: string };
 
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function AssignControl({ transactionId, currentAssigneeId, currentAssigneeName }: Props) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [selected, setSelected] = useState(currentAssigneeId ?? "");
@@ -27,16 +27,16 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
     }
   }, [editing, users.length]);
 
-  async function save() {
+  function save() {
     setSaving(true);
-    await fetch(`/api/transactions/${transactionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assignedUserId: selected || null }),
-    });
-    setSaving(false);
     setEditing(false);
-    router.refresh();
+    startTransition(async () => {
+      try {
+        await assignUserAction(transactionId, selected || null);
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   if (editing) {
@@ -52,7 +52,7 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
-        <button onClick={save} disabled={saving}
+        <button onClick={save} disabled={saving || isPending}
           className="text-xs text-blue-500 hover:text-blue-700 font-medium">
           {saving ? "…" : "Save"}
         </button>

@@ -3,9 +3,9 @@
 // Shows existing contacts and an inline form to add new ones.
 // Light theme. Applies titleCase to contact names before saving.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
+import { createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contacts";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -76,7 +76,7 @@ export function ContactsSection({
   contacts: Contact[];
   portalViewDates?: Record<string, Date>;
 }) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -117,32 +117,23 @@ export function ContactsSection({
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleAdd(e: React.FormEvent) {
+  function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    try {
-      const res = await fetch("/api/contacts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyTransactionId: transactionId,
-          name:     titleCase(form.name),
-          email:    form.email.trim() || null,
-          phone:    form.phone.trim() || null,
-          roleType: form.roleType,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to add contact");
-      setForm(EMPTY_FORM);
-      setShowForm(false);
-      router.refresh();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+    setShowForm(false);
+    const snap = { propertyTransactionId: transactionId, name: titleCase(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, roleType: form.roleType };
+    setForm(EMPTY_FORM);
+    startTransition(async () => {
+      try {
+        await createContactAction(snap);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+        setShowForm(true);
+      } finally {
+        setLoading(false);
+      }
+    });
   }
 
   function startEdit(contact: Contact) {
@@ -150,38 +141,30 @@ export function ContactsSection({
     setEditForm({ name: contact.name, phone: contact.phone ?? "", email: contact.email ?? "" });
   }
 
-  async function handleEdit(contactId: string) {
+  function handleEdit(contactId: string) {
     setEditSaving(true);
-    try {
-      const res = await fetch("/api/contacts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: contactId,
-          name: titleCase(editForm.name),
-          phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null,
-          email: editForm.email.trim() || null,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to update");
-      setEditingId(null);
-      router.refresh();
-    } catch {
-      // keep form open on error
-    } finally {
-      setEditSaving(false);
-    }
+    setEditingId(null);
+    const snap = { id: contactId, transactionId, name: titleCase(editForm.name), phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null, email: editForm.email.trim() || null };
+    startTransition(async () => {
+      try {
+        await updateContactAction(snap);
+      } catch {
+        setEditingId(contactId);
+      } finally {
+        setEditSaving(false);
+      }
+    });
   }
 
-  async function handleDelete(contactId: string) {
+  function handleDelete(contactId: string) {
     setDeleting(contactId);
-    try {
-      const res = await fetch(`/api/contacts?id=${contactId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
-      router.refresh();
-    } finally {
-      setDeleting(null);
-    }
+    startTransition(async () => {
+      try {
+        await deleteContactAction(contactId, transactionId);
+      } finally {
+        setDeleting(null);
+      }
+    });
   }
 
   return (
@@ -421,7 +404,7 @@ export function ContactsSection({
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || isPending}
                 className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors shadow-sm"
               >
                 {loading ? "Adding…" : "Add contact"}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useOptimistic, useTransition } from "react";
 import { P } from "./portal-ui";
+import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 
 type Props = {
   token: string;
@@ -36,12 +36,12 @@ async function fireConfetti() {
 }
 
 export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAfterDuration }: Props) {
-  const router = useRouter();
-  const [sheetOpen, setSheetOpen]   = useState(false);
-  const [eventDate, setEventDate]   = useState("");
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-  const [justConfirmed, setJustConfirmed] = useState(false);
+  const [, startTransition] = useTransition();
+  const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   const isYours = milestone.who === "you";
 
@@ -58,37 +58,30 @@ export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAft
     setError(null);
   }
 
-  async function confirm() {
+  function confirm() {
     if (milestone.timeSensitive && !eventDate) {
       setError("Please enter the date for this step.");
       return;
     }
+    const ed = eventDate || null;
+    setSheetOpen(false);
     setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/portal/milestone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          milestoneDefinitionId: milestone.id,
-          eventDate: eventDate || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to confirm");
-      setSheetOpen(false);
-      setJustConfirmed(true);
-      await fireConfetti();
-      setTimeout(() => router.refresh(), 1200);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+    startTransition(async () => {
+      addOptimistic(true);
+      try {
+        await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestone.id, eventDate: ed });
+        await fireConfetti();
+        // revalidatePath in action triggers page re-render — no setTimeout needed
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+        setSheetOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    });
   }
 
-  if (justConfirmed) {
+  if (optimisticConfirmed) {
     return (
       <div
         className="rounded-2xl px-5 py-5"
@@ -136,14 +129,15 @@ export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAft
           {isYours && (
             <button
               onClick={openSheet}
-              className="w-full flex items-center justify-center py-3.5 rounded-xl text-[15px] font-bold text-white transition-opacity active:opacity-80"
+              disabled={loading}
+              className="w-full flex items-center justify-center py-3.5 rounded-xl text-[15px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-50"
               style={{ background: P.primary, boxShadow: P.heroGlow, borderRadius: P.radiusMd }}
             >
-              Confirm this step
+              {loading ? "Saving…" : "Confirm this step"}
             </button>
           )}
 
-          {(nextAfterLabel) && (
+          {nextAfterLabel && (
             <p className="mt-3 text-[13px]" style={{ color: P.textMuted }}>
               After this:{" "}
               <span style={{ color: P.textSecondary }}>
@@ -172,12 +166,10 @@ export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAft
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
             </div>
 
-            {/* Close button */}
             <button
               onClick={closeSheet}
               className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center transition-colors"
@@ -221,15 +213,13 @@ export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAft
 
               <button
                 onClick={confirm}
-                disabled={loading}
-                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
-                {loading ? "Saving…" : milestone.timeSensitive ? "Confirm date" : "Yes, it's done"}
+                {milestone.timeSensitive ? "Confirm date" : "Yes, it's done"}
               </button>
               <button
                 onClick={closeSheet}
-                disabled={loading}
                 className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl transition-colors"
                 style={{ color: P.textSecondary, background: "transparent" }}
               >

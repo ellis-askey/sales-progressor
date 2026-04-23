@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
+import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 export function ManualTaskList({
@@ -17,9 +17,9 @@ export function ManualTaskList({
   transactionAddress?: string;
   showDone?: boolean;
 }) {
-  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [filter, setFilter] = useState<"open" | "all">("open");
+  const updateBadge = useTabBadge();
 
   async function handleAdd(data: {
     title: string;
@@ -37,8 +37,9 @@ export function ManualTaskList({
       return;
     }
     const task = await res.json();
-    setTasks((prev) => [task, ...prev]);
-    router.refresh();
+    const newTasks = [task, ...tasks];
+    setTasks(newTasks);
+    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
   }
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
@@ -49,13 +50,17 @@ export function ManualTaskList({
     });
     if (!res.ok) return;
     const updated = await res.json();
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    const newTasks = tasks.map((t) => (t.id === id ? updated : t));
+    setTasks(newTasks);
+    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
   }
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/manual-tasks/${id}`, { method: "DELETE" });
     if (!res.ok) return;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    const newTasks = tasks.filter((t) => t.id !== id);
+    setTasks(newTasks);
+    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
   }
 
   const open = tasks.filter((t) => t.status === "open");
