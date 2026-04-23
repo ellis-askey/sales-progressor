@@ -7,6 +7,7 @@ export default async function RootPage() {
     // Role-aware dispatch — each role lands in the right product area
     switch (session.user.role) {
       case "negotiator":
+      case "director":
         redirect("/agent/dashboard");
       case "admin":
       case "sales_progressor":

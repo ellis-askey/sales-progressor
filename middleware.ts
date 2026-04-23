@@ -6,20 +6,22 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const role = req.nextauth.token?.role;
 
-    // Redirect negotiators from internal transaction pages into the agent shell
-    if (role === "negotiator" && pathname.match(/^\/transactions\/[^/]+/)) {
+    const isAgentUser = role === "negotiator" || role === "director";
+
+    // Redirect agent users from internal SP transaction pages into the agent shell
+    if (isAgentUser && pathname.match(/^\/transactions\/[^/]+/)) {
       const id = pathname.split("/")[2];
       return NextResponse.redirect(new URL(`/agent/transactions/${id}`, req.url));
     }
 
-    // Negotiators can only access agent area, their own transaction shell, APIs, and portal
+    // Agent users can only access the agent area, APIs, and portal — nowhere else
     const agentAllowed = ["/agent", "/api", "/portal"];
-    if (role === "negotiator" && !agentAllowed.some((p) => pathname.startsWith(p))) {
+    if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/dashboard", req.url));
     }
 
-    // Internal users (non-admin) trying to access agent portal → send to main dashboard
-    if (role !== "negotiator" && role !== "admin" && pathname.startsWith("/agent")) {
+    // Non-agent, non-admin users trying to access the agent area → send to SP dashboard
+    if (!isAgentUser && role !== "admin" && pathname.startsWith("/agent")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
