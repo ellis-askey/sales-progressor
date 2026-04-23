@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
+import { pushToContact } from "@/lib/services/push";
 
 // Mirror of DIRECT_PREREQUISITES from milestones.ts — only the immediate
 // predecessors that must be complete before a milestone is available to confirm.
@@ -372,6 +373,27 @@ export async function logPortalMilestoneConfirm(
         ctaText: "View your portal",
         ctaUrl: portalUrl,
       }),
+    }).catch(() => {});
+  }
+
+  // Push notifications — confirming contact gets a "step recorded" confirmation;
+  // other vendor/purchaser contacts get a "progress update" ping
+  if (confirmingContact?.portalToken) {
+    pushToContact(contactId, {
+      title: "Step confirmed",
+      body: `"${milestoneLabel}" has been recorded. Your transaction is progressing.`,
+      url: `${base}/portal/${confirmingContact.portalToken}/progress`,
+    }).catch(() => {});
+  }
+
+  const otherPushContacts = tx.contacts.filter(
+    (c) => c.id !== contactId && (c.roleType === "vendor" || c.roleType === "purchaser") && c.portalToken
+  );
+  for (const other of otherPushContacts) {
+    pushToContact(other.id, {
+      title: "Progress update",
+      body: `${confirmingContact?.name ?? contactName} confirmed "${milestoneLabel}".`,
+      url: `${base}/portal/${other.portalToken!}/progress`,
     }).catch(() => {});
   }
 }

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 
-const DISMISSED_KEY = "portal-push-dismissed";
+const DISMISSED_KEY  = "portal-push-dismissed";
 const SUBSCRIBED_KEY = "portal-push-subscribed";
+const FAILED_KEY     = "portal-push-failed";
 
 export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vapidPublicKey: string }) {
   const [show, setShow]     = useState(false);
-  const [status, setStatus] = useState<"idle" | "asking" | "done" | "denied">("idle");
+  const [status, setStatus] = useState<"idle" | "asking" | "done" | "denied" | "error">("idle");
 
   useEffect(() => {
     if (
@@ -47,8 +48,9 @@ export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vap
       localStorage.setItem(SUBSCRIBED_KEY, "1");
       setStatus("done");
       setTimeout(() => setShow(false), 2000);
-    } catch {
-      setStatus("idle");
+    } catch (err) {
+      console.error("[PushPrompt] subscribe failed:", err);
+      setStatus("error");
     }
   }
 
@@ -71,6 +73,14 @@ export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vap
     return (
       <div className="mx-4 mb-4 px-4 py-3 rounded-2xl text-[13px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
         Notifications blocked. Enable them in your browser settings.
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="mx-4 mb-4 px-4 py-3 rounded-2xl text-[13px]" style={{ background: "#FEF2F2", color: "#991B1B" }}>
+        Couldn&apos;t set up notifications. Try refreshing the page.
       </div>
     );
   }
