@@ -440,6 +440,119 @@ export async function logPortalMilestoneConfirm(
   }
 }
 
+// Called from confirmMilestoneAction — emails all vendor/purchaser contacts when
+// the progressor/agent confirms any milestone, regardless of which side it's on.
+export async function sendAdminMilestoneNotificationToPortal(
+  transactionId: string,
+  milestoneCode: string,
+  eventDate?: string | null
+): Promise<void> {
+  // Exchange gets the rich "what happens next" pack — delegate entirely
+  if (milestoneCode === "VM12" || milestoneCode === "PM16") {
+    return sendExchangeCompletionPack(transactionId);
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      completionDate: true,
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] } },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
+    },
+  });
+  if (!tx) return;
+
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const address = tx.propertyAddress;
+  const portalLabel = getMilestoneCopy(milestoneCode).label;
+  const isCompletion = milestoneCode === "VM13" || milestoneCode === "PM17";
+  const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
+
+  const dateStr = eventDate
+    ? new Date(eventDate).toLocaleDateString("en-GB", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+      })
+    : null;
+
+  for (const c of tx.contacts) {
+    if (!c.email || !c.portalToken) continue;
+
+    const saleWord = c.roleType === "vendor" ? "sale" : "purchase";
+    const firstName = c.name.split(" ")[0];
+    const portalUrl = `${base}/portal/${c.portalToken}/progress`;
+
+    let subject: string;
+    let headline: string;
+    let intro: string;
+    let stepLabel: string | null = null;
+    let stepDate: string | null = null;
+
+    if (isCompletion) {
+      const completionDateStr = tx.completionDate
+        ? new Date(tx.completionDate).toLocaleDateString("en-GB", {
+            weekday: "long", day: "numeric", month: "long", year: "numeric",
+          })
+        : null;
+      subject = `Your ${saleWord} has completed — ${address}`;
+      headline = saleWord === "sale" ? "Sale complete!" : "Purchase complete!";
+      intro = `Congratulations — your ${saleWord} at <strong>${address}</strong> has completed${completionDateStr ? ` on <strong>${completionDateStr}</strong>` : ""}. The keys have been handed over and funds transferred.`;
+    } else if (isReadyToExchange) {
+      subject = `Ready to exchange — ${address}`;
+      headline = "Ready to exchange";
+      intro = `Your solicitor has confirmed everything is in place for your ${saleWord} at <strong>${address}</strong>. Exchange of contracts is imminent.`;
+    } else if (dateStr) {
+      subject = `Date confirmed — ${address}`;
+      headline = "Date confirmed";
+      intro = `A date has been confirmed for your ${saleWord} at <strong>${address}</strong>.`;
+      stepLabel = portalLabel;
+      stepDate = dateStr;
+    } else {
+      subject = `Progress update — ${address}`;
+      headline = "Progress update";
+      intro = `Your ${saleWord} at <strong>${address}</strong> is moving forward.`;
+      stepLabel = portalLabel;
+    }
+
+    const html = portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl });
+    const lines = [`Hi ${firstName},`, "", intro.replace(/<[^>]+>/g, ""), ""];
+    if (stepLabel) lines.push(`  ✓ ${stepLabel}${stepDate ? ` — ${stepDate}` : ""}`, "");
+    lines.push(`View your portal: ${portalUrl}`);
+
+    sendEmail({ to: c.email, subject, text: lines.join("\n"), html }).catch(() => {});
+  }
+}
+
+function portalProgressEmailHtml({ firstName, address, headline, intro, stepLabel, stepDate, portalUrl }: {
+  firstName: string; address: string; headline: string; intro: string;
+  stepLabel: string | null; stepDate: string | null; portalUrl: string;
+}) {
+  const stepBlock = stepLabel ? `
+  <div style="margin:0 0 24px;padding:14px 18px;background:#F0FDF4;border-left:3px solid #10B981;border-radius:8px">
+    <p style="margin:0 0 3px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#10B981">Step completed</p>
+    <p style="margin:0;font-size:14px;font-weight:600;color:#1a1d29">${stepLabel}</p>
+    ${stepDate ? `<p style="margin:4px 0 0;font-size:13px;color:#4a5162">${stepDate}</p>` : ""}
+  </div>` : "";
+
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${headline}</h1>
+</div>
+<div style="padding:28px 32px">
+  <p style="margin:0 0 20px;font-size:15px">Hi ${firstName},</p>
+  <p style="margin:0 0 ${stepLabel ? "20px" : "28px"};font-size:14px;line-height:1.6;color:#4a5162">${intro}</p>
+  ${stepBlock}
+  <p style="margin:0 0 24px">
+    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
+  </p>
+  <p style="margin:0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
+</div>
+</body></html>`;
+}
+
 function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl }: {
   firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string;
 }) {

@@ -17,6 +17,7 @@ import {
 } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 
 /**
  * Confirm a milestone (and any implied predecessors) for a transaction.
@@ -95,6 +96,13 @@ export async function confirmMilestoneAction(input: {
       body,
       urlPath: "/progress",
     }).catch(() => {});
+
+    // Email all vendor/purchaser portal contacts with a translated progress update
+    sendAdminMilestoneNotificationToPortal(
+      input.transactionId,
+      code,
+      input.eventDate ?? null
+    ).catch(() => {});
   }
 
   return result;
