@@ -5,6 +5,11 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus, PurchaseType } from "@prisma/client";
 
+function revalidateTx(id: string) {
+  revalidatePath(`/transactions/${id}`, "page");
+  revalidatePath(`/agent/transactions/${id}`, "page");
+}
+
 const STATUS_LABELS: Record<TransactionStatus, string> = {
   active: "Active",
   on_hold: "On Hold",
@@ -25,7 +30,7 @@ export async function saveCompletionDateAction(transactionId: string, completion
     data: { completionDate: completionDate ? new Date(completionDate) : null },
   });
 
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function changeStatusAction(transactionId: string, status: TransactionStatus) {
@@ -49,7 +54,7 @@ export async function changeStatusAction(transactionId: string, status: Transact
     },
   });
 
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function savePriceAction(transactionId: string, purchasePrice: number) {
@@ -76,7 +81,7 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
   }
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { purchasePrice } });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function saveOverrideDateAction(transactionId: string, overridePredictedDate: string | null) {
@@ -91,7 +96,7 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
     where: { id: transactionId },
     data: { overridePredictedDate: overridePredictedDate ? new Date(overridePredictedDate) : null },
   });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function saveAgentFeeAction(input: {
@@ -115,7 +120,7 @@ export async function saveAgentFeeAction(input: {
       agentFeeIsVatInclusive: input.agentFeeIsVatInclusive,
     },
   });
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 }
 
 export async function assignUserAction(transactionId: string, assignedUserId: string | null) {
@@ -130,7 +135,7 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
     where: { id: transactionId },
     data: { assignedUserId: assignedUserId || null },
   });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function saveSolicitorsAction(transactionId: string, patch: {
@@ -147,7 +152,7 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   if (!tx) throw new Error("Transaction not found");
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: patch });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function savePurchaseTypeAction(transactionId: string, purchaseType: PurchaseType) {
@@ -159,5 +164,5 @@ export async function savePurchaseTypeAction(transactionId: string, purchaseType
   if (!tx) throw new Error("Transaction not found");
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { purchaseType } });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }

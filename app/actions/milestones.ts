@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+function revalidateTx(id: string) {
+  revalidatePath(`/transactions/${id}`, "page");
+  revalidatePath(`/agent/transactions/${id}`, "page");
+}
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import type { PurchaseType } from "@prisma/client";
@@ -51,7 +56,7 @@ export async function confirmMilestoneAction(input: {
     eventDate: input.eventDate ? new Date(input.eventDate) : null,
   });
 
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 
   return result;
 }
@@ -79,7 +84,7 @@ export async function markNotRequiredAction(input: {
     purchaseType: input.purchaseType,
   });
 
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 
   return result;
 }
@@ -109,5 +114,5 @@ export async function reverseMilestoneAction(input: {
     newPurchaseType: input.newPurchaseType,
   });
 
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 }

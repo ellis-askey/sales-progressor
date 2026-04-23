@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   if (!propertyAddress) return NextResponse.json({ error: "Address required" }, { status: 400 });
 
-  const isAgent = session.user.role === "negotiator";
+  const isAgent = session.user.role === "negotiator" || session.user.role === "director";
   const resolvedProgressedBy = isAgent ? (progressedBy === "agent" ? "agent" : "progressor") : "progressor";
 
   try {

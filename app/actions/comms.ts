@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+function revalidateTx(id: string) {
+  revalidatePath(`/transactions/${id}`, "page");
+  revalidatePath(`/agent/transactions/${id}`, "page");
+}
 import { requireSession } from "@/lib/session";
 import { createCommunicationRecord, deleteCommunicationRecord } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
@@ -15,13 +20,13 @@ export async function addNoteAction(transactionId: string, content: string) {
     createdById: session.user.id,
     agencyId: session.user.agencyId,
   });
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function deleteCommAction(id: string, transactionId: string) {
   const session = await requireSession();
   await deleteCommunicationRecord(id, session.user.agencyId);
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
 
 export async function logCommAction(input: {
@@ -43,5 +48,5 @@ export async function logCommAction(input: {
     createdById: session.user.id,
     agencyId: session.user.agencyId,
   });
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 }

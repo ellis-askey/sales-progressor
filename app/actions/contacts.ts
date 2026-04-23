@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+function revalidateTx(id: string) {
+  revalidatePath(`/transactions/${id}`, "page");
+  revalidatePath(`/agent/transactions/${id}`, "page");
+}
 import { requireSession } from "@/lib/session";
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +20,7 @@ export async function createContactAction(input: {
 }) {
   const session = await requireSession();
   const contact = await createContact(input, session.user.agencyId);
-  revalidatePath(`/transactions/${input.propertyTransactionId}`, "page");
+  revalidateTx(input.propertyTransactionId);
   return contact;
 }
 
@@ -37,11 +42,11 @@ export async function updateContactAction(input: {
     where: { id: input.id },
     data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null },
   });
-  revalidatePath(`/transactions/${input.transactionId}`, "page");
+  revalidateTx(input.transactionId);
 }
 
 export async function deleteContactAction(contactId: string, transactionId: string) {
   const session = await requireSession();
   await deleteContact(contactId, session.user.agencyId);
-  revalidatePath(`/transactions/${transactionId}`, "page");
+  revalidateTx(transactionId);
 }
