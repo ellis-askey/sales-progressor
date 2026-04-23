@@ -5,18 +5,19 @@ import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
-  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix, Users,
+  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix, Users, Lightning,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 
 function buildNavItems(role: UserRole) {
   return [
-    { href: "/agent/dashboard",   label: role === "director" ? "All Files" : "My Files", icon: FilesIcon },
-    { href: "/agent/completions", label: "Completions",  icon: CompletingIcon },
-    { href: "/agent/analytics",   label: "Analytics",    icon: AnalyticsIcon },
-    { href: "/agent/comms",       label: "Updates",      icon: CommsIcon },
-    { href: "/agent/transactions/new", label: "New File", icon: PlusIcon },
-    { href: "/agent/settings",    label: "Settings",     icon: SettingsIcon },
+    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", icon: FilesIcon },
+    { href: "/agent/completions",      label: "Completions",  icon: CompletingIcon },
+    { href: "/agent/analytics",        label: "Analytics",    icon: AnalyticsIcon },
+    { href: "/agent/comms",            label: "Updates",      icon: CommsIcon },
+    { href: "/agent/quick-add",        label: "Quick Add",    icon: QuickAddIcon },
+    { href: "/agent/transactions/new", label: "Full form",    icon: PlusIcon },
+    { href: "/agent/settings",         label: "Settings",     icon: SettingsIcon },
   ];
 }
 
@@ -111,6 +112,9 @@ function CommsIcon({ className }: { className?: string }) {
 }
 function PlusIcon({ className }: { className?: string }) {
   return <PlusCircle className={className} weight="regular" />;
+}
+function QuickAddIcon({ className }: { className?: string }) {
+  return <Lightning className={className} weight="fill" />;
 }
 function SettingsIcon({ className }: { className?: string }) {
   return <GearSix className={className} weight="regular" />;

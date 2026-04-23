@@ -104,6 +104,9 @@ model PropertyTransaction {
   agentFeeIsVatInclusive       Boolean?
   notes                        String?
   fallThroughReason            String?
+  referredFirmId               String?
+  referralFee                  Int?
+  referralFeeReceived          Boolean               @default(false)
   vendorSolicitorFirmId        String?
   vendorSolicitorContactId     String?
   purchaserSolicitorFirmId     String?
@@ -119,6 +122,7 @@ model PropertyTransaction {
   vendorSolicitorContact     SolicitorContact?     @relation("VendorSolicitorContact",  fields: [vendorSolicitorContactId],  references: [id])
   purchaserSolicitorFirm     SolicitorFirm?        @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
   purchaserSolicitorContact  SolicitorContact?     @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
+  referredFirm               SolicitorFirm?        @relation("ReferredFirm",           fields: [referredFirmId],           references: [id])
   milestoneCompletions       MilestoneCompletion[]
   reminderLogs               ReminderLog[]
   chaseTasks                 ChaseTask[]
@@ -184,6 +188,7 @@ model SolicitorFirm {
   handlers SolicitorContact[]
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorFirm")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorFirm")
+  referredForTransactions  PropertyTransaction[] @relation("ReferredFirm")
 
   @@unique([agencyId, name])
 }

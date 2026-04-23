@@ -180,3 +180,25 @@ export async function savePurchaseTypeAction(transactionId: string, purchaseType
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { purchaseType } });
   revalidateTx(transactionId);
 }
+
+export async function saveReferralAction(
+  transactionId: string,
+  data: { referredFirmId: string | null; referralFee: number | null; referralFeeReceived: boolean }
+) {
+  const session = await requireSession();
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: transactionId, agencyId: session.user.agencyId },
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: {
+      referredFirmId:      data.referredFirmId,
+      referralFee:         data.referralFee,
+      referralFeeReceived: data.referralFeeReceived,
+    },
+  });
+  revalidateTx(transactionId);
+}

@@ -94,6 +94,7 @@ export async function getTransaction(id: string, agencyId: string) {
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      referredFirm: { select: { id: true, name: true } },
     },
   });
 }

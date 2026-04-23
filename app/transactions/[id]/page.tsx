@@ -34,6 +34,7 @@ import { NextMilestoneWidget } from "@/components/transaction/NextMilestoneWidge
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
+import { ReferralSection } from "@/components/transaction/ReferralSection";
 import { prisma } from "@/lib/prisma";
 
 export default async function TransactionDetailPage({
@@ -185,8 +186,21 @@ export default async function TransactionDetailPage({
       })
     : null;
 
+  const solicitorFirms = await prisma.solicitorFirm.findMany({
+    where: { agencyId: session.user.agencyId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
   const sidebar = (
     <>
+      <ReferralSection
+        transactionId={transaction.id}
+        firms={solicitorFirms}
+        referredFirmId={transaction.referredFirm?.id ?? null}
+        referralFee={transaction.referralFee ?? null}
+        referralFeeReceived={transaction.referralFeeReceived ?? false}
+      />
       <TransactionSidebar
         transaction={{
           id: transaction.id,

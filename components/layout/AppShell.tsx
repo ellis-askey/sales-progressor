@@ -10,6 +10,7 @@ import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
 } from "@phosphor-icons/react";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
 export function AppShell({
   children,
@@ -63,6 +64,11 @@ export function AppShell({
             </div>
             <PortalBell userKey={session.user.email ?? session.user.name ?? "user"} />
           </div>
+        </div>
+
+        {/* Search */}
+        <div className="px-3 py-2 border-b border-white/10">
+          <GlobalSearch />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5">
