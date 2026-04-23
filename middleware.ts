@@ -1,10 +1,24 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
     const role = req.nextauth.token?.role;
+
+    // Viewers are read-only — block all mutation API calls
+    if (
+      role === "viewer" &&
+      pathname.startsWith("/api/") &&
+      MUTATION_METHODS.has(req.method)
+    ) {
+      return new NextResponse(
+        JSON.stringify({ error: "Viewers cannot make changes" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const isAgentUser = role === "negotiator" || role === "director";
 
@@ -34,6 +48,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!login|register|portal|preview-hero|preview-hero-light|preview-phase1c|api/auth|api/portal|api/register|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|api/auth|api/portal|api/register|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

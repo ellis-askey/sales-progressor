@@ -61,9 +61,9 @@ export default async function LoginPage() {
 
         <p className="text-center text-xs text-blue-200/40 mt-6">
           By signing in you agree to our{" "}
-          <a href="#" className="underline underline-offset-2 hover:text-blue-200/70 transition-colors">Terms of Service</a>
+          <a href="/terms" className="underline underline-offset-2 hover:text-blue-200/70 transition-colors">Terms of Service</a>
           {" "}and{" "}
-          <a href="#" className="underline underline-offset-2 hover:text-blue-200/70 transition-colors">Privacy Policy</a>.
+          <a href="/privacy" className="underline underline-offset-2 hover:text-blue-200/70 transition-colors">Privacy Policy</a>.
         </p>
 
       </div>
