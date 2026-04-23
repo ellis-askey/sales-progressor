@@ -64,6 +64,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [confirming, setConfirming]         = useState<string | null>(null);
   const [eventDate, setEventDate]           = useState("");
   const [loading, setLoading]               = useState(false);
+  const [processingId, setProcessingId]     = useState<string | null>(null);
   const [error, setError]                   = useState<string | null>(null);
   const [showOtherSide, setShowOtherSide]   = useState(false);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
@@ -113,6 +114,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setConfirming(null);
     setEventDate("");
     setLoading(true);
+    setProcessingId(milestoneId);
     startTransition(async () => {
       addOptimistic(milestoneId);
       try {
@@ -123,6 +125,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         setConfirming(milestoneId);
       } finally {
         setLoading(false);
+        setProcessingId(null);
       }
     });
   }
@@ -191,20 +194,22 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               {isOpen && (
                 <div>
                   {groupMilestones.map((m, mIdx) => {
-                    const isLast       = mIdx === groupMilestones.length - 1;
-                    const canConfirm   = !m.isComplete && !m.isNotRequired && m.isAvailable;
-                    const isLocked     = !m.isComplete && !m.isNotRequired && !m.isAvailable;
+                    const isLast        = mIdx === groupMilestones.length - 1;
+                    const canConfirm    = !m.isComplete && !m.isNotRequired && m.isAvailable;
+                    const isLocked      = !m.isComplete && !m.isNotRequired && !m.isAvailable;
+                    const isProcessing  = processingId === m.id;
 
                     return (
                       <div
                         key={m.id}
+                        className={isProcessing ? "animate-pulse" : ""}
                         style={{
                           borderBottom: !isLast ? `1px solid ${P.border}` : undefined,
                           opacity: isLocked ? 0.35 : 1,
                         }}
                       >
                         <div className="flex items-start gap-3.5 px-5 py-4">
-                          <StatusDot isComplete={m.isComplete} isLocked={isLocked} canConfirm={canConfirm} />
+                          <StatusDot isComplete={m.isComplete} isLocked={isLocked} canConfirm={canConfirm} isProcessing={isProcessing} />
 
                           <div className="flex-1 min-w-0">
                             <p className="text-[14px] font-medium leading-snug" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
@@ -522,8 +527,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   );
 }
 
-function StatusDot({ isComplete, isLocked, canConfirm }: { isComplete: boolean; isLocked: boolean; canConfirm: boolean }) {
+function StatusDot({ isComplete, isLocked, canConfirm, isProcessing }: { isComplete: boolean; isLocked: boolean; canConfirm: boolean; isProcessing?: boolean }) {
   if (isComplete) {
+    if (isProcessing) {
+      return (
+        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
+          <div
+            className="w-3 h-3 rounded-full border-2 animate-spin"
+            style={{ borderColor: P.success, borderTopColor: "transparent" }}
+          />
+        </div>
+      );
+    }
     return (
       <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.success }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
