@@ -32,19 +32,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ domain: existing, alreadyExists: true });
   }
 
-  // Create authenticated domain in SendGrid
-  const { id: sendgridDomainId, cnameRecords } = await createAuthenticatedDomain(domain);
+  // Create authenticated domain in SendGrid (falls back to lookup if it already exists)
+  const { id: sendgridDomainId, cnameRecords, alreadyValid } = await createAuthenticatedDomain(domain);
 
   const verifiedDomain = await prisma.verifiedDomain.create({
     data: {
       agencyId: session.user.agencyId,
       domain,
       sendgridDomainId,
-      status: "pending",
+      status: alreadyValid ? "verified" : "pending",
+      dkimValid: alreadyValid ? true : false,
+      spfValid: alreadyValid ? true : false,
       cnameRecords: cnameRecords as object[],
       createdByUserId: session.user.id,
+      verifiedAt: alreadyValid ? new Date() : null,
     },
   });
 
-  return NextResponse.json({ domain: verifiedDomain });
+  return NextResponse.json({ domain: verifiedDomain, alreadyVerified: alreadyValid === true });
 }
