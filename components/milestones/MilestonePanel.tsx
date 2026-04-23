@@ -245,7 +245,7 @@ export function MilestonePanel({
                 </button>
 
                 {!isCollapsed && rows.length > 0 && (
-                  <div className="glass-card relative mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
+                  <div className="glass-card relative mt-1 rounded-[20px] overflow-hidden">
                     <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
                     {rows.map((def) => (
                       <MilestoneRow key={def.id} def={def} transactionId={transactionId} />

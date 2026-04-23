@@ -21,7 +21,7 @@ type Props = {
 export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props) {
   const router = useRouter(); // pending SA migration (onChased only)
   const pathname = usePathname();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [optimisticTasks, addOptimistic] = useOptimistic(
     tasks,
     (current, { taskId, action }: { taskId: string; action: "complete" | "snooze" }) =>
@@ -175,7 +175,7 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
                 key={task.id}
                 task={task}
                 onAction={handleAction}
-                onChased={() => router.refresh()} // pending SA migration
+                onChased={() => startTransition(() => router.refresh())} // pending SA migration
                 loading={loadingId === task.id}
               />
             ))}
