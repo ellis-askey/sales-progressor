@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown } from "@phosphor-icons/react";
 
 type Channel = "email" | "whatsapp";
@@ -164,7 +165,7 @@ export function ChaseDrawer({
     contacts.find((c) => c.roleType === "purchaser") ??
     contacts[0];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
@@ -335,6 +336,7 @@ export function ChaseDrawer({
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

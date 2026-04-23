@@ -2,6 +2,7 @@
 // components/milestones/MilestoneRow.tsx
 
 import { useState, useRef, useOptimistic, useTransition } from "react";
+import { createPortal } from "react-dom";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/ToastContext";
@@ -319,9 +320,9 @@ export function MilestoneRow({ def, transactionId }: Props) {
       </div>
 
       {/* PM4 purchase type modal */}
-      {showPurchaseTypeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="glass-card-strong rounded-2xl w-full max-w-sm mx-4" style={{ clipPath: "inset(0 round 16px)" }}>
+      {showPurchaseTypeModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl">
             <div className="px-5 py-4 border-b border-white/20">
               <p className="text-sm font-semibold text-slate-900/90">How is the buyer purchasing?</p>
               <p className="text-xs text-slate-900/40 mt-1">
@@ -343,18 +344,19 @@ export function MilestoneRow({ def, transactionId }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Implied predecessors modal */}
-      {showImpliedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-          <div className="glass-card-strong rounded-2xl max-w-md w-full p-6">
-            <h3 className="text-base font-semibold text-slate-900/90 mb-1">This milestone implies others</h3>
-            <p className="text-sm text-slate-900/50 mb-4">
+      {showImpliedModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-900 mb-1">This milestone implies others</h3>
+            <p className="text-sm text-slate-500 mb-4">
               You've confirmed <strong>"{def.name}"</strong>. That usually means the following milestone{impliedPredecessors.length > 1 ? "s are" : " is"} also complete:
             </p>
-            <div className="rounded-lg border border-white/20 divide-y divide-white/15 mb-5">
+            <div className="rounded-lg border border-slate-100 divide-y divide-slate-100 mb-5">
               {impliedPredecessors.map((p) => (
                 <div key={p.id} className="flex items-center gap-2 px-4 py-2.5">
                   <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -362,37 +364,38 @@ export function MilestoneRow({ def, transactionId }: Props) {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-sm text-slate-900/80">{p.name}</span>
+                  <span className="text-sm text-slate-700">{p.name}</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-slate-900/40 mb-4">Complete these as well? This will keep your progress clean and avoid confusion later.</p>
+            <p className="text-xs text-slate-400 mb-4">Complete these as well? This will keep your progress clean and avoid confusion later.</p>
             <div className="flex gap-3">
               <button onClick={() => doComplete(impliedPredecessors.map((p) => p.id), eventDate || undefined)} disabled={loading}
                 className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-sm font-medium text-white transition-colors">
                 {loading ? "Completing…" : "Yes, complete all"}
               </button>
               <button onClick={() => doComplete([], eventDate || undefined)} disabled={loading}
-                className="flex-1 py-2.5 rounded-lg border border-white/20 text-sm font-medium text-slate-900/70 hover:bg-white/20 transition-colors">
+                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                 No, just this one
               </button>
             </div>
-            <p className="text-xs text-slate-900/40 text-center mt-3">You can undo this later from the milestone timeline</p>
+            <p className="text-xs text-slate-400 text-center mt-3">You can undo this later from the milestone timeline</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Completion date prompt (after exchange confirmed) */}
-      {showCompletionPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
-          <div className="glass-card-strong rounded-2xl max-w-sm w-full p-6">
-            <h3 className="text-base font-semibold text-slate-900/90 mb-1">Exchange confirmed</h3>
-            <p className="text-sm text-slate-900/50 mb-4">When is the expected completion date?</p>
+      {showCompletionPrompt && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-900 mb-1">Exchange confirmed</h3>
+            <p className="text-sm text-slate-500 mb-4">When is the expected completion date?</p>
             <input
               type="date"
               value={completionInput}
               onChange={(e) => setCompletionInput(e.target.value)}
-              className="glass-input w-full px-3 py-2 text-sm mb-4"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-3">
               <button
@@ -404,19 +407,20 @@ export function MilestoneRow({ def, transactionId }: Props) {
               </button>
               <button
                 onClick={() => { setShowCompletionPrompt(false); setCompletionInput(""); }}
-                className="flex-1 py-2.5 rounded-lg border border-white/20 text-sm text-slate-900/70 hover:bg-white/20 transition-colors"
+                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 Skip for now
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Reversal warning modal */}
-      {showReverseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.35)" }}>
-          <div className="glass-card-strong rounded-2xl max-w-md w-full p-6">
+      {showReverseModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -424,30 +428,30 @@ export function MilestoneRow({ def, transactionId }: Props) {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-slate-900/90">This will undo other milestones</h3>
-                <p className="text-sm text-slate-900/50 mt-0.5">Undoing <strong>"{def.name}"</strong> means the following completed milestones can no longer be true:</p>
+                <h3 className="text-base font-semibold text-slate-900">This will undo other milestones</h3>
+                <p className="text-sm text-slate-500 mt-0.5">Undoing <strong>"{def.name}"</strong> means the following completed milestones can no longer be true:</p>
               </div>
             </div>
-            <div className="rounded-lg border border-orange-100 bg-orange-50/50 divide-y divide-orange-100 mb-4">
+            <div className="rounded-lg border border-orange-100 bg-orange-50 divide-y divide-orange-100 mb-4">
               {downstreamMilestones.map((m) => (
                 <div key={m.id} className="flex items-center gap-2.5 px-4 py-2.5">
                   <svg className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <p className="text-sm text-slate-900/80">{m.name}</p>
+                  <p className="text-sm text-slate-700">{m.name}</p>
                 </div>
               ))}
             </div>
-            <div className="flex items-center gap-4 glass-subtle rounded-xl px-4 py-3 mb-5">
+            <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 mb-5">
               <div className="text-center">
-                <p className="text-xs text-slate-900/40 mb-0.5">Current</p>
-                <p className="text-xl font-semibold text-slate-900/80">{currentPercent}%</p>
+                <p className="text-xs text-slate-400 mb-0.5">Current</p>
+                <p className="text-xl font-semibold text-slate-700">{currentPercent}%</p>
               </div>
               <svg className="w-5 h-5 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
               <div className="text-center">
-                <p className="text-xs text-slate-900/40 mb-0.5">After</p>
+                <p className="text-xs text-slate-400 mb-0.5">After</p>
                 <p className="text-xl font-semibold text-orange-500">{projectedPercent}%</p>
               </div>
               <div className="flex-1 text-right">
@@ -460,12 +464,13 @@ export function MilestoneRow({ def, transactionId }: Props) {
                 {loading ? "Reversing…" : "Yes, undo all"}
               </button>
               <button onClick={() => setShowReverseModal(false)} disabled={loading}
-                className="flex-1 py-2.5 rounded-lg border border-white/20 text-sm font-medium text-slate-900/70 hover:bg-white/20 transition-colors">
+                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
