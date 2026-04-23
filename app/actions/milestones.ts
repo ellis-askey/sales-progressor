@@ -67,6 +67,50 @@ export async function confirmMilestoneAction(input: {
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
 
+  // Exchange: auto-confirm the counterpart milestone on the other side (same date)
+  if (def?.code === "VM12" || def?.code === "PM16") {
+    const counterCode = def.code === "VM12" ? "PM16" : "VM12";
+    const counterDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: counterCode },
+      select: { id: true },
+    });
+    if (counterDef) {
+      const alreadyDone = await prisma.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDef.id, isActive: true, isNotRequired: false },
+      });
+      if (!alreadyDone) {
+        await completeMilestone({
+          transactionId: input.transactionId,
+          milestoneDefinitionId: counterDef.id,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+          eventDate: input.eventDate ? new Date(input.eventDate) : null,
+        });
+        revalidateTx(input.transactionId);
+        revalidatePath("/portal", "layout");
+      }
+    }
+  }
+
+  // Completion: sync the transaction completionDate if the confirmed date differs
+  if ((def?.code === "VM13" || def?.code === "PM17") && input.eventDate) {
+    const actualDate = new Date(input.eventDate);
+    const txData = await prisma.propertyTransaction.findFirst({
+      where: { id: input.transactionId },
+      select: { completionDate: true },
+    });
+    const existingDate = txData?.completionDate;
+    const dateMismatch = !existingDate ||
+      Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000; // >12h apart
+    if (dateMismatch) {
+      await prisma.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { completionDate: actualDate },
+      });
+      revalidateTx(input.transactionId);
+    }
+  }
+
   // Push to subscribed portal contacts (fire-and-forget)
   if (def) {
     const code  = def.code;

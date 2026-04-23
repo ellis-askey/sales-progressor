@@ -17,6 +17,7 @@ type Milestone = {
   completedAt: Date | null;
   eventDate: Date | null;
   label: string;
+  labelOther?: string | null;
   who: string;
   whoLabel: string;
   confirmedByClient: boolean;
@@ -223,37 +224,38 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                           </div>
 
-                          {m.description && !canConfirm && (
-                            <button
-                              onClick={() => setHelpMilestone(m)}
-                              className="flex-shrink-0 self-center w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
-                              style={{ background: P.border, color: P.textMuted }}
-                              aria-label="What does this mean?"
-                            >
-                              ?
-                            </button>
-                          )}
-
-                          {canConfirm && (
-                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-center">
+                          <div className="flex items-center gap-2 flex-shrink-0 self-center">
+                            {m.description && (
                               <button
-                                onClick={() => openSheet(m.id)}
-                                className="px-4 py-2 rounded-xl text-[13px] font-bold"
-                                style={{ background: P.primaryBg, color: P.primaryText }}
+                                onClick={() => setHelpMilestone(m)}
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"
+                                style={{ background: P.border, color: P.textMuted }}
+                                aria-label="What does this mean?"
                               >
-                                Confirm
+                                ?
                               </button>
-                              {m.code === "PM7" && (
+                            )}
+                            {canConfirm && (
+                              <div className="flex flex-col items-end gap-1.5">
                                 <button
-                                  onClick={() => setSkipSurveyId(m.id)}
-                                  className="text-[11px] font-medium underline"
-                                  style={{ color: P.textMuted }}
+                                  onClick={() => openSheet(m.id)}
+                                  className="px-4 py-2 rounded-xl text-[13px] font-bold"
+                                  style={{ background: P.primaryBg, color: P.primaryText }}
                                 >
-                                  Skip survey
+                                  Confirm
                                 </button>
-                              )}
-                            </div>
-                          )}
+                                {m.code === "PM7" && (
+                                  <button
+                                    onClick={() => setSkipSurveyId(m.id)}
+                                    className="text-[11px] font-medium underline"
+                                    style={{ color: P.textMuted }}
+                                  >
+                                    Skip survey
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -308,7 +310,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                         <div key={m.id} className="flex items-center gap-3.5 px-5 py-3" style={{ borderBottom: mIdx < groupMilestones.length - 1 ? `1px solid ${P.border}` : undefined }}>
                           <StatusDot isComplete={m.isComplete} isLocked={!m.isComplete && !m.isAvailable} canConfirm={false} />
                           <p className="text-[13px] flex-1" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
-                            {m.label}
+                            {m.labelOther ?? m.label}
                           </p>
                           {m.isComplete && (
                             <span className="text-[11px] flex-shrink-0" style={{ color: P.success }}>✓</span>

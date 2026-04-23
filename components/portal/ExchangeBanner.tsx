@@ -97,6 +97,16 @@ export function ExchangeBanner({ token, completionDate }: Props) {
           )}
         </div>
       )}
+      <Link
+        href={`/portal/${token}/exchange`}
+        className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-[14px] font-bold"
+        style={{ background: "rgba(255,255,255,0.22)", color: "#FFFFFF" }}
+      >
+        Your exchange guide — what to do now
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </Link>
     </div>
   );
 }

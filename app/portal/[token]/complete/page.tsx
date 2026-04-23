@@ -13,19 +13,31 @@ function fmtPrice(p: number) {
 type ChecklistItem = { text: string; sub?: string };
 
 const VENDOR_CHECKLIST: ChecklistItem[] = [
-  { text: "Read all utility meters", sub: "Gas, electricity, and water — take a photo as a record" },
-  { text: "Leave all keys, fobs, and remotes", sub: "Including gate remotes, alarm codes, and any window/door keys" },
-  { text: "Leave appliance manuals and warranties", sub: "Boiler, kitchen appliances, and any installed systems" },
-  { text: "Leave service and guarantee records", sub: "Damp-proofing, window installation, FENSA certificates, etc." },
-  { text: "Set up post redirection", sub: "Post Office redirect service — cover at least 12 months" },
+  { text: "Read all utility meters",                  sub: "Gas, electricity, and water — take a photo of each meter as a record" },
+  { text: "Leave all keys, fobs, and remotes",        sub: "Gate remotes, alarm codes, window/door keys — leave everything at the property" },
+  { text: "Leave appliance manuals and warranties",   sub: "Boiler, kitchen appliances, and any installed systems" },
+  { text: "Leave service and guarantee records",      sub: "Damp-proofing, window installation, FENSA certificates, boiler service history" },
+  { text: "Clear the property completely",            sub: "Remove all personal items and rubbish — the buyer is entitled to vacant possession" },
 ];
 
 const PURCHASER_CHECKLIST: ChecklistItem[] = [
-  { text: "Collect keys from your agent", sub: "Usually available from midday once your solicitor confirms completion" },
-  { text: "Read all utility meters immediately", sub: "Gas, electricity, and water — take photos and note the readings" },
-  { text: "Confirm buildings insurance is active", sub: "You became legally responsible at exchange — check the policy" },
-  { text: "Check the broadband situation", sub: "Order or transfer broadband now to avoid a wait" },
-  { text: "Start changing your address", sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions, Post Office redirect" },
+  { text: "Collect keys from your agent",             sub: "Usually available from midday once your solicitor confirms completion — call ahead" },
+  { text: "Read all utility meters immediately",      sub: "Gas, electricity, and water — take photos and note the readings on arrival" },
+  { text: "Check buildings insurance is active",      sub: "This should have been arranged at exchange — confirm the policy is in force from today" },
+  { text: "Check what's been left for you",           sub: "Manuals, warranties, and service records should be at the property" },
+];
+
+const VENDOR_BEFORE_CHECKLIST: ChecklistItem[] = [
+  { text: "Confirm post redirect is in place",        sub: "Post Office redirect — covers anything sent to your old address" },
+  { text: "Final packing and moving",                 sub: "Ensure the property will be fully cleared before completion time" },
+  { text: "Cancel direct debits for this address",    sub: "Council tax, water rates, building insurance — check nothing is still being taken" },
+];
+
+const PURCHASER_BEFORE_CHECKLIST: ChecklistItem[] = [
+  { text: "Transfer the remaining balance",           sub: "Your solicitor will tell you the exact amount and timing — allow a few days for clearing" },
+  { text: "Confirm broadband is ordered",             sub: "If not already arranged, order it now — even a short delay can leave you without internet for weeks" },
+  { text: "Check your address change list",           sub: "Bank, DVLA, HMRC, GP, employer, pension, subscriptions — notify them all" },
+  { text: "Post Office redirect active",              sub: "Set this up if you haven't already — covers anything sent to your old address" },
 ];
 
 const VENDOR_NEXT_STEPS = [
@@ -100,9 +112,10 @@ export default async function PortalCompletePage({
     );
   }
 
-  const isVendor   = side === "vendor";
-  const checklist  = isVendor ? VENDOR_CHECKLIST : PURCHASER_CHECKLIST;
-  const nextSteps  = isVendor ? VENDOR_NEXT_STEPS : PURCHASER_NEXT_STEPS;
+  const isVendor      = side === "vendor";
+  const checklist     = isVendor ? VENDOR_CHECKLIST : PURCHASER_CHECKLIST;
+  const beforeList    = isVendor ? VENDOR_BEFORE_CHECKLIST : PURCHASER_BEFORE_CHECKLIST;
+  const nextSteps     = isVendor ? VENDOR_NEXT_STEPS : PURCHASER_NEXT_STEPS;
   const saleWord   = isVendor ? "sale" : "purchase";
   const completionDate = completionMilestone.eventDate ?? completionMilestone.completedAt;
 
@@ -143,14 +156,42 @@ export default async function PortalCompletePage({
         )}
       </div>
 
+      {/* ── Before completion checklist ─────────────────────────────── */}
+      {beforeList.length > 0 && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <div className="px-5 pt-5 pb-4" style={{ borderBottom: `1px solid ${P.border}` }}>
+            <p className="text-[16px] font-bold" style={{ color: P.textPrimary }}>
+              Last things to check
+            </p>
+            <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
+              These should have been set up after exchange — confirm they're in place
+            </p>
+          </div>
+          {beforeList.map((item, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-4 px-5 py-4"
+              style={{ borderBottom: i < beforeList.length - 1 ? `1px solid ${P.border}` : undefined }}
+            >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.warningBg }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.warning} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>{item.text}</p>
+                {item.sub && <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: P.textMuted }}>{item.sub}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Day-of checklist ────────────────────────────────────────── */}
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
         <div className="px-5 pt-5 pb-4" style={{ borderBottom: `1px solid ${P.border}` }}>
           <p className="text-[16px] font-bold" style={{ color: P.textPrimary }}>
-            {isVendor ? "Today's checklist" : "Things to do today"}
-          </p>
-          <p className="text-[13px] mt-0.5" style={{ color: P.textMuted }}>
-            {isVendor ? "Before you hand over the keys" : "When you pick up the keys"}
+            {isVendor ? "On the day — before you hand over the keys" : "On the day — when you pick up the keys"}
           </p>
         </div>
         {checklist.map((item, i) => (
@@ -159,23 +200,14 @@ export default async function PortalCompletePage({
             className="flex items-start gap-4 px-5 py-4"
             style={{ borderBottom: i < checklist.length - 1 ? `1px solid ${P.border}` : undefined }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: P.successBg }}
-            >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
-                {item.text}
-              </p>
-              {item.sub && (
-                <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: P.textMuted }}>
-                  {item.sub}
-                </p>
-              )}
+              <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>{item.text}</p>
+              {item.sub && <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: P.textMuted }}>{item.sub}</p>}
             </div>
           </div>
         ))}
