@@ -15,6 +15,8 @@ import {
   markNotRequiredWithCascade,
   reverseMilestoneWithCascade,
 } from "@/lib/services/milestones";
+import { pushToTransaction } from "@/lib/services/push";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 
 /**
  * Confirm a milestone (and any implied predecessors) for a transaction.
@@ -48,6 +50,11 @@ export async function confirmMilestoneAction(input: {
     );
   }
 
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+
   const result = await completeMilestone({
     transactionId: input.transactionId,
     milestoneDefinitionId: input.milestoneDefinitionId,
@@ -57,6 +64,16 @@ export async function confirmMilestoneAction(input: {
   });
 
   revalidateTx(input.transactionId);
+
+  // Push to subscribed portal contacts (fire-and-forget)
+  if (def) {
+    const label = getMilestoneCopy(def.code).label;
+    pushToTransaction(input.transactionId, {
+      title: "Progress update",
+      body: `"${label}" is complete.`,
+      urlPath: "/progress",
+    }).catch(() => {});
+  }
 
   return result;
 }
