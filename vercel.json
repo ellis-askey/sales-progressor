@@ -5,6 +5,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/morning-digest",
+      "schedule": "0 8 * * 1-5"
+    },
+    {
       "path": "/api/cron/check-domains",
       "schedule": "0 2 * * *"
     }

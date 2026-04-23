@@ -1,6 +1,7 @@
 // app/admin/page.tsx
 // Admin panel: manage agent fee structures
 
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -46,7 +47,15 @@ export default async function AdminPage() {
 
   return (
     <AppShell session={session} activePath="/admin" todoCount={todoCount}>
-      <PageHeader title="Admin" subtitle="Agency settings and configuration" />
+      <PageHeader
+        title="Admin"
+        subtitle="Agency settings and configuration"
+        action={
+          <Link href="/admin/audit" className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors font-medium">
+            View audit trail →
+          </Link>
+        }
+      />
       <div className="px-8 py-7 space-y-10 max-w-5xl">
 
         {/* Agent accounts */}

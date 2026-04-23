@@ -33,7 +33,11 @@ export async function saveCompletionDateAction(transactionId: string, completion
   revalidateTx(transactionId);
 }
 
-export async function changeStatusAction(transactionId: string, status: TransactionStatus) {
+export async function changeStatusAction(
+  transactionId: string,
+  status: TransactionStatus,
+  fallThroughReason?: string | null
+) {
   const session = await requireSession();
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId: session.user.agencyId },
@@ -42,14 +46,24 @@ export async function changeStatusAction(transactionId: string, status: Transact
   if (!tx) throw new Error("Transaction not found");
   if (tx.status === status) return;
 
-  await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { status } });
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: {
+      status,
+      fallThroughReason: status === "withdrawn" ? (fallThroughReason ?? null) : null,
+    },
+  });
+
+  const reasonNote = status === "withdrawn" && fallThroughReason
+    ? ` Reason: ${fallThroughReason}.`
+    : "";
 
   await prisma.communicationRecord.create({
     data: {
       transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${session.user.name} changed status from ${STATUS_LABELS[tx.status]} to ${STATUS_LABELS[status]}.`,
+      content: `${session.user.name} changed status from ${STATUS_LABELS[tx.status]} to ${STATUS_LABELS[status]}.${reasonNote}`,
       createdById: session.user.id,
     },
   });

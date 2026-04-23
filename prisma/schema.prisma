@@ -103,6 +103,7 @@ model PropertyTransaction {
   agentFeePercent              Decimal?
   agentFeeIsVatInclusive       Boolean?
   notes                        String?
+  fallThroughReason            String?
   vendorSolicitorFirmId        String?
   vendorSolicitorContactId     String?
   purchaserSolicitorFirmId     String?
