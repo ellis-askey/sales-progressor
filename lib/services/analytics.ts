@@ -130,3 +130,43 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
     conversionRate,
   };
 }
+
+export type ReferralStat = {
+  firmId: string;
+  firmName: string;
+  referralCount: number;
+  feeExpectedPence: number;
+  feeReceivedPence: number;
+  pendingCount: number;
+};
+
+export async function getReferralStats(agencyId: string): Promise<ReferralStat[]> {
+  const rows = await prisma.propertyTransaction.findMany({
+    where: { agencyId, referredFirmId: { not: null } },
+    select: {
+      referralFee: true,
+      referralFeeReceived: true,
+      referredFirm: { select: { id: true, name: true } },
+    },
+  });
+
+  const map = new Map<string, ReferralStat>();
+  for (const r of rows) {
+    if (!r.referredFirm) continue;
+    const existing = map.get(r.referredFirm.id) ?? {
+      firmId: r.referredFirm.id,
+      firmName: r.referredFirm.name,
+      referralCount: 0,
+      feeExpectedPence: 0,
+      feeReceivedPence: 0,
+      pendingCount: 0,
+    };
+    existing.referralCount++;
+    existing.feeExpectedPence += r.referralFee ?? 0;
+    if (r.referralFeeReceived) existing.feeReceivedPence += r.referralFee ?? 0;
+    else existing.pendingCount++;
+    map.set(r.referredFirm.id, existing);
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);
+}

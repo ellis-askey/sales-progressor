@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { getAnalytics } from "@/lib/services/analytics";
+import { getAnalytics, getReferralStats } from "@/lib/services/analytics";
 import { AppShell } from "@/components/layout/AppShell";
 import { getWorkQueueCounts } from "@/lib/services/tasks";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
@@ -88,8 +88,9 @@ function StatCard({ label, value, sub, color = "text-slate-900/90" }: {
 
 export default async function AnalyticsPage() {
   const session = await requireSession();
-  const [data, taskCounts, todoCount] = await Promise.all([
+  const [data, referralStats, taskCounts, todoCount] = await Promise.all([
     getAnalytics(session.user.agencyId),
+    getReferralStats(session.user.agencyId),
     getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
   ]);
@@ -201,6 +202,59 @@ export default async function AnalyticsPage() {
             );
           })}
         </div>
+
+        {/* ── Referral income ── */}
+        {referralStats.length > 0 && (
+          <div className="glass-card">
+            <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900/90">Referral income</p>
+                <p className="text-xs text-slate-900/40 mt-0.5">Conveyancer recommendations and fee tracking</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-emerald-600">
+                  {fmt(referralStats.reduce((s, r) => s + r.feeReceivedPence, 0))}
+                </p>
+                <p className="text-xs text-slate-900/40">received</p>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-slate-900/40 uppercase tracking-wide border-b border-white/10">
+                  <th className="px-5 py-3 text-left font-medium">Firm</th>
+                  <th className="px-5 py-3 text-right font-medium">Referrals</th>
+                  <th className="px-5 py-3 text-right font-medium">Expected</th>
+                  <th className="px-5 py-3 text-right font-medium">Received</th>
+                  <th className="px-5 py-3 text-right font-medium">Pending</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/15">
+                {referralStats.map((r) => {
+                  const pending = r.feeExpectedPence - r.feeReceivedPence;
+                  return (
+                    <tr key={r.firmId} className="hover:bg-white/20">
+                      <td className="px-5 py-3.5 font-medium text-slate-900/80">{r.firmName}</td>
+                      <td className="px-5 py-3.5 text-right text-slate-900/60">{r.referralCount}</td>
+                      <td className="px-5 py-3.5 text-right text-slate-900/60">
+                        {r.feeExpectedPence > 0 ? fmt(r.feeExpectedPence) : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-medium text-emerald-600">
+                        {r.feeReceivedPence > 0 ? fmt(r.feeReceivedPence) : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        {pending > 0 ? (
+                          <span className="text-amber-600 font-medium">{fmt(pending)}</span>
+                        ) : (
+                          <span className="text-slate-900/30">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
       </div>
     </AppShell>
