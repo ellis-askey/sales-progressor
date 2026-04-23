@@ -54,6 +54,8 @@ export default async function PortalLayout({
   // Log portal view (fire-and-forget — never blocks render)
   logPortalView(token).catch(() => {});
 
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
   return (
     <PortalShell
       token={token}
@@ -61,6 +63,7 @@ export default async function PortalLayout({
       roleType={contact.roleType}
       propertyAddress={transaction.propertyAddress}
       agencyName={transaction.agencyName}
+      vapidPublicKey={vapidPublicKey}
     >
       {children}
     </PortalShell>

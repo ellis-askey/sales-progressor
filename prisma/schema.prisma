@@ -174,7 +174,19 @@ model Contact {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  transaction PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
+  transaction       PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
+  pushSubscriptions PortalPushSubscription[]
+}
+
+model PortalPushSubscription {
+  id        String   @id @default(cuid())
+  contactId String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 }
 
 model SolicitorFirm {

@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { CommType, CommMethod } from "@prisma/client";
+import { pushToTransaction } from "@/lib/services/push";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,6 +144,18 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       where: { id: input.chaseTaskId },
       data: { chaseCount: { increment: 1 } },
     });
+  }
+
+  // Fire push notification to subscribed contacts when a client-visible update is logged
+  if (input.visibleToClient) {
+    const preview = input.content.length > 100
+      ? input.content.slice(0, 97) + "…"
+      : input.content;
+    pushToTransaction(input.transactionId, {
+      title: "New update on your property",
+      body: preview,
+      urlPath: "/updates",
+    }).catch(() => {});
   }
 
   return record;

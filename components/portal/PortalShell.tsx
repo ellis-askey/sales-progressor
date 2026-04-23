@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { P } from "./portal-ui";
 import { PortalInstallPrompt } from "./PortalInstallPrompt";
+import { PortalPushPrompt } from "./PortalPushPrompt";
 
 type Props = {
   token: string;
@@ -11,10 +12,11 @@ type Props = {
   roleType: string;
   propertyAddress: string;
   agencyName: string;
+  vapidPublicKey: string;
   children: React.ReactNode;
 };
 
-export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, children }: Props) {
+export function PortalShell({ token, contactName, roleType, propertyAddress, agencyName, vapidPublicKey, children }: Props) {
   const pathname = usePathname();
   const base = `/portal/${token}`;
 
@@ -64,6 +66,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">
         <PortalInstallPrompt />
+        <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
         {children}
       </main>
 
