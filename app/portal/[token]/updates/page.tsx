@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getPortalData, getPortalUpdates } from "@/lib/services/portal";
+import { getPortalData, getPortalTimeline } from "@/lib/services/portal";
+import type { TimelineEntry } from "@/lib/services/portal";
 import { P } from "@/components/portal/portal-ui";
 
 type MethodStyle = { label: string; bg: string; color: string };
@@ -22,26 +23,31 @@ function groupLabel(date: Date): string {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7)  return "This week";
   if (diffDays < 14) return "Last week";
-
   return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 }
 
-type UpdateEntry = { id: string; content: string; createdAt: Date; method: string | null };
-
-function groupUpdates(updates: UpdateEntry[]): { label: string; items: UpdateEntry[] }[] {
-  const groups: { label: string; items: UpdateEntry[] }[] = [];
+function groupTimeline(entries: TimelineEntry[]): { label: string; items: TimelineEntry[] }[] {
+  const groups: { label: string; items: TimelineEntry[] }[] = [];
   const seen = new Set<string>();
 
-  for (const u of updates) {
-    const label = groupLabel(u.createdAt);
+  for (const e of entries) {
+    const label = groupLabel(e.createdAt);
     if (!seen.has(label)) {
       seen.add(label);
       groups.push({ label, items: [] });
     }
-    groups[groups.length - 1].items.push(u);
+    groups[groups.length - 1].items.push(e);
   }
 
   return groups;
+}
+
+function fmtTime(d: Date) {
+  return new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtDate(d: Date) {
+  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
 export default async function PortalUpdatesPage({
@@ -54,13 +60,15 @@ export default async function PortalUpdatesPage({
   if (!data) notFound();
 
   const { contact, transaction } = data;
-  const updates = await getPortalUpdates(transaction.id);
-  const saleWord = contact.roleType === "vendor" ? "sale" : "purchase";
-  const groups = groupUpdates(updates);
+  const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const saleWord  = side === "vendor" ? "sale" : "purchase";
+
+  const timeline = await getPortalTimeline(transaction.id, side);
+  const groups   = groupTimeline(timeline);
 
   return (
     <div className="space-y-5">
-      {updates.length === 0 ? (
+      {timeline.length === 0 ? (
         <div
           className="rounded-2xl px-5 py-10 text-center"
           style={{ background: P.cardBg, boxShadow: P.shadowSm }}
@@ -77,7 +85,7 @@ export default async function PortalUpdatesPage({
             No updates yet
           </p>
           <p className="text-[14px]" style={{ color: P.textSecondary }}>
-            Your agent will post {saleWord} updates here as things progress.
+            Milestone progress and {saleWord} updates will appear here.
           </p>
         </div>
       ) : (
@@ -91,15 +99,48 @@ export default async function PortalUpdatesPage({
             </p>
 
             <div className="space-y-2">
-              {group.items.map((u) => {
-                const method = u.method ? METHOD_STYLES[u.method] : null;
+              {group.items.map((entry) => {
+                if (entry.type === "milestone") {
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex items-start gap-3.5 rounded-2xl px-5 py-4"
+                      style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+                    >
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{ background: P.successBg }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                          {entry.label}
+                        </p>
+                        <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
+                          {entry.confirmedByClient
+                            ? "Confirmed by you"
+                            : entry.completedByName
+                              ? `Confirmed by ${entry.completedByName}`
+                              : "Milestone confirmed"}
+                          {" · "}
+                          {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // type === "update"
+                const method = entry.method ? METHOD_STYLES[entry.method] : null;
                 return (
                   <div
-                    key={u.id}
+                    key={entry.id}
                     className="rounded-2xl px-5 py-4"
-                    style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+                    style={{ background: P.cardBg, boxShadow: P.shadowSm, borderLeft: `3px solid ${P.accent}` }}
                   >
-                    {/* Method pill */}
                     {method && (
                       <span
                         className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
@@ -108,27 +149,14 @@ export default async function PortalUpdatesPage({
                         {method.label}
                       </span>
                     )}
-
-                    {/* Content */}
                     <p
                       className="text-[14px] leading-relaxed whitespace-pre-line"
                       style={{ color: P.textPrimary }}
                     >
-                      {u.content}
+                      {entry.content}
                     </p>
-
-                    {/* Timestamp */}
                     <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
-                      {new Date(u.createdAt).toLocaleDateString("en-GB", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}
-                      {" · "}
-                      {new Date(u.createdAt).toLocaleTimeString("en-GB", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
                     </p>
                   </div>
                 );

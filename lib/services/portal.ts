@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 
 // Mirror of DIRECT_PREREQUISITES from milestones.ts — only the immediate
 // predecessors that must be complete before a milestone is available to confirm.
@@ -485,6 +486,137 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
         ctaUrl: portalUrl,
       }),
     }).catch(() => {});
+  }
+}
+
+export type TimelineEntry =
+  | {
+      type: "milestone";
+      id: string;
+      label: string;
+      completedByName: string | null;
+      confirmedByClient: boolean;
+      createdAt: Date;
+    }
+  | {
+      type: "update";
+      id: string;
+      content: string;
+      method: string | null;
+      createdAt: Date;
+    };
+
+export async function getPortalTimeline(
+  transactionId: string,
+  side: "vendor" | "purchaser"
+): Promise<TimelineEntry[]> {
+  return withRetry(async () => {
+    const [completions, updates] = await Promise.all([
+      prisma.milestoneCompletion.findMany({
+        where: { transactionId, isActive: true, isNotRequired: false },
+        include: {
+          milestoneDefinition: { select: { code: true, side: true } },
+          completedBy: { select: { name: true } },
+        },
+        orderBy: { completedAt: "desc" },
+      }),
+      prisma.communicationRecord.findMany({
+        where: { transactionId, visibleToClient: true },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, content: true, method: true, createdAt: true },
+      }),
+    ]);
+
+    const milestoneEntries: TimelineEntry[] = completions
+      .filter((c) => c.milestoneDefinition.side === side)
+      .map((c) => ({
+        type: "milestone" as const,
+        id: c.id,
+        label: getMilestoneCopy(c.milestoneDefinition.code).label,
+        completedByName: c.completedBy?.name ?? null,
+        confirmedByClient: c.statusReason === "Confirmed by client via portal",
+        createdAt: c.completedAt,
+      }));
+
+    const updateEntries: TimelineEntry[] = updates.map((u) => ({
+      type: "update" as const,
+      id: u.id,
+      content: u.content,
+      method: u.method,
+      createdAt: u.createdAt,
+    }));
+
+    const all = [...milestoneEntries, ...updateEntries];
+    all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return all;
+  });
+}
+
+// Only these codes may be marked not-required by the client, with their cascades
+const PORTAL_NOT_REQUIRED_WHITELIST: Record<string, string[]> = {
+  PM7: ["PM20"],
+};
+
+export async function portalMarkNotRequired(input: {
+  token: string;
+  milestoneDefinitionId: string;
+}) {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+  });
+  if (!contact) throw new Error("Invalid token");
+
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+
+  const def = await prisma.milestoneDefinition.findFirst({
+    where: { id: input.milestoneDefinitionId, side },
+    select: { id: true, code: true },
+  });
+  if (!def) throw new Error("Milestone not found");
+
+  const cascadeCodes = PORTAL_NOT_REQUIRED_WHITELIST[def.code];
+  if (!cascadeCodes) throw new Error("Cannot mark this milestone as not required from the portal");
+
+  const now = new Date();
+  const txId = contact.propertyTransactionId;
+
+  await prisma.milestoneCompletion.updateMany({
+    where: { transactionId: txId, milestoneDefinitionId: def.id, isActive: true },
+    data: { isActive: false },
+  });
+  await prisma.milestoneCompletion.create({
+    data: {
+      transactionId: txId,
+      milestoneDefinitionId: def.id,
+      isActive: true,
+      isNotRequired: true,
+      completedAt: now,
+      statusReason: "Marked not required by client via portal",
+    },
+  });
+
+  if (cascadeCodes.length > 0) {
+    const cascadeDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: cascadeCodes }, side },
+      select: { id: true },
+    });
+    for (const cd of cascadeDefs) {
+      await prisma.milestoneCompletion.updateMany({
+        where: { transactionId: txId, milestoneDefinitionId: cd.id, isActive: true },
+        data: { isActive: false },
+      });
+      await prisma.milestoneCompletion.create({
+        data: {
+          transactionId: txId,
+          milestoneDefinitionId: cd.id,
+          isActive: true,
+          isNotRequired: true,
+          completedAt: now,
+          statusReason: "Cascade: not required (survey skipped via portal)",
+        },
+      });
+    }
   }
 }
 

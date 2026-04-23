@@ -2,7 +2,7 @@
 
 import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
-import { portalConfirmMilestoneAction } from "@/app/actions/portal";
+import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 
 type Milestone = {
   id: string;
@@ -61,12 +61,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     (current, confirmedId: string) =>
       current.map((m) => m.id !== confirmedId ? m : { ...m, isComplete: true })
   );
-  const [confirming, setConfirming]       = useState<string | null>(null);
-  const [eventDate, setEventDate]         = useState("");
-  const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState<string | null>(null);
-  const [showOtherSide, setShowOtherSide] = useState(false);
-  const [helpMilestone, setHelpMilestone] = useState<Milestone | null>(null);
+  const [confirming, setConfirming]         = useState<string | null>(null);
+  const [eventDate, setEventDate]           = useState("");
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState<string | null>(null);
+  const [showOtherSide, setShowOtherSide]   = useState(false);
+  const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
+  const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
+  const [skipLoading, setSkipLoading]       = useState(false);
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -121,6 +123,21 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         setConfirming(milestoneId);
       } finally {
         setLoading(false);
+      }
+    });
+  }
+
+  function skipSurvey(milestoneId: string) {
+    setSkipSurveyId(null);
+    setSkipLoading(true);
+    startTransition(async () => {
+      addOptimistic(milestoneId);
+      try {
+        await portalMarkNotRequiredAction({ token, milestoneDefinitionId: milestoneId });
+      } catch {
+        // survey skip failed — page will revalidate and show correct state
+      } finally {
+        setSkipLoading(false);
       }
     });
   }
@@ -213,13 +230,24 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                           )}
 
                           {canConfirm && (
-                            <button
-                              onClick={() => openSheet(m.id)}
-                              className="flex-shrink-0 self-center px-4 py-2 rounded-xl text-[13px] font-bold"
-                              style={{ background: P.primaryBg, color: P.primaryText }}
-                            >
-                              Confirm
-                            </button>
+                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-center">
+                              <button
+                                onClick={() => openSheet(m.id)}
+                                className="px-4 py-2 rounded-xl text-[13px] font-bold"
+                                style={{ background: P.primaryBg, color: P.primaryText }}
+                              >
+                                Confirm
+                              </button>
+                              {m.code === "PM7" && (
+                                <button
+                                  onClick={() => setSkipSurveyId(m.id)}
+                                  className="text-[11px] font-medium underline"
+                                  style={{ color: P.textMuted }}
+                                >
+                                  Skip survey
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -340,6 +368,63 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom sheet: skip survey ────────────────────────── */}
+      {skipSurveyId && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setSkipSurveyId(null)}>
+          <div className="absolute inset-0" style={{ background: "rgba(15,23,42,0.45)" }} />
+          <div
+            className="relative w-full max-w-lg mx-auto"
+            style={{
+              background: "#FFFFFF",
+              borderRadius: `${P.radiusXl} ${P.radiusXl} 0 0`,
+              boxShadow: P.shadowXl,
+              paddingBottom: "env(safe-area-inset-bottom, 16px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(139,145,163,0.30)" }} />
+            </div>
+            <button
+              onClick={() => setSkipSurveyId(null)}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(15,23,42,0.06)", color: P.textMuted }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <div className="px-6 pb-6 pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1" style={{ color: P.warning }}>
+                Skip survey
+              </p>
+              <p className="text-[18px] font-semibold leading-snug mb-3" style={{ color: P.textPrimary }}>
+                Not getting a survey?
+              </p>
+              <p className="text-[14px] leading-relaxed mb-6" style={{ color: P.textSecondary }}>
+                This will mark both "Book your survey" and "Survey report received" as not required. You can still proceed without a survey — this just removes those steps from your progress list.
+              </p>
+              <button
+                onClick={() => skipSurvey(skipSurveyId!)}
+                disabled={skipLoading}
+                className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
+                style={{ background: P.warning, borderRadius: P.radiusMd }}
+              >
+                {skipLoading ? "Saving…" : "Yes, skip the survey"}
+              </button>
+              <button
+                onClick={() => setSkipSurveyId(null)}
+                disabled={skipLoading}
+                className="w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
+                style={{ color: P.textSecondary }}
+              >
+                Cancel
               </button>
             </div>
           </div>
