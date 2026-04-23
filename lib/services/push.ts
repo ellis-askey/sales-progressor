@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 function getWebPush() {
   const pub     = process.env.VAPID_PUBLIC_KEY;
   const priv    = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@thesalesprogressor.co.uk";
+  const subject = process.env.VAPID_SUBJECT ?? "mailto:inbox@thesalesprogressor.co.uk";
 
   if (!pub || !priv) return null;
 
