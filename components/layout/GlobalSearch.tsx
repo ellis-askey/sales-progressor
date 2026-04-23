@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { SearchResult } from "@/app/api/search/route";
 
@@ -114,8 +115,8 @@ export function GlobalSearch() {
     </button>
   );
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh]" onClick={() => setOpen(false)}>
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh]" onClick={() => setOpen(false)}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
@@ -235,7 +236,8 @@ export function GlobalSearch() {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

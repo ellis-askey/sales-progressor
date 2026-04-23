@@ -8,7 +8,8 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const STORAGE_KEY = "portal-install-dismissed";
+const STORAGE_KEY   = "portal-install-dismissed";
+const SUBSCRIBED_KEY = "portal-push-subscribed";
 
 export function PortalInstallPrompt() {
   const [ready, setReady] = useState(false);
@@ -23,8 +24,9 @@ export function PortalInstallPrompt() {
       ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
     if (standalone) return;
 
-    // Already dismissed
+    // Already dismissed or already subscribed to push (implies they went through the full flow)
     if (localStorage.getItem(STORAGE_KEY) === "1") return;
+    if (localStorage.getItem(SUBSCRIBED_KEY) === "1") return;
 
     const ua = navigator.userAgent;
     if (/iPad|iPhone|iPod/.test(ua)) {

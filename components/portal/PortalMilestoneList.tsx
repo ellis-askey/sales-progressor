@@ -218,7 +218,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                           </div>
 
-                          {m.description && (
+                          {m.description && !canConfirm && (
                             <button
                               onClick={() => setHelpMilestone(m)}
                               className="flex-shrink-0 self-center w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold"

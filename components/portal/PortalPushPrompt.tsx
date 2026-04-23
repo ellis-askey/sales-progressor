@@ -12,15 +12,22 @@ export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vap
   useEffect(() => {
     if (localStorage.getItem(DISMISSED_KEY) || localStorage.getItem(SUBSCRIBED_KEY)) return;
 
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
+
     const pushSupported =
       typeof Notification !== "undefined" &&
       "serviceWorker" in navigator &&
       "PushManager" in window;
 
     if (!pushSupported) {
-      // Only surface this to iOS users — they may not know they need a newer version
+      // Only show "unsupported" when running as an installed PWA (standalone) but push
+      // still isn't available — that means a genuinely old iOS version.
+      // In Safari (non-standalone), push is always absent even on new iPhones,
+      // so we stay silent and let PortalInstallPrompt handle directing them.
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if (isIOS) {
+      if (isIOS && isStandalone) {
         const t = setTimeout(() => { setStatus("unsupported"); setShow(true); }, 3000);
         return () => clearTimeout(t);
       }
