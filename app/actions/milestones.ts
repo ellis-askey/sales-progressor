@@ -64,6 +64,7 @@ export async function confirmMilestoneAction(input: {
   });
 
   revalidateTx(input.transactionId);
+  revalidatePath("/portal", "layout");
 
   // Push to subscribed portal contacts (fire-and-forget)
   if (def) {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPortalData, getPortalMilestones, getPortalUpdates } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, getPortalTimeline } from "@/lib/services/portal";
+import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
@@ -61,9 +62,9 @@ export default async function PortalHomePage({
   const side     = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const saleWord = side === "vendor" ? "sale" : "purchase";
 
-  const [rawMilestones, updates] = await Promise.all([
+  const [rawMilestones, timeline] = await Promise.all([
     getPortalMilestones(transaction.id, side),
-    getPortalUpdates(transaction.id),
+    getPortalTimeline(transaction.id, side, contact.id),
   ]);
 
   const milestones = rawMilestones.map((m) => ({
@@ -86,8 +87,8 @@ export default async function PortalHomePage({
   const nextAfter  = available[1] ?? null;
   const comingUp   = available.slice(2, 5);
 
-  const keyDates      = milestones.filter((m) => m.timeSensitive && m.eventDate && m.isComplete);
-  const recentUpdates = updates.slice(0, 3);
+  const keyDates     = milestones.filter((m) => m.timeSensitive && m.eventDate && m.isComplete);
+  const recentActivity = timeline.slice(0, 3);
 
   const stage = detectStage(milestones, side);
   const tips  = getStageTips(stage, side, token);
@@ -299,29 +300,43 @@ export default async function PortalHomePage({
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
           <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
-          {recentUpdates.length > 0 && (
+          {recentActivity.length > 0 && (
             <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
               See all
             </Link>
           )}
         </div>
-        {recentUpdates.length === 0 ? (
+        {recentActivity.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <p className="text-[14px]" style={{ color: P.textSecondary }}>
               Your team will share {saleWord} updates here.
             </p>
           </div>
         ) : (
-          recentUpdates.map((u, i) => (
+          recentActivity.map((entry: TimelineEntry, i) => (
             <div
-              key={u.id}
-              className="px-5 py-4"
-              style={{ borderBottom: i < recentUpdates.length - 1 ? `1px solid ${P.border}` : undefined }}
+              key={entry.id}
+              className="px-5 py-4 flex items-start gap-3"
+              style={{ borderBottom: i < recentActivity.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
-              <p className="text-[14px] leading-relaxed" style={{ color: P.textPrimary }}>{u.content}</p>
-              <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>
-                {fmtDateShort(u.createdAt)}
-              </p>
+              {entry.type === "milestone" ? (
+                <>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: P.successBg }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>{entry.label}</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt)}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] leading-relaxed" style={{ color: P.textPrimary }}>{entry.content}</p>
+                  <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt)}</p>
+                </div>
+              )}
             </div>
           ))
         )}

@@ -192,7 +192,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 <div>
                   {groupMilestones.map((m, mIdx) => {
                     const isLast       = mIdx === groupMilestones.length - 1;
-                    const canConfirm   = !m.isComplete && !m.isNotRequired && m.isAvailable && m.who === "you";
+                    const canConfirm   = !m.isComplete && !m.isNotRequired && m.isAvailable;
                     const isLocked     = !m.isComplete && !m.isNotRequired && !m.isAvailable;
 
                     return (
@@ -466,7 +466,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {confirmingMilestone.timeSensitive ? "When is this happening?" : "Mark this step as done?"}
+                {confirmingMilestone.timeSensitive
+                  ? "When is this happening?"
+                  : confirmingMilestone.who === "you"
+                    ? "Mark this step as done?"
+                    : "Has this happened?"}
               </p>
 
               {confirmingMilestone.timeSensitive && (
@@ -494,7 +498,13 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
-                {loading ? "Saving…" : confirmingMilestone.timeSensitive ? "Confirm date" : "Yes, it's done"}
+                {loading
+                  ? "Saving…"
+                  : confirmingMilestone.timeSensitive
+                    ? "Confirm date"
+                    : confirmingMilestone.who === "you"
+                      ? "Yes, it's done"
+                      : "Yes, this has happened"}
               </button>
               <button
                 onClick={closeSheet}

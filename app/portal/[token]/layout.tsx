@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata, Viewport } from "next";
 import { getPortalData, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
+import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -66,6 +67,7 @@ export default async function PortalLayout({
       agencyName={transaction.agencyName}
       vapidPublicKey={vapidPublicKey}
     >
+      <PortalAutoRefresh />
       {children}
     </PortalShell>
   );

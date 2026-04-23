@@ -571,7 +571,9 @@ export async function getPortalTimeline(
     const milestoneEntries: TimelineEntry[] = completions
       .filter((c) => {
         if (c.milestoneDefinition.side !== side) return false;
-        // Only show key events: time-sensitive (survey, exchange, completion dates) + exchange + completion
+        // Admin/progressor confirmed → always show (client wants to see progress their team made)
+        if (c.statusReason !== "Confirmed by client via portal") return true;
+        // Client self-confirmed → only show key events (time-sensitive dates, exchange, completion)
         return c.milestoneDefinition.timeSensitive || KEY_MILESTONE_CODES.has(c.milestoneDefinition.code);
       })
       .map((c) => ({
