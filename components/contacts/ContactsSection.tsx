@@ -5,7 +5,7 @@
 
 import { useState, useTransition } from "react";
 import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
-import { createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contacts";
+import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -88,6 +88,7 @@ export function ContactsSection({
   const [editSaving, setEditSaving] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
   const [inviteSent, setInviteSent] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState<string | null>(null);
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -109,6 +110,15 @@ export function ContactsSection({
       setTimeout(() => setInviteSent(null), 3000);
     } finally {
       setInviting(null);
+    }
+  }
+
+  async function setupPortalToken(contactId: string) {
+    setGeneratingToken(contactId);
+    try {
+      await generatePortalTokenAction(contactId, transactionId);
+    } finally {
+      setGeneratingToken(null);
     }
   }
 
@@ -240,61 +250,75 @@ export function ContactsSection({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${ROLE_AVATAR[role] ?? "bg-white/20 text-slate-900/50"}`}>
-                        {initials}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-white/20 text-slate-900/50 border-white/20"}`}>
-                            {CONTACT_ROLE_LABELS[role]}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          {contact.email && (
-                            <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
-                              <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
-                              {contact.email}
-                            </a>
-                          )}
-                          {contact.phone && (
-                            <a href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
-                              <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
-                              {contact.phone}
-                            </a>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex gap-3.5">
+                    {/* Avatar */}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5 ${ROLE_AVATAR[role] ?? "bg-white/20 text-slate-900/50"}`}>
+                      {initials}
                     </div>
-                    <div className="ml-4 flex flex-col items-end gap-1.5 flex-shrink-0">
-                      {contact.portalToken && (role === "vendor" || role === "purchaser") && (
-                        <div className="flex items-center gap-2">
-                          {contact.email && (
-                            <button
-                              onClick={() => sendInvite(contact.portalToken!, contact.id)}
-                              disabled={inviting === contact.id}
-                              className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap disabled:opacity-50"
-                            >
-                              {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => copyPortalLink(contact.portalToken!)}
-                            className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
-                            title="Copy portal link"
-                          >
-                            {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
-                          </button>
-                        </div>
-                      )}
-                      {contact.portalToken && (role === "vendor" || role === "purchaser") && portalViewDates[contact.id] && (
-                        <span className="text-[10px] text-slate-900/35">
-                          Viewed {fmtRelative(portalViewDates[contact.id])}
+                    {/* Info + actions */}
+                    <div className="flex-1 min-w-0">
+                      {/* Name row */}
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-white/20 text-slate-900/50 border-white/20"}`}>
+                          {CONTACT_ROLE_LABELS[role]}
                         </span>
-                      )}
-                      <div className="flex items-center gap-2">
+                        {contact.portalToken && portalViewDates[contact.id] && (
+                          <span className="text-[10px] text-slate-900/35 ml-auto">
+                            Viewed {fmtRelative(portalViewDates[contact.id])}
+                          </span>
+                        )}
+                      </div>
+                      {/* Contact details */}
+                      <div className="flex flex-col gap-0.5 mb-2.5">
+                        {contact.email && (
+                          <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
+                            <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
+                            <span className="truncate">{contact.email}</span>
+                          </a>
+                        )}
+                        {contact.phone && (
+                          <a href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
+                            <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
+                            {contact.phone}
+                          </a>
+                        )}
+                      </div>
+                      {/* Action buttons row */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* Portal actions */}
+                        {(role === "vendor" || role === "purchaser") && (
+                          contact.portalToken ? (
+                            <>
+                              {contact.email && (
+                                <button
+                                  onClick={() => sendInvite(contact.portalToken!, contact.id)}
+                                  disabled={inviting === contact.id}
+                                  className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap disabled:opacity-50"
+                                >
+                                  {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => copyPortalLink(contact.portalToken!)}
+                                className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
+                                title="Copy portal link"
+                              >
+                                {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setupPortalToken(contact.id)}
+                              disabled={generatingToken === contact.id}
+                              className="text-xs text-slate-900/40 hover:text-blue-500 transition-colors whitespace-nowrap disabled:opacity-40"
+                            >
+                              {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
+                            </button>
+                          )
+                        )}
+                        {/* Divider */}
+                        <span className="text-slate-900/15 text-xs">·</span>
                         <button
                           onClick={() => startEdit(contact)}
                           className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"

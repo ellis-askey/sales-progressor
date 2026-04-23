@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 
 function revalidateTx(id: string) {
   revalidatePath(`/transactions/${id}`, "page");
@@ -48,5 +49,20 @@ export async function updateContactAction(input: {
 export async function deleteContactAction(contactId: string, transactionId: string) {
   const session = await requireSession();
   await deleteContact(contactId, session.user.agencyId);
+  revalidateTx(transactionId);
+}
+
+export async function generatePortalTokenAction(contactId: string, transactionId: string) {
+  const session = await requireSession();
+  const existing = await prisma.contact.findFirst({
+    where: { id: contactId, transaction: { agencyId: session.user.agencyId } },
+    select: { id: true, portalToken: true },
+  });
+  if (!existing) throw new Error("Contact not found");
+  if (existing.portalToken) return; // already has one
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: { portalToken: randomUUID() },
+  });
   revalidateTx(transactionId);
 }

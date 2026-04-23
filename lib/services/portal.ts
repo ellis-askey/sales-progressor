@@ -8,7 +8,7 @@ import { getMilestoneCopy } from "@/lib/portal-copy";
 // predecessors that must be complete before a milestone is available to confirm.
 const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM2: ["VM1"], VM3: ["VM1"], VM14: ["VM1"], VM15: ["VM1"],
-  VM4: ["VM15"], VM5: ["VM4"], VM6: ["VM5"], VM7: ["VM6"],
+  VM4: ["VM15"], VM5: ["VM4"], VM6: ["VM4"], VM7: ["VM6"],
   VM16: ["VM5"], VM17: ["VM16"], VM8: ["VM17"],
   VM18: ["VM8"], VM19: ["VM18"], VM9: ["VM19"],
   VM10: ["VM5"], VM11: ["VM10"], VM20: ["VM11"],
@@ -290,6 +290,9 @@ export async function logPortalMilestoneConfirm(
   });
   if (!tx?.assignedUser) return;
 
+  // Use client-facing portal copy label for all client communications
+  const portalLabel = milestoneCode ? (getMilestoneCopy(milestoneCode).label ?? milestoneLabel) : milestoneLabel;
+
   const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
 
   await prisma.communicationRecord.create({
@@ -302,7 +305,7 @@ export async function logPortalMilestoneConfirm(
     },
   });
 
-  // Notify the assigned progressor immediately
+  // Notify the assigned progressor — use the admin milestone label
   if (tx.assignedUser.email) {
     const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${transactionId}`;
     sendEmail({
@@ -330,30 +333,34 @@ export async function logPortalMilestoneConfirm(
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);
   const confirmingRole = confirmingContact?.roleType;
 
-  // Thank-you email to the confirming client
+  // Thank-you email to the confirming client — milestone shown in a styled box, not embedded in prose
   if (confirmingContact?.email && confirmingContact.portalToken) {
     const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
     await sendEmail({
       to: confirmingContact.email,
-      subject: `Thank you — "${milestoneLabel}" confirmed`,
+      subject: `Step confirmed — ${tx.propertyAddress}`,
       text: [
-        `Hi ${confirmingContact.name},`,
+        `Hi ${confirmingContact.name.split(" ")[0]},`,
         ``,
-        `Thank you for confirming "${milestoneLabel}" for ${tx.propertyAddress}.`,
-        `Your conveyancing is moving forward.`,
+        `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${tx.propertyAddress}:`,
         ``,
-        `View your portal to see the full progress: ${portalUrl}`,
+        `  ✓ ${portalLabel}`,
+        ``,
+        `Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.`,
+        ``,
+        `View your portal: ${portalUrl}`,
       ].join("\n"),
-      html: portalEmailHtml({
-        greeting: `Hi ${confirmingContact.name},`,
-        body: `Thank you for confirming <strong>"${milestoneLabel}"</strong> for <strong>${tx.propertyAddress}</strong>. Your conveyancing is moving forward.`,
-        ctaText: "View your portal",
-        ctaUrl: portalUrl,
+      html: portalStepConfirmedHtml({
+        firstName: confirmingContact.name.split(" ")[0],
+        address: tx.propertyAddress,
+        saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
+        stepLabel: portalLabel,
+        portalUrl,
       }),
     }).catch(() => {});
   }
 
-  // Notification email to the other side
+  // Notification email to the other side — generic, no milestone detail
   const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
   const otherContacts = tx.contacts.filter(
     (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
@@ -364,17 +371,15 @@ export async function logPortalMilestoneConfirm(
       to: other.email!,
       subject: `Progress update — ${tx.propertyAddress}`,
       text: [
-        `Hi ${other.name},`,
+        `Hi ${other.name.split(" ")[0]},`,
         ``,
-        `There has been a progress update on your transaction at ${tx.propertyAddress}.`,
+        `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${tx.propertyAddress}. Log in to see the latest.`,
         ``,
-        `${confirmingContact?.name ?? contactName} has confirmed "${milestoneLabel}".`,
-        ``,
-        `View your portal to see the full progress: ${portalUrl}`,
+        `View your portal: ${portalUrl}`,
       ].join("\n"),
       html: portalEmailHtml({
-        greeting: `Hi ${other.name},`,
-        body: `There has been a progress update on your transaction at <strong>${tx.propertyAddress}</strong>.<br><br>${confirmingContact?.name ?? contactName} has confirmed <strong>"${milestoneLabel}"</strong>.`,
+        greeting: `Hi ${other.name.split(" ")[0]},`,
+        body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${tx.propertyAddress}</strong>. Log in to your portal to see the latest.`,
         ctaText: "View your portal",
         ctaUrl: portalUrl,
       }),
@@ -388,9 +393,9 @@ export async function logPortalMilestoneConfirm(
   const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
 
   let confirmTitle = "Step confirmed";
-  let confirmBody  = `"${milestoneLabel}" has been recorded. Your transaction is progressing.`;
+  let confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} is progressing — a step has been recorded.`;
   let otherTitle   = "Progress update";
-  let otherBody    = `${confirmingContact?.name ?? contactName} confirmed "${milestoneLabel}".`;
+  let otherBody    = `Your transaction is moving forward. Log in to see the latest.`;
 
   if (isExchange) {
     confirmTitle = "Contracts exchanged!";
@@ -433,6 +438,30 @@ export async function logPortalMilestoneConfirm(
       url: `${base}/portal/${other.portalToken!}/progress`,
     }).catch(() => {});
   }
+}
+
+function portalStepConfirmedHtml({ firstName, address, saleWord, stepLabel, portalUrl }: {
+  firstName: string; address: string; saleWord: string; stepLabel: string; portalUrl: string;
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Step confirmed</h1>
+</div>
+<div style="padding:28px 32px">
+  <p style="margin:0 0 20px;font-size:15px">Hi ${firstName},</p>
+  <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#4a5162">Thanks for confirming the following step on your ${saleWord}:</p>
+  <div style="margin:0 0 24px;padding:14px 18px;background:#F0FDF4;border-left:3px solid #10B981;border-radius:8px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:16px;color:#10B981;flex-shrink:0">✓</span>
+    <span style="font-size:14px;font-weight:600;color:#1a1d29">${stepLabel}</span>
+  </div>
+  <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#4a5162">Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.</p>
+  <p style="margin:0 0 24px">
+    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a>
+  </p>
+  <p style="margin:0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
+</div>
+</body></html>`;
 }
 
 function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
