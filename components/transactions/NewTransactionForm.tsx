@@ -17,7 +17,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
-  const isAgent = userRole === "negotiator";
+  const isAgent = userRole === "negotiator" || userRole === "director";
   const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
   const [form, setForm] = useState({
     streetAddress: "",
