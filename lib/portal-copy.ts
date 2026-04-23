@@ -4,6 +4,7 @@
 export type PortalCopy = {
   label: string;
   who: "you" | "solicitor" | "agent" | "lender";
+  typicalDuration?: string;
 };
 
 const copy: Record<string, PortalCopy> = {
@@ -16,7 +17,7 @@ const copy: Record<string, PortalCopy> = {
   VM4:  { label: "Return completed property forms",          who: "you" },
   VM5:  { label: "Draft contract pack issued",               who: "solicitor" },
   VM6:  { label: "Management pack requested",                who: "solicitor" },
-  VM7:  { label: "Management pack received",                 who: "solicitor" },
+  VM7:  { label: "Management pack received",                 who: "solicitor", typicalDuration: "can take 4–8 weeks" },
   VM16: { label: "Initial enquiries received",               who: "solicitor" },
   VM17: { label: "Provide replies to enquiries",             who: "you" },
   VM8:  { label: "Replies sent to buyer's solicitor",        who: "solicitor" },
@@ -25,7 +26,7 @@ const copy: Record<string, PortalCopy> = {
   VM9:  { label: "Additional replies sent",                  who: "solicitor" },
   VM10: { label: "Contract documents issued to you",         who: "solicitor" },
   VM11: { label: "Sign and return contract documents",       who: "you" },
-  VM20: { label: "Solicitor confirms ready to exchange",     who: "solicitor" },
+  VM20: { label: "Solicitor confirms ready to exchange",     who: "solicitor", typicalDuration: "typically 1–5 days after signing" },
   VM12: { label: "Contracts exchanged",                      who: "agent" },
   VM13: { label: "Sale completed",                           who: "agent" },
 
@@ -35,14 +36,14 @@ const copy: Record<string, PortalCopy> = {
   PM14a:{ label: "Complete ID & AML checks",                 who: "you" },
   PM15a:{ label: "Pay money on account to solicitor",        who: "you" },
   PM4:  { label: "Submit mortgage application",              who: "you" },
-  PM5:  { label: "Lender valuation booked",                  who: "lender" },
+  PM5:  { label: "Lender valuation booked",                  who: "lender",    typicalDuration: "usually 1–2 weeks after application" },
   PM3:  { label: "Draft contract pack received",             who: "solicitor" },
-  PM9:  { label: "Searches ordered",                         who: "solicitor" },
+  PM9:  { label: "Searches ordered",                         who: "solicitor", typicalDuration: "results in 2–6 weeks" },
   PM7:  { label: "Book your survey",                         who: "you" },
   PM20: { label: "Survey report received",                   who: "you" },
-  PM6:  { label: "Mortgage offer received",                  who: "lender" },
+  PM6:  { label: "Mortgage offer received",                  who: "lender",    typicalDuration: "typically 1–3 weeks after valuation" },
   PM8:  { label: "Management pack received",                 who: "solicitor" },
-  PM10: { label: "Search results received",                  who: "solicitor" },
+  PM10: { label: "Search results received",                  who: "solicitor", typicalDuration: "usually 2–6 weeks" },
   PM11: { label: "Initial enquiries raised",                 who: "solicitor" },
   PM21: { label: "Initial replies received",                 who: "solicitor" },
   PM22: { label: "Initial replies reviewed",                 who: "solicitor" },
@@ -54,7 +55,7 @@ const copy: Record<string, PortalCopy> = {
   PM13: { label: "Contract documents issued to you",         who: "solicitor" },
   PM14b:{ label: "Sign and return contract documents",       who: "you" },
   PM15b:{ label: "Transfer the deposit",                     who: "you" },
-  PM27: { label: "Solicitor confirms ready to exchange",     who: "solicitor" },
+  PM27: { label: "Solicitor confirms ready to exchange",     who: "solicitor", typicalDuration: "typically 1–5 days after signing" },
   PM16: { label: "Contracts exchanged",                      who: "agent" },
   PM17: { label: "Purchase completed",                       who: "agent" },
 };

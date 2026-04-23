@@ -269,7 +269,9 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                       visibleToClient ? "translate-x-4" : "translate-x-0"
                     }`} />
                   </div>
-                  <span className="text-xs text-slate-900/50">Share with client</span>
+                  <span className={`text-xs font-medium transition-colors ${visibleToClient ? "text-blue-600" : "text-slate-900/50"}`}>
+                    {visibleToClient ? "Visible in client portal" : "Share with client"}
+                  </span>
                 </label>
               )}
             </div>

@@ -24,34 +24,6 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
   }));
 }
 
-function DonutRing({ percent, size = 120 }: { percent: number; size?: number }) {
-  const r = size / 2 - 10;
-  const circ = 2 * Math.PI * r;
-  const dash = (percent / 100) * circ;
-  const color = percent >= 80 ? "#16A34A" : percent >= 50 ? P.primary : "#D97706";
-  const cx = size / 2;
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke={P.border} strokeWidth="10" />
-      <circle
-        cx={cx} cy={cx} r={r} fill="none"
-        stroke={color} strokeWidth="10"
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cx})`}
-        style={{ transition: "stroke-dasharray 0.7s ease" }}
-      />
-      <text x={cx} y={cx - 6} textAnchor="middle" fontSize={size * 0.18} fontWeight="800" fill={P.textPrimary} fontFamily="-apple-system, sans-serif">
-        {percent}%
-      </text>
-      <text x={cx} y={cx + 12} textAnchor="middle" fontSize={size * 0.1} fill={P.textSecondary} fontFamily="-apple-system, sans-serif">
-        done
-      </text>
-    </svg>
-  );
-}
-
 export default async function PortalProgressPage({
   params,
 }: {
@@ -83,40 +55,30 @@ export default async function PortalProgressPage({
 
   return (
     <div className="space-y-4">
-      {/* ── Progress ring card ───────────────────────────────── */}
-      <div className="rounded-2xl px-5 py-5" style={{ background: P.card, boxShadow: P.shadow }}>
-        <div className="flex items-center gap-5">
-          <DonutRing percent={percent} size={110} />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>
-              {side === "vendor" ? "Sale" : "Purchase"} progress
-            </p>
-            <p className="text-[20px] font-bold leading-tight" style={{ color: P.textPrimary }}>
-              {completed.length} of {preExchange.length}
-              <span className="text-[14px] font-medium ml-1" style={{ color: P.textSecondary }}>steps done</span>
-            </p>
-            {hasExchanged ? (
-              <p className="text-[13px] font-semibold mt-2" style={{ color: "#16A34A" }}>✓ Contracts exchanged</p>
-            ) : nextUp ? (
-              <div className="mt-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: P.textMuted }}>Next</p>
-                <p className="text-[13px] font-semibold" style={{ color: P.primary }}>{nextUp.label}</p>
-              </div>
-            ) : null}
-          </div>
+      {/* ── Progress header ─────────────────────────────────── */}
+      <div className="rounded-2xl px-5 py-4" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>
+            {completed.length} of {preExchange.length} steps done
+          </p>
+          <p className="text-[15px] font-bold" style={{ color: P.accent }}>{percent}%</p>
         </div>
-
-        {/* Thin progress bar below */}
-        <div className="mt-4 w-full rounded-full overflow-hidden" style={{ height: 6, background: P.border }}>
+        <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: P.border }}>
           <div
-            className="h-full rounded-full"
+            className="h-full rounded-full transition-all duration-700"
             style={{
               width: `${percent}%`,
-              background: `linear-gradient(90deg, ${percent >= 80 ? "#16A34A" : percent >= 50 ? P.primary : "#D97706"} 0%, transparent 100%)`,
-              transition: "width 0.7s ease",
+              background: percent >= 80 ? P.success : P.accent,
             }}
           />
         </div>
+        {hasExchanged ? (
+          <p className="text-[12px] mt-3 font-semibold" style={{ color: P.success }}>Contracts exchanged</p>
+        ) : nextUp ? (
+          <p className="text-[12px] mt-3" style={{ color: P.textMuted }}>
+            Next: <span style={{ color: P.textSecondary }}>{nextUp.label}</span>
+          </p>
+        ) : null}
       </div>
 
       {/* ── Grouped milestone sections ───────────────────────── */}

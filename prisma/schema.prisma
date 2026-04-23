@@ -16,11 +16,12 @@ model Agency {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users          User[]
-  transactions   PropertyTransaction[]
-  solicitorFirms SolicitorFirm[]
-  manualTasks    ManualTask[]
-  chains         PropertyChain[]
+  users           User[]
+  transactions    PropertyTransaction[]
+  solicitorFirms  SolicitorFirm[]
+  manualTasks     ManualTask[]
+  chains          PropertyChain[]
+  verifiedDomains VerifiedDomain[]
 }
 
 model User {
@@ -51,8 +52,10 @@ model User {
   accounts             Account[]
   sessions             Session[]
   transactionNotes     TransactionNote[]
-  createdManualTasks   ManualTask[]      @relation("ManualTaskCreator")
-  assignedManualTasks  ManualTask[]      @relation("ManualTaskAssignee")
+  createdManualTasks   ManualTask[]       @relation("ManualTaskCreator")
+  assignedManualTasks  ManualTask[]       @relation("ManualTaskAssignee")
+  createdDomains       VerifiedDomain[]   @relation("DomainCreatedBy")
+  verifiedEmails       UserVerifiedEmail[]
 }
 
 enum UserRole {
@@ -446,6 +449,65 @@ model ChainLink {
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id])
 
   @@index([chainId, position])
+}
+
+// ─── Verified Sending Addresses ───────────────────────────────────────────────
+
+model VerifiedDomain {
+  id               String       @id @default(cuid())
+  agencyId         String
+  domain           String
+  sendgridDomainId Int
+  status           DomainStatus @default(pending)
+  dkimValid        Boolean      @default(false)
+  spfValid         Boolean      @default(false)
+  cnameRecords     Json
+  lastCheckedAt    DateTime?
+  verifiedAt       DateTime?
+  createdByUserId  String
+  createdAt        DateTime     @default(now())
+
+  agency       Agency              @relation(fields: [agencyId], references: [id])
+  createdBy    User                @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
+  userEmails   UserVerifiedEmail[]
+
+  @@unique([agencyId, domain])
+  @@index([agencyId, domain])
+}
+
+enum DomainStatus {
+  pending
+  verified
+  failed
+  removed
+}
+
+model UserVerifiedEmail {
+  id                    String                  @id @default(cuid())
+  userId                String
+  email                 String
+  verifiedDomainId      String?
+  status                EmailVerificationStatus @default(pending_inbox_check)
+  verificationCodeHash  String?
+  verificationToken     String?
+  verificationExpiresAt DateTime?
+  verifiedAt            DateTime?
+  lastUsedAt            DateTime?
+  createdAt             DateTime                @default(now())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifiedDomain VerifiedDomain? @relation(fields: [verifiedDomainId], references: [id])
+
+  @@unique([userId, email])
+  @@index([userId, status])
+}
+
+enum EmailVerificationStatus {
+  pending_inbox_check
+  verified
+  legacy_single_sender
+  expired
+  revoked
 }
 
 // ─── NextAuth ─────────────────────────────────────────────────────────────────

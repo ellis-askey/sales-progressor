@@ -7,6 +7,7 @@ import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
+import { getPortalViewDates } from "@/lib/services/portal";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { listManualTasksForTransaction, countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { calculateProgress } from "@/lib/services/fees";
@@ -54,6 +55,8 @@ export default async function TransactionDetailPage({
   ]);
 
   if (!transaction) notFound();
+
+  const portalViewDates = await getPortalViewDates(id).catch(() => ({}));
 
   // Assigned user fee info
   const assignedUser = transaction.assignedUserId
@@ -256,7 +259,7 @@ export default async function TransactionDetailPage({
 
           {/* People — contacts + solicitors */}
           <div className="grid grid-cols-2 gap-5">
-            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} />
+            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} portalViewDates={portalViewDates} />
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{

@@ -3,6 +3,10 @@
     {
       "path": "/api/reminders/run",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/check-domains",
+      "schedule": "0 2 * * *"
     }
   ]
 }

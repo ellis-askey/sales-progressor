@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { AppShellClient } from "@/components/layout/AppShellClient";
+import { PortalBell } from "@/components/layout/PortalBell";
 import type { Session } from "next-auth";
 import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
@@ -57,9 +58,10 @@ export function AppShell({
                  style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", boxShadow: "0 3px 10px rgba(37,99,235,0.40)" }}>
               <House className="w-4 h-4 text-white" weight="fill" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900/90 leading-tight tracking-tight">Sales Progressor</p>
             </div>
+            <PortalBell userKey={session.user.email ?? session.user.name ?? "user"} />
           </div>
         </div>
 

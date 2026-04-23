@@ -1,6 +1,31 @@
 import { notFound } from "next/navigation";
+import type { Metadata, Viewport } from "next";
 import { getPortalData, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#FF6B4A",
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  return {
+    manifest: `/api/portal/manifest/${token}`,
+    appleWebApp: {
+      capable: true,
+      title: "My Property",
+      statusBarStyle: "default",
+    },
+  };
+}
 
 export default async function PortalLayout({
   children,

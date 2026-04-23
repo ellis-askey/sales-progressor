@@ -2,22 +2,15 @@ import { notFound } from "next/navigation";
 import { getPortalData, getPortalUpdates } from "@/lib/services/portal";
 import { P } from "@/components/portal/portal-ui";
 
-const METHOD_ICONS: Record<string, string> = {
-  email:     "✉️",
-  phone:     "📞",
-  sms:       "💬",
-  voicemail: "📱",
-  whatsapp:  "💬",
-  post:      "📮",
-};
+type MethodStyle = { label: string; bg: string; color: string };
 
-const METHOD_LABELS: Record<string, string> = {
-  email:     "Email",
-  phone:     "Phone call",
-  sms:       "SMS",
-  voicemail: "Voicemail",
-  whatsapp:  "WhatsApp",
-  post:      "Post",
+const METHOD_STYLES: Record<string, MethodStyle> = {
+  email:     { label: "Email",      bg: "rgba(59,130,246,0.10)",  color: "#2563EB" },
+  phone:     { label: "Phone call", bg: "rgba(16,185,129,0.10)",  color: "#059669" },
+  sms:       { label: "SMS",        bg: "rgba(245,158,11,0.10)",  color: "#D97706" },
+  voicemail: { label: "Voicemail",  bg: "rgba(139,92,246,0.10)",  color: "#7C3AED" },
+  whatsapp:  { label: "WhatsApp",   bg: "rgba(16,185,129,0.10)",  color: "#059669" },
+  post:      { label: "Post",       bg: "rgba(107,114,128,0.10)", color: "#4B5563" },
 };
 
 function groupLabel(date: Date): string {
@@ -70,13 +63,15 @@ export default async function PortalUpdatesPage({
       {updates.length === 0 ? (
         <div
           className="rounded-2xl px-5 py-10 text-center"
-          style={{ background: P.card, boxShadow: P.shadow }}
+          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
         >
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4"
-            style={{ background: P.primaryLight }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: P.accentBg }}
           >
-            💬
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={P.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
           </div>
           <p className="text-[16px] font-semibold mb-1" style={{ color: P.textPrimary }}>
             No updates yet
@@ -88,7 +83,6 @@ export default async function PortalUpdatesPage({
       ) : (
         groups.map((group) => (
           <div key={group.label}>
-            {/* Date group label */}
             <p
               className="text-[11px] font-bold uppercase tracking-widest mb-2 px-1"
               style={{ color: P.textMuted }}
@@ -96,50 +90,49 @@ export default async function PortalUpdatesPage({
               {group.label}
             </p>
 
-            {/* Update cards */}
             <div className="space-y-2">
-              {group.items.map((u) => (
-                <div
-                  key={u.id}
-                  className="rounded-2xl px-5 py-4"
-                  style={{ background: P.card, boxShadow: P.shadowSm }}
-                >
-                  {/* Method badge */}
-                  {u.method && (
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-[13px]">{METHOD_ICONS[u.method] ?? "📋"}</span>
-                      <span
-                        className="text-[11px] font-semibold uppercase tracking-wide"
-                        style={{ color: P.textMuted }}
-                      >
-                        {METHOD_LABELS[u.method] ?? u.method}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Content */}
-                  <p
-                    className="text-[14px] leading-relaxed whitespace-pre-line"
-                    style={{ color: P.textPrimary }}
+              {group.items.map((u) => {
+                const method = u.method ? METHOD_STYLES[u.method] : null;
+                return (
+                  <div
+                    key={u.id}
+                    className="rounded-2xl px-5 py-4"
+                    style={{ background: P.cardBg, boxShadow: P.shadowSm }}
                   >
-                    {u.content}
-                  </p>
+                    {/* Method pill */}
+                    {method && (
+                      <span
+                        className="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full mb-3"
+                        style={{ background: method.bg, color: method.color }}
+                      >
+                        {method.label}
+                      </span>
+                    )}
 
-                  {/* Timestamp */}
-                  <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
-                    {new Date(u.createdAt).toLocaleDateString("en-GB", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
-                    {" · "}
-                    {new Date(u.createdAt).toLocaleTimeString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-              ))}
+                    {/* Content */}
+                    <p
+                      className="text-[14px] leading-relaxed whitespace-pre-line"
+                      style={{ color: P.textPrimary }}
+                    >
+                      {u.content}
+                    </p>
+
+                    {/* Timestamp */}
+                    <p className="text-[12px] mt-2" style={{ color: P.textMuted }}>
+                      {new Date(u.createdAt).toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      {" · "}
+                      {new Date(u.createdAt).toLocaleTimeString("en-GB", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))

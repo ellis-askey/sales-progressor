@@ -1,23 +1,31 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+
+const DEFAULT_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
 export async function sendEmail({
   to,
   subject,
   text,
+  html,
   from,
+  replyTo,
 }: {
   to: string;
   subject: string;
   text: string;
+  html?: string;
   from?: string;
+  replyTo?: string;
 }) {
-  return resend.emails.send({
-    from: from ?? "Sales Progressor <notifications@thesalesprogressor.co.uk>",
+  return sgMail.send({
     to,
+    from: from ?? DEFAULT_FROM,
+    replyTo: replyTo,
     subject,
     text,
+    html: html ?? text.replace(/\n/g, "<br>"),
   });
 }
 

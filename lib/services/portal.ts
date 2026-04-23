@@ -202,6 +202,62 @@ export async function logPortalView(token: string): Promise<void> {
   }
 }
 
+export async function logPortalMilestoneConfirm(
+  transactionId: string,
+  contactId: string,
+  contactName: string,
+  milestoneLabel: string
+): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      assignedUser: { select: { id: true, email: true } },
+    },
+  });
+  if (!tx?.assignedUser) return;
+
+  const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
+
+  await prisma.communicationRecord.create({
+    data: {
+      transactionId,
+      type: "internal_note",
+      contactIds: [contactId],
+      content,
+      createdById: tx.assignedUser.id,
+    },
+  });
+
+  if (tx.assignedUser.email) {
+    await sendEmail({
+      to: tx.assignedUser.email,
+      subject: `Client confirmed milestone: ${tx.propertyAddress}`,
+      text: `${content}\n\nView file: ${process.env.NEXTAUTH_URL}/transactions/${transactionId}`,
+    }).catch(() => {});
+  }
+}
+
+export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {
+  const records = await prisma.communicationRecord.findMany({
+    where: {
+      transactionId,
+      type: "internal_note",
+      content: { contains: "viewed their client portal" },
+    },
+    select: { contactIds: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const result: Record<string, Date> = {};
+  for (const r of records) {
+    for (const cid of r.contactIds) {
+      if (!result[cid]) result[cid] = r.createdAt;
+    }
+  }
+  return result;
+}
+
 export async function getPortalUpdates(transactionId: string): Promise<PortalUpdate[]> {
   return withRetry(() => prisma.communicationRecord.findMany({
     where: { transactionId, visibleToClient: true },

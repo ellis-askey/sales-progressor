@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
 import {
-  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House,
+  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { href: "/agent/analytics",   label: "Analytics",   icon: AnalyticsIcon },
   { href: "/agent/comms",       label: "Updates",     icon: CommsIcon },
   { href: "/agent/new-file",    label: "New File",    icon: PlusIcon },
+  { href: "/agent/settings",    label: "Settings",    icon: SettingsIcon },
 ];
 
 export function AgentShell({
@@ -103,4 +104,7 @@ function CommsIcon({ className }: { className?: string }) {
 }
 function PlusIcon({ className }: { className?: string }) {
   return <PlusCircle className={className} weight="regular" />;
+}
+function SettingsIcon({ className }: { className?: string }) {
+  return <GearSix className={className} weight="regular" />;
 }

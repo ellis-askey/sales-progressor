@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logPortalMilestoneConfirm } from "@/lib/services/portal";
 
 const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM2: ["VM1"], VM3: ["VM1"], VM14: ["VM1"], VM15: ["VM1"],
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
-    select: { id: true, roleType: true, propertyTransactionId: true },
+    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
   });
   if (!contact) return NextResponse.json({ error: "Invalid token" }, { status: 403 });
 
@@ -90,6 +91,14 @@ export async function POST(req: NextRequest) {
       statusReason: "Confirmed by client via portal",
     },
   });
+
+  // Notify the assigned progressor (fire-and-forget)
+  logPortalMilestoneConfirm(
+    contact.propertyTransactionId,
+    contact.id,
+    contact.name,
+    def.name
+  ).catch(() => {});
 
   return NextResponse.json(completion, { status: 201 });
 }

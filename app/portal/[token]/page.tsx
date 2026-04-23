@@ -1,24 +1,51 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalUpdates } from "@/lib/services/portal";
-import { getMilestoneCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
+import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
+import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
+import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
+import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
-function daysUntil(d: Date | string) {
-  const diff = Math.round((new Date(d).getTime() - Date.now()) / 86400000);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff < 0) return `${Math.abs(diff)} days ago`;
-  return `${diff} days away`;
+function fmtDateShort(d: Date | string) {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function buildRightmoveUrl(postcode: string | null) {
-  if (!postcode) return null;
-  return `https://www.rightmove.co.uk/house-prices/${encodeURIComponent(postcode)}.html`;
+function CircularProgress({ percent }: { percent: number }) {
+  const size = 68;
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  const dash = (percent / 100) * circ;
+  const cx = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
+      <circle
+        cx={cx} cy={cx} r={r} fill="none"
+        stroke="rgba(255,255,255,0.92)" strokeWidth="8"
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cx})`}
+      />
+      <text x={cx} y={cx + 1} textAnchor="middle" dominantBaseline="middle" fontSize="13" fontWeight="800" fill="white" fontFamily="-apple-system, sans-serif">
+        {percent}%
+      </text>
+    </svg>
+  );
+}
+
+function StatPill({ value, label, color }: { value: number | string; label: string; color: string }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="text-[18px] font-bold tabular-nums" style={{ color }}>{value}</span>
+      <span className="text-[11px]" style={{ color: P.textMuted }}>{label}</span>
+    </div>
+  );
 }
 
 export default async function PortalHomePage({
@@ -31,12 +58,21 @@ export default async function PortalHomePage({
   if (!data) notFound();
 
   const { contact, transaction } = data;
-  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const side     = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const saleWord = side === "vendor" ? "sale" : "purchase";
 
-  const [milestones, updates] = await Promise.all([
+  const [rawMilestones, updates] = await Promise.all([
     getPortalMilestones(transaction.id, side),
     getPortalUpdates(transaction.id),
   ]);
+
+  const milestones = rawMilestones.map((m) => ({
+    ...m,
+    label:           getMilestoneCopy(m.code).label,
+    who:             getMilestoneCopy(m.code).who,
+    whoLabel:        WHO_LABELS[getMilestoneCopy(m.code).who] ?? getMilestoneCopy(m.code).who,
+    typicalDuration: getMilestoneCopy(m.code).typicalDuration ?? null,
+  }));
 
   const preExchange = milestones.filter((m) => !m.isPostExchange && !m.isExchangeGate && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
@@ -45,145 +81,141 @@ export default async function PortalHomePage({
   const hasExchanged = milestones.some((m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM13" || m.code === "PM17") && m.isComplete);
 
-  // Exchange ready = all pre-exchange blocksExchange milestones done, but not yet exchanged
-  const gateCode = side === "vendor" ? "VM20" : "PM27";
-  const isExchangeReady = milestones.some((m) => m.code === gateCode && m.isComplete) && !hasExchanged;
+  const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && m.isAvailable);
+  const nextAction = available[0] ?? null;
+  const nextAfter  = available[1] ?? null;
+  const comingUp   = available.slice(2, 5);
 
-  const nextAction = milestones.find(
-    (m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && m.isAvailable
-  ) ?? null;
-
-  // Key dates from time-sensitive completed milestones with an event date
-  const keyDates = milestones.filter((m) => m.timeSensitive && m.eventDate && m.isComplete);
-
+  const keyDates      = milestones.filter((m) => m.timeSensitive && m.eventDate && m.isComplete);
   const recentUpdates = updates.slice(0, 3);
-  const saleWord = side === "vendor" ? "sale" : "purchase";
-  const rightmoveUrl = buildRightmoveUrl(transaction.postcode);
 
-  const progressColor = percent >= 80 ? "#16A34A" : percent >= 50 ? P.primary : "#D97706";
+  const stage = detectStage(milestones, side);
+  const tips  = getStageTips(stage, side, token);
 
   return (
     <div className="space-y-4">
 
       {/* ── Completion banner ──────────────────────────────────── */}
       {hasCompleted && (
-        <div className="rounded-2xl px-5 py-5" style={{ background: "linear-gradient(135deg, #16A34A 0%, #059669 100%)" }}>
-          <p className="text-[18px] font-bold text-white">Your {saleWord} is complete! 🎉</p>
-          {transaction.completionDate && (
-            <p className="text-[13px] text-white/75 mt-1">Completed {fmtDate(transaction.completionDate)}</p>
-          )}
-        </div>
+        <CompletionBanner
+          token={token}
+          saleWord={saleWord}
+          completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
+        />
       )}
 
       {/* ── Exchange banner ─────────────────────────────────────── */}
       {hasExchanged && !hasCompleted && (
-        <div className="rounded-2xl px-5 py-5" style={{ background: `linear-gradient(135deg, ${P.primary} 0%, ${P.primaryDark} 100%)` }}>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 mb-1">Contracts exchanged</p>
-              <p className="text-[17px] font-bold text-white">Your {saleWord} is legally binding</p>
-            </div>
-            <span className="text-2xl">🤝</span>
-          </div>
-          {transaction.completionDate && (
-            <div className="mt-4 rounded-xl px-4 py-3" style={{ background: "rgba(255,255,255,0.15)" }}>
-              <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wide">Completion</p>
-              <p className="text-[16px] font-bold text-white mt-0.5">{fmtDate(transaction.completionDate)}</p>
-              <p className="text-[13px] text-white/75">{daysUntil(transaction.completionDate)}</p>
-            </div>
-          )}
-        </div>
+        <ExchangeBanner
+          token={token}
+          completionDate={transaction.completionDate ? new Date(transaction.completionDate).toISOString() : null}
+        />
       )}
 
-      {/* ── Exchange ready banner ───────────────────────────────── */}
-      {isExchangeReady && (
-        <div className="rounded-2xl px-5 py-4 flex items-center gap-4" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-          <span className="text-2xl">🔑</span>
-          <div>
-            <p className="text-[15px] font-bold" style={{ color: "#92400E" }}>Ready to exchange!</p>
-            <p className="text-[13px] mt-0.5" style={{ color: "#B45309" }}>
-              All steps are done — your agent will be in touch to arrange exchange of contracts.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Property card ───────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: P.card, boxShadow: P.shadow }}>
-        {/* Gradient header */}
+      {/* ── Hero gradient strip ──────────────────────────────────── */}
+      {!hasExchanged && !hasCompleted && (
         <div
-          className="px-5 py-5 flex items-start justify-between"
-          style={{ background: `linear-gradient(135deg, ${P.primaryLight} 0%, #f0f4ff 100%)` }}
+          className="rounded-b-3xl -mx-4 px-5 pt-6 pb-7"
+          style={{ background: P.heroGradient, boxShadow: P.heroGlow }}
         >
-          <div className="flex-1 min-w-0 pr-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: P.primary }}>Your property</p>
-            <p className="text-[16px] font-bold leading-snug" style={{ color: P.textPrimary }}>{transaction.propertyAddress}</p>
-            {transaction.postcode && (
-              <p className="text-[13px] mt-0.5 font-medium" style={{ color: P.textSecondary }}>{transaction.postcode}</p>
-            )}
-          </div>
-          <div className="text-3xl flex-shrink-0">🏡</div>
-        </div>
-
-        {/* Links row */}
-        {rightmoveUrl && (
-          <div className="px-5 py-3 flex items-center gap-2" style={{ borderTop: `1px solid ${P.border}` }}>
-            <a
-              href={rightmoveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold text-white active:opacity-80 transition-opacity"
-              style={{ background: "#00deb6" }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                <polyline points="15 3 21 3 21 9"/>
-                <line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-              View on Rightmove
-            </a>
-            <p className="text-[11px]" style={{ color: P.textMuted }}>Sold prices for {transaction.postcode}</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Progress card ───────────────────────────────────────── */}
-      <div className="rounded-2xl px-5 py-5" style={{ background: P.card, boxShadow: P.shadow }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-0.5" style={{ color: P.textMuted }}>Your progress</p>
-            <p className="text-[24px] font-bold" style={{ color: P.textPrimary }}>{percent}%</p>
-            <p className="text-[13px]" style={{ color: P.textSecondary }}>{completed.length} of {preExchange.length} steps done</p>
-          </div>
-          {transaction.purchasePrice && (
-            <div className="text-right">
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-0.5" style={{ color: P.textMuted }}>{side === "vendor" ? "Sale" : "Purchase"} price</p>
-              <p className="text-[18px] font-bold" style={{ color: P.textPrimary }}>{fmtPrice(transaction.purchasePrice)}</p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <span
+                className="inline-block text-[11px] font-bold uppercase tracking-[0.10em] mb-3 px-3 py-1 rounded-full"
+                style={{ background: "rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.90)" }}
+              >
+                {transaction.agencyName}
+              </span>
+              <h2 className="text-[22px] font-semibold text-white leading-snug">
+                {transaction.propertyAddress}
+              </h2>
             </div>
+            <CircularProgress percent={percent} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats row ────────────────────────────────────────────── */}
+      {!hasExchanged && !hasCompleted && (
+        <div
+          className="rounded-2xl px-5 py-4 flex items-center justify-around"
+          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+        >
+          <StatPill value={completed.length} label="Done" color={P.success} />
+          <div className="w-px h-8" style={{ background: P.border }} />
+          <StatPill value={preExchange.length - completed.length} label="Remaining" color={P.accent} />
+          {transaction.purchasePrice && (
+            <>
+              <div className="w-px h-8" style={{ background: P.border }} />
+              <StatPill value={fmtPrice(transaction.purchasePrice)} label="Price" color={P.textPrimary} />
+            </>
           )}
         </div>
-        <div className="w-full rounded-full overflow-hidden" style={{ height: 10, background: P.border }}>
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${progressColor}, ${progressColor}cc)` }}
-          />
-        </div>
-        {transaction.expectedExchangeDate && !hasExchanged && (
-          <p className="text-[12px] mt-3" style={{ color: P.textMuted }}>
-            Target exchange: <span className="font-semibold" style={{ color: P.textSecondary }}>{fmtDate(transaction.expectedExchangeDate)}</span>
-          </p>
-        )}
-      </div>
+      )}
 
-      {/* ── Key dates ───────────────────────────────────────────── */}
-      {keyDates.length > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: P.card, boxShadow: P.shadow }}>
+      {/* ── Next action CTA ──────────────────────────────────────── */}
+      {nextAction && !hasCompleted && (
+        <PortalNextActionCard
+          token={token}
+          milestone={{
+            id:            nextAction.id,
+            label:         nextAction.label,
+            who:           nextAction.who,
+            timeSensitive: nextAction.timeSensitive,
+            code:          nextAction.code,
+          }}
+          nextAfterLabel={nextAfter?.label ?? null}
+          nextAfterDuration={nextAfter?.typicalDuration ?? null}
+        />
+      )}
+
+      {/* ── Coming up (next 3 after next action) ─────────────────── */}
+      {comingUp.length > 0 && !hasCompleted && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
-            <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Important dates</p>
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Coming up</p>
+          </div>
+          {comingUp.map((m, i) => (
+            <div
+              key={m.id}
+              className="flex items-center gap-3.5 px-5 py-3.5"
+              style={{ borderBottom: i < comingUp.length - 1 ? `1px solid ${P.border}` : undefined }}
+            >
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
+                style={{ background: P.accentBg, color: P.accent }}
+              >
+                {i + 2}
+              </div>
+              <p className="flex-1 text-[13px]" style={{ color: P.textSecondary }}>{m.label}</p>
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                style={
+                  m.who === "you"
+                    ? { background: P.primaryBg, color: P.primaryText }
+                    : { background: P.accentBg, color: P.accent }
+                }
+              >
+                {m.who === "you" ? "You" : m.whoLabel}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Key dates ────────────────────────────────────────────── */}
+      {keyDates.length > 0 && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+          <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Important dates</p>
           </div>
           {keyDates.map((m, i) => (
-            <div key={m.id} className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: i < keyDates.length - 1 ? `1px solid ${P.border}` : undefined }}>
-              <p className="text-[14px]" style={{ color: P.textPrimary }}>{getMilestoneCopy(m.code).label}</p>
+            <div
+              key={m.id}
+              className="flex items-center justify-between px-5 py-3.5"
+              style={{ borderBottom: i < keyDates.length - 1 ? `1px solid ${P.border}` : undefined }}
+            >
+              <p className="text-[14px]" style={{ color: P.textPrimary }}>{m.label}</p>
               <p className="text-[13px] font-semibold" style={{ color: P.primary }}>
                 {fmtDate(m.eventDate!)}
               </p>
@@ -192,49 +224,86 @@ export default async function PortalHomePage({
         </div>
       )}
 
-      {/* ── Next step ───────────────────────────────────────────── */}
-      {nextAction && !hasCompleted && (
-        <Link href={`/portal/${token}/progress`} className="block rounded-2xl px-5 py-4 active:scale-[0.98] transition-transform" style={{ background: P.card, boxShadow: P.shadow }}>
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: P.textMuted }}>What happens next</p>
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: P.primaryLight }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>{getMilestoneCopy(nextAction.code).label}</p>
-              <p className="text-[13px] mt-0.5" style={{ color: P.textSecondary }}>
-                {getMilestoneCopy(nextAction.code).who === "you" ? "Action needed from you" : `Waiting on your ${getMilestoneCopy(nextAction.code).who}`}
-              </p>
-            </div>
-            {getMilestoneCopy(nextAction.code).who === "you" && (
-              <span className="flex-shrink-0 px-4 py-2 rounded-xl text-[13px] font-bold" style={{ background: P.primary, color: "#fff" }}>
-                Confirm
-              </span>
-            )}
-          </div>
-        </Link>
+      {/* ── Target exchange date ──────────────────────────────────── */}
+      {transaction.expectedExchangeDate && !hasExchanged && (
+        <div
+          className="flex items-center justify-between px-5 py-4 rounded-2xl"
+          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
+        >
+          <p className="text-[13px]" style={{ color: P.textSecondary }}>Target exchange</p>
+          <p className="text-[13px] font-semibold" style={{ color: P.accent }}>
+            {fmtDate(transaction.expectedExchangeDate)}
+          </p>
+        </div>
       )}
 
-      {/* ── Updates ─────────────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: P.card, boxShadow: P.shadow }}>
-        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${P.border}` }}>
-          <p className="text-[14px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
+      {/* ── Tips / What's next ───────────────────────────────────── */}
+      {stage === "completed" ? (
+        <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+          <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
+            <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>What happens next</p>
+          </div>
+          {COMPLETED_NEXT[side].map((text, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-3.5 px-5 py-3.5"
+              style={{ borderBottom: i < COMPLETED_NEXT[side].length - 1 ? `1px solid ${P.border}` : undefined }}
+            >
+              <div className="w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center" style={{ background: P.successBg }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={P.success} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>{text}</p>
+            </div>
+          ))}
+        </div>
+      ) : tips.length > 0 ? (
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-3 px-1" style={{ color: P.textMuted }}>
+            Helpful to know
+          </p>
+          <div className="flex gap-3 overflow-x-auto snap-x pb-1" style={{ scrollbarWidth: "none" }}>
+            {tips.map((tip, i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 snap-start rounded-2xl p-4"
+                style={{ background: P.cardBg, boxShadow: P.shadowSm, width: "220px" }}
+              >
+                <Lightbulb size={18} weight="fill" color={P.warning} style={{ marginBottom: 8 }} />
+                <p className="text-[13px] leading-relaxed" style={{ color: P.textPrimary }}>{tip.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Latest updates ───────────────────────────────────────── */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${P.border}` }}>
+          <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Latest updates</p>
           {recentUpdates.length > 0 && (
-            <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.primary }}>See all</Link>
+            <Link href={`/portal/${token}/updates`} className="text-[13px] font-semibold" style={{ color: P.accent }}>
+              See all
+            </Link>
           )}
         </div>
         {recentUpdates.length === 0 ? (
-          <div className="px-5 py-7 text-center">
-            <p className="text-[14px]" style={{ color: P.textSecondary }}>Your agent will share {saleWord} updates here.</p>
+          <div className="px-5 py-8 text-center">
+            <p className="text-[14px]" style={{ color: P.textSecondary }}>
+              Your team will share {saleWord} updates here.
+            </p>
           </div>
         ) : (
           recentUpdates.map((u, i) => (
-            <div key={u.id} className="px-5 py-4" style={{ borderBottom: i < recentUpdates.length - 1 ? `1px solid ${P.border}` : undefined }}>
+            <div
+              key={u.id}
+              className="px-5 py-4"
+              style={{ borderBottom: i < recentUpdates.length - 1 ? `1px solid ${P.border}` : undefined }}
+            >
               <p className="text-[14px] leading-relaxed" style={{ color: P.textPrimary }}>{u.content}</p>
               <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>
-                {new Date(u.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                {fmtDateShort(u.createdAt)}
               </p>
             </div>
           ))

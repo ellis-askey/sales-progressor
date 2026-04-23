@@ -1,0 +1,11 @@
+{
+  "name": "My Property Portal",
+  "short_name": "My Property",
+  "description": "Track your property transaction progress",
+  "start_url": "/portal",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F9FB",
+  "theme_color": "#FF6B4A",
+  "icons": []
+}

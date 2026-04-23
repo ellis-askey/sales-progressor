@@ -28,6 +28,7 @@ import { NextMilestoneWidget } from "@/components/transaction/NextMilestoneWidge
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
+import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { prisma } from "@/lib/prisma";
 
 export default async function AgentTransactionDetailPage({
@@ -319,6 +320,7 @@ export default async function AgentTransactionDetailPage({
         {/* ── Tab 4: Activity ──────────────────────────────────────────── */}
         <div className="space-y-4">
           <EmailParseWidget transactionId={transaction.id} />
+          <ComposeEmail transactionId={transaction.id} />
           <CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />
           <ActivityTimeline entries={activityEntries} transactionId={transaction.id} />
         </div>

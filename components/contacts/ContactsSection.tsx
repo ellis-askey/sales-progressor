@@ -27,6 +27,18 @@ type Contact = {
   createdAt: Date;
 };
 
+function fmtRelative(date: Date): string {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 const EMPTY_FORM = {
   name:     "",
   roleType: "vendor" as ContactRole,
@@ -58,9 +70,11 @@ const ROLE_BADGE: Record<ContactRole, string> = {
 export function ContactsSection({
   transactionId,
   contacts,
+  portalViewDates = {},
 }: {
   transactionId: string;
   contacts: Contact[];
+  portalViewDates?: Record<string, Date>;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -72,6 +86,8 @@ export function ContactsSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [inviting, setInviting] = useState<string | null>(null);
+  const [inviteSent, setInviteSent] = useState<string | null>(null);
 
   function copyPortalLink(token: string) {
     const url = `${window.location.origin}/portal/${token}`;
@@ -79,6 +95,21 @@ export function ContactsSection({
       setCopied(token);
       setTimeout(() => setCopied(null), 2000);
     });
+  }
+
+  async function sendInvite(token: string, contactId: string) {
+    setInviting(contactId);
+    try {
+      await fetch("/api/portal/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      setInviteSent(contactId);
+      setTimeout(() => setInviteSent(null), 3000);
+    } finally {
+      setInviting(null);
+    }
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
@@ -254,29 +285,47 @@ export function ContactsSection({
                         </div>
                       </div>
                     </div>
-                    <div className="ml-4 flex items-center gap-2 flex-shrink-0">
+                    <div className="ml-4 flex flex-col items-end gap-1.5 flex-shrink-0">
                       {contact.portalToken && (role === "vendor" || role === "purchaser") && (
-                        <button
-                          onClick={() => copyPortalLink(contact.portalToken!)}
-                          className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
-                          title="Copy portal link"
-                        >
-                          {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {contact.email && (
+                            <button
+                              onClick={() => sendInvite(contact.portalToken!, contact.id)}
+                              disabled={inviting === contact.id}
+                              className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap disabled:opacity-50"
+                            >
+                              {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => copyPortalLink(contact.portalToken!)}
+                            className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
+                            title="Copy portal link"
+                          >
+                            {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
+                          </button>
+                        </div>
                       )}
-                      <button
-                        onClick={() => startEdit(contact)}
-                        className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(contact.id)}
-                        disabled={deleting === contact.id}
-                        className="text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
-                      >
-                        {deleting === contact.id ? "…" : "Remove"}
-                      </button>
+                      {contact.portalToken && (role === "vendor" || role === "purchaser") && portalViewDates[contact.id] && (
+                        <span className="text-[10px] text-slate-900/35">
+                          Viewed {fmtRelative(portalViewDates[contact.id])}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startEdit(contact)}
+                          className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(contact.id)}
+                          disabled={deleting === contact.id}
+                          className="text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
+                        >
+                          {deleting === contact.id ? "…" : "Remove"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

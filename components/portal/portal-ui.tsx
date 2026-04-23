@@ -1,22 +1,50 @@
 // Shared portal design tokens and primitive components
 
 export const P = {
-  bg:            "#F7F8FC",
-  card:          "#FFFFFF",
-  border:        "#E8ECF2",
-  primary:       "#3a7bd5",
-  primaryLight:  "#EBF2FF",
-  primaryDark:   "#2f65b5",
-  success:       "#16A34A",
-  successLight:  "#F0FDF4",
-  successBorder: "#BBF7D0",
-  warning:       "#D97706",
-  warningLight:  "#FFFBEB",
-  textPrimary:   "#111827",
-  textSecondary: "#6B7280",
-  textMuted:     "#9CA3AF",
-  shadow:        "0 1px 6px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04)",
-  shadowSm:      "0 1px 4px rgba(0,0,0,0.06)",
+  pageBg:       "#F8F9FB",
+  cardBg:       "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  border:       "rgba(15,23,42,0.06)",
+  borderSubtle: "rgba(15,23,42,0.04)",
+
+  heroGradient: "linear-gradient(135deg, #FF8A65 0%, #FFB74D 100%)",
+  heroGlow:     "0 8px 32px rgba(255,138,101,0.30)",
+
+  primary:      "#FF6B4A",
+  primaryBg:    "rgba(255,107,74,0.10)",
+  primaryText:  "#CC4A2E",
+
+  accent:       "#3B82F6",
+  accentBg:     "rgba(59,130,246,0.08)",
+
+  success:      "#10B981",
+  successBg:    "rgba(16,185,129,0.10)",
+  warning:      "#F59E0B",
+  warningBg:    "rgba(245,158,11,0.10)",
+
+  textPrimary:   "#1A1D29",
+  textSecondary: "#4A5162",
+  textMuted:     "#8B91A3",
+
+  shadowSm:  "0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06)",
+  shadowMd:  "0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)",
+  shadowLg:  "0 12px 32px rgba(15,23,42,0.08), 0 4px 8px rgba(15,23,42,0.04)",
+  shadowXl:  "0 20px 48px rgba(15,23,42,0.10), 0 8px 16px rgba(15,23,42,0.06)",
+
+  radiusSm:  "12px",
+  radiusMd:  "16px",
+  radiusLg:  "20px",
+  radiusXl:  "28px",
+
+  // Compatibility aliases — removed after full rollout (Phase 6 gate)
+  card:         "#FFFFFF",
+  bg:           "#F8F9FB",
+  shadow:       "0 4px 12px rgba(15,23,42,0.06), 0 2px 4px rgba(15,23,42,0.04)",
+  primaryLight: "rgba(59,130,246,0.08)",
+  primaryDark:  "#2563eb",
+  successLight: "rgba(16,185,129,0.10)",
+  successBorder:"rgba(16,185,129,0.25)",
+  warningLight: "rgba(245,158,11,0.10)",
 } as const;
 
 // Milestone groupings — defines how steps are visually bucketed on the progress page
