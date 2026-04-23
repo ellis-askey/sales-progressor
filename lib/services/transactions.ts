@@ -3,10 +3,22 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus, Tenure, PurchaseType } from "@prisma/client";
 
-export async function listTransactions(agencyId: string, agentUserId?: string) {
+export async function listTransactions(
+  agencyId: string,
+  agentUserId?: string,
+  opts?: { allAgentFiles?: boolean }
+) {
   const now = new Date();
+  let whereClause: Record<string, unknown>;
+  if (opts?.allAgentFiles) {
+    whereClause = { agencyId, agentUserId: { not: null } };
+  } else if (agentUserId) {
+    whereClause = { agencyId, agentUserId };
+  } else {
+    whereClause = { agencyId, progressedBy: "progressor" };
+  }
   const transactions = await prisma.propertyTransaction.findMany({
-    where: { agencyId, ...(agentUserId ? { agentUserId } : { progressedBy: "progressor" }) },
+    where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
@@ -86,10 +98,22 @@ export async function getTransaction(id: string, agencyId: string) {
   });
 }
 
-export async function countTransactionsByStatus(agencyId: string, agentUserId?: string) {
+export async function countTransactionsByStatus(
+  agencyId: string,
+  agentUserId?: string,
+  opts?: { allAgentFiles?: boolean }
+) {
+  let whereClause: Record<string, unknown>;
+  if (opts?.allAgentFiles) {
+    whereClause = { agencyId, agentUserId: { not: null } };
+  } else if (agentUserId) {
+    whereClause = { agencyId, agentUserId };
+  } else {
+    whereClause = { agencyId, progressedBy: "progressor" };
+  }
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
-    where: { agencyId, ...(agentUserId ? { agentUserId } : { progressedBy: "progressor" }) },
+    where: whereClause,
     _count: true,
   });
 
@@ -107,12 +131,16 @@ export type ForecastMonth = {
   transactions: { id: string; propertyAddress: string; forecastDate: Date }[];
 };
 
-export async function getExchangeForecast(agencyId: string, agentUserId?: string): Promise<ForecastMonth[]> {
+export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean }): Promise<ForecastMonth[]> {
+  let agentFilter: Record<string, unknown>;
+  if (opts?.allAgentFiles) agentFilter = { agentUserId: { not: null } };
+  else if (agentUserId) agentFilter = { agentUserId };
+  else agentFilter = { progressedBy: "progressor" };
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
       agencyId,
       status: "active",
-      ...(agentUserId ? { agentUserId } : { progressedBy: "progressor" }),
+      ...agentFilter,
       OR: [
         { overridePredictedDate: { not: null } },
         { expectedExchangeDate: { not: null } },
@@ -171,7 +199,7 @@ export type PostExchangeGroup = {
   transactions: PostExchangeTransaction[];
 };
 
-export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string): Promise<PostExchangeGroup[]> {
+export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean }): Promise<PostExchangeGroup[]> {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
     select: { id: true, code: true },
@@ -180,11 +208,16 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
   const exchangeDefIds = defs.filter((d) => d.code === "VM12" || d.code === "PM16").map((d) => d.id);
   const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
 
+  let agentFilter: Record<string, unknown>;
+  if (opts?.allAgentFiles) agentFilter = { agentUserId: { not: null } };
+  else if (agentUserId) agentFilter = { agentUserId };
+  else agentFilter = { progressedBy: "progressor" };
+
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
       agencyId,
       status: "active",
-      ...(agentUserId ? { agentUserId } : { progressedBy: "progressor" }),
+      ...agentFilter,
       milestoneCompletions: {
         some: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: exchangeDefIds } },
       },

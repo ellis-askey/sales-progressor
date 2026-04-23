@@ -25,18 +25,19 @@ model Agency {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  password     String?
-  role         UserRole   @default(viewer)
-  agencyId     String
-  firmName     String?
-  progressorId String?
-  clientType   ClientType @default(standard)
-  legacyFee    Int?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  password        String?
+  role            UserRole   @default(viewer)
+  agencyId        String
+  firmName        String?
+  progressorId    String?
+  clientType      ClientType @default(standard)
+  legacyFee       Int?
+  canViewAllFiles Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   agency               Agency                @relation(fields: [agencyId], references: [id])
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
@@ -61,6 +62,7 @@ model User {
 enum UserRole {
   admin
   sales_progressor
+  director
   negotiator
   viewer
 }

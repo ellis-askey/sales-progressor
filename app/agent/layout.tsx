@@ -4,7 +4,7 @@ import { AgentShell } from "@/components/layout/AgentShell";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  if (session.user.role !== "negotiator" && session.user.role !== "admin") {
+  if (session.user.role !== "negotiator" && session.user.role !== "director" && session.user.role !== "admin") {
     redirect("/dashboard");
   }
 

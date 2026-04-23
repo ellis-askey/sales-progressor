@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { getAgentCompletions } from "@/lib/services/agent";
+import { getAgentCompletions, resolveAgentVisibility } from "@/lib/services/agent";
 
 function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string | null) {
@@ -17,7 +17,8 @@ const GROUP_STYLES = {
 
 export default async function AgentCompletionsPage() {
   const session = await requireSession();
-  const files = await getAgentCompletions(session.user.id);
+  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const files = await getAgentCompletions(vis);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const in7 = new Date(today); in7.setDate(today.getDate() + 7);

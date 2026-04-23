@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { getAgentComms } from "@/lib/services/agent";
+import { getAgentComms, resolveAgentVisibility } from "@/lib/services/agent";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 
 function fmtDate(d: Date | string) {
@@ -17,7 +17,8 @@ const METHOD_LABEL: Record<string, string> = {
 
 export default async function AgentCommsPage() {
   const session = await requireSession();
-  const comms = await getAgentComms(session.user.id);
+  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const comms = await getAgentComms(vis);
 
   // Group by transaction
   const byTx: Record<string, typeof comms> = {};

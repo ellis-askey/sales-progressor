@@ -191,15 +191,7 @@ export async function logPortalView(token: string): Promise<void> {
       createdById: userId,
     },
   });
-
-  // Notify assigned progressor by email
-  if (tx.assignedUser?.email) {
-    await sendEmail({
-      to: tx.assignedUser.email,
-      subject: `Portal viewed: ${tx.propertyAddress}`,
-      text: `${content}\n\nView file: ${process.env.NEXTAUTH_URL}/transactions/${contact.propertyTransactionId}`,
-    }).catch(() => {});
-  }
+  // No email — the portal bell on the dashboard handles this notification
 }
 
 export async function logPortalMilestoneConfirm(
@@ -212,7 +204,10 @@ export async function logPortalMilestoneConfirm(
     where: { id: transactionId },
     select: {
       propertyAddress: true,
-      assignedUser: { select: { id: true, email: true } },
+      assignedUser: { select: { id: true } },
+      contacts: {
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
     },
   });
   if (!tx?.assignedUser) return;
@@ -229,13 +224,71 @@ export async function logPortalMilestoneConfirm(
     },
   });
 
-  if (tx.assignedUser.email) {
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const confirmingContact = tx.contacts.find((c) => c.id === contactId);
+  const confirmingRole = confirmingContact?.roleType;
+
+  // Thank-you email to the confirming client
+  if (confirmingContact?.email && confirmingContact.portalToken) {
+    const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
     await sendEmail({
-      to: tx.assignedUser.email,
-      subject: `Client confirmed milestone: ${tx.propertyAddress}`,
-      text: `${content}\n\nView file: ${process.env.NEXTAUTH_URL}/transactions/${transactionId}`,
+      to: confirmingContact.email,
+      subject: `Thank you — "${milestoneLabel}" confirmed`,
+      text: [
+        `Hi ${confirmingContact.name},`,
+        ``,
+        `Thank you for confirming "${milestoneLabel}" for ${tx.propertyAddress}.`,
+        `Your conveyancing is moving forward.`,
+        ``,
+        `View your portal to see the full progress: ${portalUrl}`,
+      ].join("\n"),
+      html: portalEmailHtml({
+        greeting: `Hi ${confirmingContact.name},`,
+        body: `Thank you for confirming <strong>"${milestoneLabel}"</strong> for <strong>${tx.propertyAddress}</strong>. Your conveyancing is moving forward.`,
+        ctaText: "View your portal",
+        ctaUrl: portalUrl,
+      }),
     }).catch(() => {});
   }
+
+  // Notification email to the other side
+  const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
+  const otherContacts = tx.contacts.filter(
+    (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
+  );
+  for (const other of otherContacts) {
+    const portalUrl = `${base}/portal/${other.portalToken!}`;
+    await sendEmail({
+      to: other.email!,
+      subject: `Progress update — ${tx.propertyAddress}`,
+      text: [
+        `Hi ${other.name},`,
+        ``,
+        `There has been a progress update on your transaction at ${tx.propertyAddress}.`,
+        ``,
+        `${confirmingContact?.name ?? contactName} has confirmed "${milestoneLabel}".`,
+        ``,
+        `View your portal to see the full progress: ${portalUrl}`,
+      ].join("\n"),
+      html: portalEmailHtml({
+        greeting: `Hi ${other.name},`,
+        body: `There has been a progress update on your transaction at <strong>${tx.propertyAddress}</strong>.<br><br>${confirmingContact?.name ?? contactName} has confirmed <strong>"${milestoneLabel}"</strong>.`,
+        ctaText: "View your portal",
+        ctaUrl: portalUrl,
+      }),
+    }).catch(() => {});
+  }
+}
+
+function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
+  greeting: string; body: string; ctaText: string; ctaUrl: string;
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
+<p style="margin:0 0 16px">${greeting}</p>
+<p style="margin:0 0 24px;line-height:1.6;color:#4a5162">${body}</p>
+<p><a href="${ctaUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
+<p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
+</body></html>`;
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {

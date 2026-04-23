@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
+import type { UserRole } from "@prisma/client";
 import {
-  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix,
+  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix, Users,
 } from "@phosphor-icons/react";
+import { AgentBell } from "@/components/layout/AgentBell";
 
-const navItems = [
-  { href: "/agent/dashboard",   label: "My Files",    icon: FilesIcon },
-  { href: "/agent/completions", label: "Completions", icon: CompletingIcon },
-  { href: "/agent/analytics",   label: "Analytics",   icon: AnalyticsIcon },
-  { href: "/agent/comms",       label: "Updates",     icon: CommsIcon },
-  { href: "/agent/new-file",    label: "New File",    icon: PlusIcon },
-  { href: "/agent/settings",    label: "Settings",    icon: SettingsIcon },
-];
+function buildNavItems(role: UserRole) {
+  return [
+    { href: "/agent/dashboard",   label: role === "director" ? "All Files" : "My Files", icon: FilesIcon },
+    { href: "/agent/completions", label: "Completions",  icon: CompletingIcon },
+    { href: "/agent/analytics",   label: "Analytics",    icon: AnalyticsIcon },
+    { href: "/agent/comms",       label: "Updates",      icon: CommsIcon },
+    { href: "/agent/transactions/new", label: "New File", icon: PlusIcon },
+    { href: "/agent/settings",    label: "Settings",     icon: SettingsIcon },
+  ];
+}
 
 export function AgentShell({
   children,
@@ -24,10 +28,12 @@ export function AgentShell({
   session: Session;
 }) {
   const pathname = usePathname();
+  const role = session.user.role as UserRole;
+  const isDirector = role === "director";
+  const navItems = buildNavItems(role);
 
   return (
     <div className="flex min-h-screen">
-      {/* Fixed photo backdrop */}
       <div className="fixed inset-0 -z-10" style={{
         background: "linear-gradient(rgba(8,12,25,0.52), rgba(6,10,22,0.58)), url('/hero-bg.jpg') center center / cover no-repeat",
       }} />
@@ -41,12 +47,13 @@ export function AgentShell({
                  style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}>
               <House className="w-4 h-4 text-white" weight="fill" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-900/90 leading-tight">Sales Progressor</p>
               {session.user.firmName && (
                 <p className="text-xs text-slate-900/40 truncate">{session.user.firmName}</p>
               )}
             </div>
+            <AgentBell userKey={session.user.email ?? session.user.id} />
           </div>
         </div>
 
@@ -75,7 +82,7 @@ export function AgentShell({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-900/80 truncate">{session.user.name}</p>
-              <p className="text-xs text-slate-900/40">Agent</p>
+              <p className="text-xs text-slate-900/40">{isDirector ? "Director" : "Negotiator"}</p>
             </div>
           </div>
           <a href="/api/auth/signout"
@@ -107,4 +114,9 @@ function PlusIcon({ className }: { className?: string }) {
 }
 function SettingsIcon({ className }: { className?: string }) {
   return <GearSix className={className} weight="regular" />;
+}
+// Referenced in buildNavItems but unused directly — kept for future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function TeamIcon({ className }: { className?: string }) {
+  return <Users className={className} weight="regular" />;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { resolveAgentVisibility } from "@/lib/services/agent";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
@@ -18,21 +19,25 @@ export default async function AgentDashboard({
   const { filter } = await searchParams;
   const activeFilter = (filter as TransactionStatus | "all") ?? "all";
 
-  const agentId = session.user.id;
+  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const opts = vis.seeAll ? { allAgentFiles: true } : undefined;
+  const agentId = vis.seeAll ? undefined : session.user.id;
+
   const [transactions, counts, forecastMonths, postExchangeGroups] = await Promise.all([
-    listTransactions(session.user.agencyId, agentId),
-    countTransactionsByStatus(session.user.agencyId, agentId),
-    getExchangeForecast(session.user.agencyId, agentId).catch(() => []),
-    getExchangedNotCompleting(session.user.agencyId, agentId).catch(() => []),
+    listTransactions(session.user.agencyId, agentId, opts),
+    countTransactionsByStatus(session.user.agencyId, agentId, opts),
+    getExchangeForecast(session.user.agencyId, agentId, opts).catch(() => []),
+    getExchangedNotCompleting(session.user.agencyId, agentId, opts).catch(() => []),
   ]);
 
   const filtered = activeFilter === "all"
     ? transactions
     : transactions.filter((t) => t.status === activeFilter);
 
+  const isDirector = session.user.role === "director";
+
   return (
     <>
-      {/* Hero */}
       <div className="glass-panel-dark relative overflow-hidden">
         <div className="relative px-8 pt-6 pb-7">
           <p className="glass-section-label text-label-secondary-on-dark mb-4">
@@ -40,7 +45,9 @@ export default async function AgentDashboard({
           </p>
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">My Files</h1>
+              <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">
+                {isDirector ? "All Files" : "My Files"}
+              </h1>
               <p className="text-sm text-slate-400 mt-0.5">{session.user.name}</p>
             </div>
             <div className="flex items-center gap-3">
@@ -66,17 +73,14 @@ export default async function AgentDashboard({
 
       <div className="px-8 py-7 space-y-7">
 
-        {/* Exchanged — awaiting completion */}
         {postExchangeGroups.length > 0 && (
           <PostExchangeStrip groups={postExchangeGroups} basePath="/agent/transactions" />
         )}
 
-        {/* Exchange forecast */}
         {forecastMonths.length > 0 && (
           <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
         )}
 
-        {/* Filter tabs + transaction list */}
         <div>
           <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
             {([

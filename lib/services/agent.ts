@@ -1,6 +1,32 @@
 import { prisma } from "@/lib/prisma";
 
-export async function getAgentTransactions(agentUserId: string) {
+export type AgentVisibility = {
+  userId: string;
+  agencyId: string;
+  seeAll: boolean;
+};
+
+/** Resolve how much of the agency a user can see based on role + canViewAllFiles. */
+export async function resolveAgentVisibility(
+  userId: string,
+  agencyId: string
+): Promise<AgentVisibility> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, canViewAllFiles: true },
+  });
+  const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
+  return { userId, agencyId, seeAll };
+}
+
+/** Build the Prisma `where` clause for PropertyTransaction based on visibility. */
+function txWhere(vis: AgentVisibility) {
+  return vis.seeAll
+    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null } }
+    : { agentUserId: vis.userId };
+}
+
+export async function getAgentTransactions(vis: AgentVisibility) {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { blocksExchange: true, isPostExchange: false, isExchangeGate: false },
     select: { id: true },
@@ -19,10 +45,11 @@ export async function getAgentTransactions(agentUserId: string) {
   const completionIds = new Set(completionDefs.map((d) => d.id));
 
   const transactions = await prisma.propertyTransaction.findMany({
-    where: { agentUserId },
+    where: txWhere(vis),
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
+      agentUser: { select: { id: true, name: true } },
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
         where: { isActive: true, isNotRequired: false },
@@ -51,6 +78,7 @@ export async function getAgentTransactions(agentUserId: string) {
       expectedExchangeDate: tx.expectedExchangeDate,
       completionDate: tx.completionDate,
       assignedUser: tx.assignedUser,
+      agentUser: tx.agentUser,
       milestonePercent,
       hasExchanged,
       hasCompleted,
@@ -61,8 +89,8 @@ export async function getAgentTransactions(agentUserId: string) {
   });
 }
 
-export async function getAgentStats(agentUserId: string) {
-  const transactions = await getAgentTransactions(agentUserId);
+export async function getAgentStats(vis: AgentVisibility) {
+  const transactions = await getAgentTransactions(vis);
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -80,7 +108,7 @@ export async function getAgentStats(agentUserId: string) {
   };
 }
 
-export async function getAgentCompletions(agentUserId: string) {
+export async function getAgentCompletions(vis: AgentVisibility) {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
     select: { id: true, code: true },
@@ -91,7 +119,7 @@ export async function getAgentCompletions(agentUserId: string) {
 
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
-      agentUserId,
+      ...txWhere(vis),
       status: "active",
       milestoneCompletions: {
         some: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: exchangeDefIds } },
@@ -129,10 +157,10 @@ export async function getAgentCompletions(agentUserId: string) {
     });
 }
 
-export async function getAgentComms(agentUserId: string) {
+export async function getAgentComms(vis: AgentVisibility) {
   return prisma.communicationRecord.findMany({
     where: {
-      transaction: { agentUserId },
+      transaction: txWhere(vis),
       visibleToClient: true,
     },
     orderBy: { createdAt: "desc" },
@@ -141,5 +169,14 @@ export async function getAgentComms(agentUserId: string) {
       transaction: { select: { id: true, propertyAddress: true } },
       createdBy: { select: { name: true } },
     },
+  });
+}
+
+/** List all negotiators + director in an agency (for team management). */
+export async function getAgencyTeam(agencyId: string) {
+  return prisma.user.findMany({
+    where: { agencyId, role: { in: ["director", "negotiator"] } },
+    select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, createdAt: true },
+    orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 }
