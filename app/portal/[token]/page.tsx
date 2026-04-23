@@ -5,6 +5,7 @@ import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
+import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
@@ -17,28 +18,6 @@ function fmtDateShort(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function CircularProgress({ percent }: { percent: number }) {
-  const size = 68;
-  const r = 28;
-  const circ = 2 * Math.PI * r;
-  const dash = (percent / 100) * circ;
-  const cx = size / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
-      <circle
-        cx={cx} cy={cx} r={r} fill="none"
-        stroke="rgba(255,255,255,0.92)" strokeWidth="8"
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cx})`}
-      />
-      <text x={cx} y={cx + 1} textAnchor="middle" dominantBaseline="middle" fontSize="13" fontWeight="800" fill="white" fontFamily="-apple-system, sans-serif">
-        {percent}%
-      </text>
-    </svg>
-  );
-}
 
 function StatPill({ value, label, color }: { value: number | string; label: string; color: string }) {
   return (

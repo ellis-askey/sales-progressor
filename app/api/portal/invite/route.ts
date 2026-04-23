@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
   if (!contact.email) return NextResponse.json({ error: "Contact has no email" }, { status: 400 });
 
   const saleWord = contact.roleType === "vendor" ? "sale" : "purchase";
-  const portalUrl = `${process.env.NEXTAUTH_URL}/portal/${token}`;
+  const origin   = process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
+  const portalUrl = `${origin}/portal/${token}`;
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 

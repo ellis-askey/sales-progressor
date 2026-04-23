@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/auth";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
           phone: c.phone?.trim() || null,
           email: c.email?.trim() || null,
           roleType: c.roleType,
+          portalToken: randomUUID(),
         })),
       });
     }
