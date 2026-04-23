@@ -117,7 +117,7 @@ export type CreateCommInput = {
 export async function createCommunicationRecord(input: CreateCommInput) {
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: input.transactionId, agencyId: input.agencyId },
-    select: { id: true },
+    select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -153,8 +153,9 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       ? input.content.slice(0, 97) + "…"
       : input.content;
 
+    const short = tx.propertyAddress.split(",")[0];
     pushToTransaction(input.transactionId, {
-      title: "New update on your property",
+      title: `Update on ${short}`,
       body: preview,
       urlPath: "/updates",
     }).catch(() => {});

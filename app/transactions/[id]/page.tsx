@@ -35,8 +35,6 @@ import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ReferralSection } from "@/components/transaction/ReferralSection";
-import { PortalMessagesWidget } from "@/components/transaction/PortalMessagesWidget";
-import { getAllPortalThreads } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
 
 export default async function TransactionDetailPage({
@@ -47,7 +45,7 @@ export default async function TransactionDetailPage({
   const { id } = await params;
   const session = await requireSession();
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, portalThreads] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount] = await Promise.all([
     getTransaction(id, session.user.agencyId),
     getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
     getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
@@ -55,12 +53,12 @@ export default async function TransactionDetailPage({
     getLastUpdate(id).catch(() => null),
     listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
-    getAllPortalThreads(id).catch(() => []),
   ]);
 
   if (!transaction) notFound();
 
   const portalViewDates = await getPortalViewDates(id).catch(() => ({}));
+
 
   // Assigned user fee info
   const assignedUser = transaction.assignedUserId
@@ -289,11 +287,6 @@ export default async function TransactionDetailPage({
               }}
             />
           </div>
-
-          {/* Portal messages (only shown when clients have messaged) */}
-          {portalThreads.length > 0 && (
-            <PortalMessagesWidget transactionId={id} threads={portalThreads} />
-          )}
 
           {/* Next steps quick-complete */}
           <NextMilestoneWidget

@@ -258,7 +258,9 @@ export async function portalCompleteMilestone(input: {
     contact.propertyTransactionId,
     contact.id,
     contact.name,
-    def.name
+    def.name,
+    def.code,
+    input.eventDate ?? null
   ).catch(() => {});
 
   if (def.code === "VM12" || def.code === "PM16") {
@@ -272,7 +274,9 @@ export async function logPortalMilestoneConfirm(
   transactionId: string,
   contactId: string,
   contactName: string,
-  milestoneLabel: string
+  milestoneLabel: string,
+  milestoneCode?: string,
+  eventDate?: string | null
 ): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -377,12 +381,44 @@ export async function logPortalMilestoneConfirm(
     }).catch(() => {});
   }
 
-  // Push notifications — confirming contact gets a "step recorded" confirmation;
-  // other vendor/purchaser contacts get a "progress update" ping
+  // Push notifications — build milestone-specific messages
+  const short = tx.propertyAddress.split(",")[0];
+  const isExchange   = milestoneCode === "VM12" || milestoneCode === "PM16";
+  const isCompletion = milestoneCode === "VM13" || milestoneCode === "PM17";
+  const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
+
+  let confirmTitle = "Step confirmed";
+  let confirmBody  = `"${milestoneLabel}" has been recorded. Your transaction is progressing.`;
+  let otherTitle   = "Progress update";
+  let otherBody    = `${confirmingContact?.name ?? contactName} confirmed "${milestoneLabel}".`;
+
+  if (isExchange) {
+    confirmTitle = "Contracts exchanged!";
+    confirmBody  = `Congratulations — your transaction at ${short} is now legally committed.`;
+    otherTitle   = "Contracts exchanged!";
+    otherBody    = `Congratulations — your transaction at ${short} is now legally committed.`;
+  } else if (isCompletion) {
+    confirmTitle = "Completed!";
+    confirmBody  = `Congratulations — your transaction at ${short} has completed.`;
+    otherTitle   = "Completed!";
+    otherBody    = `Congratulations — your transaction at ${short} has completed.`;
+  } else if (isReadyToExchange) {
+    confirmTitle = "Ready to exchange";
+    confirmBody  = `${short} — your solicitor has confirmed everything is in place.`;
+    otherTitle   = "Ready to exchange";
+    otherBody    = `${short} — your solicitor has confirmed everything is in place.`;
+  } else if (eventDate) {
+    const fmtDate = new Date(eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+    confirmTitle = `Date confirmed — ${short}`;
+    confirmBody  = `${milestoneLabel}: ${fmtDate}`;
+    otherTitle   = `Date confirmed — ${short}`;
+    otherBody    = `${milestoneLabel}: ${fmtDate}`;
+  }
+
   if (confirmingContact?.portalToken) {
     pushToContact(contactId, {
-      title: "Step confirmed",
-      body: `"${milestoneLabel}" has been recorded. Your transaction is progressing.`,
+      title: confirmTitle,
+      body:  confirmBody,
       url: `${base}/portal/${confirmingContact.portalToken}/progress`,
     }).catch(() => {});
   }
@@ -392,8 +428,8 @@ export async function logPortalMilestoneConfirm(
   );
   for (const other of otherPushContacts) {
     pushToContact(other.id, {
-      title: "Progress update",
-      body: `${confirmingContact?.name ?? contactName} confirmed "${milestoneLabel}".`,
+      title: otherTitle,
+      body:  otherBody,
       url: `${base}/portal/${other.portalToken!}/progress`,
     }).catch(() => {});
   }
@@ -496,6 +532,7 @@ export type TimelineEntry =
       label: string;
       completedByName: string | null;
       confirmedByClient: boolean;
+      eventDate: Date | null;
       createdAt: Date;
     }
   | {
@@ -504,27 +541,22 @@ export type TimelineEntry =
       content: string;
       method: string | null;
       createdAt: Date;
-    }
-  | {
-      type: "message";
-      id: string;
-      content: string;
-      fromClient: boolean;
-      sentByName: string | null;
-      createdAt: Date;
     };
+
+// Milestone codes that always appear in the timeline regardless of timeSensitive
+const KEY_MILESTONE_CODES = new Set(["VM12", "PM16", "VM13", "PM17"]);
 
 export async function getPortalTimeline(
   transactionId: string,
   side: "vendor" | "purchaser",
-  contactId: string
+  _contactId: string
 ): Promise<TimelineEntry[]> {
   return withRetry(async () => {
-    const [completions, updates, messages] = await Promise.all([
+    const [completions, updates] = await Promise.all([
       prisma.milestoneCompletion.findMany({
         where: { transactionId, isActive: true, isNotRequired: false },
         include: {
-          milestoneDefinition: { select: { code: true, side: true } },
+          milestoneDefinition: { select: { code: true, side: true, timeSensitive: true } },
           completedBy: { select: { name: true } },
         },
         orderBy: { completedAt: "desc" },
@@ -534,21 +566,21 @@ export async function getPortalTimeline(
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, method: true, createdAt: true },
       }),
-      prisma.portalMessage.findMany({
-        where: { transactionId, contactId },
-        include: { sentBy: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      }),
     ]);
 
     const milestoneEntries: TimelineEntry[] = completions
-      .filter((c) => c.milestoneDefinition.side === side)
+      .filter((c) => {
+        if (c.milestoneDefinition.side !== side) return false;
+        // Only show key events: time-sensitive (survey, exchange, completion dates) + exchange + completion
+        return c.milestoneDefinition.timeSensitive || KEY_MILESTONE_CODES.has(c.milestoneDefinition.code);
+      })
       .map((c) => ({
         type: "milestone" as const,
         id: c.id,
         label: getMilestoneCopy(c.milestoneDefinition.code).label,
         completedByName: c.completedBy?.name ?? null,
         confirmedByClient: c.statusReason === "Confirmed by client via portal",
+        eventDate: c.eventDate ?? null,
         createdAt: c.completedAt,
       }));
 
@@ -560,16 +592,7 @@ export async function getPortalTimeline(
       createdAt: u.createdAt,
     }));
 
-    const messageEntries: TimelineEntry[] = messages.map((m) => ({
-      type: "message" as const,
-      id: m.id,
-      content: m.content,
-      fromClient: m.fromClient,
-      sentByName: m.fromClient ? null : (m.sentBy?.name ?? null),
-      createdAt: m.createdAt,
-    }));
-
-    const all = [...milestoneEntries, ...updateEntries, ...messageEntries];
+    const all = [...milestoneEntries, ...updateEntries];
     all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return all;
   });

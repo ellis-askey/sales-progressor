@@ -37,7 +37,7 @@ export async function confirmMilestoneAction(input: {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: input.transactionId, agencyId: session.user.agencyId },
-    select: { id: true },
+    select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -67,10 +67,31 @@ export async function confirmMilestoneAction(input: {
 
   // Push to subscribed portal contacts (fire-and-forget)
   if (def) {
-    const label = getMilestoneCopy(def.code).label;
+    const code  = def.code;
+    const label = getMilestoneCopy(code).label;
+    const short = tx.propertyAddress.split(",")[0];
+
+    let title = "Progress update";
+    let body  = `${short} — "${label}" is complete.`;
+
+    if (code === "VM12" || code === "PM16") {
+      title = "Contracts exchanged!";
+      body  = `${short} — your transaction is now legally committed.`;
+    } else if (code === "VM13" || code === "PM17") {
+      title = "Completed!";
+      body  = `${short} — congratulations, your transaction has completed.`;
+    } else if (code === "VM20" || code === "PM27") {
+      title = "Ready to exchange";
+      body  = `${short} — your solicitor has confirmed everything is in place.`;
+    } else if (input.eventDate) {
+      const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+      title = `Date confirmed — ${short}`;
+      body  = `${label}: ${fmtDate}`;
+    }
+
     pushToTransaction(input.transactionId, {
-      title: "Progress update",
-      body: `"${label}" is complete.`,
+      title,
+      body,
       urlPath: "/progress",
     }).catch(() => {});
   }

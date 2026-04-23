@@ -13,8 +13,7 @@ type Props = {
     timeSensitive: boolean;
     code: string;
   };
-  nextAfterLabel: string | null;
-  nextAfterDuration: string | null;
+  nextAfterDescription: string | null;
 };
 
 async function fireConfetti() {
@@ -35,7 +34,7 @@ async function fireConfetti() {
   }, 260);
 }
 
-export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAfterDuration }: Props) {
+export function PortalNextActionCard({ token, milestone, nextAfterDescription }: Props) {
   const [, startTransition] = useTransition();
   const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -137,14 +136,18 @@ export function PortalNextActionCard({ token, milestone, nextAfterLabel, nextAft
             </button>
           )}
 
-          {nextAfterLabel && (
-            <p className="mt-3 text-[13px]" style={{ color: P.textMuted }}>
-              After this:{" "}
-              <span style={{ color: P.textSecondary }}>
-                {nextAfterLabel}
-                {nextAfterDuration ? ` (${nextAfterDuration})` : ""}
-              </span>
-            </p>
+          {nextAfterDescription && (
+            <div
+              className="mt-3 px-3.5 py-3 rounded-xl"
+              style={{ background: P.pageBg }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] mb-1" style={{ color: P.textMuted }}>
+                After this
+              </p>
+              <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
+                {nextAfterDescription}
+              </p>
+            </div>
           )}
         </div>
       </div>

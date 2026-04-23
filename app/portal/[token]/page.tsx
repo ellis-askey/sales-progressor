@@ -182,8 +182,7 @@ export default async function PortalHomePage({
             timeSensitive: nextAction.timeSensitive,
             code:          nextAction.code,
           }}
-          nextAfterLabel={nextAfter?.label ?? null}
-          nextAfterDuration={nextAfter?.typicalDuration ?? null}
+          nextAfterDescription={nextAfter ? (getMilestoneCopy(nextAfter.code).description ?? null) : null}
         />
       )}
 
