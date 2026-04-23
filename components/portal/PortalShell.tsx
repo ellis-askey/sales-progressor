@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { P } from "./portal-ui";
+import { PortalInstallPrompt } from "./PortalInstallPrompt";
 
 type Props = {
   token: string;
@@ -62,6 +63,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">
+        <PortalInstallPrompt />
         {children}
       </main>
 
