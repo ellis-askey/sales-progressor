@@ -866,16 +866,20 @@ export async function getPortalTimeline(
     ]);
 
     const milestoneEntries: TimelineEntry[] = completions
-      .filter((c) => c.milestoneDefinition.side === side)
-      .map((c) => ({
-        type: "milestone" as const,
-        id: c.id,
-        label: getMilestoneCopy(c.milestoneDefinition.code).label,
-        completedByName: c.completedBy?.name ?? null,
-        confirmedByClient: c.statusReason === "Confirmed by client via portal",
-        eventDate: c.eventDate ?? null,
-        createdAt: c.completedAt,
-      }));
+      .map((c) => {
+        const copy = getMilestoneCopy(c.milestoneDefinition.code);
+        const isOtherSide = c.milestoneDefinition.side !== side;
+        const label = isOtherSide ? (copy.labelOther ?? copy.label) : copy.label;
+        return {
+          type: "milestone" as const,
+          id: c.id,
+          label,
+          completedByName: c.completedBy?.name ?? null,
+          confirmedByClient: c.statusReason === "Confirmed by client via portal",
+          eventDate: c.eventDate ?? null,
+          createdAt: c.completedAt,
+        };
+      });
 
     const updateEntries: TimelineEntry[] = updates.map((u) => ({
       type: "update" as const,
