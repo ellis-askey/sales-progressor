@@ -5,7 +5,7 @@ import { getWorkQueueCounts } from "@/lib/services/tasks";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 
 function fmt(n: number) {
-  return "£" + n.toLocaleString("en-GB");
+  return "£" + Math.round(n / 100).toLocaleString("en-GB");
 }
 
 function BarChart({
