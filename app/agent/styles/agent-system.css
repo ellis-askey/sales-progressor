@@ -4,8 +4,7 @@
  * All tokens prefixed --agent- to avoid collision with the existing glass system.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-@layer base {
-  :root {
+:root {
 
     /* ── Backgrounds ──────────────────────────────────────────────────────── */
     --agent-bg-base:  #FFF5EC;
@@ -129,7 +128,6 @@
     --agent-z-overlay:  100;
     --agent-z-modal:    1000;
     --agent-z-toast:    2000;
-  }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────────────────────
@@ -184,10 +182,8 @@
 }
 
 /* ─── Component classes ──────────────────────────────────────────────────────
- * All in @layer components so Tailwind utilities can override when needed.
+ * Plain CSS (no @layer) — processed cleanly when imported in layout.tsx.
  * ─────────────────────────────────────────────────────────────────────────── */
-
-@layer components {
 
   /* ── Background ─────────────────────────────────────────────────────────── */
 
@@ -785,5 +781,4 @@
     .agent-toast,
     .agent-modal,
     .agent-backdrop               { animation: none; }
-  }
 }
