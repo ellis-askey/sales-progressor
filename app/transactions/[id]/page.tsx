@@ -35,6 +35,7 @@ import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ReferralSection } from "@/components/transaction/ReferralSection";
+import { DocumentsSection } from "@/components/transaction/DocumentsSection";
 import { prisma } from "@/lib/prisma";
 
 export default async function TransactionDetailPage({
@@ -325,6 +326,9 @@ export default async function TransactionDetailPage({
 
           {/* Notes */}
           <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} />
+
+          {/* Documents uploaded via portal */}
+          <DocumentsSection transactionId={transaction.id} />
         </div>
 
         {/* ── Tab 1: Milestones ────────────────────────────────────────── */}

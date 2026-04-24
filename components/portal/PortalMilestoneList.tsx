@@ -3,6 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { SearchesUpload } from "./SearchesUpload";
 
 type Milestone = {
   id: string;
@@ -222,6 +223,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 : m.whoLabel
                               }
                             </p>
+                            {m.code === "PM10" && !isLocked && (
+                              <SearchesUpload token={token} />
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0 self-center">

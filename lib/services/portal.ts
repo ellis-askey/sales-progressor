@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
-import { getMilestoneCopy } from "@/lib/portal-copy";
+import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 
 // Mirror of DIRECT_PREREQUISITES from milestones.ts — only the immediate
 // predecessors that must be complete before a milestone is available to confirm.
@@ -464,9 +464,16 @@ export async function sendAdminMilestoneNotificationToPortal(
   });
   if (!tx) return;
 
+  // Use per-recipient rich email when available
+  const milestoneCopy = getMilestoneCopy(milestoneCode);
+  if (milestoneCopy.emailCopy) {
+    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy);
+    return;
+  }
+
   const base = process.env.NEXTAUTH_URL ?? "";
   const address = tx.propertyAddress;
-  const portalLabel = getMilestoneCopy(milestoneCode).label;
+  const portalLabel = milestoneCopy.label;
   const isCompletion = milestoneCode === "VM13" || milestoneCode === "PM17";
   const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
 
@@ -585,6 +592,130 @@ function portalEmailHtml({ greeting, body, ctaText, ctaUrl }: {
 <p><a href="${ctaUrl}" style="display:inline-block;background:#3b82f6;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${ctaText}</a></p>
 <p style="margin:24px 0 0;font-size:12px;color:#8b91a3">If you have any questions, please contact your sales progressor.</p>
 </body></html>`;
+}
+
+// ─── Rich per-recipient milestone email renderer ─────────────────────────────
+// Used when a milestone has emailCopy defined. Falls back to the generic
+// portalProgressEmailHtml path when emailCopy is absent.
+
+function interpolate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
+
+function richMilestoneEmailHtml({
+  greeting,
+  copy,
+  address,
+  ctaUrl,
+  progressorName,
+  progressorEmail,
+  isProgressor = false,
+}: {
+  greeting: string;
+  copy: RecipientEmailCopy;
+  address: string;
+  ctaUrl: string;
+  progressorName: string;
+  progressorEmail: string;
+  isProgressor?: boolean;
+}): string {
+  const vars = { address };
+  const ctaBg   = isProgressor ? "#3B82F6" : "#FF6B4A";
+  const ctaLabel = copy.action ?? "View portal";
+
+  const whatNextBlock = copy.whatNext
+    ? `<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">${interpolate(copy.whatNext, vars)}</p>`
+    : "";
+
+  const signatureBlock = isProgressor
+    ? `<p style="margin:0;font-size:12px;color:#8b91a3">Sales Progressor system — ${address}</p>`
+    : `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>
+       <p style="margin:4px 0 0;font-size:12px;color:#8b91a3"><a href="mailto:${progressorEmail}" style="color:#8b91a3">${progressorEmail}</a></p>`;
+
+  return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${address}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">${interpolate(copy.heroLabel, vars)}</h1>
+</div>
+<div style="padding:28px 32px">
+  <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
+  <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a1d29;line-height:1.5">${interpolate(copy.opening, vars)}</p>
+  <p style="margin:0 0 ${copy.whatNext ? "20px" : "28px"};font-size:14px;line-height:1.7;color:#4a5162">${interpolate(copy.whatHappened, vars)}</p>
+  ${whatNextBlock}
+  ${copy.action ? `<p style="margin:0 0 28px"><a href="${ctaUrl}" style="display:inline-block;background:${ctaBg};color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">${ctaLabel}</a></p>` : ""}
+  ${signatureBlock}
+</div>
+</body></html>`;
+}
+
+// Builds and sends all per-recipient emails for a milestone that has emailCopy defined.
+// Returns true if emails were sent, false if emailCopy is absent (caller uses fallback).
+async function sendRichMilestoneEmails(
+  transactionId: string,
+  milestoneCode: string,
+  emailCopy: MilestoneEmailCopy,
+): Promise<boolean> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      assignedUser: { select: { name: true, email: true } },
+      agentUser: { select: { id: true, name: true, email: true } },
+      contacts: {
+        where: { roleType: { in: ["vendor", "purchaser"] } },
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
+    },
+  });
+  if (!tx) return false;
+
+  const base             = process.env.NEXTAUTH_URL ?? "";
+  const address          = tx.propertyAddress;
+  const progressorName   = tx.assignedUser?.name  ?? "Your sales progressor";
+  const progressorEmail  = tx.assignedUser?.email ?? "";
+  const dashUrl          = `${base}/transactions/${transactionId}`;
+
+  // Vendor and purchaser contacts
+  for (const c of tx.contacts) {
+    if (!c.email || !c.portalToken) continue;
+    const recipientKey = c.roleType as "vendor" | "purchaser";
+    const copy = emailCopy[recipientKey];
+    if (!copy) continue;
+
+    const greeting = buildGreeting(c.name);
+    const vars     = { address };
+    const portalUrl = `${base}/portal/${c.portalToken}/progress`;
+
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail });
+    const subject = interpolate(copy.subject, vars);
+    const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
+
+    sendEmail({ to: c.email, subject, text, html }).catch(() => {});
+  }
+
+  // Agent notification
+  if (tx.agentUser?.email && emailCopy.vendorAgent) {
+    const copy    = emailCopy.vendorAgent;
+    const vars    = { address };
+    const greeting = buildGreeting(tx.agentUser.name);
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false });
+    const subject = interpolate(copy.subject, vars);
+    const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
+    sendEmail({ to: tx.agentUser.email, subject, text, html }).catch(() => {});
+  }
+
+  // Progressor notification
+  if (tx.assignedUser?.email && emailCopy.progressor) {
+    const copy    = emailCopy.progressor;
+    const vars    = { address };
+    const greeting = buildGreeting(tx.assignedUser.name);
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true });
+    const subject = interpolate(copy.subject, vars);
+    const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
+    sendEmail({ to: tx.assignedUser.email, subject, text, html }).catch(() => {});
+  }
+
+  return true;
 }
 
 async function sendExchangeCompletionPack(transactionId: string): Promise<void> {

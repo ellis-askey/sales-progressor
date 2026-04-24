@@ -1,7 +1,7 @@
 // lib/services/transactions.ts — Sprint 6: includes tenure/purchaseType/purchasePrice fields
 
 import { prisma } from "@/lib/prisma";
-import type { TransactionStatus, Tenure, PurchaseType } from "@prisma/client";
+import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function listTransactions(
   agencyId: string,
@@ -420,8 +420,8 @@ export async function createTransaction(input: CreateTransactionInput) {
     },
   });
 
-  // Auto-set not-required milestones based on tenure + purchase type
-  await autoSetNotRequired(tx.id, input.tenure, input.purchaseType);
+  // Fire-and-forget — don't block the create response
+  autoSetNotRequired(tx.id, input.tenure, input.purchaseType).catch(console.error);
 
   return tx;
 }

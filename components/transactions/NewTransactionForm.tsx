@@ -1,11 +1,13 @@
 "use client";
 // components/transactions/NewTransactionForm.tsx
 
-import { useState, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { titleCase, normalizePhone } from "@/lib/utils";
+import { PriceInput } from "@/components/ui/PriceInput";
+import { createTransactionAction } from "@/app/actions/transactions";
 
 type ContactEntry = { name: string; phone: string; email: string };
 
@@ -15,15 +17,14 @@ function emptyContact(): ContactEntry {
 
 export function NewTransactionForm({ userRole, redirectBase = "/transactions" }: { userRole?: string; redirectBase?: string }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const submittingRef = useRef(false);
+  const [isPending, startTransition] = useTransition();
   const isAgent = userRole === "negotiator" || userRole === "director";
   const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
   const [form, setForm] = useState({
     streetAddress: "",
     city: "",
     postcode: "",
-    purchasePrice: "",
+    purchasePrice: null as number | null,
     tenure: "" as Tenure | "",
     purchaseType: "" as PurchaseType | "",
     notes: "",
@@ -34,7 +35,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
   const [vendorSolicitor, setVendorSolicitor] = useState<SolicitorSelection | null>(null);
   const [purchaserSolicitor, setPurchaserSolicitor] = useState<SolicitorSelection | null>(null);
 
-  function setField(field: string, value: string) {
+  function setField(field: string, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -50,18 +51,11 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
     setList(list.filter((_, i) => i !== index));
   }
 
-  async function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (submittingRef.current) return;
-    if (!form.streetAddress || !form.tenure || !form.purchaseType) return;
-    submittingRef.current = true;
-    setLoading(true);
+    if (isPending || !form.streetAddress || !form.tenure || !form.purchaseType) return;
 
     const address = [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ");
-    const purchasePrice = form.purchasePrice
-      ? Math.round(parseFloat(form.purchasePrice.replace(/,/g, "")) * 100)
-      : null;
-
     const contacts = [
       ...vendors.filter((v) => v.name.trim()).map((v) => ({
         name: titleCase(v.name),
@@ -77,14 +71,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
       })),
     ];
 
-    const res = await fetch("/api/transactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    startTransition(async () => {
+      const result = await createTransactionAction({
         propertyAddress: address,
-        purchasePrice,
-        tenure: form.tenure || null,
-        purchaseType: form.purchaseType || null,
+        purchasePrice: form.purchasePrice ?? null,
+        tenure: (form.tenure as Tenure) || null,
+        purchaseType: (form.purchaseType as PurchaseType) || null,
         notes: form.notes.trim() || null,
         progressedBy: isAgent ? progressedBy : "progressor",
         contacts,
@@ -92,17 +84,9 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
         vendorSolicitorContactId: vendorSolicitor?.contactId ?? null,
         purchaserSolicitorFirmId: purchaserSolicitor?.firmId ?? null,
         purchaserSolicitorContactId: purchaserSolicitor?.contactId ?? null,
-      }),
+      });
+      router.push(`${redirectBase}/${result.id}`);
     });
-
-    if (res.ok) {
-      const tx = await res.json();
-      sessionStorage.setItem("newTransaction", form.streetAddress || "New file");
-      router.push(`${redirectBase}/${tx.id}`);
-    } else {
-      submittingRef.current = false;
-      setLoading(false);
-    }
   }
 
   const hasVendor = vendors.some((v) => v.name.trim());
@@ -207,13 +191,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
           <div>
             <h2 className="glass-section-label text-slate-900/40 mb-3">Purchase Price</h2>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-900/50 font-medium">£</span>
-              <input
-                type="number"
+              <PriceInput
                 value={form.purchasePrice}
-                onChange={(e) => setField("purchasePrice", e.target.value)}
-                placeholder="e.g. 325000"
-                className="glass-input w-48 px-3 py-2.5 text-sm"
+                onChange={(pence) => setField("purchasePrice", pence)}
+                className="w-48"
               />
               <span className="text-xs text-slate-900/40">Optional</span>
             </div>
@@ -268,10 +249,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
           <div className="pt-1">
             <button
               type="submit"
-              disabled={!canSubmit || loading}
+              disabled={!canSubmit || isPending}
               className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Creating…" : "Create transaction"}
+              {isPending ? "Creating…" : "Create transaction"}
             </button>
             {!canSubmit && (
               <p className="text-xs text-slate-900/40 mt-2">

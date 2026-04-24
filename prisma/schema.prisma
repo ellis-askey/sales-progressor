@@ -133,6 +133,7 @@ model PropertyTransaction {
   manualTasks                ManualTask[]
   chainLinks                 ChainLink[]
   portalMessages             PortalMessage[]
+  documents                  TransactionDocument[]
 }
 
 enum TransactionStatus {
@@ -179,6 +180,7 @@ model Contact {
   transaction       PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
   pushSubscriptions PortalPushSubscription[]
   portalMessages    PortalMessage[]
+  documents         TransactionDocument[]
 }
 
 model PortalPushSubscription {
@@ -427,6 +429,25 @@ model TransactionNote {
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   createdBy   User?               @relation(fields: [createdById], references: [id])
+
+  @@index([transactionId, createdAt])
+}
+
+// ─── TransactionDocument ─────────────────────────────────────────────────────
+
+model TransactionDocument {
+  id            String   @id @default(cuid())
+  transactionId String
+  contactId     String?
+  filename      String
+  storagePath   String
+  fileSize      Int
+  mimeType      String
+  source        String   @default("portal")
+  createdAt     DateTime @default(now())
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact     Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([transactionId, createdAt])
 }

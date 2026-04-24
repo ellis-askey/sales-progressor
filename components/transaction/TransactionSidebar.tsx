@@ -36,6 +36,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
 import { useState, useTransition } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction } from "@/app/actions/transactions";
+import { PriceInput } from "@/components/ui/PriceInput";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 
@@ -67,9 +68,7 @@ type Props = {
 export function TransactionSidebar({ transaction, assignedUser, agentUser, serviceType, progress, keyDates = [], exchangeConfirmed = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingPrice, setEditingPrice] = useState(false);
-  const [priceInput, setPriceInput] = useState(
-    transaction.purchasePrice ? String(transaction.purchasePrice / 100) : ""
-  );
+  const [pricePence, setPricePence] = useState<number | null>(transaction.purchasePrice ?? null);
   const [editingOverride, setEditingOverride] = useState(false);
   const [overrideInput, setOverrideInput] = useState(
     transaction.overridePredictedDate
@@ -85,7 +84,8 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
   const [saving, setSaving] = useState(false);
   const [editingAgentFee, setEditingAgentFee] = useState(false);
   const [agentFeeType, setAgentFeeType] = useState<"amount" | "percent">("amount");
-  const [agentFeeInput, setAgentFeeInput] = useState("");
+  const [agentFeeAmountPence, setAgentFeeAmountPence] = useState<number | null>(null);
+  const [agentFeePercentStr, setAgentFeePercentStr] = useState("");
   const [agentFeeVat, setAgentFeeVat] = useState<"inclusive" | "exclusive">("exclusive");
 
   const ourFee = assignedUser
@@ -93,12 +93,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
     : { fee: null, label: "No agent assigned" };
 
   function savePrice() {
-    const pence = Math.round(parseFloat(priceInput) * 100);
-    if (isNaN(pence)) return;
+    if (pricePence == null) return;
     setSaving(true);
     setEditingPrice(false);
     startTransition(async () => {
-      try { await savePriceAction(transaction.id, pence); }
+      try { await savePriceAction(transaction.id, pricePence); }
       finally { setSaving(false); }
     });
   }
@@ -124,10 +123,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
   function saveAgentFee() {
     setSaving(true);
     setEditingAgentFee(false);
-    setAgentFeeInput("");
+    setAgentFeeAmountPence(null);
+    setAgentFeePercentStr("");
     const vatInclusive = agentFeeVat === "inclusive";
-    const amount = agentFeeType === "amount" ? Math.round(parseFloat(agentFeeInput) * 100) : null;
-    const percent = agentFeeType === "percent" ? parseFloat(agentFeeInput) : null;
+    const amount = agentFeeType === "amount" ? agentFeeAmountPence : null;
+    const percent = agentFeeType === "percent" ? parseFloat(agentFeePercentStr) : null;
     startTransition(async () => {
       try {
         await saveAgentFeeAction({ transactionId: transaction.id, agentFeeAmount: amount, agentFeePercent: percent, agentFeeIsVatInclusive: vatInclusive });
@@ -308,16 +308,14 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
             <p className="text-xs text-slate-900/40 mb-1">Purchase price</p>
             {editingPrice ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-900/60">£</span>
-                <input
-                  type="number"
-                  value={priceInput}
-                  onChange={(e) => setPriceInput(e.target.value)}
-                  placeholder="e.g. 325000"
-                  className="glass-input w-32 px-2 py-1 text-sm"
+                <PriceInput
+                  value={pricePence}
+                  onChange={setPricePence}
+                  size="sm"
+                  className="w-32"
                 />
-                <button onClick={savePrice} disabled={saving || isPending}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold">Save</button>
+                <button onClick={savePrice} disabled={saving || isPending || pricePence == null}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-40">Save</button>
                 <button onClick={() => setEditingPrice(false)}
                   className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
               </div>
@@ -381,15 +379,27 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   </button>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-900/50">{agentFeeType === "amount" ? "£" : ""}</span>
-                  <input
-                    type="number"
-                    value={agentFeeInput}
-                    onChange={(e) => setAgentFeeInput(e.target.value)}
-                    placeholder={agentFeeType === "amount" ? "e.g. 1500" : "e.g. 1.5"}
-                    className="glass-input w-24 px-2 py-1 text-sm"
-                  />
-                  <span className="text-xs text-slate-900/50">{agentFeeType === "percent" ? "%" : ""}</span>
+                  {agentFeeType === "amount" ? (
+                    <PriceInput
+                      value={agentFeeAmountPence}
+                      onChange={setAgentFeeAmountPence}
+                      size="sm"
+                      className="w-28"
+                      placeholder="1,500"
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type="number"
+                        value={agentFeePercentStr}
+                        onChange={(e) => setAgentFeePercentStr(e.target.value)}
+                        placeholder="e.g. 1.5"
+                        inputMode="decimal"
+                        className="glass-input w-24 px-2 py-1 text-sm"
+                      />
+                      <span className="text-xs text-slate-900/50">%</span>
+                    </>
+                  )}
                 </div>
                 <select
                   value={agentFeeVat}
@@ -400,11 +410,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
                   <option value="inclusive">Inc VAT</option>
                 </select>
                 <div className="flex gap-2">
-                  <button onClick={saveAgentFee} disabled={saving || !agentFeeInput}
+                  <button onClick={saveAgentFee} disabled={saving || (agentFeeType === "amount" ? agentFeeAmountPence == null : !agentFeePercentStr)}
                     className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors">
                     {saving ? "…" : "Save"}
                   </button>
-                  <button onClick={() => { setEditingAgentFee(false); setAgentFeeInput(""); }}
+                  <button onClick={() => { setEditingAgentFee(false); setAgentFeeAmountPence(null); setAgentFeePercentStr(""); }}
                     className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle">
                     Cancel
                   </button>

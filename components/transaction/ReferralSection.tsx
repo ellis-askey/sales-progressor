@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveReferralAction } from "@/app/actions/transactions";
+import { PriceInput } from "@/components/ui/PriceInput";
 
 type Firm = { id: string; name: string };
 
@@ -13,15 +14,10 @@ type Props = {
   referralFeeReceived: boolean;
 };
 
-function formatFee(p: number | null) {
-  if (!p) return "";
-  return (p / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
 export function ReferralSection({ transactionId, firms, referredFirmId, referralFee, referralFeeReceived }: Props) {
   const [, startTransition]  = useTransition();
   const [firmId, setFirmId]  = useState(referredFirmId ?? "");
-  const [fee, setFee]        = useState(referralFee ? formatFee(referralFee) : "");
+  const [feePence, setFeePence] = useState<number | null>(referralFee ?? null);
   const [received, setReceived] = useState(referralFeeReceived);
   const [saving, setSaving]  = useState(false);
   const [dirty, setDirty]    = useState(false);
@@ -29,13 +25,12 @@ export function ReferralSection({ transactionId, firms, referredFirmId, referral
   function markDirty() { setDirty(true); }
 
   function save() {
-    const parsedFee = fee.trim() ? Math.round(parseFloat(fee.replace(/,/g, "")) * 100) : null;
     setSaving(true);
     startTransition(async () => {
       try {
         await saveReferralAction(transactionId, {
           referredFirmId:      firmId || null,
-          referralFee:         parsedFee,
+          referralFee:         feePence,
           referralFeeReceived: received,
         });
         setDirty(false);
@@ -87,19 +82,14 @@ export function ReferralSection({ transactionId, firms, referredFirmId, referral
             {/* Fee amount */}
             <div>
               <label className="block text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1.5">
-                Referral fee (£)
+                Referral fee
               </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-900/40">£</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={fee}
-                  onChange={(e) => { setFee(e.target.value); markDirty(); }}
-                  placeholder="0"
-                  className="flex-1 text-sm bg-white/50 border border-white/30 rounded-lg px-3 py-2 text-slate-900/80 focus:outline-none focus:border-blue-400/60"
-                />
-              </div>
+              <PriceInput
+                value={feePence}
+                onChange={(p) => { setFeePence(p); markDirty(); }}
+                variant="referral"
+                placeholder="0"
+              />
             </div>
 
             {/* Received toggle */}
@@ -123,7 +113,7 @@ export function ReferralSection({ transactionId, firms, referredFirmId, referral
             </div>
 
             {/* Summary pill */}
-            {fee && (
+            {feePence != null && feePence > 0 && (
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
                 received
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
@@ -131,7 +121,7 @@ export function ReferralSection({ transactionId, firms, referredFirmId, referral
               }`}>
                 <span className="text-base">{received ? "✓" : "⏳"}</span>
                 <span>
-                  £{formatFee(fee.trim() ? Math.round(parseFloat(fee.replace(/,/g, "")) * 100) : 0)} referral fee
+                  £{(feePence / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} referral fee
                   {received ? " received" : " pending"}
                 </span>
               </div>

@@ -1,18 +1,86 @@
 // Client-facing copy for portal milestone display
 // Labels and descriptions written from the buyer/seller's perspective
 
+export type RecipientEmailCopy = {
+  subject: string;           // personalised inbox subject line
+  heroLabel: string;         // what appears in the email header
+  opening: string;           // first sentence — sets emotional register
+  whatHappened: string;      // 1–3 sentences in the recipient's frame
+  whatNext: string | null;   // forward-looking paragraph; null if not meaningful for this recipient
+  action: string | null;     // CTA button label; null = no direct action
+};
+
+export type MilestoneEmailCopy = {
+  vendor?: RecipientEmailCopy;
+  purchaser?: RecipientEmailCopy;
+  vendorAgent?: RecipientEmailCopy;
+  progressor?: RecipientEmailCopy;
+};
+
 export type PortalCopy = {
   label: string;
   labelOther?: string;  // third-person version shown when the other party views this milestone
   who: "you" | "solicitor" | "agent" | "lender";
   typicalDuration?: string;
   description?: string;
+  emailCopy?: MilestoneEmailCopy;
 };
+
+const TITLE_PREFIXES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "rev", "sir", "lord", "lady"]);
+
+export function buildGreeting(name: string | null | undefined): string {
+  if (!name?.trim()) return "Hello,";
+  const words = name.trim().split(/\s+/);
+  if (words.length === 0) return "Hello,";
+
+  const first = words[0].replace(/\.$/, ""); // strip trailing dot (e.g. "Dr.")
+  const isTitle = TITLE_PREFIXES.has(first.toLowerCase());
+
+  if (!isTitle) return `Hi ${words[0]},`;
+  if (words.length === 1) return "Hello,"; // title only — no name to use
+  if (words.length === 2) return `Hi ${words[0]} ${words[1]},`; // "Mr Smith"
+  return `Hi ${words[1]},`; // "Mr John Smith" — use first name
+}
 
 const copy: Record<string, PortalCopy> = {
   // ── Vendor milestones ────────────────────────────────────────────────────
   VM1:  { label: "Instruct your solicitor",                  labelOther: "Seller instructed their solicitor",         who: "you",
-    description: "You need to formally appoint a solicitor to handle the legal side of your sale. Contact them directly to confirm you're instructing them — they'll then begin preparing the paperwork." },
+    description: "You need to formally appoint a solicitor to handle the legal side of your sale. Contact them directly to confirm you're instructing them — they'll then begin preparing the paperwork.",
+    emailCopy: {
+      vendor: {
+        subject: "You've instructed your solicitor — {address}",
+        heroLabel: "Solicitor instructed",
+        opening: "You've taken the first step.",
+        whatHappened: "You've formally instructed your solicitor to act on the sale. They'll now start the conveyancing process on your behalf — preparing the contract pack, gathering title documents, and raising any questions from the buyer's side.",
+        whatNext: "Your solicitor will prepare the contract pack and, if the property is leasehold, request the management pack from your freeholder or managing agent. This typically takes a few weeks. We'll be in touch when there's a meaningful update.",
+        action: "View your portal",
+      },
+      purchaser: {
+        subject: "The seller has instructed their solicitor — {address}",
+        heroLabel: "Seller's solicitor instructed",
+        opening: "Good news on your purchase.",
+        whatHappened: "The seller has formally instructed their solicitor to act on the sale. This is an important early step — things are now moving on the seller's side of the transaction.",
+        whatNext: "Nothing for you to do right now. The seller's solicitor will prepare the contract pack and send it to your solicitor in the coming weeks. We'll let you know when that happens.",
+        action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Seller's solicitor instructed — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "The seller has instructed their solicitor. Conveyancing is now underway on the seller's side.",
+        whatNext: "No action needed from you. The progression team will chase the contract pack when appropriate.",
+        action: "View in dashboard",
+      },
+      progressor: {
+        subject: "VM1 complete: Seller instructed solicitor — {address}",
+        heroLabel: "VM1 — Seller instructed solicitor",
+        opening: "Logged on {address}.",
+        whatHappened: "Vendor has confirmed solicitor instruction.",
+        whatNext: null,
+        action: "View transaction",
+      },
+    },
+  },
   VM2:  { label: "Receive memorandum of sale",               who: "solicitor",
     description: "Your estate agent sends a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process." },
   VM3:  { label: "Receive welcome pack from solicitor",      labelOther: "Seller received welcome pack from solicitor", who: "you",
