@@ -329,60 +329,82 @@ export async function logPortalMilestoneConfirm(
   }
 
   const base = process.env.NEXTAUTH_URL ?? "";
+  const address = tx.propertyAddress;
+  const progressorName  = tx.assignedUser?.name  ?? "Your sales progressor";
+  const progressorEmail = tx.assignedUser?.email ?? "";
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);
   const confirmingRole = confirmingContact?.roleType;
 
-  // Thank-you email to the confirming client — milestone shown in a styled box, not embedded in prose
-  if (confirmingContact?.email && confirmingContact.portalToken) {
-    const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
-    await sendEmail({
-      to: confirmingContact.email,
-      subject: `Step confirmed — ${tx.propertyAddress}`,
-      text: [
-        `Hi ${confirmingContact.name.split(" ")[0]},`,
-        ``,
-        `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${tx.propertyAddress}:`,
-        ``,
-        `  ✓ ${portalLabel}`,
-        ``,
-        `Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.`,
-        ``,
-        `View your portal: ${portalUrl}`,
-      ].join("\n"),
-      html: portalStepConfirmedHtml({
-        firstName: confirmingContact.name.split(" ")[0],
-        address: tx.propertyAddress,
-        saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
-        stepLabel: portalLabel,
-        portalUrl,
-      }),
-    }).catch(() => {});
-  }
+  const richCopy = milestoneCode ? getMilestoneCopy(milestoneCode).emailCopy : null;
 
-  // Notification email to the other side — generic, no milestone detail
-  const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
-  const otherContacts = tx.contacts.filter(
-    (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
-  );
-  for (const other of otherContacts) {
-    const portalUrl = `${base}/portal/${other.portalToken!}`;
-    await sendEmail({
-      to: other.email!,
-      subject: `Progress update — ${tx.propertyAddress}`,
-      text: [
-        `Hi ${other.name.split(" ")[0]},`,
-        ``,
-        `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${tx.propertyAddress}. Log in to see the latest.`,
-        ``,
-        `View your portal: ${portalUrl}`,
-      ].join("\n"),
-      html: portalEmailHtml({
-        greeting: `Hi ${other.name.split(" ")[0]},`,
-        body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${tx.propertyAddress}</strong>. Log in to your portal to see the latest.`,
-        ctaText: "View your portal",
-        ctaUrl: portalUrl,
-      }),
-    }).catch(() => {});
+  if (richCopy) {
+    // Use the same per-recipient rich emails as the admin-confirmation flow.
+    // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
+    for (const c of tx.contacts) {
+      if (!c.email || !c.portalToken) continue;
+      const recipientKey = c.roleType as "vendor" | "purchaser";
+      const copy = richCopy[recipientKey];
+      if (!copy) continue;
+      const greeting  = buildGreeting(c.name);
+      const portalUrl = `${base}/portal/${c.portalToken}/progress`;
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail });
+      const subject   = interpolate(copy.subject, { address });
+      const text      = [greeting, "", interpolate(copy.opening, { address }), "", interpolate(copy.whatHappened, { address }), ...(copy.whatNext ? ["", interpolate(copy.whatNext, { address })] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
+      sendEmail({ to: c.email, subject, html, text }).catch(() => {});
+    }
+  } else {
+    // Fallback for milestones without structured emailCopy: generic thank-you to confirming
+    // contact and generic progress update to the other side.
+    if (confirmingContact?.email && confirmingContact.portalToken) {
+      const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
+      sendEmail({
+        to: confirmingContact.email,
+        subject: `Step confirmed — ${address}`,
+        text: [
+          `Hi ${confirmingContact.name.split(" ")[0]},`,
+          ``,
+          `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${address}:`,
+          ``,
+          `  ✓ ${portalLabel}`,
+          ``,
+          `Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.`,
+          ``,
+          `View your portal: ${portalUrl}`,
+        ].join("\n"),
+        html: portalStepConfirmedHtml({
+          firstName: confirmingContact.name.split(" ")[0],
+          address,
+          saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
+          stepLabel: portalLabel,
+          portalUrl,
+        }),
+      }).catch(() => {});
+    }
+
+    const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
+    const otherContacts = tx.contacts.filter(
+      (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
+    );
+    for (const other of otherContacts) {
+      const portalUrl = `${base}/portal/${other.portalToken!}`;
+      sendEmail({
+        to: other.email!,
+        subject: `Progress update — ${address}`,
+        text: [
+          `Hi ${other.name.split(" ")[0]},`,
+          ``,
+          `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`,
+          ``,
+          `View your portal: ${portalUrl}`,
+        ].join("\n"),
+        html: portalEmailHtml({
+          greeting: `Hi ${other.name.split(" ")[0]},`,
+          body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${address}</strong>. Log in to your portal to see the latest.`,
+          ctaText: "View your portal",
+          ctaUrl: portalUrl,
+        }),
+      }).catch(() => {});
+    }
   }
 
   // Push notifications — build milestone-specific messages
