@@ -41,22 +41,49 @@ export default async function AgentDashboard({
 
   return (
     <>
-      <div className="glass-panel-dark relative overflow-hidden">
-        <div className="relative px-8 pt-6 pb-7">
-          <p className="glass-section-label text-label-secondary-on-dark mb-4">
+      {/* Warm glass header */}
+      <div style={{
+        background: "rgba(255,255,255,0.52)",
+        backdropFilter: "blur(28px) saturate(180%)",
+        WebkitBackdropFilter: "blur(28px) saturate(180%)",
+        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
+        boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* Subtle coral bloom — top right, very low opacity */}
+        <div aria-hidden="true" style={{
+          position: "absolute", top: -60, right: -40,
+          width: 260, height: 260, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+        {/* Subtle warm bloom — bottom left */}
+        <div aria-hidden="true" style={{
+          position: "absolute", bottom: -40, left: 60,
+          width: 180, height: 180, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ position: "relative", padding: "24px 32px 28px" }}>
+          <p className="agent-eyebrow" style={{ marginBottom: 16 }}>
             {session.user.firmName ?? "Agent Portal"}
           </p>
-          <div className="flex items-start justify-between mb-6">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
             <div>
-              <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">
+              <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
                 {isDirector ? "All Files" : "My Files"}
               </h1>
-              <p className="text-sm text-slate-400 mt-0.5">{session.user.name}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
+                {session.user.name}
+              </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <Link
                 href="/agent/transactions/new"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-500 hover:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
+                className="agent-btn agent-btn-primary agent-btn-md"
+                style={{ textDecoration: "none" }}
               >
                 <Plus size={16} weight="bold" />
                 New Transaction
@@ -64,12 +91,12 @@ export default async function AgentDashboard({
               <AgentFlagButton transactionId={null} address="general" label="Flag to progressor" />
             </div>
           </div>
-          <div className="flex items-center gap-6 flex-wrap">
-            <StatChip value={transactions.length} label="Total files" color="text-white" />
-            <div className="w-px h-6 bg-white/10" />
-            <StatChip value={counts.active} label="Active" color="text-emerald-400" />
-            <StatChip value={counts.on_hold} label="On hold" color="text-amber-400" />
-            <StatChip value={counts.completed} label="Completed" color="text-blue-400" />
+          <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+            <StatChip value={transactions.length} label="Total files" color="var(--agent-text-primary)" />
+            <div style={{ width: 1, height: 24, background: "var(--agent-border-subtle)" }} />
+            <StatChip value={counts.active} label="Active" color="var(--agent-success)" />
+            <StatChip value={counts.on_hold} label="On hold" color="var(--agent-warning)" />
+            <StatChip value={counts.completed} label="Completed" color="var(--agent-coral-deep)" />
           </div>
         </div>
       </div>
@@ -143,9 +170,9 @@ export default async function AgentDashboard({
 
 function StatChip({ value, label, color }: { value: number; label: string; color: string }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className={`text-2xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</span>
-      <span className="text-xs text-label-tertiary-on-dark">{label}</span>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+      <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums", color, lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
     </div>
   );
 }
