@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { AgentShell } from "@/components/layout/AgentShell";
+import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();

@@ -1,0 +1,789 @@
+/* ─── Agent Design System ────────────────────────────────────────────────────
+ * Warm light system for all agent-facing pages.
+ * Imported in app/agent/layout.tsx — tokens cascade from :root.
+ * All tokens prefixed --agent- to avoid collision with the existing glass system.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+
+    /* ── Backgrounds ──────────────────────────────────────────────────────── */
+    --agent-bg-base:  #FFF5EC;
+    --agent-bg-mid:   #FFE8D4;
+    --agent-bg-warm:  #FFDABD;
+    --agent-bg-deep:  #FFCBA4;
+    --agent-bg-paper: #FFFBF5;
+
+    /* ── Text ─────────────────────────────────────────────────────────────── */
+    --agent-text-primary:    #2D1810;
+    --agent-text-secondary:  #5A3A28;
+    --agent-text-tertiary:   #7A4A2E;
+    --agent-text-muted:      rgba(45, 24, 16, 0.55);
+    --agent-text-disabled:   rgba(45, 24, 16, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #FFFBF5;
+
+    /* ── Coral / brand ────────────────────────────────────────────────────── */
+    --agent-coral:                #FF8A65;
+    --agent-coral-deep:           #FF6B4A;
+    --agent-coral-darker:         #E55B3D;
+    --agent-coral-light:          #FFB18F;
+    --agent-coral-pale:           #FFD4C2;
+    --agent-coral-bg-tint:        rgba(255, 138, 101, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(255, 138, 101, 0.14);
+
+    /* ── Semantic — success ───────────────────────────────────────────────── */
+    --agent-success:        #1F8A4A;
+    --agent-success-bg:     rgba(31, 138, 74, 0.10);
+    --agent-success-border: rgba(31, 138, 74, 0.30);
+
+    /* ── Semantic — warning ───────────────────────────────────────────────── */
+    --agent-warning:        #C97D1A;
+    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
+    --agent-warning-border: rgba(201, 125, 26, 0.30);
+
+    /* ── Semantic — danger ────────────────────────────────────────────────── */
+    --agent-danger:         #C73E3E;
+    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
+    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+
+    /* ── Semantic — info ──────────────────────────────────────────────────── */
+    --agent-info:           #3D7AB8;
+    --agent-info-bg:        rgba(61, 122, 184, 0.08);
+    --agent-info-border:    rgba(61, 122, 184, 0.30);
+
+    /* ── Glass surfaces ───────────────────────────────────────────────────── */
+    --agent-glass-bg:           rgba(255, 255, 255, 0.50);
+    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.70);
+    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.35);
+    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.60);
+    --agent-glass-border:       rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright:rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:        0 4px 20px rgba(255, 138, 101, 0.06),
+                                 0 1px  4px rgba(45,  24,  16,  0.04);
+    --agent-glass-shadow-lifted: 0 8px 32px rgba(255, 138, 101, 0.10),
+                                 0 2px  8px rgba(45,  24,  16,  0.06);
+
+    /* ── Borders ──────────────────────────────────────────────────────────── */
+    --agent-border-subtle:  rgba(45, 24, 16, 0.06);
+    --agent-border-default: rgba(45, 24, 16, 0.10);
+    --agent-border-strong:  rgba(45, 24, 16, 0.18);
+    --agent-border-focus:   rgba(255, 138, 101, 0.45);
+
+    /* ── Focus rings (keyboard navigation) ───────────────────────────────── */
+    --agent-focus-ring:       0 0 0 3px rgba(255, 138, 101, 0.22);
+    --agent-focus-ring-tight: 0 0 0 2px rgba(255, 138, 101, 0.32);
+
+    /* ── Radii ────────────────────────────────────────────────────────────── */
+    --agent-radius-sm:   6px;
+    --agent-radius-md:   8px;
+    --agent-radius-lg:  12px;
+    --agent-radius-xl:  16px;
+    --agent-radius-pill: 999px;
+
+    /* ── Spacing scale ────────────────────────────────────────────────────── */
+    --agent-space-1:   4px;
+    --agent-space-2:   8px;
+    --agent-space-3:  12px;
+    --agent-space-4:  16px;
+    --agent-space-5:  20px;
+    --agent-space-6:  24px;
+    --agent-space-8:  32px;
+    --agent-space-10: 40px;
+    --agent-space-12: 48px;
+
+    /* ── Transitions ──────────────────────────────────────────────────────── */
+    --agent-ease:            cubic-bezier(0.4, 0, 0.2, 1);
+    --agent-transition-fast: 150ms var(--agent-ease);
+    --agent-transition-base: 200ms var(--agent-ease);
+    --agent-transition-slow: 300ms var(--agent-ease);
+
+    /* ── Typography scale ─────────────────────────────────────────────────── */
+    --agent-text-display: 32px;
+    --agent-text-h1:      28px;
+    --agent-text-h2:      22px;
+    --agent-text-h3:      17px;
+    --agent-text-h4:      15px;
+    --agent-text-body:    14px;
+    --agent-text-body-sm: 13px;
+    --agent-text-caption: 12px;
+    --agent-text-micro:   11px;
+    --agent-text-eyebrow: 10px;
+
+    --agent-weight-regular:  400;
+    --agent-weight-medium:   500;
+    --agent-weight-semibold: 600;
+
+    --agent-line-tight:   1.25;
+    --agent-line-base:    1.50;
+    --agent-line-relaxed: 1.70;
+
+    --agent-tracking-tight:   -0.01em;
+    --agent-tracking-normal:   0em;
+    --agent-tracking-wide:     0.02em;
+    --agent-tracking-eyebrow:  0.05em;
+
+    /* ── Z-index ──────────────────────────────────────────────────────────── */
+    --agent-z-base:     0;
+    --agent-z-elevated: 10;
+    --agent-z-overlay:  100;
+    --agent-z-modal:    1000;
+    --agent-z-toast:    2000;
+  }
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────────
+ * Named with agent- prefix so they don't clash with existing globals.css
+ * keyframes (aurora-1, enter, overlayFadeIn etc.)
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes agent-bloom-1 {
+  0%, 100% { transform: translate(  0px,   0px) scale(1.00); }
+  40%      { transform: translate( 60px, -40px) scale(1.06); }
+  70%      { transform: translate( 30px,  20px) scale(0.97); }
+}
+
+@keyframes agent-bloom-2 {
+  0%, 100% { transform: translate(  0px,   0px) scale(1.00); }
+  35%      { transform: translate(-50px,  35px) scale(1.04); }
+  65%      { transform: translate( 20px,  50px) scale(0.98); }
+}
+
+@keyframes agent-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes agent-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes agent-toast-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes agent-toast-out {
+  from { opacity: 1; transform: translateX(0);    }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
+@keyframes agent-modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1.00) translateY(0);   }
+}
+
+@keyframes agent-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes agent-pulse-dot {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%      { opacity: 0.5; transform: scale(0.80); }
+}
+
+/* ─── Component classes ──────────────────────────────────────────────────────
+ * All in @layer components so Tailwind utilities can override when needed.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@layer components {
+
+  /* ── Background ─────────────────────────────────────────────────────────── */
+
+  .agent-bg {
+    min-height: 100vh;
+    background: linear-gradient(135deg,
+      var(--agent-bg-base) 0%,
+      var(--agent-bg-mid)  40%,
+      var(--agent-bg-warm) 70%,
+      var(--agent-bg-deep) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Glass surface primitives ────────────────────────────────────────────── */
+
+  .agent-glass {
+    background: var(--agent-glass-bg);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 0.5px solid var(--agent-glass-border);
+    border-top-color: var(--agent-glass-border-bright);
+    border-radius: var(--agent-radius-lg);
+    box-shadow: var(--agent-glass-shadow);
+  }
+
+  .agent-glass-strong {
+    background: var(--agent-glass-bg-strong);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 0.5px solid var(--agent-glass-border);
+    border-top-color: var(--agent-glass-border-bright);
+    border-radius: var(--agent-radius-lg);
+    box-shadow: var(--agent-glass-shadow);
+  }
+
+  .agent-glass-subtle {
+    background: var(--agent-glass-bg-subtle);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 0.5px solid var(--agent-glass-border);
+    border-radius: var(--agent-radius-lg);
+  }
+
+  /* ── Solid surface primitives ────────────────────────────────────────────── */
+
+  .agent-surface {
+    background: var(--agent-bg-paper);
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-lg);
+    box-shadow: 0 1px 3px rgba(45, 24, 16, 0.04);
+  }
+
+  .agent-surface-elevated {
+    background: #FFFFFF;
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-lg);
+    box-shadow: 0 12px 40px rgba(45, 24, 16, 0.12), 0 2px 8px rgba(45, 24, 16, 0.06);
+  }
+
+  /* ── Eyebrow label ───────────────────────────────────────────────────────── */
+
+  .agent-eyebrow {
+    font-size: var(--agent-text-eyebrow);
+    font-weight: var(--agent-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--agent-tracking-eyebrow);
+    color: var(--agent-text-muted);
+    line-height: var(--agent-line-tight);
+  }
+
+  /* ── Buttons — primary ───────────────────────────────────────────────────── */
+
+  .agent-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: var(--agent-text-body);
+    font-weight: var(--agent-weight-medium);
+    line-height: 1;
+    border: none;
+    border-radius: var(--agent-radius-md);
+    cursor: pointer;
+    transition: transform var(--agent-transition-fast),
+                box-shadow var(--agent-transition-fast),
+                background var(--agent-transition-fast),
+                opacity var(--agent-transition-fast);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .agent-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-btn:disabled,
+  .agent-btn[aria-disabled="true"] {
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .agent-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  /* Sizes */
+  .agent-btn-sm  { height: 32px; padding: 0 12px; font-size: var(--agent-text-body-sm); }
+  .agent-btn-md  { height: 40px; padding: 0 16px; }
+  .agent-btn-lg  { height: 48px; padding: 0 20px; font-size: var(--agent-text-h4); }
+
+  /* Primary */
+  .agent-btn-primary {
+    background: var(--agent-coral-deep);
+    color: var(--agent-text-on-coral);
+    box-shadow: 0 2px 12px rgba(255, 107, 74, 0.28);
+  }
+  .agent-btn-primary:hover:not(:disabled) {
+    background: var(--agent-coral-darker);
+    box-shadow: 0 4px 20px rgba(255, 107, 74, 0.38);
+    transform: translateY(-1px);
+  }
+  .agent-btn-primary:disabled {
+    background: rgba(255, 107, 74, 0.40);
+    box-shadow: none;
+  }
+
+  /* Secondary */
+  .agent-btn-secondary {
+    background: var(--agent-glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 0.5px solid var(--agent-glass-border);
+    color: var(--agent-text-primary);
+    box-shadow: var(--agent-glass-shadow);
+  }
+  .agent-btn-secondary:hover:not(:disabled) {
+    background: var(--agent-glass-bg-hover);
+    box-shadow: var(--agent-glass-shadow-lifted),
+                inset 0 0 0 1px rgba(255, 138, 101, 0.12);
+  }
+  .agent-btn-secondary:disabled {
+    opacity: 0.45;
+  }
+
+  /* Ghost */
+  .agent-btn-ghost {
+    background: transparent;
+    color: var(--agent-text-tertiary);
+    border: none;
+    box-shadow: none;
+  }
+  .agent-btn-ghost:hover:not(:disabled) {
+    background: var(--agent-coral-bg-tint);
+    color: var(--agent-text-primary);
+  }
+  .agent-btn-ghost:disabled {
+    color: var(--agent-text-disabled);
+  }
+
+  /* Destructive */
+  .agent-btn-danger {
+    background: transparent;
+    color: var(--agent-danger);
+    border: 0.5px solid var(--agent-danger-border);
+    box-shadow: none;
+  }
+  .agent-btn-danger:hover:not(:disabled) {
+    background: var(--agent-danger-bg);
+  }
+  .agent-btn-danger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(199, 62, 62, 0.20);
+  }
+  .agent-btn-danger:disabled {
+    opacity: 0.40;
+  }
+
+  /* Icon button (square) */
+  .agent-btn-icon-sm { width: 32px; height: 32px; padding: 0; border-radius: var(--agent-radius-md); }
+  .agent-btn-icon-md { width: 40px; height: 40px; padding: 0; border-radius: var(--agent-radius-md); }
+
+  /* Spinner inside button */
+  .agent-btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: agent-spin 700ms linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* ── Form inputs ─────────────────────────────────────────────────────────── */
+
+  .agent-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.52);
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-md);
+    padding: 0 14px;
+    height: 40px;
+    font-size: var(--agent-text-body);
+    color: var(--agent-text-primary);
+    transition: border-color var(--agent-transition-fast),
+                background   var(--agent-transition-fast),
+                box-shadow   var(--agent-transition-fast);
+  }
+  .agent-input::placeholder {
+    color: var(--agent-text-muted);
+  }
+  .agent-input:hover:not(:disabled):not(:focus) {
+    border-color: var(--agent-border-strong);
+  }
+  .agent-input:focus {
+    outline: none;
+    border-color: var(--agent-border-focus);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-input:disabled {
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-disabled);
+    cursor: not-allowed;
+  }
+  .agent-input[readonly] {
+    background: transparent;
+    border-color: transparent;
+    color: var(--agent-text-secondary);
+    cursor: default;
+  }
+  .agent-input-sm { height: 32px; font-size: var(--agent-text-body-sm); }
+  .agent-input-lg { height: 48px; font-size: var(--agent-text-h4); }
+
+  .agent-input-error {
+    border-color: var(--agent-danger) !important;
+  }
+  .agent-input-success {
+    border-color: var(--agent-success) !important;
+  }
+
+  .agent-textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.52);
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-md);
+    padding: 10px 14px;
+    min-height: 80px;
+    resize: vertical;
+    font-size: var(--agent-text-body);
+    font-family: inherit;
+    color: var(--agent-text-primary);
+    transition: border-color var(--agent-transition-fast),
+                background   var(--agent-transition-fast),
+                box-shadow   var(--agent-transition-fast);
+  }
+  .agent-textarea::placeholder { color: var(--agent-text-muted); }
+  .agent-textarea:hover:not(:disabled):not(:focus) { border-color: var(--agent-border-strong); }
+  .agent-textarea:focus {
+    outline: none;
+    border-color: var(--agent-border-focus);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-textarea:disabled {
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-disabled);
+    cursor: not-allowed;
+  }
+
+  /* Field label */
+  .agent-label {
+    display: block;
+    font-size: var(--agent-text-caption);
+    font-weight: var(--agent-weight-medium);
+    color: var(--agent-text-secondary);
+    margin-bottom: 4px;
+    line-height: var(--agent-line-tight);
+  }
+  .agent-label-required::after {
+    content: " *";
+    color: var(--agent-coral-deep);
+  }
+
+  /* Helper / error / success text */
+  .agent-helper       { font-size: var(--agent-text-caption); color: var(--agent-text-tertiary); margin-top: 4px; }
+  .agent-helper-error { font-size: var(--agent-text-caption); color: var(--agent-danger);        margin-top: 4px; }
+  .agent-helper-ok    { font-size: var(--agent-text-caption); color: var(--agent-success);       margin-top: 4px; }
+
+  /* ── Status pills ────────────────────────────────────────────────────────── */
+
+  .agent-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--agent-radius-pill);
+    font-size: var(--agent-text-micro);
+    font-weight: var(--agent-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    border: 0.5px solid;
+  }
+  .agent-pill-active    { background: var(--agent-success-bg); color: var(--agent-success); border-color: var(--agent-success-border); }
+  .agent-pill-hold      { background: var(--agent-warning-bg); color: var(--agent-warning); border-color: var(--agent-warning-border); }
+  .agent-pill-completed { background: var(--agent-coral-bg-tint); color: var(--agent-coral-darker); border-color: var(--agent-coral-pale); }
+  .agent-pill-withdrawn { background: var(--agent-danger-bg);  color: var(--agent-danger);  border-color: var(--agent-danger-border); }
+
+  /* ── Count badge ─────────────────────────────────────────────────────────── */
+
+  .agent-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--agent-radius-pill);
+    font-size: var(--agent-text-micro);
+    font-weight: var(--agent-weight-medium);
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-secondary);
+    line-height: 1;
+  }
+  .agent-badge-coral {
+    background: var(--agent-coral-deep);
+    color: var(--agent-text-on-coral);
+  }
+
+  /* ── Inline alerts ───────────────────────────────────────────────────────── */
+
+  .agent-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--agent-radius-md);
+    border: 0.5px solid;
+    font-size: var(--agent-text-body-sm);
+    line-height: var(--agent-line-base);
+  }
+  .agent-alert-success { background: var(--agent-success-bg); border-color: var(--agent-success-border); color: var(--agent-success); }
+  .agent-alert-warning { background: var(--agent-warning-bg); border-color: var(--agent-warning-border); color: var(--agent-warning); }
+  .agent-alert-danger  { background: var(--agent-danger-bg);  border-color: var(--agent-danger-border);  color: var(--agent-danger);  }
+  .agent-alert-info    { background: var(--agent-info-bg);    border-color: var(--agent-info-border);    color: var(--agent-info);    }
+
+  /* ── Tabs ────────────────────────────────────────────────────────────────── */
+
+  .agent-tab-bar {
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border-radius: var(--agent-radius-lg);
+  }
+  .agent-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--agent-radius-md);
+    font-size: var(--agent-text-body-sm);
+    color: var(--agent-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background var(--agent-transition-fast),
+                color    var(--agent-transition-fast),
+                box-shadow var(--agent-transition-fast);
+    white-space: nowrap;
+  }
+  .agent-tab:hover:not([aria-selected="true"]):not(:disabled) {
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-primary);
+  }
+  .agent-tab[aria-selected="true"] {
+    background: #FFFFFF;
+    color: var(--agent-text-primary);
+    font-weight: var(--agent-weight-medium);
+    box-shadow: 0 1px 4px rgba(45, 24, 16, 0.08), 0 0 0 0.5px rgba(45, 24, 16, 0.06);
+  }
+  .agent-tab:focus-visible {
+    outline: none;
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-tab:disabled {
+    color: var(--agent-text-disabled);
+    cursor: not-allowed;
+  }
+
+  /* ── Skeleton loading ────────────────────────────────────────────────────── */
+
+  .agent-skeleton {
+    background: linear-gradient(90deg,
+      var(--agent-bg-mid)  0%,
+      var(--agent-bg-warm) 50%,
+      var(--agent-bg-mid)  100%);
+    background-size: 200% 100%;
+    animation: agent-shimmer 1500ms ease-in-out infinite;
+    border-radius: var(--agent-radius-sm);
+  }
+
+  /* ── Spinner (standalone) ────────────────────────────────────────────────── */
+
+  .agent-spinner {
+    border-radius: 50%;
+    border: 2px solid var(--agent-coral-pale);
+    border-top-color: var(--agent-coral-deep);
+    animation: agent-spin 750ms linear infinite;
+    flex-shrink: 0;
+  }
+  .agent-spinner-sm { width: 16px; height: 16px; }
+  .agent-spinner-md { width: 24px; height: 24px; }
+  .agent-spinner-lg { width: 32px; height: 32px; }
+
+  /* ── Avatar ──────────────────────────────────────────────────────────────── */
+
+  .agent-avatar {
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--agent-coral) 0%, var(--agent-coral-light) 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--agent-text-on-coral);
+    font-weight: var(--agent-weight-medium);
+    flex-shrink: 0;
+    border: 0.5px solid rgba(255, 255, 255, 0.30);
+    overflow: hidden;
+  }
+  .agent-avatar-xs { width: 24px; height: 24px; font-size: 9px;  }
+  .agent-avatar-sm { width: 32px; height: 32px; font-size: 11px; }
+  .agent-avatar-md { width: 40px; height: 40px; font-size: 14px; }
+  .agent-avatar-lg { width: 56px; height: 56px; font-size: 20px; }
+
+  /* ── Modal backdrop ──────────────────────────────────────────────────────── */
+
+  .agent-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(45, 24, 16, 0.40);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: var(--agent-z-modal);
+    animation: agent-backdrop-in 200ms var(--agent-ease) both;
+  }
+
+  .agent-modal {
+    background: #FFFFFF;
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-xl);
+    box-shadow: 0 24px 64px rgba(45, 24, 16, 0.14), 0 4px 16px rgba(45, 24, 16, 0.06);
+    padding: 24px;
+    width: 100%;
+    max-width: 480px;
+    animation: agent-modal-in 250ms var(--agent-ease) both;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  /* ── Toast ───────────────────────────────────────────────────────────────── */
+
+  .agent-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--agent-radius-lg);
+    background: #FFFFFF;
+    border: 0.5px solid var(--agent-border-default);
+    box-shadow: 0 12px 40px rgba(45, 24, 16, 0.12), 0 2px 8px rgba(45, 24, 16, 0.06);
+    max-width: 380px;
+    width: 100%;
+    border-left: 3px solid;
+  }
+  .agent-toast-success { border-left-color: var(--agent-success); }
+  .agent-toast-error   { border-left-color: var(--agent-danger);  }
+  .agent-toast-warning { border-left-color: var(--agent-warning); }
+  .agent-toast-info    { border-left-color: var(--agent-info);    }
+
+  /* ── Nav item (sidebar) ──────────────────────────────────────────────────── */
+
+  .agent-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--agent-radius-md);
+    font-size: var(--agent-text-body-sm);
+    color: var(--agent-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--agent-transition-fast),
+                color    var(--agent-transition-fast);
+    width: 100%;
+    text-align: left;
+  }
+  .agent-nav-item:hover:not(.agent-nav-item-active) {
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-primary);
+  }
+  .agent-nav-item-active {
+    background: var(--agent-coral-deep);
+    color: var(--agent-text-on-coral);
+    box-shadow: 0 2px 10px rgba(255, 107, 74, 0.28);
+  }
+  .agent-nav-item:focus-visible {
+    outline: none;
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-nav-item:disabled {
+    color: var(--agent-text-disabled);
+    cursor: not-allowed;
+  }
+
+  /* ── Notification dot ────────────────────────────────────────────────────── */
+
+  .agent-notif-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--agent-coral-deep);
+    animation: agent-pulse-dot 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  /* ── Table ───────────────────────────────────────────────────────────────── */
+
+  .agent-table { width: 100%; border-collapse: collapse; }
+
+  .agent-th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: var(--agent-text-eyebrow);
+    font-weight: var(--agent-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--agent-tracking-eyebrow);
+    color: var(--agent-text-muted);
+    border-bottom: 0.5px solid var(--agent-border-default);
+    white-space: nowrap;
+  }
+
+  .agent-tr {
+    border-bottom: 0.5px solid var(--agent-border-subtle);
+    transition: background var(--agent-transition-fast);
+  }
+  .agent-tr:hover {
+    background: var(--agent-glass-bg-hover);
+  }
+  .agent-tr-selected {
+    background: var(--agent-coral-bg-tint);
+    border-left: 3px solid var(--agent-coral-deep);
+  }
+
+  .agent-td {
+    padding: 14px 16px;
+    font-size: var(--agent-text-body);
+    color: var(--agent-text-primary);
+    vertical-align: middle;
+  }
+  .agent-td-sm {
+    font-size: var(--agent-text-body-sm);
+    color: var(--agent-text-secondary);
+  }
+
+  /* ── Empty state ─────────────────────────────────────────────────────────── */
+
+  .agent-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 48px 24px;
+    gap: 12px;
+  }
+  .agent-empty-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--agent-coral-light);
+  }
+  .agent-empty-title {
+    font-size: var(--agent-text-h4);
+    font-weight: var(--agent-weight-medium);
+    color: var(--agent-text-primary);
+    margin: 0;
+  }
+  .agent-empty-desc {
+    font-size: var(--agent-text-body-sm);
+    color: var(--agent-text-secondary);
+    max-width: 320px;
+    margin: 0;
+    line-height: var(--agent-line-relaxed);
+  }
+
+  /* ── Reduced-motion overrides ────────────────────────────────────────────── */
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-skeleton               { animation: none; background: var(--agent-bg-mid); }
+    .agent-spinner,
+    .agent-btn-spinner            { animation-duration: 2000ms; }
+    .agent-notif-dot              { animation: none; }
+    .agent-toast,
+    .agent-modal,
+    .agent-backdrop               { animation: none; }
+  }
+}

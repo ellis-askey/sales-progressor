@@ -6,123 +6,136 @@ import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
-  FolderOpen, CalendarCheck, ChartBar, BellSimple, PlusCircle, House, GearSix, Users, Lightning,
+  FolderOpen, CalendarCheck, ChartBar, BellSimple,
+  PlusCircle, Lightning, GearSix, Users,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 
 function buildNavItems(role: UserRole) {
   return [
-    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", icon: FilesIcon },
-    { href: "/agent/completions",      label: "Completions",  icon: CompletingIcon },
-    { href: "/agent/analytics",        label: "Analytics",    icon: AnalyticsIcon },
-    { href: "/agent/comms",            label: "Updates",      icon: CommsIcon },
-    { href: "/agent/quick-add",        label: "Quick Add",    icon: QuickAddIcon },
-    { href: "/agent/transactions/new", label: "Full form",    icon: PlusIcon },
-    { href: "/agent/settings",         label: "Settings",     icon: SettingsIcon },
+    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
+    { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
+    { href: "/agent/comms",            label: "Updates",      Icon: BellSimple    },
+    { href: "/agent/quick-add",        label: "Quick Add",    Icon: Lightning     },
+    { href: "/agent/transactions/new", label: "Full form",    Icon: PlusCircle    },
+    { href: "/agent/settings",         label: "Settings",     Icon: GearSix       },
   ];
 }
 
-export function AgentShell({
-  children,
-  session,
-}: {
-  children: React.ReactNode;
-  session: Session;
-}) {
-  const pathname = usePathname();
-  const role = session.user.role as UserRole;
+export function AgentShell({ children, session }: { children: React.ReactNode; session: Session }) {
+  const pathname  = usePathname();
+  const role      = session.user.role as UserRole;
   const isDirector = role === "director";
-  const navItems = buildNavItems(role);
+  const navItems  = buildNavItems(role);
+  const initials  = session.user.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 
   return (
-    <div className="flex min-h-screen">
-      <div className="fixed inset-0 -z-10" style={{
-        background: "linear-gradient(rgba(8,12,25,0.52), rgba(6,10,22,0.58)), url('/hero-bg.jpg') center center / cover no-repeat",
-      }} />
+    <div style={{ display: "flex", minHeight: "100vh" }}>
 
-      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-white/10 sticky top-0 h-screen overflow-y-auto"
-             style={{ boxShadow: "var(--shadow-sidebar)" }}>
+      {/* Warm gradient background */}
+      <div aria-hidden="true" style={{
+        position: "fixed", inset: 0, zIndex: -1,
+        background: "linear-gradient(135deg, #FFF5EC 0%, #FFE8D4 40%, #FFDABD 70%, #FFCBA4 100%)",
+      }}>
+        {/* Ambient bloom — top right */}
+        <div style={{
+          position: "absolute", width: 480, height: 480,
+          top: -80, right: -80,
+          background: "radial-gradient(circle, rgba(255,255,235,0.55) 0%, transparent 70%)",
+          animation: "agent-bloom-1 70s cubic-bezier(0.45,0.05,0.55,0.95) infinite",
+          borderRadius: "50%",
+        }} />
+        {/* Ambient bloom — bottom left */}
+        <div style={{
+          position: "absolute", width: 360, height: 360,
+          bottom: -60, left: -60,
+          background: "radial-gradient(circle, rgba(255,220,100,0.25) 0%, transparent 70%)",
+          animation: "agent-bloom-2 80s cubic-bezier(0.45,0.05,0.55,0.95) infinite",
+          borderRadius: "50%",
+        }} />
+      </div>
 
-        <div className="px-5 py-5 border-b border-white/20">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 2px 8px rgba(59,130,246,0.35)" }}>
-              <House className="w-4 h-4 text-white" weight="fill" />
+      {/* Sidebar */}
+      <aside className="agent-glass" style={{
+        width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
+        position: "sticky", top: 0, height: "100vh", overflowY: "auto",
+        borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
+        borderRight: "0.5px solid var(--agent-glass-border)",
+      }}>
+
+        {/* Brand */}
+        <div style={{ padding: "20px 20px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+              background: "linear-gradient(135deg, #FF8A65 0%, #FF6B4A 100%)",
+              boxShadow: "0 2px 8px rgba(255,107,74,0.35)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <FolderOpen weight="fill" style={{ width: 16, height: 16, color: "#fff" }} />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900/90 leading-tight">Sales Progressor</p>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
+                Sales Progressor
+              </p>
               {session.user.firmName && (
-                <p className="text-xs text-slate-900/40 truncate">{session.user.firmName}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {session.user.firmName}
+                </p>
               )}
             </div>
             <AgentBell userKey={session.user.email ?? session.user.id} />
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname.startsWith(href);
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {navItems.map(({ href, label, Icon }) => {
+            const isActive = pathname === href || (href !== "/agent/dashboard" && pathname.startsWith(href));
             return (
               <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                  isActive
-                    ? "bg-blue-500 text-white font-medium shadow-sm"
-                    : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/40"
-                }`}>
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-white" : "text-slate-900/40"}`} />
-                <span>{label}</span>
+                className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}>
+                <Icon weight={isActive ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
+                <span style={{ fontSize: 13 }}>{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-white/20">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                 style={{ background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" }}>
-              <span className="text-xs font-semibold text-blue-700">{session.user.name?.charAt(0) ?? "?"}</span>
+        {/* User profile */}
+        <div style={{ padding: "12px 16px 20px", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>
+              {initials}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-slate-900/80 truncate">{session.user.name}</p>
-              <p className="text-xs text-slate-900/40">{isDirector ? "Director" : "Negotiator"}</p>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {session.user.name}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
+                {isDirector ? "Director" : "Negotiator"}
+              </p>
             </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="block text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
+            className="agent-btn-ghost"
+            style={{ fontSize: 12, color: "var(--agent-text-muted)", padding: 0, height: "auto", background: "none", border: "none", cursor: "pointer" }}>
             Sign out
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 min-h-screen">{children}</main>
+      {/* Main content */}
+      <main style={{ flex: 1, minHeight: "100vh" }}>
+        {children}
+      </main>
     </div>
   );
 }
 
-function FilesIcon({ className }: { className?: string }) {
-  return <FolderOpen className={className} weight="regular" />;
-}
-function CompletingIcon({ className }: { className?: string }) {
-  return <CalendarCheck className={className} weight="regular" />;
-}
-function AnalyticsIcon({ className }: { className?: string }) {
-  return <ChartBar className={className} weight="regular" />;
-}
-function CommsIcon({ className }: { className?: string }) {
-  return <BellSimple className={className} weight="regular" />;
-}
-function PlusIcon({ className }: { className?: string }) {
-  return <PlusCircle className={className} weight="regular" />;
-}
-function QuickAddIcon({ className }: { className?: string }) {
-  return <Lightning className={className} weight="fill" />;
-}
-function SettingsIcon({ className }: { className?: string }) {
-  return <GearSix className={className} weight="regular" />;
-}
-// Referenced in buildNavItems but unused directly — kept for future use
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function TeamIcon({ className }: { className?: string }) {
+// Kept for external references
+export function TeamIcon({ className }: { className?: string }) {
   return <Users className={className} weight="regular" />;
 }
