@@ -44,6 +44,22 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Sync query text when firm is set externally (e.g. memo auto-fill)
+  useEffect(() => {
+    setQuery(value?.firmName ?? "");
+  }, [value?.firmId]);
+
+  // Load handlers whenever the selected firm changes
+  useEffect(() => {
+    if (!value?.firmId) { setHandlers([]); return; }
+    setLoadingHandlers(true);
+    fetch(`/api/solicitor-firms/${value.firmId}/handlers`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setHandlers(Array.isArray(data) ? data : []))
+      .catch(() => setHandlers([]))
+      .finally(() => setLoadingHandlers(false));
+  }, [value?.firmId]);
+
   const doSearch = useCallback((q: string) => {
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
@@ -74,16 +90,10 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     else { setFirms([]); setSearchError(null); }
   }
 
-  async function selectFirm(firm: Firm) {
+  function selectFirm(firm: Firm) {
     setQuery(firm.name);
     setShowDropdown(false);
-    setLoadingHandlers(true);
-    setHandlers([]);
     onChange({ firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null });
-
-    const res = await fetch(`/api/solicitor-firms/${firm.id}/handlers`, { cache: "no-store" });
-    if (res.ok) setHandlers(await res.json());
-    setLoadingHandlers(false);
   }
 
   function selectHandler(h: Handler) {

@@ -13,6 +13,14 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "text-blue-500", withdrawn: "text-slate-400",
 };
 
+const NAV_ITEMS = [
+  { label: "Dashboard",       href: "/dashboard",        sub: "Overview and pipeline",      icon: <NavIcon d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
+  { label: "Work Queue",      href: "/tasks",            sub: "Pending tasks and reminders", icon: <NavIcon d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /> },
+  { label: "To-Do",           href: "/todos",            sub: "Manual tasks and agent requests", icon: <NavIcon d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+  { label: "Analytics",       href: "/analytics",        sub: "Pipeline and fee reporting",  icon: <NavIcon d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+  { label: "New Transaction",  href: "/transactions/new", sub: "Add a new property file",     icon: <NavIcon d="M12 4.5v15m7.5-7.5h-15" /> },
+];
+
 export function GlobalSearch() {
   const [open, setOpen]       = useState(false);
   const [query, setQuery]     = useState("");
@@ -69,7 +77,9 @@ export function GlobalSearch() {
 
   // Flatten all results for keyboard nav
   const flat: { href: string; label: string; sub: string }[] = [];
-  if (results) {
+  if (query.length === 0) {
+    NAV_ITEMS.forEach((n) => flat.push({ href: n.href, label: n.label, sub: n.sub }));
+  } else if (results) {
     results.transactions.forEach((t) => flat.push({
       href: `/transactions/${t.id}`,
       label: t.address,
@@ -110,7 +120,7 @@ export function GlobalSearch() {
       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
       </svg>
-      <span className="flex-1 text-left">Search</span>
+      <span className="flex-1 text-left">Search or navigate…</span>
       <span className="text-[10px] font-medium bg-white/40 border border-white/30 rounded px-1.5 py-0.5 tracking-wide">⌘K</span>
     </button>
   );
@@ -151,8 +161,29 @@ export function GlobalSearch() {
           </button>
         </div>
 
+        {/* Quick nav — shown when query is empty */}
+        {query.length === 0 && (
+          <div className="bg-white rounded-b-2xl overflow-hidden">
+            <Section label="Go to">
+              {NAV_ITEMS.map((n, i) => (
+                <ResultRow
+                  key={n.href}
+                  label={n.label}
+                  sub={<span className="text-slate-500">{n.sub}</span>}
+                  icon={n.icon}
+                  selected={selected === i}
+                  onClick={() => navigate(n.href)}
+                />
+              ))}
+            </Section>
+            <p className="text-[11px] text-slate-400 px-4 py-2.5 border-t border-slate-100">
+              ↑↓ to navigate · ↵ to go · Esc to close · type to search
+            </p>
+          </div>
+        )}
+
         {/* Results */}
-        {hasResults && (
+        {query.length > 0 && hasResults && (
           <div className="bg-white rounded-b-2xl overflow-hidden">
             {/* Transactions */}
             {results!.transactions.length > 0 && (
@@ -223,16 +254,9 @@ export function GlobalSearch() {
         )}
 
         {/* No results */}
-        {results && !hasResults && (
+        {query.length > 0 && results && !hasResults && (
           <div className="bg-white rounded-b-2xl px-4 py-8 text-center">
             <p className="text-sm text-slate-400">No results for "{query}"</p>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!results && !loading && query.length === 0 && (
-          <div className="bg-white rounded-b-2xl px-4 py-6 text-center">
-            <p className="text-sm text-slate-400">Start typing to search across all files</p>
           </div>
         )}
       </div>
@@ -301,6 +325,13 @@ function BuildingIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+    </svg>
+  );
+}
+function NavIcon({ d }: { d: string }) {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
     </svg>
   );
 }

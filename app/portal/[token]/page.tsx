@@ -9,6 +9,7 @@ import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
 import { detectStage, getStageTips, COMPLETED_NEXT } from "@/lib/portal-tips";
 import { Lightbulb } from "@phosphor-icons/react/dist/ssr";
+import { ExplainEmailCard } from "@/components/portal/ExplainEmailCard";
 
 function fmtPrice(p: number) { return "£" + p.toLocaleString("en-GB"); }
 function fmtDate(d: Date | string) {
@@ -274,6 +275,9 @@ export default async function PortalHomePage({
           </div>
         </div>
       ) : null}
+
+      {/* ── Explain-my-email ─────────────────────────────────────── */}
+      {!hasCompleted && <ExplainEmailCard token={token} />}
 
       {/* ── Latest updates ───────────────────────────────────────── */}
       <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowSm }}>

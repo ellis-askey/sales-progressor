@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
+import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { getWorkQueueCounts } from "@/lib/services/tasks";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FirstSessionCard } from "@/components/dashboard/FirstSessionCard";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { PostExchangeStrip } from "@/components/transactions/PostExchangeStrip";
@@ -20,13 +22,14 @@ export default async function DashboardPage({
   const { filter } = await searchParams;
   const activeFilter = (filter as TransactionStatus | "all") ?? "all";
 
-  const [transactions, counts, taskCounts, forecastMonths, postExchangeGroups, todoCount] = await Promise.all([
+  const [transactions, counts, taskCounts, forecastMonths, postExchangeGroups, todoCount, attentionFlags] = await Promise.all([
     listTransactions(session.user.agencyId),
     countTransactionsByStatus(session.user.agencyId),
     getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
     getExchangeForecast(session.user.agencyId).catch(() => []),
     getExchangedNotCompleting(session.user.agencyId).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
+    getActiveFlags(session.user.agencyId).catch(() => []),
   ]);
 
   const filtered = activeFilter === "all"
@@ -44,6 +47,9 @@ export default async function DashboardPage({
       />
 
       <div className="px-8 py-7 space-y-7">
+
+        {/* ── First-session welcome card ── */}
+        {transactions.length === 0 && <FirstSessionCard />}
 
         {/* ── Task summary strip ────────────────────────────────────────── */}
         {taskCounts && taskCounts.pending > 0 && (
@@ -89,6 +95,11 @@ export default async function DashboardPage({
         {/* ── Exchange forecast ────────────────────────────────────────── */}
         {forecastMonths.length > 0 && (
           <ForecastStrip months={forecastMonths} />
+        )}
+
+        {/* ── Attention needed ─────────────────────────────────────────── */}
+        {attentionFlags.length > 0 && (
+          <AttentionNeeded flags={attentionFlags} />
         )}
 
         {/* ── Filter tabs ───────────────────────────────────────────────── */}
@@ -226,6 +237,67 @@ function StatChip({ value, label, color }: { value: number; label: string; color
     <div className="flex items-baseline gap-1.5">
       <span className={`text-2xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</span>
       <span className="text-xs text-label-tertiary-on-dark">{label}</span>
+    </div>
+  );
+}
+
+type AttentionFlag = Awaited<ReturnType<typeof getActiveFlags>>[number];
+
+function AttentionNeeded({ flags }: { flags: AttentionFlag[] }) {
+  // Group by transaction, keep first flag per transaction
+  const byTransaction = new Map<string, { tx: AttentionFlag["transaction"]; flags: AttentionFlag[] }>();
+  for (const flag of flags) {
+    const entry = byTransaction.get(flag.transaction.id);
+    if (entry) {
+      entry.flags.push(flag);
+    } else {
+      byTransaction.set(flag.transaction.id, { tx: flag.transaction, flags: [flag] });
+    }
+  }
+
+  const flagKindColors: Record<string, string> = {
+    long_silence: "bg-amber-50 text-amber-700",
+    milestone_stalled: "bg-red-50 text-red-700",
+    chase_unanswered: "bg-orange-50 text-orange-700",
+    exchange_approaching_gaps: "bg-blue-50 text-blue-700",
+    on_hold_extended: "bg-slate-50 text-slate-600",
+    no_portal_activity: "bg-purple-50 text-purple-700",
+    overdue_milestone: "bg-rose-50 text-rose-700",
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        <p className="text-sm font-semibold text-slate-900/70">Attention needed</p>
+        <span className="text-xs font-medium text-white bg-red-500 rounded-full px-2 py-0.5">{byTransaction.size}</span>
+      </div>
+      <div className="space-y-2">
+        {[...byTransaction.values()].map(({ tx, flags: txFlags }) => (
+          <Link
+            key={tx.id}
+            href={`/transactions/${tx.id}`}
+            className="glass-card flex items-start gap-4 px-5 py-4 hover:bg-white/80 transition-colors group"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900/80 truncate group-hover:text-blue-600 transition-colors">
+                {tx.propertyAddress}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{txFlags[0].reason}</p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 flex-shrink-0">
+              {txFlags.slice(0, 3).map((f) => (
+                <span
+                  key={f.kind}
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${flagKindColors[f.kind] ?? "bg-slate-50 text-slate-600"}`}
+                >
+                  {FLAG_LABELS[f.kind as keyof typeof FLAG_LABELS] ?? f.kind}
+                </span>
+              ))}
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

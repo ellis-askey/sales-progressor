@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
+import { logActivity } from "@/lib/services/activity";
+import { sendCompletionSurveys } from "@/lib/services/survey";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -91,6 +93,17 @@ export async function saveCompletionDateAction(transactionId: string, completion
     data: { completionDate: completionDate ? new Date(completionDate) : null },
   });
 
+  const dateStr = completionDate
+    ? new Date(completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+  await logActivity(
+    transactionId,
+    dateStr
+      ? `${session.user.name} set completion date to ${dateStr}`
+      : `${session.user.name} cleared completion date`,
+    session.user.id
+  );
+
   revalidateTx(transactionId);
 }
 
@@ -128,6 +141,10 @@ export async function changeStatusAction(
       createdById: session.user.id,
     },
   });
+
+  if (status === "completed") {
+    sendCompletionSurveys(transactionId).catch(console.error);
+  }
 
   revalidateTx(transactionId);
 }
@@ -171,6 +188,18 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
     where: { id: transactionId },
     data: { overridePredictedDate: overridePredictedDate ? new Date(overridePredictedDate) : null },
   });
+
+  const dateStr = overridePredictedDate
+    ? new Date(overridePredictedDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+  await logActivity(
+    transactionId,
+    dateStr
+      ? `${session.user.name} set expected exchange date to ${dateStr}`
+      : `${session.user.name} cleared expected exchange date`,
+    session.user.id
+  );
+
   revalidateTx(transactionId);
 }
 
@@ -195,6 +224,13 @@ export async function saveAgentFeeAction(input: {
       agentFeeIsVatInclusive: input.agentFeeIsVatInclusive,
     },
   });
+
+  await logActivity(
+    input.transactionId,
+    `${session.user.name} updated agent fee`,
+    session.user.id
+  );
+
   revalidateTx(input.transactionId);
 }
 
@@ -210,6 +246,18 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
     where: { id: transactionId },
     data: { assignedUserId: assignedUserId || null },
   });
+
+  const assignee = assignedUserId
+    ? await prisma.user.findFirst({ where: { id: assignedUserId, agencyId: session.user.agencyId }, select: { name: true } })
+    : null;
+  await logActivity(
+    transactionId,
+    assignee
+      ? `${session.user.name} assigned file to ${assignee.name}`
+      : `${session.user.name} unassigned file`,
+    session.user.id
+  );
+
   revalidateTx(transactionId);
 }
 
@@ -227,6 +275,9 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   if (!tx) throw new Error("Transaction not found");
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: patch });
+
+  await logActivity(transactionId, `${session.user.name} updated solicitor details`, session.user.id);
+
   revalidateTx(transactionId);
 }
 
@@ -239,6 +290,14 @@ export async function savePurchaseTypeAction(transactionId: string, purchaseType
   if (!tx) throw new Error("Transaction not found");
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { purchaseType } });
+
+  const TYPE_LABELS: Record<string, string> = { cash: "Cash", mortgage: "Mortgage", unknown: "Unknown" };
+  await logActivity(
+    transactionId,
+    `${session.user.name} changed purchase type to ${TYPE_LABELS[purchaseType] ?? purchaseType}`,
+    session.user.id
+  );
+
   revalidateTx(transactionId);
 }
 
@@ -261,5 +320,8 @@ export async function saveReferralAction(
       referralFeeReceived: data.referralFeeReceived,
     },
   });
+
+  await logActivity(transactionId, `${session.user.name} updated referral details`, session.user.id);
+
   revalidateTx(transactionId);
 }

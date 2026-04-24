@@ -29,7 +29,7 @@ export type ActivityEntry =
       type: CommType;
       method: CommMethod | null;
       content: string;
-      createdByName: string;
+      createdByName: string | null;
       contactNames: string[];
       wasAiGenerated: boolean;
       tone: string | null;
@@ -92,7 +92,7 @@ export async function getActivityTimeline(
     type: c.type,
     method: c.method,
     content: c.content,
-    createdByName: c.createdBy.name,
+    createdByName: c.createdBy?.name ?? null,
     contactNames: c.contactIds
       .map((id) => contactMap.get(id))
       .filter(Boolean) as string[],
@@ -183,7 +183,7 @@ export type GlobalCommEntry = {
   type: CommType;
   method: CommMethod | null;
   content: string;
-  createdByName: string;
+  createdByName: string | null;
   wasAiGenerated: boolean;
   createdAt: Date;
 };
@@ -206,7 +206,7 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
     type: r.type,
     method: r.method,
     content: r.content,
-    createdByName: r.createdBy.name,
+    createdByName: r.createdBy?.name ?? null,
     wasAiGenerated: r.wasAiGenerated,
     createdAt: r.createdAt,
   }));

@@ -10,6 +10,7 @@ function revalidateTx(id: string) {
 import { requireSession } from "@/lib/session";
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/services/activity";
 import type { ContactRole } from "@prisma/client";
 
 export async function createContactAction(input: {
@@ -21,6 +22,11 @@ export async function createContactAction(input: {
 }) {
   const session = await requireSession();
   const contact = await createContact(input, session.user.agencyId);
+  await logActivity(
+    input.propertyTransactionId,
+    `${session.user.name} added contact: ${input.name} (${input.roleType.replace(/_/g, " ")})`,
+    session.user.id
+  );
   revalidateTx(input.propertyTransactionId);
   return contact;
 }
@@ -43,12 +49,24 @@ export async function updateContactAction(input: {
     where: { id: input.id },
     data: { name: input.name.trim(), phone: input.phone?.trim() || null, email: input.email?.trim() || null },
   });
+  await logActivity(
+    input.transactionId,
+    `${session.user.name} updated contact: ${input.name.trim()}`,
+    session.user.id
+  );
   revalidateTx(input.transactionId);
 }
 
 export async function deleteContactAction(contactId: string, transactionId: string) {
   const session = await requireSession();
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, transaction: { agencyId: session.user.agencyId } },
+    select: { name: true },
+  });
   await deleteContact(contactId, session.user.agencyId);
+  if (contact) {
+    await logActivity(transactionId, `${session.user.name} removed contact: ${contact.name}`, session.user.id);
+  }
   revalidateTx(transactionId);
 }
 

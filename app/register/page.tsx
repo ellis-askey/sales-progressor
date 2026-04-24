@@ -4,32 +4,86 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { SunriseBackground } from "@/components/login/SunriseBackground";
+
+type Step = 1 | 2;
+
+// Same brand mark as login page
+function BrandMark() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="44" height="44" rx="12" fill="url(#bm-grad-r)" />
+      <defs>
+        <linearGradient id="bm-grad-r" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFAA7A" />
+          <stop offset="100%" stopColor="#FF6B4A" />
+        </linearGradient>
+      </defs>
+      <circle cx="10" cy="22" r="3" fill="white" fillOpacity="0.55" />
+      <line x1="13" y1="22" x2="18" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
+      <circle cx="21" cy="22" r="3" fill="white" fillOpacity="0.78" />
+      <line x1="24" y1="22" x2="29" y2="22" stroke="white" strokeWidth="1.5" strokeOpacity="0.40" strokeLinecap="round" />
+      <circle cx="34" cy="22" r="4" fill="white" />
+      <path d="M32.2 22l1.5 1.5 2.8-2.8" stroke="#FF7A54" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "rgba(255,255,255,0.50)",
+  border: "0.5px solid rgba(255,255,255,0.70)",
+  borderRadius: "8px",
+  padding: "10px 14px",
+  color: "#3D1F0E",
+  fontSize: "14px",
+  outline: "none",
+  transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "11px",
+  fontWeight: 500,
+  color: "#7A4A2E",
+  marginBottom: "6px",
+  letterSpacing: "0.01em",
+};
 
 export default function RegisterPage() {
   const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [firmName, setFirmName] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const [firmName, setFirmName] = useState("");
+  const [role, setRole] = useState<"director" | "negotiator">("director");
+
+  const [step, setStep] = useState<Step>(1);
+  const [animating, setAnimating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const step1Valid = name.trim() && email.trim() && password.length >= 8 && termsAccepted;
+
+  function advanceToStep2() {
+    if (!step1Valid) return;
+    setError("");
+    setAnimating(true);
+    setTimeout(() => { setStep(2); setAnimating(false); }, 180);
+  }
+
+  function backToStep1() {
+    setAnimating(true);
+    setTimeout(() => { setStep(1); setAnimating(false); }, 180);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password || !termsAccepted) return;
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
     setLoading(true);
     setError("");
 
@@ -41,6 +95,7 @@ export default function RegisterPage() {
         email: email.trim().toLowerCase(),
         password,
         firmName: firmName.trim() || null,
+        role,
       }),
     });
 
@@ -51,7 +106,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Sign in immediately after registration
     const result = await signIn("credentials", {
       email: email.trim().toLowerCase(),
       password,
@@ -67,162 +121,242 @@ export default function RegisterPage() {
     }
   }
 
-  const isValid = name.trim() && email.trim() && password && confirmPassword && termsAccepted;
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(145deg, #1e293b 0%, #1e3a5f 45%, #0f172a 100%)" }}>
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(59,130,246,0.10) 0%, transparent 70%)" }} />
-      <div className="relative w-full max-w-sm">
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+      <SunriseBackground />
 
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", boxShadow: "0 4px 20px rgba(59,130,246,0.5), 0 1px 4px rgba(0,0,0,0.25)" }}>
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
+      <style>{`
+        .ri::placeholder { color: rgba(61,31,14,0.42); }
+        .ri:focus {
+          background: rgba(255,255,255,0.62) !important;
+          border-color: rgba(255,255,255,0.95) !important;
+          box-shadow: 0 0 0 3px rgba(255,138,101,0.16);
+        }
+        .ri-pr { padding-right: 42px !important; }
+        .rbtn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 28px rgba(216,90,53,0.45) !important;
+        }
+        .rbtn:active:not(:disabled) { transform: scale(0.98); }
+        .rback:hover { color: #3D1F0E !important; }
+        @keyframes rpulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.6; transform: scale(0.85); }
+        }
+      `}</style>
+
+      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
+
+        {/* Brand mark + heading */}
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <div style={{ display: "inline-flex", marginBottom: "1.1rem" }}>
+            <BrandMark />
           </div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Create your account</h1>
-          <p className="text-sm text-blue-200/60 mt-1">For estate agents and negotiators</p>
+          <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 600, color: "#3D1F0E", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+            Create your account
+          </h1>
+          <p style={{ margin: "0.35rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
+            {step === 1 ? "Step 1 of 2 — your details" : "Step 2 of 2 — your workspace"}
+          </p>
         </div>
 
-        <div className="rounded-2xl p-6 space-y-4" style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(28px) saturate(1.6)", WebkitBackdropFilter: "blur(28px) saturate(1.6)", border: "1px solid rgba(255,255,255,0.6)", boxShadow: "0 8px 40px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)" }}>
+        {/* Step indicator */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "1.1rem" }}>
+          <div style={{ flex: 1, height: "3px", borderRadius: "2px", background: "#D85A35" }} />
+          <div style={{
+            flex: 1, height: "3px", borderRadius: "2px",
+            background: step === 2 ? "#D85A35" : "rgba(61,31,14,0.15)",
+            transition: "background 0.3s ease",
+          }} />
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Full name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Sarah Jones"
-                required
-                autoComplete="name"
-                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-            </div>
+        {/* Frosted glass card */}
+        <div style={{
+          background: "rgba(255,255,255,0.38)",
+          backdropFilter: "blur(40px) saturate(180%)",
+          WebkitBackdropFilter: "blur(40px) saturate(180%)",
+          borderRadius: "16px",
+          border: "0.5px solid rgba(255,255,255,0.60)",
+          borderTop: "0.5px solid rgba(255,255,255,0.82)",
+          boxShadow: "0 20px 60px rgba(200,80,30,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.14)",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            opacity: animating ? 0 : 1,
+            transform: animating ? "translateX(-12px)" : "translateX(0)",
+            transition: "opacity 180ms ease, transform 180ms ease",
+          }}>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Work email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="sarah@youragency.co.uk"
-                required
-                autoComplete="email"
-                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-            </div>
+            {/* ── Step 1 ── */}
+            {step === 1 && (
+              <form onSubmit={e => { e.preventDefault(); advanceToStep2(); }} style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">
-                Agency name <span className="text-slate-900/30 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={firmName}
-                onChange={(e) => setFirmName(e.target.value)}
-                placeholder="e.g. Hartwell & Partners"
-                autoComplete="organization"
-                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-            </div>
+                <div>
+                  <label style={labelStyle}>Full name</label>
+                  <input className="ri" type="text" value={name} onChange={e => setName(e.target.value)}
+                    placeholder="Sarah Jones" required autoComplete="name" autoFocus style={inputStyle} />
+                </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 8 characters"
-                  required
-                  autoComplete="new-password"
-                  className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900/40 hover:text-slate-900/70 transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
+                <div>
+                  <label style={labelStyle}>Work email</label>
+                  <input className="ri" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="sarah@youragency.co.uk" required autoComplete="email" style={inputStyle} />
+                </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-900/50 mb-1.5">Confirm password</label>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter password"
-                required
-                autoComplete="new-password"
-                className="w-full px-3 py-2.5 rounded-lg border border-white/30 bg-white/40 text-sm text-slate-900/80 placeholder:text-slate-900/30 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-            </div>
-
-            <label className="flex items-start gap-3 cursor-pointer group">
-              <div className="relative mt-0.5 flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                  termsAccepted ? "bg-blue-500 border-blue-500" : "border-white/40 bg-white/20 group-hover:border-blue-300"
-                }`}>
-                  {termsAccepted && (
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                <div>
+                  <label style={labelStyle}>Password</label>
+                  <div style={{ position: "relative" }}>
+                    <input className="ri ri-pr" type={showPassword ? "text" : "password"} value={password}
+                      onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters"
+                      required autoComplete="new-password" style={inputStyle} />
+                    <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
+                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(61,31,14,0.40)", padding: 0, display: "flex" }}>
+                      {showPassword ? (
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {password.length > 0 && password.length < 8 && (
+                    <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 8 characters required</p>
                   )}
                 </div>
-              </div>
-              <span className="text-xs text-slate-900/50 leading-relaxed">
-                I agree to the{" "}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 underline underline-offset-2">Terms of Service</a>
-                {" "}and{" "}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 underline underline-offset-2">Privacy Policy</a>
-              </span>
-            </label>
 
-            {error && (
-              <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+                {/* Terms checkbox */}
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+                  <div style={{ position: "relative", marginTop: "1px", flexShrink: 0 }}>
+                    <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                    <div style={{
+                      width: "16px", height: "16px", borderRadius: "4px", border: `1.5px solid ${termsAccepted ? "#D85A35" : "rgba(61,31,14,0.30)"}`,
+                      background: termsAccepted ? "#D85A35" : "rgba(255,255,255,0.50)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s ease",
+                    }}>
+                      {termsAccepted && (
+                        <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: "12px", color: "rgba(61,31,14,0.60)", lineHeight: 1.5 }}>
+                    I agree to the{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#D85A35", textDecoration: "underline", textUnderlineOffset: "2px" }}>Terms of Service</a>
+                    {" "}and{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#D85A35", textDecoration: "underline", textUnderlineOffset: "2px" }}>Privacy Policy</a>
+                  </span>
+                </label>
+
+                <button type="submit" disabled={!step1Valid} className="rbtn" style={{
+                  width: "100%", padding: "12px", borderRadius: "8px",
+                  background: step1Valid ? "#D85A35" : "rgba(220,90,55,0.40)",
+                  color: "white", fontSize: "14px", fontWeight: 500, border: "none",
+                  cursor: step1Valid ? "pointer" : "not-allowed",
+                  boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                }}>
+                  Continue
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
+                  Already have an account?{" "}
+                  <Link href="/login" style={{ color: "#D85A35", fontWeight: 500, textDecoration: "none" }}>Sign in</Link>
+                </p>
+              </form>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || !isValid}
-              className="w-full py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors shadow-sm"
-            >
-              {loading ? "Creating account…" : "Create account"}
-            </button>
-          </form>
+            {/* ── Step 2 ── */}
+            {step === 2 && (
+              <form onSubmit={handleSubmit} style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
 
-          <p className="text-center text-xs text-slate-900/40 pt-1">
-            Already have an account?{" "}
-            <Link href="/login" className="text-blue-500 hover:text-blue-600 font-medium">
-              Sign in
-            </Link>
-          </p>
+                <div>
+                  <label style={labelStyle}>
+                    Agency name{" "}
+                    <span style={{ color: "rgba(61,31,14,0.40)", fontWeight: 400 }}>(optional)</span>
+                  </label>
+                  <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
+                    placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus style={inputStyle} />
+                </div>
 
+                <div>
+                  <p style={{ ...labelStyle, marginBottom: "10px" }}>I am a…</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {([
+                      { value: "director" as const, label: "Director", sub: "Manage your agency, see all files, and oversee your pipeline" },
+                      { value: "negotiator" as const, label: "Negotiator", sub: "View your files and pipeline, flag requests to your progressor" },
+                    ] as const).map(({ value, label, sub }) => (
+                      <label key={value} style={{
+                        display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
+                        borderRadius: "10px", cursor: "pointer",
+                        border: `1.5px solid ${role === value ? "#D85A35" : "rgba(255,255,255,0.50)"}`,
+                        background: role === value ? "rgba(216,90,53,0.08)" : "rgba(255,255,255,0.30)",
+                        transition: "all 0.15s ease",
+                      }}>
+                        <div style={{ position: "relative", marginTop: "2px", flexShrink: 0 }}>
+                          <input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+                          <div style={{
+                            width: "16px", height: "16px", borderRadius: "50%",
+                            border: `2px solid ${role === value ? "#D85A35" : "rgba(61,31,14,0.30)"}`,
+                            background: role === value ? "#D85A35" : "rgba(255,255,255,0.50)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            transition: "all 0.15s ease",
+                          }}>
+                            {role === value && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "white" }} />}
+                          </div>
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#3D1F0E" }}>{label}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)", lineHeight: 1.4 }}>{sub}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {error && (
+                  <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
+                    {error}
+                  </p>
+                )}
+
+                <button type="submit" disabled={loading} className="rbtn" style={{
+                  width: "100%", padding: "12px", borderRadius: "8px",
+                  background: loading ? "rgba(220,90,55,0.40)" : "#D85A35",
+                  color: "white", fontSize: "14px", fontWeight: 500, border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                }}>
+                  {loading ? "Creating account…" : "Create account"}
+                </button>
+
+                <button type="button" onClick={backToStep1} className="rback" style={{
+                  width: "100%", padding: "8px", fontSize: "12px", color: "rgba(61,31,14,0.45)",
+                  background: "none", border: "none", cursor: "pointer",
+                  transition: "color 0.12s ease",
+                }}>
+                  ← Back
+                </button>
+
+              </form>
+            )}
+          </div>
         </div>
 
-        <p className="text-center text-xs text-blue-200/40 mt-6">
+        {/* Footer note */}
+        <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(61,31,14,0.45)", marginTop: "1.25rem" }}>
           Internal team member?{" "}
-          <span className="text-blue-200/60">Contact your administrator for access.</span>
+          <span style={{ color: "rgba(61,31,14,0.60)" }}>Contact your administrator for access.</span>
         </p>
 
       </div>

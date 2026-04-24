@@ -134,6 +134,7 @@ model PropertyTransaction {
   chainLinks                 ChainLink[]
   portalMessages             PortalMessage[]
   documents                  TransactionDocument[]
+  flags                      TransactionFlag[]
 }
 
 enum TransactionStatus {
@@ -393,12 +394,12 @@ model CommunicationRecord {
   wasEdited       Boolean     @default(false)
   visibleToClient Boolean     @default(false)
   ccEmails        String?
-  createdById     String
+  createdById     String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  createdBy   User                @relation("CommCreatedBy", fields: [createdById], references: [id])
+  createdBy   User?               @relation("CommCreatedBy", fields: [createdById], references: [id])
   chaseTask   ChaseTask?          @relation(fields: [chaseTaskId], references: [id])
 
   @@index([transactionId, createdAt])
@@ -568,6 +569,25 @@ enum EmailVerificationStatus {
   legacy_single_sender
   expired
   revoked
+}
+
+// ─── TransactionFlag ─────────────────────────────────────────────────────────
+
+model TransactionFlag {
+  id            String    @id @default(cuid())
+  transactionId String
+  agencyId      String
+  kind          String
+  reason        String
+  resolvedAt    DateTime?
+  detectedAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, kind])
+  @@index([agencyId, resolvedAt])
 }
 
 // ─── NextAuth ─────────────────────────────────────────────────────────────────

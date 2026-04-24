@@ -11,6 +11,7 @@ import {
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
 } from "@phosphor-icons/react";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { ChangelogDropdown } from "@/components/layout/ChangelogDropdown";
 
 export function AppShell({
   children,
@@ -62,6 +63,7 @@ export function AppShell({
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900/90 leading-tight tracking-tight">Sales Progressor</p>
             </div>
+            <ChangelogDropdown />
             <PortalBell userKey={session.user.email ?? session.user.name ?? "user"} />
           </div>
         </div>

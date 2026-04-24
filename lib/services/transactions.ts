@@ -27,7 +27,12 @@ export async function listTransactions(
         where: { isActive: true, isNotRequired: false },
         orderBy: { completedAt: "desc" },
         take: 1,
-        select: { completedAt: true, summaryText: true },
+        select: { completedAt: true },
+      },
+      _count: {
+        select: {
+          milestoneCompletions: { where: { isActive: true, isNotRequired: false } },
+        },
       },
       chaseTasks: {
         where: { status: "pending" },
@@ -68,7 +73,21 @@ export async function listTransactions(
       ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
       : null;
 
-    const { chaseTasks: _c, communications: _co, ...rest } = tx;
+    // Confidence score: completed milestones vs 12-week benchmark
+    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 38 pre-exchange milestones.
+    const completedCount = tx._count.milestoneCompletions;
+    const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
+    const weeksElapsed = daysElapsed / 7;
+    const actualPercent = Math.min(100, (completedCount / 38) * 100);
+    const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
+    const diff = actualPercent - expectedPercent;
+    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
+      completedCount === 0 ? "unknown" :
+      diff >= -10 ? "on_track" :
+      diff >= -25 ? "at_risk" :
+      "off_track";
+
+    const { chaseTasks: _c, communications: _co, _count: _cnt, ...rest } = tx;
     return {
       ...rest,
       health: {
@@ -78,6 +97,7 @@ export async function listTransactions(
         nextActionLabel,
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,
+        onTrack,
       },
     };
   });

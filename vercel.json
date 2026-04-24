@@ -9,8 +9,20 @@
       "schedule": "0 8 * * 1-5"
     },
     {
+      "path": "/api/cron/agent-weekly-brief",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/cron/client-weekly-update",
+      "schedule": "0 18 * * 0"
+    },
+    {
       "path": "/api/cron/check-domains",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/detect-problems",
+      "schedule": "0 3 * * *"
     }
   ]
 }

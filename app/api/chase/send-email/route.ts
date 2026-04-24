@@ -26,6 +26,18 @@ export async function POST(req: NextRequest) {
 
   try {
     await sendEmail({ to: toEmail, subject: fullSubject, text: body });
+
+    await prisma.communicationRecord.create({
+      data: {
+        transactionId,
+        type: "outbound",
+        method: "email",
+        contactIds: [],
+        content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}: ${messageText}`,
+        createdById: session.user.id,
+      },
+    });
+
     return NextResponse.json({ ok: true, subject: fullSubject });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Email send failed";

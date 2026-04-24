@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
@@ -86,10 +87,11 @@ export function AgentShell({
               <p className="text-xs text-slate-900/40">{isDirector ? "Director" : "Negotiator"}</p>
             </div>
           </div>
-          <a href="/api/auth/signout"
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="block text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
             Sign out
-          </a>
+          </button>
         </div>
       </aside>
 

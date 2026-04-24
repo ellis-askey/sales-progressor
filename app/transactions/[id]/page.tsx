@@ -247,6 +247,17 @@ export default async function TransactionDetailPage({
           {/* File health banner (conditional) */}
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
+          {/* Referral capture nudge — shown once on completion if no referral recorded */}
+          {transaction.status === "completed" && !transaction.referredFirm && (
+            <div className="glass-card px-5 py-4 flex items-start gap-3 border border-amber-300/30 bg-amber-50/20">
+              <span className="text-lg mt-0.5">🔗</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-700 mb-0.5">Record referral details</p>
+                <p className="text-xs text-amber-600/80 leading-relaxed">This file has completed. If this buyer or seller was referred by a solicitor firm, record the referral fee in the Referral section in the sidebar — it keeps your records accurate and makes it easy to reconcile.</p>
+              </div>
+            </div>
+          )}
+
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
             <div className="grid grid-cols-3 divide-x divide-white/20">

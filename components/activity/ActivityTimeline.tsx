@@ -28,13 +28,57 @@ const METHOD_LABELS: Record<string, string> = {
   post: "Post",
 };
 
+type FilterKind = "all" | "milestones" | "comms" | "notes";
+
+const FILTERS: { value: FilterKind; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "milestones", label: "Milestones" },
+  { value: "comms", label: "Comms" },
+  { value: "notes", label: "Notes" },
+];
+
 export function ActivityTimeline({ entries, transactionId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<FilterKind>("all");
+  const [search, setSearch] = useState("");
 
-  const visible = showAll ? entries : entries.slice(0, 10);
-  const hasMore = entries.length > 10;
+  function handleFilter(f: FilterKind) {
+    setFilter(f);
+    setShowAll(false);
+  }
+
+  function handleSearch(q: string) {
+    setSearch(q);
+    setShowAll(false);
+  }
+
+  const filtered = entries.filter((entry) => {
+    if (filter === "milestones" && entry.kind !== "milestone") return false;
+    if (filter === "comms" && (entry.kind !== "comm" || entry.type === "internal_note")) return false;
+    if (filter === "notes" && (entry.kind !== "comm" || entry.type !== "internal_note")) return false;
+
+    if (search) {
+      const q = search.toLowerCase();
+      if (entry.kind === "milestone") {
+        return (
+          entry.milestoneName?.toLowerCase().includes(q) ||
+          (entry.summaryText?.toLowerCase().includes(q) ?? false)
+        );
+      } else {
+        return (
+          entry.content?.toLowerCase().includes(q) ||
+          entry.contactNames?.some((n) => n.toLowerCase().includes(q))
+        );
+      }
+    }
+
+    return true;
+  });
+
+  const visible = showAll ? filtered : filtered.slice(0, 10);
+  const hasMore = filtered.length > 10;
 
   function deleteComm(id: string) {
     setDeletingId(id);
@@ -53,6 +97,36 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
   }
 
   return (
+    <div>
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 flex-wrap mb-5">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => handleFilter(f.value)}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              filter === f.value
+                ? "bg-slate-900/15 text-slate-900/80"
+                : "bg-white/40 text-slate-900/40 hover:text-slate-900/70 hover:bg-white/60"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search…"
+          className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-white/40 text-slate-900/70 placeholder:text-slate-900/30 border border-white/30 focus:outline-none focus:ring-1 focus:ring-blue-300/50 w-36"
+        />
+      </div>
+
+    {filtered.length === 0 ? (
+      <div className="text-center py-8 text-sm text-slate-900/40">
+        No entries match.
+      </div>
+    ) : (
     <div className="relative">
       {/* Vertical line */}
       <div className="absolute left-[18px] top-2 bottom-2 w-px bg-white/30" />
@@ -158,7 +232,7 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                     {entry.content}
                   </p>
                   <p className="text-xs text-slate-900/40 mt-2">
-                    {entry.createdByName.split(" ")[0]} · {formatDate(entry.at)}
+                    {entry.createdByName?.split(" ")[0] ?? "System"} · {formatDate(entry.at)}
                   </p>
                 </div>
               )}
@@ -173,10 +247,12 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
             onClick={() => setShowAll(!showAll)}
             className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
           >
-            {showAll ? "Show less" : `Show ${entries.length - 10} earlier updates…`}
+            {showAll ? "Show less" : `Show ${filtered.length - 10} earlier updates…`}
           </button>
         </div>
       )}
+    </div>
+    )}
     </div>
   );
 }

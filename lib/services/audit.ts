@@ -29,6 +29,10 @@ export async function getAuditLog(
 
   if (allTxIds.length === 0) return { entries: [], total: 0 };
 
+  // Cap at 3000 per source table — prevents memory blowup while covering any realistic agency.
+  // In-memory sort+slice remains correct within this window.
+  const FETCH_LIMIT = 3000;
+
   const [comms, completions] = await Promise.all([
     prisma.communicationRecord.findMany({
       where: {
@@ -36,6 +40,7 @@ export async function getAuditLog(
         ...(userId ? { createdById: userId } : {}),
       },
       orderBy: { createdAt: "desc" },
+      take: FETCH_LIMIT,
       select: {
         id: true,
         createdAt: true,
@@ -52,6 +57,7 @@ export async function getAuditLog(
         ...(userId ? { completedById: userId } : {}),
       },
       orderBy: { completedAt: "desc" },
+      take: FETCH_LIMIT,
       select: {
         id: true,
         completedAt: true,

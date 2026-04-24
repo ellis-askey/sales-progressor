@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+function toTitleCase(str: string): string {
+  return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, firmName } = await req.json();
+    const { name, email, password, firmName, role } = await req.json();
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
@@ -28,12 +32,12 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        name: name.trim(),
+        name: toTitleCase(name),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
-        role: "negotiator",
+        role: role === "director" ? "director" : "negotiator",
         agencyId: agency.id,
-        firmName: firmName?.trim() || null,
+        firmName: firmName?.trim() ? toTitleCase(firmName) : null,
       },
     });
 

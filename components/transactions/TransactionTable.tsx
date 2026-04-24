@@ -12,6 +12,7 @@ type HealthRaw = {
   nextActionLabel: string | null;
   nextMilestoneLabel: string | null;
   daysStuckOnMilestone: number | null;
+  onTrack?: "on_track" | "at_risk" | "off_track" | "unknown";
 };
 
 type TransactionRow = {
@@ -67,7 +68,7 @@ function ExchangeCountdown({ date }: { date: Date }) {
 
 function RiskBadge({ raw }: { raw: HealthRaw }) {
   const risk = calculateRiskScore({
-    onTrack: "unknown",
+    onTrack: raw.onTrack ?? "unknown",
     escalatedTaskCount: raw.escalatedTasks,
     overdueTaskCount: raw.pendingOverdueTasks,
     daysSinceLastActivity: raw.lastActivityAt
@@ -91,7 +92,7 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
     if (!a.health || !b.health) return 0;
     const riskOrder = { high: 0, medium: 1, low: 2 };
     const ra = calculateRiskScore({
-      onTrack: "unknown",
+      onTrack: a.health.onTrack ?? "unknown",
       escalatedTaskCount: a.health.escalatedTasks,
       overdueTaskCount: a.health.pendingOverdueTasks,
       daysSinceLastActivity: a.health.lastActivityAt
@@ -100,7 +101,7 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
       daysStuckOnMilestone: a.health.daysStuckOnMilestone,
     }).level;
     const rb = calculateRiskScore({
-      onTrack: "unknown",
+      onTrack: b.health.onTrack ?? "unknown",
       escalatedTaskCount: b.health.escalatedTasks,
       overdueTaskCount: b.health.pendingOverdueTasks,
       daysSinceLastActivity: b.health.lastActivityAt
@@ -144,7 +145,7 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
               tx.health
                 ? (() => {
                     const r = calculateRiskScore({
-                      onTrack: "unknown",
+                      onTrack: tx.health.onTrack ?? "unknown",
                       escalatedTaskCount: tx.health.escalatedTasks,
                       overdueTaskCount: tx.health.pendingOverdueTasks,
                       daysSinceLastActivity: tx.health.lastActivityAt

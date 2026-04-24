@@ -228,9 +228,9 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {(step.type === "list" || step.type === "success") && (
         <button
           onClick={() => { setStep({ type: "add-email" }); setError(null); }}
-          className="flex items-center gap-2 text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-blue-300/60 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
           Add a sending address
         </button>
       )}

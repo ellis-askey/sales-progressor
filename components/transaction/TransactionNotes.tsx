@@ -8,7 +8,7 @@ type Note = {
   id: string;
   content: string;
   createdAt: Date | string;
-  createdByName: string;
+  createdByName: string | null;
 };
 
 type Props = {
