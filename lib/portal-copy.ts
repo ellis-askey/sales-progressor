@@ -883,7 +883,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM7: {
     label: "Book your survey", labelOther: "Buyer booked their survey", who: "you",
-    description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400–700 and can identify issues that save you money — or give you negotiating leverage on the price.",
+    description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400–700 and covers the condition of the property in detail — something the lender's valuation does not do. It's there for your peace of mind and protection.",
     emailCopy: {
       purchaser: {
         subject: "Survey booked — {address}",
@@ -906,14 +906,14 @@ const copy: Record<string, PortalCopy> = {
 
   PM20: {
     label: "Survey report received", who: "you",
-    description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues — many are minor. If anything significant is raised, discuss it with your solicitor and consider renegotiating the price.",
+    description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues — many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
     emailCopy: {
       purchaser: {
         subject: "Your survey report has arrived — {address}",
         heroLabel: "Survey report received",
         opening: "Your survey report is ready.",
         whatHappened: "Your surveyor has delivered their report on the property. Most surveys flag some issues — it's rare to get a completely clean report, so don't be alarmed if yours highlights a few things.",
-        whatNext: "Read the report carefully and note anything rated as a significant risk or requiring urgent attention. If you have concerns, speak to your solicitor — they can advise on whether to seek a specialist report, request further information from the seller, or renegotiate on the price.",
+        whatNext: "Read the report carefully and note anything rated as a significant risk or requiring urgent attention. If you have concerns, speak to your solicitor — they can advise on whether to seek a specialist report or request further information from the seller.",
         action: "View your portal",
       },
       progressor: {

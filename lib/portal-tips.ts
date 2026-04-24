@@ -32,8 +32,8 @@ const TIPS: Record<PortalStage, { both: string[]; vendor: string[]; purchaser: s
     ],
     purchaser: [
       "Searches are ordered by your solicitor and typically take 2–6 weeks depending on the local authority. There's nothing you need to do — just be patient during this phase.",
-      "Your mortgage lender will book a valuation of the property. This is not a structural survey — it's purely for the lender's purposes. Consider booking your own independent survey too.",
-      "A RICS HomeBuyer Report (Level 2 survey) costs around £400–700 and is worth the investment. It can flag issues that save you thousands — or give you valuable negotiating leverage.",
+      "Your mortgage lender will book a valuation of the property. This is not a structural survey — it's purely for the lender's purposes and won't tell you anything about the condition of the property.",
+      "Consider booking an independent survey. A RICS HomeBuyer Report (Level 2) costs around £400–700 and covers the condition of the property in detail — something the lender's valuation does not do. It's there for your peace of mind.",
     ],
   },
   active: {
