@@ -68,7 +68,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [loading, setLoading]               = useState(false);
   const [processingId, setProcessingId]     = useState<string | null>(null);
   const [error, setError]                   = useState<string | null>(null);
-  const [showOtherSide, setShowOtherSide]   = useState(true);
+  const [showOtherSide, setShowOtherSide]   = useState(false);
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
