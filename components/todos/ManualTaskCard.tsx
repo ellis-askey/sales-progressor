@@ -59,9 +59,16 @@ export function ManualTaskCard({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium text-slate-900/80 leading-snug ${isDone ? "line-through text-slate-900/40" : ""}`}>
-          {task.title}
-        </p>
+        <div className="flex items-start gap-2 flex-wrap">
+          <p className={`text-sm font-medium text-slate-900/80 leading-snug ${isDone ? "line-through text-slate-900/40" : ""}`}>
+            {task.title}
+          </p>
+          {task.isAgentRequest && (
+            <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100/80 text-amber-700">
+              From agent
+            </span>
+          )}
+        </div>
         {task.notes && (
           <p className="text-xs text-slate-900/40 mt-0.5 leading-relaxed">{task.notes}</p>
         )}

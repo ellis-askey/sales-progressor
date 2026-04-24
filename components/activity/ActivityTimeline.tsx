@@ -66,12 +66,14 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${
                   entry.isNotRequired
                     ? "bg-white/20 border-white/30"
+                    : entry.confirmedByClient
+                    ? "bg-emerald-50/60 border-emerald-200/60"
                     : "bg-blue-50/60 border-blue-200/60"
                 }`}>
                   {entry.isNotRequired ? (
                     <span className="text-xs text-slate-900/40">—</span>
                   ) : (
-                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className={`w-4 h-4 ${entry.confirmedByClient ? "text-emerald-500" : "text-blue-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
@@ -96,8 +98,15 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                 <div className="glass-card px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-blue-600 mb-1">
-                        {entry.isNotRequired ? "Marked not required" : "Milestone confirmed"}
+                      <p className={`text-xs font-semibold mb-1 ${
+                        entry.isNotRequired ? "text-slate-900/40" :
+                        entry.confirmedByClient ? "text-emerald-600" : "text-blue-600"
+                      }`}>
+                        {entry.isNotRequired
+                          ? "Marked not required"
+                          : entry.confirmedByClient
+                          ? "Confirmed by client"
+                          : "Milestone confirmed"}
                       </p>
                       {entry.summaryText ? (
                         <p className="text-sm text-slate-900/80 leading-snug">{entry.summaryText}</p>
@@ -107,7 +116,11 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                     </div>
                   </div>
                   <p className="text-xs text-slate-900/40 mt-2">
-                    {entry.completedByName?.split(" ")[0] ?? "System"} · {formatDate(entry.at)}
+                    {entry.confirmedByClient && entry.confirmerName
+                      ? `${entry.confirmerName} via portal · ${formatDate(entry.at)}`
+                      : entry.confirmedByClient
+                      ? `Client via portal · ${formatDate(entry.at)}`
+                      : `${entry.completedByName?.split(" ")[0] ?? "System"} · ${formatDate(entry.at)}`}
                   </p>
                 </div>
               ) : (

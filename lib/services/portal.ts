@@ -152,7 +152,7 @@ export async function getPortalMilestones(
         isAvailable,
         eventDate: comp?.eventDate ?? null,
         completedAt: comp?.completedAt ?? null,
-        confirmedByClient: comp?.statusReason === "Confirmed by client via portal",
+        confirmedByClient: comp?.statusReason?.startsWith("Confirmed by") ?? false,
       };
     });
   });
@@ -249,7 +249,7 @@ export async function portalCompleteMilestone(input: {
       isNotRequired: false,
       completedAt: new Date(),
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
-      statusReason: "Confirmed by client via portal",
+      statusReason: `Confirmed by ${contact.name} via portal`,
     },
   });
 
@@ -827,6 +827,7 @@ export type TimelineEntry =
       type: "milestone";
       id: string;
       label: string;
+      side: "vendor" | "purchaser";
       completedByName: string | null;
       confirmedByClient: boolean;
       eventDate: Date | null;
@@ -874,8 +875,9 @@ export async function getPortalTimeline(
           type: "milestone" as const,
           id: c.id,
           label,
+          side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
-          confirmedByClient: c.statusReason === "Confirmed by client via portal",
+          confirmedByClient: c.statusReason?.startsWith("Confirmed by") ?? false,
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,
         };

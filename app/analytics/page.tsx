@@ -129,6 +129,22 @@ export default async function AnalyticsPage() {
           />
         </div>
 
+        {/* ── Fee pipeline ── */}
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard
+            label="Our fees pipeline"
+            value={fmt(data.ourFeesPipeline)}
+            sub={`across ${data.ourFeesTxCount} file${data.ourFeesTxCount !== 1 ? "s" : ""} with fee set`}
+            color="text-violet-600"
+          />
+          <StatCard
+            label="Agent fees pipeline"
+            value={data.agentFeesTxCount > 0 ? fmt(data.agentFeesPipeline) : "—"}
+            sub={data.agentFeesTxCount > 0 ? `across ${data.agentFeesTxCount} file${data.agentFeesTxCount !== 1 ? "s" : ""} with fee set` : "no agent fees set"}
+            color="text-orange-600"
+          />
+        </div>
+
         {/* ── Monthly volume chart ── */}
         <div className="glass-card px-5 py-5">
           <p className="text-sm font-semibold text-slate-900/90 mb-1">Monthly activity</p>

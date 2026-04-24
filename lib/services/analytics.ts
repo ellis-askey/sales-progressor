@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { calculateOurFee } from "@/lib/services/fees";
 
 export type MonthVolume = {
   month: string; // "Jan 25"
@@ -19,6 +20,10 @@ export type AnalyticsData = {
   totalCompleted: number;
   totalWithdrawn: number;
   pipelineValue: number;
+  ourFeesPipeline: number;
+  ourFeesTxCount: number;
+  agentFeesPipeline: number;
+  agentFeesTxCount: number;
   avgDaysToExchange: number | null;
   monthlyVolume: MonthVolume[];
   progressorStats: ProgressorStat[];
@@ -35,7 +40,9 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         purchasePrice: true,
         createdAt: true,
         completionDate: true,
-        assignedUser: { select: { id: true, name: true } },
+        assignedUser: { select: { id: true, name: true, clientType: true, legacyFee: true } },
+        agentFeeAmount: true,
+        agentFeePercent: true,
         milestoneCompletions: {
           where: { isActive: true, isNotRequired: false },
           select: { milestoneDefinitionId: true, completedAt: true },
@@ -55,6 +62,31 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
   const withdrawn = transactions.filter((t) => t.status === "withdrawn");
 
   const pipelineValue = active.reduce((sum, t) => sum + (t.purchasePrice ?? 0), 0);
+
+  // Our fee pipeline
+  let ourFeesPipeline = 0;
+  let ourFeesTxCount = 0;
+  for (const t of active) {
+    const { fee } = calculateOurFee(
+      t.assignedUser?.clientType ?? "standard",
+      t.assignedUser?.legacyFee ?? null,
+      t.purchasePrice ?? null
+    );
+    if (fee !== null) { ourFeesPipeline += fee; ourFeesTxCount++; }
+  }
+
+  // Agent fee pipeline
+  let agentFeesPipeline = 0;
+  let agentFeesTxCount = 0;
+  for (const t of active) {
+    if (t.agentFeeAmount) {
+      agentFeesPipeline += t.agentFeeAmount;
+      agentFeesTxCount++;
+    } else if (t.agentFeePercent && t.purchasePrice) {
+      agentFeesPipeline += Math.round(Number(t.agentFeePercent) * t.purchasePrice / 100);
+      agentFeesTxCount++;
+    }
+  }
 
   // Avg days to exchange: only completed/active files that have an exchange milestone
   const exchangeTimes: number[] = [];
@@ -124,6 +156,10 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
     totalCompleted: completed.length,
     totalWithdrawn: withdrawn.length,
     pipelineValue,
+    ourFeesPipeline,
+    ourFeesTxCount,
+    agentFeesPipeline,
+    agentFeesTxCount,
     avgDaysToExchange,
     monthlyVolume: months,
     progressorStats: Array.from(progressorMap.values()).sort((a, b) => b.active - a.active),

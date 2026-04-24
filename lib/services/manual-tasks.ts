@@ -7,6 +7,7 @@ export type ManualTaskWithRelations = {
   status: "open" | "done";
   dueDate: Date | null;
   createdAt: Date;
+  isAgentRequest: boolean;
   transactionId: string | null;
   transaction: { propertyAddress: string } | null;
   assignedTo: { id: string; name: string } | null;
@@ -103,6 +104,18 @@ export async function deleteManualTask(id: string, agencyId: string) {
 
 export async function countOpenManualTasks(agencyId: string) {
   return prisma.manualTask.count({ where: { agencyId, status: "open" } });
+}
+
+export async function listAgentRequests(userId: string, agencyId: string) {
+  return prisma.manualTask.findMany({
+    where: { agencyId, isAgentRequest: true, createdById: userId },
+    orderBy: [{ createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
 }
 
 export async function countManualTasksDueToday(agencyId: string) {

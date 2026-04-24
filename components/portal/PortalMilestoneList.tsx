@@ -272,18 +272,25 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
 
         {/* ── Other side progress (read-only) ─────────────────── */}
         {otherSideMilestones.length > 0 && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd }}>
+          <div className="rounded-2xl overflow-hidden" style={{ background: P.cardBg, boxShadow: P.shadowMd, borderLeft: `3px solid rgba(139,145,163,0.25)` }}>
             <button
               className="w-full flex items-center gap-3 px-5 py-4 text-left"
               style={{ borderBottom: showOtherSide ? `1px solid ${P.border}` : undefined }}
               onClick={() => setShowOtherSide((v) => !v)}
             >
-              <span className="text-xl">👀</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold" style={{ color: P.textPrimary }}>
-                  {side === "vendor" ? "Buyer's" : "Seller's"} progress
-                </p>
-                <p className="text-[12px] mt-0.5" style={{ color: P.textSecondary }}>
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-semibold" style={{ color: P.textSecondary }}>
+                    {side === "vendor" ? "Purchase progress" : "Sale progress"}
+                  </p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: P.border, color: P.textMuted }}>
+                    View only
+                  </span>
+                </div>
+                <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>
                   {otherSideMilestones.filter((m) => m.isComplete).length} of {otherSideMilestones.filter((m) => !m.isNotRequired).length} steps done
                 </p>
               </div>

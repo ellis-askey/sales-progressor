@@ -19,6 +19,8 @@ export type ActivityEntry =
       milestoneName: string;
       completedByName: string | null;
       isNotRequired: boolean;
+      confirmedByClient: boolean;
+      confirmerName: string | null;
     }
   | {
       kind: "comm";
@@ -65,15 +67,23 @@ export async function getActivityTimeline(
     }),
   ]);
 
-  const milestoneEntries: ActivityEntry[] = completions.map((c) => ({
-    kind: "milestone",
-    id: c.id,
-    at: c.completedAt,
-    summaryText: c.summaryText,
-    milestoneName: c.milestoneDefinition.name,
-    completedByName: c.completedBy?.name ?? null,
-    isNotRequired: c.isNotRequired,
-  }));
+  const milestoneEntries: ActivityEntry[] = completions.map((c) => {
+    const confirmedByClient = c.statusReason?.startsWith("Confirmed by") ?? false;
+    const confirmerName = confirmedByClient
+      ? (c.statusReason?.replace(/^Confirmed by /, "").replace(/ via portal$/, "") ?? null)
+      : null;
+    return {
+      kind: "milestone",
+      id: c.id,
+      at: c.completedAt,
+      summaryText: c.summaryText,
+      milestoneName: c.milestoneDefinition.name,
+      completedByName: c.completedBy?.name ?? null,
+      isNotRequired: c.isNotRequired,
+      confirmedByClient,
+      confirmerName,
+    };
+  });
 
   const commEntries: ActivityEntry[] = comms.map((c) => ({
     kind: "comm",

@@ -19,6 +19,7 @@ export function ManualTaskList({
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [filter, setFilter] = useState<"open" | "all">("open");
+  const [showAgentDone, setShowAgentDone] = useState(false);
   const updateBadge = useTabBadge();
 
   async function handleAdd(data: {
@@ -63,57 +64,107 @@ export function ManualTaskList({
     updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
   }
 
-  const open = tasks.filter((t) => t.status === "open");
-  const done = tasks.filter((t) => t.status === "done");
-  const visible = filter === "open" ? open : tasks;
+  const myTasks   = tasks.filter((t) => !t.isAgentRequest);
+  const agentTasks = tasks.filter((t) => t.isAgentRequest);
+
+  const myOpen  = myTasks.filter((t) => t.status === "open");
+  const myDone  = myTasks.filter((t) => t.status === "done");
+  const myVisible = filter === "open" ? myOpen : myTasks;
+
+  const agentOpen = agentTasks.filter((t) => t.status === "open");
+  const agentDone = agentTasks.filter((t) => t.status === "done");
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between glass-subtle px-4 py-3 rounded-xl">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-slate-900/80">
-            To-Do
-            {open.length > 0 && (
-              <span className="ml-2 text-xs font-medium bg-blue-50/80 text-blue-600 px-2 py-0.5 rounded-full">
-                {open.length}
-              </span>
+    <div className="space-y-6">
+      {/* ── My to-dos ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between glass-subtle px-4 py-3 rounded-xl">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-slate-900/80">
+              To-Do
+              {myOpen.length > 0 && (
+                <span className="ml-2 text-xs font-medium bg-blue-50/80 text-blue-600 px-2 py-0.5 rounded-full">
+                  {myOpen.length}
+                </span>
+              )}
+            </h2>
+            {showDone && myDone.length > 0 && (
+              <button
+                onClick={() => setFilter(filter === "open" ? "all" : "open")}
+                className="text-xs text-slate-900/40 hover:text-slate-900/70"
+              >
+                {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
+              </button>
             )}
-          </h2>
-          {showDone && done.length > 0 && (
-            <button
-              onClick={() => setFilter(filter === "open" ? "all" : "open")}
-              className="text-xs text-slate-900/40 hover:text-slate-900/70"
-            >
-              {filter === "open" ? `Show ${done.length} done` : "Hide done"}
-            </button>
-          )}
+          </div>
+          <AddManualTaskForm
+            transactionId={transactionId}
+            transactionAddress={transactionAddress}
+            onAdd={handleAdd}
+          />
         </div>
-        <AddManualTaskForm
-          transactionId={transactionId}
-          transactionAddress={transactionAddress}
-          onAdd={handleAdd}
-        />
+
+        {myVisible.length === 0 ? (
+          <div className="text-center py-8 text-sm text-slate-900/30">
+            {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {myOpen.map((task) => (
+              <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+            ))}
+            {filter === "all" && myDone.length > 0 && (
+              <>
+                <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Done</div>
+                {myDone.map((task) => (
+                  <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* List */}
-      {visible.length === 0 ? (
-        <div className="text-center py-8 text-sm text-slate-900/30">
-          {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {open.map((task) => (
-            <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
-          ))}
-          {filter === "all" && done.length > 0 && (
-            <>
-              <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Done</div>
-              {done.map((task) => (
-                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
-              ))}
-            </>
-          )}
+      {/* ── Agent requests ── */}
+      {agentTasks.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h2 className="text-sm font-semibold text-slate-900/80">
+              Agent requests
+              {agentOpen.length > 0 && (
+                <span className="ml-2 text-xs font-medium bg-amber-100/80 text-amber-700 px-2 py-0.5 rounded-full">
+                  {agentOpen.length}
+                </span>
+              )}
+            </h2>
+            {agentDone.length > 0 && (
+              <button
+                onClick={() => setShowAgentDone((v) => !v)}
+                className="ml-auto text-xs text-slate-900/40 hover:text-slate-900/70"
+              >
+                {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {agentOpen.map((task) => (
+              <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+            ))}
+            {showAgentDone && agentDone.length > 0 && (
+              <>
+                <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Resolved</div>
+                {agentDone.map((task) => (
+                  <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+                ))}
+              </>
+            )}
+            {agentOpen.length === 0 && !showAgentDone && (
+              <div className="text-center py-4 text-sm text-slate-900/30">All agent requests resolved.</div>
+            )}
+          </div>
         </div>
       )}
     </div>

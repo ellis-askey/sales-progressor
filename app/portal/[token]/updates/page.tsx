@@ -98,6 +98,16 @@ export default async function PortalUpdatesPage({
 
                 /* ── Key milestone event ── */
                 if (entry.type === "milestone") {
+                  const isOwnSide = entry.side === side;
+                  const sideBadgeText = isOwnSide
+                    ? (side === "vendor" ? "Sale" : "Purchase")
+                    : (entry.side === "vendor" ? "Their sale" : "Their purchase");
+                  const sideBadgeBg = isOwnSide
+                    ? (side === "vendor" ? "rgba(255,107,74,0.12)" : "rgba(59,130,246,0.10)")
+                    : "rgba(139,145,163,0.12)";
+                  const sideBadgeColor = isOwnSide
+                    ? (side === "vendor" ? P.primary : P.accent)
+                    : P.textMuted;
                   return (
                     <div
                       key={entry.id}
@@ -113,9 +123,17 @@ export default async function PortalUpdatesPage({
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
-                          {entry.label}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-[14px] font-semibold leading-snug" style={{ color: P.textPrimary }}>
+                            {entry.label}
+                          </p>
+                          <span
+                            className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: sideBadgeBg, color: sideBadgeColor }}
+                          >
+                            {sideBadgeText}
+                          </span>
+                        </div>
                         {entry.eventDate && (
                           <p className="text-[13px] font-semibold mt-0.5" style={{ color: P.primary }}>
                             {fmtDateFull(entry.eventDate)}
