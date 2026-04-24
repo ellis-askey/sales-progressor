@@ -25,12 +25,9 @@ export async function POST(req: NextRequest) {
     data: { identifier: normalised, token, expires },
   });
 
-  const nextAuthUrl = process.env.NEXTAUTH_URL ?? "";
-  const base = nextAuthUrl && !nextAuthUrl.includes("localhost")
-    ? nextAuthUrl
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : nextAuthUrl || "http://localhost:3000";
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const host  = req.headers.get("host") ?? "";
+  const base  = host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
   const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(normalised)}`;
 
   await sendEmail({
