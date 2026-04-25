@@ -84,6 +84,10 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
         )}
 
         {!loading && !error && data && (
+          <div>
+          <p className="text-[11px] text-slate-900/30 mb-3 italic">
+            Data sourced from Land Registry and EPC Register. Always verify before use.
+          </p>
           <div className="flex gap-6">
 
             {/* Price paid history */}
@@ -157,6 +161,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
               )}
             </div>
 
+          </div>
           </div>
         )}
       </div>

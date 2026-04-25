@@ -6,6 +6,30 @@ export function extractPostcode(address: string): string | null {
   return match ? match[0].toUpperCase().replace(/\s+/, " ") : null;
 }
 
+/**
+ * Extract the primary addressable object name (house number or name) from a
+ * full address string. Used to filter Land Registry and EPC lookups to the
+ * specific property rather than all addresses sharing the postcode.
+ *
+ * Returns null if nothing useful can be extracted (falls back to postcode-only).
+ */
+export function extractPaon(address: string): string | null {
+  // Strip postcode and anything after it
+  const withoutPostcode = address
+    .replace(/,?\s*[A-Z]{1,2}[0-9][0-9A-Z]?\s+[0-9][A-Z]{2}\s*$/i, "")
+    .trim();
+  // Take the first comma-separated part ("10 High Street" or "The Old Rectory")
+  const firstPart = withoutPostcode.split(",")[0].trim();
+  if (!firstPart) return null;
+
+  // Numeric house number (e.g. "10", "10A", "10-12")
+  const numMatch = firstPart.match(/^(\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)\b/);
+  if (numMatch) return numMatch[1].toUpperCase();
+
+  // Named property: use the whole first part (e.g. "THE OLD RECTORY")
+  return firstPart.toUpperCase();
+}
+
 export type PricePaidEntry = {
   date: string;
   amount: number;
@@ -14,8 +38,12 @@ export type PricePaidEntry = {
   estateType: string;
 };
 
-export async function fetchPricePaid(postcode: string): Promise<PricePaidEntry[]> {
-  const encoded = encodeURIComponent(postcode.trim());
+export async function fetchPricePaid(postcode: string, paon?: string | null): Promise<PricePaidEntry[]> {
+  // Pin to the specific property when we have a house number/name
+  const paonClause = paon
+    ? `?addr lrcommon:paon "${paon.replace(/"/g, "\\'")}"^^xsd:string .`
+    : "";
+
   const sparql = `
     PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
     PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
@@ -23,6 +51,7 @@ export async function fetchPricePaid(postcode: string): Promise<PricePaidEntry[]
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     SELECT ?date ?amount ?propertyType ?newBuild ?estateType WHERE {
       ?addr lrcommon:postcode "${postcode.trim()}"^^xsd:string .
+      ${paonClause}
       ?tx lrppi:propertyAddress ?addr ;
           lrppi:pricePaid ?amount ;
           lrppi:transactionDate ?date ;
@@ -65,13 +94,16 @@ export type EpcData = {
   lmkKey: string;
 };
 
-export async function fetchEpc(postcode: string): Promise<EpcData | null> {
+export async function fetchEpc(postcode: string, paon?: string | null): Promise<EpcData | null> {
   const email = process.env.EPC_API_EMAIL;
   const key = process.env.EPC_API_KEY;
   if (!email || !key) return null;
 
   const auth = Buffer.from(`${email}:${key}`).toString("base64");
-  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}&size=1`;
+
+  // Include the house number/name in the search to pin to the right property
+  const addressParam = paon ? `&address=${encodeURIComponent(paon)}` : "";
+  const url = `https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=${encodeURIComponent(postcode)}${addressParam}&size=1`;
 
   const res = await fetch(url, {
     headers: {

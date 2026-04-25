@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   extractPostcode,
+  extractPaon,
   fetchPricePaid,
   fetchEpc,
   buildRightmoveUrl,
@@ -26,9 +27,11 @@ export async function GET(req: NextRequest) {
   const postcode = extractPostcode(tx.propertyAddress);
   if (!postcode) return NextResponse.json({ postcode: null, pricePaid: [], epc: null, links: null });
 
+  const paon = extractPaon(tx.propertyAddress);
+
   const [pricePaid, epc] = await Promise.all([
-    fetchPricePaid(postcode).catch(() => []),
-    fetchEpc(postcode).catch(() => null),
+    fetchPricePaid(postcode, paon).catch(() => []),
+    fetchEpc(postcode, paon).catch(() => null),
   ]);
 
   return NextResponse.json({
