@@ -153,8 +153,15 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   }
 
   function openReferralEdit() {
-    setEditFirmId(transaction.referredFirmId ?? "");
-    setEditFeePence(transaction.referralFee ?? null);
+    const firmId = transaction.referredFirmId ?? "";
+    let feePence = transaction.referralFee ?? null;
+    // If firm is already set but fee is missing, pre-fill from the firm's default
+    if (firmId && feePence == null && recommendedFirms) {
+      const firm = recommendedFirms.find((f) => f.id === firmId);
+      if (firm?.defaultReferralFeePence != null) feePence = firm.defaultReferralFeePence;
+    }
+    setEditFirmId(firmId);
+    setEditFeePence(feePence);
     setEditingReferral(true);
   }
 
@@ -167,13 +174,19 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   }
 
   function saveReferral() {
+    // If fee wasn't set, fall back to the selected firm's default fee
+    let feePence = editFeePence;
+    if (feePence == null && editFirmId && recommendedFirms) {
+      const firm = recommendedFirms.find((f) => f.id === editFirmId);
+      feePence = firm?.defaultReferralFeePence ?? null;
+    }
     setSaving(true);
     setEditingReferral(false);
     startTransition(async () => {
       try {
         await saveReferralAction(transaction.id, {
           referredFirmId: editFirmId || null,
-          referralFee: editFeePence,
+          referralFee: feePence,
           referralFeeReceived: false,
         });
       } finally { setSaving(false); }
