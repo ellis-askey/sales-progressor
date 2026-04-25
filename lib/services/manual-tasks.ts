@@ -120,6 +120,18 @@ export async function listAgentRequests(userId: string, agencyId: string) {
   }) as Promise<ManualTaskWithRelations[]>;
 }
 
+/** All tasks created by the agent — both their own and requests to the progressor. */
+export async function listAllTasksForAgent(userId: string, agencyId: string) {
+  return prisma.manualTask.findMany({
+    where: { agencyId, createdById: userId },
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
 export async function countManualTasksDueToday(agencyId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

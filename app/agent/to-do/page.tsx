@@ -1,10 +1,10 @@
 import { requireSession } from "@/lib/session";
-import { listAgentRequests } from "@/lib/services/manual-tasks";
+import { listAllTasksForAgent } from "@/lib/services/manual-tasks";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 
 export default async function AgentTodoPage() {
   const session = await requireSession();
-  const tasks = await listAgentRequests(session.user.id, session.user.agencyId);
+  const tasks = await listAllTasksForAgent(session.user.id, session.user.agencyId);
 
   const openCount = tasks.filter((t) => t.status === "open").length;
 
