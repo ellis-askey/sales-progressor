@@ -347,8 +347,10 @@ export async function saveDraftAction(data: {
   purchasePrice?: number | null;
   vendorName?: string;
   vendorPhone?: string;
+  vendorEmail?: string;
   purchaserName?: string;
   purchaserPhone?: string;
+  purchaserEmail?: string;
   progressedBy?: "progressor" | "agent";
 }) {
   const session = await requireSession();
@@ -385,8 +387,8 @@ export async function saveDraftAction(data: {
 
   // Save contacts if provided
   const contactData = [
-    ...(data.vendorName?.trim() ? [{ propertyTransactionId: tx.id, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: null, roleType: "vendor" as ContactRole }] : []),
-    ...(data.purchaserName?.trim() ? [{ propertyTransactionId: tx.id, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: null, roleType: "purchaser" as ContactRole }] : []),
+    ...(data.vendorName?.trim() ? [{ propertyTransactionId: tx.id, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: data.vendorEmail?.trim() || null, roleType: "vendor" as ContactRole }] : []),
+    ...(data.purchaserName?.trim() ? [{ propertyTransactionId: tx.id, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: data.purchaserEmail?.trim() || null, roleType: "purchaser" as ContactRole }] : []),
   ];
   if (contactData.length > 0) {
     await prisma.contact.createMany({ data: contactData });
@@ -403,7 +405,7 @@ export async function promoteDraftAction(
     tenure: Tenure;
     purchaseType: PurchaseType;
     purchasePrice: number | null;
-    contacts: { name: string; phone: string | null; roleType: ContactRole }[];
+    contacts: { name: string; phone: string | null; email?: string | null; roleType: ContactRole }[];
     progressedBy?: "progressor" | "agent";
   }
 ) {
@@ -422,7 +424,7 @@ export async function promoteDraftAction(
         propertyTransactionId: draftId,
         name: c.name,
         phone: c.phone,
-        email: null,
+        email: c.email ?? null,
         roleType: c.roleType,
         portalToken: randomUUID(),
       })),

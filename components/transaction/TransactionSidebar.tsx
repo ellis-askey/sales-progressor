@@ -63,6 +63,8 @@ type Props = {
     agentFeeAmount: number | null;
     agentFeePercent: number | null;
     agentFeeIsVatInclusive: boolean | null;
+    referralFee?: number | null;
+    referredFirmName?: string | null;
   };
   assignedUser: {
     clientType: ClientType;
@@ -72,9 +74,10 @@ type Props = {
   progress: ProgressResult;
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
+  showOurFee?: boolean;
 };
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingPrice, setEditingPrice] = useState(false);
   const [pricePence, setPricePence] = useState<number | null>(transaction.purchasePrice ?? null);
@@ -344,12 +347,14 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             )}
           </div>
 
-          {/* Our fee */}
-          <div className="pt-2 border-t border-white/20">
-            <p className="text-xs text-slate-900/40 mb-0.5">Our fee</p>
-            <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
-            <p className="text-xs text-slate-900/40">{ourFee.label}</p>
-          </div>
+          {/* Our fee — progressors always, directors only on agent side */}
+          {showOurFee && (
+            <div className="pt-2 border-t border-white/20">
+              <p className="text-xs text-slate-900/40 mb-0.5">Our fee</p>
+              <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
+              <p className="text-xs text-slate-900/40">{ourFee.label}</p>
+            </div>
+          )}
 
           {/* Agent fee */}
           <div className="pt-2 border-t border-white/20">
@@ -447,6 +452,24 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               <p className="text-sm text-slate-900/30 italic">Not set</p>
             )}
           </div>
+
+          {/* Referral fee */}
+          {transaction.referredFirmName && transaction.referralFee != null && (
+            <div className="pt-2 border-t border-white/20">
+              <p className="text-xs text-slate-900/40 mb-0.5">Referral fee</p>
+              <p className="text-sm font-semibold text-slate-900/90">{formatFee(transaction.referralFee)}</p>
+              <p className="text-xs text-slate-900/40">{transaction.referredFirmName}</p>
+            </div>
+          )}
+
+          {/* Total agency income — only when both agent fee (fixed) and referral fee are set */}
+          {transaction.agentFeeAmount && transaction.referralFee ? (
+            <div className="pt-2 border-t border-white/20">
+              <p className="text-xs text-slate-900/40 mb-0.5">Total agency income</p>
+              <p className="text-sm font-bold text-emerald-700">{formatFee(transaction.agentFeeAmount + transaction.referralFee)}</p>
+              <p className="text-xs text-slate-900/40">Agent fee + referral fee</p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

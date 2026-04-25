@@ -4,11 +4,33 @@ import { resolveAgentVisibility } from "@/lib/services/agent";
 import { getSolicitorDirectoryForAgent } from "@/lib/services/solicitors";
 import type { SolicitorFirmWithStats } from "@/lib/services/solicitors";
 import { Buildings } from "@phosphor-icons/react/dist/ssr";
+import { prisma } from "@/lib/prisma";
+import { RecommendedSolicitorsSettings } from "@/components/agent/RecommendedSolicitorsSettings";
 
 export default async function AgentSolicitorsPage() {
   const session = await requireSession();
+  const isDirector = session.user.role === "director";
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const firms = await getSolicitorDirectoryForAgent(vis);
+
+  const [firms, recommendedSolicitors, allFirms] = await Promise.all([
+    getSolicitorDirectoryForAgent(vis),
+    isDirector
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (prisma as any).agencyRecommendedSolicitor.findMany({
+          where: { agencyId: session.user.agencyId },
+          orderBy: { solicitorFirm: { name: "asc" } },
+          select: {
+            id: true,
+            solicitorFirmId: true,
+            defaultReferralFeePence: true,
+            solicitorFirm: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    isDirector
+      ? prisma.solicitorFirm.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ]);
 
   const totalContacts = firms.reduce((n, f) => n + f.contacts.length, 0);
 
@@ -47,6 +69,34 @@ export default async function AgentSolicitorsPage() {
       </div>
 
       <div className="px-8 py-7 space-y-4">
+
+        {/* Recommended solicitors — directors only */}
+        {isDirector && (
+          <div className="glass-card p-6">
+            <div className="mb-5">
+              <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
+              <p className="text-xs text-slate-900/50">
+                Mark solicitor firms you recommend to clients and set a default referral fee. These feed into your referral income analytics.
+              </p>
+              <div className="flex items-center gap-4 mt-3 text-xs text-slate-900/40">
+                <span>Toggle = recommended</span>
+                <span>·</span>
+                <span>Fee field = default referral fee (£)</span>
+              </div>
+            </div>
+            <RecommendedSolicitorsSettings
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              initialRecommended={(recommendedSolicitors as any[]).map((r) => ({
+                id: r.id,
+                firmId: r.solicitorFirmId,
+                firmName: r.solicitorFirm.name,
+                defaultReferralFeePence: r.defaultReferralFeePence,
+              }))}
+              allFirms={allFirms}
+            />
+          </div>
+        )}
+
         {firms.length === 0 ? (
           <div className="glass-card" style={{ padding: "48px 32px", textAlign: "center" }}>
             <Buildings weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 12px", opacity: 0.5 }} />

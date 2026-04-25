@@ -1062,6 +1062,7 @@ function ContactSection({ label, contacts, fromMemo, onChange, onAdd, onRemove }
                   value={contact.phone}
                   onChange={(e) => onChange(i, "phone", cleanPhone(e.target.value))}
                   placeholder="e.g. 07700 900000"
+                  maxLength={20}
                   className="glass-input w-full px-3 py-2.5 text-sm"
                 />
               </div>

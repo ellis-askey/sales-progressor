@@ -86,10 +86,10 @@ export default async function AgentAnalyticsPage({
 
   // ── Referral income ──────────────────────────────────────────────────────────
   const referredTxs = periodTx.filter(t => t.referredFirmId);
-  const totalReferralExpectedPence = referredTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
-  const receivedPence = referredTxs.filter(t => t.referralFeeReceived).reduce((s, t) => s + (t.referralFee ?? 0), 0);
-  const pendingPence = referredTxs.filter(t => !t.referralFeeReceived && t.referralFee).reduce((s, t) => s + (t.referralFee ?? 0), 0);
-  const pendingCount = referredTxs.filter(t => !t.referralFeeReceived).length;
+  const inPipelineTxs = referredTxs.filter(t => !t.hasExchanged && !t.hasCompleted);
+  const dueTxs = referredTxs.filter(t => t.hasExchanged || t.hasCompleted);
+  const inPipelinePence = inPipelineTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
+  const duePence = dueTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
   const noFeeReferralCount = referredTxs.filter(t => !t.referralFee).length;
 
   // ── Always-on stats (not period-filtered) ────────────────────────────────────
@@ -274,36 +274,26 @@ export default async function AgentAnalyticsPage({
         {referredTxs.length > 0 && (
           <div className="space-y-2">
             <p className="glass-section-label text-slate-900/40 px-1">Referral income — {periodLabel.toLowerCase()}</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="glass-card px-5 py-4">
-                <p className="glass-section-label text-slate-900/40 mb-1">Expected income</p>
-                <p className="text-[11px] text-slate-900/30 mb-2">All referred files</p>
+                <p className="glass-section-label text-slate-900/40 mb-1">In pipeline</p>
+                <p className="text-[11px] text-slate-900/30 mb-2">Active, pre-exchange</p>
                 <p className="text-2xl font-bold text-violet-600">
-                  {totalReferralExpectedPence > 0 ? fmt(totalReferralExpectedPence / 100) : "—"}
+                  {inPipelinePence > 0 ? fmt(inPipelinePence / 100) : "—"}
                 </p>
                 <p className="text-[11px] text-slate-900/35 mt-1">
-                  {referredTxs.length} referred file{referredTxs.length !== 1 ? "s" : ""}
+                  {inPipelineTxs.length} file{inPipelineTxs.length !== 1 ? "s" : ""}
                   {noFeeReferralCount > 0 && ` · ${noFeeReferralCount} without a fee recorded`}
                 </p>
               </div>
               <div className="glass-card px-5 py-4">
-                <p className="glass-section-label text-slate-900/40 mb-1">Fees received</p>
-                <p className="text-[11px] text-slate-900/30 mb-2">Marked as paid</p>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {receivedPence > 0 ? fmt(receivedPence / 100) : "—"}
-                </p>
-                <p className="text-[11px] text-slate-900/35 mt-1">
-                  {referredTxs.filter(t => t.referralFeeReceived).length} received
-                </p>
-              </div>
-              <div className="glass-card px-5 py-4">
-                <p className="glass-section-label text-slate-900/40 mb-1">Pending</p>
-                <p className="text-[11px] text-slate-900/30 mb-2">Not yet received</p>
+                <p className="glass-section-label text-slate-900/40 mb-1">Exchanged — due</p>
+                <p className="text-[11px] text-slate-900/30 mb-2">Payable on/after completion</p>
                 <p className="text-2xl font-bold text-amber-600">
-                  {pendingPence > 0 ? fmt(pendingPence / 100) : "—"}
+                  {duePence > 0 ? fmt(duePence / 100) : "—"}
                 </p>
                 <p className="text-[11px] text-slate-900/35 mt-1">
-                  {pendingCount} file{pendingCount !== 1 ? "s" : ""} pending
+                  {dueTxs.length} file{dueTxs.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>

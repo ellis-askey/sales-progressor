@@ -183,7 +183,10 @@ export default async function AgentTransactionDetailPage({
         agentFeeAmount: transaction.agentFeeAmount ?? null,
         agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
         agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
+        referralFee: transaction.referralFee ?? null,
+        referredFirmName: transaction.referredFirm?.name ?? null,
       }}
+      showOurFee={session.user.role === "director"}
       assignedUser={assignedUser}
       agentUser={agentUser}
       progress={progress}
