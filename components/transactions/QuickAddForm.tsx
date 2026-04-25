@@ -45,6 +45,7 @@ export function QuickAddForm({
   const [postcode, setPostcode] = useState("");
   const [tenure, setTenure] = useState<Tenure | "">(initialValues?.tenure ?? "");
   const [purchaseType, setPurchaseType] = useState<PurchaseType | "">(initialValues?.purchaseType ?? "");
+  const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
   const [vendorName, setVendorName] = useState(initialValues?.vendorName ?? "");
   const [vendorPhone, setVendorPhone] = useState(initialValues?.vendorPhone ?? "");
   const [purchaserName, setPurchaserName] = useState(initialValues?.purchaserName ?? "");
@@ -71,6 +72,7 @@ export function QuickAddForm({
     setPurchaserPhone("");
     setPrice("");
     setDraftId(null);
+    setProgressedBy("progressor");
   }
 
   async function saveDraft() {
@@ -88,6 +90,7 @@ export function QuickAddForm({
         vendorPhone: vendorPhone.trim() || undefined,
         purchaserName: purchaserName.trim() || undefined,
         purchaserPhone: purchaserPhone.trim() || undefined,
+        progressedBy,
       });
       void result;
       toast.success("Draft saved", { description: fullAddress });
@@ -105,6 +108,16 @@ export function QuickAddForm({
       setError("Please fill in the address, tenure and purchase type.");
       return;
     }
+    if (progressedBy === "progressor") {
+      if (vendorName.trim() && !vendorPhone.trim()) {
+        setError("Vendor phone is required when sending to Sales Progressor.");
+        return;
+      }
+      if (purchaserName.trim() && !purchaserPhone.trim()) {
+        setError("Purchaser phone is required when sending to Sales Progressor.");
+        return;
+      }
+    }
     setLoading(true);
     setError("");
 
@@ -121,6 +134,7 @@ export function QuickAddForm({
           purchaseType: purchaseType as PurchaseType,
           purchasePrice: parsedPrice,
           contacts,
+          progressedBy,
         });
         router.push(`/agent/transactions/${result.id}`);
       } else {
@@ -133,7 +147,8 @@ export function QuickAddForm({
             purchaseType,
             contacts,
             purchasePrice: parsedPrice,
-            progressedBy: "progressor",
+            progressedBy,
+            serviceType: progressedBy === "progressor" ? "outsourced" : "self_managed",
           }),
         });
         if (!res.ok) throw new Error("Failed");
@@ -197,6 +212,29 @@ export function QuickAddForm({
                 <button type="button" className={`${TOGGLE_BASE} ${purchaseType === "mortgage" ? TOGGLE_ON : TOGGLE_OFF}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
                 <button type="button" className={`${TOGGLE_BASE} ${purchaseType === "cash" ? TOGGLE_ON : TOGGLE_OFF}`} onClick={() => setPurchaseType("cash")}>Cash</button>
                 <button type="button" className={`${TOGGLE_BASE} ${purchaseType === "cash_from_proceeds" ? TOGGLE_ON : TOGGLE_OFF}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Proceeds</button>
+              </div>
+            </div>
+            <div>
+              <p className={`${LABEL} mb-2`}>Who progresses? <span className="text-red-400">*</span></p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setProgressedBy("progressor")}
+                  className={`${TOGGLE_BASE} text-left`}
+                  style={progressedBy === "progressor" ? { borderColor: "#60a5fa", background: "rgba(219,234,254,0.60)", color: "#1d4ed8" } : {}}
+                >
+                  <span className="block text-sm">Send to us</span>
+                  <span className="block text-[10px] font-normal opacity-60 mt-0.5">Sales Progressor handles it</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProgressedBy("agent")}
+                  className={`${TOGGLE_BASE} text-left`}
+                  style={progressedBy === "agent" ? { borderColor: "#34d399", background: "rgba(209,250,229,0.60)", color: "#065f46" } : {}}
+                >
+                  <span className="block text-sm">Self-progress</span>
+                  <span className="block text-[10px] font-normal opacity-60 mt-0.5">You manage this file</span>
+                </button>
               </div>
             </div>
           </div>

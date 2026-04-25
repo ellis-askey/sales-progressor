@@ -347,6 +347,7 @@ export async function saveDraftAction(data: {
   vendorPhone?: string;
   purchaserName?: string;
   purchaserPhone?: string;
+  progressedBy?: "progressor" | "agent";
 }) {
   const session = await requireSession();
 
@@ -375,8 +376,8 @@ export async function saveDraftAction(data: {
       status: DRAFT_STATUS,
       agencyId: session.user.agencyId,
       agentUserId: session.user.id,
-      progressedBy: "progressor",
-      serviceType: "outsourced",
+      progressedBy: data.progressedBy ?? "progressor",
+      serviceType: (data.progressedBy ?? "progressor") === "progressor" ? "outsourced" : "self_managed",
     },
   });
 
@@ -401,6 +402,7 @@ export async function promoteDraftAction(
     purchaseType: PurchaseType;
     purchasePrice: number | null;
     contacts: { name: string; phone: string | null; roleType: ContactRole }[];
+    progressedBy?: "progressor" | "agent";
   }
 ) {
   const session = await requireSession();
@@ -433,6 +435,10 @@ export async function promoteDraftAction(
       purchaseType: data.purchaseType,
       purchasePrice: data.purchasePrice,
       status: "active",
+      ...(data.progressedBy ? {
+        progressedBy: data.progressedBy,
+        serviceType: data.progressedBy === "progressor" ? "outsourced" : "self_managed",
+      } : {}),
     },
   });
 

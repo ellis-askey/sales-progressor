@@ -586,8 +586,13 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
   const hasVendor = vendors.some((v) => v.name.trim());
   const hasPurchaser = purchasers.some((p) => p.name.trim());
   const requiresContacts = isAgent && progressedBy === "progressor";
+  // When outsourcing, every named contact must have at least a phone or email
+  const vendorContactsValid = vendors.every((v) => !v.name.trim() || v.phone.trim() || v.email.trim());
+  const purchaserContactsValid = purchasers.every((p) => !p.name.trim() || p.phone.trim() || p.email.trim());
+  const contactMethodsValid = !requiresContacts || (vendorContactsValid && purchaserContactsValid);
   const canSubmit = !!form.streetAddress && !!form.tenure && !!form.purchaseType &&
-    (!requiresContacts || (hasVendor && hasPurchaser));
+    (!requiresContacts || (hasVendor && hasPurchaser)) &&
+    contactMethodsValid;
 
   const overlayAddress = [form.streetAddress, form.city].filter(Boolean).join(", ");
 
@@ -858,6 +863,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                     ? "Add at least one vendor before sending to a progressor"
                     : requiresContacts && !hasPurchaser
                     ? "Add at least one purchaser before sending to a progressor"
+                    : requiresContacts && !vendorContactsValid
+                    ? "Add a phone or email for each vendor — we need a way to contact them"
+                    : requiresContacts && !purchaserContactsValid
+                    ? "Add a phone or email for each purchaser — we need a way to contact them"
                     : "Address, tenure and purchase type are required"}
                 </p>
               )}
