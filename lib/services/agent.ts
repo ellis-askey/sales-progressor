@@ -97,6 +97,9 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       agentFeeAmount: tx.agentFeeAmount,
       agentFeePercent: tx.agentFeePercent,
       agentFeeIsVatInclusive: tx.agentFeeIsVatInclusive,
+      referredFirmId: tx.referredFirmId,
+      referralFee: tx.referralFee,
+      referralFeeReceived: tx.referralFeeReceived,
     };
   });
 }

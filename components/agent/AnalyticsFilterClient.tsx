@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type TeamMember = { id: string; name: string; role: string };
 
@@ -12,14 +12,16 @@ export function AnalyticsFilterClient({
   currentUserId: string | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value;
-    if (val === "") {
-      router.push("/agent/analytics");
-    } else {
-      router.push(`/agent/analytics?user=${val}`);
-    }
+    const p = searchParams.get("period");
+    const params = new URLSearchParams();
+    if (val) params.set("user", val);
+    if (p && p !== "month") params.set("period", p);
+    const qs = params.toString();
+    router.push(`/agent/analytics${qs ? `?${qs}` : ""}`);
   }
 
   return (
