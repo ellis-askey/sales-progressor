@@ -105,11 +105,12 @@ export function AgentShell({ children, session }: { children: React.ReactNode; s
 
         {/* User profile */}
         <div style={{ padding: "12px 16px 20px", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <Link href="/agent/settings" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, textDecoration: "none", borderRadius: 10, padding: "6px 4px", margin: "0 -4px 10px", transition: "background 150ms" }}
+            className="hover:bg-black/[0.04]">
             <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>
               {initials}
             </div>
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {session.user.name}
               </p>
@@ -117,7 +118,8 @@ export function AgentShell({ children, session }: { children: React.ReactNode; s
                 {isDirector ? "Director" : "Negotiator"}
               </p>
             </div>
-          </div>
+            <GearSix weight="regular" style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, opacity: 0.6 }} />
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="agent-btn-ghost"

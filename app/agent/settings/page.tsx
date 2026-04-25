@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { TeamManagement } from "@/components/agent/TeamManagement";
+import { ProfileForm } from "@/components/agent/ProfileForm";
 
 export default async function AgentSettingsPage({
   searchParams,
@@ -32,6 +33,19 @@ export default async function AgentSettingsPage({
       </div>
 
       <div className="px-8 py-7 max-w-2xl space-y-6">
+
+        {/* My profile — all roles */}
+        <div className="glass-card p-6">
+          <div className="mb-5">
+            <h2 className="text-sm font-bold text-slate-900/80 mb-1">My profile</h2>
+            <p className="text-xs text-slate-900/50">Update your name and email address.</p>
+          </div>
+          <ProfileForm
+            initialName={session.user.name ?? ""}
+            initialEmail={session.user.email ?? ""}
+            role={session.user.role}
+          />
+        </div>
 
         {/* Team — directors only */}
         {isDirector && (
