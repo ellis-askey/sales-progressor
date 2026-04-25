@@ -198,7 +198,7 @@ export function ContactsSection({
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/70 hover:bg-blue-50 border border-blue-200/70 rounded-lg px-2.5 py-1 transition-all"
           >
             + Add contact
           </button>

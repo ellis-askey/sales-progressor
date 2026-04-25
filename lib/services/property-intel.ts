@@ -20,6 +20,7 @@ export async function fetchPricePaid(postcode: string): Promise<PricePaidEntry[]
     PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
     PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     SELECT ?date ?amount ?propertyType ?newBuild ?estateType WHERE {
       ?addr lrcommon:postcode "${postcode.trim()}"^^xsd:string .
       ?tx lrppi:propertyAddress ?addr ;
