@@ -171,6 +171,21 @@ export default async function AgentTransactionDetailPage({
       })
     : null;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recommendedFirms = isDirectorRole
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ? await (prisma as any).agencyRecommendedSolicitor.findMany({
+        where: { agencyId: session.user.agencyId },
+        orderBy: { solicitorFirm: { name: "asc" } },
+        select: { solicitorFirmId: true, defaultReferralFeePence: true, solicitorFirm: { select: { name: true } } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }).then((rows: any[]) => rows.map((r) => ({
+        id: r.solicitorFirmId as string,
+        name: r.solicitorFirm.name as string,
+        defaultReferralFeePence: r.defaultReferralFeePence as number | null,
+      })))
+    : null;
+
   const sidebar = (
     <TransactionSidebar
       transaction={{
@@ -185,7 +200,9 @@ export default async function AgentTransactionDetailPage({
         agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
         referralFee: transaction.referralFee ?? null,
         referredFirmName: transaction.referredFirm?.name ?? null,
+        referredFirmId: transaction.referredFirmId ?? null,
       }}
+      recommendedFirms={recommendedFirms}
       showOurFee={session.user.role === "director"}
       assignedUser={assignedUser}
       agentUser={agentUser}

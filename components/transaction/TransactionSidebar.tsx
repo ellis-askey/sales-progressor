@@ -45,7 +45,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
 
 import { useState, useTransition } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
-import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction } from "@/app/actions/transactions";
+import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction, saveReferralAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -65,7 +65,9 @@ type Props = {
     agentFeeIsVatInclusive: boolean | null;
     referralFee?: number | null;
     referredFirmName?: string | null;
+    referredFirmId?: string | null;
   };
+  recommendedFirms?: { id: string; name: string; defaultReferralFeePence: number | null }[] | null;
   assignedUser: {
     clientType: ClientType;
     legacyFee: number | null;
@@ -77,7 +79,7 @@ type Props = {
   showOurFee?: boolean;
 };
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingPrice, setEditingPrice] = useState(false);
   const [pricePence, setPricePence] = useState<number | null>(transaction.purchasePrice ?? null);
@@ -99,6 +101,9 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   const [agentFeeAmountPence, setAgentFeeAmountPence] = useState<number | null>(null);
   const [agentFeePercentStr, setAgentFeePercentStr] = useState("");
   const [agentFeeVat, setAgentFeeVat] = useState<"inclusive" | "exclusive">("exclusive");
+  const [editingReferral, setEditingReferral] = useState(false);
+  const [editFirmId, setEditFirmId] = useState<string>("");
+  const [editFeePence, setEditFeePence] = useState<number | null>(null);
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
@@ -143,6 +148,34 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     startTransition(async () => {
       try {
         await saveAgentFeeAction({ transactionId: transaction.id, agentFeeAmount: amount, agentFeePercent: percent, agentFeeIsVatInclusive: vatInclusive });
+      } finally { setSaving(false); }
+    });
+  }
+
+  function openReferralEdit() {
+    setEditFirmId(transaction.referredFirmId ?? "");
+    setEditFeePence(transaction.referralFee ?? null);
+    setEditingReferral(true);
+  }
+
+  function handleReferralFirmChange(firmId: string) {
+    setEditFirmId(firmId);
+    if (firmId && recommendedFirms) {
+      const firm = recommendedFirms.find((f) => f.id === firmId);
+      if (firm?.defaultReferralFeePence != null) setEditFeePence(firm.defaultReferralFeePence);
+    }
+  }
+
+  function saveReferral() {
+    setSaving(true);
+    setEditingReferral(false);
+    startTransition(async () => {
+      try {
+        await saveReferralAction(transaction.id, {
+          referredFirmId: editFirmId || null,
+          referralFee: editFeePence,
+          referralFeeReceived: false,
+        });
       } finally { setSaving(false); }
     });
   }
@@ -347,10 +380,10 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             )}
           </div>
 
-          {/* Our fee — progressors always, directors only on agent side */}
+          {/* Progressor fee — progressors always, directors only on agent side */}
           {showOurFee && (
             <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Our fee</p>
+              <p className="text-xs text-slate-900/40 mb-0.5">Progressor fee</p>
               <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
               <p className="text-xs text-slate-900/40">{ourFee.label}</p>
             </div>
@@ -454,11 +487,51 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           </div>
 
           {/* Referral fee */}
-          {transaction.referredFirmName && transaction.referralFee != null && (
+          {((recommendedFirms != null && recommendedFirms.length > 0) || transaction.referredFirmName) && (
             <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Referral fee</p>
-              <p className="text-sm font-semibold text-slate-900/90">{formatFee(transaction.referralFee)}</p>
-              <p className="text-xs text-slate-900/40">{transaction.referredFirmName}</p>
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-xs text-slate-900/40">Referral fee</p>
+                {recommendedFirms != null && recommendedFirms.length > 0 && !editingReferral && (
+                  <button onClick={openReferralEdit}
+                    className="text-xs text-slate-900/30 hover:text-slate-900/60">
+                    {transaction.referredFirmName ? "Edit" : "Set"}
+                  </button>
+                )}
+              </div>
+              {editingReferral ? (
+                <div className="space-y-2 mt-1">
+                  <select
+                    value={editFirmId}
+                    onChange={(e) => handleReferralFirmChange(e.target.value)}
+                    className="glass-input w-full px-2 py-1 text-xs"
+                  >
+                    <option value="">— select firm —</option>
+                    {recommendedFirms!.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                  <PriceInput value={editFeePence} onChange={setEditFeePence} size="sm" className="w-32" />
+                  <div className="flex gap-2">
+                    <button onClick={saveReferral} disabled={saving || isPending || !editFirmId}
+                      className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors">
+                      {saving ? "…" : "Save"}
+                    </button>
+                    <button onClick={() => setEditingReferral(false)}
+                      className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : transaction.referredFirmName ? (
+                <>
+                  <p className="text-sm font-semibold text-slate-900/90">
+                    {transaction.referralFee != null ? formatFee(transaction.referralFee) : "No fee set"}
+                  </p>
+                  <p className="text-xs text-slate-900/40">{transaction.referredFirmName}</p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-900/30 italic">Not set</p>
+              )}
             </div>
           )}
 
