@@ -75,7 +75,7 @@ export default function RegisterPage() {
     "Lining up the paperwork…",
     "Getting the keys cut…",
     "Onboarding the neighbours…",
-    "Almost ready to progress…",
+    "Taking you to your dashboard…",
   ];
 
   useEffect(() => {
@@ -128,11 +128,10 @@ export default function RegisterPage() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (result?.ok) {
       router.push("/agent/dashboard");
     } else {
+      setLoading(false);
       setError("Account created but sign-in failed. Please go to sign in.");
     }
   }
