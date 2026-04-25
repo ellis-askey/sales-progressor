@@ -67,7 +67,9 @@
       "Bash(npm --version)",
       "Bash(xargs wc *)",
       "Read(//c/Users/ellis/Downloads/**)",
-      "Bash(npx create-next-app@latest fresh-start-cleaning --typescript --tailwind --eslint --app --src-dir=false --import-alias \"@/*\" --yes)"
+      "Bash(npx create-next-app@latest fresh-start-cleaning --typescript --tailwind --eslint --app --src-dir=false --import-alias \"@/*\" --yes)",
+      "Bash(taskkill /PID 34844 /F)",
+      "Bash(cmd.exe /c \"taskkill /PID 34844 /F\")"
     ]
   }
 }

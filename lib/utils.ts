@@ -46,6 +46,13 @@ export function getFirstName(fullName: string): string {
   return titleCase(parts[0]!.replace(/[.,]/g, ""));
 }
 
+/** Normalise a UK postcode to "XX## #XX" format with a single space. */
+export function normalizePostcode(raw: string): string {
+  const clean = raw.replace(/\s+/g, "").toUpperCase();
+  if (clean.length < 5) return clean;
+  return clean.slice(0, -3) + " " + clean.slice(-3);
+}
+
 export function normalizePhone(phone: string): string {
   const cleaned = phone.trim();
   if (!cleaned) return cleaned;

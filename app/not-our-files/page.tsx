@@ -9,6 +9,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 export default async function NotOurFilesPage() {
   const session = await requireSession();
 
+  if (session.user.role === "sales_progressor") {
+    const { redirect } = await import("next/navigation");
+    redirect("/dashboard");
+  }
+
   const [transactions, taskCounts, todoCount] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: {

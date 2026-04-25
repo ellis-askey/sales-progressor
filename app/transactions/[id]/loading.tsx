@@ -1,6 +1,8 @@
+import { SpLoadingShell } from "@/components/layout/SpLoadingShell";
+
 export default function TransactionLoading() {
   return (
-    <div className="glass-page-bg min-h-screen">
+    <SpLoadingShell>
       <div className="h-36 animate-pulse bg-slate-700/80" />
       <div className="h-10 bg-white/80 border-b border-slate-200/60" />
       <div className="max-w-7xl mx-auto px-8 py-7">
@@ -22,6 +24,6 @@ export default function TransactionLoading() {
           </div>
         </div>
       </div>
-    </div>
+    </SpLoadingShell>
   );
 }

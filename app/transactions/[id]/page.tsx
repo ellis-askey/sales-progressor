@@ -34,7 +34,6 @@ import { NextMilestoneWidget } from "@/components/transaction/NextMilestoneWidge
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
-import { ReferralSection } from "@/components/transaction/ReferralSection";
 import { DocumentsSection } from "@/components/transaction/DocumentsSection";
 import { prisma } from "@/lib/prisma";
 
@@ -188,22 +187,8 @@ export default async function TransactionDetailPage({
       })
     : null;
 
-  const solicitorFirms = await prisma.solicitorFirm.findMany({
-    where: { agencyId: session.user.agencyId },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
-
   const sidebar = (
-    <>
-      <ReferralSection
-        transactionId={transaction.id}
-        firms={solicitorFirms}
-        referredFirmId={transaction.referredFirm?.id ?? null}
-        referralFee={transaction.referralFee ?? null}
-        referralFeeReceived={transaction.referralFeeReceived ?? false}
-      />
-      <TransactionSidebar
+    <TransactionSidebar
         transaction={{
           id: transaction.id,
           purchasePrice: transaction.purchasePrice ?? null,
@@ -222,7 +207,6 @@ export default async function TransactionDetailPage({
         keyDates={keyDates}
         exchangeConfirmed={exchangeConfirmed}
       />
-    </>
   );
 
   return (
@@ -247,22 +231,16 @@ export default async function TransactionDetailPage({
           {/* File health banner (conditional) */}
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
-          {/* Referral capture nudge — shown once on completion if no referral recorded */}
-          {transaction.status === "completed" && !transaction.referredFirm && (
-            <div className="glass-card px-5 py-4 flex items-start gap-3 border border-amber-300/30 bg-amber-50/20">
-              <span className="text-lg mt-0.5">🔗</span>
-              <div>
-                <p className="text-sm font-semibold text-amber-700 mb-0.5">Record referral details</p>
-                <p className="text-xs text-amber-600/80 leading-relaxed">This file has completed. If this buyer or seller was referred by a solicitor firm, record the referral fee in the Referral section in the sidebar — it keeps your records accurate and makes it easy to reconcile.</p>
-              </div>
-            </div>
-          )}
-
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-3 divide-x divide-white/20">
+            <div className="grid grid-cols-4 divide-x divide-white/20">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
+              </MetaField>
+              <MetaField label="Service">
+                <span className="text-sm font-medium text-slate-900/80">
+                  {transaction.serviceType === "outsourced" ? "Outsourced to us" : "Self-managed"}
+                </span>
               </MetaField>
               <MetaField label="Assigned to">
                 <AssignControl

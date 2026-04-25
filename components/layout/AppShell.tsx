@@ -39,7 +39,7 @@ export function AppShell({
     { href: "/reports",          label: "Reports",          icon: ReportsIcon,     badge: null },
     { href: "/solicitors",       label: "Solicitors",       icon: SolicitorsIcon,  badge: null },
     { href: "/comms",            label: "Comms",            icon: CommsIcon,       badge: null },
-    { href: "/not-our-files",    label: "Not Our Files",    icon: NotOurFilesIcon, badge: null },
+    ...(session.user.role !== "sales_progressor" ? [{ href: "/not-our-files", label: "Not Our Files", icon: NotOurFilesIcon, badge: null }] : []),
     { href: "/transactions/new", label: "New Transaction",  icon: PlusIcon,        badge: null },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: AdminIcon, badge: null }] : []),
   ];

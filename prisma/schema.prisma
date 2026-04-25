@@ -215,11 +215,13 @@ model PortalMessage {
 }
 
 model SolicitorFirm {
-  id        String   @id @default(cuid())
-  agencyId  String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  agencyId                String
+  name                    String
+  isRecommended           Boolean  @default(false)
+  defaultReferralFeePence Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   agency   Agency             @relation(fields: [agencyId], references: [id])
   handlers SolicitorContact[]

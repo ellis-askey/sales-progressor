@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { TeamManagement } from "@/components/agent/TeamManagement";
 import { ProfileForm } from "@/components/agent/ProfileForm";
+import { RecommendedSolicitorsSettings } from "@/components/agent/RecommendedSolicitorsSettings";
 
 export default async function AgentSettingsPage({
   searchParams,
@@ -13,10 +14,19 @@ export default async function AgentSettingsPage({
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
 
-  const userRecord = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { phone: true },
-  });
+  const [userRecord, solicitorFirms] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { phone: true },
+    }),
+    isDirector
+      ? prisma.solicitorFirm.findMany({
+          where: { agencyId: session.user.agencyId },
+          orderBy: [{ isRecommended: "desc" }, { name: "asc" }],
+          select: { id: true, name: true, isRecommended: true, defaultReferralFeePence: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <>
@@ -69,17 +79,34 @@ export default async function AgentSettingsPage({
 
         </div>
 
-        {/* Row 2: Team — directors only, full width */}
+        {/* Row 2: Team + Recommended Solicitors — directors only */}
         {isDirector && (
-          <div className="glass-card p-6">
-            <div className="mb-5">
-              <h2 className="text-sm font-bold text-slate-900/80 mb-1">Team</h2>
-              <p className="text-xs text-slate-900/50">
-                Manage your negotiators. Create accounts, control file visibility, and remove access.
-              </p>
+          <>
+            <div className="glass-card p-6">
+              <div className="mb-5">
+                <h2 className="text-sm font-bold text-slate-900/80 mb-1">Team</h2>
+                <p className="text-xs text-slate-900/50">
+                  Manage your negotiators. Create accounts, control file visibility, and remove access.
+                </p>
+              </div>
+              <TeamManagement currentUserId={session.user.id} />
             </div>
-            <TeamManagement currentUserId={session.user.id} />
-          </div>
+
+            <div className="glass-card p-6">
+              <div className="mb-5">
+                <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
+                <p className="text-xs text-slate-900/50">
+                  Mark solicitor firms you recommend to clients and set a default referral fee. These feed into your referral income analytics.
+                </p>
+                <div className="flex items-center gap-4 mt-3 text-xs text-slate-900/40">
+                  <span>Toggle = recommended</span>
+                  <span>·</span>
+                  <span>Fee field = default referral fee (£)</span>
+                </div>
+              </div>
+              <RecommendedSolicitorsSettings initialFirms={solicitorFirms} />
+            </div>
+          </>
         )}
 
       </div>

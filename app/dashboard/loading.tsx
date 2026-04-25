@@ -1,7 +1,8 @@
+import { SpLoadingShell } from "@/components/layout/SpLoadingShell";
+
 export default function DashboardLoading() {
   return (
-    <div className="glass-page-bg min-h-screen">
-      <div className="h-14 bg-white/70 border-b border-slate-200/60" />
+    <SpLoadingShell>
       <div className="max-w-7xl mx-auto px-8 py-7 space-y-5">
         <div className="flex gap-4">
           {[1, 2, 3, 4].map((i) => (
@@ -19,6 +20,6 @@ export default function DashboardLoading() {
           ))}
         </div>
       </div>
-    </div>
+    </SpLoadingShell>
   );
 }

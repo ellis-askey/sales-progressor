@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
-import { titleCase, normalizePhone } from "@/lib/utils";
+import { titleCase, normalizePhone, normalizePostcode } from "@/lib/utils";
 import { saveDraftAction, promoteDraftAction } from "@/app/actions/transactions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -70,7 +70,7 @@ export function QuickAddForm({
       : ""
   );
 
-  const fullAddress = [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
+  const fullAddress = [street.trim(), titleCase(city.trim()), normalizePostcode(postcode.trim())].filter(Boolean).join(", ");
   const parsedPrice = price.trim() ? Math.round(parseFloat(price.replace(/,/g, "")) * 100) : null;
   const hasAddress = street.trim().length > 0;
 
@@ -205,6 +205,7 @@ export function QuickAddForm({
                 type="text"
                 value={postcode}
                 onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                onBlur={() => setPostcode(normalizePostcode(postcode))}
                 placeholder="Postcode"
                 className={FIELD}
               />

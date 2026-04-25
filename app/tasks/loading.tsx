@@ -1,7 +1,8 @@
+import { SpLoadingShell } from "@/components/layout/SpLoadingShell";
+
 export default function TasksLoading() {
   return (
-    <div className="glass-page-bg min-h-screen">
-      <div className="h-14 bg-white/70 border-b border-slate-200/60" />
+    <SpLoadingShell>
       <div className="max-w-7xl mx-auto px-8 py-7 space-y-5">
         <div className="space-y-2">
           <div className="h-7 w-40 rounded-lg animate-pulse bg-slate-200/80" />
@@ -18,6 +19,6 @@ export default function TasksLoading() {
           ))}
         </div>
       </div>
-    </div>
+    </SpLoadingShell>
   );
 }
