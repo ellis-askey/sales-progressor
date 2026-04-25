@@ -59,7 +59,7 @@ export function QuickAddForm({
   const [postcode, setPostcode] = useState("");
   const [tenure, setTenure] = useState<Tenure | "">(initialValues?.tenure ?? "");
   const [purchaseType, setPurchaseType] = useState<PurchaseType | "">(initialValues?.purchaseType ?? "");
-  const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
+  const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("agent");
   const [vendorName, setVendorName] = useState(initialValues?.vendorName ?? "");
   const [vendorPhone, setVendorPhone] = useState(initialValues?.vendorPhone ?? "");
   const [purchaserName, setPurchaserName] = useState(initialValues?.purchaserName ?? "");
@@ -233,19 +233,6 @@ export function QuickAddForm({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setProgressedBy("progressor")}
-                  className={`${TOGGLE_BASE}`}
-                  style={{
-                    flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
-                    padding: "10px 14px",
-                    ...(progressedBy === "progressor" ? { borderColor: "#60a5fa", background: "rgba(219,234,254,0.60)", color: "#1d4ed8" } : {}),
-                  }}
-                >
-                  <span className="block text-sm">Send to us</span>
-                  <span className="block text-[10px] font-normal opacity-60 mt-0.5">Sales Progressor handles it</span>
-                </button>
-                <button
-                  type="button"
                   onClick={() => setProgressedBy("agent")}
                   className={`${TOGGLE_BASE}`}
                   style={{
@@ -256,6 +243,19 @@ export function QuickAddForm({
                 >
                   <span className="block text-sm">Self-progress</span>
                   <span className="block text-[10px] font-normal opacity-60 mt-0.5">You manage this file</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProgressedBy("progressor")}
+                  className={`${TOGGLE_BASE}`}
+                  style={{
+                    flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
+                    padding: "10px 14px",
+                    ...(progressedBy === "progressor" ? { borderColor: "#60a5fa", background: "rgba(219,234,254,0.60)", color: "#1d4ed8" } : {}),
+                  }}
+                >
+                  <span className="block text-sm">Send to us</span>
+                  <span className="block text-[10px] font-normal opacity-60 mt-0.5">Sales Progressor handles it</span>
                 </button>
               </div>
             </div>

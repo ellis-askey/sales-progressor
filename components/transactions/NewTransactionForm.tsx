@@ -272,7 +272,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
   const [isPending, startTransition] = useTransition();
   const isAgent = userRole === "negotiator" || userRole === "director";
   const [showOverlay, setShowOverlay] = useState(false);
-  const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("progressor");
+  const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("agent");
 
   const [form, setForm] = useState({
     streetAddress: "",
@@ -820,18 +820,6 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setProgressedBy("progressor")}
-                    className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all text-left ${
-                      progressedBy === "progressor"
-                        ? "border-blue-400 bg-blue-50/60 text-blue-700"
-                        : "border-white/30 text-slate-900/50 hover:border-white/50"
-                    }`}
-                  >
-                    Send to progressor
-                    <p className="text-xs font-normal text-slate-900/40 mt-0.5">Hand off to the progression team</p>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setProgressedBy("agent")}
                     className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                       progressedBy === "agent"
@@ -841,6 +829,18 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                   >
                     Self-progress
                     <p className="text-xs font-normal text-slate-900/40 mt-0.5">You manage this file yourself</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProgressedBy("progressor")}
+                    className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all text-left ${
+                      progressedBy === "progressor"
+                        ? "border-blue-400 bg-blue-50/60 text-blue-700"
+                        : "border-white/30 text-slate-900/50 hover:border-white/50"
+                    }`}
+                  >
+                    Send to progressor
+                    <p className="text-xs font-normal text-slate-900/40 mt-0.5">Hand off to the progression team</p>
                   </button>
                 </div>
               </div>
