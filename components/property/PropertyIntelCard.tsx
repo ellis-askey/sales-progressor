@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 type PricePaid = { date: string; amount: number; propertyType: string; newBuild: boolean; estateType: string };
-type Epc = { rating: string; score: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string; lmkKey: string };
+type Epc = { rating: string; score: number | null; propertyType: string; floorArea: number | null; builtForm: string; inspectionDate: string; rrn: string };
 type Links = { rightmove: string; zoopla: string; landReg: string };
 
 type IntelData = {
@@ -141,9 +141,9 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
                   {data.epc.inspectionDate && (
                     <p className="text-xs text-slate-900/40">Inspected {fmtDate(data.epc.inspectionDate)}</p>
                   )}
-                  {data.epc.lmkKey && (
+                  {data.epc.rrn && (
                     <a
-                      href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${data.epc.lmkKey}`}
+                      href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${data.epc.rrn}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
