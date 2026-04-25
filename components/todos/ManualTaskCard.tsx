@@ -4,6 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
+function timeAgo(date: Date): string {
+  const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 function formatDue(date: Date) {
   const d = new Date(date);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -24,16 +36,17 @@ export function ManualTaskCard({
   onDelete: (id: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState(task.notes ?? "");
+  const [progressorNote, setProgressorNote] = useState(task.progressorNote ?? "");
   const isDone = task.status === "done";
 
-  async function handleNoteBlur() {
-    const trimmed = note.trim();
-    if (trimmed === (task.notes ?? "")) return;
+  async function handleProgressorNoteBlur() {
+    const trimmed = progressorNote.trim();
+    const current = task.progressorNote ?? "";
+    if (trimmed === current) return;
     await fetch(`/api/manual-tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes: trimmed || null }),
+      body: JSON.stringify({ progressorNote: trimmed || null }),
     });
   }
 
@@ -80,14 +93,34 @@ export function ManualTaskCard({
             </span>
           )}
         </div>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onBlur={handleNoteBlur}
-          placeholder="Add a note for the agent…"
-          className="mt-1 w-full text-xs text-slate-900/50 bg-transparent border-b border-dashed border-slate-200/70 focus:border-blue-300/70 focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
-        />
+
+        {/* Agent's creation note (read-only) */}
+        {task.notes && (
+          <div className="mt-2 space-y-0.5">
+            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide">
+              {task.createdBy.name} · {timeAgo(task.createdAt)}
+            </p>
+            <p className="text-xs text-slate-900/50 leading-relaxed">{task.notes}</p>
+          </div>
+        )}
+
+        {/* Progressor response (editable) */}
+        <div className="mt-2">
+          {task.progressorNote && (
+            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide mb-0.5">
+              Your response · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
+            </p>
+          )}
+          <input
+            type="text"
+            value={progressorNote}
+            onChange={(e) => setProgressorNote(e.target.value)}
+            onBlur={handleProgressorNoteBlur}
+            placeholder={task.isAgentRequest ? "Add a response…" : "Add a note…"}
+            className="w-full text-xs text-slate-900/50 bg-transparent border-b border-dashed border-slate-200/70 focus:border-blue-300/70 focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
+          />
+        </div>
+
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
           {task.transaction && (
             <Link

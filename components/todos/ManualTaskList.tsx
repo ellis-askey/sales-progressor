@@ -7,11 +7,23 @@ import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
+function timeAgo(date: Date): string {
+  const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (secs < 60) return "just now";
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
   const isDone = task.status === "done";
   return (
-    <div className={`glass-card px-4 py-3.5 flex items-center gap-3 ${isDone ? "opacity-75" : ""}`}>
-      <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
+    <div className={`glass-card px-4 py-3.5 flex items-start gap-3 ${isDone ? "opacity-75" : ""}`}>
+      <div className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
         isDone ? "bg-emerald-500" : "border-2 border-amber-300 bg-amber-50"
       }`}>
         {isDone ? (
@@ -26,11 +38,29 @@ function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
         <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-slate-900/35" : "text-slate-900/80"}`}>
           {task.title}
         </p>
-        {isDone && (
-          <p className="text-xs text-emerald-600 font-medium mt-0.5">✓ Taken care of</p>
+
+        {/* Agent's own creation note */}
+        {task.notes && (
+          <div className="mt-2 space-y-0.5">
+            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide">
+              Your note · {timeAgo(task.createdAt)}
+            </p>
+            <p className="text-xs text-slate-900/50 leading-relaxed">{task.notes}</p>
+          </div>
         )}
-        {isDone && task.notes && (
-          <p className="text-xs text-slate-900/40 mt-0.5 leading-relaxed">{task.notes}</p>
+
+        {/* Progressor's response */}
+        {task.progressorNote && (
+          <div className="mt-2 space-y-0.5">
+            <p className="text-[10px] font-medium text-emerald-600/70 uppercase tracking-wide">
+              Sales Progressor · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
+            </p>
+            <p className="text-xs text-slate-900/55 leading-relaxed">{task.progressorNote}</p>
+          </div>
+        )}
+
+        {isDone && !task.progressorNote && (
+          <p className="text-xs text-emerald-600 font-medium mt-1">✓ Taken care of</p>
         )}
       </div>
     </div>
@@ -70,6 +100,8 @@ export function ManualTaskList({
       id: tempId,
       title: data.title,
       notes: data.notes ?? null,
+      progressorNote: null,
+      progressorNoteAt: null,
       status: "open",
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       createdAt: new Date(),

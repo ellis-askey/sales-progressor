@@ -479,9 +479,11 @@ model ManualTask {
   id             String           @id @default(cuid())
   agencyId       String
   transactionId  String?
-  title          String
-  notes          String?
-  status         ManualTaskStatus @default(open)
+  title            String
+  notes            String?
+  progressorNote   String?
+  progressorNoteAt DateTime?
+  status           ManualTaskStatus @default(open)
   assignedToId   String?
   dueDate        DateTime?
   isAgentRequest Boolean          @default(false)

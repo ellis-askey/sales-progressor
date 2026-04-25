@@ -4,6 +4,8 @@ export type ManualTaskWithRelations = {
   id: string;
   title: string;
   notes: string | null;
+  progressorNote: string | null;
+  progressorNoteAt: Date | null;
   status: "open" | "done";
   dueDate: Date | null;
   createdAt: Date;
@@ -76,7 +78,7 @@ export async function createManualTask(data: {
 export async function updateManualTask(
   id: string,
   agencyId: string,
-  data: Partial<{ title: string; notes: string; status: "open" | "done"; assignedToId: string; dueDate: string | null }>
+  data: Partial<{ title: string; notes: string | null; progressorNote: string | null; status: "open" | "done"; assignedToId: string; dueDate: string | null }>
 ) {
   const task = await prisma.manualTask.findFirst({ where: { id, agencyId } });
   if (!task) throw new Error("Task not found");
@@ -86,6 +88,10 @@ export async function updateManualTask(
     data: {
       ...(data.title !== undefined && { title: data.title }),
       ...(data.notes !== undefined && { notes: data.notes }),
+      ...(data.progressorNote !== undefined && {
+        progressorNote: data.progressorNote,
+        progressorNoteAt: data.progressorNote ? new Date() : null,
+      }),
       ...(data.status !== undefined && { status: data.status }),
       ...(data.assignedToId !== undefined && { assignedToId: data.assignedToId }),
       ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
