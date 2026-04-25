@@ -22,7 +22,7 @@ export default async function AgentDashboard({
   const activeFilter = (filter as TransactionStatus | "all") ?? "all";
 
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const opts = vis.seeAll ? { allAgentFiles: true } : undefined;
+  const opts = vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
   const agentId = vis.seeAll ? undefined : session.user.id;
 
   const [transactions, counts, forecastMonths, postExchangeGroups, agentRequests] = await Promise.all([

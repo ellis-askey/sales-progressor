@@ -38,12 +38,14 @@ export function ManualTaskList({
   transactionId,
   transactionAddress,
   showDone = true,
+  showOwnership = false,
   perspective = "progressor",
 }: {
   initialTasks: ManualTaskWithRelations[];
   transactionId?: string;
   transactionAddress?: string;
   showDone?: boolean;
+  showOwnership?: boolean;
   perspective?: "agent" | "progressor";
 }) {
   const [tasks, setTasks] = useState(initialTasks);
@@ -56,7 +58,25 @@ export function ManualTaskList({
     notes?: string;
     dueDate?: string;
     transactionId?: string;
+    isAgentRequest?: boolean;
   }) {
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: ManualTaskWithRelations = {
+      id: tempId,
+      title: data.title,
+      notes: data.notes ?? null,
+      status: "open",
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      createdAt: new Date(),
+      isAgentRequest: data.isAgentRequest ?? false,
+      transactionId: data.transactionId ?? null,
+      transaction: null,
+      assignedTo: null,
+      createdBy: { id: "", name: "" },
+    };
+    setTasks((prev) => [optimistic, ...prev]);
+    updateBadge?.("todos", tasks.filter((t) => t.status === "open").length + 1);
+
     const res = await fetch("/api/manual-tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,12 +84,12 @@ export function ManualTaskList({
     });
     if (!res.ok) {
       console.error("Failed to save to-do:", res.status, await res.text());
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      updateBadge?.("todos", tasks.filter((t) => t.status === "open").length);
       return;
     }
-    const task = await res.json();
-    const newTasks = [task, ...tasks];
-    setTasks(newTasks);
-    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
+    const saved = await res.json();
+    setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
   }
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
@@ -129,6 +149,7 @@ export function ManualTaskList({
           <AddManualTaskForm
             transactionId={transactionId}
             transactionAddress={transactionAddress}
+            showOwnership={showOwnership}
             onAdd={handleAdd}
           />
         </div>

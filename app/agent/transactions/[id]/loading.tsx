@@ -1,11 +1,11 @@
 export default function AgentTransactionLoading() {
   return (
-    <div className="glass-page-bg min-h-screen">
-      <div className="h-14 bg-white/80 border-b border-slate-200/60" />
-      <div className="h-24 animate-pulse bg-slate-700/80" />
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+    <div style={{ minHeight: "100vh", background: "transparent" }}>
+      <div style={{ height: 56, background: "rgba(255,255,255,0.52)", borderBottom: "0.5px solid rgba(255,255,255,0.70)" }} />
+      <div className="agent-skeleton" style={{ height: 96 }} />
+      <div style={{ maxWidth: 896, margin: "0 auto", padding: "24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
         {[160, 200, 140].map((h, i) => (
-          <div key={i} className="rounded-2xl animate-pulse bg-white/80 border border-slate-200/60" style={{ height: h }} />
+          <div key={i} className="agent-skeleton" style={{ height: h, borderRadius: 16 }} />
         ))}
       </div>
     </div>

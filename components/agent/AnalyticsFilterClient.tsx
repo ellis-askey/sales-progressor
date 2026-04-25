@@ -23,17 +23,22 @@ export function AnalyticsFilterClient({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-xs text-slate-400 font-medium">Viewing:</label>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <label style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>Viewing:</label>
       <select
         value={currentUserId ?? ""}
         onChange={handleChange}
-        className="text-sm bg-white/10 border border-white/20 text-white rounded-lg px-3 py-1.5 appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/30"
-        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", backgroundSize: "16px" }}
+        className="agent-input"
+        style={{
+          fontSize: 13, padding: "6px 28px 6px 10px", cursor: "pointer",
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%237A4A2E' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E\")",
+          backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center", backgroundSize: "16px",
+          appearance: "none",
+        }}
       >
-        <option value="" style={{ background: "#1e293b" }}>All team</option>
+        <option value="">All team</option>
         {team.map((m) => (
-          <option key={m.id} value={m.id} style={{ background: "#1e293b" }}>
+          <option key={m.id} value={m.id}>
             {m.name}{m.role === "director" ? " (Director)" : ""}
           </option>
         ))}

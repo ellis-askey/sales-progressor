@@ -37,12 +37,19 @@ const FILTERS: { value: FilterKind; label: string }[] = [
   { value: "notes", label: "Notes" },
 ];
 
+function isPortalView(entry: { kind: string; content?: string }) {
+  return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
+}
+
 export function ActivityTimeline({ entries, transactionId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<FilterKind>("all");
   const [search, setSearch] = useState("");
+  const [showPortalVisits, setShowPortalVisits] = useState(false);
+
+  const portalViewCount = entries.filter(isPortalView).length;
 
   function handleFilter(f: FilterKind) {
     setFilter(f);
@@ -55,6 +62,9 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
   }
 
   const filtered = entries.filter((entry) => {
+    // Hide portal views unless toggled on
+    if (!showPortalVisits && isPortalView(entry)) return false;
+
     if (filter === "milestones" && entry.kind !== "milestone") return false;
     if (filter === "comms" && (entry.kind !== "comm" || entry.type === "internal_note")) return false;
     if (filter === "notes" && (entry.kind !== "comm" || entry.type !== "internal_note")) return false;
@@ -113,6 +123,18 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
             {f.label}
           </button>
         ))}
+        {portalViewCount > 0 && (
+          <button
+            onClick={() => { setShowPortalVisits((v) => !v); setShowAll(false); }}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              showPortalVisits
+                ? "bg-violet-100 text-violet-700"
+                : "bg-white/30 text-slate-900/35 hover:text-slate-900/60 hover:bg-white/50"
+            }`}
+          >
+            Portal visits {showPortalVisits ? "" : `(${portalViewCount} hidden)`}
+          </button>
+        )}
         <input
           type="text"
           value={search}

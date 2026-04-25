@@ -17,8 +17,12 @@ export async function GET() {
   const { session, error } = await requireDirector();
   if (error) return error;
 
+  const firmName = session!.user.firmName;
+  const teamWhere: Record<string, unknown> = { agencyId: session!.user.agencyId, role: { in: ["director", "negotiator"] } };
+  if (firmName) teamWhere.firmName = firmName;
+
   const team = await prisma.user.findMany({
-    where: { agencyId: session!.user.agencyId, role: { in: ["director", "negotiator"] } },
+    where: teamWhere,
     select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, createdAt: true },
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });

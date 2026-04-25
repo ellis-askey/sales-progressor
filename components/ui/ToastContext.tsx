@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, type, subtext }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3800);
+    }, 4000);
   }, []);
 
   return (
@@ -52,60 +52,85 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: nu
   );
 }
 
+const ICON_COLORS = {
+  success: { bg: "rgba(16,185,129,0.13)", border: "rgba(16,185,129,0.28)", glow: "rgba(16,185,129,0.15)", text: "#10b981" },
+  info:    { bg: "rgba(59,130,246,0.12)",  border: "rgba(59,130,246,0.25)",  glow: "rgba(59,130,246,0.12)",  text: "#3b82f6" },
+  error:   { bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.25)",   glow: "rgba(239,68,68,0.12)",   text: "#ef4444" },
+};
+
+function ToastIcon({ type }: { type: ToastType }) {
+  const c = ICON_COLORS[type];
+  return (
+    <div style={{
+      width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+      background: c.bg,
+      border: `1.5px solid ${c.border}`,
+      boxShadow: `0 0 12px ${c.glow}`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      {type === "success" && (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <path d="M4.5 12.75l6 6 9-13.5" stroke={c.text} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {type === "info" && (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke={c.text} strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5v-5m0-3.75h.008v.008H12V8.25zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )}
+      {type === "error" && (
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke={c.text} strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) => void }) {
   const [visible, setVisible] = useState(false);
 
-  // Trigger slide-in on next frame
   const ref = useCallback((node: HTMLDivElement | null) => {
     if (node) requestAnimationFrame(() => setVisible(true));
   }, []);
 
-  const icons: Record<ToastType, React.ReactNode> = {
-    success: (
-      <svg className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-      </svg>
-    ),
-    info: (
-      <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-      </svg>
-    ),
-    error: (
-      <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-      </svg>
-    ),
-  };
-
-  const ringColor: Record<ToastType, string> = {
-    success: "ring-emerald-200/60",
-    info: "ring-blue-200/60",
-    error: "ring-red-200/60",
-  };
-
   return (
     <div
       ref={ref}
-      className={`pointer-events-auto transition-all duration-300 ease-out ${
-        visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
-      }`}
+      className="pointer-events-auto"
+      style={{
+        transition: "all 0.35s cubic-bezier(0.34,1.2,0.64,1)",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(14px)",
+      }}
     >
       <div
-        className={`flex items-start gap-3 px-4 py-3.5 rounded-2xl ring-1 ${ringColor[toast.type]} cursor-pointer min-w-[240px] max-w-[340px]`}
-        style={{
-          background: "rgba(255,255,255,0.72)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.10), 0 1.5px 4px rgba(0,0,0,0.06)",
-        }}
         onClick={() => onDismiss(toast.id)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "13px 18px 13px 14px",
+          borderRadius: 18,
+          background: "rgba(255,255,255,0.82)",
+          backdropFilter: "blur(48px) saturate(220%)",
+          WebkitBackdropFilter: "blur(48px) saturate(220%)",
+          border: "0.5px solid rgba(255,255,255,0.90)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.96)",
+          minWidth: 320,
+          maxWidth: 420,
+          cursor: "pointer",
+        }}
       >
-        {icons[toast.type]}
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-900/90 leading-snug">{toast.message}</p>
+        <ToastIcon type={toast.type} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#1C1917", lineHeight: 1.35 }}>
+            {toast.message}
+          </p>
           {toast.subtext && (
-            <p className="text-xs text-slate-900/50 mt-0.5 leading-snug">{toast.subtext}</p>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(28,25,23,0.50)", lineHeight: 1.3 }}>
+              {toast.subtext}
+            </p>
           )}
         </div>
       </div>

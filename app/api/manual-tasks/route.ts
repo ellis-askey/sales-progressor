@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const body = await req.json();
-  const { title, notes, transactionId, assignedToId, dueDate } = body;
+  const { title, notes, transactionId, assignedToId, dueDate, isAgentRequest } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: "Title is required" }, { status: 400 });
 
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     transactionId,
     assignedToId,
     dueDate,
+    isAgentRequest: isAgentRequest === true,
   });
 
   return NextResponse.json(task, { status: 201 });

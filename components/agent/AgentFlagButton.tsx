@@ -34,7 +34,7 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs font-semibold text-white bg-white/15 border border-white/20 rounded-lg px-3.5 py-1.5 whitespace-nowrap flex-shrink-0 hover:bg-white/25 transition-colors"
+        className="agent-btn agent-btn-secondary agent-btn-sm"
       >
         {label ?? "Flag to progressor"}
       </button>
@@ -43,26 +43,27 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
 
   return (
     <div className="flex-shrink-0 w-60" onClick={(e) => e.stopPropagation()}>
-      <p className="text-[11px] text-slate-900/40 mb-1.5">Flag for: {address.substring(0, 30)}…</p>
+      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", marginBottom: 6 }}>Flag for: {address.substring(0, 30)}…</p>
       <textarea
         autoFocus
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="e.g. Client called in, asked about exchange date"
         rows={3}
-        className="glass-input w-full text-xs px-2.5 py-2 resize-none box-border"
+        className="agent-textarea w-full text-xs resize-none box-border"
       />
       <div className="flex gap-2 mt-1.5">
         <button
           onClick={submit}
           disabled={sending || !message.trim()}
-          className="text-xs font-semibold px-3.5 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-md transition-colors"
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ opacity: (sending || !message.trim()) ? 0.5 : 1 }}
         >
           {sending ? "Sending…" : "Send"}
         </button>
         <button
           onClick={() => { setOpen(false); setMessage(""); }}
-          className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+          className="agent-btn agent-btn-ghost agent-btn-sm"
         >
           Cancel
         </button>

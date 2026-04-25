@@ -16,12 +16,12 @@ export default async function AgentAnalyticsPage({
 
   // Directors can filter by a specific negotiator; otherwise use own visibility
   const effectiveVis = isDirector && filterUserId
-    ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false }
+    ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }
     : vis;
 
   const [transactions, team] = await Promise.all([
     getAgentTransactions(effectiveVis),
-    isDirector ? getAgencyTeam(session.user.agencyId) : Promise.resolve([]),
+    isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
   ]);
 
   const now = new Date();
@@ -52,13 +52,23 @@ export default async function AgentAnalyticsPage({
 
   return (
     <>
-      <div className="glass-panel-dark relative overflow-hidden">
-        <div className="relative px-8 pt-6 pb-7">
-          <p className="glass-section-label text-label-secondary-on-dark mb-4">Agent Portal</p>
-          <div className="flex items-start justify-between">
+      <div style={{
+        background: "rgba(255,255,255,0.52)",
+        backdropFilter: "blur(28px) saturate(180%)",
+        WebkitBackdropFilter: "blur(28px) saturate(180%)",
+        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
+        boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", padding: "24px 32px 28px" }}>
+          <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Agent Portal</p>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
             <div>
-              <h1 className="text-2xl font-bold text-white leading-tight tracking-tight">Analytics</h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Analytics</h1>
+              <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
                 {isDirector ? selectedName : "An overview of your sales pipeline."}
               </p>
             </div>

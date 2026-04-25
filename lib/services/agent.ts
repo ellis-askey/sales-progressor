@@ -4,6 +4,7 @@ export type AgentVisibility = {
   userId: string;
   agencyId: string;
   seeAll: boolean;
+  firmName: string | null;
 };
 
 /** Resolve how much of the agency a user can see based on role + canViewAllFiles. */
@@ -13,17 +14,21 @@ export async function resolveAgentVisibility(
 ): Promise<AgentVisibility> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, canViewAllFiles: true },
+    select: { role: true, canViewAllFiles: true, firmName: true },
   });
   const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
-  return { userId, agencyId, seeAll };
+  return { userId, agencyId, seeAll, firmName: user?.firmName ?? null };
 }
 
 /** Build the Prisma `where` clause for PropertyTransaction based on visibility. */
 function txWhere(vis: AgentVisibility) {
-  return vis.seeAll
-    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null } }
-    : { agentUserId: vis.userId };
+  if (vis.seeAll) {
+    if (vis.firmName) {
+      return { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } };
+    }
+    return { agentUserId: vis.userId };
+  }
+  return { agentUserId: vis.userId };
 }
 
 export async function getAgentTransactions(vis: AgentVisibility) {
@@ -172,10 +177,12 @@ export async function getAgentComms(vis: AgentVisibility) {
   });
 }
 
-/** List all negotiators + director in an agency (for team management). */
-export async function getAgencyTeam(agencyId: string) {
+/** List all negotiators + director in an agency, scoped to firmName if provided. */
+export async function getAgencyTeam(agencyId: string, firmName?: string | null) {
+  const where: Record<string, unknown> = { agencyId, role: { in: ["director", "negotiator"] } };
+  if (firmName) where.firmName = firmName;
   return prisma.user.findMany({
-    where: { agencyId, role: { in: ["director", "negotiator"] } },
+    where,
     select: { id: true, name: true, email: true, role: true, canViewAllFiles: true, createdAt: true },
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });

@@ -24,6 +24,9 @@ export async function createTransactionAction(input: {
   vendorSolicitorContactId: string | null;
   purchaserSolicitorFirmId: string | null;
   purchaserSolicitorContactId: string | null;
+  agentFeeAmount?: number | null;
+  agentFeePercent?: number | null;
+  agentFeeIsVatInclusive?: boolean | null;
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
@@ -43,6 +46,9 @@ export async function createTransactionAction(input: {
     vendorSolicitorContactId: input.vendorSolicitorContactId,
     purchaserSolicitorFirmId: input.purchaserSolicitorFirmId,
     purchaserSolicitorContactId: input.purchaserSolicitorContactId,
+    agentFeeAmount: input.agentFeeAmount ?? null,
+    agentFeePercent: input.agentFeePercent ?? null,
+    agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
   });
 
   if (input.contacts.length > 0) {

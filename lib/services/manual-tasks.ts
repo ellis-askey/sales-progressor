@@ -52,6 +52,7 @@ export async function createManualTask(data: {
   transactionId?: string;
   assignedToId?: string;
   dueDate?: string;
+  isAgentRequest?: boolean;
 }) {
   return prisma.manualTask.create({
     data: {
@@ -62,6 +63,7 @@ export async function createManualTask(data: {
       transactionId: data.transactionId ?? null,
       assignedToId: data.assignedToId ?? null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      isAgentRequest: data.isAgentRequest ?? false,
     },
     include: {
       transaction: { select: { propertyAddress: true } },

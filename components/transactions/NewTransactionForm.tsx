@@ -284,6 +284,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
     notes: "",
   });
 
+  // Agent fee state
+  const [agentFeeType, setAgentFeeType] = useState<"amount" | "percent">("amount");
+  const [agentFeeAmount, setAgentFeeAmount] = useState<number | null>(null);
+  const [agentFeePercentStr, setAgentFeePercentStr] = useState("");
+  const [agentFeeVat, setAgentFeeVat] = useState<"inclusive" | "exclusive">("exclusive");
+
   const [vendors, setVendors] = useState<ContactEntry[]>([emptyContact()]);
   const [purchasers, setPurchasers] = useState<ContactEntry[]>([emptyContact()]);
   const [vendorSolicitor, setVendorSolicitor] = useState<SolicitorSelection | null>(null);
@@ -551,6 +557,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
       })),
     ];
 
+    const feeAmount = isAgent && agentFeeType === "amount" ? agentFeeAmount : null;
+    const feePercent = isAgent && agentFeeType === "percent" && agentFeePercentStr ? parseFloat(agentFeePercentStr) : null;
+    const feeVatInclusive = isAgent && (feeAmount != null || feePercent != null) ? agentFeeVat === "inclusive" : null;
+
     setShowOverlay(true);
     startTransition(async () => {
       const result = await createTransactionAction({
@@ -565,6 +575,9 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
         vendorSolicitorContactId: vendorSolicitor?.contactId ?? null,
         purchaserSolicitorFirmId: purchaserSolicitor?.firmId ?? null,
         purchaserSolicitorContactId: purchaserSolicitor?.contactId ?? null,
+        agentFeeAmount: feeAmount,
+        agentFeePercent: feePercent,
+        agentFeeIsVatInclusive: feeVatInclusive,
       });
       router.push(`${redirectBase}/${result.id}`);
     });
@@ -724,6 +737,64 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                 <p className="text-xs text-amber-500 mt-1.5">{priceWarning}</p>
               )}
             </div>
+
+            {/* Agent fee — agents only */}
+            {isAgent && (
+              <div>
+                <h2 className="glass-section-label text-slate-900/40 mb-3">Your Fee <span className="text-slate-900/30 font-normal normal-case">(optional)</span></h2>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAgentFeeType("amount")}
+                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "amount" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "border-white/30 text-slate-900/50 hover:border-white/50"}`}
+                    >
+                      Fixed £
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAgentFeeType("percent")}
+                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "percent" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "border-white/30 text-slate-900/50 hover:border-white/50"}`}
+                    >
+                      % of sale price
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {agentFeeType === "amount" ? (
+                      <PriceInput
+                        value={agentFeeAmount}
+                        onChange={setAgentFeeAmount}
+                        className="w-40"
+                        placeholder="e.g. 3,000"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={agentFeePercentStr}
+                          onChange={(e) => setAgentFeePercentStr(e.target.value)}
+                          placeholder="e.g. 1.5"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          max="10"
+                          className="glass-input w-28 px-3 py-2 text-sm"
+                        />
+                        <span className="text-sm text-slate-900/50">%</span>
+                      </div>
+                    )}
+                    <select
+                      value={agentFeeVat}
+                      onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
+                      className="glass-input px-2 py-2 text-sm"
+                    >
+                      <option value="exclusive">+ VAT</option>
+                      <option value="inclusive">Inc. VAT</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             <div>

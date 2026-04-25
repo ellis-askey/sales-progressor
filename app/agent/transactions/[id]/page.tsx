@@ -29,7 +29,6 @@ import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
-import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { prisma } from "@/lib/prisma";
 
 export default async function AgentTransactionDetailPage({
@@ -207,12 +206,6 @@ export default async function AgentTransactionDetailPage({
         percent={progress.percent}
         onTrack={progress.onTrack}
         backHref="/agent/dashboard"
-        flagSlot={
-          <AgentFlagButton
-            transactionId={transaction.id}
-            address={transaction.propertyAddress}
-          />
-        }
       />
 
       <PropertyFileTabs tabs={tabs} sidebar={sidebar}>
@@ -324,6 +317,7 @@ export default async function AgentTransactionDetailPage({
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
             showDone
+            showOwnership={transaction.serviceType === "outsourced"}
             perspective="agent"
           />
         </div>

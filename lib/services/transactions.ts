@@ -6,12 +6,14 @@ import type { Tenure, PurchaseType } from "@prisma/client";
 export async function listTransactions(
   agencyId: string,
   agentUserId?: string,
-  opts?: { allAgentFiles?: boolean }
+  opts?: { allAgentFiles?: boolean; firmName?: string | null }
 ) {
   const now = new Date();
   let whereClause: Record<string, unknown>;
   if (opts?.allAgentFiles) {
-    whereClause = { agencyId, agentUserId: { not: null } };
+    whereClause = opts.firmName
+      ? { agencyId, agentUser: { firmName: opts.firmName } }
+      : { agencyId, agentUserId: { not: null } };
   } else if (agentUserId) {
     whereClause = { agencyId, agentUserId };
   } else {
@@ -122,11 +124,13 @@ export async function getTransaction(id: string, agencyId: string) {
 export async function countTransactionsByStatus(
   agencyId: string,
   agentUserId?: string,
-  opts?: { allAgentFiles?: boolean }
+  opts?: { allAgentFiles?: boolean; firmName?: string | null }
 ) {
   let whereClause: Record<string, unknown>;
   if (opts?.allAgentFiles) {
-    whereClause = { agencyId, agentUserId: { not: null } };
+    whereClause = opts.firmName
+      ? { agencyId, agentUser: { firmName: opts.firmName } }
+      : { agencyId, agentUserId: { not: null } };
   } else if (agentUserId) {
     whereClause = { agencyId, agentUserId };
   } else {
@@ -152,9 +156,9 @@ export type ForecastMonth = {
   transactions: { id: string; propertyAddress: string; forecastDate: Date }[];
 };
 
-export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean }): Promise<ForecastMonth[]> {
+export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<ForecastMonth[]> {
   let agentFilter: Record<string, unknown>;
-  if (opts?.allAgentFiles) agentFilter = { agentUserId: { not: null } };
+  if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
   else if (agentUserId) agentFilter = { agentUserId };
   else agentFilter = { progressedBy: "progressor" };
   const transactions = await prisma.propertyTransaction.findMany({
@@ -220,7 +224,7 @@ export type PostExchangeGroup = {
   transactions: PostExchangeTransaction[];
 };
 
-export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean }): Promise<PostExchangeGroup[]> {
+export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<PostExchangeGroup[]> {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
     select: { id: true, code: true },
@@ -230,7 +234,7 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
   const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
 
   let agentFilter: Record<string, unknown>;
-  if (opts?.allAgentFiles) agentFilter = { agentUserId: { not: null } };
+  if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
   else if (agentUserId) agentFilter = { agentUserId };
   else agentFilter = { progressedBy: "progressor" };
 
@@ -409,6 +413,9 @@ export type CreateTransactionInput = {
   vendorSolicitorContactId?: string | null;
   purchaserSolicitorFirmId?: string | null;
   purchaserSolicitorContactId?: string | null;
+  agentFeeAmount?: number | null;
+  agentFeePercent?: number | null;
+  agentFeeIsVatInclusive?: boolean | null;
 };
 
 export async function createTransaction(input: CreateTransactionInput) {
@@ -436,6 +443,9 @@ export async function createTransaction(input: CreateTransactionInput) {
       vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,
       purchaserSolicitorFirmId: input.purchaserSolicitorFirmId ?? null,
       purchaserSolicitorContactId: input.purchaserSolicitorContactId ?? null,
+      agentFeeAmount: input.agentFeeAmount ?? null,
+      agentFeePercent: input.agentFeePercent ?? null,
+      agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
       twelveWeekTarget,
     },
   });
