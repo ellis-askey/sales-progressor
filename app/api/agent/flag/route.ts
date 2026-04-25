@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "negotiator") {
+  if (!session?.user || (session.user.role !== "negotiator" && session.user.role !== "director")) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
@@ -14,19 +14,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Message required" }, { status: 400 });
   }
 
-  // Verify transaction belongs to this agent if provided
-  if (transactionId) {
-    const tx = await prisma.propertyTransaction.findFirst({
-      where: { id: transactionId, agentUserId: session.user.id },
-    });
-    if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  // Find the agent's assigned progressor to assign the task to
   const agentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { progressorId: true, agencyId: true },
   });
+
+  if (transactionId) {
+    const tx = await prisma.propertyTransaction.findFirst({
+      where: { id: transactionId, agencyId: agentUser?.agencyId },
+    });
+    if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   await prisma.manualTask.create({
     data: {

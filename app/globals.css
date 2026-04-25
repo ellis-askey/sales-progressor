@@ -377,6 +377,25 @@ body {
   background: rgba(255, 255, 255, 0.08) !important;
 }
 
+/* ── Warm tab bar override for agent portal ────────────────────────────── */
+.agent-page.glass-page .glass-tab-bar,
+.agent-page.glass-page .glass-nav {
+  background: rgba(255, 248, 240, 0.88) !important;
+  backdrop-filter: blur(var(--tab-bar-blur, 20px)) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(var(--tab-bar-blur, 20px)) saturate(160%) !important;
+  border-bottom: 0.5px solid rgba(200, 150, 100, 0.20) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.80), 0 4px 24px rgba(255,138,101,0.06) !important;
+}
+.agent-page.glass-page .glass-tab-bar button[data-active="false"],
+.agent-page.glass-page .glass-nav button[data-active="false"] {
+  color: rgba(15, 23, 42, 0.45) !important;
+}
+.agent-page.glass-page .glass-tab-bar button[data-active="false"]:hover,
+.agent-page.glass-page .glass-nav button[data-active="false"]:hover {
+  color: rgba(15, 23, 42, 0.78) !important;
+  background: rgba(255, 255, 255, 0.44) !important;
+}
+
 /* ── Section headings between cards on the photo background ───────────── */
 .glass-page section > div h2,
 .glass-page section > h2 {

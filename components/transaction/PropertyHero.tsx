@@ -14,6 +14,7 @@ type Props = {
   percent: number;
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
   backHref?: string;
+  flagSlot?: React.ReactNode;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -63,7 +64,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, backHref = "/dashboard",
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, backHref = "/dashboard", flagSlot,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -107,10 +108,13 @@ export function PropertyHero({
               <span style={{ color: "var(--agent-border-subtle)", fontSize: 14 }}>·</span>
               <span style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
             </div>
-            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ring-inset ring-black/5 ${ws.bg} ${ws.text}`}>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ws.dot}`} />
-              {STATUS_LABEL[status]}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {flagSlot}
+              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ring-inset ring-black/5 ${ws.bg} ${ws.text}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ws.dot}`} />
+                {STATUS_LABEL[status]}
+              </span>
+            </div>
           </div>
 
           {/* Address */}

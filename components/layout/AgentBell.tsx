@@ -10,7 +10,12 @@ export function AgentBell({ userKey }: { userKey: string }) {
   const [count, setCount] = useState(0);
 
   const fetchCount = useCallback(async () => {
-    const cleared = localStorage.getItem(storageKey) ?? new Date(0).toISOString();
+    const stored = localStorage.getItem(storageKey);
+    const cleared = stored ?? (() => {
+      const now = new Date().toISOString();
+      localStorage.setItem(storageKey, now);
+      return now;
+    })();
     try {
       const res = await fetch(`/api/agent/notifications?after=${encodeURIComponent(cleared)}`);
       if (res.ok) {

@@ -29,6 +29,7 @@ import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
+import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { prisma } from "@/lib/prisma";
 
 export default async function AgentTransactionDetailPage({
@@ -49,7 +50,8 @@ export default async function AgentTransactionDetailPage({
   ]);
 
   if (!transaction) notFound();
-  if (transaction.agentUserId !== session.user.id) notFound();
+  const isDirectorRole = session.user.role === "director";
+  if (!isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
   const assignedUser = transaction.assignedUserId
     ? await prisma.user.findUnique({
@@ -81,7 +83,9 @@ export default async function AgentTransactionDetailPage({
 
   const internalNotes = (activityEntries as ActivityEntry[])
     .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
-      e.kind === "comm" && e.type === "internal_note"
+      e.kind === "comm" &&
+      e.type === "internal_note" &&
+      !(typeof e.content === "string" && e.content.includes("viewed their client portal"))
     )
     .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
@@ -191,7 +195,7 @@ export default async function AgentTransactionDetailPage({
   );
 
   return (
-    <div className="glass-page">
+    <div className="glass-page agent-page">
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
@@ -203,6 +207,12 @@ export default async function AgentTransactionDetailPage({
         percent={progress.percent}
         onTrack={progress.onTrack}
         backHref="/agent/dashboard"
+        flagSlot={
+          <AgentFlagButton
+            transactionId={transaction.id}
+            address={transaction.propertyAddress}
+          />
+        }
       />
 
       <PropertyFileTabs tabs={tabs} sidebar={sidebar}>
@@ -211,7 +221,7 @@ export default async function AgentTransactionDetailPage({
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-3 divide-x divide-white/20">
+            <div className="grid divide-x divide-white/20" style={{ gridTemplateColumns: "130px 160px 1fr" }}>
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>
@@ -314,6 +324,7 @@ export default async function AgentTransactionDetailPage({
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
             showDone
+            perspective="agent"
           />
         </div>
 
