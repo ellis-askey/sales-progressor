@@ -1,7 +1,7 @@
 "use client";
 // components/transaction/StatusControl.tsx
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { changeStatusAction } from "@/app/actions/transactions";
 import type { TransactionStatus } from "@prisma/client";
@@ -39,6 +39,17 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
   const [reason, setReason]         = useState("");
   const [customReason, setCustomReason] = useState("");
 
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+
+  function handleOpen() {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((o) => !o);
+  }
+
   function selectStatus(next: TransactionStatus) {
     if (next === currentStatus) { setOpen(false); return; }
     setOpen(false);
@@ -72,7 +83,8 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
     <>
       <div className="relative">
         <button
-          onClick={() => setOpen((o) => !o)}
+          ref={buttonRef}
+          onClick={handleOpen}
           disabled={saving || isPending}
           className="flex items-center gap-1.5 group"
           title="Change status"
@@ -83,10 +95,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           </svg>
         </button>
 
-        {open && (
+        {open && dropdownPos && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <div className="absolute left-0 top-8 z-20 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+            <div
+              className="fixed z-20 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
+              style={{ top: dropdownPos.top, left: dropdownPos.left }}
+            >
               {STATUSES.map(({ value, label }) => (
                 <button
                   key={value}
