@@ -29,6 +29,9 @@ function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
         {isDone && (
           <p className="text-xs text-emerald-600 font-medium mt-0.5">✓ Taken care of</p>
         )}
+        {isDone && task.notes && (
+          <p className="text-xs text-slate-900/40 mt-0.5 leading-relaxed">{task.notes}</p>
+        )}
       </div>
     </div>
   );

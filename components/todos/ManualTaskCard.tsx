@@ -24,7 +24,18 @@ export function ManualTaskCard({
   onDelete: (id: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(task.notes ?? "");
   const isDone = task.status === "done";
+
+  async function handleNoteBlur() {
+    const trimmed = note.trim();
+    if (trimmed === (task.notes ?? "")) return;
+    await fetch(`/api/manual-tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: trimmed || null }),
+    });
+  }
 
   async function handleToggle() {
     setBusy(true);
@@ -69,9 +80,14 @@ export function ManualTaskCard({
             </span>
           )}
         </div>
-        {task.notes && (
-          <p className="text-xs text-slate-900/40 mt-0.5 leading-relaxed">{task.notes}</p>
-        )}
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={handleNoteBlur}
+          placeholder="Add a note for the agent…"
+          className="mt-1 w-full text-xs text-slate-900/50 bg-transparent border-b border-dashed border-slate-200/70 focus:border-blue-300/70 focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
+        />
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
           {task.transaction && (
             <Link
