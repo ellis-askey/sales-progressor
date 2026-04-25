@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { AgentShell } from "@/components/layout/AgentShell";
+import { AgentToaster } from "@/components/agent/AgentToaster";
 import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
@@ -9,5 +10,9 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     redirect("/dashboard");
   }
 
-  return <AgentShell session={session}>{children}</AgentShell>;
+  return (
+    <AgentToaster>
+      <AgentShell session={session}>{children}</AgentShell>
+    </AgentToaster>
+  );
 }
