@@ -84,7 +84,8 @@ export default function RegisterPage() {
     return () => clearInterval(t);
   }, [loading]);
 
-  const step1Valid = name.trim() && email.trim() && password.length >= 8 && termsAccepted;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const step1Valid = name.trim() && emailValid && password.length >= 8 && termsAccepted;
 
   function advanceToStep2() {
     if (!step1Valid) return;

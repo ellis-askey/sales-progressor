@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { titleCase, normalizePhone } from "@/lib/utils";
@@ -36,7 +36,21 @@ export function QuickAddForm({
   const { toast } = useAgentToast();
 
   const [loading, setLoading] = useState(false);
+  const [msgIndex, setMsgIndex] = useState(0);
   const [draftSaving, setDraftSaving] = useState(false);
+
+  const SUBMIT_MESSAGES = [
+    "Creating file…",
+    "Setting up milestones…",
+    "Taking you to your file…",
+  ];
+
+  useEffect(() => {
+    if (!loading) { setMsgIndex(0); return; }
+    const t = setInterval(() => setMsgIndex((i) => Math.min(i + 1, SUBMIT_MESSAGES.length - 1)), 900);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
   const [error, setError] = useState("");
   const [draftId, setDraftId] = useState<string | null>(initialDraftId ?? null);
 
@@ -220,8 +234,12 @@ export function QuickAddForm({
                 <button
                   type="button"
                   onClick={() => setProgressedBy("progressor")}
-                  className={`${TOGGLE_BASE} text-left`}
-                  style={progressedBy === "progressor" ? { borderColor: "#60a5fa", background: "rgba(219,234,254,0.60)", color: "#1d4ed8" } : {}}
+                  className={`${TOGGLE_BASE}`}
+                  style={{
+                    flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
+                    padding: "10px 14px",
+                    ...(progressedBy === "progressor" ? { borderColor: "#60a5fa", background: "rgba(219,234,254,0.60)", color: "#1d4ed8" } : {}),
+                  }}
                 >
                   <span className="block text-sm">Send to us</span>
                   <span className="block text-[10px] font-normal opacity-60 mt-0.5">Sales Progressor handles it</span>
@@ -229,8 +247,12 @@ export function QuickAddForm({
                 <button
                   type="button"
                   onClick={() => setProgressedBy("agent")}
-                  className={`${TOGGLE_BASE} text-left`}
-                  style={progressedBy === "agent" ? { borderColor: "#34d399", background: "rgba(209,250,229,0.60)", color: "#065f46" } : {}}
+                  className={`${TOGGLE_BASE}`}
+                  style={{
+                    flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
+                    padding: "10px 14px",
+                    ...(progressedBy === "agent" ? { borderColor: "#34d399", background: "rgba(209,250,229,0.60)", color: "#065f46" } : {}),
+                  }}
                 >
                   <span className="block text-sm">Self-progress</span>
                   <span className="block text-[10px] font-normal opacity-60 mt-0.5">You manage this file</span>
@@ -286,7 +308,7 @@ export function QuickAddForm({
             className="w-full py-4 rounded-2xl text-[15px] font-bold text-white transition-all disabled:opacity-40"
             style={{ background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)", boxShadow: "0 6px 20px rgba(37,99,235,0.40)" }}
           >
-            {loading ? "Creating file…" : "Create file"}
+            {loading ? SUBMIT_MESSAGES[msgIndex] : "Create file"}
           </button>
 
           <p className="text-center text-xs text-slate-900/30">
