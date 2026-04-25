@@ -48,7 +48,7 @@ import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { ProgressResult } from "@/lib/services/fees";
-import type { ClientType, Tenure, PurchaseType, ServiceType } from "@prisma/client";
+import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
 type KeyDate = { name: string; eventDate: Date };
 
@@ -69,13 +69,12 @@ type Props = {
     legacyFee: number | null;
   } | null;
   agentUser?: { id: string; name: string; email: string; firmName: string | null } | null;
-  serviceType?: ServiceType;
   progress: ProgressResult;
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
 };
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, serviceType, progress, keyDates = [], exchangeConfirmed = false }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingPrice, setEditingPrice] = useState(false);
   const [pricePence, setPricePence] = useState<number | null>(transaction.purchasePrice ?? null);
@@ -292,16 +291,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, servi
       {/* Agent card */}
       {agentUser && (
         <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="glass-section-label text-slate-900/40">Agent</p>
-            {serviceType && (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                serviceType === "outsourced" ? "bg-blue-100 text-blue-700" : "bg-slate-900/8 text-slate-900/60"
-              }`}>
-                {serviceType === "outsourced" ? "Outsourced to us" : "Self-managed"}
-              </span>
-            )}
-          </div>
+          <p className="glass-section-label text-slate-900/40 mb-3">Agent</p>
           <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
           {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
           <p className="text-xs text-slate-900/40 mt-0.5">{agentUser.email}</p>

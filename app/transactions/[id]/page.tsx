@@ -202,7 +202,6 @@ export default async function TransactionDetailPage({
         }}
         assignedUser={assignedUser}
         agentUser={agentUser}
-        serviceType={transaction.serviceType}
         progress={progress}
         keyDates={keyDates}
         exchangeConfirmed={exchangeConfirmed}
@@ -222,6 +221,7 @@ export default async function TransactionDetailPage({
         exchangeDate={transaction.expectedExchangeDate ?? null}
         percent={progress.percent}
         onTrack={progress.onTrack}
+        serviceType={transaction.serviceType}
       />
       <NewTransactionToast />
 
@@ -233,14 +233,9 @@ export default async function TransactionDetailPage({
 
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-4 divide-x divide-white/20">
+            <div className="grid grid-cols-3 divide-x divide-white/20">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
-              </MetaField>
-              <MetaField label="Service">
-                <span className="text-sm font-medium text-slate-900/80">
-                  {transaction.serviceType === "outsourced" ? "Outsourced to us" : "Self-managed"}
-                </span>
               </MetaField>
               <MetaField label="Assigned to">
                 <AssignControl

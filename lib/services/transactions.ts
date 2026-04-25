@@ -416,6 +416,7 @@ export type CreateTransactionInput = {
   agentFeeAmount?: number | null;
   agentFeePercent?: number | null;
   agentFeeIsVatInclusive?: boolean | null;
+  referredFirmId?: string | null;
 };
 
 export async function createTransaction(input: CreateTransactionInput) {
@@ -446,6 +447,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       agentFeeAmount: input.agentFeeAmount ?? null,
       agentFeePercent: input.agentFeePercent ?? null,
       agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
+      referredFirmId: input.referredFirmId ?? null,
       twelveWeekTarget,
     },
   });

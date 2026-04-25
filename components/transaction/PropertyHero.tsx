@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { TransactionStatus, Tenure, PurchaseType } from "@prisma/client";
+import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 
 type Props = {
   address: string;
@@ -13,6 +13,7 @@ type Props = {
   exchangeDate: Date | null;
   percent: number;
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
+  serviceType?: ServiceType | null;
   backHref?: string;
   flagSlot?: React.ReactNode;
 };
@@ -66,7 +67,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, backHref = "/dashboard", flagSlot,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -140,6 +141,16 @@ export function PropertyHero({
                 {purchaseType && (
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(180,130,90,0.20)" }}>
                     {formatPurchaseType(purchaseType)}
+                  </span>
+                )}
+                {serviceType === "outsourced" && (
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(219,234,254,0.70)", color: "#1e40af", border: "0.5px solid rgba(96,165,250,0.35)" }}>
+                    Outsourced to us
+                  </span>
+                )}
+                {serviceType === "self_managed" && (
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(209,250,229,0.70)", color: "#065f46", border: "0.5px solid rgba(52,211,153,0.35)" }}>
+                    Self-managed
                   </span>
                 )}
               </div>
@@ -242,6 +253,16 @@ export function PropertyHero({
               {purchaseType && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/12 text-slate-200 ring-1 ring-white/25">
                   {formatPurchaseType(purchaseType)}
+                </span>
+              )}
+              {serviceType === "outsourced" && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 ring-1 ring-blue-400/30">
+                  Outsourced to us
+                </span>
+              )}
+              {serviceType === "self_managed" && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/30">
+                  Self-managed
                 </span>
               )}
             </div>

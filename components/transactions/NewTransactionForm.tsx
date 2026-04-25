@@ -267,7 +267,7 @@ function CreatingOverlay({ address }: { address: string }) {
 
 // ── Main form ─────────────────────────────────────────────────────────────────
 
-export function NewTransactionForm({ userRole, redirectBase = "/transactions" }: { userRole?: string; redirectBase?: string }) {
+export function NewTransactionForm({ userRole, redirectBase = "/transactions", recommendedFirmIds = [] }: { userRole?: string; redirectBase?: string; recommendedFirmIds?: string[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const isAgent = userRole === "negotiator" || userRole === "director";
@@ -294,6 +294,8 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
   const [purchasers, setPurchasers] = useState<ContactEntry[]>([emptyContact()]);
   const [vendorSolicitor, setVendorSolicitor] = useState<SolicitorSelection | null>(null);
   const [purchaserSolicitor, setPurchaserSolicitor] = useState<SolicitorSelection | null>(null);
+  const [vendorIsReferral, setVendorIsReferral] = useState(false);
+  const [purchaserIsReferral, setPurchaserIsReferral] = useState(false);
 
   const [postcodeError, setPostcodeError] = useState("");
   const [priceWarning, setPriceWarning] = useState("");
@@ -311,6 +313,14 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
     vendor: null,
     purchaser: null,
   });
+
+  useEffect(() => {
+    if (!vendorSolicitor || !recommendedFirmIds.includes(vendorSolicitor.firmId)) setVendorIsReferral(false);
+  }, [vendorSolicitor, recommendedFirmIds]);
+
+  useEffect(() => {
+    if (!purchaserSolicitor || !recommendedFirmIds.includes(purchaserSolicitor.firmId)) setPurchaserIsReferral(false);
+  }, [purchaserSolicitor, recommendedFirmIds]);
 
   function setField(field: string, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -561,6 +571,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
     const feePercent = isAgent && agentFeeType === "percent" && agentFeePercentStr ? parseFloat(agentFeePercentStr) : null;
     const feeVatInclusive = isAgent && (feeAmount != null || feePercent != null) ? agentFeeVat === "inclusive" : null;
 
+    const referredFirmId = vendorIsReferral && vendorSolicitor
+      ? vendorSolicitor.firmId
+      : purchaserIsReferral && purchaserSolicitor
+      ? purchaserSolicitor.firmId
+      : null;
+
     setShowOverlay(true);
     startTransition(async () => {
       const result = await createTransactionAction({
@@ -578,6 +594,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
         agentFeeAmount: feeAmount,
         agentFeePercent: feePercent,
         agentFeeIsVatInclusive: feeVatInclusive,
+        referredFirmId,
       });
       router.push(`${redirectBase}/${result.id}`);
     });
@@ -905,6 +922,17 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                 <div className="space-y-6">
                   <div>
                     <SolicitorPicker label="Seller's Solicitor" value={vendorSolicitor} onChange={setVendorSolicitor} />
+                    {vendorSolicitor && recommendedFirmIds.includes(vendorSolicitor.firmId) && (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={vendorIsReferral}
+                          onChange={(e) => setVendorIsReferral(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded accent-emerald-600"
+                        />
+                        <span className="text-xs font-medium text-emerald-700">Referred by us</span>
+                      </label>
+                    )}
                     {solicitorFillStatus.vendor === "new" && (
                       <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -929,6 +957,17 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions" }:
                   <div className="border-t border-white/20" />
                   <div>
                     <SolicitorPicker label="Buyer's Solicitor" value={purchaserSolicitor} onChange={setPurchaserSolicitor} />
+                    {purchaserSolicitor && recommendedFirmIds.includes(purchaserSolicitor.firmId) && (
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={purchaserIsReferral}
+                          onChange={(e) => setPurchaserIsReferral(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded accent-emerald-600"
+                        />
+                        <span className="text-xs font-medium text-emerald-700">Referred by us</span>
+                      </label>
+                    )}
                     {solicitorFillStatus.purchaser === "new" && (
                       <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>

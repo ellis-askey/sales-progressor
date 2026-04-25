@@ -1,8 +1,17 @@
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { NewTransactionForm } from "@/components/transactions/NewTransactionForm";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = prisma as any;
 
 export default async function AgentNewTransactionPage() {
   const session = await requireSession();
+
+  const recommendedFirmIds: string[] = await db.agencyRecommendedSolicitor
+    .findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true } })
+    .then((rows: { solicitorFirmId: string }[]) => rows.map((r) => r.solicitorFirmId))
+    .catch(() => []);
 
   return (
     <>
@@ -25,7 +34,7 @@ export default async function AgentNewTransactionPage() {
       </div>
 
       <div className="px-8 py-7">
-        <NewTransactionForm userRole={session.user.role} redirectBase="/agent/transactions" />
+        <NewTransactionForm userRole={session.user.role} redirectBase="/agent/transactions" recommendedFirmIds={recommendedFirmIds} />
       </div>
     </>
   );

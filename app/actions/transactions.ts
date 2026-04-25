@@ -27,6 +27,7 @@ export async function createTransactionAction(input: {
   agentFeeAmount?: number | null;
   agentFeePercent?: number | null;
   agentFeeIsVatInclusive?: boolean | null;
+  referredFirmId?: string | null;
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
@@ -49,6 +50,7 @@ export async function createTransactionAction(input: {
     agentFeeAmount: input.agentFeeAmount ?? null,
     agentFeePercent: input.agentFeePercent ?? null,
     agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
+    referredFirmId: input.referredFirmId ?? null,
   });
 
   if (input.contacts.length > 0) {
