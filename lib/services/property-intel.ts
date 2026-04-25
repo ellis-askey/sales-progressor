@@ -62,6 +62,7 @@ export type EpcData = {
   floorArea: number | null;
   builtForm: string;
   inspectionDate: string;
+  lmkKey: string;
 };
 
 export async function fetchEpc(postcode: string): Promise<EpcData | null> {
@@ -93,6 +94,7 @@ export async function fetchEpc(postcode: string): Promise<EpcData | null> {
     floorArea: row["total-floor-area"] ? parseFloat(row["total-floor-area"]) : null,
     builtForm: row["built-form"] ?? "",
     inspectionDate: row["inspection-date"] ?? "",
+    lmkKey: row["lmk-key"] ?? "",
   };
 }
 
