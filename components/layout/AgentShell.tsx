@@ -10,6 +10,8 @@ import {
   PlusCircle, Lightning, GearSix, Users, Tray, CheckSquare, Buildings,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
+import { WelcomeModal } from "@/components/agent/WelcomeModal";
+import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 
 function buildNavItems(role: UserRole) {
   return [
@@ -26,7 +28,7 @@ function buildNavItems(role: UserRole) {
   ];
 }
 
-export function AgentShell({ children, session }: { children: React.ReactNode; session: Session }) {
+export function AgentShell({ children, session, showWelcome }: { children: React.ReactNode; session: Session; showWelcome?: boolean }) {
   const pathname  = usePathname();
   const role      = session.user.role as UserRole;
   const isDirector = role === "director";
@@ -136,6 +138,9 @@ export function AgentShell({ children, session }: { children: React.ReactNode; s
       <main style={{ flex: 1, minHeight: "100vh" }}>
         {children}
       </main>
+
+      {showWelcome && <WelcomeModal name={session.user.name ?? ""} />}
+      <OnboardingChecklist userId={session.user.id} />
     </div>
   );
 }

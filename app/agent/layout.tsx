@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import "./styles/agent-system.css";
@@ -10,9 +11,16 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     redirect("/dashboard");
   }
 
+  const userRecord = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { hasSeenAgentWelcome: true },
+  });
+
+  const showWelcome = !userRecord?.hasSeenAgentWelcome;
+
   return (
     <AgentToaster>
-      <AgentShell session={session}>{children}</AgentShell>
+      <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
     </AgentToaster>
   );
 }

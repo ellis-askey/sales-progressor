@@ -31,6 +31,21 @@ export function titleCase(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const NAME_PREFIXES = new Set(["mr","mrs","ms","miss","dr","prof","sir","lord","lady","rev"]);
+const NAME_SUFFIXES = new Set(["jr","sr","ii","iii","iv","phd","md","esq","mbe","obe","cbe"]);
+
+export function getFirstName(fullName: string): string {
+  if (!fullName.trim()) return "";
+  const parts = fullName.trim().split(/\s+/);
+  for (const part of parts) {
+    const lower = part.replace(/[.,]/g, "").toLowerCase();
+    if (!NAME_PREFIXES.has(lower) && !NAME_SUFFIXES.has(lower)) {
+      return titleCase(part.replace(/[.,]/g, ""));
+    }
+  }
+  return titleCase(parts[0]!.replace(/[.,]/g, ""));
+}
+
 export function normalizePhone(phone: string): string {
   const cleaned = phone.trim();
   if (!cleaned) return cleaned;

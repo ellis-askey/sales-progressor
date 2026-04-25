@@ -9,7 +9,7 @@ import { PostExchangeStrip } from "@/components/transactions/PostExchangeStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { AgentRequestsPanel } from "@/components/agent/AgentRequestsPanel";
-import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import type { TransactionStatus } from "@prisma/client";
 
 export default async function AgentDashboard({
@@ -145,15 +145,25 @@ export default async function AgentDashboard({
 
           {filtered.length === 0 ? (
             <div className="glass-card">
-              <EmptyState
-                title={activeFilter === "all" ? "No files yet" : `No ${activeFilter.replace("_", " ")} files`}
-                description={activeFilter === "all" ? "Your sales will appear here once they're added." : "Try a different filter."}
-                action={
-                  activeFilter !== "all" ? (
-                    <Link href="/agent/dashboard" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>
-                  ) : undefined
-                }
-              />
+              {activeFilter === "all" ? (
+                <EmptyState
+                  title="Your pipeline starts here"
+                  description="Add your first sale and we'll track it through to completion."
+                  icon={<HouseLine size={20} className="text-blue-400" />}
+                  action={
+                    <Link href="/agent/quick-add" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+                      <Plus size={14} weight="bold" />
+                      Add a sale
+                    </Link>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  title={`No ${activeFilter.replace("_", " ")} files`}
+                  description="Try a different filter."
+                  action={<Link href="/agent/dashboard" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
+                />
+              )}
             </div>
           ) : (
             <TransactionListWithSearch transactions={filtered} basePath="/agent/transactions" />

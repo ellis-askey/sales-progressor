@@ -4,6 +4,14 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function markWelcomeSeenAction() {
+  const session = await requireSession();
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { hasSeenAgentWelcome: true },
+  });
+}
+
 export async function updateProfileAction(data: { name: string; email: string; phone: string }) {
   const session = await requireSession();
 
