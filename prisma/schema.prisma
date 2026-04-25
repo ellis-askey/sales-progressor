@@ -16,12 +16,13 @@ model Agency {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users           User[]
-  transactions    PropertyTransaction[]
-  solicitorFirms  SolicitorFirm[]
-  manualTasks     ManualTask[]
-  chains          PropertyChain[]
-  verifiedDomains VerifiedDomain[]
+  users                    User[]
+  transactions             PropertyTransaction[]
+  solicitorFirms           SolicitorFirm[]
+  manualTasks              ManualTask[]
+  chains                   PropertyChain[]
+  verifiedDomains          VerifiedDomain[]
+  recommendedSolicitors    AgencyRecommendedSolicitor[]
 }
 
 model User {
@@ -215,21 +216,35 @@ model PortalMessage {
 }
 
 model SolicitorFirm {
-  id                      String   @id @default(cuid())
-  agencyId                String
-  name                    String
-  isRecommended           Boolean  @default(false)
-  defaultReferralFeePence Int?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id        String   @id @default(cuid())
+  agencyId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   agency   Agency             @relation(fields: [agencyId], references: [id])
   handlers SolicitorContact[]
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorFirm")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorFirm")
   referredForTransactions  PropertyTransaction[] @relation("ReferredFirm")
+  recommendations          AgencyRecommendedSolicitor[]
 
-  @@unique([agencyId, name])
+  @@unique([name])
+}
+
+model AgencyRecommendedSolicitor {
+  id                      String   @id @default(cuid())
+  agencyId                String
+  solicitorFirmId         String
+  defaultReferralFeePence Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  agency        Agency        @relation(fields: [agencyId], references: [id])
+  solicitorFirm SolicitorFirm @relation(fields: [solicitorFirmId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, solicitorFirmId])
+  @@index([agencyId])
 }
 
 model SolicitorContact {

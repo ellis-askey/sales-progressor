@@ -14,17 +14,26 @@ export default async function AgentSettingsPage({
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
 
-  const [userRecord, solicitorFirms] = await Promise.all([
+  const [userRecord, recommendedSolicitors, allFirms] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { phone: true },
     }),
     isDirector
-      ? prisma.solicitorFirm.findMany({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (prisma as any).agencyRecommendedSolicitor.findMany({
           where: { agencyId: session.user.agencyId },
-          orderBy: [{ isRecommended: "desc" }, { name: "asc" }],
-          select: { id: true, name: true, isRecommended: true, defaultReferralFeePence: true },
+          orderBy: { solicitorFirm: { name: "asc" } },
+          select: {
+            id: true,
+            solicitorFirmId: true,
+            defaultReferralFeePence: true,
+            solicitorFirm: { select: { name: true } },
+          },
         })
+      : Promise.resolve([]),
+    isDirector
+      ? prisma.solicitorFirm.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
       : Promise.resolve([]),
   ]);
 
@@ -104,7 +113,16 @@ export default async function AgentSettingsPage({
                   <span>Fee field = default referral fee (£)</span>
                 </div>
               </div>
-              <RecommendedSolicitorsSettings initialFirms={solicitorFirms} />
+              <RecommendedSolicitorsSettings
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                initialRecommended={(recommendedSolicitors as any[]).map((r) => ({
+                  id: r.id,
+                  firmId: r.solicitorFirmId,
+                  firmName: r.solicitorFirm.name,
+                  defaultReferralFeePence: r.defaultReferralFeePence,
+                }))}
+                allFirms={allFirms}
+              />
             </div>
           </>
         )}

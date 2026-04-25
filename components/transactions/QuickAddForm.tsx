@@ -70,7 +70,7 @@ export function QuickAddForm({
       : ""
   );
 
-  const fullAddress = [street.trim(), titleCase(city.trim()), normalizePostcode(postcode.trim())].filter(Boolean).join(", ");
+  const fullAddress = [titleCase(street.trim()), titleCase(city.trim()), normalizePostcode(postcode.trim())].filter(Boolean).join(", ");
   const parsedPrice = price.trim() ? Math.round(parseFloat(price.replace(/,/g, "")) * 100) : null;
   const hasAddress = street.trim().length > 0;
 
@@ -189,6 +189,7 @@ export function QuickAddForm({
               type="text"
               value={street}
               onChange={(e) => setStreet(e.target.value)}
+              onBlur={() => setStreet(titleCase(street))}
               placeholder="Street address"
               className={FIELD}
               autoFocus
@@ -198,6 +199,7 @@ export function QuickAddForm({
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
+                onBlur={() => setCity(titleCase(city))}
                 placeholder="City / Town"
                 className={FIELD}
               />

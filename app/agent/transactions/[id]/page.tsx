@@ -214,9 +214,14 @@ export default async function AgentTransactionDetailPage({
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid divide-x divide-white/20" style={{ gridTemplateColumns: "130px 160px 1fr" }}>
+            <div className="grid divide-x divide-white/20" style={{ gridTemplateColumns: "130px 120px 160px 1fr" }}>
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
+              </MetaField>
+              <MetaField label="Service">
+                <span className="text-sm font-medium text-slate-900/80">
+                  {transaction.serviceType === "outsourced" ? "Outsourced to us" : "Self-managed"}
+                </span>
               </MetaField>
               <MetaField label="Assigned to">
                 <span className="text-sm text-slate-900/80">
