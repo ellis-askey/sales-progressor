@@ -789,6 +789,13 @@
     line-height: var(--agent-line-relaxed);
   }
 
+  /* ── Work Queue row hover ───────────────────────────────────────────────── */
+  .work-queue-row { transition: background 150ms; }
+  .work-queue-row:hover { background: rgba(255,255,255,0.65) !important; }
+
+  /* ── Solicitor file chip hover ──────────────────────────────────────────── */
+  .solicitor-file-chip:hover { background: rgba(99,102,241,0.08) !important; color: #6366f1 !important; }
+
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {

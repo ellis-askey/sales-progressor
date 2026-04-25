@@ -7,7 +7,7 @@ import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
-  PlusCircle, Lightning, GearSix, Users,
+  PlusCircle, Lightning, GearSix, Users, Tray, CheckSquare, Buildings,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 
@@ -17,6 +17,9 @@ function buildNavItems(role: UserRole) {
     { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
     { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
     { href: "/agent/comms",            label: "Updates",      Icon: BellSimple    },
+    { href: "/agent/work-queue",       label: "Work Queue",   Icon: Tray          },
+    { href: "/agent/to-do",            label: "To-Do",        Icon: CheckSquare   },
+    { href: "/agent/solicitors",       label: "Solicitors",   Icon: Buildings     },
     { href: "/agent/quick-add",        label: "Quick Add",    Icon: Lightning     },
     { href: "/agent/transactions/new", label: "Full form",    Icon: PlusCircle    },
     { href: "/agent/settings",         label: "Settings",     Icon: GearSix       },
