@@ -14,15 +14,25 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
 
   return (
     <div className="relative flex-shrink-0 w-20 h-20">
+      <style>{`
+        @keyframes ring-glow-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.78; }
+        }
+      `}</style>
       <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
+        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(160,120,80,0.18)" strokeWidth="8" />
         <circle
           cx="40" cy="40" r={r} fill="none"
           stroke={stroke} strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={`${filled} ${gap}`}
           strokeDashoffset="0"
-          style={{ transition: "stroke-dasharray 0.6s ease" }}
+          style={{
+            transition: "stroke-dasharray 0.6s ease",
+            filter: percent > 0 ? `drop-shadow(0 0 5px ${stroke}90)` : "none",
+            animation: percent > 0 ? "ring-glow-pulse 3s ease-in-out infinite" : "none",
+          }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastContext";
 import { useTabContext } from "./TabContext";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
@@ -18,11 +18,6 @@ type Props = {
   purchaserNext: NextMilestone | null;
 };
 
-async function fireConfetti() {
-  const confetti = (await import("canvas-confetti")).default;
-  confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 }, colors: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"] });
-}
-
 function MilestoneQuickComplete({
   milestone,
   label,
@@ -37,6 +32,13 @@ function MilestoneQuickComplete({
   const [loading, setLoading] = useState(false);
   const [showImplied, setShowImplied] = useState(false);
   const [implied, setImplied] = useState<{ id: string; name: string }[]>([]);
+  const [confirmedName, setConfirmedName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!confirmedName) return;
+    const t = setTimeout(() => setConfirmedName(null), 3500);
+    return () => clearTimeout(t);
+  }, [confirmedName]);
 
   if (!milestone) {
     return (
@@ -100,10 +102,7 @@ function MilestoneQuickComplete({
         milestoneDefinitionId: milestone!.id,
         impliedIds,
       });
-      addToast("Milestone confirmed", "success", milestone!.name);
-      await fireConfetti();
-      // revalidatePath in confirmMilestoneAction triggers automatic page re-render —
-      // no onDone() / router.refresh() needed here.
+      setConfirmedName(milestone!.name);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete milestone";
       addToast(message, "error");
@@ -165,6 +164,72 @@ function MilestoneQuickComplete({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Confirmation popup */}
+      {confirmedName && (
+        <>
+          <style>{`
+            @keyframes ms-pop {
+              0%   { opacity: 0; transform: scale(0.86) translateY(14px); }
+              14%  { opacity: 1; transform: scale(1.02) translateY(0); }
+              22%  { transform: scale(1) translateY(0); }
+              78%  { opacity: 1; transform: scale(1) translateY(0); }
+              100% { opacity: 0; transform: scale(0.94) translateY(-6px); }
+            }
+          `}</style>
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 60,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              pointerEvents: "auto",
+              background: "rgba(255,255,255,0.84)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              borderRadius: 24,
+              border: "0.5px solid rgba(255,255,255,0.90)",
+              boxShadow: "0 24px 80px rgba(16,185,129,0.22), 0 0 0 0.5px rgba(255,255,255,0.60), 0 2px 0 rgba(255,255,255,0.95) inset",
+              padding: "40px 48px",
+              textAlign: "center",
+              maxWidth: 360,
+              width: "calc(100% - 32px)",
+              animation: "ms-pop 3.5s cubic-bezier(0.34,1.4,0.64,1) forwards",
+            }}>
+              {/* Glow ring + checkmark */}
+              <div style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(16,185,129,0.16) 0%, rgba(16,185,129,0.04) 70%, transparent 100%)",
+                border: "1.5px solid rgba(16,185,129,0.25)",
+                boxShadow: "0 0 20px rgba(16,185,129,0.18)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 20px",
+              }}>
+                <svg width="34" height="34" fill="none" viewBox="0 0 24 24">
+                  <path d="M4.5 12.75l6 6 9-13.5" stroke="#10b981" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "#1C1917", letterSpacing: "-0.01em" }}>
+                Milestone confirmed
+              </p>
+              <p style={{ margin: "0 0 28px", fontSize: 14, color: "rgba(28,25,23,0.52)", lineHeight: 1.5 }}>
+                {confirmedName}
+              </p>
+              <button
+                onClick={() => setConfirmedName(null)}
+                style={{
+                  padding: "9px 22px", borderRadius: 999,
+                  background: "rgba(0,0,0,0.055)", border: "none",
+                  fontSize: 13, fontWeight: 500, color: "rgba(28,25,23,0.48)",
+                  cursor: "pointer", letterSpacing: "0.01em",
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   );
