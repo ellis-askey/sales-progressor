@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
 
+
 const DISMISSED_KEY = "sp_onboarding_dismissed";
 
 type Step = {
@@ -25,7 +26,6 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
   const [dismissed, setDismissed] = useState(false);
   const [steps, setSteps] = useState<boolean[]>([false, false, false, false, false]);
   const [firstTxId, setFirstTxId] = useState<string | null>(null);
-  const [allDone, setAllDone] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -45,14 +45,10 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
       const data = await res.json() as { steps: boolean[]; firstTxId: string | null };
       setSteps(data.steps);
       setFirstTxId(data.firstTxId);
-      const done = data.steps.every(Boolean);
-      if (done) {
-        setAllDone(true);
-        // Auto-dismiss after brief "All set!" moment
-        setTimeout(() => {
-          localStorage.setItem(DISMISSED_KEY, "1");
-          setDismissed(true);
-        }, 2400);
+      // If already done, silently dismiss — no flash, no animation
+      if (data.steps.every(Boolean)) {
+        localStorage.setItem(DISMISSED_KEY, "1");
+        setDismissed(true);
       }
     } catch {
       // silently ignore — checklist is non-critical
@@ -77,22 +73,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
       width: open ? 300 : "auto",
       transition: "width 200ms ease",
     }}>
-      {allDone ? (
-        /* All set! flash */
-        <div className="glass-card" style={{
-          padding: "16px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: "rgba(16,185,129,0.12)",
-          borderColor: "rgba(16,185,129,0.30)",
-          boxShadow: "0 4px 24px rgba(16,185,129,0.18)",
-          animation: "agent-toast-in 250ms var(--agent-ease) both",
-        }}>
-          <CheckCircle size={20} weight="fill" style={{ color: "#10b981", flexShrink: 0 }} />
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#065f46" }}>All set! You're ready to go.</p>
-        </div>
-      ) : open ? (
+      {open ? (
         /* Expanded */
         <div className="glass-card" style={{
           padding: 0,

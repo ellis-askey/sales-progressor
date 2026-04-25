@@ -5,12 +5,11 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getFirstName } from "@/lib/utils";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
-import { Lightning } from "@phosphor-icons/react";
+import { Lightning, PlayCircle, X } from "@phosphor-icons/react";
 
 export function WelcomeModal({ name }: { name: string }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [loadingDemo, setLoadingDemo] = useState(false);
   const [visible, setVisible] = useState(true);
   const firstName = getFirstName(name) || "there";
 
@@ -19,15 +18,8 @@ export function WelcomeModal({ name }: { name: string }) {
     markWelcomeSeenAction().catch(() => {});
   }, []);
 
-  async function handleDemo() {
-    setLoadingDemo(true);
-    try {
-      await fetch("/api/demo-data", { method: "POST" });
-      setVisible(false);
-      router.refresh();
-    } finally {
-      setLoadingDemo(false);
-    }
+  function close() {
+    setVisible(false);
   }
 
   function handleAddSale() {
@@ -38,8 +30,16 @@ export function WelcomeModal({ name }: { name: string }) {
   if (!mounted || !visible) return null;
 
   return createPortal(
-    <div className="agent-backdrop" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div className="agent-modal" style={{ maxWidth: 460, width: "calc(100vw - 48px)" }}>
+    <div
+      className="agent-backdrop"
+      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={close}
+    >
+      <div
+        className="agent-modal"
+        style={{ maxWidth: 460, width: "calc(100vw - 48px)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header gradient strip */}
         <div style={{
           margin: "-24px -24px 24px",
@@ -47,7 +47,23 @@ export function WelcomeModal({ name }: { name: string }) {
           background: "linear-gradient(135deg, rgba(255,138,101,0.18) 0%, rgba(255,183,77,0.12) 100%)",
           borderBottom: "0.5px solid rgba(255,255,255,0.50)",
           borderRadius: "var(--agent-radius-xl) var(--agent-radius-xl) 0 0",
+          position: "relative",
         }}>
+          <button
+            onClick={close}
+            aria-label="Close"
+            style={{
+              position: "absolute", top: 16, right: 16,
+              width: 28, height: 28, borderRadius: 8,
+              border: "none", background: "rgba(0,0,0,0.06)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "var(--agent-text-muted)",
+              transition: "background 150ms",
+            }}
+            className="hover:bg-black/10"
+          >
+            <X size={14} weight="bold" />
+          </button>
           <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", opacity: 0.7 }}>
             Welcome
           </p>
@@ -71,18 +87,24 @@ export function WelcomeModal({ name }: { name: string }) {
           </button>
 
           <button
-            onClick={handleDemo}
-            disabled={loadingDemo}
+            disabled
             style={{
               width: "100%", padding: "12px 20px", borderRadius: "var(--agent-radius-lg)",
-              border: "1.5px solid var(--agent-border-default)", background: "rgba(255,255,255,0.60)",
-              fontSize: 14, fontWeight: 600, color: "var(--agent-text-secondary)", cursor: "pointer",
+              border: "1.5px solid var(--agent-border-subtle)", background: "rgba(255,255,255,0.30)",
+              fontSize: 14, fontWeight: 600, color: "var(--agent-text-disabled)", cursor: "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "background 150ms",
+              opacity: 0.6,
             }}
-            className="hover:bg-white/80"
           >
-            {loadingDemo ? "Loading…" : "Load sample data instead"}
+            <PlayCircle size={17} />
+            Explore a quick tour
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 99,
+              background: "rgba(0,0,0,0.06)", color: "var(--agent-text-muted)",
+              letterSpacing: "0.05em", textTransform: "uppercase",
+            }}>
+              Soon
+            </span>
           </button>
 
           <p style={{ textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)", margin: "4px 0 0" }}>
