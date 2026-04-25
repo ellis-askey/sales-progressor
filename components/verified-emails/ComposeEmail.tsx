@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PaperPlaneTilt, CaretDown, Warning } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type VerifiedEmail = { id: string; email: string; status: string };
 
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }: Props) {
+  const { toast } = useAgentToast();
   const [verifiedEmails, setVerifiedEmails] = useState<VerifiedEmail[]>([]);
   const [fromEmail, setFromEmail] = useState("");
   const [to, setTo] = useState(defaultTo);
@@ -46,6 +48,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
     if (!res.ok) {
       setError(data.error ?? "Failed to send");
     } else {
+      toast.success(`Email sent to ${to.trim()}`);
       setSent(true);
       setTimeout(() => { onSent?.(); }, 1500);
     }

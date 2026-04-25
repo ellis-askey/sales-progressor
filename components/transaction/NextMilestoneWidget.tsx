@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/ui/ToastContext";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { useTabContext } from "./TabContext";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
 
@@ -27,7 +27,7 @@ function MilestoneQuickComplete({
   label: string;
   transactionId: string;
 }) {
-  const { addToast } = useToast();
+  const { toast } = useAgentToast();
   const { setActiveTab } = useTabContext();
   const [loading, setLoading] = useState(false);
   const [showImplied, setShowImplied] = useState(false);
@@ -95,10 +95,10 @@ function MilestoneQuickComplete({
         milestoneDefinitionId: milestone!.id,
         impliedIds,
       });
-      addToast(milestone!.name, "success");
+      toast.success(milestone!.name);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete milestone";
-      addToast(message, "error");
+      toast.error("Couldn't complete milestone", { description: message });
     } finally {
       setLoading(false);
     }

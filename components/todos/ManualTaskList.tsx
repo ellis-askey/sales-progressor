@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
@@ -52,6 +53,7 @@ export function ManualTaskList({
   const [filter, setFilter] = useState<"open" | "all">("open");
   const [showAgentDone, setShowAgentDone] = useState(false);
   const updateBadge = useTabBadge();
+  const { toast } = useAgentToast();
 
   async function handleAdd(data: {
     title: string;
@@ -90,6 +92,7 @@ export function ManualTaskList({
     }
     const saved = await res.json();
     setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+    toast.success("To-do added");
   }
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
@@ -103,6 +106,7 @@ export function ManualTaskList({
     const newTasks = tasks.map((t) => (t.id === id ? updated : t));
     setTasks(newTasks);
     updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
+    if (newStatus === "done") toast.success("To-do completed");
   }
 
   async function handleDelete(id: string) {
@@ -111,6 +115,7 @@ export function ManualTaskList({
     const newTasks = tasks.filter((t) => t.id !== id);
     setTasks(newTasks);
     updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
+    toast.success("To-do removed");
   }
 
   const myTasks   = tasks.filter((t) => !t.isAgentRequest);

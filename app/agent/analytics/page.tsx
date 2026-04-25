@@ -1,8 +1,22 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 
 function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
+
+type AgentTx = Awaited<ReturnType<typeof getAgentTransactions>>[number];
+
+function calcFeeIncVat(t: AgentTx): number | null {
+  let feeEx: number | null = null;
+  if (t.agentFeeAmount != null) {
+    feeEx = t.agentFeeAmount;
+  } else if (t.agentFeePercent != null && t.purchasePrice != null) {
+    feeEx = Math.round(t.purchasePrice * Number(t.agentFeePercent) / 100);
+  }
+  if (feeEx == null) return null;
+  return t.agentFeeIsVatInclusive ? feeEx : Math.round(feeEx * 1.2);
+}
 
 export default async function AgentAnalyticsPage({
   searchParams,
@@ -43,6 +57,26 @@ export default async function AgentAnalyticsPage({
   const exchangedValue = exchanged
     .filter((t) => t.purchasePrice)
     .reduce((sum, t) => sum + (t.purchasePrice! / 100), 0);
+
+  const feesAll = transactions.map(calcFeeIncVat).filter((f): f is number => f !== null);
+  const feeExchanged = exchanged.map(calcFeeIncVat).filter((f): f is number => f !== null);
+  const totalFee = feesAll.reduce((a, b) => a + b, 0) / 100;
+  const totalFeeExchanged = feeExchanged.reduce((a, b) => a + b, 0) / 100;
+  const avgFee = feesAll.length > 0 ? Math.round(feesAll.reduce((a, b) => a + b, 0) / feesAll.length) / 100 : 0;
+  const noFeeTransactions = transactions.filter((t) => calcFeeIncVat(t) === null);
+  const noFeeCount = noFeeTransactions.length;
+
+  const today = new Date();
+  const in30 = new Date(today); in30.setDate(today.getDate() + 30);
+  const upcomingExchanges = transactions.filter(
+    (t) => !t.hasExchanged && t.expectedExchangeDate &&
+      new Date(t.expectedExchangeDate) >= today &&
+      new Date(t.expectedExchangeDate) <= in30
+  ).length;
+
+  const avgProgress = transactions.length > 0
+    ? Math.round(transactions.reduce((a, t) => a + (t.milestonePercent ?? 0), 0) / transactions.length)
+    : 0;
 
   const maxBar = Math.max(...Object.values(months), 1);
 
@@ -108,6 +142,36 @@ export default async function AgentAnalyticsPage({
           </div>
         </div>
 
+        {/* Fee analytics row */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="glass-card px-5 py-4">
+            <p className="glass-section-label text-slate-900/40 mb-1">Total fee pipeline</p>
+            <p className="text-[11px] text-slate-900/30 mb-2">Inc. VAT, where set</p>
+            <p className="text-2xl font-bold text-violet-600">
+              {feesAll.length > 0 ? fmt(totalFee) : "—"}
+            </p>
+          </div>
+          <div className="glass-card px-5 py-4">
+            <p className="glass-section-label text-slate-900/40 mb-1">Fees from exchanged files</p>
+            <p className="text-[11px] text-slate-900/30 mb-2">Locked in</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {feeExchanged.length > 0 ? fmt(totalFeeExchanged) : "—"}
+            </p>
+          </div>
+          <div className="glass-card px-5 py-4">
+            <p className="glass-section-label text-slate-900/40 mb-1">Average fee</p>
+            <p className="text-[11px] text-slate-900/30 mb-2">Inc. VAT per file</p>
+            <p className="text-2xl font-bold text-slate-900/80">
+              {feesAll.length > 0 ? fmt(avgFee) : "—"}
+            </p>
+            {noFeeCount > 0 && (
+              <p className="text-[11px] text-slate-900/35 mt-1">
+                {noFeeCount} file{noFeeCount !== 1 ? "s" : ""} without a fee set
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="glass-card px-5 py-4">
           <p className="glass-section-label text-slate-900/40 mb-4">Service split</p>
           <div className="flex gap-8">
@@ -120,6 +184,27 @@ export default async function AgentAnalyticsPage({
                 <p className="text-sm text-slate-900/50">{label}</p>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Pipeline health */}
+        <div className="glass-card px-5 py-4">
+          <p className="glass-section-label text-slate-900/40 mb-4">Pipeline health</p>
+          <div className="flex gap-10">
+            <div>
+              <p className="text-3xl font-bold text-amber-600 mb-1">{upcomingExchanges}</p>
+              <p className="text-sm text-slate-900/50">Exchange{upcomingExchanges !== 1 ? "s" : ""} due in 30 days</p>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-slate-900/60 mb-1">{avgProgress}%</p>
+              <p className="text-sm text-slate-900/50">Avg milestone progress</p>
+            </div>
+            {noFeeCount > 0 && (
+              <div>
+                <p className="text-3xl font-bold text-red-400 mb-1">{noFeeCount}</p>
+                <p className="text-sm text-slate-900/50">File{noFeeCount !== 1 ? "s" : ""} missing a fee</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -141,6 +226,35 @@ export default async function AgentAnalyticsPage({
             ))}
           </div>
         </div>
+
+        {/* Files missing a fee */}
+        {noFeeCount > 0 && (
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/20">
+              <p className="glass-section-label text-slate-900/40">Files missing a fee</p>
+              <p className="text-xs text-slate-900/40 mt-1">Open each file and set the agent fee in the sidebar.</p>
+            </div>
+            <div className="divide-y divide-white/15">
+              {noFeeTransactions.map((t) => (
+                <div key={t.id} className="flex items-center justify-between px-5 py-3 gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900/80 truncate">{t.propertyAddress}</p>
+                    {t.agentUser && (
+                      <p className="text-xs text-slate-900/40 mt-0.5">{t.agentUser.name}</p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/agent/transactions/${t.id}`}
+                    className="text-xs font-medium text-blue-500 hover:text-blue-600 flex-shrink-0 transition-colors"
+                  >
+                    Set fee →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </>
   );

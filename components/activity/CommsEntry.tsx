@@ -5,6 +5,7 @@
 
 import { useState, useTransition } from "react";
 import { logCommAction } from "@/app/actions/comms";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Contact = { id: string; name: string; roleType: string };
 
@@ -27,6 +28,7 @@ const METHODS: { value: CommMethod; label: string; color: string; icon: string }
 
 export function CommsEntry({ transactionId, contacts }: Props) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [type, setType] = useState<CommType | null>(null);
   const [method, setMethod] = useState<CommMethod | null>(null);
@@ -74,6 +76,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
     startTransition(async () => {
       try {
         await logCommAction({ transactionId, ...snap });
+        toast.success(snap.type === "internal_note" ? "Note added" : "Communication logged");
       } finally {
         setLoading(false);
       }

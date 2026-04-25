@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { relativeDate } from "@/lib/utils";
 import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Note = {
   id: string;
@@ -20,6 +21,7 @@ const PAGE_SIZE = 5;
 
 export function TransactionNotes({ transactionId, initialNotes }: Props) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
     startTransition(async () => {
       try {
         await addNoteAction(transactionId, content);
+        toast.success("Note added");
       } catch {
         setError("Failed to save note");
       } finally {

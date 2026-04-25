@@ -5,6 +5,7 @@
 
 import { useState, useTransition } from "react";
 import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 
 function whatsappHref(phone: string): string {
@@ -77,6 +78,7 @@ export function ContactsSection({
   portalViewDates?: Record<string, Date>;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -101,13 +103,17 @@ export function ContactsSection({
   async function sendInvite(token: string, contactId: string) {
     setInviting(contactId);
     try {
-      await fetch("/api/portal/invite", {
+      const res = await fetch("/api/portal/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      setInviteSent(contactId);
-      setTimeout(() => setInviteSent(null), 3000);
+      if (res.ok) {
+        const contactName = contacts.find((c) => c.id === contactId)?.name ?? "contact";
+        toast.success(`Invite sent to ${contactName}`, { description: "They'll receive an email shortly" });
+        setInviteSent(contactId);
+        setTimeout(() => setInviteSent(null), 3000);
+      }
     } finally {
       setInviting(null);
     }

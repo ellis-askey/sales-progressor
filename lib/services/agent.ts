@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import type { TransactionStatus } from "@prisma/client";
+
+// "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
+const DRAFT = "draft" as TransactionStatus;
 
 export type AgentVisibility = {
   userId: string;
@@ -50,7 +54,7 @@ export async function getAgentTransactions(vis: AgentVisibility) {
   const completionIds = new Set(completionDefs.map((d) => d.id));
 
   const transactions = await prisma.propertyTransaction.findMany({
-    where: txWhere(vis),
+    where: { ...txWhere(vis), status: { not: DRAFT } },
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
@@ -90,6 +94,9 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       vendors,
       purchasers,
       createdAt: tx.createdAt,
+      agentFeeAmount: tx.agentFeeAmount,
+      agentFeePercent: tx.agentFeePercent,
+      agentFeeIsVatInclusive: tx.agentFeeIsVatInclusive,
     };
   });
 }
@@ -162,17 +169,39 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     });
 }
 
-export async function getAgentComms(vis: AgentVisibility) {
-  return prisma.communicationRecord.findMany({
+export async function getAgentMilestoneActivity(
+  vis: AgentVisibility,
+  portalOnly = false,
+) {
+  return prisma.milestoneCompletion.findMany({
     where: {
-      transaction: txWhere(vis),
-      visibleToClient: true,
+      transaction: { ...txWhere(vis), status: { not: DRAFT } },
+      isActive: true,
+      isNotRequired: false,
+      ...(portalOnly ? { statusReason: { contains: "via portal" } } : {}),
     },
-    orderBy: { createdAt: "desc" },
-    take: 100,
+    orderBy: { completedAt: "desc" },
+    take: 150,
     include: {
       transaction: { select: { id: true, propertyAddress: true } },
-      createdBy: { select: { name: true } },
+      milestoneDefinition: { select: { name: true, side: true } },
+      completedBy: { select: { name: true } },
+    },
+  });
+}
+
+export async function getDraftTransactions(vis: AgentVisibility) {
+  return prisma.propertyTransaction.findMany({
+    where: { ...txWhere(vis), status: DRAFT },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      propertyAddress: true,
+      tenure: true,
+      purchaseType: true,
+      purchasePrice: true,
+      updatedAt: true,
+      contacts: { select: { name: true, phone: true, roleType: true } },
     },
   });
 }

@@ -80,6 +80,7 @@ function revalidateTx(id: string) {
 }
 
 const STATUS_LABELS: Record<TransactionStatus, string> = {
+  draft: "Draft",
   active: "Active",
   on_hold: "On Hold",
   completed: "Completed",
@@ -330,4 +331,121 @@ export async function saveReferralAction(
   await logActivity(transactionId, `${session.user.name} updated referral details`, session.user.id);
 
   revalidateTx(transactionId);
+}
+
+// ─── Draft actions ────────────────────────────────────────────────────────────
+
+const DRAFT_STATUS = "draft" as TransactionStatus;
+
+export async function saveDraftAction(data: {
+  draftId?: string;
+  propertyAddress: string;
+  tenure?: Tenure | null;
+  purchaseType?: PurchaseType | null;
+  purchasePrice?: number | null;
+  vendorName?: string;
+  vendorPhone?: string;
+  purchaserName?: string;
+  purchaserPhone?: string;
+}) {
+  const session = await requireSession();
+
+  if (data.draftId) {
+    // Update existing draft
+    await prisma.propertyTransaction.update({
+      where: { id: data.draftId, agencyId: session.user.agencyId },
+      data: {
+        propertyAddress: data.propertyAddress,
+        tenure: data.tenure ?? null,
+        purchaseType: data.purchaseType ?? null,
+        purchasePrice: data.purchasePrice ?? null,
+      },
+    });
+    revalidatePath("/agent/quick-add");
+    return { id: data.draftId };
+  }
+
+  // Create new draft
+  const tx = await prisma.propertyTransaction.create({
+    data: {
+      propertyAddress: data.propertyAddress,
+      tenure: data.tenure ?? null,
+      purchaseType: data.purchaseType ?? null,
+      purchasePrice: data.purchasePrice ?? null,
+      status: DRAFT_STATUS,
+      agencyId: session.user.agencyId,
+      agentUserId: session.user.id,
+      progressedBy: "progressor",
+      serviceType: "outsourced",
+    },
+  });
+
+  // Save contacts if provided
+  const contactData = [
+    ...(data.vendorName?.trim() ? [{ propertyTransactionId: tx.id, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: null, roleType: "vendor" as ContactRole }] : []),
+    ...(data.purchaserName?.trim() ? [{ propertyTransactionId: tx.id, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: null, roleType: "purchaser" as ContactRole }] : []),
+  ];
+  if (contactData.length > 0) {
+    await prisma.contact.createMany({ data: contactData });
+  }
+
+  revalidatePath("/agent/quick-add");
+  return { id: tx.id };
+}
+
+export async function promoteDraftAction(
+  draftId: string,
+  data: {
+    propertyAddress: string;
+    tenure: Tenure;
+    purchaseType: PurchaseType;
+    purchasePrice: number | null;
+    contacts: { name: string; phone: string | null; roleType: ContactRole }[];
+  }
+) {
+  const session = await requireSession();
+
+  const draft = await prisma.propertyTransaction.findFirst({
+    where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+  });
+  if (!draft) throw new Error("Draft not found");
+
+  // Delete existing contacts on the draft and recreate
+  await prisma.contact.deleteMany({ where: { propertyTransactionId: draftId } });
+  if (data.contacts.length > 0) {
+    await prisma.contact.createMany({
+      data: data.contacts.map((c) => ({
+        propertyTransactionId: draftId,
+        name: c.name,
+        phone: c.phone,
+        email: null,
+        roleType: c.roleType,
+        portalToken: randomUUID(),
+      })),
+    });
+  }
+
+  await prisma.propertyTransaction.update({
+    where: { id: draftId },
+    data: {
+      propertyAddress: data.propertyAddress,
+      tenure: data.tenure,
+      purchaseType: data.purchaseType,
+      purchasePrice: data.purchasePrice,
+      status: "active",
+    },
+  });
+
+  evaluateTransactionReminders(draftId).catch(() => {});
+  revalidatePath("/agent/quick-add");
+  revalidatePath("/agent/all-files");
+  return { id: draftId };
+}
+
+export async function discardDraftAction(draftId: string) {
+  const session = await requireSession();
+  await prisma.propertyTransaction.deleteMany({
+    where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+  });
+  revalidatePath("/agent/quick-add");
 }

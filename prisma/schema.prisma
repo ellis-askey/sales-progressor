@@ -138,6 +138,7 @@ model PropertyTransaction {
 }
 
 enum TransactionStatus {
+  draft
   active
   on_hold
   completed

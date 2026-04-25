@@ -42,6 +42,7 @@ export function normalizePhone(phone: string): string {
 
 /** Human-readable labels for transaction statuses */
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
+  draft:     "Draft",
   active:    "Active",
   on_hold:   "On Hold",
   completed: "Completed",
@@ -50,6 +51,7 @@ export const STATUS_LABELS: Record<TransactionStatus, string> = {
 
 /** Light-theme Tailwind colour classes per status */
 export const STATUS_COLORS: Record<TransactionStatus, string> = {
+  draft:     "text-slate-500  bg-slate-50  border-slate-200",
   active:    "text-green-700  bg-green-50  border-green-200",
   on_hold:   "text-amber-700  bg-amber-50  border-amber-200",
   completed: "text-slate-500  bg-slate-50  border-slate-200",
@@ -58,6 +60,7 @@ export const STATUS_COLORS: Record<TransactionStatus, string> = {
 
 /** Dot colours per status */
 export const STATUS_DOT_COLORS: Record<TransactionStatus, string> = {
+  draft:     "bg-slate-300",
   active:    "bg-green-500",
   on_hold:   "bg-amber-500",
   completed: "bg-slate-400",
@@ -66,6 +69,7 @@ export const STATUS_DOT_COLORS: Record<TransactionStatus, string> = {
 
 /** Card accent colours for summary cards */
 export const STATUS_CARD: Record<TransactionStatus, { dot: string; number: string; bg: string; border: string }> = {
+  draft:     { dot: "bg-slate-300",  number: "text-slate-500",  bg: "bg-slate-50",  border: "border-slate-100" },
   active:    { dot: "bg-green-500",  number: "text-green-700",  bg: "bg-green-50",  border: "border-green-100" },
   on_hold:   { dot: "bg-amber-500",  number: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-100" },
   completed: { dot: "bg-slate-400",  number: "text-slate-600",  bg: "bg-slate-50",  border: "border-slate-100" },

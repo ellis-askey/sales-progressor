@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { UserPlus, Trash, Eye, EyeSlash, Crown } from "@phosphor-icons/react";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type TeamMember = {
   id: string;
@@ -12,6 +13,7 @@ type TeamMember = {
 };
 
 export function TeamManagement({ currentUserId }: { currentUserId: string }) {
+  const { toast } = useAgentToast();
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -19,7 +21,6 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
   const [password, setPassword] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [addSuccess, setAddSuccess] = useState(false);
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
@@ -44,7 +45,10 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
   async function removeMember(id: string, name: string) {
     if (!confirm(`Remove ${name} from the team? They will no longer be able to log in.`)) return;
     const res = await fetch(`/api/agent/team/${id}`, { method: "DELETE" });
-    if (res.ok) setTeam((prev) => prev.filter((m) => m.id !== id));
+    if (res.ok) {
+      setTeam((prev) => prev.filter((m) => m.id !== id));
+      toast.info(`${name} removed from team`);
+    }
   }
 
   async function addMember() {
@@ -64,8 +68,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
       setTeam((prev) => [...prev, data]);
       setShowAdd(false);
       setName(""); setEmail(""); setPassword("");
-      setAddSuccess(true);
-      setTimeout(() => setAddSuccess(false), 3000);
+      toast.success("Negotiator account created", { description: name.trim() });
     }
   }
 
@@ -74,12 +77,6 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
 
   return (
     <div className="space-y-4">
-      {addSuccess && (
-        <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
-          <p className="text-sm font-semibold text-emerald-700">✓ Negotiator account created</p>
-        </div>
-      )}
-
       {/* Director row */}
       {directors.map((m) => (
         <div key={m.id} className="glass-card px-4 py-3 flex items-center gap-3">

@@ -5,7 +5,7 @@ import { useState, useOptimistic, useTransition } from "react";
 import { createPortal } from "react-dom";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
-import { useToast } from "@/components/ui/ToastContext";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction } from "@/app/actions/milestones";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
 
@@ -23,7 +23,7 @@ type Props = {
 const NR_ALLOWED = new Set(["PM4", "PM7"]);
 
 export function MilestoneRow({ def, transactionId }: Props) {
-  const { addToast } = useToast();
+  const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
     { isComplete: def.isComplete, isNotRequired: def.isNotRequired },
@@ -103,7 +103,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
           impliedIds,
         });
         const count = impliedIds.length;
-        addToast(def.name, "success", count > 0 ? `+${count} implied milestone${count > 1 ? "s" : ""} also confirmed` : undefined);
+        toast.success(def.name, count > 0 ? { description: `+${count} implied milestone${count > 1 ? "s" : ""} also confirmed` } : undefined);
         if (isExchangeMilestone) setShowCompletionPrompt(true);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not complete this milestone.";
@@ -136,7 +136,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
       try {
         await reverseMilestoneAction({ transactionId, milestoneDefinitionId: def.id, downstreamIds });
         const count = downstreamIds.length;
-        addToast("Milestone reversed", "info", count > 0 ? `+ ${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name);
+        toast.info("Milestone reversed", { description: count > 0 ? `+${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not reverse this milestone.";
         setError(message);
@@ -171,6 +171,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
           reason: finalReason,
           ...(purchaseType ? { purchaseType } : {}),
         });
+        toast.success("Marked not required");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not mark as not required.";
         setError(message);

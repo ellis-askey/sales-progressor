@@ -10,6 +10,7 @@ import type { TransactionStatus } from "@prisma/client";
 const VALID_STATUSES: TransactionStatus[] = ["active", "on_hold", "completed", "withdrawn"];
 
 const STATUS_LABELS: Record<TransactionStatus, string> = {
+  draft: "Draft",
   active: "Active",
   on_hold: "On Hold",
   completed: "Completed",

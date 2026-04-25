@@ -18,6 +18,7 @@ type Props = {
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
+  draft:     { bg: "bg-slate-500/15 text-slate-300 ring-slate-400/30",       dot: "bg-slate-400",   label: "Draft" },
   active:    { bg: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", dot: "bg-emerald-400", label: "Active" },
   on_hold:   { bg: "bg-amber-500/15 text-amber-300 ring-amber-400/30",       dot: "bg-amber-400",   label: "On Hold" },
   completed: { bg: "bg-blue-500/15 text-blue-300 ring-blue-400/30",          dot: "bg-blue-400",    label: "Completed" },
@@ -25,6 +26,7 @@ const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: s
 };
 
 const WARM_STATUS: Record<TransactionStatus, { dot: string; text: string; bg: string }> = {
+  draft:     { dot: "bg-slate-300",   text: "text-slate-500",   bg: "bg-slate-50/90"   },
   active:    { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50/90" },
   on_hold:   { dot: "bg-amber-500",   text: "text-amber-700",   bg: "bg-amber-50/90"   },
   completed: { dot: "bg-blue-500",    text: "text-blue-700",    bg: "bg-blue-50/90"    },
@@ -32,7 +34,7 @@ const WARM_STATUS: Record<TransactionStatus, { dot: string; text: string; bg: st
 };
 
 const STATUS_LABEL: Record<TransactionStatus, string> = {
-  active: "Active", on_hold: "On Hold", completed: "Completed", withdrawn: "Withdrawn",
+  draft: "Draft", active: "Active", on_hold: "On Hold", completed: "Completed", withdrawn: "Withdrawn",
 };
 
 const TRACK_BAR: Record<string, string> = {
