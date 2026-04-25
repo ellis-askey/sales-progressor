@@ -38,7 +38,6 @@ export default async function AgentQuickAddPage({
 
   const recentFiles = allTransactions.slice(0, 5);
 
-  // If ?draft=id, find it and build initialValues
   const activeDraft = draftId ? drafts.find((d) => d.id === draftId) : null;
   const initialValues = activeDraft
     ? {
@@ -78,108 +77,102 @@ export default async function AgentQuickAddPage({
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="px-6 py-6">
-        <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 24, alignItems: "start" }}>
+      <div className="px-6 py-6 space-y-5">
 
-          {/* Left: form */}
-          <QuickAddForm initialValues={initialValues} draftId={activeDraft?.id} />
+        {/* Row 1: Form — two-column layout handled inside QuickAddForm */}
+        <QuickAddForm initialValues={initialValues} draftId={activeDraft?.id} />
 
-          {/* Right: panels */}
-          <div className="space-y-4">
+        {/* Row 2: Drafts + Recently Added — equal width side by side */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
-            {/* Draft saves */}
-            {drafts.length > 0 && (
-              <div className="glass-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/20">
-                  <p className="glass-section-label text-slate-900/40">Draft saves</p>
-                  <p className="text-xs text-slate-900/35 mt-0.5">Pick up where you left off.</p>
-                </div>
-                <div className="divide-y divide-white/15">
-                  {drafts.map((draft) => {
-                    const vendor = draft.contacts.find((c) => c.roleType === "vendor");
-                    const purchaser = draft.contacts.find((c) => c.roleType === "purchaser");
-                    const names = [vendor?.name, purchaser?.name].filter(Boolean).join(" & ");
-                    const meta = [
-                      draft.tenure ? (draft.tenure === "freehold" ? "Freehold" : "Leasehold") : null,
-                      draft.purchaseType === "mortgage" ? "Mortgage" : draft.purchaseType === "cash" ? "Cash" : draft.purchaseType === "cash_from_proceeds" ? "Proceeds" : null,
-                    ].filter(Boolean).join(" · ");
-                    const isActive = draft.id === activeDraft?.id;
-                    return (
-                      <div key={draft.id} className={`px-5 py-3.5 flex items-start justify-between gap-4 ${isActive ? "bg-blue-50/30" : ""}`}>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900/80 truncate">{draft.propertyAddress}</p>
-                          {names && <p className="text-xs text-slate-900/50 mt-0.5 truncate">{names}</p>}
-                          <p className="text-xs text-slate-900/35 mt-0.5">
-                            {meta ? `${meta} · ` : ""}{relativeDate(draft.updatedAt)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
-                          {!isActive && (
-                            <Link
-                              href={`/agent/quick-add?draft=${draft.id}`}
-                              className="text-xs font-semibold text-blue-500 hover:text-blue-600 transition-colors"
-                            >
-                              Continue →
-                            </Link>
-                          )}
-                          {isActive && (
-                            <span className="text-xs font-semibold text-blue-500">Editing</span>
-                          )}
-                          <form action={discardDraftAction.bind(null, draft.id)}>
-                            <button type="submit" className="text-xs text-slate-900/35 hover:text-red-500 transition-colors">
-                              Discard
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Recently added */}
-            {recentFiles.length > 0 && (
-              <div className="glass-card overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/20">
-                  <p className="glass-section-label text-slate-900/40">Recently added</p>
-                </div>
-                <div className="divide-y divide-white/15">
-                  {recentFiles.map((tx) => (
-                    <div key={tx.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900/80 truncate">{tx.propertyAddress}</p>
-                        <p className="text-xs text-slate-900/35 mt-0.5">{relativeDate(tx.createdAt)}</p>
-                      </div>
-                      <Link
-                        href={`/agent/transactions/${tx.id}`}
-                        className="text-sm font-medium text-blue-500 hover:text-blue-600 flex-shrink-0 transition-colors"
-                      >
-                        →
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Full form CTA */}
-            <div className="glass-card px-5 py-4">
-              <p className="glass-section-label text-slate-900/40 mb-2">Need more fields?</p>
-              <p className="text-sm text-slate-900/50 mb-3">
-                The full form supports memo of sale upload, solicitor details, agent fee, notes and more.
-              </p>
-              <Link
-                href="/agent/transactions/new"
-                className="text-sm font-semibold text-blue-500 hover:text-blue-600 transition-colors"
-              >
-                Open full form →
-              </Link>
+          {/* Draft saves */}
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-white/20">
+              <p className="glass-section-label text-slate-900/40">Draft saves</p>
             </div>
-
+            {drafts.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-900/35">No drafts saved yet.</p>
+            ) : (
+              <div className="divide-y divide-white/15">
+                {drafts.map((draft) => {
+                  const vendor = draft.contacts.find((c) => c.roleType === "vendor");
+                  const purchaser = draft.contacts.find((c) => c.roleType === "purchaser");
+                  const names = [vendor?.name, purchaser?.name].filter(Boolean).join(" & ");
+                  const meta = [
+                    draft.tenure ? (draft.tenure === "freehold" ? "Freehold" : "Leasehold") : null,
+                    draft.purchaseType === "mortgage" ? "Mortgage" : draft.purchaseType === "cash" ? "Cash" : draft.purchaseType === "cash_from_proceeds" ? "Proceeds" : null,
+                  ].filter(Boolean).join(" · ");
+                  const isActive = draft.id === activeDraft?.id;
+                  return (
+                    <div key={draft.id} className={`px-5 py-3 flex items-start justify-between gap-4 ${isActive ? "bg-blue-50/30" : ""}`}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900/80 truncate">{draft.propertyAddress}</p>
+                        {names && <p className="text-xs text-slate-900/50 mt-0.5 truncate">{names}</p>}
+                        <p className="text-xs text-slate-900/35 mt-0.5">{meta ? `${meta} · ` : ""}{relativeDate(draft.updatedAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
+                        {!isActive ? (
+                          <Link href={`/agent/quick-add?draft=${draft.id}`} className="text-xs font-semibold text-blue-500 hover:text-blue-600 transition-colors">
+                            Continue →
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-semibold text-blue-500">Editing</span>
+                        )}
+                        <form action={discardDraftAction.bind(null, draft.id)}>
+                          <button type="submit" className="text-xs text-slate-900/35 hover:text-red-500 transition-colors">
+                            Discard
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {/* Recently added */}
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-white/20">
+              <p className="glass-section-label text-slate-900/40">Recently added</p>
+            </div>
+            {recentFiles.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-slate-900/35">No files yet.</p>
+            ) : (
+              <div className="divide-y divide-white/15">
+                {recentFiles.map((tx) => (
+                  <div key={tx.id} className="px-5 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900/80 truncate">{tx.propertyAddress}</p>
+                      <p className="text-xs text-slate-900/35 mt-0.5">{relativeDate(tx.createdAt)}</p>
+                    </div>
+                    <Link href={`/agent/transactions/${tx.id}`} className="text-sm font-medium text-blue-500 hover:text-blue-600 flex-shrink-0 transition-colors">
+                      →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
+
+        {/* Row 3: Full form CTA — full width */}
+        <div className="glass-card px-5 py-4 flex items-center justify-between gap-6">
+          <div>
+            <p className="glass-section-label text-slate-900/40 mb-1">Need more fields?</p>
+            <p className="text-sm text-slate-900/50">
+              The full form supports memo of sale upload, solicitor details, agent fee, notes and more.
+            </p>
+          </div>
+          <Link
+            href="/agent/transactions/new"
+            className="text-sm font-semibold text-blue-500 hover:text-blue-600 transition-colors flex-shrink-0"
+          >
+            Open full form →
+          </Link>
+        </div>
+
       </div>
     </>
   );
