@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -67,6 +67,22 @@ export default function RegisterPage() {
   const [animating, setAnimating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  const LOADING_MESSAGES = [
+    "Creating your account…",
+    "Building your workspace…",
+    "Lining up the paperwork…",
+    "Getting the keys cut…",
+    "Onboarding the neighbours…",
+    "Almost ready to progress…",
+  ];
+
+  useEffect(() => {
+    if (!loading) { setMsgIndex(0); return; }
+    const t = setInterval(() => setMsgIndex((i) => Math.min(i + 1, LOADING_MESSAGES.length - 1)), 900);
+    return () => clearInterval(t);
+  }, [loading]);
 
   const step1Valid = name.trim() && email.trim() && password.length >= 8 && termsAccepted;
 
@@ -337,7 +353,7 @@ export default function RegisterPage() {
                   boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
                   transition: "transform 0.15s ease, box-shadow 0.15s ease",
                 }}>
-                  {loading ? "Creating account…" : "Create account"}
+                  {loading ? LOADING_MESSAGES[msgIndex] : "Create account"}
                 </button>
 
                 <button type="button" onClick={backToStep1} className="rback" style={{
