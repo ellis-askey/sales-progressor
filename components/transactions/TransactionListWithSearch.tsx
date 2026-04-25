@@ -11,16 +11,35 @@ type TransactionRow = {
   expectedExchangeDate: Date | null;
   createdAt: Date;
   assignedUser: { id: string; name: string } | null;
+  serviceType?: "self_managed" | "outsourced" | null;
+  agentUser?: { id: string; name: string } | null;
 };
 
 export function TransactionListWithSearch({ transactions, basePath = "/transactions" }: { transactions: TransactionRow[]; basePath?: string }) {
   const [query, setQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+
+  const uniqueUsers = useMemo(() => {
+    const seen = new Set<string>();
+    const users: { id: string; name: string }[] = [];
+    for (const t of transactions) {
+      if (t.agentUser && !seen.has(t.agentUser.id)) {
+        seen.add(t.agentUser.id);
+        users.push(t.agentUser);
+      }
+    }
+    return users.sort((a, b) => a.name.localeCompare(b.name));
+  }, [transactions]);
+
+  const showUserFilter = uniqueUsers.length > 1;
 
   const filtered = useMemo(() => {
+    let result = transactions;
+    if (selectedUserId) result = result.filter((t) => t.agentUser?.id === selectedUserId);
     const q = query.trim().toLowerCase();
-    if (!q) return transactions;
-    return transactions.filter((t) => t.propertyAddress.toLowerCase().includes(q));
-  }, [query, transactions]);
+    if (q) result = result.filter((t) => t.propertyAddress.toLowerCase().includes(q));
+    return result;
+  }, [transactions, selectedUserId, query]);
 
   return (
     <div className="space-y-3">
@@ -49,9 +68,47 @@ export function TransactionListWithSearch({ transactions, basePath = "/transacti
         )}
       </div>
 
+      {showUserFilter && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-slate-900/40 mr-0.5">Negotiator:</span>
+          <button
+            onClick={() => setSelectedUserId(null)}
+            className={`px-3 py-1 text-xs rounded-lg font-medium transition-colors ${
+              !selectedUserId
+                ? "bg-white/60 text-slate-900/80 shadow-sm"
+                : "text-slate-900/50 hover:text-slate-900/70 hover:bg-white/20"
+            }`}
+          >
+            All
+          </button>
+          {uniqueUsers.map((u) => {
+            const initials = u.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+            const isActive = selectedUserId === u.id;
+            return (
+              <button
+                key={u.id}
+                onClick={() => setSelectedUserId(isActive ? null : u.id)}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-lg font-medium transition-colors ${
+                  isActive
+                    ? "bg-white/60 text-slate-900/80 shadow-sm"
+                    : "text-slate-900/50 hover:text-slate-900/70 hover:bg-white/20"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0" style={{ fontSize: 8 }}>
+                  {initials}
+                </span>
+                {u.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="glass-card px-5 py-8 text-center">
-          <p className="text-sm text-slate-900/40">No transactions match "{query}"</p>
+          <p className="text-sm text-slate-900/40">
+            {query ? `No transactions match "${query}"` : "No files for this negotiator."}
+          </p>
         </div>
       ) : (
         <TransactionTable transactions={filtered} basePath={basePath} />

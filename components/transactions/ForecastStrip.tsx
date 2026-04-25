@@ -49,12 +49,23 @@ export function ForecastStrip({ months, basePath = "/transactions" }: Props) {
                   <Link
                     key={tx.id}
                     href={`${basePath}/${tx.id}`}
-                    className="flex items-center justify-between group"
+                    className="flex items-center justify-between group gap-3"
                   >
-                    <span className="text-sm text-slate-900/70 group-hover:text-blue-600 transition-colors truncate">
-                      {tx.propertyAddress}
-                    </span>
-                    <span className="text-xs text-slate-900/40 flex-shrink-0 ml-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm text-slate-900/70 group-hover:text-blue-600 transition-colors truncate">
+                        {tx.propertyAddress}
+                      </span>
+                      {tx.serviceType && (
+                        <span className={`inline-flex flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                          tx.serviceType === "outsourced"
+                            ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
+                            : "bg-slate-100/60 text-slate-400 border-slate-200/40"
+                        }`}>
+                          {tx.serviceType === "outsourced" ? "Out" : "Self"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-900/40 flex-shrink-0">
                       {tx.forecastDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                     </span>
                   </Link>

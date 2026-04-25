@@ -24,6 +24,7 @@ export async function listTransactions(
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
+      agentUser: { select: { id: true, name: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
       milestoneCompletions: {
         where: { isActive: true, isNotRequired: false },
@@ -153,7 +154,7 @@ export type ForecastMonth = {
   label: string;        // e.g. "May 2026"
   year: number;
   month: number;        // 0-indexed
-  transactions: { id: string; propertyAddress: string; forecastDate: Date }[];
+  transactions: { id: string; propertyAddress: string; forecastDate: Date; serviceType: "self_managed" | "outsourced" | null }[];
 };
 
 export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<ForecastMonth[]> {
@@ -176,6 +177,7 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
       propertyAddress: true,
       overridePredictedDate: true,
       expectedExchangeDate: true,
+      serviceType: true,
     },
     orderBy: [{ overridePredictedDate: "asc" }, { expectedExchangeDate: "asc" }],
   });
@@ -188,6 +190,7 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
       id: tx.id,
       propertyAddress: tx.propertyAddress,
       forecastDate: (tx.overridePredictedDate ?? tx.expectedExchangeDate)!,
+      serviceType: tx.serviceType,
     }))
     .filter((tx) => tx.forecastDate >= new Date(now.getFullYear(), now.getMonth(), 1) && tx.forecastDate < cutoff)
     .sort((a, b) => a.forecastDate.getTime() - b.forecastDate.getTime());

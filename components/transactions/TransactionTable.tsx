@@ -23,6 +23,8 @@ type TransactionRow = {
   createdAt: Date;
   assignedUser: { id: string; name: string } | null;
   health?: HealthRaw;
+  serviceType?: "self_managed" | "outsourced" | null;
+  agentUser?: { id: string; name: string } | null;
 };
 
 function splitAddress(address: string): { line: string; location: string } {
@@ -168,6 +170,15 @@ export function TransactionTable({ transactions, basePath = "/transactions" }: {
                 <p className="text-xs text-orange-600 mt-1 truncate font-semibold">
                   → {health.nextActionLabel}
                 </p>
+              )}
+              {tx.serviceType && (
+                <span className={`inline-flex mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                  tx.serviceType === "outsourced"
+                    ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
+                    : "bg-slate-100/60 text-slate-400 border-slate-200/40"
+                }`}>
+                  {tx.serviceType === "outsourced" ? "Outsourced" : "Self-managed"}
+                </span>
               )}
             </div>
 
