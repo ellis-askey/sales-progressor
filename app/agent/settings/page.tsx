@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { TeamManagement } from "@/components/agent/TeamManagement";
 import { ProfileForm } from "@/components/agent/ProfileForm";
@@ -11,6 +12,11 @@ export default async function AgentSettingsPage({
   const session = await requireSession();
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
+
+  const userRecord = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { phone: true },
+  });
 
   return (
     <>
@@ -32,22 +38,38 @@ export default async function AgentSettingsPage({
         </div>
       </div>
 
-      <div className="px-8 py-7 max-w-2xl space-y-6">
+      <div className="px-8 py-7 space-y-5">
 
-        {/* My profile — all roles */}
-        <div className="glass-card p-6">
-          <div className="mb-5">
-            <h2 className="text-sm font-bold text-slate-900/80 mb-1">My profile</h2>
-            <p className="text-xs text-slate-900/50">Update your name and email address.</p>
+        {/* Row 1: Profile (left) + Sending addresses (right) */}
+        <div style={{ display: "grid", gridTemplateColumns: "58fr 42fr", gap: 20, alignItems: "start" }}>
+
+          <div className="glass-card p-6">
+            <div className="mb-5">
+              <h2 className="text-sm font-bold text-slate-900/80 mb-1">My profile</h2>
+              <p className="text-xs text-slate-900/50">Update your name, email and phone number.</p>
+            </div>
+            <ProfileForm
+              initialName={session.user.name ?? ""}
+              initialEmail={session.user.email ?? ""}
+              initialPhone={userRecord?.phone ?? ""}
+              role={session.user.role}
+            />
           </div>
-          <ProfileForm
-            initialName={session.user.name ?? ""}
-            initialEmail={session.user.email ?? ""}
-            role={session.user.role}
-          />
+
+          <div className="glass-card p-6">
+            <div className="mb-5">
+              <h2 className="text-sm font-bold text-slate-900/80 mb-1">Sending addresses</h2>
+              <p className="text-xs text-slate-900/50">
+                Verify a work email address to send emails to clients directly from the dashboard.
+                Emails appear as coming from you — not a generic system address.
+              </p>
+            </div>
+            <SendingAddressesSection initialVerified={verified === "1"} />
+          </div>
+
         </div>
 
-        {/* Team — directors only */}
+        {/* Row 2: Team — directors only, full width */}
         {isDirector && (
           <div className="glass-card p-6">
             <div className="mb-5">
@@ -59,18 +81,6 @@ export default async function AgentSettingsPage({
             <TeamManagement currentUserId={session.user.id} />
           </div>
         )}
-
-        {/* Sending addresses */}
-        <div className="glass-card p-6">
-          <div className="mb-5">
-            <h2 className="text-sm font-bold text-slate-900/80 mb-1">Sending addresses</h2>
-            <p className="text-xs text-slate-900/50">
-              Verify a work email address to send emails to clients directly from the dashboard.
-              Emails appear as coming from you — not a generic system address.
-            </p>
-          </div>
-          <SendingAddressesSection initialVerified={verified === "1"} />
-        </div>
 
       </div>
     </>
