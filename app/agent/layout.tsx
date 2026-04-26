@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   return (
     <AgentToaster>
       <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
+      <FeedbackWidget />
     </AgentToaster>
   );
 }
