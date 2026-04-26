@@ -82,7 +82,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     where: { status: "active", transaction: txWhere },
     include: {
       reminderRule: {
-        select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true },
+        select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true, graceDays: true, anchorMilestone: { select: { name: true } } },
       },
       chaseTasks: {
         where: { status: "pending" },

@@ -17,6 +17,7 @@ export type CardLog = {
   id: string;
   nextDueDate: Date;
   snoozedUntil: Date | null;
+  sourceDateUsed?: Date | null;
   reminderRule: {
     name: string;
     description?: string | null;
@@ -24,6 +25,7 @@ export type CardLog = {
     repeatEveryDays: number;
     escalateAfterChases: number;
     graceDays?: number;
+    anchorMilestone?: { name: string } | null;
   };
   chaseTasks: {
     id: string;
@@ -91,7 +93,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
       <button
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
-        className="px-3 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40"
+        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300/60 bg-white/40 text-slate-900/60 hover:bg-white/60 transition-colors disabled:opacity-40"
       >
         Snooze
       </button>
@@ -106,6 +108,56 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
               {opt.label}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate }: {
+  taskId: string;
+  isEscalated: boolean;
+  disabled: boolean;
+  onComplete: (id: string) => void;
+  onEscalate: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((p) => !p)}
+        disabled={disabled}
+        className="px-2.5 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40"
+        title="More actions"
+      >
+        ⋯
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 glass-card-strong min-w-[140px]">
+          <button
+            onClick={() => { onComplete(taskId); setOpen(false); }}
+            className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
+          >
+            Mark done
+          </button>
+          {!isEscalated && (
+            <button
+              onClick={() => { onEscalate(taskId); setOpen(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50/60 transition-colors"
+            >
+              ↑ Escalate
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -141,6 +193,7 @@ export function ReminderCard({
   onWakeup,
   mode = "active",
 }: ReminderCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
   const isEscalated = openTask?.priority === "escalated";
@@ -160,6 +213,14 @@ export function ReminderCard({
   const chaseContacts = filterContactsForChase(contacts, log.reminderRule.targetMilestoneCode);
   const lastComm = openTask?.communications?.[0] ?? null;
   const methodLabel = lastComm?.method === "whatsapp" ? "WhatsApp" : lastComm?.method ?? null;
+
+  const hasMoreDetails = !!(log.sourceDateUsed || log.reminderRule.anchorMilestone || log.reminderRule.graceDays !== undefined);
+
+  const chaseSummary = openTask
+    ? openTask.chaseCount === 0
+      ? "Not yet chased"
+      : `${openTask.chaseCount} chase${openTask.chaseCount > 1 ? "s" : ""} sent${lastComm ? ` · last ${relativeShort(lastComm.createdAt)}${methodLabel ? ` via ${methodLabel}` : ""}` : ""}`
+    : "";
 
   // ── Snoozed mode ──────────────────────────────────────────────────────────
   if (mode === "snoozed") {
@@ -187,16 +248,13 @@ export function ReminderCard({
             </Link>
           )}
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
-          <div className="flex items-center gap-2 mt-1.5">
-            {partyLabel && (
+          {partyLabel && (
+            <div className="flex items-center gap-2 mt-1.5">
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${partyPillClass}`}>
                 Waiting on {partyLabel}
               </span>
-            )}
-            {log.reminderRule.targetMilestoneCode && (
-              <span className="text-xs text-slate-900/30 font-mono">{log.reminderRule.targetMilestoneCode}</span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -214,7 +272,7 @@ export function ReminderCard({
   } else if (isOverdue) {
     borderColor = "border-orange-200";
     headerBg = "bg-orange-50/60 text-orange-600";
-    headerLeft = `Overdue ${daysOverdue}d · follow-up ${(openTask?.chaseCount ?? 0) + 1}`;
+    headerLeft = `Overdue ${daysOverdue}d`;
   } else if (isDueToday) {
     borderColor = "border-amber-200";
     headerBg = "bg-amber-50/60 text-amber-600";
@@ -231,14 +289,11 @@ export function ReminderCard({
       {/* Status bar */}
       <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`}>
         <span>{headerLeft}</span>
-        <span className="opacity-60">
-          every {log.reminderRule.repeatEveryDays}d · escalates after {log.reminderRule.escalateAfterChases}
-        </span>
+        {chaseSummary && <span className="opacity-60 truncate ml-3">{chaseSummary}</span>}
       </div>
 
       {/* Body */}
-      <div className="px-5 py-3 space-y-2">
-        {/* Property address link — hub page only */}
+      <div className="px-5 py-3 space-y-1.5">
         {showAddressLink && (
           <Link
             href={`/agent/transactions/${transactionId}`}
@@ -248,7 +303,6 @@ export function ReminderCard({
           </Link>
         )}
 
-        {/* Title + party pill */}
         <div>
           <p className={`text-sm font-semibold leading-snug ${isEscalated ? "text-red-700" : "text-slate-900/90"}`}>
             {stripChase(log.reminderRule.name)}
@@ -256,33 +310,36 @@ export function ReminderCard({
           {log.reminderRule.description && (
             <p className="text-xs text-slate-900/50 mt-0.5">{log.reminderRule.description}</p>
           )}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {partyLabel && (
-              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md ${partyPillClass}`}>
-                Waiting on {partyLabel}
-              </span>
-            )}
-            {log.reminderRule.targetMilestoneCode && (
-              <span className="text-xs text-slate-900/30 font-mono">{log.reminderRule.targetMilestoneCode}</span>
-            )}
-          </div>
+          {partyLabel && (
+            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md mt-1 ${partyPillClass}`}>
+              Waiting on {partyLabel}
+            </span>
+          )}
         </div>
 
-        {/* Chase history */}
-        {openTask && (
-          <p className="text-xs text-slate-900/40">
-            {openTask.chaseCount === 0
-              ? "No chases sent yet"
-              : `${openTask.chaseCount} ${openTask.chaseCount === 1 ? "chase" : "chases"} sent${
-                  lastComm
-                    ? ` · Last chased ${relativeShort(lastComm.createdAt)}${methodLabel ? ` via ${methodLabel}` : ""}`
-                    : ""
-                }`
-            }
-          </p>
+        {hasMoreDetails && (
+          <button
+            onClick={() => setExpanded((p) => !p)}
+            className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors"
+          >
+            {expanded ? "− Less" : "+ More"}
+          </button>
+        )}
+        {expanded && (
+          <div className="text-xs text-slate-900/50 space-y-0.5 pl-2 border-l-2 border-slate-200/60 py-0.5">
+            <p>
+              Triggered by:{" "}
+              <span className="font-medium">
+                {log.reminderRule.anchorMilestone?.name ?? "File creation"}
+              </span>
+              {log.sourceDateUsed ? ` on ${formatDate(log.sourceDateUsed)}` : ""}
+            </p>
+            {log.reminderRule.graceDays !== undefined && (
+              <p>Grace period: {log.reminderRule.graceDays} days</p>
+            )}
+          </div>
         )}
 
-        {/* Actions */}
         {openTask && (
           <div className="flex items-center gap-2 flex-wrap pt-0.5">
             <ChaseButton
@@ -294,32 +351,18 @@ export function ReminderCard({
               contacts={chaseContacts}
               onSent={() => onComplete(openTask.id)}
             />
-            <button
-              onClick={() => onComplete(openTask.id)}
-              disabled={isLoading === openTask.id || isPending}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
-                isEscalated
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-green-500 hover:bg-green-600 text-white"
-              }`}
-            >
-              {isLoading === openTask.id ? "…" : "Mark done"}
-            </button>
             <SnoozeDropdown
               taskId={openTask.id}
               onSnooze={onSnooze}
               disabled={isLoading === openTask.id || isPending}
             />
-            {!isEscalated && (
-              <button
-                onClick={() => onEscalate(openTask.id)}
-                disabled={isLoading === openTask.id || isPending}
-                className="px-3 py-1.5 text-xs text-slate-900/35 hover:text-red-500 hover:bg-red-50/60 rounded-lg transition-colors disabled:opacity-40"
-                title="Manually escalate this chase"
-              >
-                ↑ Escalate
-              </button>
-            )}
+            <KebabMenu
+              taskId={openTask.id}
+              isEscalated={isEscalated}
+              disabled={isLoading === openTask.id || isPending}
+              onComplete={onComplete}
+              onEscalate={onEscalate}
+            />
           </div>
         )}
       </div>
