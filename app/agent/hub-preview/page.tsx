@@ -67,6 +67,18 @@ const URGENCY_STYLE = {
     color:  "var(--agent-coral-deep)",
     label:  "Due today",
   },
+  upcoming: {
+    border: "var(--agent-border-subtle)",
+    bg:     "rgba(255,255,255,0.20)",
+    color:  "var(--agent-text-muted)",
+    label:  "Upcoming",
+  },
+  snoozed: {
+    border: "var(--agent-border-subtle)",
+    bg:     "rgba(255,255,255,0.12)",
+    color:  "var(--agent-text-disabled)",
+    label:  "Snoozed",
+  },
 } as const;
 
 const HEALTH_BADGE = {
@@ -368,7 +380,7 @@ export default async function HubPreviewPage() {
               return (
                 <Link
                   key={item.id}
-                  href={`/agent/transactions/${item.transaction.id}`}
+                  href={`/agent/transactions/${item.transaction.id}?tab=reminders`}
                   style={{
                     display: "flex", alignItems: "center",
                     justifyContent: "space-between",

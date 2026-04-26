@@ -13,10 +13,14 @@ type Props = {
   tabs: Tab[];
   children: React.ReactNode[];
   sidebar: React.ReactNode;
+  initialTab?: string;
 };
 
-export function PropertyFileTabs({ tabs, children, sidebar }: Props) {
-  const [active, setActive] = useState(tabs[0].key);
+export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props) {
+  const [active, setActive] = useState(() => {
+    if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
+    return tabs[0].key;
+  });
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [badges, setBadges] = useState<Record<string, number>>(
     Object.fromEntries(tabs.map((t) => [t.key, t.badge ?? 0]))

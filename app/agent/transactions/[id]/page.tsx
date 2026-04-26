@@ -36,10 +36,12 @@ import { prisma } from "@/lib/prisma";
 
 export default async function AgentTransactionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { tab: initialTab }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
 
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks] = await Promise.all([
@@ -245,7 +247,7 @@ export default async function AgentTransactionDetailPage({
         backHref="/agent/dashboard"
       />
 
-      <PropertyFileTabs tabs={tabs} sidebar={sidebar}>
+      <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab}>
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
