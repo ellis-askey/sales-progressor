@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle } from "@phosphor-icons/react";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
@@ -53,6 +54,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -60,6 +62,14 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [showSnoozed, setShowSnoozed] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // Auto-run the reminder engine on mount so chase tasks exist for any due reminders
+  useEffect(() => {
+    fetch("/api/reminders/run", { method: "POST" })
+      .then(() => startTransition(() => router.refresh()))
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
