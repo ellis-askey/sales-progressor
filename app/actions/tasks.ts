@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
-import { completeChaseTask, snoozeReminderLog, wakeUpReminderLog } from "@/lib/services/reminders";
+import { completeChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
 import { prisma } from "@/lib/prisma";
 
 export async function completeTaskAction(taskId: string, pathname: string) {
@@ -31,6 +31,12 @@ export async function escalateTaskAction(taskId: string, pathname: string) {
   });
   if (!task) throw new Error("Task not found");
   await prisma.chaseTask.update({ where: { id: taskId }, data: { priority: "escalated" } });
+  revalidatePath(pathname, "page");
+}
+
+export async function runReminderEngineAction(pathname: string) {
+  const session = await requireSession();
+  await runReminderEngine(session.user.agencyId);
   revalidatePath(pathname, "page");
 }
 

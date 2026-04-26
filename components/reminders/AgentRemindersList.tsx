@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "@phosphor-icons/react";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
@@ -65,7 +65,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
 
   // Auto-run the reminder engine on mount so chase tasks exist for any due reminders
   useEffect(() => {
-    fetch("/api/reminders/run", { method: "POST" })
+    runReminderEngineAction("/agent/work-queue")
       .then(() => startTransition(() => router.refresh()))
       .catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps

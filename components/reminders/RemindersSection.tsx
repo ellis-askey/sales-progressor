@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { formatDate } from "@/lib/utils";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction } from "@/app/actions/tasks";
 import { ReminderCard, type Contact } from "@/components/reminders/ReminderCard";
 
 type ChaseTask = {
@@ -136,10 +136,9 @@ export function RemindersSection({
 
   async function runEngine() {
     setLoading("engine");
-    try {
-      await fetch("/api/reminders/run", { method: "POST" });
-      startTransition(() => router.refresh());
-    } finally { setLoading(null); }
+    startTransition(async () => {
+      try { await runReminderEngineAction(pathname); } finally { setLoading(null); }
+    });
   }
 
   const tabs: { key: Tab; label: string; count: number }[] = [
