@@ -159,13 +159,13 @@ export function ServiceSplitDonut({
     : [{ name: "Empty", value: 1, color: "rgba(45,24,16,0.09)" }];
 
   return (
-    <PieChart width={80} height={80}>
+    <PieChart width={84} height={84}>
       <Pie
         data={chartData}
-        cx={40}
-        cy={40}
+        cx={42}
+        cy={42}
         innerRadius={28}
-        outerRadius={40}
+        outerRadius={38}
         dataKey="value"
         strokeWidth={0}
         startAngle={90}

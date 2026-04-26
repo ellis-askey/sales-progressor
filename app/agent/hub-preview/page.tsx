@@ -489,29 +489,41 @@ export default async function HubPreviewPage() {
                 outsourced={serviceSplit.outsourced}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-                {[
-                  { label: "Self-progressed", count: serviceSplit.selfManaged, color: "#FF8A65" },
-                  { label: "With us",         count: serviceSplit.outsourced,  color: "#C97D1A" },
-                ].map(({ label, count, color }) => (
-                  <div
-                    key={label}
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <div style={{
-                      width: 10, height: 10, borderRadius: 2,
-                      background: color, flexShrink: 0,
-                    }} />
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", flex: 1 }}>
-                      {label}
-                    </p>
-                    <span style={{
-                      fontSize: 13, fontWeight: 600,
-                      color: "var(--agent-text-primary)",
-                    }}>
-                      {count}
-                    </span>
-                  </div>
-                ))}
+                {(() => {
+                  const total = serviceSplit.selfManaged + serviceSplit.outsourced;
+                  return [
+                    { label: "Self-progressed", count: serviceSplit.selfManaged, color: "#FF8A65" },
+                    { label: "With us",         count: serviceSplit.outsourced,  color: "#C97D1A" },
+                  ].map(({ label, count, color }) => {
+                    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                    return (
+                      <div
+                        key={label}
+                        style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <div style={{
+                          width: 10, height: 10, borderRadius: 2,
+                          background: color, flexShrink: 0,
+                        }} />
+                        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", flex: 1 }}>
+                          {label}
+                        </p>
+                        <span style={{
+                          fontSize: 13, fontWeight: 600,
+                          color: "var(--agent-text-primary)",
+                        }}>
+                          {count}
+                        </span>
+                        <span style={{
+                          fontSize: 11, color: "var(--agent-text-muted)",
+                          minWidth: 30, textAlign: "right",
+                        }}>
+                          {pct}%
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
