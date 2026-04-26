@@ -316,14 +316,14 @@ export function QuickAddForm({
             <p className={LABEL}>
               Parties{progressedBy === "progressor" && <span className="text-red-400 ml-0.5">*</span>}
             </p>
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold text-slate-900/35 uppercase tracking-wide">Vendor</p>
+            <div className="space-y-2.5">
+              <p className="text-[11px] font-semibold text-slate-900/35 uppercase tracking-wide mb-1">Vendor</p>
               <input type="text" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="Name" className={FIELD} />
               <input type="tel" value={vendorPhone} onChange={(e) => setVendorPhone(cleanPhone(e.target.value))} placeholder="Phone" maxLength={20} className={FIELD} />
               <input type="email" value={vendorEmail} onChange={(e) => setVendorEmail(e.target.value)} placeholder="Email" maxLength={100} className={FIELD} />
             </div>
-            <div className="pt-1 border-t border-white/20 space-y-1">
-              <p className="text-[11px] font-semibold text-slate-900/35 uppercase tracking-wide">Purchaser</p>
+            <div className="pt-3 border-t border-white/20 space-y-2.5">
+              <p className="text-[11px] font-semibold text-slate-900/35 uppercase tracking-wide mb-1">Purchaser</p>
               <input type="text" value={purchaserName} onChange={(e) => setPurchaserName(e.target.value)} placeholder="Name" className={FIELD} />
               <input type="tel" value={purchaserPhone} onChange={(e) => setPurchaserPhone(cleanPhone(e.target.value))} placeholder="Phone" maxLength={20} className={FIELD} />
               <input type="email" value={purchaserEmail} onChange={(e) => setPurchaserEmail(e.target.value)} placeholder="Email" maxLength={100} className={FIELD} />
