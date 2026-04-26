@@ -389,9 +389,14 @@ export async function saveDraftAction(data: {
   const session = await requireSession();
 
   if (data.draftId) {
-    // Update existing draft
+    const existing = await prisma.propertyTransaction.findFirst({
+      where: { id: data.draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+      select: { id: true },
+    });
+    if (!existing) throw new Error("Draft not found");
+
     await prisma.propertyTransaction.update({
-      where: { id: data.draftId, agencyId: session.user.agencyId },
+      where: { id: data.draftId },
       data: {
         propertyAddress: data.propertyAddress,
         tenure: data.tenure ?? null,
@@ -399,6 +404,15 @@ export async function saveDraftAction(data: {
         purchasePrice: data.purchasePrice ?? null,
       },
     });
+
+    await prisma.contact.deleteMany({ where: { propertyTransactionId: data.draftId } });
+    const updatedContacts = [
+      ...(data.vendorName?.trim() ? [{ propertyTransactionId: data.draftId, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: data.vendorEmail?.trim() || null, roleType: "vendor" as ContactRole }] : []),
+      ...(data.purchaserName?.trim() ? [{ propertyTransactionId: data.draftId, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: data.purchaserEmail?.trim() || null, roleType: "purchaser" as ContactRole }] : []),
+    ];
+    if (updatedContacts.length > 0) await prisma.contact.createMany({ data: updatedContacts });
+
+    revalidatePath("/agent/quick-add");
     revalidatePath("/agent/transactions/new");
     return { id: data.draftId };
   }

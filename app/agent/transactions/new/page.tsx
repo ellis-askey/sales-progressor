@@ -17,7 +17,11 @@ export default async function AgentNewTransactionPage() {
       .catch(() => []),
     prisma.propertyTransaction.findMany({
       where: { agencyId: session.user.agencyId, status: "draft" as never },
-      select: { id: true, propertyAddress: true, tenure: true, purchaseType: true, createdAt: true },
+      select: {
+        id: true, propertyAddress: true, tenure: true, purchaseType: true,
+        purchasePrice: true, createdAt: true,
+        contacts: { select: { name: true, phone: true, email: true, roleType: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 10,
     }).then((rows) => rows.map((r) => ({
@@ -25,7 +29,14 @@ export default async function AgentNewTransactionPage() {
       propertyAddress: r.propertyAddress,
       tenure: r.tenure as string | null,
       purchaseType: r.purchaseType as string | null,
+      purchasePrice: r.purchasePrice ?? null,
       createdAt: r.createdAt.toISOString(),
+      vendorName: r.contacts.find((c: { roleType: string }) => c.roleType === "vendor")?.name ?? null,
+      vendorPhone: r.contacts.find((c: { roleType: string }) => c.roleType === "vendor")?.phone ?? null,
+      vendorEmail: r.contacts.find((c: { roleType: string }) => c.roleType === "vendor")?.email ?? null,
+      purchaserName: r.contacts.find((c: { roleType: string }) => c.roleType === "purchaser")?.name ?? null,
+      purchaserPhone: r.contacts.find((c: { roleType: string }) => c.roleType === "purchaser")?.phone ?? null,
+      purchaserEmail: r.contacts.find((c: { roleType: string }) => c.roleType === "purchaser")?.email ?? null,
     }))).catch(() => []),
   ]);
 
