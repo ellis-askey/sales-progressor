@@ -17,12 +17,14 @@ type Props = {
     isAvailable: boolean;
   };
   transactionId: string;
+  onConfirmStart?: () => void;
+  optimisticallyAvailable?: boolean;
 };
 
 // Only these milestones can be marked N/R by the user
 const NR_ALLOWED = new Set(["PM4", "PM7"]);
 
-export function MilestoneRow({ def, transactionId }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticallyAvailable }: Props) {
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -78,8 +80,11 @@ export function MilestoneRow({ def, transactionId }: Props) {
   const isPost = def.isPostExchange;
   const isPM4 = def.code === "PM4";
   const isExchangeMilestone = def.code === "VM12" || def.code === "PM16";
+  const effectivelyAvailable = def.isAvailable || (optimisticallyAvailable ?? false);
+  const isOptimisticUnlock = !def.isAvailable && (optimisticallyAvailable ?? false);
 
   async function handleConfirmClick() {
+    onConfirmStart?.();
     setError(null);
     if (def.timeSensitive) { setShowEventDate(true); return; }
     await checkImplied();
@@ -205,7 +210,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
     });
   }
 
-  const isBlocked = !isDone && !def.isAvailable;
+  const isBlocked = !isDone && !effectivelyAvailable;
   const canBeNR = NR_ALLOWED.has(def.code);
 
   let rowBg = "";
@@ -238,11 +243,11 @@ export function MilestoneRow({ def, transactionId }: Props) {
           ) : isPost ? (
             <div className="w-6 h-6 rounded-full bg-white/30 border-2 border-white/20" />
           ) : isGate ? (
-            <div className="w-6 h-6 rounded-full bg-white border-2 border-amber-400 flex items-center justify-center shadow-sm">
+            <div className={`w-6 h-6 rounded-full bg-white border-2 border-amber-400 flex items-center justify-center shadow-sm ${isOptimisticUnlock ? "ms-node-unlock" : ""}`}>
               <div className="w-2 h-2 rounded-full bg-amber-400" />
             </div>
           ) : (
-            <div className="w-6 h-6 rounded-full bg-white border-2 border-blue-300 flex items-center justify-center">
+            <div className={`w-6 h-6 rounded-full bg-white border-2 border-blue-300 flex items-center justify-center ${isOptimisticUnlock ? "ms-node-unlock" : ""}`}>
               <div className="w-1.5 h-1.5 rounded-full bg-blue-300" />
             </div>
           )}
@@ -303,9 +308,9 @@ export function MilestoneRow({ def, transactionId }: Props) {
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {!isDone && !showEventDate && !showNotRequired && (
             <>
-              {def.isAvailable && (
+              {effectivelyAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading}
-                  className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-400 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
+                  className={`px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-400 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center ${isOptimisticUnlock ? "ms-btn-appear" : ""}`}>
                   {loading ? (
                     <>
                       <svg className="animate-spin w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24">
@@ -317,7 +322,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
                   ) : "Confirm"}
                 </button>
               )}
-              {def.isAvailable && canBeNR && (
+              {effectivelyAvailable && canBeNR && (
                 <button onClick={handleNRClick}
                   className="px-2 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors"
                   title="Mark as not required">

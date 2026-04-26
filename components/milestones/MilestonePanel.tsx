@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
@@ -72,6 +72,11 @@ export function MilestonePanel({
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed);
   const [nrCollapsed, setNrCollapsed] = useState(true);
+  const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setOptimisticallyUnlockedIds(new Set());
+  }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
     setActiveTab(side);
@@ -88,6 +93,29 @@ export function MilestonePanel({
 
   function toggleSection(label: string) {
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  const orderedRows = useMemo(() => {
+    const result: EnrichedDef[] = [];
+    for (const section of sectionDefs) {
+      const codeSet = new Set(section.codes);
+      const rows = milestones
+        .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+      result.push(...rows);
+    }
+    return result;
+  }, [milestones, sectionDefs]);
+
+  function handleConfirmStart(currentId: string) {
+    const currentIdx = orderedRows.findIndex((m) => m.id === currentId);
+    if (currentIdx === -1) return;
+    const next = orderedRows.slice(currentIdx + 1).find(
+      (m) => !m.isComplete && !m.isNotRequired && !m.isAvailable
+    );
+    if (next) {
+      setOptimisticallyUnlockedIds((prev) => new Set([...prev, next.id]));
+    }
   }
 
   const totalAll = milestones.length;
@@ -125,8 +153,21 @@ export function MilestonePanel({
         }
         .ms-unlock-enter { animation: ms-unlock 900ms ease-out both; }
 
+        @keyframes ms-node-unlock {
+          0%   { transform: scale(0.55); opacity: 0; }
+          60%  { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        .ms-node-unlock { animation: ms-node-unlock 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+        @keyframes ms-btn-appear {
+          0%   { opacity: 0; transform: translateX(-6px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        .ms-btn-appear { animation: ms-btn-appear 220ms ease-out 120ms both; }
+
         @media (prefers-reduced-motion: reduce) {
-          .ms-node-pop, .ms-unlock-enter { animation: none; }
+          .ms-node-pop, .ms-unlock-enter, .ms-node-unlock, .ms-btn-appear { animation: none; }
         }
       `}</style>
 
@@ -255,7 +296,13 @@ export function MilestonePanel({
                   <div className="glass-card relative mt-1 rounded-[20px] overflow-hidden">
                     <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
                     {rows.map((def) => (
-                      <MilestoneRow key={def.id} def={def} transactionId={transactionId} />
+                      <MilestoneRow
+                        key={def.id}
+                        def={def}
+                        transactionId={transactionId}
+                        onConfirmStart={() => handleConfirmStart(def.id)}
+                        optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                      />
                     ))}
                   </div>
                 )}
