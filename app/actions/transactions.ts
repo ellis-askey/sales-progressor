@@ -428,6 +428,7 @@ export async function saveDraftAction(data: {
   }
 
   revalidatePath("/agent/quick-add");
+  revalidatePath("/agent/transactions/new");
   return { id: tx.id };
 }
 
@@ -491,4 +492,5 @@ export async function discardDraftAction(draftId: string) {
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
   });
   revalidatePath("/agent/quick-add");
+  revalidatePath("/agent/transactions/new");
 }

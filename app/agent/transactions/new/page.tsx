@@ -8,12 +8,26 @@ const db = prisma as any;
 export default async function AgentNewTransactionPage() {
   const session = await requireSession();
 
-  const recommendedFirms: { id: string; defaultReferralFeePence: number | null }[] = await db.agencyRecommendedSolicitor
-    .findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true, defaultReferralFeePence: true } })
-    .then((rows: { solicitorFirmId: string; defaultReferralFeePence: number | null }[]) =>
-      rows.map((r) => ({ id: r.solicitorFirmId, defaultReferralFeePence: r.defaultReferralFeePence }))
-    )
-    .catch(() => []);
+  const [recommendedFirms, drafts] = await Promise.all([
+    db.agencyRecommendedSolicitor
+      .findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true, defaultReferralFeePence: true } })
+      .then((rows: { solicitorFirmId: string; defaultReferralFeePence: number | null }[]) =>
+        rows.map((r) => ({ id: r.solicitorFirmId, defaultReferralFeePence: r.defaultReferralFeePence }))
+      )
+      .catch(() => []),
+    prisma.propertyTransaction.findMany({
+      where: { agencyId: session.user.agencyId, status: "draft" as never },
+      select: { id: true, propertyAddress: true, tenure: true, purchaseType: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }).then((rows) => rows.map((r) => ({
+      id: r.id,
+      propertyAddress: r.propertyAddress,
+      tenure: r.tenure as string | null,
+      purchaseType: r.purchaseType as string | null,
+      createdAt: r.createdAt.toISOString(),
+    }))).catch(() => []),
+  ]);
 
   return (
     <>
@@ -36,7 +50,7 @@ export default async function AgentNewTransactionPage() {
       </div>
 
       <div className="px-8 py-7">
-        <NewTransactionForm userRole={session.user.role} redirectBase="/agent/transactions" recommendedFirms={recommendedFirms} />
+        <NewTransactionForm userRole={session.user.role} redirectBase="/agent/transactions" recommendedFirms={recommendedFirms} initialDrafts={drafts} />
       </div>
     </>
   );

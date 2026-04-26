@@ -6,7 +6,7 @@ import type { Tenure, PurchaseType } from "@prisma/client";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { titleCase, normalizePhone } from "@/lib/utils";
 import { PriceInput } from "@/components/ui/PriceInput";
-import { createTransactionAction } from "@/app/actions/transactions";
+import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
 
 type ContactEntry = { name: string; phone: string; email: string };
 
@@ -265,9 +265,74 @@ function CreatingOverlay({ address }: { address: string }) {
   );
 }
 
+// ── Draft support ─────────────────────────────────────────────────────────────
+
+type DraftEntry = {
+  id: string;
+  propertyAddress: string;
+  tenure: string | null;
+  purchaseType: string | null;
+  createdAt: string;
+};
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(diffMs / 3600000);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(diffMs / 86400000);
+  return days === 1 ? "yesterday" : `${days}d ago`;
+}
+
+function DraftCard({ drafts, onDiscard }: { drafts: DraftEntry[]; onDiscard: (id: string) => void }) {
+  if (drafts.length === 0) return null;
+  return (
+    <div className="glass-card p-6">
+      <div className="flex items-start justify-between mb-1">
+        <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Saved Drafts</h2>
+        <span className="text-xs bg-amber-50 text-amber-600 border border-amber-100 rounded-full px-2 py-0.5 font-medium">{drafts.length}</span>
+      </div>
+      <p className="text-xs text-slate-900/30 mb-4">These are separate from the form above — open any to continue from the file page</p>
+      <div className="divide-y divide-white/15">
+        {drafts.map((d) => (
+          <div key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900/80 truncate">{d.propertyAddress}</p>
+              <p className="text-xs text-slate-900/40 mt-0.5">
+                {d.tenure ? titleCase(d.tenure) : "—"}
+                {" · "}
+                {d.purchaseType ? titleCase(d.purchaseType.replace(/_/g, " ")) : "—"}
+                {" · "}
+                {relativeTime(d.createdAt)}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <a
+                href={`/agent/transactions/${d.id}`}
+                className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+              >
+                Open →
+              </a>
+              <button
+                type="button"
+                onClick={() => onDiscard(d.id)}
+                className="text-xs text-slate-900/30 hover:text-red-400 transition-colors"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main form ─────────────────────────────────────────────────────────────────
 
-export function NewTransactionForm({ userRole, redirectBase = "/transactions", recommendedFirmIds, recommendedFirms = [] }: { userRole?: string; redirectBase?: string; recommendedFirmIds?: string[]; recommendedFirms?: { id: string; defaultReferralFeePence: number | null }[] }) {
+export function NewTransactionForm({ userRole, redirectBase = "/transactions", recommendedFirmIds, recommendedFirms = [], initialDrafts = [] }: { userRole?: string; redirectBase?: string; recommendedFirmIds?: string[]; recommendedFirms?: { id: string; defaultReferralFeePence: number | null }[]; initialDrafts?: DraftEntry[] }) {
   const resolvedFirmIds = recommendedFirmIds ?? recommendedFirms.map((f) => f.id);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -300,6 +365,8 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
 
   const [postcodeError, setPostcodeError] = useState("");
   const [priceWarning, setPriceWarning] = useState("");
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [localDrafts, setLocalDrafts] = useState<DraftEntry[]>(initialDrafts);
 
   // Memo of sale state
   const [memoStatus, setMemoStatus] = useState<MemoStatus>("idle");
@@ -536,6 +603,58 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     setSolicitorFillStatus({ vendor: null, purchaser: null });
   }
 
+  function resetForm() {
+    setForm({ streetAddress: "", city: "", postcode: "", purchasePrice: null, tenure: "", purchaseType: "", notes: "" });
+    setVendors([emptyContact()]);
+    setPurchasers([emptyContact()]);
+    setVendorSolicitor(null);
+    setPurchaserSolicitor(null);
+    setVendorIsReferral(false);
+    setPurchaserIsReferral(false);
+    setAgentFeeAmount(null);
+    setAgentFeePercentStr("");
+    dismissMemo();
+  }
+
+  async function handleSaveDraft() {
+    if (draftSaving) return;
+    setDraftSaving(true);
+    try {
+      const address = [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ");
+      const result = await saveDraftAction({
+        propertyAddress: address || "Untitled draft",
+        tenure: (form.tenure as Tenure) || null,
+        purchaseType: (form.purchaseType as PurchaseType) || null,
+        purchasePrice: form.purchasePrice,
+        vendorName: vendors[0]?.name.trim() || undefined,
+        vendorPhone: vendors[0]?.phone.trim() || undefined,
+        vendorEmail: vendors[0]?.email.trim() || undefined,
+        purchaserName: purchasers[0]?.name.trim() || undefined,
+        purchaserPhone: purchasers[0]?.phone.trim() || undefined,
+        purchaserEmail: purchasers[0]?.email.trim() || undefined,
+        progressedBy,
+      });
+      setLocalDrafts((prev) => [
+        {
+          id: result.id,
+          propertyAddress: address || "Untitled draft",
+          tenure: form.tenure || null,
+          purchaseType: form.purchaseType || null,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      resetForm();
+    } finally {
+      setDraftSaving(false);
+    }
+  }
+
+  async function handleDiscardDraft(draftId: string) {
+    await discardDraftAction(draftId);
+    setLocalDrafts((prev) => prev.filter((d) => d.id !== draftId));
+  }
+
   function updateContact(list: ContactEntry[], setList: (v: ContactEntry[]) => void, index: number, field: keyof ContactEntry, value: string) {
     setList(list.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   }
@@ -623,11 +742,51 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
 
   const overlayAddress = [form.streetAddress, form.city].filter(Boolean).join(", ");
 
+  const hasData = !!(
+    form.streetAddress.trim() ||
+    form.city.trim() ||
+    form.postcode.trim() ||
+    form.purchasePrice ||
+    form.tenure ||
+    form.purchaseType ||
+    vendors.some((v) => v.name.trim()) ||
+    purchasers.some((p) => p.name.trim()) ||
+    vendorSolicitor ||
+    purchaserSolicitor
+  );
+
+  useEffect(() => {
+    if (!hasData) return;
+    function handler(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasData]);
+
   return (
     <>
       {showOverlay && <CreatingOverlay address={overlayAddress} />}
 
       <form onSubmit={submit}>
+        {hasData && (
+          <div className="flex items-center justify-between bg-amber-50/70 border border-amber-200/60 rounded-xl px-4 py-3 mb-5">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+              <p className="text-xs font-medium text-amber-700">You have unsaved changes — save as a draft to come back later</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={draftSaving}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors disabled:opacity-50 whitespace-nowrap ml-4"
+            >
+              {draftSaving ? "Saving…" : "Save as draft →"}
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
           {/* ── Left column ─────────────────────────────────────────────── */}
@@ -1002,6 +1161,9 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                 </div>
               </div>
             </div>
+
+            {/* Drafts card */}
+            <DraftCard drafts={localDrafts} onDiscard={handleDiscardDraft} />
 
           </div>
         </div>
