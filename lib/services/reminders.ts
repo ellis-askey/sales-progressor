@@ -74,9 +74,12 @@ export async function getReminderLogsForTransaction(
 }
 
 export async function getAgentReminderLogs(vis: AgentVisibility) {
+  const baseTxWhere = { agencyId: vis.agencyId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
   const txWhere = vis.seeAll
-    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null }, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } }
-    : { agencyId: vis.agencyId, agentUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
+    ? vis.firmName
+      ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }
+      : { ...baseTxWhere, agentUserId: vis.userId }
+    : { ...baseTxWhere, agentUserId: vis.userId };
 
   return prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
