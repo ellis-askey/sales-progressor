@@ -700,7 +700,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         purchaserEmail: purchasers[0]?.email.trim() || null,
       };
       if (currentDraftId) {
-        setLocalDrafts((prev) => prev.map((d) => d.id === currentDraftId ? savedDraft : d));
+        setLocalDrafts((prev) => {
+          const exists = prev.some((d) => d.id === currentDraftId);
+          return exists
+            ? prev.map((d) => (d.id === currentDraftId ? savedDraft : d))
+            : [savedDraft, ...prev];
+        });
       } else {
         setLocalDrafts((prev) => [savedDraft, ...prev]);
       }

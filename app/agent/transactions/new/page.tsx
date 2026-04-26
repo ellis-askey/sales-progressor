@@ -9,14 +9,13 @@ export default async function AgentNewTransactionPage() {
   const session = await requireSession();
 
   const [recommendedFirms, drafts] = await Promise.all([
-    db.agencyRecommendedSolicitor
-      .findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true, defaultReferralFeePence: true } })
-      .then((rows: { solicitorFirmId: string; defaultReferralFeePence: number | null }[]) =>
-        rows.map((r) => ({ id: r.solicitorFirmId, defaultReferralFeePence: r.defaultReferralFeePence }))
-      )
-      .catch(() => []),
+    Promise.resolve().then(() =>
+      db.agencyRecommendedSolicitor?.findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true, defaultReferralFeePence: true } }) ?? Promise.resolve([])
+    ).then((rows: { solicitorFirmId: string; defaultReferralFeePence: number | null }[]) =>
+      rows.map((r) => ({ id: r.solicitorFirmId, defaultReferralFeePence: r.defaultReferralFeePence }))
+    ).catch(() => []),
     prisma.propertyTransaction.findMany({
-      where: { agencyId: session.user.agencyId, status: "draft" as never },
+      where: { agencyId: session.user.agencyId, agentUserId: session.user.id, status: "draft" as never },
       select: {
         id: true, propertyAddress: true, tenure: true, purchaseType: true,
         purchasePrice: true, createdAt: true,

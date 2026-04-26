@@ -108,8 +108,7 @@ export async function createTransactionAction(input: {
     }).catch(console.error);
   }
 
-  // Fire-and-forget — no need to block file creation on reminder evaluation
-  evaluateTransactionReminders(tx.id).catch(console.error);
+  await evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
