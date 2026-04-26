@@ -235,8 +235,8 @@ export function ReminderCard({
   // ── Snoozed mode ──────────────────────────────────────────────────────────
   if (mode === "snoozed") {
     return (
-      <div className="glass-card border border-purple-200/60" style={{ clipPath: "inset(0 round 20px)" }}>
-        <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between">
+      <div className="glass-card border border-purple-200/60" style={{ borderRadius: 20 }}>
+        <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between" style={{ borderRadius: "20px 20px 0 0" }}>
           <span>Snoozed until {formatDate(log.snoozedUntil!)}</span>
           {onWakeup && (
             <button
@@ -295,10 +295,10 @@ export function ReminderCard({
   return (
     <div
       className={`glass-card${borderColor ? ` border ${borderColor}` : ""}`}
-      style={{ clipPath: "inset(0 round 20px)" }}
+      style={{ borderRadius: 20 }}
     >
-      {/* Status bar */}
-      <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`}>
+      {/* Status bar — rounded top corners so its bg is clipped without overflow:hidden on the card */}
+      <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`} style={{ borderRadius: "20px 20px 0 0" }}>
         <span>{headerLeft}</span>
         {chaseSummary && <span className="opacity-60 truncate ml-3">{chaseSummary}</span>}
       </div>

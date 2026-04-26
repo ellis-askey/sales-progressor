@@ -60,7 +60,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [search, setSearch] = useState("");
   // targetMilestoneCode drives the side filter — for internal classification only, never rendered
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
-  const [showSnoozed, setShowSnoozed] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"due" | "snoozed">("due");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Auto-run the reminder engine on mount so chase tasks exist for any due reminders
@@ -133,24 +133,33 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   return (
     <div className="space-y-5">
       {/* Search + filter bar */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="space-y-2">
         <input
           type="text"
           placeholder="Search address or reminder…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[180px] px-3 py-1.5 text-xs rounded-lg glass-subtle border-0 outline-none placeholder:text-slate-900/30 text-slate-900/80"
+          className="w-full px-3 py-1.5 text-xs rounded-lg glass-subtle border-0 outline-none placeholder:text-slate-900/30 text-slate-900/80"
         />
-        <FilterChip active={sideFilter === "all"}    onClick={() => setSideFilter("all")}>All</FilterChip>
-        <FilterChip active={sideFilter === "seller"} onClick={() => setSideFilter("seller")}>Seller</FilterChip>
-        <FilterChip active={sideFilter === "buyer"}  onClick={() => setSideFilter("buyer")}>Buyer</FilterChip>
-        <FilterChip active={showSnoozed} onClick={() => setShowSnoozed((p) => !p)}>
-          Snoozed{snoozedLogs.length > 0 ? ` (${snoozedLogs.length})` : ""}
-        </FilterChip>
+        <div className="flex items-center justify-between gap-2">
+          {/* Side filter */}
+          <div className="flex items-center gap-1">
+            <FilterChip active={sideFilter === "all"}    onClick={() => setSideFilter("all")}>All</FilterChip>
+            <FilterChip active={sideFilter === "seller"} onClick={() => setSideFilter("seller")}>Seller</FilterChip>
+            <FilterChip active={sideFilter === "buyer"}  onClick={() => setSideFilter("buyer")}>Buyer</FilterChip>
+          </div>
+          {/* Status filter */}
+          <div className="flex items-center gap-1">
+            <FilterChip active={statusFilter === "due"}     onClick={() => setStatusFilter("due")}>Due</FilterChip>
+            <FilterChip active={statusFilter === "snoozed"} onClick={() => setStatusFilter("snoozed")}>
+              Snoozed{snoozedLogs.length > 0 ? ` (${snoozedLogs.length})` : ""}
+            </FilterChip>
+          </div>
+        </div>
       </div>
 
       {/* Empty state when filters yield nothing */}
-      {!hasActiveResults && !showSnoozed && (
+      {statusFilter === "due" && !hasActiveResults && (
         <div className="glass-card px-5 py-8 text-center">
           <p className="text-sm text-slate-900/40">
             {q || sideFilter !== "all" ? "No reminders match the current filter" : "No active reminders"}
@@ -158,8 +167,8 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
         </div>
       )}
 
-      {/* Urgency groups — empty groups render nothing */}
-      {(["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
+      {/* Urgency groups — only shown in "due" view, empty groups render nothing */}
+      {statusFilter === "due" && (["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
         const cards = grouped[groupKey];
         if (cards.length === 0) return null;
         const cfg = GROUP_CONFIG[groupKey];
@@ -203,45 +212,32 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
         );
       })}
 
-      {/* Snoozed section — only shown when toggle is active */}
-      {showSnoozed && (
+      {/* Snoozed section — only shown in "snoozed" view */}
+      {statusFilter === "snoozed" && (
         filteredSnoozed.length === 0 ? (
           <div className="glass-card px-5 py-6 text-center">
             <p className="text-sm text-slate-900/40">No snoozed reminders{q ? " matching filter" : ""}</p>
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-purple-50/50 border border-purple-100">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-purple-700">Snoozed</span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{filteredSnoozed.length}</span>
-              </div>
-              <button onClick={() => toggleCollapse("snoozed")} className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors">
-                {collapsed["snoozed"] ? "Show" : "Hide"}
-              </button>
-            </div>
-            {!collapsed["snoozed"] && (
-              <div className="space-y-2">
-                {filteredSnoozed.map((log) => (
-                  <ReminderCard
-                    key={log.id}
-                    log={log}
-                    transactionId={log.transaction.id}
-                    contacts={log.transaction.contacts}
-                    propertyAddress={log.transaction.propertyAddress}
-                    showAddressLink
-                    mode="snoozed"
-                    isLoading={loading}
-                    isPending={isPending}
-                    onComplete={handleComplete}
-                    onSnooze={handleSnooze}
-                    onEscalate={handleEscalate}
-                    onWakeup={handleWakeup}
-                    onManualChase={handleManualChase}
-                  />
-                ))}
-              </div>
-            )}
+            {filteredSnoozed.map((log) => (
+              <ReminderCard
+                key={log.id}
+                log={log}
+                transactionId={log.transaction.id}
+                contacts={log.transaction.contacts}
+                propertyAddress={log.transaction.propertyAddress}
+                showAddressLink
+                mode="snoozed"
+                isLoading={loading}
+                isPending={isPending}
+                onComplete={handleComplete}
+                onSnooze={handleSnooze}
+                onEscalate={handleEscalate}
+                onWakeup={handleWakeup}
+                onManualChase={handleManualChase}
+              />
+            ))}
           </div>
         )
       )}
