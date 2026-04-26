@@ -22,6 +22,7 @@ export type ReminderLogWithRule = {
   reminderRule: {
     id: string;
     name: string;
+    description?: string | null;
     targetMilestoneCode: string | null;
     graceDays: number;
     repeatEveryDays: number;
@@ -33,6 +34,7 @@ export type ReminderLogWithRule = {
     priority: TaskPriority;
     chaseCount: number;
     dueDate: Date;
+    communications: { createdAt: Date; method: string | null }[];
   }[];
 };
 
@@ -53,10 +55,18 @@ export async function getReminderLogsForTransaction(
     orderBy: { nextDueDate: "asc" },
     include: {
       reminderRule: {
-        select: { id: true, name: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true },
+        select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true },
       },
       chaseTasks: {
-        select: { id: true, status: true, priority: true, chaseCount: true, dueDate: true },
+        select: {
+          id: true, status: true, priority: true, chaseCount: true, dueDate: true,
+          communications: {
+            where: { type: "outbound" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true, method: true },
+          },
+        },
         orderBy: { createdAt: "desc" },
       },
     },
@@ -65,18 +75,26 @@ export async function getReminderLogsForTransaction(
 
 export async function getAgentReminderLogs(vis: AgentVisibility) {
   const txWhere = vis.seeAll
-    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null }, status: { in: ["active" as const, "on_hold" as const] } }
-    : { agencyId: vis.agencyId, agentUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] } };
+    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null }, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } }
+    : { agencyId: vis.agencyId, agentUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
 
   return prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
     include: {
       reminderRule: {
-        select: { name: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true },
+        select: { name: true, description: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true },
       },
       chaseTasks: {
         where: { status: "pending" },
-        select: { id: true, status: true, priority: true, chaseCount: true, dueDate: true },
+        select: {
+          id: true, status: true, priority: true, chaseCount: true, dueDate: true,
+          communications: {
+            where: { type: "outbound" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true, method: true },
+          },
+        },
         orderBy: { createdAt: "desc" },
         take: 1,
       },

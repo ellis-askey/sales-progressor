@@ -23,6 +23,17 @@ export async function wakeupReminderAction(logId: string, pathname: string) {
   revalidatePath(pathname, "page");
 }
 
+export async function escalateTaskAction(taskId: string, pathname: string) {
+  const session = await requireSession();
+  const task = await prisma.chaseTask.findFirst({
+    where: { id: taskId, transaction: { agencyId: session.user.agencyId } },
+    select: { id: true },
+  });
+  if (!task) throw new Error("Task not found");
+  await prisma.chaseTask.update({ where: { id: taskId }, data: { priority: "escalated" } });
+  revalidatePath(pathname, "page");
+}
+
 export async function getTransactionReminderCountAction(transactionId: string): Promise<number> {
   const session = await requireSession();
   return prisma.reminderLog.count({

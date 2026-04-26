@@ -1,73 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
-import Link from "next/link";
-import { formatDate } from "@/lib/utils";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
-import { ChaseButton } from "@/components/chase/ChaseButton";
+import { useState, useTransition } from "react";
 import { CheckCircle } from "@phosphor-icons/react";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction } from "@/app/actions/tasks";
+import { ReminderCard } from "@/components/reminders/ReminderCard";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
-const SNOOZE_OPTIONS = [
-  { label: "24 hours", hours: 24 },
-  { label: "48 hours", hours: 48 },
-  { label: "72 hours", hours: 72 },
-  { label: "7 days",   hours: 168 },
-  { label: "14 days",  hours: 336 },
-];
-
-function stripChase(name: string): string {
-  return name.replace(/^Chase:\s*/i, "");
-}
-
-function SnoozeDropdown({ taskId, onSnooze, disabled }: {
-  taskId: string;
-  onSnooze: (taskId: string, hours: number) => void;
-  disabled: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((p) => !p)}
-        disabled={disabled}
-        className="px-3 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40"
-      >
-        Snooze
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full mt-1 z-30 glass-card-strong min-w-[130px]">
-          {SNOOZE_OPTIONS.map((opt) => (
-            <button
-              key={opt.hours}
-              onClick={() => { onSnooze(taskId, opt.hours); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+type Tab = "active" | "snoozed";
 
 export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
-  const [tab, setTab] = useState<"active" | "snoozed">("active");
+  const [tab, setTab] = useState<Tab>("active");
 
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -75,40 +21,56 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const activeLogs = logs.filter((l) => {
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
     const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    const hasPendingTask = l.chaseTasks.length > 0;
-    return due <= today || hasPendingTask;
+    return due <= today || l.chaseTasks.length > 0;
   });
 
   const snoozedLogs = logs.filter(
     (l) => l.snoozedUntil && new Date(l.snoozedUntil) > now
   );
 
-  function handleTaskAction(taskId: string, action: "complete" | "snooze", snoozeHours?: number) {
-    setLoading(taskId);
+  // Sort active: escalated first → overdue by days desc → due today → rest
+  const sortedActive = [...activeLogs].sort((a, b) => {
+    const aEsc = a.chaseTasks.some((t) => t.priority === "escalated") ? 0 : 1;
+    const bEsc = b.chaseTasks.some((t) => t.priority === "escalated") ? 0 : 1;
+    if (aEsc !== bEsc) return aEsc - bEsc;
+    return new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
+  });
+
+  const escalatedCount = activeLogs.filter((l) =>
+    l.chaseTasks.some((t) => t.priority === "escalated")
+  ).length;
+
+  const overdueCount = activeLogs.filter((l) => {
+    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
+    return due < today;
+  }).length;
+
+  function act(id: string, fn: () => Promise<unknown>) {
+    setLoading(id);
     startTransition(async () => {
-      try {
-        if (action === "complete") await completeTaskAction(taskId, "/agent/work-queue");
-        else if (action === "snooze" && snoozeHours) await snoozeTaskAction(taskId, snoozeHours, "/agent/work-queue");
-      } finally {
-        setLoading(null);
-      }
+      try { await fn(); } finally { setLoading(null); }
     });
+  }
+
+  function handleComplete(taskId: string) {
+    act(taskId, () => completeTaskAction(taskId, "/agent/work-queue"));
+  }
+
+  function handleSnooze(taskId: string, hours: number) {
+    act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue"));
+  }
+
+  function handleEscalate(taskId: string) {
+    act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue"));
   }
 
   function handleWakeup(logId: string) {
-    setLoading(logId);
-    startTransition(async () => {
-      try {
-        await wakeupReminderAction(logId, "/agent/work-queue");
-      } finally {
-        setLoading(null);
-      }
-    });
+    act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
   }
 
   const tabs = [
-    { key: "active" as const,  label: "Active",  count: activeLogs.length },
-    { key: "snoozed" as const, label: "Snoozed", count: snoozedLogs.length },
+    { key: "active" as Tab,  label: "Active",  count: activeLogs.length },
+    { key: "snoozed" as Tab, label: "Snoozed", count: snoozedLogs.length },
   ];
 
   if (logs.length === 0) {
@@ -123,9 +85,28 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
 
   return (
     <div>
+      {/* Summary pills */}
+      {activeLogs.length > 0 && (escalatedCount > 0 || overdueCount > 0) && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {escalatedCount > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">
+              {escalatedCount} escalated
+            </span>
+          )}
+          {overdueCount > 0 && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100">
+              {overdueCount} overdue
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 glass-subtle p-1 w-fit">
         {tabs.map(({ key, label, count }) => (
-          <button key={key} onClick={() => setTab(key)}
+          <button
+            key={key}
+            onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               tab === key ? "bg-white/60 text-slate-900/90 shadow-sm" : "text-slate-900/50 hover:text-slate-900/70"
             }`}
@@ -136,104 +117,42 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                 tab === key
                   ? key === "snoozed" ? "bg-purple-50/80 text-purple-600" : "bg-blue-50/80 text-blue-600"
                   : "bg-white/30 text-slate-900/50"
-              }`}>{count}</span>
+              }`}>
+                {count}
+              </span>
             )}
           </button>
         ))}
       </div>
 
-      {/* ── Active ─────────────────────────────────────────────────────── */}
+      {/* Active */}
       {tab === "active" && (
-        activeLogs.length === 0 ? (
+        sortedActive.length === 0 ? (
           <div className="glass-card px-5 py-8 text-center">
             <p className="text-sm text-slate-900/40">No active reminders</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {[
-              ...activeLogs.filter((l) => l.chaseTasks.some((t) => t.priority === "escalated")),
-              ...activeLogs.filter((l) => !l.chaseTasks.some((t) => t.priority === "escalated")),
-            ].map((log) => {
-              const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
-              const isOverdue = dueDate < today;
-              const isDueToday = dueDate.getTime() === today.getTime();
-              const openTask = log.chaseTasks[0] ?? null;
-              const isEscalated = openTask?.priority === "escalated";
-
-              let borderColor = "";
-              let headerBg = "bg-white/20 text-slate-900/50";
-              let headerLabel = `Due ${formatDate(log.nextDueDate)}`;
-
-              if (isEscalated) {
-                borderColor = "border-red-300"; headerBg = "bg-red-50/60 text-red-700";
-                headerLabel = `Escalated · ${openTask!.chaseCount} chases sent`;
-              } else if (isOverdue) {
-                borderColor = "border-orange-200"; headerBg = "bg-orange-50/60 text-orange-600";
-                headerLabel = `Overdue · ${openTask ? `follow-up ${openTask.chaseCount + 1}` : "pending"}`;
-              } else if (isDueToday) {
-                borderColor = "border-amber-200"; headerBg = "bg-amber-50/60 text-amber-600";
-                headerLabel = "Due today";
-              }
-
-              return (
-                <div key={log.id} className={`glass-card ${borderColor ? `border ${borderColor}` : ""}`} style={{ clipPath: "inset(0 round 20px)" }}>
-                  <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`}>
-                    <span>{headerLabel}</span>
-                    {openTask && (
-                      <span className="text-xs opacity-70">
-                        repeats every {log.reminderRule.repeatEveryDays}d · escalates after {log.reminderRule.escalateAfterChases}
-                      </span>
-                    )}
-                  </div>
-                  <div className="px-5 py-3">
-                    <Link
-                      href={`/agent/transactions/${log.transaction.id}`}
-                      className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors mb-1 block"
-                    >
-                      {log.transaction.propertyAddress} →
-                    </Link>
-                    <p className={`text-sm font-medium ${isEscalated ? "text-red-700" : "text-slate-900/90"}`}>
-                      {stripChase(log.reminderRule.name)}
-                    </p>
-                    {log.reminderRule.targetMilestoneCode && (
-                      <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
-                    )}
-                    {openTask && (
-                      <div className="mt-3 flex items-center gap-2">
-                        <ChaseButton
-                          chaseTaskId={openTask.id}
-                          transactionId={log.transaction.id}
-                          propertyAddress={log.transaction.propertyAddress}
-                          milestoneName={stripChase(log.reminderRule.name)}
-                          chaseCount={openTask.chaseCount}
-                          contacts={log.transaction.contacts}
-                          onSent={() => handleTaskAction(openTask.id, "complete")}
-                        />
-                        <button
-                          onClick={() => handleTaskAction(openTask.id, "complete")}
-                          disabled={loading === openTask.id || isPending}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
-                            isEscalated ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"
-                          }`}
-                        >
-                          {loading === openTask.id ? "…" : "Mark done"}
-                        </button>
-                        <SnoozeDropdown
-                          taskId={openTask.id}
-                          onSnooze={(id, hours) => handleTaskAction(id, "snooze", hours)}
-                          disabled={loading === openTask.id || isPending}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {sortedActive.map((log) => (
+              <ReminderCard
+                key={log.id}
+                log={log}
+                transactionId={log.transaction.id}
+                contacts={log.transaction.contacts}
+                propertyAddress={log.transaction.propertyAddress}
+                showAddressLink
+                isLoading={loading}
+                isPending={isPending}
+                onComplete={handleComplete}
+                onSnooze={handleSnooze}
+                onEscalate={handleEscalate}
+              />
+            ))}
           </div>
         )
       )}
 
-      {/* ── Snoozed ────────────────────────────────────────────────────── */}
+      {/* Snoozed */}
       {tab === "snoozed" && (
         snoozedLogs.length === 0 ? (
           <div className="glass-card px-5 py-8 text-center">
@@ -242,30 +161,21 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
         ) : (
           <div className="space-y-2">
             {snoozedLogs.map((log) => (
-              <div key={log.id} className="glass-card border border-purple-200/60" style={{ clipPath: "inset(0 round 20px)" }}>
-                <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between">
-                  <span>Snoozed until {formatDate(log.snoozedUntil!)}</span>
-                  <button
-                    onClick={() => handleWakeup(log.id)}
-                    disabled={loading === log.id || isPending}
-                    className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-40"
-                  >
-                    {loading === log.id ? "…" : "Wake up →"}
-                  </button>
-                </div>
-                <div className="px-5 py-3">
-                  <Link
-                    href={`/agent/transactions/${log.transaction.id}`}
-                    className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors mb-1 block"
-                  >
-                    {log.transaction.propertyAddress} →
-                  </Link>
-                  <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
-                  {log.reminderRule.targetMilestoneCode && (
-                    <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
-                  )}
-                </div>
-              </div>
+              <ReminderCard
+                key={log.id}
+                log={log}
+                transactionId={log.transaction.id}
+                contacts={log.transaction.contacts}
+                propertyAddress={log.transaction.propertyAddress}
+                showAddressLink
+                mode="snoozed"
+                isLoading={loading}
+                isPending={isPending}
+                onComplete={handleComplete}
+                onSnooze={handleSnooze}
+                onEscalate={handleEscalate}
+                onWakeup={handleWakeup}
+              />
             ))}
           </div>
         )

@@ -5,7 +5,7 @@ import { getWorkQueueItems, ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { AlertType } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
-import { ArrowRight, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export default async function WorkQueuePage() {
   const session = await requireSession();
@@ -15,21 +15,31 @@ export default async function WorkQueuePage() {
     getAgentReminderLogs(vis),
   ]);
 
-  const overdueCount = items.filter((i) => i.alerts.includes("overdue_exchange")).length;
-  const missingSolicitorCount = items.filter(
-    (i) =>
-      i.alerts.includes("missing_vendor_solicitor") ||
-      i.alerts.includes("missing_purchaser_solicitor")
-  ).length;
-  const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
-
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const activeReminderCount = reminderLogs.filter((l) => {
+
+  // Reminder counts
+  const activeLogs = reminderLogs.filter((l) => {
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
     const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
     return due <= today || l.chaseTasks.length > 0;
+  });
+  const escalatedReminderCount = activeLogs.filter((l) =>
+    l.chaseTasks.some((t) => t.priority === "escalated")
+  ).length;
+  const overdueReminderCount = activeLogs.filter((l) => {
+    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
+    return due < today;
   }).length;
+
+  // File alert counts
+  const overdueExchangeCount = items.filter((i) => i.alerts.includes("overdue_exchange")).length;
+  const missingSolicitorCount = items.filter(
+    (i) => i.alerts.includes("missing_vendor_solicitor") || i.alerts.includes("missing_purchaser_solicitor")
+  ).length;
+  const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
+
+  const hasAnything = reminderLogs.length > 0 || items.length > 0;
 
   return (
     <>
@@ -51,66 +61,64 @@ export default async function WorkQueuePage() {
             Reminders
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-            Chases and files that need your follow-up.
+            Chases and files that need your attention.
           </p>
         </div>
       </div>
 
-      <div className="px-8 py-7 space-y-6">
+      <div className="px-8 py-7 space-y-8">
 
-        {/* Summary chips */}
-        {(items.length > 0 || activeReminderCount > 0) && (
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {activeReminderCount > 0 && (
-              <SummaryChip
-                count={activeReminderCount}
-                label="chase reminders"
-                color="var(--agent-text-primary)"
-                bg="rgba(255,255,255,0.55)"
-                border="rgba(255,255,255,0.60)"
-              />
+        {/* Summary bar */}
+        {hasAnything && (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {escalatedReminderCount > 0 && (
+              <SummaryChip count={escalatedReminderCount} label="escalated" color="#dc2626" bg="#fef2f2" border="#fecaca" />
             )}
-            {overdueCount > 0 && (
-              <SummaryChip
-                count={overdueCount}
-                label="overdue exchange"
-                color="var(--agent-danger)"
-                bg="var(--agent-danger-bg)"
-                border="var(--agent-danger-border)"
-              />
+            {overdueReminderCount > 0 && (
+              <SummaryChip count={overdueReminderCount} label="overdue chases" color="#ea580c" bg="#fff7ed" border="#fed7aa" />
+            )}
+            {activeLogs.length > 0 && escalatedReminderCount === 0 && overdueReminderCount === 0 && (
+              <SummaryChip count={activeLogs.length} label="chase reminders" color="var(--agent-text-primary)" bg="rgba(255,255,255,0.55)" border="rgba(255,255,255,0.60)" />
+            )}
+            {overdueExchangeCount > 0 && (
+              <SummaryChip count={overdueExchangeCount} label="overdue exchange" color="var(--agent-danger)" bg="var(--agent-danger-bg)" border="var(--agent-danger-border)" />
             )}
             {missingSolicitorCount > 0 && (
-              <SummaryChip
-                count={missingSolicitorCount}
-                label="missing solicitor"
-                color="var(--agent-warning)"
-                bg="var(--agent-warning-bg)"
-                border="var(--agent-warning-border)"
-              />
+              <SummaryChip count={missingSolicitorCount} label="missing solicitor" color="var(--agent-warning)" bg="var(--agent-warning-bg)" border="var(--agent-warning-border)" />
             )}
             {staleCount > 0 && (
-              <SummaryChip
-                count={staleCount}
-                label="no recent progress"
-                color="var(--agent-info)"
-                bg="var(--agent-info-bg)"
-                border="var(--agent-info-border)"
-              />
+              <SummaryChip count={staleCount} label="no recent progress" color="var(--agent-info)" bg="var(--agent-info-bg)" border="var(--agent-info-border)" />
             )}
           </div>
         )}
 
-        {/* Milestone reminders */}
+        {/* ── Milestone chase reminders ─────────────────────────────────── */}
         <section>
-          <h2 className="agent-eyebrow mb-4">Milestone Reminders</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="agent-eyebrow">Milestone Reminders</h2>
+            {activeLogs.length > 0 && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/50 text-slate-900/50">
+                {activeLogs.length} active
+              </span>
+            )}
+          </div>
           <AgentRemindersList logs={reminderLogs} />
         </section>
 
-        {/* File alerts */}
+        {/* ── File alerts ───────────────────────────────────────────────── */}
         {items.length > 0 && (
           <section>
-            <h2 className="agent-eyebrow mb-4">File Alerts</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="agent-eyebrow">File Alerts</h2>
+              <Warning weight="fill" style={{ width: 14, height: 14, color: "var(--agent-warning)", opacity: 0.8 }} />
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/50 text-slate-900/50">
+                {items.length}
+              </span>
+            </div>
+            <p className="text-xs text-slate-900/40 mb-3 -mt-2">
+              Files missing key information — click to fix.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((item) => (
                 <WorkQueueCard key={item.id} item={item} isDirector={vis.seeAll} />
               ))}
@@ -161,20 +169,12 @@ function WorkQueueCard({ item, isDirector }: {
   ].join(" · ");
 
   return (
-    <Link
-      href={`/agent/transactions/${item.id}`}
-      style={{ textDecoration: "none" }}
-    >
+    <Link href={`/agent/transactions/${item.id}`} style={{ textDecoration: "none" }}>
       <div className="glass-card work-queue-row" style={{
-        padding: "16px 20px",
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        cursor: "pointer",
+        padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer",
       }}>
-        {/* Left: address + parties */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {item.propertyAddress}
           </p>
           {partyLine && (
@@ -188,16 +188,13 @@ function WorkQueueCard({ item, isDirector }: {
             </p>
           )}
         </div>
-
-        {/* Centre: alerts + dates */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flexShrink: 0, maxWidth: 420, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flexShrink: 0, maxWidth: 380, justifyContent: "flex-end" }}>
           {item.alerts.map((alert: AlertType) => {
             const cfg = ALERT_CONFIG[alert];
             return (
               <span key={alert} style={{
                 display: "inline-flex", alignItems: "center",
-                padding: "3px 9px", borderRadius: 6,
-                fontSize: 11, fontWeight: 600,
+                padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600,
                 color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
               }}>
                 {cfg.label}
@@ -206,42 +203,28 @@ function WorkQueueCard({ item, isDirector }: {
           })}
           {exchangeDate && (
             <span style={{
-              padding: "3px 9px", borderRadius: 6,
-              fontSize: 11, fontWeight: 500,
+              padding: "3px 9px", borderRadius: 6, fontSize: 11, fontWeight: 500,
               color: exchangeOverdue ? "var(--agent-danger)" : "var(--agent-text-muted)",
               background: exchangeOverdue ? "var(--agent-danger-bg)" : "rgba(255,255,255,0.40)",
               border: exchangeOverdue ? "1px solid var(--agent-danger-border)" : "1px solid rgba(255,255,255,0.50)",
             }}>
               {exchangeOverdue
                 ? `${daysOverdue}d overdue`
-                : `Exch. ${exchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
-              }
+                : `Exch. ${exchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
             </span>
           )}
           {daysSinceActivity !== null && item.alerts.includes("stale") && (
-            <span style={{
-              padding: "3px 9px", borderRadius: 6,
-              fontSize: 11, color: "var(--agent-text-muted)",
-              background: "rgba(255,255,255,0.40)",
-              border: "1px solid rgba(255,255,255,0.50)",
-            }}>
+            <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: 11, color: "var(--agent-text-muted)", background: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.50)" }}>
               Last progress {daysSinceActivity}d ago
             </span>
           )}
           {!item.lastActivityAt && item.alerts.includes("stale") && (
-            <span style={{
-              padding: "3px 9px", borderRadius: 6,
-              fontSize: 11, color: "var(--agent-text-muted)",
-              background: "rgba(255,255,255,0.40)",
-              border: "1px solid rgba(255,255,255,0.50)",
-            }}>
+            <span style={{ padding: "3px 9px", borderRadius: 6, fontSize: 11, color: "var(--agent-text-muted)", background: "rgba(255,255,255,0.40)", border: "1px solid rgba(255,255,255,0.50)" }}>
               No milestones completed
             </span>
           )}
         </div>
-
-        {/* Right: arrow */}
-        <ArrowRight weight="regular" style={{ width: 16, height: 16, color: "var(--agent-text-muted)", flexShrink: 0, opacity: 0.6 }} />
+        <ArrowRight weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)", flexShrink: 0, opacity: 0.6 }} />
       </div>
     </Link>
   );
