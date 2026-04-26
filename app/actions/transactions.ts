@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
+import { completeMilestone } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole } from "@prisma/client";
@@ -29,6 +30,7 @@ export async function createTransactionAction(input: {
   agentFeeIsVatInclusive?: boolean | null;
   referredFirmId?: string | null;
   referralFee?: number | null;
+  mosUploaded?: boolean;
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
@@ -68,14 +70,34 @@ export async function createTransactionAction(input: {
     });
   }
 
-  // Fire-and-forget: seed reminders in the background — don't block the response
-  evaluateTransactionReminders(tx.id).catch(console.error);
+  // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides
+  let mosAutoConfirmed = false;
+  if (input.mosUploaded) {
+    const mosDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM2", "PM2"] } },
+      select: { id: true },
+    });
+    await Promise.all(
+      mosDefs.map((def) =>
+        completeMilestone({
+          transactionId: tx.id,
+          milestoneDefinitionId: def.id,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+        })
+      )
+    );
+    mosAutoConfirmed = true;
+  }
+
+  // Await reminder evaluation so reminders are present when the user lands on the file
+  await evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
   revalidatePath("/dashboard");
 
-  return { id: tx.id };
+  return { id: tx.id, mosAutoConfirmed };
 }
 
 function revalidateTx(id: string) {

@@ -29,6 +29,8 @@ import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
+import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 
 export default async function AgentTransactionDetailPage({
@@ -214,6 +216,7 @@ export default async function AgentTransactionDetailPage({
 
   return (
     <div className="glass-page agent-page">
+      <Suspense><MosConfirmedNotice /></Suspense>
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}

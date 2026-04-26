@@ -601,8 +601,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         agentFeeIsVatInclusive: feeVatInclusive,
         referredFirmId,
         referralFee,
+        mosUploaded: memoStatus === "done",
       });
-      router.push(`${redirectBase}/${result.id}`);
+      const dest = result.mosAutoConfirmed
+        ? `${redirectBase}/${result.id}?mosConfirmed=1`
+        : `${redirectBase}/${result.id}`;
+      router.push(dest);
     });
   }
 
