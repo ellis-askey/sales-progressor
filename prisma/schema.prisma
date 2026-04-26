@@ -23,6 +23,7 @@ model Agency {
   chains                   PropertyChain[]
   verifiedDomains          VerifiedDomain[]
   recommendedSolicitors    AgencyRecommendedSolicitor[]
+  feedbackSubmissions      FeedbackSubmission[]
 }
 
 model User {
@@ -61,6 +62,7 @@ model User {
   assignedManualTasks  ManualTask[]       @relation("ManualTaskAssignee")
   createdDomains       VerifiedDomain[]   @relation("DomainCreatedBy")
   verifiedEmails       UserVerifiedEmail[]
+  feedbackSubmissions  FeedbackSubmission[]
 }
 
 enum UserRole {
@@ -648,4 +650,34 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ─── FeedbackSubmission ───────────────────────────────────────────────────────
+
+model FeedbackSubmission {
+  id                 String    @id @default(cuid())
+  category           String
+  userId             String?
+  userRole           String?
+  userEmail          String?
+  agencyId           String?
+  field1             String?
+  field2             String?
+  url                String?
+  browser            String?
+  viewportSize       String?
+  userAgent          String?
+  screenshotUrl      String?
+  screenshotFilename String?
+  status             String    @default("new")
+  emailSent          Boolean   @default(false)
+  emailSentAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  user   User?   @relation(fields: [userId], references: [id])
+  agency Agency? @relation(fields: [agencyId], references: [id])
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
 }
