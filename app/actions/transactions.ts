@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
-import { evaluateTransactionReminders } from "@/lib/services/reminders";
+import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
 import { completeMilestone } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
@@ -108,7 +108,11 @@ export async function createTransactionAction(input: {
     }).catch(console.error);
   }
 
-  await evaluateTransactionReminders(tx.id).catch(console.error);
+  // Fast inline creation: batch creates logs + tasks synchronously (~3 queries)
+  const completedCodes = mosAutoConfirmed ? ["VM2", "PM2"] : [];
+  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes).catch(console.error);
+  // Full engine handles anchor-based and exchange-gated rules asynchronously
+  void evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");

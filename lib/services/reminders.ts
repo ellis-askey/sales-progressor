@@ -293,6 +293,64 @@ export async function evaluateTransactionReminders(transactionId: string) {
   }
 }
 
+// Fast batched inline creation for new transactions — 3 queries total, no N+1
+// Only handles non-anchor, non-exchange-gated rules (the ones active from day 0)
+export async function createInitialRemindersInline(
+  transactionId: string,
+  createdAt: Date,
+  assignedUserId: string | null,
+  completedMilestoneCodes: string[] = []
+): Promise<void> {
+  const rules = await prisma.reminderRule.findMany({
+    where: { isActive: true, anchorMilestoneId: null, requiresExchangeReady: false },
+    select: { id: true, graceDays: true, targetMilestoneCode: true },
+  });
+
+  const eligibleRules = completedMilestoneCodes.length > 0
+    ? rules.filter((r) => !r.targetMilestoneCode || !completedMilestoneCodes.includes(r.targetMilestoneCode))
+    : rules;
+
+  if (eligibleRules.length === 0) return;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  await prisma.reminderLog.createMany({
+    data: eligibleRules.map((rule) => {
+      const dueDate = new Date(createdAt);
+      dueDate.setDate(dueDate.getDate() + rule.graceDays);
+      dueDate.setHours(0, 0, 0, 0);
+      return {
+        transactionId,
+        reminderRuleId: rule.id,
+        status: "active" as const,
+        nextDueDate: dueDate,
+        sourceDateUsed: createdAt,
+      };
+    }),
+  });
+
+  const logs = await prisma.reminderLog.findMany({
+    where: { transactionId, reminderRuleId: { in: eligibleRules.map((r) => r.id) }, status: "active" },
+    select: { id: true, nextDueDate: true },
+  });
+
+  const dueLogs = logs.filter((l) => l.nextDueDate <= today);
+  if (dueLogs.length === 0) return;
+
+  await prisma.chaseTask.createMany({
+    data: dueLogs.map((log) => ({
+      transactionId,
+      reminderLogId: log.id,
+      assignedToId: assignedUserId,
+      dueDate: log.nextDueDate,
+      status: "pending" as const,
+      priority: "normal" as const,
+      chaseCount: 0,
+    })),
+  });
+}
+
 export async function runReminderEngine(agencyId?: string) {
   const where = agencyId
     ? { status: "active" as const, agencyId }

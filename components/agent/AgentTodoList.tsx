@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -65,6 +66,23 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
     setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
   }
 
+  async function handleAdd(input: {
+    title: string;
+    notes?: string;
+    dueDate?: string;
+    transactionId?: string;
+    isAgentRequest?: boolean;
+  }) {
+    const res = await fetch("/api/manual-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) return;
+    const created = await res.json();
+    setTasks((prev) => [created, ...prev]);
+  }
+
   const ownTasks  = tasks.filter((t) => !t.isAgentRequest);
   const progTasks = tasks.filter((t) => t.isAgentRequest);
 
@@ -75,6 +93,8 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
 
   return (
     <div className="space-y-8">
+
+      <AddManualTaskForm showOwnership onAdd={handleAdd} />
 
       {/* ── My To-Dos ── */}
       <Section
