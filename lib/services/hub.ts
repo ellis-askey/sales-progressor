@@ -210,6 +210,69 @@ export async function getHubServiceSplit(vis: AgentVisibility) {
   return { selfManaged, outsourced };
 }
 
+// ── Attention items (active/overdue reminders) ────────────────────────────────
+
+export type HubAttentionItem = {
+  id: string;
+  urgency: "escalated" | "overdue" | "due_today";
+  reminderName: string;
+  transaction: { id: string; propertyAddress: string };
+  nextDueDate: Date;
+};
+
+export async function getHubAttentionItems(
+  vis: AgentVisibility
+): Promise<HubAttentionItem[]> {
+  const now = new Date();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const txNested = buildTxNested(vis);
+
+  const logs = await prisma.reminderLog.findMany({
+    where: {
+      transaction: { agencyId: vis.agencyId, status: "active", ...txNested },
+      status: "active",
+      OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+      nextDueDate: { lte: today },
+    },
+    orderBy: { nextDueDate: "asc" },
+    select: {
+      id: true,
+      nextDueDate: true,
+      reminderRule: { select: { name: true } },
+      transaction: { select: { id: true, propertyAddress: true } },
+      chaseTasks: {
+        where: { status: "pending" },
+        select: { priority: true },
+        take: 1,
+      },
+    },
+  });
+
+  const items: HubAttentionItem[] = logs.map((log) => {
+    const openTask = log.chaseTasks[0] ?? null;
+    const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
+    const urgency: HubAttentionItem["urgency"] =
+      openTask?.priority === "escalated" ? "escalated"
+      : dueDate < today ? "overdue"
+      : "due_today";
+    return {
+      id: log.id,
+      urgency,
+      reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
+      transaction: log.transaction,
+      nextDueDate: log.nextDueDate,
+    };
+  });
+
+  const order = { escalated: 0, overdue: 1, due_today: 2 };
+  items.sort((a, b) => {
+    const d = order[a.urgency] - order[b.urgency];
+    return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
+  });
+
+  return items;
+}
+
 // ── Recent activity ───────────────────────────────────────────────────────────
 
 export type RecentActivity = {
@@ -219,6 +282,17 @@ export type RecentActivity = {
   transactionId: string;
   at: Date;
 } | null;
+
+function commDescription(type: string, method: string | null, content: string | null): string {
+  if (type === "inbound") return "Update received from party";
+  if (method === "whatsapp") return "WhatsApp sent to party";
+  if (method === "email")    return "Email sent to party";
+  if (method === "phone")    return "Call logged";
+  if (method === "sms")      return "SMS sent to party";
+  if (method === "post")     return "Letter sent to party";
+  if (content?.toLowerCase().includes("manually")) return "Chase recorded manually";
+  return "Communication logged";
+}
 
 export async function getHubRecentActivity(
   vis: AgentVisibility
@@ -232,6 +306,8 @@ export async function getHubRecentActivity(
       orderBy: { createdAt: "desc" },
       select: {
         type: true,
+        method: true,
+        content: true,
         createdAt: true,
         transaction: { select: { id: true, propertyAddress: true } },
       },
@@ -249,19 +325,14 @@ export async function getHubRecentActivity(
   ]);
 
   const commTime = recentComm ? new Date(recentComm.createdAt).getTime() : 0;
-  const msTime = recentMilestone
-    ? new Date(recentMilestone.completedAt).getTime()
-    : 0;
+  const msTime = recentMilestone ? new Date(recentMilestone.completedAt).getTime() : 0;
 
   if (commTime === 0 && msTime === 0) return null;
 
   if (commTime >= msTime && recentComm) {
     return {
       kind: "comm",
-      description:
-        recentComm.type === "outbound"
-          ? "Email sent to party"
-          : "Update received from party",
+      description: commDescription(recentComm.type, recentComm.method, recentComm.content),
       context: recentComm.transaction.propertyAddress,
       transactionId: recentComm.transaction.id,
       at: recentComm.createdAt,
@@ -271,9 +342,7 @@ export async function getHubRecentActivity(
   if (recentMilestone) {
     return {
       kind: "milestone",
-      description:
-        recentMilestone.summaryText ??
-        recentMilestone.milestoneDefinition.name,
+      description: recentMilestone.summaryText ?? recentMilestone.milestoneDefinition.name,
       context: recentMilestone.transaction.propertyAddress,
       transactionId: recentMilestone.transaction.id,
       at: recentMilestone.completedAt,

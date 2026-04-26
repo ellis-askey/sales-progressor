@@ -23,6 +23,30 @@ export async function wakeupReminderAction(logId: string, pathname: string) {
   revalidatePath(pathname, "page");
 }
 
+export async function recordManualChaseAction(taskId: string, pathname: string) {
+  const session = await requireSession();
+  const task = await prisma.chaseTask.findFirst({
+    where: { id: taskId, transaction: { agencyId: session.user.agencyId } },
+    select: { id: true, chaseCount: true, transactionId: true },
+  });
+  if (!task) throw new Error("Task not found");
+  await prisma.chaseTask.update({
+    where: { id: taskId },
+    data: { chaseCount: task.chaseCount + 1 },
+  });
+  await prisma.communicationRecord.create({
+    data: {
+      transactionId: task.transactionId,
+      chaseTaskId: taskId,
+      createdById: session.user.id,
+      type: "outbound",
+      contactIds: [],
+      content: "Chased manually (recorded by agent)",
+    },
+  });
+  revalidatePath(pathname, "page");
+}
+
 export async function escalateTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
   const task = await prisma.chaseTask.findFirst({

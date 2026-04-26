@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle } from "@phosphor-icons/react";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
@@ -112,6 +112,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   function handleSnooze(taskId: string, hours: number) { act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue")); }
   function handleEscalate(taskId: string) { act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue")); }
   function handleWakeup(logId: string) { act(logId, () => wakeupReminderAction(logId, "/agent/work-queue")); }
+  function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
 
   function toggleCollapse(key: string) {
     setCollapsed((p) => ({ ...p, [key]: !p[key] }));
@@ -193,6 +194,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                     onComplete={handleComplete}
                     onSnooze={handleSnooze}
                     onEscalate={handleEscalate}
+                    onManualChase={handleManualChase}
                   />
                 ))}
               </div>
@@ -235,6 +237,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                     onSnooze={handleSnooze}
                     onEscalate={handleEscalate}
                     onWakeup={handleWakeup}
+                    onManualChase={handleManualChase}
                   />
                 ))}
               </div>

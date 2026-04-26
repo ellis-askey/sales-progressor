@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import {
-  getHubPipelineStats, getHubFlags, getHubMomentum,
+  getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity,
 } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -48,24 +48,24 @@ function timeAgo(date: Date): string {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const SEVERITY = {
-  overdue: {
+const URGENCY_STYLE = {
+  escalated: {
     border: "var(--agent-danger)",
     bg:     "rgba(199,62,62,0.05)",
     color:  "var(--agent-danger)",
-    label:  "Overdue",
+    label:  "Escalated",
   },
-  watch: {
+  overdue: {
     border: "var(--agent-warning)",
     bg:     "rgba(201,125,26,0.05)",
     color:  "var(--agent-warning)",
-    label:  "Watch",
+    label:  "Overdue",
   },
-  attention: {
+  due_today: {
     border: "var(--agent-coral)",
     bg:     "var(--agent-coral-bg-tint)",
     color:  "var(--agent-coral-deep)",
-    label:  "Attention",
+    label:  "Due today",
   },
 } as const;
 
@@ -96,10 +96,10 @@ export default async function HubPreviewPage() {
   const session = await requireSession();
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, flags, momentum, weeklyForecast, serviceSplit, recentActivity] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity] =
     await Promise.all([
       getHubPipelineStats(vis),
-      getHubFlags(vis),
+      getHubAttentionItems(vis),
       getHubMomentum(vis),
       getHubWeeklyForecast(vis),
       getHubServiceSplit(vis),
@@ -107,18 +107,17 @@ export default async function HubPreviewPage() {
     ]);
 
   // Derived values
-  const overdueCount   = flags.filter((f) => f.severity === "overdue").length;
-  const watchCount     = flags.filter((f) => f.severity === "watch").length;
-  const healthStatus   =
-    overdueCount > 0 ? "action" : watchCount > 0 ? "watch" : "on_track";
+  const escalatedCount = attentionItems.filter((i) => i.urgency === "escalated").length;
+  const overdueCount   = attentionItems.filter((i) => i.urgency === "overdue").length;
+  const healthStatus   = escalatedCount > 0 ? "action" : overdueCount > 0 ? "watch" : "on_track";
   const healthBadge    = HEALTH_BADGE[healthStatus];
-  const top5Flags      = flags.slice(0, 5);
+  const top5Items      = attentionItems.slice(0, 5);
   const next7Days      = weeklyForecast[0]?.count ?? 0;
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
   const updatedAt      = new Date();
   const greeting       = getGreeting(session.user.name ?? "there");
-  const isEmpty        = pipelineStats.activeFiles === 0 && flags.length === 0;
+  const isEmpty        = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (isEmpty) {
@@ -260,9 +259,9 @@ export default async function HubPreviewPage() {
                   color: "var(--agent-success)",
                 },
                 {
-                  value: flags.length.toLocaleString(),
+                  value: attentionItems.length.toLocaleString(),
                   label: "Need attention",
-                  color: overdueCount > 0 ? "var(--agent-danger)" : "var(--agent-warning)",
+                  color: escalatedCount > 0 ? "var(--agent-danger)" : attentionItems.length > 0 ? "var(--agent-warning)" : "var(--agent-text-primary)",
                 },
                 {
                   value: fmtCurrency(pipelineStats.pipelineValuePence),
@@ -335,22 +334,22 @@ export default async function HubPreviewPage() {
                 </p>
               </div>
             </div>
-            {flags.length > 0 && (
+            {attentionItems.length > 0 && (
               <Link
-                href="/agent/dashboard"
+                href="/agent/work-queue"
                 style={{
                   fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)",
                   textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
                 }}
               >
-                View all ({flags.length})
+                View all ({attentionItems.length})
                 <ArrowRight size={12} />
               </Link>
             )}
           </div>
 
-          {/* Flag rows */}
-          {top5Flags.length === 0 ? (
+          {/* Attention rows — driven by active reminder logs */}
+          {top5Items.length === 0 ? (
             <div style={{
               padding: "24px 20px", display: "flex", alignItems: "center", gap: 10,
             }}>
@@ -359,16 +358,16 @@ export default async function HubPreviewPage() {
                 background: "var(--agent-success)", flexShrink: 0,
               }} />
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                Nothing needs your attention right now. Pipeline is healthy.
+                No reminders due right now. All clear.
               </p>
             </div>
           ) : (
-            top5Flags.map((flag, i) => {
-              const s = SEVERITY[flag.severity];
+            top5Items.map((item, i) => {
+              const s = URGENCY_STYLE[item.urgency];
               return (
                 <Link
-                  key={flag.id}
-                  href={`/agent/transactions/${flag.transaction.id}`}
+                  key={item.id}
+                  href={`/agent/transactions/${item.transaction.id}`}
                   style={{
                     display: "flex", alignItems: "center",
                     justifyContent: "space-between",
@@ -386,17 +385,15 @@ export default async function HubPreviewPage() {
                       color: "var(--agent-text-primary)",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
-                      {flag.transaction.propertyAddress}
+                      {item.transaction.propertyAddress}
                     </p>
-                    {flag.reason && (
-                      <p style={{
-                        margin: "2px 0 0", fontSize: 11,
-                        color: "var(--agent-text-secondary)",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {flag.reason}
-                      </p>
-                    )}
+                    <p style={{
+                      margin: "2px 0 0", fontSize: 11,
+                      color: "var(--agent-text-secondary)",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {item.reminderName}
+                    </p>
                   </div>
                   <span style={{
                     fontSize: 11, fontWeight: 600, color: s.color, flexShrink: 0,

@@ -98,7 +98,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         Snooze
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-30 glass-card-strong min-w-[130px]">
+        <div className="absolute left-0 bottom-full mb-1 z-30 glass-card-strong min-w-[130px]">
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -114,12 +114,13 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   );
 }
 
-function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate }: {
+function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate, onManualChase }: {
   taskId: string;
   isEscalated: boolean;
   disabled: boolean;
   onComplete: (id: string) => void;
   onEscalate: (id: string) => void;
+  onManualChase?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -143,12 +144,20 @@ function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate }: {
         ⋯
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 glass-card-strong min-w-[140px]">
+        <div className="absolute right-0 bottom-full mb-1 z-30 glass-card-strong min-w-[160px]">
+          {onManualChase && (
+            <button
+              onClick={() => { onManualChase(taskId); setOpen(false); }}
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
+            >
+              Chased manually
+            </button>
+          )}
           <button
             onClick={() => { onComplete(taskId); setOpen(false); }}
             className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
           >
-            Mark done
+            Milestone confirmed ✓
           </button>
           {!isEscalated && (
             <button
@@ -176,6 +185,7 @@ interface ReminderCardProps {
   onSnooze: (taskId: string, hours: number) => void;
   onEscalate: (taskId: string) => void;
   onWakeup?: (logId: string) => void;
+  onManualChase?: (taskId: string) => void;
   mode?: "active" | "snoozed";
 }
 
@@ -191,6 +201,7 @@ export function ReminderCard({
   onSnooze,
   onEscalate,
   onWakeup,
+  onManualChase,
   mode = "active",
 }: ReminderCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -211,15 +222,14 @@ export function ReminderCard({
       : "";
 
   const chaseContacts = filterContactsForChase(contacts, log.reminderRule.targetMilestoneCode);
+  const contactName = chaseContacts[0]?.name ?? null;
   const lastComm = openTask?.communications?.[0] ?? null;
   const methodLabel = lastComm?.method === "whatsapp" ? "WhatsApp" : lastComm?.method ?? null;
 
   const hasMoreDetails = !!(log.sourceDateUsed || log.reminderRule.anchorMilestone || log.reminderRule.graceDays !== undefined);
 
-  const chaseSummary = openTask
-    ? openTask.chaseCount === 0
-      ? "Not yet chased"
-      : `${openTask.chaseCount} chase${openTask.chaseCount > 1 ? "s" : ""} sent${lastComm ? ` · last ${relativeShort(lastComm.createdAt)}${methodLabel ? ` via ${methodLabel}` : ""}` : ""}`
+  const chaseSummary = openTask && openTask.chaseCount > 0
+    ? `${openTask.chaseCount} chase${openTask.chaseCount > 1 ? "s" : ""} sent${lastComm ? ` · last ${relativeShort(lastComm.createdAt)}${methodLabel ? ` via ${methodLabel}` : ""}` : ""}`
     : "";
 
   // ── Snoozed mode ──────────────────────────────────────────────────────────
@@ -247,6 +257,7 @@ export function ReminderCard({
               {propertyAddress} →
             </Link>
           )}
+          {contactName && <p className="text-xs text-slate-900/40 mb-0.5">{contactName}</p>}
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
           {partyLabel && (
             <div className="flex items-center gap-2 mt-1.5">
@@ -293,78 +304,85 @@ export function ReminderCard({
       </div>
 
       {/* Body */}
-      <div className="px-5 py-3 space-y-1.5">
+      <div className="px-5 py-3">
         {showAddressLink && (
           <Link
             href={`/agent/transactions/${transactionId}`}
-            className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors block"
+            className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors block mb-2"
           >
             {propertyAddress} →
           </Link>
         )}
 
-        <div>
-          <p className={`text-sm font-semibold leading-snug ${isEscalated ? "text-red-700" : "text-slate-900/90"}`}>
-            {stripChase(log.reminderRule.name)}
-          </p>
-          {log.reminderRule.description && (
-            <p className="text-xs text-slate-900/50 mt-0.5">{log.reminderRule.description}</p>
-          )}
-          {partyLabel && (
-            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md mt-1 ${partyPillClass}`}>
-              Waiting on {partyLabel}
-            </span>
-          )}
-        </div>
-
-        {hasMoreDetails && (
-          <button
-            onClick={() => setExpanded((p) => !p)}
-            className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors"
-          >
-            {expanded ? "− Less" : "+ More"}
-          </button>
-        )}
-        {expanded && (
-          <div className="text-xs text-slate-900/50 space-y-0.5 pl-2 border-l-2 border-slate-200/60 py-0.5">
-            <p>
-              Triggered by:{" "}
-              <span className="font-medium">
-                {log.reminderRule.anchorMilestone?.name ?? "File creation"}
-              </span>
-              {log.sourceDateUsed ? ` on ${formatDate(log.sourceDateUsed)}` : ""}
+        <div className="flex items-start gap-3">
+          {/* Info column */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {contactName && (
+              <p className="text-xs text-slate-900/40">{contactName}</p>
+            )}
+            <p className={`text-sm font-semibold leading-snug ${isEscalated ? "text-red-700" : "text-slate-900/90"}`}>
+              {stripChase(log.reminderRule.name)}
             </p>
-            {log.reminderRule.graceDays !== undefined && (
-              <p>Grace period: {log.reminderRule.graceDays} days</p>
+            {log.reminderRule.description && (
+              <p className="text-xs text-slate-900/50">{log.reminderRule.description}</p>
+            )}
+            {partyLabel && (
+              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md ${partyPillClass}`}>
+                Waiting on {partyLabel}
+              </span>
+            )}
+            {hasMoreDetails && (
+              <button
+                onClick={() => setExpanded((p) => !p)}
+                className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors block"
+              >
+                {expanded ? "− Less" : "+ More"}
+              </button>
+            )}
+            {expanded && (
+              <div className="text-xs text-slate-900/50 space-y-0.5 pl-2 border-l-2 border-slate-200/60 py-0.5">
+                <p>
+                  Triggered by:{" "}
+                  <span className="font-medium">
+                    {log.reminderRule.anchorMilestone?.name ?? "File creation"}
+                  </span>
+                  {log.sourceDateUsed ? ` on ${formatDate(log.sourceDateUsed)}` : ""}
+                </p>
+                {log.reminderRule.graceDays !== undefined && (
+                  <p>Grace period: {log.reminderRule.graceDays} days</p>
+                )}
+              </div>
             )}
           </div>
-        )}
 
-        {openTask && (
-          <div className="flex items-center gap-2 flex-wrap pt-0.5">
-            <ChaseButton
-              chaseTaskId={openTask.id}
-              transactionId={transactionId}
-              propertyAddress={propertyAddress}
-              milestoneName={stripChase(log.reminderRule.name)}
-              chaseCount={openTask.chaseCount}
-              contacts={chaseContacts}
-              onSent={() => onComplete(openTask.id)}
-            />
-            <SnoozeDropdown
-              taskId={openTask.id}
-              onSnooze={onSnooze}
-              disabled={isLoading === openTask.id || isPending}
-            />
-            <KebabMenu
-              taskId={openTask.id}
-              isEscalated={isEscalated}
-              disabled={isLoading === openTask.id || isPending}
-              onComplete={onComplete}
-              onEscalate={onEscalate}
-            />
-          </div>
-        )}
+          {/* Actions column */}
+          {openTask && (
+            <div className="shrink-0 flex items-center gap-1.5">
+              <ChaseButton
+                chaseTaskId={openTask.id}
+                transactionId={transactionId}
+                propertyAddress={propertyAddress}
+                milestoneName={stripChase(log.reminderRule.name)}
+                chaseCount={openTask.chaseCount}
+                contacts={chaseContacts}
+                onSent={() => onComplete(openTask.id)}
+              />
+              <SnoozeDropdown
+                taskId={openTask.id}
+                onSnooze={onSnooze}
+                disabled={isLoading === openTask.id || isPending}
+              />
+              <KebabMenu
+                taskId={openTask.id}
+                isEscalated={isEscalated}
+                disabled={isLoading === openTask.id || isPending}
+                onComplete={onComplete}
+                onEscalate={onEscalate}
+                onManualChase={onManualChase}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
