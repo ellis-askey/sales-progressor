@@ -41,6 +41,8 @@ export async function getMilestonesForTransaction(
   const completionMap = new Map<string, MilestoneCompletion>();
   completions.forEach((c) => completionMap.set(c.milestoneDefinitionId, c));
 
+  const codeToId = new Map(definitions.map((d) => [d.code, d.id]));
+
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");
 
@@ -50,16 +52,19 @@ export async function getMilestonesForTransaction(
       const isComplete = !!completion && !completion.isNotRequired;
       const isNotRequired = !!completion?.isNotRequired;
 
-      // Only exchange gate milestones are hard-locked until their blocking predecessors are done.
-      // All other milestones are available — the implied predecessors modal handles UX guidance.
-      let isAvailable = true;
-      if (def.isExchangeGate) {
-        const priorBlockers = defs.filter((d) => d.blocksExchange && d.orderIndex < def.orderIndex);
-        isAvailable = priorBlockers.every((d) => {
-          const c = completionMap.get(d.id);
-          return c && c.isActive;
+      // Apply the same prerequisite graph used by the client portal.
+      // A milestone is available when all its direct prerequisites are confirmed (and not N/R).
+      // Already-complete or N/R milestones short-circuit so their rows render correctly.
+      const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
+      const isAvailable =
+        isComplete ||
+        isNotRequired ||
+        prereqCodes.every((code) => {
+          const id = codeToId.get(code);
+          if (!id) return true;
+          const c = completionMap.get(id);
+          return c !== undefined && !c.isNotRequired;
         });
-      }
 
       return { ...def, activeCompletion: completion, isComplete, isNotRequired, isAvailable };
     });
@@ -248,6 +253,26 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
 
   if (def.timeSensitive && !input.eventDate) {
     throw new Error("event_date is required for time-sensitive milestones");
+  }
+
+  // Server-side prerequisite guard — mirrors portal validation
+  const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
+  if (prereqCodes.length > 0) {
+    const prereqDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: prereqCodes } },
+      select: { id: true },
+    });
+    const satisfied = await prisma.milestoneCompletion.count({
+      where: {
+        transactionId: input.transactionId,
+        milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
+        isActive: true,
+        isNotRequired: false,
+      },
+    });
+    if (satisfied < prereqDefs.length) {
+      throw new Error("Prerequisites not complete — confirm earlier milestones first");
+    }
   }
 
   // Generate summary text
