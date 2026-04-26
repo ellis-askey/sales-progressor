@@ -19,10 +19,6 @@ const MIME_MAP: Record<string, string> = {
 export async function POST(req: NextRequest) {
   try {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
 
   const body = await req.json();
   const {
@@ -94,6 +90,10 @@ export async function POST(req: NextRequest) {
     if (screenshotBase64.length > 6_800_000) {
       return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
     }
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
     const buffer = Buffer.from(screenshotBase64, "base64");
     const path   = `${Date.now()}-${Math.random().toString(36).slice(2)}-${screenshotFilename}`;
     const { error: upErr } = await supabase.storage
