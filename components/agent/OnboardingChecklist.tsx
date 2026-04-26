@@ -14,7 +14,7 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { label: "Add your first sale",             href: "/agent/quick-add" },
+  { label: "Add your first sale",             href: "/agent/transactions/new" },
   { label: "Add client contact details",       href: "/agent/dashboard", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/dashboard" },
   { label: "Share the portal with a client",   href: "/agent/comms" },
   { label: "Verify your email address",        href: "/agent/settings" },

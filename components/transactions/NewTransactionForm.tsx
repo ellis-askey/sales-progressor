@@ -605,7 +605,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
       });
       const dest = result.mosAutoConfirmed
         ? `${redirectBase}/${result.id}?mosConfirmed=1`
-        : `${redirectBase}/${result.id}`;
+        : `${redirectBase}/${result.id}?newFile=1`;
       router.push(dest);
     });
   }

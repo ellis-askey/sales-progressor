@@ -90,8 +90,8 @@ export async function createTransactionAction(input: {
     mosAutoConfirmed = true;
   }
 
-  // Await reminder evaluation so reminders are present when the user lands on the file
-  await evaluateTransactionReminders(tx.id).catch(console.error);
+  // Fire-and-forget: reminder evaluation runs async; client shows a toast when reminders appear
+  evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
@@ -390,7 +390,7 @@ export async function saveDraftAction(data: {
         purchasePrice: data.purchasePrice ?? null,
       },
     });
-    revalidatePath("/agent/quick-add");
+    revalidatePath("/agent/transactions/new");
     return { id: data.draftId };
   }
 

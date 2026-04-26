@@ -151,7 +151,7 @@ export default async function AgentDashboard({
                   description="Add your first sale and we'll track it through to completion."
                   icon={<HouseLine size={20} className="text-blue-400" />}
                   action={
-                    <Link href="/agent/quick-add" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+                    <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
                       <Plus size={14} weight="bold" />
                       Add a sale
                     </Link>

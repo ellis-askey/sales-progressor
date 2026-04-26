@@ -30,6 +30,7 @@ import { ChainWidget } from "@/components/chain/ChainWidget";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
+import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 
@@ -217,6 +218,7 @@ export default async function AgentTransactionDetailPage({
   return (
     <div className="glass-page agent-page">
       <Suspense><MosConfirmedNotice /></Suspense>
+      <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
