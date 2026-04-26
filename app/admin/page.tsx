@@ -36,14 +36,31 @@ export default async function AdminPage() {
     }),
     prisma.reminderRule.findMany({
       where: { isActive: true },
-      orderBy: { name: "asc" },
-      include: { anchorMilestone: { select: { name: true, code: true } } },
+      include: { anchorMilestone: { select: { name: true, code: true, side: true, orderIndex: true } } },
     }),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
   ]);
 
   const vendorDefs = milestoneDefs.filter((d) => d.side === "vendor");
   const purchaserDefs = milestoneDefs.filter((d) => d.side === "purchaser");
+
+  // Sort reminder rules to mirror milestone progression order
+  const sortedRules = [...reminderRules].sort((a, b) => {
+    const aNull = !a.anchorMilestone;
+    const bNull = !b.anchorMilestone;
+    if (aNull && bNull) return a.name.localeCompare(b.name);
+    if (aNull) return -1;
+    if (bNull) return 1;
+    const sideOrder = { vendor: 0, purchaser: 1 } as Record<string, number>;
+    const aSide = sideOrder[a.anchorMilestone!.side] ?? 0;
+    const bSide = sideOrder[b.anchorMilestone!.side] ?? 0;
+    if (aSide !== bSide) return aSide - bSide;
+    return a.anchorMilestone!.orderIndex - b.anchorMilestone!.orderIndex;
+  });
+
+  const fileCreationRules = sortedRules.filter((r) => !r.anchorMilestone);
+  const vendorRules       = sortedRules.filter((r) => r.anchorMilestone?.side === "vendor");
+  const purchaserRules    = sortedRules.filter((r) => r.anchorMilestone?.side === "purchaser");
 
   return (
     <AppShell session={session} activePath="/admin" todoCount={todoCount}>
@@ -112,40 +129,64 @@ export default async function AdminPage() {
         {/* Reminder rules */}
         <section>
           <h2 className="text-xs font-semibold text-white/60 uppercase tracking-wide mb-1">Reminder Rules</h2>
-          <p className="text-xs text-white/45 mb-4">Read-only. {reminderRules.length} active rules.</p>
-          <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/20 bg-white/10">
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Rule name</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Anchor</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Target code</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Grace days</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Repeat every</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Escalate after</th>
-                  <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Exch. gated</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/15">
-                {reminderRules.map((r) => (
-                  <tr key={r.id} className={r.requiresExchangeReady ? "bg-emerald-50/20" : ""}>
-                    <td className="px-4 py-2.5 text-slate-900/80">{r.name}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-900/50">
-                      {r.anchorMilestone ? (
-                        <span title={r.anchorMilestone.name}>{r.anchorMilestone.code}</span>
-                      ) : (
-                        <span className="text-slate-900/30 italic">File creation</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-900/50">{r.targetMilestoneCode ?? <span className="text-slate-900/30">—</span>}</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.graceDays}d</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.repeatEveryDays}d</td>
-                    <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.escalateAfterChases} chases</td>
-                    <td className="px-3 py-2.5 text-center">{r.requiresExchangeReady ? <Flag color="green" /> : <Dash />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="text-xs text-white/45 mb-4">
+            Read-only. {reminderRules.length} active rules — ordered by milestone progression.
+            Anchor = what must complete to start the reminder. Target = what stops it.
+          </p>
+
+          <div className="space-y-6">
+            {[
+              { label: "Active from file creation", sublabel: "No anchor — triggers immediately on new files", rules: fileCreationRules },
+              { label: "Vendor-side triggers",      sublabel: "Unlocked after the anchor vendor milestone completes", rules: vendorRules },
+              { label: "Purchaser-side triggers",   sublabel: "Unlocked after the anchor purchaser milestone completes", rules: purchaserRules },
+            ].filter(g => g.rules.length > 0).map(({ label, sublabel, rules }) => (
+              <div key={label}>
+                <p className="text-sm font-medium text-slate-900/60 mb-0.5">{label}</p>
+                <p className="text-xs text-white/40 mb-2">{sublabel}</p>
+                <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/20 bg-white/10">
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Rule name</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Anchor (unlocks reminder)</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Target (stops reminder)</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Grace</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Repeat</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Escalate</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Exch. gated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/15">
+                      {rules.map((r) => (
+                        <tr key={r.id} className={r.requiresExchangeReady ? "bg-emerald-50/20" : ""}>
+                          <td className="px-4 py-2.5 text-slate-900/80">{r.name}</td>
+                          <td className="px-4 py-2.5">
+                            {r.anchorMilestone ? (
+                              <div>
+                                <span className="text-xs font-mono font-semibold text-slate-900/60">{r.anchorMilestone.code}</span>
+                                <p className="text-xs text-slate-900/40 mt-0.5 leading-tight">{r.anchorMilestone.name}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-900/30 italic">File creation</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs">
+                            {r.targetMilestoneCode
+                              ? <span className="font-mono font-semibold text-slate-900/60">{r.targetMilestoneCode}</span>
+                              : <span className="text-slate-900/30">—</span>
+                            }
+                          </td>
+                          <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.graceDays}d</td>
+                          <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.repeatEveryDays}d</td>
+                          <td className="px-3 py-2.5 text-center text-xs text-slate-900/60">{r.escalateAfterChases} chases</td>
+                          <td className="px-3 py-2.5 text-center">{r.requiresExchangeReady ? <Flag color="green" /> : <Dash />}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
