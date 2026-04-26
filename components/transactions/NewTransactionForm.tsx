@@ -272,7 +272,14 @@ type DraftEntry = {
   propertyAddress: string;
   tenure: string | null;
   purchaseType: string | null;
+  purchasePrice: number | null;
   createdAt: string;
+  vendorName: string | null;
+  vendorPhone: string | null;
+  vendorEmail: string | null;
+  purchaserName: string | null;
+  purchaserPhone: string | null;
+  purchaserEmail: string | null;
 };
 
 function relativeTime(iso: string): string {
@@ -286,46 +293,71 @@ function relativeTime(iso: string): string {
   return days === 1 ? "yesterday" : `${days}d ago`;
 }
 
-function DraftCard({ drafts, onDiscard }: { drafts: DraftEntry[]; onDiscard: (id: string) => void }) {
+function parseDraftAddress(address: string): { streetAddress: string; city: string; postcode: string } {
+  const parts = address.split(", ");
+  const postcodeRegex = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s[0-9][A-Z]{2}$/;
+  const remaining = [...parts];
+  let postcode = "";
+  let city = "";
+  if (remaining.length > 0 && postcodeRegex.test(remaining[remaining.length - 1])) {
+    postcode = remaining.pop()!;
+  }
+  if (remaining.length > 1) {
+    city = remaining.pop()!;
+  }
+  return { streetAddress: remaining.join(", "), city, postcode };
+}
+
+function DraftFloatingPanel({
+  drafts,
+  onLoad,
+  onDiscard,
+}: {
+  drafts: DraftEntry[];
+  onLoad: (draft: DraftEntry) => void;
+  onDiscard: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
   if (drafts.length === 0) return null;
   return (
-    <div className="glass-card p-6">
-      <div className="flex items-start justify-between mb-1">
-        <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">Saved Drafts</h2>
-        <span className="text-xs bg-amber-50 text-amber-600 border border-amber-100 rounded-full px-2 py-0.5 font-medium">{drafts.length}</span>
-      </div>
-      <p className="text-xs text-slate-900/30 mb-4">These are separate from the form above — open any to continue from the file page</p>
-      <div className="divide-y divide-white/15">
-        {drafts.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-3 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-900/80 truncate">{d.propertyAddress}</p>
-              <p className="text-xs text-slate-900/40 mt-0.5">
-                {d.tenure ? titleCase(d.tenure) : "—"}
-                {" · "}
-                {d.purchaseType ? titleCase(d.purchaseType.replace(/_/g, " ")) : "—"}
-                {" · "}
-                {relativeTime(d.createdAt)}
-              </p>
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 40 }}>
+      {expanded ? (
+        <div style={{ width: 320, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.7)", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", padding: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Saved Drafts</span>
+              <span style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", borderRadius: 9999, padding: "1px 7px", fontWeight: 700 }}>{drafts.length}</span>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <a
-                href={`/agent/transactions/${d.id}`}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
-              >
-                Open →
-              </a>
-              <button
-                type="button"
-                onClick={() => onDiscard(d.id)}
-                className="text-xs text-slate-900/30 hover:text-red-400 transition-colors"
-              >
-                Discard
-              </button>
-            </div>
+            <button type="button" onClick={() => setExpanded(false)} style={{ color: "rgba(15,23,42,0.3)", lineHeight: 1, background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>✕</button>
           </div>
-        ))}
-      </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {drafts.map((d) => (
+              <div key={d.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 10px", background: "rgba(248,250,252,0.8)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.5)" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: "rgba(15,23,42,0.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{d.propertyAddress}</p>
+                  <p style={{ fontSize: 11, color: "rgba(15,23,42,0.35)", marginTop: 2, marginBottom: 0 }}>{relativeTime(d.createdAt)}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <button type="button" onClick={() => { onLoad(d); setExpanded(false); }} style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Edit</button>
+                  <button type="button" onClick={() => onDiscard(d.id)} style={{ fontSize: 13, color: "rgba(15,23,42,0.25)", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1 }}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.7)", boxShadow: "0 4px 20px rgba(0,0,0,0.14)", padding: "10px 16px", cursor: "pointer" }}
+        >
+          <span style={{ width: 20, height: 20, background: "#f59e0b", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg style={{ width: 11, height: 11, color: "white" }} fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.65)" }}>{drafts.length} saved draft{drafts.length > 1 ? "s" : ""}</span>
+          <svg style={{ width: 13, height: 13, color: "rgba(15,23,42,0.3)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -367,6 +399,9 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
   const [priceWarning, setPriceWarning] = useState("");
   const [draftSaving, setDraftSaving] = useState(false);
   const [localDrafts, setLocalDrafts] = useState<DraftEntry[]>(initialDrafts);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [showNavModal, setShowNavModal] = useState(false);
+  const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
 
   // Memo of sale state
   const [memoStatus, setMemoStatus] = useState<MemoStatus>("idle");
@@ -613,6 +648,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     setPurchaserIsReferral(false);
     setAgentFeeAmount(null);
     setAgentFeePercentStr("");
+    setCurrentDraftId(null);
     dismissMemo();
   }
 
@@ -622,6 +658,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     try {
       const address = [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ");
       const result = await saveDraftAction({
+        draftId: currentDraftId ?? undefined,
         propertyAddress: address || "Untitled draft",
         tenure: (form.tenure as Tenure) || null,
         purchaseType: (form.purchaseType as PurchaseType) || null,
@@ -634,16 +671,25 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         purchaserEmail: purchasers[0]?.email.trim() || undefined,
         progressedBy,
       });
-      setLocalDrafts((prev) => [
-        {
-          id: result.id,
-          propertyAddress: address || "Untitled draft",
-          tenure: form.tenure || null,
-          purchaseType: form.purchaseType || null,
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
+      const savedDraft: DraftEntry = {
+        id: result.id,
+        propertyAddress: address || "Untitled draft",
+        tenure: form.tenure || null,
+        purchaseType: form.purchaseType || null,
+        purchasePrice: form.purchasePrice,
+        createdAt: new Date().toISOString(),
+        vendorName: vendors[0]?.name.trim() || null,
+        vendorPhone: vendors[0]?.phone.trim() || null,
+        vendorEmail: vendors[0]?.email.trim() || null,
+        purchaserName: purchasers[0]?.name.trim() || null,
+        purchaserPhone: purchasers[0]?.phone.trim() || null,
+        purchaserEmail: purchasers[0]?.email.trim() || null,
+      };
+      if (currentDraftId) {
+        setLocalDrafts((prev) => prev.map((d) => d.id === currentDraftId ? savedDraft : d));
+      } else {
+        setLocalDrafts((prev) => [savedDraft, ...prev]);
+      }
       resetForm();
     } finally {
       setDraftSaving(false);
@@ -653,6 +699,47 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
   async function handleDiscardDraft(draftId: string) {
     await discardDraftAction(draftId);
     setLocalDrafts((prev) => prev.filter((d) => d.id !== draftId));
+    if (currentDraftId === draftId) setCurrentDraftId(null);
+  }
+
+  function handleLoadDraft(draft: DraftEntry) {
+    const parsed = parseDraftAddress(draft.propertyAddress);
+    setForm({
+      streetAddress: parsed.streetAddress,
+      city: parsed.city,
+      postcode: parsed.postcode,
+      purchasePrice: draft.purchasePrice ?? null,
+      tenure: (draft.tenure as Tenure) ?? "",
+      purchaseType: (draft.purchaseType as PurchaseType) ?? "",
+      notes: "",
+    });
+    setVendors(draft.vendorName ? [{ name: draft.vendorName, phone: draft.vendorPhone ?? "", email: draft.vendorEmail ?? "" }] : [emptyContact()]);
+    setPurchasers(draft.purchaserName ? [{ name: draft.purchaserName, phone: draft.purchaserPhone ?? "", email: draft.purchaserEmail ?? "" }] : [emptyContact()]);
+    setVendorSolicitor(null);
+    setPurchaserSolicitor(null);
+    setCurrentDraftId(draft.id);
+    setLocalDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleNavSaveDraft() {
+    setShowNavModal(false);
+    const href = pendingNavHref;
+    setPendingNavHref(null);
+    await handleSaveDraft();
+    if (href) router.push(href);
+  }
+
+  function handleNavLeave() {
+    setShowNavModal(false);
+    const href = pendingNavHref;
+    setPendingNavHref(null);
+    if (href) router.push(href);
+  }
+
+  function handleNavStay() {
+    setShowNavModal(false);
+    setPendingNavHref(null);
   }
 
   function updateContact(list: ContactEntry[], setList: (v: ContactEntry[]) => void, index: number, field: keyof ContactEntry, value: string) {
@@ -757,35 +844,68 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
 
   useEffect(() => {
     if (!hasData) return;
-    function handler(e: BeforeUnloadEvent) {
+    function unloadHandler(e: BeforeUnloadEvent) {
       e.preventDefault();
       e.returnValue = "";
     }
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener("beforeunload", unloadHandler);
+    return () => window.removeEventListener("beforeunload", unloadHandler);
+  }, [hasData]);
+
+  useEffect(() => {
+    if (!hasData) return;
+    function clickHandler(e: MouseEvent) {
+      const anchor = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || !href.startsWith("/")) return;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.pathname === window.location.pathname) return;
+      } catch { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingNavHref(href);
+      setShowNavModal(true);
+    }
+    document.addEventListener("click", clickHandler, true);
+    return () => document.removeEventListener("click", clickHandler, true);
   }, [hasData]);
 
   return (
     <>
       {showOverlay && <CreatingOverlay address={overlayAddress} />}
 
-      <form onSubmit={submit}>
-        {hasData && (
-          <div className="flex items-center justify-between bg-amber-50/70 border border-amber-200/60 rounded-xl px-4 py-3 mb-5">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-              <p className="text-xs font-medium text-amber-700">You have unsaved changes — save as a draft to come back later</p>
+      {showNavModal && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,23,42,0.6)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "overlayFadeIn 0.18s ease-out both" }}
+          onClick={handleNavStay}
+        >
+          <div
+            style={{ background: "rgba(255,255,255,0.98)", borderRadius: 24, padding: "32px 28px", maxWidth: 380, width: "100%", margin: "0 16px", boxShadow: "0 24px 64px rgba(0,0,0,0.28)", animation: "cardSlideUp 0.28s cubic-bezier(0.34,1.56,0.64,1) both", textAlign: "center" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: 52, height: 52, background: "linear-gradient(135deg, #f59e0b, #d97706)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg style={{ width: 24, height: 24 }} fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             </div>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={draftSaving}
-              className="text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors disabled:opacity-50 whitespace-nowrap ml-4"
-            >
-              {draftSaving ? "Saving…" : "Save as draft →"}
-            </button>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "rgba(15,23,42,0.85)", marginBottom: 8, marginTop: 0 }}>Save your progress?</h2>
+            <p style={{ fontSize: 14, color: "rgba(15,23,42,0.5)", marginBottom: 24, lineHeight: 1.6 }}>You&apos;ve started filling in transaction details. Save as a draft to pick up where you left off.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button type="button" onClick={handleNavSaveDraft} disabled={draftSaving} style={{ padding: "11px 16px", background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer", opacity: draftSaving ? 0.6 : 1 }}>
+                {draftSaving ? "Saving…" : "Save as draft"}
+              </button>
+              <button type="button" onClick={handleNavLeave} style={{ padding: "11px 16px", background: "transparent", color: "rgba(15,23,42,0.5)", borderRadius: 12, fontWeight: 500, fontSize: 14, border: "1px solid rgba(15,23,42,0.12)", cursor: "pointer" }}>
+                Leave without saving
+              </button>
+              <button type="button" onClick={handleNavStay} style={{ padding: "8px 16px", background: "transparent", color: "rgba(15,23,42,0.3)", fontSize: 13, border: "none", cursor: "pointer" }}>
+                Stay on this page
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <form onSubmit={submit}>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
@@ -1056,6 +1176,16 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     : "Address, tenure and purchase type are required"}
                 </p>
               )}
+              {hasData && (
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={draftSaving}
+                  style={{ marginTop: 12, display: "block", fontSize: 12, color: "rgba(15,23,42,0.3)", background: "none", border: "none", cursor: "pointer", padding: "2px 0" }}
+                >
+                  {draftSaving ? "Saving…" : currentDraftId ? "↑ Update draft" : "↓ Save as draft"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1162,12 +1292,11 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
               </div>
             </div>
 
-            {/* Drafts card */}
-            <DraftCard drafts={localDrafts} onDiscard={handleDiscardDraft} />
-
           </div>
         </div>
       </form>
+
+      <DraftFloatingPanel drafts={localDrafts} onLoad={handleLoadDraft} onDiscard={handleDiscardDraft} />
     </>
   );
 }
