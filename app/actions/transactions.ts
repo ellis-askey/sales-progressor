@@ -299,6 +299,8 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   vendorSolicitorContactId?: string | null;
   purchaserSolicitorFirmId?: string | null;
   purchaserSolicitorContactId?: string | null;
+  referredFirmId?: string | null;
+  referralFee?: number | null;
 }) {
   const session = await requireSession();
   const tx = await prisma.propertyTransaction.findFirst({
@@ -307,7 +309,14 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   });
   if (!tx) throw new Error("Transaction not found");
 
-  await prisma.propertyTransaction.update({ where: { id: transactionId }, data: patch });
+  const { referredFirmId, referralFee, ...solicitorPatch } = patch;
+  const data: Record<string, unknown> = { ...solicitorPatch };
+  if (referredFirmId !== undefined) {
+    data.referredFirmId = referredFirmId;
+    data.referralFee = referralFee ?? null;
+  }
+
+  await prisma.propertyTransaction.update({ where: { id: transactionId }, data });
 
   await logActivity(transactionId, `${session.user.name} updated solicitor details`, session.user.id);
 

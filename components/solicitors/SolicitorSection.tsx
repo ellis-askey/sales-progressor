@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Phone, EnvelopeSimple, Buildings } from "@phosphor-icons/react";
+import { PriceInput } from "@/components/ui/PriceInput";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -19,10 +20,21 @@ type SolicitorInfo = {
   contact: { id: string; name: string; phone: string | null; email: string | null } | null;
 };
 
+type RecommendedFirm = {
+  id: string;
+  name: string;
+  defaultReferralFeePence: number | null;
+};
+
+type ReferralData = { firmId: string; fee: number | null } | null;
+
 type Props = {
   transactionId: string;
   vendor: SolicitorInfo;
   purchaser: SolicitorInfo;
+  recommendedFirms?: RecommendedFirm[];
+  referredFirmId?: string | null;
+  referralFee?: number | null;
 };
 
 function toSelection(info: SolicitorInfo): SolicitorSelection | null {
@@ -86,15 +98,46 @@ function SolicitorCard({
   label,
   info,
   editLabel,
+  recommendedFirms,
   onChange,
 }: {
   label: string;
   info: SolicitorInfo;
   editLabel: string;
-  onChange: (v: SolicitorSelection | null) => void;
+  recommendedFirms?: RecommendedFirm[];
+  onChange: (v: SolicitorSelection | null, referral: ReferralData) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<SolicitorSelection | null>(toSelection(info));
+  const [referralFeeDraft, setReferralFeeDraft] = useState<number | null>(null);
+
+  const selectedRecommended = draft?.firmId
+    ? (recommendedFirms ?? []).find((f) => f.id === draft.firmId) ?? null
+    : null;
+
+  function handlePickerChange(sel: SolicitorSelection | null) {
+    setDraft(sel);
+    if (sel?.firmId) {
+      const rec = (recommendedFirms ?? []).find((f) => f.id === sel.firmId);
+      setReferralFeeDraft(rec?.defaultReferralFeePence ?? null);
+    } else {
+      setReferralFeeDraft(null);
+    }
+  }
+
+  function handleSave() {
+    const referral: ReferralData = selectedRecommended
+      ? { firmId: selectedRecommended.id, fee: referralFeeDraft }
+      : null;
+    onChange(draft, referral);
+    setEditing(false);
+  }
+
+  function handleCancel() {
+    setDraft(toSelection(info));
+    setReferralFeeDraft(null);
+    setEditing(false);
+  }
 
   if (editing) {
     return (
@@ -102,13 +145,26 @@ function SolicitorCard({
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</p>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => { onChange(draft); setEditing(false); }}
+            <button type="button" onClick={handleSave}
               className="text-xs text-blue-500 hover:text-blue-600 font-medium">Save</button>
-            <button type="button" onClick={() => { setDraft(toSelection(info)); setEditing(false); }}
+            <button type="button" onClick={handleCancel}
               className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
           </div>
         </div>
-        <SolicitorPicker label={editLabel} value={draft} onChange={setDraft} />
+        <SolicitorPicker label={editLabel} value={draft} onChange={handlePickerChange} />
+        {selectedRecommended && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1.5">
+              Referral fee
+            </label>
+            <PriceInput
+              value={referralFeeDraft}
+              onChange={setReferralFeeDraft}
+              variant="referral"
+              placeholder="0"
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -166,7 +222,7 @@ function SolicitorCard({
   );
 }
 
-export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
+export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee }: Props) {
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
@@ -181,17 +237,19 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
     });
   }
 
-  function handleVendorChange(sel: SolicitorSelection | null) {
+  function handleVendorChange(sel: SolicitorSelection | null, referral: ReferralData) {
     save({
       vendorSolicitorFirmId: sel?.firmId ?? null,
       vendorSolicitorContactId: sel?.contactId ?? null,
+      ...(referral ? { referredFirmId: referral.firmId, referralFee: referral.fee } : {}),
     });
   }
 
-  function handlePurchaserChange(sel: SolicitorSelection | null) {
+  function handlePurchaserChange(sel: SolicitorSelection | null, referral: ReferralData) {
     save({
       purchaserSolicitorFirmId: sel?.firmId ?? null,
       purchaserSolicitorContactId: sel?.contactId ?? null,
+      ...(referral ? { referredFirmId: referral.firmId, referralFee: referral.fee } : {}),
     });
   }
 
@@ -207,6 +265,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
             label="Vendor solicitor"
             editLabel="Vendor solicitor firm"
             info={vendor}
+            recommendedFirms={recommendedFirms}
             onChange={handleVendorChange}
           />
         </div>
@@ -215,9 +274,17 @@ export function SolicitorSection({ transactionId, vendor, purchaser }: Props) {
             label="Purchaser solicitor"
             editLabel="Purchaser solicitor firm"
             info={purchaser}
+            recommendedFirms={recommendedFirms}
             onChange={handlePurchaserChange}
           />
         </div>
+        {referredFirmId && referralFee != null && (
+          <div className="px-5 py-3">
+            <p className="text-xs text-slate-900/40">
+              Referral fee: <span className="font-medium text-slate-900/70">£{(referralFee / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -272,6 +272,8 @@ export default async function TransactionDetailPage({
                 firm: transaction.purchaserSolicitorFirm ?? null,
                 contact: transaction.purchaserSolicitorContact ?? null,
               }}
+              referredFirmId={transaction.referredFirmId ?? null}
+              referralFee={transaction.referralFee ?? null}
             />
           </div>
 
