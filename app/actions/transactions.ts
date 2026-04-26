@@ -90,8 +90,8 @@ export async function createTransactionAction(input: {
     mosAutoConfirmed = true;
   }
 
-  // Fire-and-forget: reminder evaluation runs async; client shows a toast when reminders appear
-  evaluateTransactionReminders(tx.id).catch(console.error);
+  // Run synchronously so chase tasks exist immediately when the agent lands on the file
+  await evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
