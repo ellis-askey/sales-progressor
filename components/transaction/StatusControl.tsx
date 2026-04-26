@@ -97,9 +97,9 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
 
         {open && dropdownPos && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
             <div
-              className="fixed z-20 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
+              className="fixed z-[101] bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
               style={{ top: dropdownPos.top, left: dropdownPos.left }}
             >
               {STATUSES.map(({ value, label }) => (
