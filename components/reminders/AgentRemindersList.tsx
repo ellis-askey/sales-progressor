@@ -55,13 +55,17 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 
 export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   // targetMilestoneCode drives the side filter — for internal classification only, never rendered
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"due" | "snoozed">("due");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Optimistic hide: log IDs removed from the list immediately on action, before server revalidates
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  // Track how many have been optimistically snoozed to update badge count before refresh
+  const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
 
   // Auto-run the reminder engine on mount so chase tasks exist for any due reminders
   useEffect(() => {
@@ -71,12 +75,31 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset optimistic state when server data refreshes
+  useEffect(() => {
+    setHiddenIds(new Set());
+    setOptimisticSnoozeAdd(0);
+  }, [logs]);
+
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   // Split snoozed vs active upfront — snoozed logs never enter the urgency grouping pipeline
-  const snoozedLogs = logs.filter((l) => l.snoozedUntil && new Date(l.snoozedUntil) > now);
-  const nonSnoozedLogs = logs.filter((l) => !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
+  const snoozedLogs = logs.filter((l) => !hiddenIds.has(l.id) && l.snoozedUntil && new Date(l.snoozedUntil) > now);
+  const nonSnoozedLogs = logs.filter((l) => !hiddenIds.has(l.id) && !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
+
+  // taskId → logId lookup for optimistic hide
+  const taskToLogId = new Map<string, string>();
+  for (const log of logs) {
+    for (const task of log.chaseTasks) {
+      taskToLogId.set(task.id, log.id);
+    }
+  }
+
+  function hideByTaskId(taskId: string) {
+    const logId = taskToLogId.get(taskId);
+    if (logId) setHiddenIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+  }
 
   const q = search.toLowerCase().trim();
 
@@ -108,10 +131,21 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
     });
   }
 
-  function handleComplete(taskId: string) { act(taskId, () => completeTaskAction(taskId, "/agent/work-queue")); }
-  function handleSnooze(taskId: string, hours: number) { act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue")); }
+  // Optimistically hide the card, then run the action
+  function handleComplete(taskId: string) {
+    hideByTaskId(taskId);
+    act(taskId, () => completeTaskAction(taskId, "/agent/work-queue"));
+  }
+  function handleSnooze(taskId: string, hours: number) {
+    hideByTaskId(taskId);
+    setOptimisticSnoozeAdd((n) => n + 1);
+    act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue"));
+  }
   function handleEscalate(taskId: string) { act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue")); }
-  function handleWakeup(logId: string) { act(logId, () => wakeupReminderAction(logId, "/agent/work-queue")); }
+  function handleWakeup(logId: string) {
+    setHiddenIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+    act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
+  }
   function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
 
   function toggleCollapse(key: string) {
@@ -128,6 +162,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
     );
   }
 
+  const snoozedCount = snoozedLogs.length + optimisticSnoozeAdd;
   const hasActiveResults = filteredActive.length > 0;
 
   return (
@@ -152,7 +187,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           <div className="flex items-center gap-1">
             <FilterChip active={statusFilter === "due"}     onClick={() => setStatusFilter("due")}>Due</FilterChip>
             <FilterChip active={statusFilter === "snoozed"} onClick={() => setStatusFilter("snoozed")}>
-              Snoozed{snoozedLogs.length > 0 ? ` (${snoozedLogs.length})` : ""}
+              Snoozed{snoozedCount > 0 ? ` (${snoozedCount})` : ""}
             </FilterChip>
           </div>
         </div>
@@ -199,7 +234,6 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                     propertyAddress={log.transaction.propertyAddress}
                     showAddressLink
                     isLoading={loading}
-                    isPending={isPending}
                     onComplete={handleComplete}
                     onSnooze={handleSnooze}
                     onEscalate={handleEscalate}
@@ -230,7 +264,6 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                 showAddressLink
                 mode="snoozed"
                 isLoading={loading}
-                isPending={isPending}
                 onComplete={handleComplete}
                 onSnooze={handleSnooze}
                 onEscalate={handleEscalate}

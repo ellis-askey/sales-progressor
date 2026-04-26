@@ -98,7 +98,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         Snooze
       </button>
       {open && (
-        <div className="absolute left-0 bottom-full mb-1 z-30 glass-card-strong min-w-[130px]">
+        <div className="absolute left-0 bottom-full mb-1 z-30 min-w-[130px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -144,7 +144,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate, onMa
         ⋯
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 z-30 glass-card-strong min-w-[160px]">
+        <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[160px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {onManualChase && (
             <button
               onClick={() => { onManualChase(taskId); setOpen(false); }}
@@ -180,7 +180,7 @@ interface ReminderCardProps {
   propertyAddress: string;
   showAddressLink?: boolean;
   isLoading: string | null;
-  isPending: boolean;
+  isPending?: boolean;
   onComplete: (taskId: string) => void;
   onSnooze: (taskId: string, hours: number) => void;
   onEscalate: (taskId: string) => void;
@@ -196,7 +196,7 @@ export function ReminderCard({
   propertyAddress,
   showAddressLink = false,
   isLoading,
-  isPending,
+  isPending = false,
   onComplete,
   onSnooze,
   onEscalate,
