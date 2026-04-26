@@ -76,10 +76,8 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
             className="w-full px-4 py-3 text-sm text-slate-900/80 placeholder:text-slate-900/30 resize-none focus:outline-none border-b border-white/20 bg-transparent"
           />
           <div className="px-4 py-2.5 flex items-center justify-between">
-            {error ? (
+            {error && (
               <span className="text-xs text-red-500">{error}</span>
-            ) : (
-              <span className="text-xs text-slate-900/30">Shift+Enter for new line</span>
             )}
             <button
               type="submit"

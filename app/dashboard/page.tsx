@@ -36,6 +36,10 @@ export default async function DashboardPage({
     ? transactions
     : transactions.filter((t) => t.status === activeFilter);
 
+  const unassignedFiles = transactions.filter(
+    (t) => t.serviceType === "outsourced" && t.assignedUser === null && t.status === "active"
+  );
+
   return (
     <AppShell session={session} activePath="/dashboard" taskCount={taskCounts?.pending ?? 0} todoCount={todoCount}>
       <DashboardHero
@@ -47,6 +51,36 @@ export default async function DashboardPage({
       />
 
       <div className="px-8 py-7 space-y-7">
+
+        {/* ── Unassigned progressor files ───────────────────────────────── */}
+        {unassignedFiles.length > 0 && (
+          <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">
+                {unassignedFiles.length} file{unassignedFiles.length !== 1 ? "s" : ""} awaiting progressor assignment
+              </p>
+            </div>
+            <div className="space-y-2">
+              {unassignedFiles.map((t) => (
+                <div key={t.id} className="flex items-center justify-between gap-4 bg-white/60 rounded-xl px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900/80 truncate">{t.propertyAddress}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">
+                      {t.agentUser?.name ? `Submitted by ${t.agentUser.name}` : "Agent submission"}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/transactions/${t.id}`}
+                    className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors whitespace-nowrap"
+                  >
+                    Assign →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── First-session welcome card ── */}
         {transactions.length === 0 && <FirstSessionCard />}

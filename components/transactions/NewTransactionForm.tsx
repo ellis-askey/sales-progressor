@@ -320,7 +320,7 @@ function DraftFloatingPanel({
   const [expanded, setExpanded] = useState(false);
   if (drafts.length === 0) return null;
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 40 }}>
+    <div style={{ position: "fixed", bottom: 24, left: 24, zIndex: 40 }}>
       {expanded ? (
         <div style={{ width: 320, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.7)", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", padding: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -416,6 +416,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     vendor: null,
     purchaser: null,
   });
+  const [mosStoragePath, setMosStoragePath] = useState<string | null>(null);
+  const [mosFileSize, setMosFileSize] = useState<number | null>(null);
+  const [mosMimeType, setMosMimeType] = useState<string | null>(null);
+  const [mosFilename, setMosFilename] = useState<string | null>(null);
 
   useEffect(() => {
     if (!vendorSolicitor || !resolvedFirmIds.includes(vendorSolicitor.firmId)) setVendorIsReferral(false);
@@ -623,6 +627,12 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
       setMemoFields(newMemoFields);
       setMemoStatus("done");
       setMemoResult({ filled, missing, vendorSolicitorFirm: solHints.vendor, purchaserSolicitorFirm: solHints.purchaser });
+      if (data.mosStoragePath) {
+        setMosStoragePath(data.mosStoragePath);
+        setMosFileSize(data.mosFileSize ?? null);
+        setMosMimeType(data.mosMimeType ?? null);
+        setMosFilename(data.mosFilename ?? null);
+      }
     } catch {
       setMemoStatus("error");
       setMemoError("Couldn't connect — please try again");
@@ -636,6 +646,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     setMemoFields(new Set());
     setMemoSolicitorHints({ vendor: null, purchaser: null });
     setSolicitorFillStatus({ vendor: null, purchaser: null });
+    setMosStoragePath(null);
+    setMosFileSize(null);
+    setMosMimeType(null);
+    setMosFilename(null);
   }
 
   function resetForm() {
@@ -808,6 +822,10 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         referredFirmId,
         referralFee,
         mosUploaded: memoStatus === "done",
+        mosStoragePath: mosStoragePath ?? undefined,
+        mosFileSize: mosFileSize ?? undefined,
+        mosMimeType: mosMimeType ?? undefined,
+        mosFilename: mosFilename ?? undefined,
       });
       const dest = result.mosAutoConfirmed
         ? `${redirectBase}/${result.id}?mosConfirmed=1`

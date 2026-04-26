@@ -32,7 +32,7 @@ export default async function TodosPage() {
 
       {/* Content */}
       <div className="px-8 py-7 max-w-2xl">
-        <ManualTaskList initialTasks={tasks} showDone />
+        <ManualTaskList initialTasks={tasks} showDone showOwnership />
       </div>
     </AppShell>
   );

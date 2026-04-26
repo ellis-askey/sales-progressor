@@ -55,6 +55,18 @@ export default async function AgentTransactionDetailPage({
   const isDirectorRole = session.user.role === "director";
   if (!isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
+  // MOS document signed URL (if uploaded during file creation)
+  const mosDoc = await prisma.transactionDocument.findFirst({
+    where: { transactionId: id, source: "mos" },
+    select: { storagePath: true },
+    orderBy: { createdAt: "asc" },
+  }).catch(() => null);
+  let mosDocUrl: string | null = null;
+  if (mosDoc) {
+    const { getSignedUrl } = await import("@/lib/supabase-storage");
+    mosDocUrl = await getSignedUrl(mosDoc.storagePath, 86400).catch(() => null);
+  }
+
   const assignedUser = transaction.assignedUserId
     ? await prisma.user.findUnique({
         where: { id: transaction.assignedUserId },
@@ -357,7 +369,7 @@ export default async function AgentTransactionDetailPage({
           <EmailParseWidget transactionId={transaction.id} />
           <ComposeEmail transactionId={transaction.id} />
           <CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />
-          <ActivityTimeline entries={activityEntries} transactionId={transaction.id} />
+          <ActivityTimeline entries={activityEntries} transactionId={transaction.id} mosDocUrl={mosDocUrl} />
         </div>
       </PropertyFileTabs>
     </div>

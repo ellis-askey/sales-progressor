@@ -59,6 +59,18 @@ export default async function TransactionDetailPage({
 
   const portalViewDates = await getPortalViewDates(id).catch(() => ({}));
 
+  // MOS document signed URL (if uploaded during file creation)
+  const mosDoc = await prisma.transactionDocument.findFirst({
+    where: { transactionId: id, source: "mos" },
+    select: { storagePath: true },
+    orderBy: { createdAt: "asc" },
+  }).catch(() => null);
+  let mosDocUrl: string | null = null;
+  if (mosDoc) {
+    const { getSignedUrl } = await import("@/lib/supabase-storage");
+    mosDocUrl = await getSignedUrl(mosDoc.storagePath, 86400).catch(() => null);
+  }
+
 
   // Assigned user fee info
   const assignedUser = transaction.assignedUserId
@@ -365,7 +377,7 @@ export default async function TransactionDetailPage({
         <div className="space-y-4">
           <EmailParseWidget transactionId={transaction.id} />
           <CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />
-          <ActivityTimeline entries={activityEntries} transactionId={transaction.id} />
+          <ActivityTimeline entries={activityEntries} transactionId={transaction.id} mosDocUrl={mosDocUrl} />
         </div>
       </PropertyFileTabs>
       </div>

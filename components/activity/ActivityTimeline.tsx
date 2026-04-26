@@ -8,7 +8,10 @@ import { deleteCommAction } from "@/app/actions/comms";
 type Props = {
   entries: ActivityEntry[];
   transactionId: string;
+  mosDocUrl?: string | null;
 };
+
+const MOS_CODES = new Set(["VM2", "PM2"]);
 
 const METHOD_ICONS: Record<string, string> = {
   email: "✉",
@@ -41,7 +44,7 @@ function isPortalView(entry: { kind: string; content?: string }) {
   return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
 }
 
-export function ActivityTimeline({ entries, transactionId }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -210,6 +213,19 @@ export function ActivityTimeline({ entries, transactionId }: Props) {
                         <p className="text-sm text-slate-900/70">{entry.milestoneName}</p>
                       )}
                     </div>
+                    {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
+                      <a
+                        href={mosDocUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors whitespace-nowrap"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        View Memo
+                      </a>
+                    )}
                   </div>
                   <p className="text-xs text-slate-900/40 mt-2">
                     {entry.confirmedByClient && entry.confirmerName

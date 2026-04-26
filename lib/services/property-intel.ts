@@ -118,6 +118,19 @@ export async function fetchEpc(postcode: string, paon?: string | null): Promise<
   const row = json?.rows?.[0];
   if (!row) return null;
 
+  // If we searched for a specific PAON, verify the returned record actually matches.
+  // The EPC API may return the nearest result at the postcode even if the address doesn't exist.
+  if (paon) {
+    const returnedAddr = ((row["address1"] as string | undefined) ?? "").toUpperCase().trim();
+    const searchPaon = paon.toUpperCase().trim();
+    // Compare first token (house number/name) — "21A" must match "21A", not "22"
+    const returnedFirst = returnedAddr.split(/[\s,]+/)[0] ?? "";
+    const searchFirst = searchPaon.split(/[\s,]+/)[0] ?? "";
+    if (searchFirst && returnedFirst !== searchFirst) {
+      return null; // EPC is for a different property at this postcode, not this address
+    }
+  }
+
   return {
     rating: row["current-energy-rating"] ?? "",
     score: row["current-energy-efficiency"] ? parseInt(row["current-energy-efficiency"], 10) : null,

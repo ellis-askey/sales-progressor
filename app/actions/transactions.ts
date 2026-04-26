@@ -31,6 +31,10 @@ export async function createTransactionAction(input: {
   referredFirmId?: string | null;
   referralFee?: number | null;
   mosUploaded?: boolean;
+  mosStoragePath?: string;
+  mosFileSize?: number;
+  mosMimeType?: string;
+  mosFilename?: string;
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
@@ -90,8 +94,22 @@ export async function createTransactionAction(input: {
     mosAutoConfirmed = true;
   }
 
-  // Run synchronously so chase tasks exist immediately when the agent lands on the file
-  await evaluateTransactionReminders(tx.id).catch(console.error);
+  // Store MOS document if it was uploaded during form creation
+  if (input.mosStoragePath && input.mosFileSize && input.mosMimeType) {
+    await prisma.transactionDocument.create({
+      data: {
+        transactionId: tx.id,
+        filename: input.mosFilename ?? "Memorandum of Sale",
+        storagePath: input.mosStoragePath,
+        fileSize: input.mosFileSize,
+        mimeType: input.mosMimeType,
+        source: "mos",
+      },
+    }).catch(console.error);
+  }
+
+  // Fire-and-forget — no need to block file creation on reminder evaluation
+  evaluateTransactionReminders(tx.id).catch(console.error);
 
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");

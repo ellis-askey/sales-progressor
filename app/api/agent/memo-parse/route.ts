@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
+import { uploadToStorage } from "@/lib/supabase-storage";
+import { randomUUID } from "crypto";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -84,7 +86,18 @@ export async function POST(req: NextRequest) {
     }
 
     const data = JSON.parse(match[0]);
-    return NextResponse.json(data);
+
+    // Store the original file in Supabase so it can be linked to the transaction after creation
+    let mosStoragePath: string | null = null;
+    try {
+      const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1] ?? "bin";
+      const path = `mos/${session.user.agencyId}/${randomUUID()}.${ext}`;
+      mosStoragePath = await uploadToStorage(path, Buffer.from(bytes), file.type);
+    } catch {
+      // Storage upload is optional — continue without it
+    }
+
+    return NextResponse.json({ ...data, mosStoragePath, mosFileSize: file.size, mosMimeType: file.type, mosFilename: file.name });
   } catch (e) {
     console.error("memo-parse error:", e);
     return NextResponse.json({ error: "Something went wrong reading the document" }, { status: 500 });

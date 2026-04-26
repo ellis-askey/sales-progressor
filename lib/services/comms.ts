@@ -17,6 +17,7 @@ export type ActivityEntry =
       at: Date;
       summaryText: string | null;
       milestoneName: string;
+      milestoneCode: string;
       completedByName: string | null;
       isNotRequired: boolean;
       confirmedByClient: boolean;
@@ -54,7 +55,7 @@ export async function getActivityTimeline(
       where: { transactionId, isActive: true },
       orderBy: { completedAt: "desc" },
       include: {
-        milestoneDefinition: { select: { name: true } },
+        milestoneDefinition: { select: { name: true, code: true } },
         completedBy: { select: { name: true } },
       },
     }),
@@ -78,6 +79,7 @@ export async function getActivityTimeline(
       at: c.completedAt,
       summaryText: c.summaryText,
       milestoneName: c.milestoneDefinition.name,
+      milestoneCode: c.milestoneDefinition.code,
       completedByName: c.completedBy?.name ?? null,
       isNotRequired: c.isNotRequired,
       confirmedByClient,
