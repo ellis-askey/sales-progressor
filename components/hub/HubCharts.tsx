@@ -33,58 +33,51 @@ export function RefreshButton({ updatedLabel }: { updatedLabel: string }) {
 // ── Momentum ring ─────────────────────────────────────────────────────────────
 
 export function MomentumRing({ percent }: { percent: number | null }) {
+  if (percent === null) {
+    return (
+      <div style={{ textAlign: "center", maxWidth: 160, padding: "4px 0" }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
+          No comparison yet
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+          Compares exchanges month over month. Data appears after your first completed month.
+        </p>
+      </div>
+    );
+  }
+
   const r = 32;
   const cx = 40;
   const cy = 40;
   const circ = 2 * Math.PI * r;
-  const progress =
-    percent !== null ? Math.min(100, Math.max(0, percent)) / 100 : 0;
+  const progress = Math.min(100, Math.max(0, percent)) / 100;
   const offset = circ * (1 - progress);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
       <svg width={80} height={80} viewBox="0 0 80 80" aria-hidden="true">
-        {/* Track */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,138,101,0.18)" strokeWidth={7} />
         <circle
           cx={cx} cy={cy} r={r}
           fill="none"
-          stroke="rgba(255,138,101,0.18)"
+          stroke="var(--agent-coral)"
           strokeWidth={7}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${cx} ${cy})`}
         />
-        {/* Progress arc */}
-        {percent !== null && (
-          <circle
-            cx={cx} cy={cy} r={r}
-            fill="none"
-            stroke="var(--agent-coral)"
-            strokeWidth={7}
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={offset}
-            transform={`rotate(-90 ${cx} ${cy})`}
-          />
-        )}
-        {/* Centre value */}
         <text
-          x={cx}
-          y={cy + 1}
+          x={cx} y={cy + 1}
           textAnchor="middle"
           dominantBaseline="middle"
-          style={{
-            fontSize: percent !== null ? 15 : 22,
-            fontWeight: 600,
-            fill: "var(--agent-text-primary)",
-            fontFamily: "inherit",
-          }}
+          style={{ fontSize: 15, fontWeight: 600, fill: "var(--agent-text-primary)", fontFamily: "inherit" }}
         >
-          {percent !== null ? `${percent}%` : "–"}
+          {percent}%
         </text>
       </svg>
-      <p style={{
-        fontSize: 11, color: "var(--agent-text-muted)",
-        margin: 0, textAlign: "center",
-      }}>
-        {percent !== null ? "vs last month" : "building data"}
+      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0, textAlign: "center" }}>
+        vs last month
       </p>
     </div>
   );

@@ -107,9 +107,10 @@ export default async function HubPreviewPage() {
     ]);
 
   // Derived values
-  const escalatedCount = attentionItems.filter((i) => i.urgency === "escalated").length;
-  const overdueCount   = attentionItems.filter((i) => i.urgency === "overdue").length;
-  const healthStatus   = escalatedCount > 0 ? "action" : overdueCount > 0 ? "watch" : "on_track";
+  const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
+  const overdueCount      = attentionItems.filter((i) => i.urgency === "overdue").length;
+  const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
+  const healthStatus      = escalatedCount > 0 ? "action" : overdueCount > 0 ? "watch" : "on_track";
   const healthBadge    = HEALTH_BADGE[healthStatus];
   const top5Items      = attentionItems.slice(0, 5);
   const next7Days      = weeklyForecast[0]?.count ?? 0;
@@ -259,9 +260,9 @@ export default async function HubPreviewPage() {
                   color: "var(--agent-success)",
                 },
                 {
-                  value: attentionItems.length.toLocaleString(),
+                  value: attentionFileCount.toLocaleString(),
                   label: "Need attention",
-                  color: escalatedCount > 0 ? "var(--agent-danger)" : attentionItems.length > 0 ? "var(--agent-warning)" : "var(--agent-text-primary)",
+                  color: escalatedCount > 0 ? "var(--agent-danger)" : attentionFileCount > 0 ? "var(--agent-warning)" : "var(--agent-text-primary)",
                 },
                 {
                   value: fmtCurrency(pipelineStats.pipelineValuePence),
