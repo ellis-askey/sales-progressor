@@ -214,7 +214,7 @@ export async function getHubServiceSplit(vis: AgentVisibility) {
 
 export type HubAttentionItem = {
   id: string;
-  urgency: "escalated" | "overdue" | "due_today" | "upcoming" | "snoozed";
+  urgency: "escalated" | "overdue" | "due_today";
   reminderName: string;
   transaction: { id: string; propertyAddress: string };
   nextDueDate: Date;
@@ -227,17 +227,18 @@ export async function getHubAttentionItems(
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const txNested = buildTxNested(vis);
 
-  // All active reminder logs — no date filter, includes snoozed
+  // Due today or overdue, not snoozed — scoped to this agent/firm
   const logs = await prisma.reminderLog.findMany({
     where: {
       transaction: { agencyId: vis.agencyId, status: "active", ...txNested },
       status: "active",
+      OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+      nextDueDate: { lte: today },
     },
     orderBy: { nextDueDate: "asc" },
     select: {
       id: true,
       nextDueDate: true,
-      snoozedUntil: true,
       reminderRule: { select: { name: true } },
       transaction: { select: { id: true, propertyAddress: true } },
       chaseTasks: {
@@ -250,20 +251,11 @@ export async function getHubAttentionItems(
 
   const items: HubAttentionItem[] = logs.map((log) => {
     const openTask = log.chaseTasks[0] ?? null;
-    const isSnoozed = log.snoozedUntil && new Date(log.snoozedUntil) > now;
     const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
-    let urgency: HubAttentionItem["urgency"];
-    if (isSnoozed) {
-      urgency = "snoozed";
-    } else if (openTask?.priority === "escalated") {
-      urgency = "escalated";
-    } else if (dueDate < today) {
-      urgency = "overdue";
-    } else if (dueDate.getTime() === today.getTime()) {
-      urgency = "due_today";
-    } else {
-      urgency = "upcoming";
-    }
+    const urgency: HubAttentionItem["urgency"] =
+      openTask?.priority === "escalated" ? "escalated"
+      : dueDate < today ? "overdue"
+      : "due_today";
     return {
       id: log.id,
       urgency,
@@ -273,7 +265,7 @@ export async function getHubAttentionItems(
     };
   });
 
-  const order = { escalated: 0, overdue: 1, due_today: 2, upcoming: 3, snoozed: 4 };
+  const order = { escalated: 0, overdue: 1, due_today: 2 };
   items.sort((a, b) => {
     const d = order[a.urgency] - order[b.urgency];
     return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();

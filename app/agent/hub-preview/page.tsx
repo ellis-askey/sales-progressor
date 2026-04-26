@@ -67,18 +67,6 @@ const URGENCY_STYLE = {
     color:  "var(--agent-coral-deep)",
     label:  "Due today",
   },
-  upcoming: {
-    border: "var(--agent-border-subtle)",
-    bg:     "rgba(255,255,255,0.20)",
-    color:  "var(--agent-text-muted)",
-    label:  "Upcoming",
-  },
-  snoozed: {
-    border: "var(--agent-border-subtle)",
-    bg:     "rgba(255,255,255,0.12)",
-    color:  "var(--agent-text-disabled)",
-    label:  "Snoozed",
-  },
 } as const;
 
 const HEALTH_BADGE = {
@@ -124,7 +112,7 @@ export default async function HubPreviewPage() {
   const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
   const healthStatus      = escalatedCount > 0 ? "action" : overdueCount > 0 ? "watch" : "on_track";
   const healthBadge    = HEALTH_BADGE[healthStatus];
-  const top5Items      = attentionItems.slice(0, 5);
+  const top4Items      = attentionItems.slice(0, 4);
   const next7Days      = weeklyForecast[0]?.count ?? 0;
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
@@ -362,7 +350,7 @@ export default async function HubPreviewPage() {
           </div>
 
           {/* Attention rows — driven by active reminder logs */}
-          {top5Items.length === 0 ? (
+          {top4Items.length === 0 ? (
             <div style={{
               padding: "24px 20px", display: "flex", alignItems: "center", gap: 10,
             }}>
@@ -375,7 +363,7 @@ export default async function HubPreviewPage() {
               </p>
             </div>
           ) : (
-            top5Items.map((item, i) => {
+            top4Items.map((item, i) => {
               const s = URGENCY_STYLE[item.urgency];
               return (
                 <Link
