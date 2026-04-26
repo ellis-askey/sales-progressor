@@ -35,10 +35,10 @@ export default async function WorkQueuePage() {
         <div style={{ position: "relative", padding: "24px 32px 28px" }}>
           <p className="agent-eyebrow" style={{ marginBottom: 12 }}>{session.user.firmName ?? "Agent Portal"}</p>
           <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-            Work Queue
+            Reminders
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-            Files on your patch that need attention.
+            Chases and files that need your follow-up.
           </p>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default async function WorkQueuePage() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <SummaryChip
               count={items.length}
-              label="files need attention"
+              label="reminders"
               color="var(--agent-text-primary)"
               bg="rgba(255,255,255,0.55)"
               border="rgba(255,255,255,0.60)"
@@ -91,7 +91,7 @@ export default async function WorkQueuePage() {
             <CheckCircle weight="fill" style={{ width: 36, height: 36, color: "var(--agent-success)", margin: "0 auto 12px" }} />
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>All clear</p>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-              No files need attention right now.
+              No outstanding reminders right now.
             </p>
           </div>
         ) : (

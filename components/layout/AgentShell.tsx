@@ -15,13 +15,13 @@ import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 
 function buildNavItems(role: UserRole) {
   return [
-    { href: "/agent/hub-preview",      label: "Hub",          Icon: Gauge      },
-    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    { href: "/agent/hub-preview",      label: "Hub",          Icon: Gauge         },
+    { href: "/agent/work-queue",       label: "Reminders",    Icon: Tray          },
     { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
-    { href: "/agent/analytics",         label: "Analytics",    Icon: ChartBar      },
-    { href: "/agent/comms",            label: "Updates",      Icon: BellSimple    },
-    { href: "/agent/work-queue",       label: "Work Queue",   Icon: Tray          },
     { href: "/agent/to-do",            label: "To-Do",        Icon: CheckSquare   },
+    { href: "/agent/comms",            label: "Updates",      Icon: BellSimple    },
+    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
     { href: "/agent/solicitors",       label: "Solicitors",   Icon: Buildings     },
     { href: "/agent/quick-add",        label: "Quick Add",    Icon: Lightning     },
     { href: "/agent/transactions/new", label: "Full form",    Icon: PlusCircle    },
