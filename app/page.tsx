@@ -8,7 +8,7 @@ export default async function RootPage() {
     switch (session.user.role) {
       case "negotiator":
       case "director":
-        redirect("/agent/hub-preview");
+        redirect("/agent/hub");
       case "admin":
       case "sales_progressor":
       case "viewer":

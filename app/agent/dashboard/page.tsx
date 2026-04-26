@@ -86,9 +86,9 @@ export default async function AgentDashboard({
                 style={{ textDecoration: "none" }}
               >
                 <Plus size={16} weight="bold" />
-                New Transaction
+                New sale
               </Link>
-              <AgentFlagButton transactionId={null} address="general" label="Flag to progressor" />
+              <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>

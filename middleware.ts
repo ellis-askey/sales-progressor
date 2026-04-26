@@ -31,7 +31,7 @@ export default withAuth(
     // Agent users can only access the agent area, APIs, and portal — nowhere else
     const agentAllowed = ["/agent", "/api", "/portal"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
-      return NextResponse.redirect(new URL("/agent/hub-preview", req.url));
+      return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
 
     // Non-agent, non-admin users trying to access the agent area → send to SP dashboard

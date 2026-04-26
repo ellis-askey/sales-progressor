@@ -76,9 +76,6 @@ export function MomentumRing({ percent }: { percent: number | null }) {
           {percent}%
         </text>
       </svg>
-      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0, textAlign: "center" }}>
-        vs last month
-      </p>
     </div>
   );
 }
