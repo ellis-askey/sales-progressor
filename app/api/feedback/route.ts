@@ -17,6 +17,7 @@ const MIME_MAP: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  try {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -144,6 +145,10 @@ export async function POST(req: NextRequest) {
   }).catch(console.error);
 
   return NextResponse.json({ success: true, id: submission.id });
+  } catch (err) {
+    console.error("[feedback] POST error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 // ── Email sender ──────────────────────────────────────────────────────────────
