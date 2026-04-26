@@ -83,8 +83,7 @@ export async function getMilestonesForTransaction(
 // Direct physical prerequisites: only the milestone(s) that cannot logically be skipped
 // before the keyed milestone is possible. Parallel-track milestones are excluded.
 const DIRECT_PREREQUISITES: Record<string, string[]> = {
-  // Vendor
-  VM2:  ["VM1"],
+  // Vendor — VM2 (MOS received) has no prereq: available from file creation
   VM3:  ["VM1"],
   VM14: ["VM1"],
   VM15: ["VM1"],
@@ -103,8 +102,7 @@ const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM20: ["VM11"],
   VM12: ["VM20"],
   VM13: ["VM12"],
-  // Purchaser
-  PM2:  ["PM1"],
+  // Purchaser — PM2 (MOS received) has no prereq: available from file creation
   PM14a:["PM1"],
   PM15a:["PM14a"],
   PM4:  ["PM1"],

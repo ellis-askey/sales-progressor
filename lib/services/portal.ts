@@ -7,13 +7,13 @@ import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type Recipien
 // Mirror of DIRECT_PREREQUISITES from milestones.ts — only the immediate
 // predecessors that must be complete before a milestone is available to confirm.
 const DIRECT_PREREQUISITES: Record<string, string[]> = {
-  VM2: ["VM1"], VM3: ["VM1"], VM14: ["VM1"], VM15: ["VM1"],
+  VM3: ["VM1"], VM14: ["VM1"], VM15: ["VM1"],
   VM4: ["VM15"], VM5: ["VM4"], VM6: ["VM4"], VM7: ["VM6"],
   VM16: ["VM5"], VM17: ["VM16"], VM8: ["VM17"],
   VM18: ["VM8"], VM19: ["VM18"], VM9: ["VM19"],
   VM10: ["VM5"], VM11: ["VM10"], VM20: ["VM11"],
   VM12: ["VM20"], VM13: ["VM12"],
-  PM2: ["PM1"], PM14a: ["PM1"], PM15a: ["PM14a"],
+  PM14a: ["PM1"], PM15a: ["PM14a"],
   PM4: ["PM1"], PM5: ["PM4"], PM6: ["PM5"],
   PM9: ["PM3"], PM20: ["PM7"], PM8: [],
   PM10: ["PM9"], PM11: ["PM3"], PM21: ["PM11"],
