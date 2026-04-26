@@ -1,7 +1,7 @@
 "use client";
 // components/milestones/MilestoneRow.tsx
 
-import { useState, useOptimistic, useTransition } from "react";
+import { useState, useOptimistic, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
@@ -53,6 +53,18 @@ export function MilestoneRow({ def, transactionId }: Props) {
   const [showReverseModal, setShowReverseModal] = useState(false);
   const [currentPercent, setCurrentPercent] = useState(0);
   const [projectedPercent, setProjectedPercent] = useState(0);
+
+  // Detect when this row transitions from blocked → available and play unlock animation
+  const wasAvailableRef = useRef(def.isAvailable);
+  const [justUnlocked, setJustUnlocked] = useState(false);
+  useEffect(() => {
+    if (!wasAvailableRef.current && def.isAvailable) {
+      setJustUnlocked(true);
+      const t = setTimeout(() => setJustUnlocked(false), 900);
+      return () => clearTimeout(t);
+    }
+    wasAvailableRef.current = def.isAvailable;
+  }, [def.isAvailable]);
 
   // Completion date prompt (after exchange confirmed)
   const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
@@ -207,7 +219,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
 
   return (
     <>
-      <div className={`flex items-start gap-3 pl-4 pr-5 py-3.5 border-b border-white/15 last:border-0 transition-colors duration-[150ms] ${rowBg}`}>
+      <div className={`flex items-start gap-3 pl-4 pr-5 py-3.5 border-b border-white/15 last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}>
         {/* Timeline node */}
         <div className="mt-0.5 flex-shrink-0 z-10 relative">
           {isDone ? (
@@ -293,8 +305,16 @@ export function MilestoneRow({ def, transactionId }: Props) {
             <>
               {def.isAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading}
-                  className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors">
-                  {loading ? "…" : "Confirm"}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-400 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Confirming…
+                    </>
+                  ) : "Confirm"}
                 </button>
               )}
               {def.isAvailable && canBeNR && (

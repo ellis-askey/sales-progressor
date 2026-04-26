@@ -118,8 +118,15 @@ export function MilestonePanel({
         }
         .ms-node-pop { animation: ms-node-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
+        @keyframes ms-unlock {
+          0%   { box-shadow: inset 3px 0 0 rgba(59,130,246,0.9); background: rgba(59,130,246,0.08); }
+          55%  { box-shadow: inset 3px 0 0 rgba(59,130,246,0.3); background: rgba(59,130,246,0.03); }
+          100% { box-shadow: none; background: transparent; }
+        }
+        .ms-unlock-enter { animation: ms-unlock 900ms ease-out both; }
+
         @media (prefers-reduced-motion: reduce) {
-          .ms-node-pop { animation: none; }
+          .ms-node-pop, .ms-unlock-enter { animation: none; }
         }
       `}</style>
 
