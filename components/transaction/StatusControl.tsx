@@ -2,6 +2,7 @@
 // components/transaction/StatusControl.tsx
 
 import { useState, useTransition, useRef } from "react";
+import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { changeStatusAction } from "@/app/actions/transactions";
 import type { TransactionStatus } from "@prisma/client";
@@ -95,7 +96,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           </svg>
         </button>
 
-        {open && dropdownPos && (
+        {open && dropdownPos && createPortal(
           <>
             <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
             <div
@@ -119,7 +120,8 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
                 </button>
               ))}
             </div>
-          </>
+          </>,
+          document.body
         )}
       </div>
 
