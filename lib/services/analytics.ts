@@ -1,5 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { calculateOurFee } from "@/lib/services/fees";
+import type { AgentVisibility } from "./agent";
+import type { Prisma } from "@prisma/client";
+
+// ── Shared visibility where ───────────────────────────────────────────────────
+
+function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
+  if (vis.seeAll) {
+    return vis.firmName
+      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId, agentUserId: { not: null } };
+  }
+  return { agencyId: vis.agencyId, agentUserId: vis.userId };
+}
 
 export type MonthVolume = {
   month: string; // "Jan 25"
@@ -205,4 +218,113 @@ export async function getReferralStats(agencyId: string): Promise<ReferralStat[]
   }
 
   return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);
+}
+
+// ── Monthly activity (visibility-scoped, 12 months) ──────────────────────────
+
+export type MonthlyActivityBucket = { month: string; created: number; exchanged: number };
+
+export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyActivityBucket[]> {
+  const txWhere = buildTxWhere(vis);
+  const now = new Date();
+  const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const windowEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const exchangeDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM12", "PM16"] } },
+    select: { id: true },
+  });
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+
+  const [txsInWindow, exchangesInWindow] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: { ...txWhere, createdAt: { gte: windowStart } },
+      select: { createdAt: true },
+    }),
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: txWhere,
+        milestoneDefinitionId: { in: exchangeDefIds },
+        isActive: true,
+        isNotRequired: false,
+        completedAt: { gte: windowStart, lt: windowEnd },
+      },
+      select: { completedAt: true },
+    }),
+  ]);
+
+  return Array.from({ length: 12 }, (_, idx) => {
+    const start = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
+    const end   = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const label = start.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+    const created  = txsInWindow.filter(t  => { const d = new Date(t.createdAt);   return d >= start && d < end; }).length;
+    const exchanged = exchangesInWindow.filter(e => { const d = new Date(e.completedAt); return d >= start && d < end; }).length;
+    return { month: label, created, exchanged };
+  });
+}
+
+// ── Solicitor exchange performance ───────────────────────────────────────────
+
+export type SolicitorExchangeStat = {
+  firmId: string;
+  firmName: string;
+  exchangeCount: number;
+  avgDaysToExchange: number;
+};
+
+export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<SolicitorExchangeStat[]> {
+  const txWhere = buildTxWhere(vis);
+
+  const exchangeDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM12", "PM16"] } },
+    select: { id: true },
+  });
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+
+  const txs = await prisma.propertyTransaction.findMany({
+    where: {
+      ...txWhere,
+      OR: [{ vendorSolicitorFirmId: { not: null } }, { purchaserSolicitorFirmId: { not: null } }],
+      milestoneCompletions: {
+        some: { milestoneDefinitionId: { in: exchangeDefIds }, isActive: true, isNotRequired: false },
+      },
+    },
+    select: {
+      createdAt: true,
+      vendorSolicitorFirm:    { select: { id: true, name: true } },
+      purchaserSolicitorFirm: { select: { id: true, name: true } },
+      milestoneCompletions: {
+        where: { milestoneDefinitionId: { in: exchangeDefIds }, isActive: true, isNotRequired: false },
+        select: { completedAt: true },
+        orderBy: { completedAt: "asc" },
+        take: 1,
+      },
+    },
+  });
+
+  const firmMap = new Map<string, { firmId: string; firmName: string; times: number[] }>();
+
+  for (const tx of txs) {
+    const exchAt = tx.milestoneCompletions[0]?.completedAt;
+    if (!exchAt) continue;
+    const days = Math.round(
+      (new Date(exchAt).getTime() - new Date(tx.createdAt).getTime()) / 86400000
+    );
+    if (days < 0) continue;
+    for (const firm of [tx.vendorSolicitorFirm, tx.purchaserSolicitorFirm]) {
+      if (!firm) continue;
+      const s = firmMap.get(firm.id) ?? { firmId: firm.id, firmName: firm.name, times: [] };
+      s.times.push(days);
+      firmMap.set(firm.id, s);
+    }
+  }
+
+  return Array.from(firmMap.values())
+    .map(({ firmId, firmName, times }) => ({
+      firmId,
+      firmName,
+      exchangeCount: times.length,
+      avgDaysToExchange: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
+    }))
+    .sort((a, b) => a.avgDaysToExchange - b.avgDaysToExchange);
 }

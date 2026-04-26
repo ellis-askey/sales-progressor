@@ -7,9 +7,11 @@ type TeamMember = { id: string; name: string; role: string };
 export function AnalyticsFilterClient({
   team,
   currentUserId,
+  basePath = "/agent/analytics",
 }: {
   team: TeamMember[];
   currentUserId: string | null;
+  basePath?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,7 +23,7 @@ export function AnalyticsFilterClient({
     if (val) params.set("user", val);
     if (p && p !== "month") params.set("period", p);
     const qs = params.toString();
-    router.push(`/agent/analytics${qs ? `?${qs}` : ""}`);
+    router.push(`${basePath}${qs ? `?${qs}` : ""}`);
   }
 
   return (
