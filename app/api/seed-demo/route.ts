@@ -4,9 +4,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
 
-// POST /api/seed-demo — creates a demo agent + midway-through transaction for testing
-// Idempotent: safe to call multiple times (skips user creation if already exists)
-export async function POST() {
+async function seed() {
   const agency = await prisma.agency.findFirst();
   if (!agency) return NextResponse.json({ error: "No agency configured" }, { status: 500 });
 
@@ -110,3 +108,7 @@ export async function POST() {
     message: "Demo agent and midway transaction created. Chase buttons should be visible immediately.",
   });
 }
+
+// GET so you can trigger it directly from the browser address bar
+export async function GET() { return seed(); }
+export async function POST() { return seed(); }
