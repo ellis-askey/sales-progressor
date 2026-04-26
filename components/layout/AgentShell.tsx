@@ -7,7 +7,7 @@ import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
-  PlusCircle, Lightning, GearSix, Users, Tray, CheckSquare, Buildings,
+  PlusCircle, Lightning, GearSix, Users, Tray, CheckSquare, Buildings, Gauge,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
@@ -15,6 +15,7 @@ import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 
 function buildNavItems(role: UserRole) {
   return [
+    { href: "/agent/hub-preview",      label: "Hub",          Icon: Gauge      },
     { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
     { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
