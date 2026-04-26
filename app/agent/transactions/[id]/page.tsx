@@ -325,6 +325,8 @@ export default async function AgentTransactionDetailPage({
           <RemindersSection
             transactionId={transaction.id}
             reminderLogs={reminderLogs}
+            contacts={transaction.contacts}
+            propertyAddress={transaction.propertyAddress}
             completedMilestoneCodes={new Set(
               [...(milestoneData?.vendor ?? []), ...(milestoneData?.purchaser ?? [])]
                 .filter((m) => m.isComplete || m.isNotRequired)

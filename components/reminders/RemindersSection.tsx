@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
+import { ChaseButton } from "@/components/chase/ChaseButton";
 
 type ChaseTask = {
   id: string;
@@ -31,10 +32,20 @@ type ReminderLog = {
   chaseTasks: ChaseTask[];
 };
 
+type Contact = {
+  id: string;
+  name: string;
+  roleType: string;
+  email?: string | null;
+  phone?: string | null;
+};
+
 type Props = {
   transactionId: string;
   reminderLogs: ReminderLog[];
   completedMilestoneCodes?: Set<string>;
+  contacts?: Contact[];
+  propertyAddress?: string;
 };
 
 type Tab = "active" | "upcoming" | "snoozed" | "completed";
@@ -105,7 +116,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   );
 }
 
-export function RemindersSection({ transactionId, reminderLogs, completedMilestoneCodes }: Props) {
+export function RemindersSection({ transactionId, reminderLogs, completedMilestoneCodes, contacts, propertyAddress }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
@@ -271,6 +282,17 @@ export function RemindersSection({ transactionId, reminderLogs, completedMilesto
                     )}
                     {openTask && (
                       <div className="mt-3 flex items-center gap-2">
+                        {contacts && propertyAddress && (
+                          <ChaseButton
+                            chaseTaskId={openTask.id}
+                            transactionId={transactionId}
+                            propertyAddress={propertyAddress}
+                            milestoneName={stripChase(log.reminderRule.name)}
+                            chaseCount={openTask.chaseCount}
+                            contacts={contacts}
+                            onSent={() => handleTaskAction(openTask.id, "complete")}
+                          />
+                        )}
                         <button onClick={() => handleTaskAction(openTask.id, "complete")} disabled={loading === openTask.id || isPending}
                           className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                             isEscalated ? "bg-red-500 hover:bg-red-600 text-white" : "bg-green-500 hover:bg-green-600 text-white"

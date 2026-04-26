@@ -3,12 +3,17 @@ import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import { getWorkQueueItems, ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { AlertType } from "@/lib/services/work-queue";
+import { getAgentReminderLogs } from "@/lib/services/reminders";
+import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
 import { ArrowRight, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 
 export default async function WorkQueuePage() {
   const session = await requireSession();
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const items = await getWorkQueueItems(vis);
+  const [items, reminderLogs] = await Promise.all([
+    getWorkQueueItems(vis),
+    getAgentReminderLogs(vis),
+  ]);
 
   const overdueCount = items.filter((i) => i.alerts.includes("overdue_exchange")).length;
   const missingSolicitorCount = items.filter(
@@ -17,6 +22,14 @@ export default async function WorkQueuePage() {
       i.alerts.includes("missing_purchaser_solicitor")
   ).length;
   const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
+
+  const now = new Date();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const activeReminderCount = reminderLogs.filter((l) => {
+    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
+    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
+    return due <= today || l.chaseTasks.length > 0;
+  }).length;
 
   return (
     <>
@@ -46,15 +59,17 @@ export default async function WorkQueuePage() {
       <div className="px-8 py-7 space-y-6">
 
         {/* Summary chips */}
-        {items.length > 0 && (
+        {(items.length > 0 || activeReminderCount > 0) && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <SummaryChip
-              count={items.length}
-              label="reminders"
-              color="var(--agent-text-primary)"
-              bg="rgba(255,255,255,0.55)"
-              border="rgba(255,255,255,0.60)"
-            />
+            {activeReminderCount > 0 && (
+              <SummaryChip
+                count={activeReminderCount}
+                label="chase reminders"
+                color="var(--agent-text-primary)"
+                bg="rgba(255,255,255,0.55)"
+                border="rgba(255,255,255,0.60)"
+              />
+            )}
             {overdueCount > 0 && (
               <SummaryChip
                 count={overdueCount}
@@ -85,21 +100,22 @@ export default async function WorkQueuePage() {
           </div>
         )}
 
-        {/* Items list */}
-        {items.length === 0 ? (
-          <div className="glass-card" style={{ padding: "48px 32px", textAlign: "center" }}>
-            <CheckCircle weight="fill" style={{ width: 36, height: 36, color: "var(--agent-success)", margin: "0 auto 12px" }} />
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>All clear</p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-              No outstanding reminders right now.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {items.map((item) => (
-              <WorkQueueCard key={item.id} item={item} isDirector={vis.seeAll} />
-            ))}
-          </div>
+        {/* Milestone reminders */}
+        <section>
+          <h2 className="agent-eyebrow mb-4">Milestone Reminders</h2>
+          <AgentRemindersList logs={reminderLogs} />
+        </section>
+
+        {/* File alerts */}
+        {items.length > 0 && (
+          <section>
+            <h2 className="agent-eyebrow mb-4">File Alerts</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {items.map((item) => (
+                <WorkQueueCard key={item.id} item={item} isDirector={vis.seeAll} />
+              ))}
+            </div>
+          </section>
         )}
 
       </div>

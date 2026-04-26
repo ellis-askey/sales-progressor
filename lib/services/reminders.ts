@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
+import type { AgentVisibility } from "@/lib/services/agent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,35 @@ export async function getReminderLogsForTransaction(
       },
     },
   }) as Promise<ReminderLogWithRule[]>;
+}
+
+export async function getAgentReminderLogs(vis: AgentVisibility) {
+  const txWhere = vis.seeAll
+    ? { agencyId: vis.agencyId, agentUserId: { not: null as string | null }, status: { in: ["active" as const, "on_hold" as const] } }
+    : { agencyId: vis.agencyId, agentUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] } };
+
+  return prisma.reminderLog.findMany({
+    where: { status: "active", transaction: txWhere },
+    include: {
+      reminderRule: {
+        select: { name: true, targetMilestoneCode: true, repeatEveryDays: true, escalateAfterChases: true },
+      },
+      chaseTasks: {
+        where: { status: "pending" },
+        select: { id: true, status: true, priority: true, chaseCount: true, dueDate: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+      transaction: {
+        select: {
+          id: true,
+          propertyAddress: true,
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true } },
+        },
+      },
+    },
+    orderBy: { nextDueDate: "asc" },
+  });
 }
 
 export async function getChaseTasksForTransaction(transactionId: string, agencyId: string) {
