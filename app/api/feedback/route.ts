@@ -5,13 +5,6 @@ import { prisma } from "@/lib/prisma";
 import sgMail from "@sendgrid/mail";
 import { createClient } from "@supabase/supabase-js";
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const FEEDBACK_TO   = "inbox@thesalesprogressor.co.uk";
 const FEEDBACK_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
@@ -24,6 +17,12 @@ const MIME_MAP: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
   const body = await req.json();
   const {
     category, field1, field2,
