@@ -110,7 +110,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
         </div>
 
         {/* Tab content + desktop sidebar */}
-        <div className="px-4 lg:px-8 py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 items-start">
+        <div className="px-4 lg:px-8 py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 lg:items-start">
           <div className="flex-1 min-w-0 relative">
             {tabs.map((tab, i) => (
               <div
