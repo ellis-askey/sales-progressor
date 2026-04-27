@@ -65,21 +65,22 @@ export default async function AgentCommsPage({
         <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="relative px-4 pt-6 pb-7 md:px-8">
           <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Agent Portal</p>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-4">
             <div>
               <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Updates</h1>
               <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
                 Milestone activity across all your files.
               </p>
             </div>
-            {/* Filter tabs */}
-            <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.40)", borderRadius: 10, padding: 3 }}>
+            {/* Filter tabs — full-width on mobile, natural width on desktop */}
+            <div className="flex w-full md:w-auto" style={{ gap: 4, background: "rgba(255,255,255,0.40)", borderRadius: 10, padding: 3 }}>
               <Link
                 href={filterBase}
+                className="flex flex-1 items-center justify-center md:flex-none"
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
-                  padding: "5px 12px",
+                  padding: "10px 12px",
                   borderRadius: 7,
                   textDecoration: "none",
                   transition: "background 150ms",
@@ -92,10 +93,11 @@ export default async function AgentCommsPage({
               </Link>
               <Link
                 href={`${filterBase}?filter=portal`}
+                className="flex flex-1 items-center justify-center md:flex-none"
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
-                  padding: "5px 12px",
+                  padding: "10px 12px",
                   borderRadius: 7,
                   textDecoration: "none",
                   transition: "background 150ms",
