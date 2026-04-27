@@ -17,7 +17,6 @@ type Group = {
   tasks: Task[];
 };
 
-// Sort: due date asc (nulls last), then createdAt asc
 function sortTasks(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
     const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
@@ -42,7 +41,6 @@ function groupByTransaction(tasks: Task[]): Group[] {
       tasks: txTasks,
     });
   }
-  // Transactions first, general (null) last
   return groups.sort((a, b) => {
     if (a.transactionId === null) return 1;
     if (b.transactionId === null) return -1;
@@ -83,68 +81,98 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
     setTasks((prev) => [created, ...prev]);
   }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const ownTasks  = tasks.filter((t) => !t.isAgentRequest);
-  const progTasks = tasks.filter((t) => t.isAgentRequest);
+  const progTasks = tasks.filter((t) =>  t.isAgentRequest);
 
   const ownOpen  = sortTasks(ownTasks.filter((t) => t.status === "open"));
   const ownDone  = sortTasks(ownTasks.filter((t) => t.status === "done"));
   const progOpen = sortTasks(progTasks.filter((t) => t.status === "open"));
   const progDone = sortTasks(progTasks.filter((t) => t.status === "done"));
 
+  const ownOverdue   = ownOpen.filter((t) => t.dueDate && new Date(t.dueDate) < today);
+  const ownUpcoming  = ownOpen.filter((t) => !t.dueDate || new Date(t.dueDate) >= today);
+  const progOverdue  = progOpen.filter((t) => t.dueDate && new Date(t.dueDate) < today);
+  const progUpcoming = progOpen.filter((t) => !t.dueDate || new Date(t.dueDate) >= today);
+
+  if (tasks.length === 0) {
+    return (
+      <div className="space-y-8">
+        <AddManualTaskForm showOwnership onAdd={handleAdd} />
+        <div style={{ paddingTop: 48, textAlign: "center" }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(15,23,42,0.18)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block" }}>
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          <p style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.35)" }}>Nothing here yet.</p>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.28)", maxWidth: 280, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            Jot down your next steps, or send a request to your progressor.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-
       <AddManualTaskForm showOwnership onAdd={handleAdd} />
 
-      {/* ── My To-Dos ── */}
+      {/* ── My to-dos ── */}
       <Section
-        title="To-Do"
-        openGroups={groupByTransaction(ownOpen)}
+        id="section-mine"
+        title="My to-dos"
+        overdueGroups={groupByTransaction(ownOverdue)}
+        openGroups={groupByTransaction(ownUpcoming)}
         doneGroups={groupByTransaction(ownDone)}
         doneCount={ownDone.length}
         showDone={showOwnDone}
         onToggleShowDone={() => setShowOwnDone((v) => !v)}
         onToggle={handleToggle}
-        emptyLabel="Nothing to do — nice."
       />
 
-      {/* ── With Sales Progressor ── */}
-      {(progTasks.length > 0) && (
+      {/* ── With your progressor ── */}
+      {progTasks.length > 0 && (
         <Section
-          title="With Sales Progressor"
-          openGroups={groupByTransaction(progOpen)}
+          id="section-progressor"
+          title="With your progressor"
+          overdueGroups={groupByTransaction(progOverdue)}
+          openGroups={groupByTransaction(progUpcoming)}
           doneGroups={groupByTransaction(progDone)}
           doneCount={progDone.length}
           showDone={showProgDone}
           onToggleShowDone={() => setShowProgDone((v) => !v)}
           onToggle={handleToggle}
-          emptyLabel="No pending requests."
           progressor
         />
       )}
-
     </div>
   );
 }
 
 function Section({
-  title, openGroups, doneGroups, doneCount, showDone,
-  onToggleShowDone, onToggle, emptyLabel, progressor = false,
+  id, title, overdueGroups, openGroups, doneGroups, doneCount, showDone,
+  onToggleShowDone, onToggle, progressor = false,
 }: {
+  id: string;
   title: string;
+  overdueGroups: Group[];
   openGroups: Group[];
   doneGroups: Group[];
   doneCount: number;
   showDone: boolean;
   onToggleShowDone: () => void;
   onToggle: (id: string, status: "open" | "done") => void;
-  emptyLabel: string;
   progressor?: boolean;
 }) {
-  const openCount = openGroups.reduce((n, g) => n + g.tasks.length, 0);
+  const openCount = overdueGroups.reduce((n, g) => n + g.tasks.length, 0)
+    + openGroups.reduce((n, g) => n + g.tasks.length, 0);
+
+  const hasOpen = overdueGroups.length > 0 || openGroups.length > 0;
 
   return (
-    <div className="space-y-3">
+    <div id={id} className="space-y-3">
       {/* Section header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px" }}>
         {progressor && (
@@ -167,18 +195,42 @@ function Section({
         )}
       </div>
 
-      {/* Open groups */}
-      {openGroups.length === 0 ? (
-        <div className="glass-card" style={{ padding: "24px 20px", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>{emptyLabel}</p>
+      {/* Overdue sub-group */}
+      {overdueGroups.length > 0 && (
+        <div style={{ marginBottom: openGroups.length > 0 ? 8 : 0 }}>
+          <p style={{ margin: "0 0 6px 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#dc2626" }}>
+            Overdue
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {overdueGroups.map((group) => (
+              <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} />
+            ))}
+          </div>
         </div>
-      ) : (
+      )}
+
+      {/* Upcoming / open groups */}
+      {!hasOpen ? (
+        <div className="glass-card" style={{ padding: "28px 20px", textAlign: "center" }}>
+          {progressor ? (
+            <>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>No pending requests.</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-disabled)" }}>Anything you send to your progressor will appear here.</p>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All clear.</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-disabled)" }}>Use the button above to add a to-do or send a request.</p>
+            </>
+          )}
+        </div>
+      ) : openGroups.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {openGroups.map((group) => (
             <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} />
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Done toggle */}
       {doneCount > 0 && (
@@ -222,7 +274,6 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false }: {
 }) {
   return (
     <div className="glass-card" style={{ overflow: "hidden", opacity: dimmed ? 0.7 : 1 }}>
-      {/* Group header */}
       <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
         {group.transactionId ? (
           <Link
@@ -233,11 +284,9 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false }: {
             {group.address ?? "Unknown address"}
           </Link>
         ) : (
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)" }}>General</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)" }}>Quick note</span>
         )}
       </div>
-
-      {/* Tasks */}
       <div>
         {group.tasks.map((task, i) => (
           <TaskRow
@@ -312,6 +361,17 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
           <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: "1.4" }}>
             {task.notes}
           </p>
+        )}
+        {/* Progressor response — shown for open tasks (fix) and done tasks (resolved display) */}
+        {task.progressorNote && (
+          <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "rgba(180,87,9,0.06)", borderLeft: "2px solid rgba(180,87,9,0.28)" }}>
+            <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(180,87,9,0.65)" }}>
+              Progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: "#b45309", lineHeight: "1.4" }}>
+              {task.progressorNote}
+            </p>
+          </div>
         )}
       </div>
 

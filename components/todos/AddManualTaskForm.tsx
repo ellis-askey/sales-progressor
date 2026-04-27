@@ -25,10 +25,38 @@ export function AddManualTaskForm({
   const [dueDate, setDueDate] = useState("");
   const [owner, setOwner] = useState<"mine" | "progressor">("mine");
   const [saving, setSaving] = useState(false);
+  const [dateError, setDateError] = useState("");
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function handleOpen() {
+    setDueDate(todayStr());
+    setDateError("");
+    setOpen(true);
+  }
+
+  function handleCancel() {
+    setOpen(false);
+    setTitle("");
+    setNotes("");
+    setDueDate("");
+    setOwner("mine");
+    setDateError("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
+
+    // Client-side past-date guard (min attr handles it for most browsers, this is the fallback)
+    if (dueDate && dueDate < todayStr()) {
+      setDateError("Due date cannot be in the past.");
+      return;
+    }
+    setDateError("");
+
     setSaving(true);
     await onAdd({
       title: title.trim(),
@@ -45,11 +73,20 @@ export function AddManualTaskForm({
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
+        onClick={handleOpen}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          fontSize: 12, fontWeight: 600,
+          padding: "7px 14px", borderRadius: 8,
+          border: "1px solid rgba(15,23,42,0.12)",
+          background: "rgba(255,255,255,0.60)",
+          color: "rgba(15,23,42,0.55)",
+          cursor: "pointer",
+          transition: "border-color 150ms, background 150ms",
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
         Add to-do
       </button>
@@ -110,16 +147,20 @@ export function AddManualTaskForm({
         </div>
       )}
       <div className="flex items-center gap-3 pt-1 border-t border-white/20">
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className="text-xs text-slate-900/50 border-0 outline-none bg-transparent"
-        />
+        <div>
+          <input
+            type="date"
+            value={dueDate}
+            min={todayStr()}
+            onChange={(e) => { setDueDate(e.target.value); setDateError(""); }}
+            className="text-xs text-slate-900/50 border-0 outline-none bg-transparent"
+          />
+          {dateError && <p className="text-xs text-red-500 mt-0.5">{dateError}</p>}
+        </div>
         <div className="flex-1" />
         <button
           type="button"
-          onClick={() => { setOpen(false); setTitle(""); setNotes(""); setDueDate(""); setOwner("mine"); }}
+          onClick={handleCancel}
           className="text-xs text-slate-900/40 hover:text-slate-900/70"
         >
           Cancel
