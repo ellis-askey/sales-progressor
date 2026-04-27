@@ -253,7 +253,7 @@ export default async function AgentTransactionDetailPage({
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-1 divide-y divide-white/20 md:grid-cols-[130px_160px_1fr] md:divide-x md:divide-y-0">
+            <div className="grid grid-cols-2 divide-white/20 md:grid-cols-[130px_160px_1fr] md:divide-x">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>
@@ -262,7 +262,7 @@ export default async function AgentTransactionDetailPage({
                   {transaction.assignedUser?.name ?? <span className="text-slate-900/30 italic">Unassigned</span>}
                 </span>
               </MetaField>
-              <MetaField label="Last progress">
+              <MetaField label="Last progress" className="col-span-2 border-t border-white/20 md:col-span-1 md:border-t-0">
                 {lastUpdate ? (
                   <div>
                     <p className="text-sm text-slate-900/80 leading-snug line-clamp-2">{lastUpdate.summaryText}</p>
@@ -378,9 +378,9 @@ export default async function AgentTransactionDetailPage({
   );
 }
 
-function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
+function MetaField({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="px-5 py-4">
+    <div className={`px-5 py-4 ${className}`}>
       <p className="text-xs font-medium text-slate-900/40 mb-1.5">{label}</p>
       {children}
     </div>

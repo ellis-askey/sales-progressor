@@ -80,7 +80,7 @@ function SolicitorIntelBadge({ firmId }: { firmId: string }) {
           <p className="text-xs leading-snug">{intel.warning}</p>
         </div>
       )}
-      <div className="flex items-center gap-4 text-xs text-slate-900/40">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-900/40">
         <span>{intel.totalFiles} file{intel.totalFiles !== 1 ? "s" : ""} on record</span>
         {intel.avgWeeksToExchange !== null && (
           <span>Avg {intel.avgWeeksToExchange}w to exchange</span>
