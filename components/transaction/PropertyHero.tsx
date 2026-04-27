@@ -95,10 +95,11 @@ export function PropertyHero({
         {/* Lavender centre accent */}
         <div aria-hidden="true" style={{ position: "absolute", top: "20%", left: "35%", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,150,210,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-        <div style={{ position: "relative", padding: "20px 32px 26px" }}>
+        <div className="relative px-4 pt-5 pb-6 md:px-8 md:pb-7">
           {/* Breadcrumb + status */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="flex flex-col gap-1.5 mb-4 md:flex-row md:items-center md:justify-between md:mb-[18px]">
+            {/* Left: My Files (+ separator + agency on desktop) */}
+            <div className="flex items-center gap-3">
               <Link
                 href={backHref}
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--agent-text-tertiary)", textDecoration: "none", fontWeight: 500 }}
@@ -108,26 +109,30 @@ export function PropertyHero({
                 </svg>
                 My Files
               </Link>
-              <span style={{ color: "var(--agent-border-subtle)", fontSize: 14 }}>·</span>
-              <span style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
+              <span className="hidden md:inline" style={{ color: "var(--agent-border-subtle)", fontSize: 14 }}>·</span>
+              <span className="hidden md:inline" style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {flagSlot}
-              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ring-inset ring-black/5 ${ws.bg} ${ws.text}`}>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ws.dot}`} />
-                {STATUS_LABEL[status]}
-              </span>
+            {/* Right: agency name (mobile only, left) + flag + status pill */}
+            <div className="flex items-center justify-between md:justify-end md:gap-2">
+              <span className="text-xs md:hidden" style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
+              <div className="flex items-center gap-2">
+                {flagSlot}
+                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ring-inset ring-black/5 ${ws.bg} ${ws.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ws.dot}`} />
+                  {STATUS_LABEL[status]}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Address */}
-          <div style={{ marginBottom: 18 }}>
-            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{line1}</h1>
+          <div className="mb-4 md:mb-[18px]">
+            <h1 className="text-2xl md:text-[30px] font-bold" style={{ margin: 0, color: "var(--agent-text-primary)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{line1}</h1>
             {line2 && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)", fontWeight: 500 }}>{line2}</p>}
           </div>
 
           {/* Bottom row: price/pills + exchange/progress */}
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               {price && (
                 <p style={{ margin: "0 0 10px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.015em" }}>{price}</p>
@@ -156,16 +161,17 @@ export function PropertyHero({
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 28, flexShrink: 0 }}>
+            {/* Exchange + progress: row on both breakpoints, full-width on mobile */}
+            <div className="flex items-end gap-5 md:gap-7 md:flex-shrink-0">
               {days !== null && (
-                <div style={{ textAlign: "right" }}>
+                <div>
                   <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Exchange</p>
                   <p style={{ margin: 0, fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: days < 0 ? "var(--agent-danger)" : days <= 14 ? "var(--agent-warning)" : "var(--agent-text-primary)" }}>
                     {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d`}
                   </p>
                 </div>
               )}
-              <div style={{ minWidth: 150 }}>
+              <div className="flex-1 md:min-w-[150px]">
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Progress</p>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{percent}%</p>
