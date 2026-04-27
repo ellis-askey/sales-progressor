@@ -52,14 +52,14 @@ export default async function AgentNewTransactionPage() {
       }}>
         <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", padding: "24px 32px 28px" }}>
+        <div className="relative px-4 pt-6 pb-7 md:px-8">
           <p className="agent-eyebrow" style={{ marginBottom: 12 }}>{session.user.firmName ?? "Agent Portal"}</p>
           <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>New Transaction</h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>Fill in the details below to create a new property file.</p>
         </div>
       </div>
 
-      <div className="px-8 py-7">
+      <div className="px-4 md:px-8 py-5 md:py-7">
         <NewTransactionForm userRole={session.user.role} redirectBase="/agent/transactions" recommendedFirms={recommendedFirms} initialDrafts={drafts} />
       </div>
     </>

@@ -42,7 +42,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="agent-shell-root" style={{ display: "flex" }}>
 
       {/* Warm gradient background */}
       <div aria-hidden="true" style={{
@@ -98,10 +98,10 @@ export function AgentShell({ children, session, showWelcome }: { children: React
 
       {/* Sidebar */}
       <aside
-        className={`agent-glass agent-sidebar-mobile${mobileOpen ? " agent-sidebar-mobile-open" : ""}`}
+        className={`agent-glass agent-sidebar-mobile agent-sidebar-height${mobileOpen ? " agent-sidebar-mobile-open" : ""}`}
         style={{
           width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
-          position: "sticky", top: 0, height: "100vh", overflowY: "auto",
+          position: "sticky", top: 0, overflowY: "auto",
           borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
           borderRight: "0.5px solid var(--agent-glass-border)",
         }}
@@ -128,7 +128,9 @@ export function AgentShell({ children, session, showWelcome }: { children: React
               )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <AgentBell userKey={session.user.email ?? session.user.id} />
+              <div className="agent-bell-sidebar">
+                <AgentBell userKey={session.user.email ?? session.user.id} />
+              </div>
               <button
                 className="agent-sidebar-close"
                 onClick={() => setMobileOpen(false)}
