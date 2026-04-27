@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback } from "react";
+import { ChevronDown } from "lucide-react";
 import { TabContext } from "./TabContext";
 
 type TabBadgeUpdater = (key: string, count: number) => void;
@@ -16,11 +17,15 @@ type Props = {
   initialTab?: string;
 };
 
+// Module-scoped: persists across SPA navigations for the browser session
+let _sessionSidebarOpen = false;
+
 export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props) {
   const [active, setActive] = useState(() => {
     if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
     return tabs[0].key;
   });
+  const [sidebarOpen, setSidebarOpen] = useState(_sessionSidebarOpen);
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [badges, setBadges] = useState<Record<string, number>>(
@@ -30,6 +35,12 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
   const updateBadge = useCallback<TabBadgeUpdater>((key, count) => {
     setBadges((prev) => ({ ...prev, [key]: count }));
   }, []);
+
+  function toggleSidebar() {
+    const next = !sidebarOpen;
+    _sessionSidebarOpen = next;
+    setSidebarOpen(next);
+  }
 
   useEffect(() => {
     const onScroll = () => {
@@ -80,7 +91,26 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
           </div>
         </div>
 
-        <div className="px-8 py-7 flex gap-7 items-start">
+        {/* Mobile/tablet collapsible sidebar — hidden on lg+ */}
+        <div className="lg:hidden border-b border-white/20">
+          <button
+            onClick={toggleSidebar}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors"
+          >
+            <span>File details</span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {sidebarOpen && (
+            <div className="px-4 pb-5">
+              {sidebar}
+            </div>
+          )}
+        </div>
+
+        {/* Tab content + desktop sidebar */}
+        <div className="px-4 lg:px-8 py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 items-start">
           <div className="flex-1 min-w-0 relative">
             {tabs.map((tab, i) => (
               <div
@@ -97,7 +127,8 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
             ))}
           </div>
 
-          <div className="w-72 flex-shrink-0 sticky top-[53px]">
+          {/* Desktop sidebar — hidden on mobile/tablet */}
+          <div className="hidden lg:block w-72 flex-shrink-0 sticky top-[53px]">
             {sidebar}
           </div>
         </div>
