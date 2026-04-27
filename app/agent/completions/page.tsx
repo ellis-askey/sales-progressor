@@ -86,6 +86,8 @@ export default async function AgentCompletionsPage() {
 
   const totalValue = files.reduce((sum, f) => sum + (f.purchasePrice ?? 0), 0);
   const filesWithPrice = files.filter((f) => f.purchasePrice).length;
+  const totalFees = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
+  const filesWithFee = files.filter((f) => f.agentFeeAmount).length;
 
   return (
     <>
@@ -138,8 +140,10 @@ export default async function AgentCompletionsPage() {
 
         {/* Pipeline total */}
         {files.length > 0 && (
-          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", margin: 0, flexWrap: "wrap" }}>
-            {files.length} file{files.length !== 1 ? "s" : ""}{filesWithPrice > 0 ? ` · ${fmtCompact(totalValue)} awaiting completion` : ""}
+          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", margin: 0 }}>
+            {files.length} file{files.length !== 1 ? "s" : ""}
+            {filesWithFee > 0 && <>{" · "}<span style={{ color: "rgba(15,23,42,0.65)", fontWeight: 500 }}>{fmtCompact(totalFees)} total fees</span></>}
+            {filesWithPrice > 0 && <>{" · "}{fmtCompact(totalValue)} in sales</>}
           </p>
         )}
 
@@ -149,8 +153,9 @@ export default async function AgentCompletionsPage() {
           if (group.length === 0) return null;
           const s = GROUP_STYLES[key];
 
-          const groupValue = group.reduce((sum, f) => sum + (f.purchasePrice ?? 0), 0);
-          const missingPriceCount = group.filter((f) => !f.purchasePrice).length;
+          const groupValue    = group.reduce((sum, f) => sum + (f.purchasePrice   ?? 0), 0);
+          const groupFeeTotal = group.reduce((sum, f) => sum + (f.agentFeeAmount  ?? 0), 0);
+          const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
 
           return (
             <div key={key} id={`section-${key}`}>
@@ -160,12 +165,15 @@ export default async function AgentCompletionsPage() {
                 <p className={`text-xs font-bold uppercase tracking-[0.07em] ${s.label} flex-1`}>
                   {label} ({group.length})
                 </p>
-                {groupValue > 0 && (
+                {/* Fee total takes priority; fall back to sale price total */}
+                {groupFeeTotal > 0 ? (
+                  <p className="text-xs font-semibold tabular-nums" style={{ color: "rgba(15,23,42,0.6)" }}>{fmt(groupFeeTotal / 100)} fees</p>
+                ) : groupValue > 0 ? (
                   <p className="text-xs text-slate-900/40 font-medium tabular-nums">{fmt(groupValue / 100)}</p>
-                )}
+                ) : null}
               </div>
-              {missingPriceCount > 0 && groupValue > 0 && (
-                <p className="text-xs text-slate-900/30 mb-2 -mt-1">({missingPriceCount} file{missingPriceCount !== 1 ? "s" : ""} with no price)</p>
+              {groupFeeTotal > 0 && missingFeeCount > 0 && (
+                <p className="text-xs text-slate-900/30 -mt-2 mb-2 ml-[22px]">({missingFeeCount} file{missingFeeCount !== 1 ? "s" : ""} with no fee set)</p>
               )}
 
               <div className="space-y-2">
@@ -209,6 +217,7 @@ export default async function AgentCompletionsPage() {
                           <p className="text-[15px] font-bold text-slate-900/90 mb-1 truncate">{f.propertyAddress}</p>
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-1">
                             {f.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(f.purchasePrice / 100)}</span>}
+                            {f.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "rgba(15,23,42,0.7)" }}>Fee: {fmt(f.agentFeeAmount / 100)}</span>}
                             {f.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {f.purchasers.join(", ")}</span>}
                             {f.assignedUserName && <span className="text-sm text-slate-900/50">Progressor: {f.assignedUserName}</span>}
                           </div>
@@ -233,6 +242,7 @@ export default async function AgentCompletionsPage() {
                         <p className="text-[15px] font-bold text-slate-900/90 leading-snug">{f.propertyAddress}</p>
                         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                           {f.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(f.purchasePrice / 100)}</span>}
+                          {f.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "rgba(15,23,42,0.7)" }}>Fee: {fmt(f.agentFeeAmount / 100)}</span>}
                           {f.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {f.purchasers.join(", ")}</span>}
                           {f.assignedUserName && <span className="text-sm text-slate-900/50">Progressor: {f.assignedUserName}</span>}
                         </div>
