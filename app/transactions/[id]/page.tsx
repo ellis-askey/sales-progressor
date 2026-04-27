@@ -247,7 +247,7 @@ export default async function TransactionDetailPage({
 
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-3 divide-x divide-white/20">
+            <div className="grid grid-cols-1 divide-y divide-white/20 md:grid-cols-3 md:divide-x md:divide-y-0">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>

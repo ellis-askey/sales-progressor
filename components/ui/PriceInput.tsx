@@ -27,7 +27,7 @@ export function PriceInput({
 
   const inputClass =
     variant === "referral"
-      ? `flex-1 text-sm bg-white/50 border border-white/30 rounded-lg px-3 py-2 text-slate-900/80 focus:outline-none focus:border-blue-400/60 ${className}`
+      ? `flex-1 text-base bg-white/50 border border-white/30 rounded-lg px-3 py-2 text-slate-900/80 focus:outline-none focus:border-blue-400/60 ${className}`
       : size === "sm"
       ? `glass-input px-2 py-1 text-sm ${className}`
       : `glass-input px-3 py-2.5 text-sm ${className}`;
