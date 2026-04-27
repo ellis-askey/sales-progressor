@@ -82,47 +82,47 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
               : `/agent/transactions/${item.id}`;
 
             return (
-              <div key={item.id} className="px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 hover:bg-white/20 transition-colors">
-                {/* Address — links to file (general) */}
+              <div key={item.id} className="px-4 py-2.5 hover:bg-white/20 transition-colors">
+                {/* Address — full-width row, no competition with badges */}
                 <Link
                   href={`/agent/transactions/${item.id}`}
                   style={{ textDecoration: "none" }}
-                  className="flex-1 min-w-0"
+                  className="block mb-1.5"
                 >
-                  <p className="text-xs font-medium text-slate-900/80 truncate">{item.propertyAddress}</p>
+                  <p className="text-xs font-medium text-slate-900/80 leading-snug">{item.propertyAddress}</p>
                   {item.agentUser && (
-                    <p className="text-xs text-slate-900/40">{item.agentUser.name}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">{item.agentUser.name}</p>
                   )}
                 </Link>
 
-                {/* Alert badges */}
-                <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                  {item.alerts.map((alert) => {
-                    const cfg = ALERT_CONFIG[alert];
-                    return (
-                      <span
-                        key={alert}
-                        style={{
-                          padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 600,
-                          color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-                        }}
-                      >
-                        {cfg.label}
-                      </span>
-                    );
-                  })}
+                {/* Badges + action — second row, badges left, action right */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {item.alerts.map((alert) => {
+                      const cfg = ALERT_CONFIG[alert];
+                      return (
+                        <span
+                          key={alert}
+                          style={{
+                            padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                            color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
+                          }}
+                        >
+                          {cfg.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {action && (
+                    <Link
+                      href={deepLink}
+                      style={{ textDecoration: "none" }}
+                      className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-white/50 border border-white/60 text-slate-900/60 hover:bg-white/70 hover:text-slate-900/80 transition-colors whitespace-nowrap"
+                    >
+                      {action.label}
+                    </Link>
+                  )}
                 </div>
-
-                {/* Primary action button — deep-links to the relevant section */}
-                {action && (
-                  <Link
-                    href={deepLink}
-                    style={{ textDecoration: "none" }}
-                    className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-white/50 border border-white/60 text-slate-900/60 hover:bg-white/70 hover:text-slate-900/80 transition-colors whitespace-nowrap"
-                  >
-                    {action.label}
-                  </Link>
-                )}
               </div>
             );
           })}

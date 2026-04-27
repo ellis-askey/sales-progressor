@@ -174,7 +174,7 @@ export function RecommendedSolicitorsSettings({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs text-slate-900/50 mb-1">Case handler name <span className="text-red-400">*</span></label>
               <input
                 type="text"
@@ -207,7 +207,7 @@ export function RecommendedSolicitorsSettings({
                 className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="block text-xs text-slate-900/50 mb-1">Default referral fee (£, optional)</label>
               <input
                 type="text"
