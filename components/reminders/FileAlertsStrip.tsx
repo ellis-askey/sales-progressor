@@ -82,7 +82,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
               : `/agent/transactions/${item.id}`;
 
             return (
-              <div key={item.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/20 transition-colors">
+              <div key={item.id} className="px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 hover:bg-white/20 transition-colors">
                 {/* Address — links to file (general) */}
                 <Link
                   href={`/agent/transactions/${item.id}`}

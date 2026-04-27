@@ -173,7 +173,7 @@ export function RecommendedSolicitorsSettings({
             Adding <span className="text-blue-700">{pendingFirm.name}</span> — enter case handler details
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="col-span-2">
               <label className="block text-xs text-slate-900/50 mb-1">Case handler name <span className="text-red-400">*</span></label>
               <input
