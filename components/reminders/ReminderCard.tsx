@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
+import { CheckCircle, Clock, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { formatDate } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 
@@ -45,6 +46,15 @@ const SNOOZE_OPTIONS = [
   { label: "14 days",  hours: 336 },
 ];
 
+// Border colours per urgency — 4px left stripe
+const LEFT_BORDER: Record<string, string> = {
+  escalated: "#dc2626",               // red-600
+  overdue:   "#ea580c",               // orange-600
+  due_today: "#d97706",               // amber-600
+  upcoming:  "rgba(148,163,184,0.4)", // slate-300/40
+  snoozed:   "rgba(168,85,247,0.5)",  // purple-500/50
+};
+
 function stripChase(name: string) {
   return name.replace(/^Chase:\s*/i, "");
 }
@@ -54,6 +64,15 @@ function relativeShort(d: Date | string) {
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   return `${days}d ago`;
+}
+
+function methodDisplay(method: string | null) {
+  if (!method) return null;
+  const map: Record<string, string> = {
+    whatsapp: "WhatsApp", email: "email", call: "call",
+    sms: "SMS", letter: "letter", portal: "portal",
+  };
+  return map[method] ?? method;
 }
 
 function getPartyFromCode(code: string | null): "vendor" | "purchaser" | null {
@@ -93,12 +112,14 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
       <button
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
-        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300/60 bg-white/40 text-slate-900/60 hover:bg-white/60 transition-colors disabled:opacity-40"
+        title="Snooze"
+        className="reminder-action-btn reminder-snooze-btn"
       >
-        Snooze
+        <Clock weight="regular" className="reminder-action-icon" />
+        <span className="reminder-btn-label">Snooze</span>
       </button>
       {open && (
-        <div className="absolute left-0 bottom-full mb-1 z-30 min-w-[130px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[130px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -114,11 +135,10 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   );
 }
 
-function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate, onManualChase }: {
+function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }: {
   taskId: string;
   isEscalated: boolean;
   disabled: boolean;
-  onComplete: (id: string) => void;
   onEscalate: (id: string) => void;
   onManualChase?: (id: string) => void;
 }) {
@@ -138,7 +158,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate, onMa
       <button
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
-        className="px-2.5 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40"
+        className="px-2.5 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40 reminder-overflow-btn"
         title="More actions"
       >
         ⋯
@@ -153,12 +173,6 @@ function KebabMenu({ taskId, isEscalated, disabled, onComplete, onEscalate, onMa
               Chased manually
             </button>
           )}
-          <button
-            onClick={() => { onComplete(taskId); setOpen(false); }}
-            className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
-          >
-            Milestone confirmed ✓
-          </button>
           {!isEscalated && (
             <button
               onClick={() => { onEscalate(taskId); setOpen(false); }}
@@ -187,6 +201,9 @@ interface ReminderCardProps {
   onWakeup?: (logId: string) => void;
   onManualChase?: (taskId: string) => void;
   mode?: "active" | "snoozed";
+  grouped?: boolean;
+  lastComm?: { createdAt: Date; method: string | null } | null;
+  totalActiveOnFile?: number;
 }
 
 export function ReminderCard({
@@ -203,6 +220,9 @@ export function ReminderCard({
   onWakeup,
   onManualChase,
   mode = "active",
+  grouped = false,
+  lastComm,
+  totalActiveOnFile,
 }: ReminderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -223,28 +243,42 @@ export function ReminderCard({
 
   const chaseContacts = filterContactsForChase(contacts, log.reminderRule.targetMilestoneCode);
   const contactName = chaseContacts[0]?.name ?? null;
-  const lastComm = openTask?.communications?.[0] ?? null;
-  const methodLabel = lastComm?.method === "whatsapp" ? "WhatsApp" : lastComm?.method ?? null;
 
-  const hasMoreDetails = !!(log.sourceDateUsed || log.reminderRule.anchorMilestone || log.reminderRule.graceDays !== undefined);
-
+  // Status bar chase summary (uses this task's last comm)
+  const taskLastComm = openTask?.communications?.[0] ?? null;
+  const taskMethodLabel = methodDisplay(taskLastComm?.method ?? null);
   const chaseSummary = openTask && openTask.chaseCount > 0
-    ? `${openTask.chaseCount} chase${openTask.chaseCount > 1 ? "s" : ""} sent${lastComm ? ` · last ${relativeShort(lastComm.createdAt)}${methodLabel ? ` via ${methodLabel}` : ""}` : ""}`
+    ? `${openTask.chaseCount} chase${openTask.chaseCount > 1 ? "s" : ""} sent${taskLastComm ? ` · last ${relativeShort(taskLastComm.createdAt)}${taskMethodLabel ? ` via ${taskMethodLabel}` : ""}` : ""}`
     : "";
+
+  // Expanded panel: last contact across whole file
+  const fileMethodLabel = methodDisplay(lastComm?.method ?? null);
+  const lastContactText = lastComm
+    ? `Last contact: ${fileMethodLabel ? `via ${fileMethodLabel}, ` : ""}${relativeShort(lastComm.createdAt)}`
+    : "No contact logged on this file yet.";
+
+  const hasMoreDetails = !!(openTask || log.sourceDateUsed || log.reminderRule.anchorMilestone);
+
+  // ── Urgency for left-border ────────────────────────────────────────────────
+  let urgencyKey = "upcoming";
+  if (isEscalated) urgencyKey = "escalated";
+  else if (isOverdue) urgencyKey = "overdue";
+  else if (isDueToday) urgencyKey = "due_today";
+  const leftBorder = LEFT_BORDER[urgencyKey];
 
   // ── Snoozed mode ──────────────────────────────────────────────────────────
   if (mode === "snoozed") {
-    return (
-      <div className="glass-card border border-purple-200/60" style={{ borderRadius: 20 }}>
-        <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between" style={{ borderRadius: "20px 20px 0 0" }}>
-          <span>Snoozed until {formatDate(log.snoozedUntil!)}</span>
+    const card = (
+      <>
+        <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between" style={{ borderRadius: grouped ? 0 : "20px 20px 0 0" }}>
+          <span>Wakes {formatDate(log.snoozedUntil!)}</span>
           {onWakeup && (
             <button
               onClick={() => onWakeup(log.id)}
               disabled={isLoading === log.id || isPending}
               className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-40"
             >
-              {isLoading === log.id ? "…" : "Wake up →"}
+              {isLoading === log.id ? "…" : "Wake now"}
             </button>
           )}
         </div>
@@ -267,38 +301,41 @@ export function ReminderCard({
             </div>
           )}
         </div>
+      </>
+    );
+
+    if (grouped) return <div>{card}</div>;
+    return (
+      <div className="glass-card border border-purple-200/60" style={{ borderRadius: 20, borderLeft: `4px solid ${LEFT_BORDER.snoozed}` }}>
+        {card}
       </div>
     );
   }
 
-  // ── Active header ──────────────────────────────────────────────────────────
-  let borderColor = "";
+  // ── Active header bar ──────────────────────────────────────────────────────
   let headerBg = "bg-white/20 text-slate-900/50";
   let headerLeft: string;
 
   if (isEscalated) {
-    borderColor = "border-red-300";
     headerBg = "bg-red-50/60 text-red-700";
     headerLeft = `Escalated${daysOverdue > 0 ? ` · ${daysOverdue}d overdue` : isDueToday ? " · due today" : ""}`;
   } else if (isOverdue) {
-    borderColor = "border-orange-200";
     headerBg = "bg-orange-50/60 text-orange-600";
     headerLeft = `Overdue ${daysOverdue}d`;
   } else if (isDueToday) {
-    borderColor = "border-amber-200";
     headerBg = "bg-amber-50/60 text-amber-600";
     headerLeft = "Due today";
   } else {
     headerLeft = `Due ${formatDate(log.nextDueDate)}`;
   }
 
-  return (
-    <div
-      className={`glass-card${borderColor ? ` border ${borderColor}` : ""}`}
-      style={{ borderRadius: 20 }}
-    >
-      {/* Status bar — rounded top corners so its bg is clipped without overflow:hidden on the card */}
-      <div className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`} style={{ borderRadius: "20px 20px 0 0" }}>
+  const cardBody = (
+    <>
+      {/* Status bar */}
+      <div
+        className={`px-4 py-1.5 text-xs font-medium flex items-center justify-between ${headerBg}`}
+        style={{ borderRadius: grouped ? 0 : "20px 20px 0 0" }}
+      >
         <span>{headerLeft}</span>
         {chaseSummary && <span className="opacity-60 truncate ml-3">{chaseSummary}</span>}
       </div>
@@ -331,25 +368,33 @@ export function ReminderCard({
                 Waiting on {partyLabel}
               </span>
             )}
+            {/* Show / Hide details toggle */}
             {hasMoreDetails && (
               <button
                 onClick={() => setExpanded((p) => !p)}
-                className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors block"
+                className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors flex items-center gap-1"
               >
-                {expanded ? "− Less" : "+ More"}
+                {expanded
+                  ? <><CaretUp weight="bold" style={{ width: 10, height: 10 }} /> Hide details</>
+                  : <><CaretDown weight="bold" style={{ width: 10, height: 10 }} /> Show details</>
+                }
               </button>
             )}
             {expanded && (
-              <div className="text-xs text-slate-900/50 space-y-0.5 pl-2 border-l-2 border-slate-200/60 py-0.5">
-                <p>
-                  Triggered by:{" "}
-                  <span className="font-medium">
-                    {log.reminderRule.anchorMilestone?.name ?? "File creation"}
-                  </span>
-                  {log.sourceDateUsed ? ` on ${formatDate(log.sourceDateUsed)}` : ""}
-                </p>
-                {log.reminderRule.graceDays !== undefined && (
-                  <p>Grace period: {log.reminderRule.graceDays} days</p>
+              <div className="text-xs text-slate-900/50 space-y-1 pt-2 border-t border-slate-200/40 mt-1">
+                <p>{lastContactText}</p>
+                {openTask && (
+                  <p>
+                    {openTask.chaseCount === 0
+                      ? "Not yet chased"
+                      : `Chased ${openTask.chaseCount}× already`}
+                  </p>
+                )}
+                {!grouped && totalActiveOnFile !== undefined && totalActiveOnFile > 1 && (
+                  <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
+                )}
+                {log.reminderRule.description ? null : (log.reminderRule.anchorMilestone?.name) && (
+                  <p>Reminder rule: Chase after {log.reminderRule.anchorMilestone.name}{log.reminderRule.graceDays ? ` (${log.reminderRule.graceDays}d grace)` : ""}</p>
                 )}
               </div>
             )}
@@ -358,6 +403,16 @@ export function ReminderCard({
           {/* Actions column */}
           {openTask && (
             <div className="shrink-0 flex items-center gap-1.5">
+              {/* Confirm (milestone confirmed) — promoted to primary */}
+              <button
+                onClick={() => onComplete(openTask.id)}
+                disabled={isLoading === openTask.id || isPending}
+                title="Milestone confirmed"
+                className="reminder-action-btn reminder-confirm-btn"
+              >
+                <CheckCircle weight="fill" className="reminder-action-icon" />
+                <span className="reminder-btn-label">Confirm</span>
+              </button>
               <ChaseButton
                 chaseTaskId={openTask.id}
                 transactionId={transactionId}
@@ -376,7 +431,6 @@ export function ReminderCard({
                 taskId={openTask.id}
                 isEscalated={isEscalated}
                 disabled={isLoading === openTask.id || isPending}
-                onComplete={onComplete}
                 onEscalate={onEscalate}
                 onManualChase={onManualChase}
               />
@@ -384,6 +438,17 @@ export function ReminderCard({
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (grouped) return <div>{cardBody}</div>;
+
+  return (
+    <div
+      className="glass-card"
+      style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
+    >
+      {cardBody}
     </div>
   );
 }

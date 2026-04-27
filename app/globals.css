@@ -502,4 +502,56 @@ select {
   .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
   .hub-content-pad  { padding: 16px 16px !important; }
   .hub-header-pad   { padding: 16px 16px 20px !important; }
+
+  /* Reminders page — work queue mobile */
+  .reminders-page-pad { padding: 16px 16px !important; }
+
+  /* Reminder action buttons — icon-only on mobile */
+  .reminder-btn-label { display: none; }
+  .reminder-action-btn {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 8px !important;
+    justify-content: center !important;
+  }
+  .reminder-overflow-btn {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 8px !important;
+  }
 }
+
+/* ─── Reminder card action buttons ──────────────────────────────────────── */
+
+.reminder-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms, opacity 120ms;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.reminder-action-btn:disabled { opacity: 0.40; pointer-events: none; }
+.reminder-action-icon { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Confirm — green */
+.reminder-confirm-btn {
+  background: var(--agent-success-bg);
+  color: var(--agent-success);
+  border: 1px solid var(--agent-success-border);
+}
+.reminder-confirm-btn:hover { background: rgba(31,138,74,0.16); }
+
+/* Snooze — neutral */
+.reminder-snooze-btn {
+  background: rgba(255,255,255,0.40);
+  color: rgba(45,24,16,0.60);
+  border: 1px solid rgba(255,255,255,0.60);
+}
+.reminder-snooze-btn:hover { background: rgba(255,255,255,0.65); }

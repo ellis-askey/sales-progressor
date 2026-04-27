@@ -4,14 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { Warning } from "@phosphor-icons/react";
 import { ALERT_CONFIG } from "@/lib/services/work-queue";
-import type { WorkQueueItem } from "@/lib/services/work-queue";
+import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
+
+// Action copy and focus param per alert type
+// Alert types that exist: missing_vendor_solicitor, missing_purchaser_solicitor, overdue_exchange, stale
+const ALERT_ACTIONS: Partial<Record<AlertType, { label: string; focus: string }>> = {
+  missing_vendor_solicitor:   { label: "Add vendor solicitor →",     focus: "vendor-solicitor"    },
+  missing_purchaser_solicitor: { label: "Add purchaser solicitor →", focus: "purchaser-solicitor" },
+  overdue_exchange:            { label: "Update exchange date →",     focus: "exchange-date"       },
+};
+
+function getPrimaryAlert(alerts: AlertType[]): AlertType | null {
+  const priority: AlertType[] = [
+    "missing_purchaser_solicitor",
+    "missing_vendor_solicitor",
+    "overdue_exchange",
+    "stale",
+  ];
+  return priority.find((a) => alerts.includes(a)) ?? null;
+}
 
 export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (items.length === 0) return null;
 
-  const now = new Date();
   const overdueCount = items.filter((i) => i.alerts.includes("overdue_exchange")).length;
   const missingCount = items.filter(
     (i) => i.alerts.includes("missing_vendor_solicitor") || i.alerts.includes("missing_purchaser_solicitor")
@@ -58,47 +75,55 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
       {!collapsed && (
         <div className="divide-y divide-white/30">
           {items.map((item) => {
-            const exchangeDate = item.expectedExchangeDate ? new Date(item.expectedExchangeDate) : null;
-            const exchangeOverdue = exchangeDate && exchangeDate < now;
-            const daysOverdue = exchangeOverdue
-              ? Math.floor((now.getTime() - exchangeDate!.getTime()) / 86400000)
-              : null;
+            const primaryAlert = getPrimaryAlert(item.alerts);
+            const action = primaryAlert ? ALERT_ACTIONS[primaryAlert] : null;
+            const deepLink = action
+              ? `/agent/transactions/${item.id}?focus=${action.focus}`
+              : `/agent/transactions/${item.id}`;
 
             return (
-              <Link key={item.id} href={`/agent/transactions/${item.id}`} style={{ textDecoration: "none" }}>
-                <div className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/20 transition-colors cursor-pointer">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-slate-900/80 truncate">{item.propertyAddress}</p>
-                    {item.agentUser && (
-                      <p className="text-xs text-slate-900/40">{item.agentUser.name}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                    {item.alerts.map((alert) => {
-                      const cfg = ALERT_CONFIG[alert];
-                      return (
-                        <span
-                          key={alert}
-                          style={{
-                            padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 600,
-                            color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-                          }}
-                        >
-                          {cfg.label}
-                        </span>
-                      );
-                    })}
-                    {exchangeOverdue && daysOverdue !== null && (
-                      <span style={{
-                        padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 500,
-                        color: "var(--agent-danger)", background: "var(--agent-danger-bg)", border: "1px solid var(--agent-danger-border)",
-                      }}>
-                        {daysOverdue}d overdue
+              <div key={item.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/20 transition-colors">
+                {/* Address — links to file (general) */}
+                <Link
+                  href={`/agent/transactions/${item.id}`}
+                  style={{ textDecoration: "none" }}
+                  className="flex-1 min-w-0"
+                >
+                  <p className="text-xs font-medium text-slate-900/80 truncate">{item.propertyAddress}</p>
+                  {item.agentUser && (
+                    <p className="text-xs text-slate-900/40">{item.agentUser.name}</p>
+                  )}
+                </Link>
+
+                {/* Alert badges */}
+                <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                  {item.alerts.map((alert) => {
+                    const cfg = ALERT_CONFIG[alert];
+                    return (
+                      <span
+                        key={alert}
+                        style={{
+                          padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                          color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
+                        }}
+                      >
+                        {cfg.label}
                       </span>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              </Link>
+
+                {/* Primary action button — deep-links to the relevant section */}
+                {action && (
+                  <Link
+                    href={deepLink}
+                    style={{ textDecoration: "none" }}
+                    className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-white/50 border border-white/60 text-slate-900/60 hover:bg-white/70 hover:text-slate-900/80 transition-colors whitespace-nowrap"
+                  >
+                    {action.label}
+                  </Link>
+                )}
+              </div>
             );
           })}
         </div>
