@@ -162,7 +162,7 @@ export default async function HubPreviewPage() {
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
               <RefreshButton updatedLabel={`As of ${formatAsOf(updatedAt)}`} />
             </div>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h1 style={{
                   margin: 0,
@@ -337,7 +337,7 @@ export default async function HubPreviewPage() {
           </div>
 
           {/* Greeting + actions */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h1 style={{
                 margin: 0,
