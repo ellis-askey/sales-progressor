@@ -57,8 +57,8 @@ export async function getAgentTransactions(vis: AgentVisibility) {
     where: { ...txWhere(vis), status: { not: DRAFT } },
     orderBy: { createdAt: "desc" },
     include: {
-      assignedUser: { select: { id: true, name: true } },
-      agentUser: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true, role: true } },
+      agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
         where: { isActive: true, isNotRequired: false },

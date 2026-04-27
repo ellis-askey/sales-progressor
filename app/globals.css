@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* ─── Glass Design System Tokens ──────────────────────────────────────────── */
 
 @layer base {
