@@ -75,11 +75,22 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
       {!collapsed && (
         <div className="divide-y divide-white/30">
           {items.map((item) => {
-            const primaryAlert = getPrimaryAlert(item.alerts);
-            const action = primaryAlert ? ALERT_ACTIONS[primaryAlert] : null;
-            const deepLink = action
-              ? `/agent/transactions/${item.id}?focus=${action.focus}`
-              : `/agent/transactions/${item.id}`;
+            const hasBothSolicitorsMissing =
+              item.alerts.includes("missing_vendor_solicitor") &&
+              item.alerts.includes("missing_purchaser_solicitor");
+            let actionLabel: string | null = null;
+            let deepLink: string;
+            if (hasBothSolicitorsMissing) {
+              actionLabel = "Add solicitors →";
+              deepLink = `/agent/transactions/${item.id}`;
+            } else {
+              const primaryAlert = getPrimaryAlert(item.alerts);
+              const action = primaryAlert ? ALERT_ACTIONS[primaryAlert] : null;
+              actionLabel = action?.label ?? null;
+              deepLink = action?.focus
+                ? `/agent/transactions/${item.id}?focus=${action.focus}`
+                : `/agent/transactions/${item.id}`;
+            }
 
             return (
               <div key={item.id} className="px-4 py-2.5 hover:bg-white/20 transition-colors">
@@ -113,13 +124,13 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
                       );
                     })}
                   </div>
-                  {action && (
+                  {actionLabel && (
                     <Link
                       href={deepLink}
                       style={{ textDecoration: "none" }}
                       className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-white/50 border border-white/60 text-slate-900/60 hover:bg-white/70 hover:text-slate-900/80 transition-colors whitespace-nowrap"
                     >
-                      {action.label}
+                      {actionLabel}
                     </Link>
                   )}
                 </div>

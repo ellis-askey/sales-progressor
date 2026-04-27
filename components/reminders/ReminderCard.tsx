@@ -359,9 +359,8 @@ export function ReminderCard({
           </Link>
         )}
 
-        <div className="flex items-start gap-3">
-          {/* Info column */}
-          <div className="flex-1 min-w-0 space-y-1">
+        {/* Info — full width */}
+      <div className="space-y-1">
             {contactName && (
               <p className="text-xs text-slate-900/40">{contactName}</p>
             )}
@@ -376,75 +375,78 @@ export function ReminderCard({
                 Waiting on {partyLabel}
               </span>
             )}
-            {/* Show / Hide details toggle */}
-            {hasMoreDetails && (
-              <button
-                onClick={() => setExpanded((p) => !p)}
-                className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors flex items-center gap-1"
-              >
-                {expanded
-                  ? <><CaretUp weight="bold" style={{ width: 10, height: 10 }} /> Hide details</>
-                  : <><CaretDown weight="bold" style={{ width: 10, height: 10 }} /> Show details</>
-                }
-              </button>
-            )}
-            {expanded && (
-              <div className="text-xs text-slate-900/50 space-y-1 pt-2 border-t border-slate-200/40 mt-1">
-                <p>{lastContactText}</p>
-                {openTask && (
-                  <p>
-                    {openTask.chaseCount === 0
-                      ? "Not yet chased"
-                      : `Chased ${openTask.chaseCount}× already`}
-                  </p>
-                )}
-                {!grouped && totalActiveOnFile !== undefined && totalActiveOnFile > 1 && (
-                  <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
-                )}
-                {log.reminderRule.description ? null : (log.reminderRule.anchorMilestone?.name) && (
-                  <p>Reminder rule: Chase after {log.reminderRule.anchorMilestone.name}{log.reminderRule.graceDays ? ` (${log.reminderRule.graceDays}d grace)` : ""}</p>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Actions column */}
-          {openTask && (
-            <div className="shrink-0 flex items-center gap-1.5">
-              {/* Confirm (milestone confirmed) — promoted to primary */}
-              <button
-                onClick={() => onComplete(openTask.id)}
-                disabled={isLoading === openTask.id || isPending}
-                title="Milestone confirmed"
-                className="reminder-action-btn reminder-confirm-btn"
-              >
-                <CheckCircle weight="fill" className="reminder-action-icon" />
-                <span className="reminder-btn-label">Confirm</span>
-              </button>
-              <ChaseButton
-                chaseTaskId={openTask.id}
-                transactionId={transactionId}
-                propertyAddress={propertyAddress}
-                milestoneName={stripChase(log.reminderRule.name)}
-                chaseCount={openTask.chaseCount}
-                contacts={chaseContacts}
-                onSent={() => onComplete(openTask.id)}
-              />
-              <SnoozeDropdown
-                taskId={openTask.id}
-                onSnooze={onSnooze}
-                disabled={isLoading === openTask.id || isPending}
-              />
-              <KebabMenu
-                taskId={openTask.id}
-                isEscalated={isEscalated}
-                disabled={isLoading === openTask.id || isPending}
-                onEscalate={onEscalate}
-                onManualChase={onManualChase}
-              />
+          {/* Bottom row: Show details (left) + action buttons (right) */}
+          {(hasMoreDetails || openTask) && (
+            <div className="flex items-center justify-between gap-2 mt-2">
+              {hasMoreDetails ? (
+                <button
+                  onClick={() => setExpanded((p) => !p)}
+                  className="text-xs text-slate-900/35 hover:text-slate-900/60 transition-colors flex items-center gap-1"
+                >
+                  {expanded
+                    ? <><CaretUp weight="bold" style={{ width: 10, height: 10 }} /> Hide details</>
+                    : <><CaretDown weight="bold" style={{ width: 10, height: 10 }} /> Show details</>
+                  }
+                </button>
+              ) : <span />}
+              {openTask && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => onComplete(openTask.id)}
+                    disabled={isLoading === openTask.id || isPending}
+                    title="Milestone confirmed"
+                    className="reminder-action-btn reminder-confirm-btn"
+                  >
+                    <CheckCircle weight="fill" className="reminder-action-icon" />
+                    <span className="reminder-btn-label">Confirm</span>
+                  </button>
+                  <ChaseButton
+                    chaseTaskId={openTask.id}
+                    transactionId={transactionId}
+                    propertyAddress={propertyAddress}
+                    milestoneName={stripChase(log.reminderRule.name)}
+                    chaseCount={openTask.chaseCount}
+                    contacts={chaseContacts}
+                    onSent={() => onComplete(openTask.id)}
+                  />
+                  <SnoozeDropdown
+                    taskId={openTask.id}
+                    onSnooze={onSnooze}
+                    disabled={isLoading === openTask.id || isPending}
+                  />
+                  <KebabMenu
+                    taskId={openTask.id}
+                    isEscalated={isEscalated}
+                    disabled={isLoading === openTask.id || isPending}
+                    onEscalate={onEscalate}
+                    onManualChase={onManualChase}
+                  />
+                </div>
+              )}
             </div>
           )}
-        </div>
+
+          {/* Expanded details panel */}
+          {expanded && (
+            <div className="text-xs text-slate-900/50 space-y-1 pt-2 border-t border-slate-200/40 mt-2">
+              <p>{lastContactText}</p>
+              {openTask && (
+                <p>
+                  {openTask.chaseCount === 0
+                    ? "Not yet chased"
+                    : `Chased ${openTask.chaseCount}× already`}
+                </p>
+              )}
+              {!grouped && totalActiveOnFile !== undefined && totalActiveOnFile > 1 && (
+                <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
+              )}
+              {log.reminderRule.description ? null : (log.reminderRule.anchorMilestone?.name) && (
+                <p>Reminder rule: Chase after {log.reminderRule.anchorMilestone.name}{log.reminderRule.graceDays ? ` (${log.reminderRule.graceDays}d grace)` : ""}</p>
+              )}
+            </div>
+          )}
       </div>
     </>
   );

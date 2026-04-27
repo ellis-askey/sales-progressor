@@ -432,6 +432,31 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
+/* ─── Feedback widget — responsive positioning ───────────────────────────── */
+
+.feedback-trigger-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+}
+.feedback-panel-wrap {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 50;
+}
+@media (max-width: 767px) {
+  .feedback-trigger-wrap {
+    right: auto;
+    left: 16px;
+  }
+  .feedback-panel-wrap {
+    left: 16px;
+    right: 16px;
+    width: auto !important;
+  }
+}
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

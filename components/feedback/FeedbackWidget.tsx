@@ -432,11 +432,9 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
 
       {/* Panel */}
       <div
+        className="feedback-panel-wrap"
         role="dialog" aria-modal="true" aria-label="Support and Feedback"
         style={{
-          position: "fixed",
-          bottom: 80,
-          right: 24,
           width: "min(380px, calc(100vw - 32px))",
           maxHeight: "80vh",
           background: "#fff",
@@ -446,7 +444,6 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          zIndex: 50,
           transform: isOpen ? "translateY(0)" : "translateY(20px)",
           opacity: isOpen ? 1 : 0,
           transition: "transform 250ms cubic-bezier(0.0,0.0,0.2,1), opacity 200ms ease",
@@ -457,7 +454,7 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
       </div>
 
       {/* Trigger button */}
-      <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 40 }}>
+      <div className="feedback-trigger-wrap" style={{ zIndex: 40 }}>
         <button
           ref={triggerRef}
           onClick={isOpen ? close : open}

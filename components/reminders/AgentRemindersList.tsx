@@ -163,7 +163,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: true, overdue: true, due_today: true, upcoming: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
 
@@ -291,6 +291,8 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           borderBottom: "0.5px solid rgba(255,200,160,0.28)",
           paddingTop: 10,
           paddingBottom: 10,
+          paddingLeft: 16,
+          paddingRight: 16,
           marginTop: -4,
         }}
       >
@@ -299,7 +301,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           placeholder="Search address or reminder…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-1.5 text-xs rounded-lg glass-subtle border-0 outline-none placeholder:text-slate-900/30 text-slate-900/80 mb-2"
+          className="w-full px-3 py-1.5 text-base rounded-lg glass-subtle border-0 outline-none placeholder:text-slate-900/30 text-slate-900/80 mb-2"
         />
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1">
