@@ -159,8 +159,8 @@ export default function ToastsPreviewPage() {
             })} />
           <TriggerBtn label="Milestone undone"
             onClick={() => toast.success("Milestone reversed", { description: "+2 downstream milestones also undone" })} />
-          <TriggerBtn label="Transaction withdrawn"
-            onClick={() => toast.success("Transaction withdrawn", {
+          <TriggerBtn label="Sale withdrawn"
+            onClick={() => toast.success("Sale withdrawn", {
               action: { label: "Undo", onClick: () => console.log("undo withdrawal") },
             })} />
           <TriggerBtn label="Profile updated"

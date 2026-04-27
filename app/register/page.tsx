@@ -130,7 +130,7 @@ export default function RegisterPage() {
     });
 
     if (result?.ok) {
-      router.push("/agent/dashboard");
+      router.push("/agent/hub");
     } else {
       setLoading(false);
       setError("Account created but sign-in failed. Please go to sign in.");

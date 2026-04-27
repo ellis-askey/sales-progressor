@@ -434,3 +434,72 @@ select {
   -webkit-appearance: none;
   appearance: none;
 }
+
+/* ─── Agent shell — mobile ───────────────────────────────────────────────── */
+
+/* Mobile top bar — hidden on desktop */
+.agent-mobile-header {
+  display: none;
+}
+
+/* Sidebar close button — hidden on desktop */
+.agent-sidebar-close {
+  display: none;
+}
+
+/* Mobile backdrop */
+.agent-mobile-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Show top bar, hide desktop sidebar by default */
+  .agent-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,245,236,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid rgba(255,138,101,0.18);
+  }
+
+  /* Sidebar becomes a slide-in overlay */
+  .agent-sidebar-mobile {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 4px 0 32px rgba(15,5,0,0.18);
+  }
+  .agent-sidebar-mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  .agent-sidebar-close {
+    display: flex;
+  }
+
+  .agent-mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,5,0,0.35);
+    backdrop-filter: blur(2px);
+    z-index: 99;
+  }
+
+  /* Hub layout responsive grids */
+  .hub-grid-main    { grid-template-columns: 1fr !important; }
+  .hub-grid-half    { grid-template-columns: 1fr !important; }
+  .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+  .hub-content-pad  { padding: 16px 16px !important; }
+  .hub-header-pad   { padding: 16px 16px 20px !important; }
+}

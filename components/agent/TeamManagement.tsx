@@ -200,8 +200,8 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
 
       <div className="pt-2 border-t border-white/20">
         <p className="text-xs text-slate-900/40 leading-relaxed">
-          <strong className="text-slate-900/60">Own files</strong> — negotiator can only see their own transactions.<br />
-          <strong className="text-slate-900/60">All files</strong> — negotiator can see all transactions in the agency (same as director).
+          <strong className="text-slate-900/60">Own files</strong> — negotiator can only see their own files.<br />
+          <strong className="text-slate-900/60">All files</strong> — negotiator can see all files in the agency (same as director).
         </p>
       </div>
     </div>

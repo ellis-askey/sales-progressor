@@ -10,15 +10,17 @@ export async function GET(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, canViewAllFiles: true },
+    select: { role: true, canViewAllFiles: true, firmName: true },
   });
 
   const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
 
-  // Build the transaction filter based on visibility
+  // Build the transaction filter — mirrors the pattern in resolveAgentVisibility / txWhere
   const txFilter = seeAll
-    ? { agencyId: session.user.agencyId, agentUserId: { not: null } }
-    : { agentUserId: session.user.id };
+    ? user?.firmName
+      ? { agencyId: session.user.agencyId, agentUser: { firmName: user.firmName } }
+      : { agencyId: session.user.agencyId, agentUserId: { not: null } }
+    : { agencyId: session.user.agencyId, agentUserId: session.user.id };
 
   const count = await prisma.communicationRecord.count({
     where: {

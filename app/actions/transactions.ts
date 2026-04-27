@@ -43,7 +43,7 @@ export async function createTransactionAction(input: {
   const tx = await createTransaction({
     propertyAddress: input.propertyAddress,
     agencyId: session.user.agencyId,
-    assignedUserId: isAgent && resolvedProgressedBy === "agent" ? session.user.id : (isAgent ? undefined : session.user.id),
+    assignedUserId: isAgent ? null : session.user.id,
     agentUserId: isAgent ? session.user.id : null,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,

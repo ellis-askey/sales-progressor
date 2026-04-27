@@ -38,9 +38,10 @@ function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInp
 export async function getHubPipelineStats(vis: AgentVisibility) {
   const now = new Date();
   const in30Days = new Date(now.getTime() + 30 * 86400000);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const txWhere = buildTxWhere(vis);
 
-  const [activeCount, exchangingSoon, pipelineFiles] = await Promise.all([
+  const [activeCount, exchangingSoon, pipelineFiles, newThisMonth] = await Promise.all([
     prisma.propertyTransaction.count({
       where: { ...txWhere, status: "active" },
     }),
@@ -58,13 +59,16 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       where: { ...txWhere, status: "active" },
       select: { purchasePrice: true },
     }),
+    prisma.propertyTransaction.count({
+      where: { ...txWhere, createdAt: { gte: startOfMonth } },
+    }),
   ]);
 
   const pipelineValuePence = pipelineFiles.reduce(
     (sum, tx) => sum + (tx.purchasePrice ?? 0), 0
   );
 
-  return { activeFiles: activeCount, exchangingSoon, pipelineValuePence };
+  return { activeFiles: activeCount, exchangingSoon, pipelineValuePence, newThisMonth };
 }
 
 // ── Flags with severity ───────────────────────────────────────────────────────
@@ -271,6 +275,53 @@ export async function getHubAttentionItems(
     return d !== 0 ? d : new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
   });
 
+  return items;
+}
+
+// ── Today's diary ────────────────────────────────────────────────────────────
+
+export type DiaryItem = {
+  type: "exchange" | "completion";
+  transactionId: string;
+  address: string;
+};
+
+export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const txWhere = buildTxWhere(vis);
+
+  const [exchanges, completions] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        OR: [
+          { expectedExchangeDate:  { gte: todayStart, lte: todayEnd } },
+          { overridePredictedDate: { gte: todayStart, lte: todayEnd } },
+        ],
+      },
+      select: { id: true, propertyAddress: true },
+    }),
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: { in: ["active", "completed"] },
+        completionDate: { gte: todayStart, lte: todayEnd },
+      },
+      select: { id: true, propertyAddress: true },
+    }),
+  ]);
+
+  // Completions first (higher significance); deduplicate by transactionId
+  const seen = new Set<string>();
+  const items: DiaryItem[] = [];
+  for (const tx of completions) {
+    if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress }); }
+  }
+  for (const tx of exchanges) {
+    if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress }); }
+  }
   return items;
 }
 

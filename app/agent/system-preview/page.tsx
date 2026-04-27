@@ -244,7 +244,7 @@ export default function SystemPreviewPage() {
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
             <label className="agent-label">Textarea</label>
-            <textarea className="agent-textarea" placeholder="Add notes about this transaction…" rows={3} />
+            <textarea className="agent-textarea" placeholder="Add notes about this sale…" rows={3} />
             <p className="agent-helper">Optional — visible to your team</p>
           </div>
         </div>
@@ -330,7 +330,7 @@ export default function SystemPreviewPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 520 }}>
           <div className="agent-alert agent-alert-success">
             <CheckCircle weight="fill" style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
-            <span><strong>Transaction created</strong> — The file has been set up and milestones are ready.</span>
+            <span><strong>Sale created</strong> — The file has been set up and milestones are ready.</span>
           </div>
           <div className="agent-alert agent-alert-danger">
             <WarningCircle weight="fill" style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }} />
@@ -427,10 +427,10 @@ export default function SystemPreviewPage() {
           <div className="agent-empty">
             <FolderOpen className="agent-empty-icon" weight="light" />
             <p className="agent-empty-title">No files yet</p>
-            <p className="agent-empty-desc">Create your first transaction to start tracking a sale from offer to keys.</p>
+            <p className="agent-empty-desc">Add your first sale to start tracking it from offer to keys.</p>
             <button className="agent-btn agent-btn-primary agent-btn-md" style={{ marginTop: 8 }}>
               <Plus style={{ width: 16, height: 16 }} weight="bold" />
-              New Transaction
+              New sale
             </button>
           </div>
         </div>

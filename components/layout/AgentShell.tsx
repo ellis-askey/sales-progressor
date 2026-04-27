@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
-  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge,
+  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
+import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 
 function buildNavItems(role: UserRole) {
   return [
-    { href: "/agent/hub-preview",      label: "Hub",          Icon: Gauge         },
+    { href: "/agent/hub",      label: "Hub",          Icon: Gauge         },
     { href: "/agent/work-queue",       label: "Reminders",    Icon: Tray          },
     { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
     { href: "/agent/to-do",            label: "To-Do",        Icon: CheckSquare   },
@@ -23,17 +25,18 @@ function buildNavItems(role: UserRole) {
     { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
     { href: "/agent/solicitors",       label: "Solicitors",   Icon: Buildings     },
-    { href: "/agent/transactions/new", label: "New Transaction", Icon: PlusCircle    },
+    { href: "/agent/transactions/new", label: "New sale",        Icon: PlusCircle    },
     { href: "/agent/settings",         label: "Settings",     Icon: GearSix       },
   ];
 }
 
 export function AgentShell({ children, session, showWelcome }: { children: React.ReactNode; session: Session; showWelcome?: boolean }) {
-  const pathname  = usePathname();
-  const role      = session.user.role as UserRole;
-  const isDirector = role === "director";
-  const navItems  = buildNavItems(role);
-  const initials  = session.user.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+  const pathname    = usePathname();
+  const role        = session.user.role as UserRole;
+  const isDirector  = role === "director";
+  const navItems    = buildNavItems(role);
+  const initials    = session.user.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -61,14 +64,45 @@ export function AgentShell({ children, session, showWelcome }: { children: React
         }} />
       </div>
 
-      {/* Sidebar */}
-      <aside className="agent-glass" style={{
-        width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
-        position: "sticky", top: 0, height: "100vh", overflowY: "auto",
-        borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
-        borderRight: "0.5px solid var(--agent-glass-border)",
-      }}>
+      {/* Mobile top bar — visible only on small screens */}
+      <div className="agent-mobile-header">
+        <button
+          onClick={() => setMobileOpen(true)}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--agent-text-secondary)" }}
+          aria-label="Open menu"
+        >
+          <List weight="regular" style={{ width: 22, height: 22 }} />
+        </button>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: 8,
+            background: "linear-gradient(135deg, #FF8A65 0%, #FF6B4A 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <FolderOpen weight="fill" style={{ width: 13, height: 13, color: "#fff" }} />
+          </div>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+            Sales Progressor
+          </p>
+        </div>
+        <AgentBell userKey={session.user.email ?? session.user.id} />
+      </div>
 
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div className="agent-mobile-backdrop" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`agent-glass agent-sidebar-mobile${mobileOpen ? " agent-sidebar-mobile-open" : ""}`}
+        style={{
+          width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
+          position: "sticky", top: 0, height: "100vh", overflowY: "auto",
+          borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
+          borderRight: "0.5px solid var(--agent-glass-border)",
+        }}
+      >
         {/* Brand */}
         <div style={{ padding: "20px 20px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -90,16 +124,32 @@ export function AgentShell({ children, session, showWelcome }: { children: React
                 </p>
               )}
             </div>
-            <AgentBell userKey={session.user.email ?? session.user.id} />
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <AgentBell userKey={session.user.email ?? session.user.id} />
+              <button
+                className="agent-sidebar-close"
+                onClick={() => setMobileOpen(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--agent-text-muted)" }}
+                aria-label="Close menu"
+              >
+                <X weight="regular" style={{ width: 16, height: 16 }} />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Search */}
+          <div style={{ marginBottom: 6 }}>
+            <AgentGlobalSearch />
+          </div>
+
           {navItems.map(({ href, label, Icon }) => {
             const isActive = pathname === href || (href !== "/agent/dashboard" && pathname.startsWith(href));
             return (
               <Link key={href} href={href}
+                onClick={() => setMobileOpen(false)}
                 className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}>
                 <Icon weight={isActive ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
                 <span style={{ fontSize: 13 }}>{label}</span>
@@ -135,7 +185,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, minHeight: "100vh" }}>
+      <main style={{ flex: 1, minWidth: 0 }}>
         {children}
       </main>
 
