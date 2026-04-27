@@ -2,13 +2,12 @@ export default function AgentLoading() {
   return (
     <>
       {/* Header skeleton */}
-      <div style={{
+      <div className="px-4 pt-6 pb-7 md:px-8" style={{
         background: "rgba(255,255,255,0.52)",
         backdropFilter: "blur(28px) saturate(180%)",
         WebkitBackdropFilter: "blur(28px) saturate(180%)",
         borderBottom: "0.5px solid rgba(255,255,255,0.70)",
         boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        padding: "24px 32px 28px",
       }}>
         <div className="agent-skeleton" style={{ width: 80, height: 11, borderRadius: 6, marginBottom: 14 }} />
         <div className="agent-skeleton" style={{ width: 200, height: 28, borderRadius: 8, marginBottom: 8 }} />

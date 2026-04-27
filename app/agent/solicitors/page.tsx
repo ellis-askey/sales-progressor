@@ -48,7 +48,7 @@ export default async function AgentSolicitorsPage() {
       }}>
         <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", padding: "24px 32px 28px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div className="relative px-4 pt-6 pb-7 md:px-8" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
             <p className="agent-eyebrow" style={{ marginBottom: 12 }}>{session.user.firmName ?? "Agent Portal"}</p>
             <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
@@ -68,7 +68,7 @@ export default async function AgentSolicitorsPage() {
         </div>
       </div>
 
-      <div className="px-8 py-7 space-y-4">
+      <div className="px-4 md:px-8 py-5 md:py-7 space-y-4">
 
         {/* Recommended solicitors — directors only */}
         {isDirector && (
