@@ -85,10 +85,10 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             <Crown className="w-4 h-4 text-white" weight="fill" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900/90">{m.name}</p>
-            <p className="text-xs text-slate-900/40">{m.email}</p>
+            <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
+            <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+          <span className="flex-shrink-0 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
             Director
           </span>
         </div>
@@ -109,35 +109,38 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             <span className="text-xs font-semibold text-blue-700">{m.name.charAt(0)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900/90">{m.name}</p>
-            <p className="text-xs text-slate-900/40">{m.email}</p>
+            <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
+            <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
           </div>
 
-          {/* See all files toggle */}
-          <button
-            onClick={() => toggleViewAll(m)}
-            title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-              m.canViewAllFiles
-                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                : "bg-white/30 text-slate-900/50 hover:bg-white/60"
-            }`}
-          >
-            {m.canViewAllFiles
-              ? <><Eye className="w-3.5 h-3.5" /> All files</>
-              : <><EyeSlash className="w-3.5 h-3.5" /> Own files</>
-            }
-          </button>
-
-          {m.id !== currentUserId && (
+          {/* Actions — flex-shrink-0 keeps them from collapsing into text */}
+          <div className="flex-shrink-0 flex items-center gap-1.5">
+            {/* See all files toggle */}
             <button
-              onClick={() => removeMember(m.id, m.name)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-900/30 hover:text-red-500 hover:bg-red-50 transition-colors"
-              title="Remove from team"
+              onClick={() => toggleViewAll(m)}
+              title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                m.canViewAllFiles
+                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  : "bg-white/30 text-slate-900/50 hover:bg-white/60"
+              }`}
             >
-              <Trash className="w-3.5 h-3.5" />
+              {m.canViewAllFiles
+                ? <><Eye className="w-3.5 h-3.5" /> All files</>
+                : <><EyeSlash className="w-3.5 h-3.5" /> Own files</>
+              }
             </button>
-          )}
+
+            {m.id !== currentUserId && (
+              <button
+                onClick={() => removeMember(m.id, m.name)}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-900/30 hover:text-red-500 hover:bg-red-50 transition-colors"
+                title="Remove from team"
+              >
+                <Trash className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       ))}
 
