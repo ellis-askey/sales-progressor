@@ -132,6 +132,8 @@ export async function getAgentCompletions(vis: AgentVisibility) {
   const exchangeDefIds = defs.filter((d) => d.code === "VM12" || d.code === "PM16").map((d) => d.id);
   const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
 
+  const allPostExchangeDefIds = [...exchangeDefIds, ...completionDefIds];
+
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhere(vis),
@@ -147,24 +149,32 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       purchasePrice: true,
       assignedUser: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
+      vendorSolicitorFirm:    { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: completionDefIds } },
-        select: { id: true },
+        where: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: allPostExchangeDefIds } },
+        select: { milestoneDefinitionId: true, completedAt: true },
       },
     },
   });
 
   return candidates
-    .filter((tx) => tx.milestoneCompletions.length === 0)
-    .map((tx) => ({
-      id: tx.id,
-      propertyAddress: tx.propertyAddress,
-      completionDate: tx.completionDate,
-      purchasePrice: tx.purchasePrice,
-      assignedUserName: tx.assignedUser?.name ?? null,
-      purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
-      vendors: tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name),
-    }))
+    .filter((tx) => !tx.milestoneCompletions.some((c) => completionDefIds.includes(c.milestoneDefinitionId)))
+    .map((tx) => {
+      const exchangeCompletion = tx.milestoneCompletions.find((c) => exchangeDefIds.includes(c.milestoneDefinitionId));
+      return {
+        id: tx.id,
+        propertyAddress: tx.propertyAddress,
+        completionDate: tx.completionDate,
+        purchasePrice: tx.purchasePrice,
+        assignedUserName: tx.assignedUser?.name ?? null,
+        purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
+        vendors:    tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name),
+        exchangedAt:           exchangeCompletion?.completedAt ?? null,
+        vendorSolicitorName:    tx.vendorSolicitorFirm?.name ?? null,
+        purchaserSolicitorName: tx.purchaserSolicitorFirm?.name ?? null,
+      };
+    })
     .sort((a, b) => {
       if (!a.completionDate) return 1;
       if (!b.completionDate) return -1;

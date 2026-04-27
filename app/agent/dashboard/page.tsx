@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { listTransactions, countTransactionsByStatus, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
+import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
 import { listAgentRequests } from "@/lib/services/manual-tasks";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
-import { PostExchangeStrip } from "@/components/transactions/PostExchangeStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { AgentRequestsPanel } from "@/components/agent/AgentRequestsPanel";
@@ -25,11 +24,10 @@ export default async function AgentDashboard({
   const opts = vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
   const agentId = vis.seeAll ? undefined : session.user.id;
 
-  const [transactions, counts, forecastMonths, postExchangeGroups, agentRequests] = await Promise.all([
+  const [transactions, counts, forecastMonths, agentRequests] = await Promise.all([
     listTransactions(session.user.agencyId, agentId, opts),
     countTransactionsByStatus(session.user.agencyId, agentId, opts),
     getExchangeForecast(session.user.agencyId, agentId, opts).catch(() => []),
-    getExchangedNotCompleting(session.user.agencyId, agentId, opts).catch(() => []),
     listAgentRequests(session.user.id, session.user.agencyId).catch(() => []),
   ]);
 
@@ -102,10 +100,6 @@ export default async function AgentDashboard({
       </div>
 
       <div className="px-8 py-7 space-y-7">
-
-        {postExchangeGroups.length > 0 && (
-          <PostExchangeStrip groups={postExchangeGroups} basePath="/agent/transactions" />
-        )}
 
         {forecastMonths.length > 0 && (
           <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
