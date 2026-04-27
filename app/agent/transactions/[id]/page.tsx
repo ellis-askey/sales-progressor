@@ -253,7 +253,7 @@ export default async function AgentTransactionDetailPage({
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid divide-x divide-white/20" style={{ gridTemplateColumns: "130px 160px 1fr" }}>
+            <div className="grid grid-cols-1 divide-y divide-white/20 md:grid-cols-[130px_160px_1fr] md:divide-x md:divide-y-0">
               <MetaField label="Status">
                 <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
               </MetaField>
@@ -275,7 +275,7 @@ export default async function AgentTransactionDetailPage({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} />
             <SolicitorSection
               transactionId={transaction.id}
@@ -309,12 +309,12 @@ export default async function AgentTransactionDetailPage({
             } : null}
           />
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <RemindersWidget reminders={topReminders} totalActive={activeReminders.length} />
             <RecentActivityWidget entries={activityEntries} />
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <RiskScoreWidget input={riskInput} />
             <ChainWidget transactionId={transaction.id} />
           </div>
