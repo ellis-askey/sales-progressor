@@ -789,6 +789,18 @@
     line-height: var(--agent-line-relaxed);
   }
 
+  /* ── Recharts — touch focus ring ────────────────────────────────────────── */
+  .recharts-wrapper:focus,
+  .recharts-surface:focus {
+    outline: none;
+  }
+  .recharts-wrapper:focus-visible,
+  .recharts-surface:focus-visible {
+    outline: 1.5px solid var(--agent-coral);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   /* ── Work Queue row hover ───────────────────────────────────────────────── */
   .work-queue-row { transition: background 150ms; }
   .work-queue-row:hover { background: rgba(255,255,255,0.65) !important; }

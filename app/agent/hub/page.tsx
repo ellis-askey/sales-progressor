@@ -88,26 +88,6 @@ const URGENCY_STYLE = {
   },
 } as const;
 
-const HEALTH_BADGE = {
-  on_track: {
-    bg:     "var(--agent-success-bg)",
-    color:  "var(--agent-success)",
-    border: "var(--agent-success-border)",
-    label:  "On track",
-  },
-  watch: {
-    bg:     "var(--agent-warning-bg)",
-    color:  "var(--agent-warning)",
-    border: "var(--agent-warning-border)",
-    label:  "Watch",
-  },
-  action: {
-    bg:     "var(--agent-danger-bg)",
-    color:  "var(--agent-danger)",
-    border: "var(--agent-danger-border)",
-    label:  "Action needed",
-  },
-} as const;
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -131,7 +111,6 @@ export default async function HubPreviewPage() {
   const overdueCount      = attentionItems.filter((i) => i.urgency === "overdue").length;
   const attentionFileCount = new Set(attentionItems.map((i) => i.transaction.id)).size;
   const healthStatus      = escalatedCount > 0 ? "action" : overdueCount > 0 ? "watch" : "on_track";
-  const healthBadge    = HEALTH_BADGE[healthStatus];
   const next7Days      = weeklyForecast[0]?.count ?? 0;
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
@@ -484,7 +463,7 @@ export default async function HubPreviewPage() {
               </p>
             </div>
           ) : (
-            attentionItems.map((item, i) => {
+            attentionItems.slice(0, 3).map((item, i) => {
               const s = URGENCY_STYLE[item.urgency];
               return (
                 <Link
@@ -543,22 +522,6 @@ export default async function HubPreviewPage() {
                   Where your business sits right now
                 </p>
               </div>
-              <span
-                title={
-                  healthStatus === "on_track" ? "No overdue reminders — pipeline is progressing normally"
-                  : healthStatus === "watch"   ? "Some reminders are overdue — a few files need attention"
-                  : "Escalated reminders — immediate action required on one or more files"
-                }
-                style={{
-                  display: "inline-flex", alignItems: "center",
-                  padding: "3px 10px", borderRadius: 99,
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
-                  background: healthBadge.bg, color: healthBadge.color,
-                  border: `1px solid ${healthBadge.border}`,
-                  cursor: "help",
-                }}>
-                {healthBadge.label}
-              </span>
             </div>
 
             <div className="hub-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>

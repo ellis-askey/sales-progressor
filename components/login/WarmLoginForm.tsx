@@ -33,7 +33,7 @@ export function WarmLoginForm() {
     borderRadius: "8px",
     padding: "10px 14px",
     color: "#3D1F0E",
-    fontSize: "14px",
+    fontSize: "16px",
     outline: "none",
     transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
   }
