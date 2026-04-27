@@ -107,7 +107,7 @@ export default async function AgentDashboard({
                   key={value}
                   href={value === "active" ? "/agent/dashboard" : `/agent/dashboard?filter=${value}`}
                   scroll={false}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-white/60 text-slate-900/90 shadow-sm"
                       : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"

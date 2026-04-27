@@ -22,7 +22,7 @@ const STEPS: Step[] = [
 ];
 
 export function OnboardingChecklist({ userId }: { userId: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [steps, setSteps] = useState<boolean[]>([false, false, false, false, false]);
   const [firstTxId, setFirstTxId] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
       setDismissed(true);
       return;
     }
+    if (window.innerWidth >= 768) setOpen(true);
     fetchProgress();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);

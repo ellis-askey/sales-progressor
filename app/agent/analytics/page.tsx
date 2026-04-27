@@ -534,11 +534,17 @@ export default async function AgentAnalyticsPage({
             {solicitorStats.map((s, i) => {
               const badge = speedBadge(s.avgDaysToExchange);
               return (
-                <div key={s.firmId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, gap: 12 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.firmName}</p>
-                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)", flexShrink: 0 }}>{s.exchangeCount} {s.exchangeCount === 1 ? "exchange" : "exchanges"}</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", flexShrink: 0, minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, flexShrink: 0, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>{badge.label}</span>
+                <div
+                  key={s.firmId}
+                  className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                  style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                >
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{s.firmName}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{s.exchangeCount} {s.exchangeCount === 1 ? "exchange" : "exchanges"}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>{badge.label}</span>
+                  </div>
                 </div>
               );
             })}

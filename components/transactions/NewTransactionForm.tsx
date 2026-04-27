@@ -1040,14 +1040,14 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     key={value}
                     type="button"
                     onClick={() => setField("purchaseType", value)}
-                    className={`w-full py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-between gap-4 ${
+                    className={`w-full py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all flex flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
                       form.purchaseType === value
                         ? "border-blue-400 bg-blue-50/60 text-blue-700"
                         : "border-white/30 text-slate-900/50 hover:border-white/50"
                     }`}
                   >
                     {label}
-                    <span className="text-xs font-normal text-slate-900/40 text-right">{note}</span>
+                    <span className="text-xs font-normal text-slate-900/40 sm:text-right">{note}</span>
                   </button>
                 ))}
               </div>

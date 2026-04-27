@@ -159,7 +159,7 @@ export function RecommendedSolicitorsSettings({
           <button
             onClick={() => handleRemove(r.firmId)}
             disabled={removing === r.firmId}
-            className="text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40 flex-shrink-0"
+            className="p-2 -m-2 text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40 flex-shrink-0"
           >
             {removing === r.firmId ? "…" : "Remove"}
           </button>

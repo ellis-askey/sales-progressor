@@ -849,17 +849,18 @@ export default async function HubPreviewPage() {
 
         {/* ── 5. Activity ribbon ─────────────────────────────────────────────────── */}
         {recentActivity && (
-          <div style={{
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between",
-            background: "rgba(255,255,255,0.42)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            border: "0.5px solid var(--agent-glass-border)",
-            borderRadius: "var(--agent-radius-lg)",
-            padding: "12px 20px", gap: 12,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            style={{
+              background: "rgba(255,255,255,0.42)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: "0.5px solid var(--agent-glass-border)",
+              borderRadius: "var(--agent-radius-lg)",
+              padding: "12px 20px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
               <div style={{
                 width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
                 background: "var(--agent-coral)",
@@ -867,10 +868,11 @@ export default async function HubPreviewPage() {
               }}>
                 <Plus size={12} weight="bold" color="#fff" />
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,
                   color: "var(--agent-text-primary)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   Last activity: {recentActivity.description}
                 </p>
@@ -886,7 +888,6 @@ export default async function HubPreviewPage() {
                 color: "var(--agent-coral-deep)",
                 textDecoration: "none",
                 display: "flex", alignItems: "center", gap: 4,
-                flexShrink: 0,
               }}
             >
               View file

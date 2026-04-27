@@ -97,6 +97,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,7 +111,10 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
+          setOpen((p) => !p);
+        }}
         disabled={disabled}
         title="Snooze"
         className="reminder-action-btn reminder-snooze-btn"
@@ -119,7 +123,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         <span className="reminder-btn-label">Snooze</span>
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[130px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div className={`absolute right-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"} z-30 min-w-[130px]`} style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -143,6 +147,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   onManualChase?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -156,7 +161,10 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
+          setOpen((p) => !p);
+        }}
         disabled={disabled}
         className="px-2.5 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40 reminder-overflow-btn"
         title="More actions"
@@ -164,7 +172,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
         ⋯
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 z-30 min-w-[160px]" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div className={`absolute right-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"} z-30 min-w-[160px]`} style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {onManualChase && (
             <button
               onClick={() => { onManualChase(taskId); setOpen(false); }}
