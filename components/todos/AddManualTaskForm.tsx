@@ -27,12 +27,25 @@ export function AddManualTaskForm({
   const [saving, setSaving] = useState(false);
   const [dateError, setDateError] = useState("");
 
+  function localDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    return localDateStr(new Date());
   }
 
   function handleOpen() {
-    setDueDate(todayStr());
+    const now = new Date();
+    if (now.getHours() >= 15) {
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      setDueDate(localDateStr(tomorrow));
+    } else {
+      setDueDate(todayStr());
+    }
     setDateError("");
     setOpen(true);
   }
@@ -108,14 +121,14 @@ export function AddManualTaskForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="w-full text-sm text-slate-900/80 placeholder:text-slate-900/30 border-0 outline-none bg-transparent font-medium"
+        className="w-full text-base text-slate-900/80 placeholder:text-slate-900/30 border-0 outline-none bg-transparent font-medium"
       />
       <textarea
         placeholder="Notes (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={2}
-        className="w-full text-xs text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none"
+        className="w-full text-base text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none"
       />
       {showOwnership && (
         <div>
@@ -153,7 +166,7 @@ export function AddManualTaskForm({
             value={dueDate}
             min={todayStr()}
             onChange={(e) => { setDueDate(e.target.value); setDateError(""); }}
-            className="text-xs text-slate-900/50 border-0 outline-none bg-transparent"
+            className="text-base text-slate-900/50 border-0 outline-none bg-transparent"
           />
           {dateError && <p className="text-xs text-red-500 mt-0.5">{dateError}</p>}
         </div>

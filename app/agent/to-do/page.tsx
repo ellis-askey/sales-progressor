@@ -11,14 +11,17 @@ export default async function AgentTodoPage() {
 
   const ownOpen      = tasks.filter((t) => !t.isAgentRequest && t.status === "open");
   const progOpen     = tasks.filter((t) =>  t.isAgentRequest && t.status === "open");
-  const overdueCount = tasks.filter(
-    (t) => t.status === "open" && t.dueDate && new Date(t.dueDate) < today
-  ).length;
+  const overdueOpen  = tasks.filter((t) => t.status === "open" && t.dueDate && new Date(t.dueDate) < today);
+  const overdueCount = overdueOpen.length;
+  const hasRedOverdue = overdueOpen.some((t) => {
+    const due = new Date(t.dueDate!); due.setHours(0, 0, 0, 0);
+    return Math.floor((today.getTime() - due.getTime()) / 86400000) >= 4;
+  });
 
   const statSegs = [
     ownOpen.length > 0  && { key: "mine",    label: `${ownOpen.length} to-do${ownOpen.length === 1 ? "" : "s"}`, href: "#section-mine",       color: "#2563eb" },
     progOpen.length > 0 && { key: "prog",    label: `${progOpen.length} with progressor`,                         href: "#section-progressor", color: "#b45309" },
-    overdueCount > 0    && { key: "overdue", label: `${overdueCount} overdue`,                                     href: "#section-mine",       color: "#dc2626" },
+    overdueCount > 0    && { key: "overdue", label: `${overdueCount} overdue`,                                     href: "#section-mine",       color: hasRedOverdue ? "#dc2626" : "#b45309" },
   ].filter(Boolean) as { key: string; label: string; href: string; color: string }[];
 
   return (
@@ -40,7 +43,7 @@ export default async function AgentTodoPage() {
             To-Do
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-            Your jottings, plus anything you&apos;ve sent to your progressor.
+            Your notes, plus anything you&apos;ve sent to your progressor.
           </p>
           {statSegs.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0 4px", marginTop: 10 }}>

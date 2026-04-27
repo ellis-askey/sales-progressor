@@ -26,6 +26,20 @@ function sortTasks(tasks: Task[]): Task[] {
   });
 }
 
+function getDueStatus(dueDate: Date): { label: string; color: string; reassure: boolean } {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((today.getTime() - due.getTime()) / 86400000);
+  if (diffDays < 0) {
+    if (diffDays === -1) return { label: "Due tomorrow", color: "var(--agent-text-muted)", reassure: false };
+    return { label: `Due ${fmtDate(dueDate)}`, color: "var(--agent-text-muted)", reassure: false };
+  }
+  if (diffDays === 0) return { label: "Due today", color: "var(--agent-warning)", reassure: true };
+  if (diffDays === 1) return { label: "Due yesterday", color: "var(--agent-warning)", reassure: true };
+  if (diffDays <= 3) return { label: "Overdue", color: "var(--agent-warning)", reassure: true };
+  return { label: `Overdue · ${diffDays} days`, color: "var(--agent-danger)", reassure: false };
+}
+
 function groupByTransaction(tasks: Task[]): Group[] {
   const map = new Map<string | null, Task[]>();
   for (const t of tasks) {
@@ -171,6 +185,15 @@ function Section({
 
   const hasOpen = overdueGroups.length > 0 || openGroups.length > 0;
 
+  const sectionHasRedOverdue = overdueGroups.some((g) =>
+    g.tasks.some((t) => {
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate); due.setHours(0, 0, 0, 0);
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      return Math.floor((now.getTime() - due.getTime()) / 86400000) >= 4;
+    })
+  );
+
   return (
     <div id={id} className="space-y-3">
       {/* Section header */}
@@ -198,7 +221,7 @@ function Section({
       {/* Overdue sub-group */}
       {overdueGroups.length > 0 && (
         <div style={{ marginBottom: openGroups.length > 0 ? 8 : 0 }}>
-          <p style={{ margin: "0 0 6px 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#dc2626" }}>
+          <p style={{ margin: "0 0 6px 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: sectionHasRedOverdue ? "#dc2626" : "var(--agent-warning)" }}>
             Overdue
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -234,7 +257,7 @@ function Section({
 
       {/* Done toggle */}
       {doneCount > 0 && (
-        <div style={{ marginTop: 4 }}>
+        <div style={{ marginTop: 16 }}>
           <button
             onClick={onToggleShowDone}
             style={{
@@ -310,8 +333,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
 }) {
   const isDone = task.status === "done";
   const [loading, setLoading] = useState(false);
-  const now = new Date();
-  const isOverdue = !isDone && task.dueDate && new Date(task.dueDate) < now;
+  const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
 
   async function toggle() {
     setLoading(true);
@@ -325,27 +347,29 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
       padding: "12px 16px",
       borderBottom: hasBorder ? "0.5px solid rgba(255,255,255,0.25)" : "none",
     }}>
-      {/* Toggle */}
-      <button
-        onClick={toggle}
-        disabled={loading}
-        aria-label={isDone ? "Mark as open" : "Mark as done"}
-        style={{
-          flexShrink: 0, marginTop: 2,
-          width: 18, height: 18, borderRadius: "50%",
-          border: isDone ? "none" : `1.5px solid ${progressor ? "var(--agent-warning)" : "rgba(37,99,235,0.40)"}`,
-          background: isDone ? "var(--agent-success)" : "transparent",
-          cursor: loading ? "wait" : "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background 150ms",
-        }}
-      >
-        {isDone && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-      </button>
+      {/* Toggle — wrapper div expands tap area to ≥44px without changing visual size */}
+      <div style={{ flexShrink: 0, marginTop: 2 }}>
+        <button
+          onClick={toggle}
+          disabled={loading}
+          aria-label={isDone ? "Mark as open" : "Mark as done"}
+          className="p-2 -m-2"
+          style={{
+            width: 18, height: 18, borderRadius: "50%",
+            border: isDone ? "none" : `1.5px solid ${progressor ? "var(--agent-warning)" : "rgba(37,99,235,0.40)"}`,
+            background: isDone ? "var(--agent-success)" : "transparent",
+            cursor: loading ? "wait" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background 150ms",
+          }}
+        >
+          {isDone && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -377,13 +401,17 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
 
       {/* Due date or created date */}
       <div style={{ flexShrink: 0, textAlign: "right", marginTop: 2 }}>
-        {task.dueDate && !isDone ? (
-          <span style={{
-            fontSize: 11, fontWeight: 600,
-            color: isOverdue ? "var(--agent-danger)" : "var(--agent-text-muted)",
-          }}>
-            {isOverdue ? "Overdue · " : "Due "}{fmtDate(task.dueDate)}
-          </span>
+        {dueStatus ? (
+          <>
+            <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>
+              {dueStatus.label}
+            </span>
+            {progressor && dueStatus.reassure && (
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
+                Our team is on it
+              </p>
+            )}
+          </>
         ) : (
           <span style={{ fontSize: 11, color: "var(--agent-text-disabled)" }}>
             {fmtDate(task.createdAt)}
