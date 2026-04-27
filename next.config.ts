@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         destination: "/agent/hub",
         permanent: true,
       },
+      {
+        source: "/agent/exchanges",
+        destination: "/agent/dashboard?filter=active",
+        permanent: false,
+      },
     ];
   },
 };

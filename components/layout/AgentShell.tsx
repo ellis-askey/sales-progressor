@@ -8,34 +8,36 @@ import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
-  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, Handshake,
+  PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 
-function buildNavItems(role: UserRole) {
-  return [
-    { href: "/agent/hub",      label: "Hub",          Icon: Gauge         },
-    { href: "/agent/work-queue",       label: "Reminders",    Icon: Tray          },
-    { href: "/agent/exchanges",        label: "Exchanges",    Icon: Handshake     },
-    { href: "/agent/completions",      label: "Completions",  Icon: CalendarCheck },
-    { href: "/agent/to-do",            label: "To-Do",        Icon: CheckSquare   },
-    { href: "/agent/comms",            label: "Updates",      Icon: BellSimple    },
-    { href: "/agent/dashboard",        label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
-    { href: "/agent/analytics",        label: "Analytics",    Icon: ChartBar      },
-    { href: "/agent/solicitors",       label: "Solicitors",   Icon: Buildings     },
-    { href: "/agent/transactions/new", label: "New sale",        Icon: PlusCircle    },
-    { href: "/agent/settings",         label: "Settings",     Icon: GearSix       },
-  ];
+function buildNavGroups(role: UserRole) {
+  return {
+    main: [
+      { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
+      { href: "/agent/work-queue",  label: "Reminders",   Icon: Tray          },
+      { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
+      { href: "/agent/to-do",       label: "To-Do",       Icon: CheckSquare   },
+      { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
+      { href: "/agent/dashboard",   label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+      { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
+    ],
+    secondary: [
+      { href: "/agent/solicitors",  label: "Solicitors",  Icon: Buildings     },
+      { href: "/agent/settings",    label: "Settings",    Icon: GearSix       },
+    ],
+  };
 }
 
 export function AgentShell({ children, session, showWelcome }: { children: React.ReactNode; session: Session; showWelcome?: boolean }) {
   const pathname    = usePathname();
   const role        = session.user.role as UserRole;
   const isDirector  = role === "director";
-  const navItems    = buildNavItems(role);
+  const navGroups   = buildNavGroups(role);
   const initials    = session.user.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -146,8 +148,45 @@ export function AgentShell({ children, session, showWelcome }: { children: React
             <AgentGlobalSearch />
           </div>
 
-          {navItems.map(({ href, label, Icon }) => {
+          {/* + New sale CTA */}
+          <Link
+            href="/agent/transactions/new"
+            onClick={() => setMobileOpen(false)}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: "var(--agent-radius-md)",
+              background: "var(--agent-coral-deep)",
+              boxShadow: "0 2px 10px rgba(255,107,74,0.28)",
+              color: "var(--agent-text-on-coral)", textDecoration: "none",
+              fontWeight: 600, fontSize: 13, marginBottom: 2,
+            }}
+          >
+            <PlusCircle weight="fill" style={{ width: 17, height: 17, flexShrink: 0 }} />
+            + New sale
+          </Link>
+
+          {/* Divider */}
+          <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "4px 0 6px" }} />
+
+          {/* Main nav group */}
+          {navGroups.main.map(({ href, label, Icon }) => {
             const isActive = pathname === href || (href !== "/agent/dashboard" && pathname.startsWith(href));
+            return (
+              <Link key={href} href={href}
+                onClick={() => setMobileOpen(false)}
+                className={`agent-nav-item${isActive ? " agent-nav-item-active" : ""}`}>
+                <Icon weight={isActive ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
+                <span style={{ fontSize: 13 }}>{label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Divider */}
+          <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "6px 0" }} />
+
+          {/* Secondary nav group */}
+          {navGroups.secondary.map(({ href, label, Icon }) => {
+            const isActive = pathname === href || pathname.startsWith(href);
             return (
               <Link key={href} href={href}
                 onClick={() => setMobileOpen(false)}
