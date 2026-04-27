@@ -426,6 +426,9 @@ body {
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
 
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(209,217,224,0.8); border-radius: 4px; }
