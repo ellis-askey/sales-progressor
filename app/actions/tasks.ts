@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { completeChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
 import { prisma } from "@/lib/prisma";
+import { touchLastActivity } from "@/lib/services/activity";
 
 export async function completeTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
@@ -44,6 +45,7 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
       content: "Chased manually (recorded by agent)",
     },
   });
+  touchLastActivity(task.transactionId).catch(() => {});
   revalidatePath(pathname, "page");
 }
 

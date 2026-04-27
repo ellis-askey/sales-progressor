@@ -28,6 +28,7 @@ export async function PATCH(
     purchaserSolicitorFirmId,
     purchaserSolicitorContactId,
     assignedUserId,
+    expectedExchangeDate,
   } = body;
 
   const updated = await prisma.propertyTransaction.update({
@@ -39,6 +40,10 @@ export async function PATCH(
       ...(purchaserSolicitorFirmId !== undefined && { purchaserSolicitorFirmId }),
       ...(purchaserSolicitorContactId !== undefined && { purchaserSolicitorContactId }),
       ...(assignedUserId !== undefined && { assignedUserId: assignedUserId || null }),
+      ...(expectedExchangeDate !== undefined && {
+        expectedExchangeDate: expectedExchangeDate ? new Date(expectedExchangeDate) : null,
+      }),
+      lastActivityAt: new Date(),
     },
   });
 

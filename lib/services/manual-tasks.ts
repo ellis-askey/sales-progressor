@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { touchLastActivity } from "@/lib/services/activity";
 
 export type ManualTaskWithRelations = {
   id: string;
@@ -56,7 +57,7 @@ export async function createManualTask(data: {
   dueDate?: string;
   isAgentRequest?: boolean;
 }) {
-  return prisma.manualTask.create({
+  const task = await prisma.manualTask.create({
     data: {
       agencyId: data.agencyId,
       createdById: data.createdById,
@@ -73,6 +74,8 @@ export async function createManualTask(data: {
       createdBy: { select: { id: true, name: true } },
     },
   });
+  if (data.transactionId) touchLastActivity(data.transactionId).catch(() => {});
+  return task;
 }
 
 export async function updateManualTask(
@@ -83,7 +86,7 @@ export async function updateManualTask(
   const task = await prisma.manualTask.findFirst({ where: { id, agencyId } });
   if (!task) throw new Error("Task not found");
 
-  return prisma.manualTask.update({
+  const updated = await prisma.manualTask.update({
     where: { id },
     data: {
       ...(data.title !== undefined && { title: data.title }),
@@ -102,6 +105,8 @@ export async function updateManualTask(
       createdBy: { select: { id: true, name: true } },
     },
   });
+  if (task.transactionId) touchLastActivity(task.transactionId).catch(() => {});
+  return updated;
 }
 
 export async function deleteManualTask(id: string, agencyId: string) {

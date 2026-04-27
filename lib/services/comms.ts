@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import type { CommType, CommMethod } from "@prisma/client";
 import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
+import { touchLastActivity } from "@/lib/services/activity";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,8 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       data: { chaseCount: { increment: 1 } },
     });
   }
+
+  touchLastActivity(input.transactionId).catch(() => {});
 
   // Notify subscribed contacts when a client-visible update is logged
   if (input.visibleToClient) {

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { status },
+    data: { status, lastActivityAt: new Date() },
   });
 
   await prisma.communicationRecord.create({

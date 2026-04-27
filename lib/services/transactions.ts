@@ -24,7 +24,7 @@ export async function listTransactions(
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
-      agentUser: { select: { id: true, name: true } },
+      agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
       milestoneCompletions: {
         where: { isActive: true, isNotRequired: false },
@@ -48,12 +48,6 @@ export async function listTransactions(
         orderBy: { dueDate: "asc" },
         take: 5,
       },
-      communications: {
-        where: { type: "outbound" },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { createdAt: true },
-      },
     },
   });
 
@@ -61,12 +55,7 @@ export async function listTransactions(
     const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
     const escalatedTasks = overdueTasks.filter((t) => t.priority === "escalated");
     const nextTask = tx.chaseTasks[0];
-    const lastCommAt = tx.communications[0]?.createdAt ?? null;
     const lastMilestoneAt = tx.milestoneCompletions[0]?.completedAt ?? null;
-    const lastActivityAt =
-      lastCommAt && lastMilestoneAt
-        ? new Date(Math.max(lastCommAt.getTime(), lastMilestoneAt.getTime()))
-        : lastCommAt ?? lastMilestoneAt;
 
     const nextActionLabel = nextTask
       ? nextTask.reminderLog.reminderRule.name
@@ -90,13 +79,13 @@ export async function listTransactions(
       diff >= -25 ? "at_risk" :
       "off_track";
 
-    const { chaseTasks: _c, communications: _co, _count: _cnt, ...rest } = tx;
+    const { chaseTasks: _c, _count: _cnt, ...rest } = tx;
     return {
       ...rest,
       health: {
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,
-        lastActivityAt,
+        lastActivityAt: tx.lastActivityAt,
         nextActionLabel,
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,

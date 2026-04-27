@@ -18,7 +18,7 @@ export default async function AgentDashboard({
 }) {
   const session = await requireSession();
   const { filter } = await searchParams;
-  const activeFilter = (filter as TransactionStatus | "all") ?? "all";
+  const activeFilter = (filter as TransactionStatus | "all") ?? "active";
 
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const opts = vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
@@ -65,17 +65,11 @@ export default async function AgentDashboard({
         }} />
 
         <div style={{ position: "relative", padding: "24px 32px 28px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 16 }}>
-            {session.user.firmName ?? "Agent Portal"}
-          </p>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
             <div>
               <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-                {isDirector ? "All Files" : "My Files"}
+                My Files
               </h1>
-              <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-                {session.user.name}
-              </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <Link
@@ -89,13 +83,6 @@ export default async function AgentDashboard({
               <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
-            <StatChip value={transactions.length} label="Total files" color="var(--agent-text-primary)" />
-            <div style={{ width: 1, height: 24, background: "var(--agent-border-subtle)" }} />
-            <StatChip value={counts.active} label="Active" color="var(--agent-success)" />
-            <StatChip value={counts.on_hold} label="On hold" color="var(--agent-warning)" />
-            <StatChip value={counts.completed} label="Completed" color="var(--agent-coral-deep)" />
-          </div>
         </div>
       </div>
 
@@ -106,7 +93,7 @@ export default async function AgentDashboard({
         )}
 
         <div>
-          <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
+          <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">
             {([
               { value: "all",       label: "All",       count: transactions.length },
               { value: "active",    label: "Active",    count: counts.active },
@@ -118,7 +105,7 @@ export default async function AgentDashboard({
               return (
                 <Link
                   key={value}
-                  href={value === "all" ? "/agent/dashboard" : `/agent/dashboard?filter=${value}`}
+                  href={value === "active" ? "/agent/dashboard" : `/agent/dashboard?filter=${value}`}
                   scroll={false}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
@@ -155,12 +142,12 @@ export default async function AgentDashboard({
                 <EmptyState
                   title={`No ${activeFilter.replace("_", " ")} files`}
                   description="Try a different filter."
-                  action={<Link href="/agent/dashboard" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
+                  action={<Link href="/agent/dashboard?filter=all" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
                 />
               )}
             </div>
           ) : (
-            <TransactionListWithSearch transactions={filtered} basePath="/agent/transactions" />
+            <TransactionListWithSearch transactions={filtered} basePath="/agent/transactions" isDirector={isDirector} />
           )}
         </div>
 
@@ -172,11 +159,3 @@ export default async function AgentDashboard({
   );
 }
 
-function StatChip({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-      <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums", color, lineHeight: 1 }}>{value}</span>
-      <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
-    </div>
-  );
-}

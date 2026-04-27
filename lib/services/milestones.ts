@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
+import { touchLastActivity } from "@/lib/services/activity";
 import type { MilestoneSide, MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = MilestoneDefinition & {
@@ -299,6 +300,8 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
   // Auto-complete any active reminders watching this milestone
   await autoCompleteRemindersForMilestone(input.transactionId, def.code);
 
+  touchLastActivity(input.transactionId).catch(() => {});
+
   return completion;
 }
 
@@ -366,6 +369,8 @@ export async function bulkCompleteMilestones(
       return def?.code ? autoCompleteRemindersForMilestone(transactionId, def.code) : Promise.resolve();
     })
   );
+
+  touchLastActivity(transactionId).catch(() => {});
 
   return results;
 }

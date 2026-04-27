@@ -117,6 +117,7 @@ model PropertyTransaction {
   vendorSolicitorContactId     String?
   purchaserSolicitorFirmId     String?
   purchaserSolicitorContactId  String?
+  lastActivityAt               DateTime?
   createdAt                    DateTime          @default(now())
   updatedAt                    DateTime          @updatedAt
 
