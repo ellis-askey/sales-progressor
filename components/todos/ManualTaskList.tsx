@@ -169,14 +169,6 @@ export function ManualTaskList({
       <div className="space-y-4">
         <div className="flex items-center justify-between glass-subtle px-4 py-3 rounded-xl">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-slate-900/80">
-              To-Do
-              {myOpen.length > 0 && (
-                <span className="ml-2 text-xs font-medium bg-blue-50/80 text-blue-600 px-2 py-0.5 rounded-full">
-                  {myOpen.length}
-                </span>
-              )}
-            </h2>
             {showDone && myDone.length > 0 && (
               <button
                 onClick={() => setFilter(filter === "open" ? "all" : "open")}

@@ -143,7 +143,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search…"
-          className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-white/40 text-slate-900/70 placeholder:text-slate-900/30 border border-white/30 focus:outline-none focus:ring-1 focus:ring-blue-300/50 w-36"
+          className="glass-input ml-auto px-3 py-1.5 rounded-lg text-slate-900/70 focus:ring-1 focus:ring-blue-300/50 w-36"
         />
       </div>
 

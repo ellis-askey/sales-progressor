@@ -140,6 +140,14 @@ body {
   display: none;
 }
 
+/* ─── iOS zoom prevention ────────────────────────────────────────────────── */
+/* Unlayered — beats @layer utilities (text-sm: 14px, text-xs: 12px).       */
+/* Without this, any Tailwind text-size class on a glass-input/agent-input   */
+/* element wins the cascade and shrinks font below 16px, triggering iOS zoom. */
+.glass-input    { font-size: 16px; }
+.agent-input    { font-size: max(16px, var(--agent-text-body)); }
+.agent-textarea { font-size: max(16px, var(--agent-text-body)); }
+
 /* ─── Glass component classes ─────────────────────────────────────────────── */
 
 @layer components {
