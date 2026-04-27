@@ -48,8 +48,8 @@ export function ProfileForm({
 
   return (
     <div className="space-y-4">
-      {/* Three-column field row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      {/* Three-column field row — stacks on mobile, 3-col from sm: */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">Name</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={FIELD} />

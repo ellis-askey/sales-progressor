@@ -808,6 +808,14 @@ This component renders inside the Settings page right column (the `42fr` column,
 **LT-4** [LOW] Solicitor firm cards: active-files chip row can overflow at 375px
 - At 375px, solicitor firm cards show truncated firm names but the "files" chip pills (file count per firm) are tight and may overflow on firms with many active files. Minor visual concern, functional.
 
+**WQ-NEW** [HIGH] Work Queue / Reminders — file alert row and filter chip overflow
+- Confirmed live on iPhone (2026-04-27). The "file alerts" summary row (e.g. "9 file alerts" / "9 missing solicitor" chips) overflows horizontally. Individual per-file alert rows also overflow — the "Add purchaser solicitor" action label is cut off on the right. Caused by a flex row with no wrap on a content-heavy row. `overflow-x: hidden` on body (Stage 1) makes the cut-off content unreachable.
+- Scope: `components/reminders/` or equivalent work-queue page-level component. Stage 3 fix.
+
+**MYFILES-1** [HIGH] My Files (Dashboard) header — action buttons overflow on mobile
+- Confirmed live on iPhone (2026-04-27). The "My Files" (or "All Files") page header renders the page title inline with "+ New sale" and "Send note to progressor" buttons in a single flex row. Row does not wrap at 375px, causing layout overflow. The Hub page has the same pattern (already tracked as HUB-1). MYFILES-1 is the same finding scoped to `/agent/dashboard`.
+- Scope: `app/agent/dashboard/page.tsx` header flex row. Stage 3 fix (same fix as HUB-1).
+
 ---
 
 ## Updated priority recommendations

@@ -41,7 +41,7 @@ export default async function AgentSettingsPage({
       <div className="px-4 md:px-8 py-5 md:py-7 space-y-5">
 
         {/* Row 1: Profile (left) + Sending addresses (right) */}
-        <div style={{ display: "grid", gridTemplateColumns: "58fr 42fr", gap: 20, alignItems: "start" }}>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-[58fr_42fr] items-start">
 
           <div className="glass-card p-6">
             <div className="mb-5">
