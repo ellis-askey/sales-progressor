@@ -4,7 +4,7 @@ import { useState } from "react";
 import { updateProfileAction } from "@/app/actions/profile";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
-const FIELD = "w-full px-4 py-3 text-sm rounded-xl bg-white/60 border border-white/30 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-400/60 focus:bg-white/80";
+const FIELD = "w-full px-4 py-3 text-base rounded-xl bg-white/60 border border-white/30 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-400/60 focus:bg-white/80";
 
 export function ProfileForm({
   initialName,
