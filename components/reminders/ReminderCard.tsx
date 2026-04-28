@@ -93,11 +93,12 @@ function filterContactsForChase(contacts: Contact[], code: string | null): Conta
 
 function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   taskId: string;
-  onSnooze: (taskId: string, hours: number) => void;
+  onSnooze: (taskId: string, hours: number) => void | Promise<void>;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(true);
+  const [loadingHours, setLoadingHours] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,7 +116,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
           if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
           setOpen((p) => !p);
         }}
-        disabled={disabled}
+        disabled={disabled || loadingHours !== null}
         title="Snooze"
         className="reminder-action-btn reminder-snooze-btn"
       >
@@ -127,9 +128,21 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
-              onClick={() => { onSnooze(taskId, opt.hours); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
+              disabled={loadingHours !== null}
+              onClick={async () => {
+                setLoadingHours(opt.hours);
+                try {
+                  await Promise.resolve(onSnooze(taskId, opt.hours));
+                } finally {
+                  setLoadingHours(null);
+                  setOpen(false);
+                }
+              }}
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors disabled:opacity-40 flex items-center gap-2"
             >
+              {loadingHours === opt.hours && (
+                <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.25)", borderTopColor: "rgba(15,23,42,0.65)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
+              )}
               {opt.label}
             </button>
           ))}
@@ -143,11 +156,12 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   taskId: string;
   isEscalated: boolean;
   disabled: boolean;
-  onEscalate: (id: string) => void;
-  onManualChase?: (id: string) => void;
+  onEscalate: (id: string) => void | Promise<void>;
+  onManualChase?: (id: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(true);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -158,6 +172,20 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  async function fireAction(key: string, fn: () => void | Promise<void>) {
+    setLoadingAction(key);
+    try {
+      await Promise.resolve(fn());
+    } finally {
+      setLoadingAction(null);
+      setOpen(false);
+    }
+  }
+
+  const spinnerEl = (
+    <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.25)", borderTopColor: "rgba(15,23,42,0.65)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
+  );
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -165,7 +193,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
           if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
           setOpen((p) => !p);
         }}
-        disabled={disabled}
+        disabled={disabled || loadingAction !== null}
         className="px-2.5 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/40 transition-colors disabled:opacity-40 reminder-overflow-btn"
         title="More actions"
       >
@@ -175,17 +203,21 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
         <div className={`absolute right-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"} z-30 min-w-[160px]`} style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {onManualChase && (
             <button
-              onClick={() => { onManualChase(taskId); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors"
+              disabled={loadingAction !== null}
+              onClick={() => fireAction("chase", () => onManualChase!(taskId))}
+              className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors disabled:opacity-40 flex items-center gap-2"
             >
+              {loadingAction === "chase" && spinnerEl}
               Chased manually
             </button>
           )}
           {!isEscalated && (
             <button
-              onClick={() => { onEscalate(taskId); setOpen(false); }}
-              className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50/60 transition-colors"
+              disabled={loadingAction !== null}
+              onClick={() => fireAction("escalate", () => onEscalate(taskId))}
+              className="w-full text-left px-4 py-2 text-xs text-red-500 hover:bg-red-50/60 transition-colors disabled:opacity-40 flex items-center gap-2"
             >
+              {loadingAction === "escalate" && spinnerEl}
               ↑ Escalate
             </button>
           )}
@@ -233,6 +265,19 @@ export function ReminderCard({
   totalActiveOnFile,
 }: ReminderCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+
+  function triggerComplete(taskId: string): Promise<void> {
+    if (isExiting) return Promise.resolve();
+    setIsExiting(true);
+    return new Promise((resolve) => setTimeout(() => { onComplete(taskId); resolve(); }, 260));
+  }
+
+  function triggerSnooze(taskId: string, hours: number): Promise<void> {
+    if (isExiting) return Promise.resolve();
+    setIsExiting(true);
+    return new Promise((resolve) => setTimeout(() => { onSnooze(taskId, hours); resolve(); }, 260));
+  }
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
   const isEscalated = openTask?.priority === "escalated";
@@ -394,8 +439,8 @@ export function ReminderCard({
               {openTask && (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    onClick={() => onComplete(openTask.id)}
-                    disabled={isLoading === openTask.id || isPending}
+                    onClick={() => triggerComplete(openTask.id)}
+                    disabled={isLoading === openTask.id || isPending || isExiting}
                     title="Milestone confirmed"
                     className="reminder-action-btn reminder-confirm-btn"
                   >
@@ -409,12 +454,12 @@ export function ReminderCard({
                     milestoneName={stripChase(log.reminderRule.name)}
                     chaseCount={openTask.chaseCount}
                     contacts={chaseContacts}
-                    onSent={() => onComplete(openTask.id)}
+                    onSent={() => triggerComplete(openTask.id)}
                   />
                   <SnoozeDropdown
                     taskId={openTask.id}
-                    onSnooze={onSnooze}
-                    disabled={isLoading === openTask.id || isPending}
+                    onSnooze={triggerSnooze}
+                    disabled={isLoading === openTask.id || isPending || isExiting}
                   />
                   <KebabMenu
                     taskId={openTask.id}
@@ -455,10 +500,20 @@ export function ReminderCard({
 
   return (
     <div
-      className="glass-card"
-      style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
+      style={{
+        overflow: "hidden",
+        maxHeight: isExiting ? 0 : 600,
+        opacity: isExiting ? 0 : 1,
+        transition: "max-height 280ms ease, opacity 220ms ease",
+        marginBottom: isExiting ? -8 : 0,
+      }}
     >
-      {cardBody}
+      <div
+        className="glass-card"
+        style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
+      >
+        {cardBody}
+      </div>
     </div>
   );
 }

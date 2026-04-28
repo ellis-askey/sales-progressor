@@ -356,18 +356,20 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
           className="p-2 -m-2"
           style={{
             width: 18, height: 18, borderRadius: "50%",
-            border: isDone ? "none" : `1.5px solid ${progressor ? "var(--agent-warning)" : "rgba(37,99,235,0.40)"}`,
-            background: isDone ? "var(--agent-success)" : "transparent",
+            border: isDone && !loading ? "none" : `1.5px solid ${loading ? "rgba(15,23,42,0.30)" : progressor ? "var(--agent-warning)" : "rgba(37,99,235,0.40)"}`,
+            background: isDone && !loading ? "var(--agent-success)" : "transparent",
             cursor: loading ? "wait" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "background 150ms",
           }}
         >
-          {isDone && (
+          {loading ? (
+            <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.20)", borderTopColor: "rgba(15,23,42,0.60)", animation: "agent-spin 700ms linear infinite" }} />
+          ) : isDone ? (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-          )}
+          ) : null}
         </button>
       </div>
 

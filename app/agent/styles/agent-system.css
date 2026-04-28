@@ -156,6 +156,11 @@
   100% { background-position:  200% 0; }
 }
 
+@keyframes agent-skeleton-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1.00; }
+}
+
 @keyframes agent-toast-in {
   from { opacity: 0; transform: translateX(24px); }
   to   { opacity: 1; transform: translateX(0);    }
@@ -811,11 +816,13 @@
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {
-    .agent-skeleton               { animation: none; background: var(--agent-bg-mid); }
+    .agent-skeleton               { animation: agent-skeleton-pulse 3s ease-in-out infinite; background: var(--agent-bg-mid); }
     .agent-spinner,
     .agent-btn-spinner            { animation-duration: 2000ms; }
     .agent-notif-dot              { animation: none; }
     .agent-toast,
     .agent-modal,
     .agent-backdrop               { animation: none; }
+    .agent-bloom-1,
+    .agent-bloom-2                { animation: none; }
 }

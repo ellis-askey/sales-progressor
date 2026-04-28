@@ -167,7 +167,11 @@ export function ChaseDrawer({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+        style={{ animation: "agent-backdrop-in 200ms ease both" }}
+      />
       <div
         className="relative z-10 w-full max-w-md flex flex-col h-full"
         style={{
@@ -176,6 +180,7 @@ export function ChaseDrawer({
           WebkitBackdropFilter: "blur(32px) saturate(1.8)",
           borderLeft: "1px solid rgba(255,255,255,0.5)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
+          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
       >
         {/* Header */}
