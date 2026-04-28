@@ -64,12 +64,15 @@ export async function confirmMilestoneAction(input: {
     eventDate: input.eventDate ? new Date(input.eventDate) : null,
   });
 
-  revalidateTx(input.transactionId);
-  revalidatePath("/portal", "layout");
-
-  // Exchange: auto-confirm the counterpart milestone on the other side (same date)
-  if (def?.code === "VM18" || def?.code === "PM25") {
-    const counterCode = def.code === "VM18" ? "PM25" : "VM18";
+  // Bilateral pairs: auto-confirm the counterpart milestone on the other side.
+  // All counterpart writes happen before revalidate so there is a single rerender.
+  const BILATERAL_PAIRS: Record<string, string> = {
+    VM18: "PM25", PM25: "VM18",
+    VM19: "PM26", PM26: "VM19",
+    VM20: "PM27", PM27: "VM20",
+  };
+  const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
+  if (counterCode) {
     const counterDef = await prisma.milestoneDefinition.findFirst({
       where: { code: counterCode },
       select: { id: true },
@@ -86,11 +89,13 @@ export async function confirmMilestoneAction(input: {
           completedByName: session.user.name ?? "",
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
         });
-        revalidateTx(input.transactionId);
-        revalidatePath("/portal", "layout");
       }
     }
   }
+
+  // Single revalidate after all DB writes (primary + bilateral counterpart)
+  revalidateTx(input.transactionId);
+  revalidatePath("/portal", "layout");
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {

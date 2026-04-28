@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
       if (impliedIds && Array.isArray(impliedIds) && impliedIds.length > 0) {
         await bulkCompleteMilestones(impliedIds, transactionId, session.user.id, session.user.name ?? "");
       }
+      const def = await prisma.milestoneDefinition.findUnique({
+        where: { id: milestoneDefinitionId },
+        select: { code: true },
+      });
       const result = await completeMilestone({
         transactionId,
         milestoneDefinitionId,
@@ -41,6 +45,33 @@ export async function POST(req: NextRequest) {
         completedByName: session.user.name ?? "",
         eventDate: eventDate ? new Date(eventDate) : null,
       });
+      // Bilateral pairs — same logic as the Server Action
+      const BILATERAL_PAIRS: Record<string, string> = {
+        VM18: "PM25", PM25: "VM18",
+        VM19: "PM26", PM26: "VM19",
+        VM20: "PM27", PM27: "VM20",
+      };
+      const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
+      if (counterCode) {
+        const counterDef = await prisma.milestoneDefinition.findFirst({
+          where: { code: counterCode },
+          select: { id: true },
+        });
+        if (counterDef) {
+          const alreadyDone = await prisma.milestoneCompletion.findFirst({
+            where: { transactionId, milestoneDefinitionId: counterDef.id, state: "complete" },
+          });
+          if (!alreadyDone) {
+            await completeMilestone({
+              transactionId,
+              milestoneDefinitionId: counterDef.id,
+              completedById: session.user.id,
+              completedByName: session.user.name ?? "",
+              eventDate: eventDate ? new Date(eventDate) : null,
+            });
+          }
+        }
+      }
       return NextResponse.json(result, { status: 201 });
     }
 
