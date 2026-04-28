@@ -1,19 +1,12 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getAgentMilestoneActivity, resolveAgentVisibility } from "@/lib/services/agent";
-
-function relativeDate(d: Date | string) {
-  const diff = Date.now() - new Date(d).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
+import {
+  CommsActivityFeed,
+  type DayBucket,
+  type TxGroup,
+  type MilestoneRow,
+} from "@/components/comms/CommsActivityFeed";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
@@ -36,17 +29,40 @@ export default async function AgentCommsPage({
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const milestones = await getAgentMilestoneActivity(vis, portalOnly);
 
-  // Group into day buckets
-  const days: { label: string; items: typeof milestones }[] = [];
+  // Group into day buckets, each day grouped by transaction
+  const dayOrder: string[] = [];
+  const dayTxMap = new Map<string, Map<string, TxGroup>>();
+
   for (const m of milestones) {
     const label = dayLabel(m.completedAt);
-    const last = days[days.length - 1];
-    if (last && last.label === label) {
-      last.items.push(m);
-    } else {
-      days.push({ label, items: [m] });
+    if (!dayTxMap.has(label)) {
+      dayTxMap.set(label, new Map());
+      dayOrder.push(label);
     }
+    const txMap = dayTxMap.get(label)!;
+    if (!txMap.has(m.transaction.id)) {
+      txMap.set(m.transaction.id, {
+        transactionId: m.transaction.id,
+        transactionAddress: m.transaction.propertyAddress,
+        milestones: [],
+      });
+    }
+    const row: MilestoneRow = {
+      id: m.id,
+      completedAtIso: new Date(m.completedAt).toISOString(),
+      statusReason: m.statusReason ?? null,
+      side: m.milestoneDefinition.side,
+      milestoneName: m.milestoneDefinition.name,
+      completedByName: m.completedBy?.name ?? null,
+    };
+    txMap.get(m.transaction.id)!.milestones.push(row);
   }
+
+  const days: DayBucket[] = dayOrder.map((label) => ({
+    label,
+    txGroups: Array.from(dayTxMap.get(label)!.values()),
+    defaultOpen: label === "Today" || label === "Yesterday",
+  }));
 
   const filterBase = "/agent/comms";
 
@@ -72,7 +88,7 @@ export default async function AgentCommsPage({
                 Milestone activity across all your files.
               </p>
             </div>
-            {/* Filter tabs — full-width on mobile, natural width on desktop */}
+            {/* Filter tabs */}
             <div className="flex w-full md:w-auto" style={{ gap: 4, background: "rgba(255,255,255,0.40)", borderRadius: 10, padding: 3 }}>
               <Link
                 href={filterBase}
@@ -106,7 +122,7 @@ export default async function AgentCommsPage({
                   boxShadow: portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                 }}
               >
-                Portal confirmations
+                Client confirmations
               </Link>
             </div>
           </div>
@@ -118,75 +134,17 @@ export default async function AgentCommsPage({
         {milestones.length === 0 && (
           <div className="text-center py-16">
             <p className="text-base text-slate-900/50 mb-1">
-              {portalOnly ? "No portal confirmations yet" : "No milestone activity yet"}
+              {portalOnly ? "No client confirmations yet" : "No milestone activity yet"}
             </p>
             <p className="text-sm text-slate-900/40">
               {portalOnly
-                ? "Client portal confirmations will appear here when clients confirm their milestones."
+                ? "Client confirmations will appear here when clients confirm their milestones via the portal."
                 : "Completed milestones across your files will appear here."}
             </p>
           </div>
         )}
 
-        {days.map(({ label, items }) => (
-          <div key={label}>
-            <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">{label}</p>
-            <div className="glass-card divide-y divide-white/15">
-              {items.map((m) => {
-                const isPortal = !!m.statusReason?.includes("via portal");
-                const clientName = isPortal
-                  ? (m.statusReason?.replace(/^Confirmed by /, "").replace(/ via portal$/, "") ?? "Client")
-                  : null;
-                const side = m.milestoneDefinition.side;
-                return (
-                  <div key={m.id} className="flex items-start gap-3 px-4 py-3.5">
-                    {/* Check circle */}
-                    <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      isPortal ? "bg-violet-100" : "bg-emerald-100"
-                    }`}>
-                      <svg className={`w-3 h-3 ${isPortal ? "text-violet-600" : "text-emerald-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-slate-900/80">{m.milestoneDefinition.name}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                          side === "vendor"
-                            ? "bg-blue-50 text-blue-600"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}>
-                          {side === "vendor" ? "Vendor" : "Purchaser"}
-                        </span>
-                        {isPortal && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200">
-                            Client confirmed
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Link
-                          href={`/agent/transactions/${m.transaction.id}`}
-                          className="text-xs text-blue-500 hover:text-blue-600 transition-colors truncate"
-                        >
-                          {m.transaction.propertyAddress}
-                        </Link>
-                        <span className="text-xs text-slate-900/30">
-                          · {isPortal ? clientName : (m.completedBy?.name ?? "unknown")}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Time */}
-                    <span className="text-[11px] text-slate-900/35 flex-shrink-0 mt-0.5">{relativeDate(m.completedAt)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        {days.length > 0 && <CommsActivityFeed days={days} />}
 
       </div>
     </>
