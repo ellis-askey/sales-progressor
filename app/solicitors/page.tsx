@@ -69,7 +69,10 @@ export default async function SolicitorsPage() {
                 </div>
                 {firm.totalActiveFiles > 0 && (
                   <span className="text-xs font-medium bg-emerald-50/60 text-emerald-700 px-2.5 py-1 rounded-full">
-                    {firm.totalActiveFiles} active file{firm.totalActiveFiles !== 1 ? "s" : ""}
+                    {firm.totalActiveFiles} active
+                    {firm.referralActiveFiles > 0
+                      ? ` · ${firm.referralActiveFiles} referral${firm.referralActiveFiles !== 1 ? "s" : ""}`
+                      : ` file${firm.totalActiveFiles !== 1 ? "s" : ""}`}
                   </span>
                 )}
               </div>
@@ -106,7 +109,10 @@ export default async function SolicitorsPage() {
                           {contact.activeFiles.map((f) => (
                             <Link key={`${f.id}-${f.role}`} href={`/transactions/${f.id}`}
                                   className="inline-flex items-center gap-1 text-xs bg-white/30 hover:bg-blue-50/60 border border-white/30 hover:border-blue-200/60 text-slate-900/60 hover:text-blue-600 rounded-md px-2 py-0.5 transition-colors">
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${f.role === "vendor" ? "bg-purple-400" : "bg-blue-400"}`} />
+                              <span
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{ background: f.isReferral ? "#f59e0b" : f.role === "vendor" ? "#a78bfa" : "#60a5fa" }}
+                              />
                               <span className="truncate max-w-[180px]">{f.propertyAddress}</span>
                               <span className="text-slate-900/30 capitalize">({f.role})</span>
                             </Link>

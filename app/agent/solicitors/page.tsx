@@ -155,7 +155,10 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
             background: "var(--agent-success-bg)",
             border: "1px solid var(--agent-success-border)",
           }}>
-            {firm.totalActiveFiles} active file{firm.totalActiveFiles !== 1 ? "s" : ""}
+            {firm.totalActiveFiles} active
+            {firm.referralActiveFiles > 0
+              ? ` · ${firm.referralActiveFiles} referral${firm.referralActiveFiles !== 1 ? "s" : ""}`
+              : ` file${firm.totalActiveFiles !== 1 ? "s" : ""}`}
           </span>
         )}
       </div>
@@ -224,7 +227,7 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
                       >
                         <span style={{
                           width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                          background: f.role === "vendor" ? "#a78bfa" : "#60a5fa",
+                          background: f.isReferral ? "#f59e0b" : f.role === "vendor" ? "#a78bfa" : "#60a5fa",
                         }} />
                         <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {f.propertyAddress}

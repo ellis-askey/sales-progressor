@@ -7,13 +7,14 @@ export type SolicitorContactWithFiles = {
   name: string;
   phone: string | null;
   email: string | null;
-  activeFiles: { id: string; propertyAddress: string; role: "vendor" | "purchaser" }[];
+  activeFiles: { id: string; propertyAddress: string; role: "vendor" | "purchaser"; isReferral: boolean }[];
 };
 
 export type SolicitorFirmWithStats = {
   id: string;
   name: string;
   totalActiveFiles: number;
+  referralActiveFiles: number;
   contacts: SolicitorContactWithFiles[];
 };
 
@@ -36,6 +37,7 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
       purchaserSolicitorFirmId: true,
       vendorSolicitorContactId: true,
       purchaserSolicitorContactId: true,
+      referredFirmId: true,
     },
   });
 
@@ -47,10 +49,10 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
 
   if (firmIds.size === 0) return [];
 
-  // Build contact → files maps from scoped transactions
   const vendorByFirm = new Map<string, Set<string>>();
   const purchaserByFirm = new Map<string, Set<string>>();
-  const filesByContact = new Map<string, { id: string; propertyAddress: string; role: "vendor" | "purchaser" }[]>();
+  const referralByFirm = new Map<string, Set<string>>();
+  const filesByContact = new Map<string, { id: string; propertyAddress: string; role: "vendor" | "purchaser"; referredFirmId: string | null }[]>();
 
   for (const tx of transactions) {
     if (tx.vendorSolicitorFirmId) {
@@ -61,13 +63,17 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
       if (!purchaserByFirm.has(tx.purchaserSolicitorFirmId)) purchaserByFirm.set(tx.purchaserSolicitorFirmId, new Set());
       purchaserByFirm.get(tx.purchaserSolicitorFirmId)!.add(tx.id);
     }
+    if (tx.referredFirmId) {
+      if (!referralByFirm.has(tx.referredFirmId)) referralByFirm.set(tx.referredFirmId, new Set());
+      referralByFirm.get(tx.referredFirmId)!.add(tx.id);
+    }
     if (tx.vendorSolicitorContactId) {
       if (!filesByContact.has(tx.vendorSolicitorContactId)) filesByContact.set(tx.vendorSolicitorContactId, []);
-      filesByContact.get(tx.vendorSolicitorContactId)!.push({ id: tx.id, propertyAddress: tx.propertyAddress, role: "vendor" });
+      filesByContact.get(tx.vendorSolicitorContactId)!.push({ id: tx.id, propertyAddress: tx.propertyAddress, role: "vendor", referredFirmId: tx.referredFirmId ?? null });
     }
     if (tx.purchaserSolicitorContactId) {
       if (!filesByContact.has(tx.purchaserSolicitorContactId)) filesByContact.set(tx.purchaserSolicitorContactId, []);
-      filesByContact.get(tx.purchaserSolicitorContactId)!.push({ id: tx.id, propertyAddress: tx.propertyAddress, role: "purchaser" });
+      filesByContact.get(tx.purchaserSolicitorContactId)!.push({ id: tx.id, propertyAddress: tx.propertyAddress, role: "purchaser", referredFirmId: tx.referredFirmId ?? null });
     }
   }
 
@@ -84,12 +90,18 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
       ...(vendorByFirm.get(firm.id) ?? []),
       ...(purchaserByFirm.get(firm.id) ?? []),
     ]).size,
+    referralActiveFiles: referralByFirm.get(firm.id)?.size ?? 0,
     contacts: firm.handlers.map((h) => ({
       id: h.id,
       name: h.name,
       phone: h.phone,
       email: h.email,
-      activeFiles: filesByContact.get(h.id) ?? [],
+      activeFiles: (filesByContact.get(h.id) ?? []).map((f) => ({
+        id: f.id,
+        propertyAddress: f.propertyAddress,
+        role: f.role,
+        isReferral: f.referredFirmId === firm.id,
+      })),
     })),
   }));
 }
@@ -104,21 +116,21 @@ export async function getSolicitorDirectory(agencyId: string): Promise<Solicitor
         include: {
           vendorForTransactions: {
             where: { agencyId, status: { in: ["active", "on_hold"] } },
-            select: { id: true, propertyAddress: true },
+            select: { id: true, propertyAddress: true, referredFirmId: true },
           },
           purchaserForTransactions: {
             where: { agencyId, status: { in: ["active", "on_hold"] } },
-            select: { id: true, propertyAddress: true },
+            select: { id: true, propertyAddress: true, referredFirmId: true },
           },
         },
       },
       vendorForTransactions: {
         where: { status: { in: ["active", "on_hold"] } },
-        select: { id: true },
+        select: { id: true, referredFirmId: true },
       },
       purchaserForTransactions: {
         where: { status: { in: ["active", "on_hold"] } },
-        select: { id: true },
+        select: { id: true, referredFirmId: true },
       },
     },
   });
@@ -130,14 +142,18 @@ export async function getSolicitorDirectory(agencyId: string): Promise<Solicitor
       ...firm.vendorForTransactions.map((t) => t.id),
       ...firm.purchaserForTransactions.map((t) => t.id),
     ]).size,
+    referralActiveFiles: new Set([
+      ...firm.vendorForTransactions.filter((t) => t.referredFirmId === firm.id).map((t) => t.id),
+      ...firm.purchaserForTransactions.filter((t) => t.referredFirmId === firm.id).map((t) => t.id),
+    ]).size,
     contacts: firm.handlers.map((h) => ({
       id: h.id,
       name: h.name,
       phone: h.phone,
       email: h.email,
       activeFiles: [
-        ...h.vendorForTransactions.map((t) => ({ ...t, role: "vendor" as const })),
-        ...h.purchaserForTransactions.map((t) => ({ ...t, role: "purchaser" as const })),
+        ...h.vendorForTransactions.map((t) => ({ id: t.id, propertyAddress: t.propertyAddress, role: "vendor" as const, isReferral: t.referredFirmId === firm.id })),
+        ...h.purchaserForTransactions.map((t) => ({ id: t.id, propertyAddress: t.propertyAddress, role: "purchaser" as const, isReferral: t.referredFirmId === firm.id })),
       ],
     })),
   }));
