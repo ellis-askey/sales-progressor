@@ -5,7 +5,6 @@ import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 import { SearchesUpload } from "./SearchesUpload";
 
-const DATE_REQUIRED_CODES_LIST = new Set(["VM19", "VM20", "PM26", "PM27"]);
 
 type Milestone = {
   id: string;
@@ -24,6 +23,7 @@ type Milestone = {
   whoLabel: string;
   confirmedByPortal: boolean;
   description?: string | null;
+  eventDateRequired: boolean;
 };
 
 type Props = {
@@ -485,14 +485,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code)
+                {confirmingMilestone.eventDateRequired
                   ? "When is this happening?"
                   : confirmingMilestone.who === "you"
                     ? "Mark this step as done?"
                     : "Has this happened?"}
               </p>
 
-              {DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code) && (
+              {confirmingMilestone.eventDateRequired && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                     Date <span style={{ color: "#EF4444" }}>*</span>
@@ -512,14 +512,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               )}
 
               <button
-                onClick={() => confirmMilestone(confirmingMilestone.id, DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code))}
+                onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.eventDateRequired)}
                 disabled={loading}
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
                 {loading
                   ? "Saving…"
-                  : DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code)
+                  : confirmingMilestone.eventDateRequired
                     ? "Confirm date"
                     : confirmingMilestone.who === "you"
                       ? "Yes, it's done"

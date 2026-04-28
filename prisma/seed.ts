@@ -200,7 +200,7 @@ async function main() {
     },
     {
       code: "PM6",  orderIndex: 6,  blocksExchange: true,  predecessorCode: "PM5",  canBeMarkedNr: CanBeMarkedNr.auto_only,
-      weight: 2.00, name: "Lender valuation has been booked",
+      weight: 2.00, eventDateRequired: true, name: "Lender valuation has been booked",
       summaryTemplate: "{agent} confirmed that the lender valuation has been booked for {purchasers}",
     },
     {
@@ -215,7 +215,7 @@ async function main() {
     },
     {
       code: "PM9",  orderIndex: 9,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.manual_allowed,
-      weight: 4.00, name: "Buyer has booked a Level 2 or Level 3 survey",
+      weight: 4.00, eventDateRequired: true, name: "Buyer has booked a Level 2 or Level 3 survey",
       summaryTemplate: "{agent} confirmed that {purchasers} have booked their survey",
     },
     {
@@ -300,12 +300,12 @@ async function main() {
     },
     {
       code: "PM26", orderIndex: 26, blocksExchange: false, predecessorCode: "PM25", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 8.00, name: "Buyer has received confirmation that contracts have exchanged",
+      weight: 8.00, eventDateRequired: true, name: "Buyer has received confirmation that contracts have exchanged",
       summaryTemplate: "{agent} confirmed that contracts have exchanged — congratulations to {purchasers}",
     },
     {
       code: "PM27", orderIndex: 27, blocksExchange: false, predecessorCode: "PM26", canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 5.00, name: "Buyer has received confirmation that the sale has completed",
+      weight: 5.00, eventDateRequired: true, name: "Buyer has received confirmation that the sale has completed",
       summaryTemplate: "{agent} confirmed that the purchase has completed — {purchasers} are now the proud owners",
     },
   ];

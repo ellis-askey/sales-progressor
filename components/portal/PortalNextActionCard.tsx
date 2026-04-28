@@ -4,8 +4,6 @@ import { useState, useOptimistic, useTransition } from "react";
 import { P } from "./portal-ui";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 
-const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
-
 type Props = {
   token: string;
   milestone: {
@@ -13,6 +11,7 @@ type Props = {
     label: string;
     who: string;
     code: string;
+    eventDateRequired: boolean;
   };
   nextAfterDescription: string | null;
 };
@@ -59,7 +58,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
   }
 
   function confirm() {
-    if (DATE_REQUIRED_CODES.has(milestone.code) && !eventDate) {
+    if (milestone.eventDateRequired && !eventDate) {
       setError("Please enter the date for this step.");
       return;
     }
@@ -189,10 +188,10 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {DATE_REQUIRED_CODES.has(milestone.code) ? "When is this happening?" : "Mark this step as done?"}
+                {milestone.eventDateRequired ? "When is this happening?" : "Mark this step as done?"}
               </p>
 
-              {DATE_REQUIRED_CODES.has(milestone.code) && (
+              {milestone.eventDateRequired && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                     Date <span style={{ color: "#EF4444" }}>*</span>
@@ -220,7 +219,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
-                {DATE_REQUIRED_CODES.has(milestone.code) ? "Confirm date" : "Yes, it's done"}
+                {milestone.eventDateRequired ? "Confirm date" : "Yes, it's done"}
               </button>
               <button
                 onClick={closeSheet}

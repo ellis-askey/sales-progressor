@@ -17,6 +17,7 @@ export type PortalMilestone = {
   eventDate: Date | null;
   completedAt: Date | null;
   confirmedByPortal: boolean;
+  eventDateRequired: boolean;
 };
 
 export type PortalUpdate = {
@@ -121,6 +122,7 @@ export async function getPortalMilestones(
         eventDate: comp?.eventDate ?? null,
         completedAt: comp?.completedAt ?? null,
         confirmedByPortal: comp?.confirmedByPortal ?? false,
+        eventDateRequired: def.eventDateRequired,
       };
     });
   });

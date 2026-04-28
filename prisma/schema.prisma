@@ -293,9 +293,10 @@ model MilestoneDefinition {
   name            String
   side            MilestoneSide
   orderIndex      Int
-  blocksExchange  Boolean       @default(true)
-  predecessorCode String?
-  canBeMarkedNr   CanBeMarkedNr @default(never)
+  blocksExchange     Boolean       @default(true)
+  eventDateRequired  Boolean       @default(false)
+  predecessorCode    String?
+  canBeMarkedNr      CanBeMarkedNr @default(never)
   summaryTemplate String        @default("")
   weight          Decimal       @default(0)
   createdAt       DateTime      @default(now())

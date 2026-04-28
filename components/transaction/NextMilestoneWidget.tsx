@@ -9,9 +9,8 @@ type NextMilestone = {
   id: string;
   name: string;
   code: string;
+  eventDateRequired: boolean;
 };
-
-const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 
 type Props = {
   transactionId: string;
@@ -50,7 +49,7 @@ function MilestoneQuickComplete({
     );
   }
 
-  if (DATE_REQUIRED_CODES.has(milestone.code)) {
+  if (milestone.eventDateRequired) {
     return (
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-200 flex-shrink-0" />

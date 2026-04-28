@@ -24,7 +24,6 @@ type Props = {
 // Only PM9 (mortgage application) can be manually marked N/R
 const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
-const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 
 export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticallyAvailable }: Props) {
   const { toast } = useAgentToast();
@@ -86,7 +85,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
   async function handleConfirmClick() {
     onConfirmStart?.();
     setError(null);
-    if (DATE_REQUIRED_CODES.has(def.code)) { setShowEventDate(true); return; }
+    if (def.eventDateRequired) { setShowEventDate(true); return; }
     await checkImplied();
   }
 

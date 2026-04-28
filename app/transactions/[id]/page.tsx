@@ -296,14 +296,16 @@ export default async function TransactionDetailPage({
           <NextMilestoneWidget
             transactionId={transaction.id}
             vendorNext={vendorNext ? {
-              id: vendorNext.id,
-              name: vendorNext.name,
-              code: vendorNext.code,
+              id:                vendorNext.id,
+              name:              vendorNext.name,
+              code:              vendorNext.code,
+              eventDateRequired: vendorNext.eventDateRequired,
             } : null}
             purchaserNext={purchaserNext ? {
-              id: purchaserNext.id,
-              name: purchaserNext.name,
-              code: purchaserNext.code,
+              id:                purchaserNext.id,
+              name:              purchaserNext.name,
+              code:              purchaserNext.code,
+              eventDateRequired: purchaserNext.eventDateRequired,
             } : null}
           />
 

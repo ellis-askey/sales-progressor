@@ -161,10 +161,11 @@ export default async function PortalHomePage({
         <PortalNextActionCard
           token={token}
           milestone={{
-            id:    nextAction.id,
-            label: nextAction.label,
-            who:   nextAction.who,
-            code:  nextAction.code,
+            id:                nextAction.id,
+            label:             nextAction.label,
+            who:               nextAction.who,
+            code:              nextAction.code,
+            eventDateRequired: nextAction.eventDateRequired,
           }}
           nextAfterDescription={nextAfter ? (getMilestoneCopy(nextAfter.code).description ?? null) : null}
         />
