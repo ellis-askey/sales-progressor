@@ -15,7 +15,7 @@ export default function AgentLoading() {
       </div>
 
       {/* Content skeleton */}
-      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="px-4 md:px-8 py-7" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <SkeletonCard height={88} />
         <SkeletonCard height={64} />
         <SkeletonCard height={64} />
