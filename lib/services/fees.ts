@@ -130,15 +130,11 @@ type MilestoneState = {
   code: string;
   isComplete: boolean;
   isNotRequired: boolean;
-  isPostExchange: boolean;
   completedAt?: Date;
 };
 
-/**
- * Calculate weighted progress and exchange prediction.
- * Excludes not-required milestones from total weight (recalibrates to 100%).
- * Excludes post-exchange milestones from progress calculation.
- */
+const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
+
 export function calculateProgress(
   milestones: MilestoneState[],
   createdAt: Date,
@@ -146,8 +142,7 @@ export function calculateProgress(
 ): ProgressResult {
   const now = new Date();
 
-  // Filter out post-exchange for progress calc
-  const applicable = milestones.filter((m) => !m.isPostExchange);
+  const applicable = milestones.filter((m) => !POST_EXCHANGE_CODES.has(m.code));
 
   // Active milestones (not marked not-required)
   const active = applicable.filter((m) => !m.isNotRequired);

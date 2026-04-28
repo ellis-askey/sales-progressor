@@ -131,7 +131,7 @@ export async function getHubMomentum(vis: AgentVisibility) {
         transaction: txWhere,
         milestoneDefinitionId: { in: exchangeDefIds },
         completedAt: { gte: startOfThisMonth },
-        isActive: true,
+        state: "complete",
       },
     }),
     prisma.milestoneCompletion.count({
@@ -139,7 +139,7 @@ export async function getHubMomentum(vis: AgentVisibility) {
         transaction: txWhere,
         milestoneDefinitionId: { in: exchangeDefIds },
         completedAt: { gte: startOfLastMonth, lt: startOfThisMonth },
-        isActive: true,
+        state: "complete",
       },
     }),
   ]);
@@ -365,7 +365,7 @@ export async function getHubRecentActivity(
       },
     }),
     prisma.milestoneCompletion.findFirst({
-      where: { transaction: txFilter, isActive: true, isNotRequired: false },
+      where: { transaction: txFilter, state: "complete" },
       orderBy: { completedAt: "desc" },
       select: {
         completedAt: true,
@@ -377,7 +377,7 @@ export async function getHubRecentActivity(
   ]);
 
   const commTime = recentComm ? new Date(recentComm.createdAt).getTime() : 0;
-  const msTime = recentMilestone ? new Date(recentMilestone.completedAt).getTime() : 0;
+  const msTime = recentMilestone?.completedAt ? new Date(recentMilestone.completedAt).getTime() : 0;
 
   if (commTime === 0 && msTime === 0) return null;
 
@@ -397,7 +397,7 @@ export async function getHubRecentActivity(
       description: recentMilestone.summaryText ?? recentMilestone.milestoneDefinition.name,
       context: recentMilestone.transaction.propertyAddress,
       transactionId: recentMilestone.transaction.id,
-      at: recentMilestone.completedAt,
+      at: recentMilestone.completedAt ?? new Date(),
     };
   }
 

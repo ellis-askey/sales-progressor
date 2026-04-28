@@ -4,6 +4,9 @@ import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { P } from "@/components/portal/portal-ui";
 
+const POST_EXCHANGE_PORTAL = new Set(["VM19", "VM20", "PM26", "PM27"]);
+const EXCHANGE_GATES_PORTAL = new Set(["VM18", "PM25"]);
+
 function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones>>) {
   return milestones.map((m) => ({
     id:              m.id,
@@ -12,12 +15,11 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
     isComplete:      m.isComplete,
     isNotRequired:   m.isNotRequired,
     isAvailable:     m.isAvailable,
-    isPostExchange:  m.isPostExchange,
-    isExchangeGate:  m.isExchangeGate,
-    timeSensitive:   m.timeSensitive,
+    isPostExchange:  POST_EXCHANGE_PORTAL.has(m.code),
+    isExchangeGate:  EXCHANGE_GATES_PORTAL.has(m.code),
     completedAt:     m.completedAt,
     eventDate:       m.eventDate,
-    confirmedByClient: m.confirmedByClient,
+    confirmedByPortal: m.confirmedByPortal,
     label:           getMilestoneCopy(m.code).label,
     labelOther:      getMilestoneCopy(m.code).labelOther ?? null,
     who:             getMilestoneCopy(m.code).who,
@@ -44,16 +46,16 @@ export default async function PortalProgressPage({
     getPortalMilestones(transaction.id, otherSide),
   ]);
 
-  const hasExchanged = milestones.some((m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete);
+  const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
 
-  const preExchange = milestones.filter((m) => !m.isPostExchange && !m.isExchangeGate && !m.isNotRequired);
+  const preExchange = milestones.filter((m) => !POST_EXCHANGE_PORTAL.has(m.code) && !EXCHANGE_GATES_PORTAL.has(m.code) && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
   const percent     = preExchange.length > 0 ? Math.round((completed.length / preExchange.length) * 100) : 0;
 
   const portalMilestones      = toPortalShape(milestones);
   const otherPortalMilestones = toPortalShape(otherSideMilestones);
 
-  const nextUp = portalMilestones.find((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && m.isAvailable);
+  const nextUp = portalMilestones.find((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && (m.isAvailable ?? false));
 
   return (
     <div className="space-y-4">

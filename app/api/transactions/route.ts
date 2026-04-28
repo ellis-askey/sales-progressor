@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/auth";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
+import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType, ContactRole } from "@prisma/client";
 
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
   } = body;
 
   if (!propertyAddress) return NextResponse.json({ error: "Address required" }, { status: 400 });
+  if (!tenure) return NextResponse.json({ error: "Tenure required" }, { status: 400 });
+  if (!purchaseType) return NextResponse.json({ error: "Purchase type required" }, { status: 400 });
 
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
   const resolvedProgressedBy = isAgent ? (progressedBy === "agent" ? "agent" : "progressor") : "progressor";
@@ -66,6 +69,14 @@ export async function POST(req: NextRequest) {
         })),
       });
     }
+
+    // Initialize milestone completions (all 47, with auto-NR applied)
+    await initializeMilestoneCompletions(
+      tx.id,
+      tenure as Tenure,
+      purchaseType as PurchaseType,
+      session.user.id
+    );
 
     // Seed reminder logs in the background — don't block the 201 response
     void evaluateTransactionReminders(tx.id).catch((err) => {

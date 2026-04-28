@@ -35,7 +35,7 @@ export default async function AgentCommsPage({
   const dayTxMap = new Map<string, Map<string, TxGroup>>();
 
   for (const m of milestones) {
-    const label = dayLabel(m.completedAt);
+    const label = dayLabel(m.completedAt ?? new Date());
     if (!dayTxMap.has(label)) {
       dayTxMap.set(label, new Map());
       dayOrder.push(label);
@@ -50,8 +50,8 @@ export default async function AgentCommsPage({
     }
     const row: MilestoneRow = {
       id: m.id,
-      completedAtIso: new Date(m.completedAt).toISOString(),
-      statusReason: m.statusReason ?? null,
+      completedAtIso: (m.completedAt ?? new Date()).toISOString(),
+      confirmedByPortal: m.confirmedByPortal,
       side: m.milestoneDefinition.side,
       milestoneName: m.milestoneDefinition.name,
       completedByName: m.completedBy?.name ?? null,

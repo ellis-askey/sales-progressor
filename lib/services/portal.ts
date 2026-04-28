@@ -4,25 +4,6 @@ import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 
-// Mirror of DIRECT_PREREQUISITES from milestones.ts — only the immediate
-// predecessors that must be complete before a milestone is available to confirm.
-const DIRECT_PREREQUISITES: Record<string, string[]> = {
-  VM3: ["VM1"], VM14: ["VM1"], VM15: ["VM1"],
-  VM4: ["VM15"], VM5: ["VM4"], VM6: ["VM4"], VM7: ["VM6"],
-  VM16: ["VM5"], VM17: ["VM16"], VM8: ["VM17"],
-  VM18: ["VM8"], VM19: ["VM18"], VM9: ["VM19"],
-  VM10: ["VM5"], VM11: ["VM10"], VM20: ["VM11"],
-  VM12: ["VM20"], VM13: ["VM12"],
-  PM14a: ["PM1"], PM15a: ["PM14a"],
-  PM4: ["PM1"], PM5: ["PM4"], PM6: ["PM5"],
-  PM9: ["PM3"], PM20: ["PM7"], PM8: [],
-  PM10: ["PM9"], PM11: ["PM3"], PM21: ["PM11"],
-  PM22: ["PM21"], PM12: ["PM22"], PM23: ["PM12"],
-  PM24: ["PM23"], PM25: ["PM24"], PM26: ["PM25"],
-  PM13: ["PM26"], PM14b: ["PM13"], PM15b: ["PM14b"],
-  PM27: ["PM15b"], PM16: ["PM27"], PM17: ["PM16"],
-};
-
 export type PortalMilestone = {
   id: string;
   code: string;
@@ -30,15 +11,12 @@ export type PortalMilestone = {
   side: string;
   orderIndex: number;
   blocksExchange: boolean;
-  isPostExchange: boolean;
-  isExchangeGate: boolean;
-  timeSensitive: boolean;
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;
   eventDate: Date | null;
   completedAt: Date | null;
-  confirmedByClient: boolean;
+  confirmedByPortal: boolean;
 };
 
 export type PortalUpdate = {
@@ -118,24 +96,17 @@ export async function getPortalMilestones(
     });
 
     const completions = await prisma.milestoneCompletion.findMany({
-      where: { transactionId, isActive: true },
+      where: { transactionId },
     });
 
     const completionMap = new Map(completions.map((c) => [c.milestoneDefinitionId, c]));
-    const codeToId = new Map(defs.map((d) => [d.code, d.id]));
 
     return defs.map((def) => {
       const comp = completionMap.get(def.id) ?? null;
-      const isComplete = comp ? !comp.isNotRequired : false;
-      const isNotRequired = comp?.isNotRequired ?? false;
-
-      const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
-      const isAvailable = prereqCodes.every((code) => {
-        const id = codeToId.get(code);
-        if (!id) return true;
-        const c = completionMap.get(id);
-        return c && !c.isNotRequired;
-      });
+      const state = comp?.state ?? "locked";
+      const isComplete = state === "complete";
+      const isNotRequired = state === "not_required";
+      const isAvailable = state === "available" || isComplete || isNotRequired;
 
       return {
         id: def.id,
@@ -144,15 +115,12 @@ export async function getPortalMilestones(
         side: def.side,
         orderIndex: def.orderIndex,
         blocksExchange: def.blocksExchange,
-        isPostExchange: def.isPostExchange,
-        isExchangeGate: def.isExchangeGate,
-        timeSensitive: def.timeSensitive,
         isComplete,
         isNotRequired,
         isAvailable,
         eventDate: comp?.eventDate ?? null,
         completedAt: comp?.completedAt ?? null,
-        confirmedByClient: comp?.statusReason?.startsWith("Confirmed by") ?? false,
+        confirmedByPortal: comp?.confirmedByPortal ?? false,
       };
     });
   });
@@ -213,43 +181,40 @@ export async function portalCompleteMilestone(input: {
   });
   if (!def) throw new Error("Milestone not found");
 
-  if (def.timeSensitive && !input.eventDate) {
-    throw new Error("Date required for this milestone");
-  }
-
-  const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
-  if (prereqCodes.length > 0) {
-    const prereqDefs = await prisma.milestoneDefinition.findMany({
-      where: { code: { in: prereqCodes }, side },
-      select: { id: true, code: true },
-    });
-    for (const prereq of prereqDefs) {
-      const done = await prisma.milestoneCompletion.findFirst({
-        where: {
-          transactionId: contact.propertyTransactionId,
-          milestoneDefinitionId: prereq.id,
-          isActive: true,
-          isNotRequired: false,
-        },
-      });
-      if (!done) throw new Error(`Complete "${prereq.code}" first`);
-    }
-  }
-
-  await prisma.milestoneCompletion.updateMany({
-    where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: input.milestoneDefinitionId, isActive: true },
-    data: { isActive: false },
+  // Milestone must be in available state to be confirmed via portal
+  const current = await prisma.milestoneCompletion.findUnique({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId: contact.propertyTransactionId,
+        milestoneDefinitionId: input.milestoneDefinitionId,
+      },
+    },
+    select: { state: true },
   });
+  if (!current || (current.state !== "available" && current.state !== "complete")) {
+    throw new Error("Milestone not yet available for confirmation");
+  }
 
-  const completion = await prisma.milestoneCompletion.create({
-    data: {
+  const completion = await prisma.milestoneCompletion.upsert({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId: contact.propertyTransactionId,
+        milestoneDefinitionId: input.milestoneDefinitionId,
+      },
+    },
+    create: {
       transactionId: contact.propertyTransactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
-      isActive: true,
-      isNotRequired: false,
+      state: "complete",
       completedAt: new Date(),
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
-      statusReason: `Confirmed by ${contact.name} via portal`,
+      confirmedByPortal: true,
+    },
+    update: {
+      state: "complete",
+      completedAt: new Date(),
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+      confirmedByPortal: true,
     },
   });
 
@@ -262,7 +227,7 @@ export async function portalCompleteMilestone(input: {
     input.eventDate ?? null
   ).catch(() => {});
 
-  if (def.code === "VM12" || def.code === "PM16") {
+  if (def.code === "VM19" || def.code === "PM26") {
     sendExchangeCompletionPack(contact.propertyTransactionId).catch(() => {});
   }
 
@@ -831,7 +796,7 @@ export type TimelineEntry =
       completedByName: string | null;
       confirmedByClient: boolean;
       eventDate: Date | null;
-      createdAt: Date;
+      createdAt: Date | null;
     }
   | {
       type: "update";
@@ -852,9 +817,9 @@ export async function getPortalTimeline(
   return withRetry(async () => {
     const [completions, updates] = await Promise.all([
       prisma.milestoneCompletion.findMany({
-        where: { transactionId, isActive: true, isNotRequired: false },
+        where: { transactionId, state: "complete" },
         include: {
-          milestoneDefinition: { select: { code: true, side: true, timeSensitive: true } },
+          milestoneDefinition: { select: { code: true, side: true } },
           completedBy: { select: { name: true } },
         },
         orderBy: { completedAt: "desc" },
@@ -877,7 +842,7 @@ export async function getPortalTimeline(
           label,
           side: c.milestoneDefinition.side as "vendor" | "purchaser",
           completedByName: c.completedBy?.name ?? null,
-          confirmedByClient: c.statusReason?.startsWith("Confirmed by") ?? false,
+          confirmedByClient: c.confirmedByPortal,
           eventDate: c.eventDate ?? null,
           createdAt: c.completedAt,
         };
@@ -892,7 +857,7 @@ export async function getPortalTimeline(
     }));
 
     const all = [...milestoneEntries, ...updateEntries];
-    all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    all.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
     return all;
   });
 }
@@ -926,19 +891,10 @@ export async function portalMarkNotRequired(input: {
   const now = new Date();
   const txId = contact.propertyTransactionId;
 
-  await prisma.milestoneCompletion.updateMany({
-    where: { transactionId: txId, milestoneDefinitionId: def.id, isActive: true },
-    data: { isActive: false },
-  });
-  await prisma.milestoneCompletion.create({
-    data: {
-      transactionId: txId,
-      milestoneDefinitionId: def.id,
-      isActive: true,
-      isNotRequired: true,
-      completedAt: now,
-      statusReason: "Marked not required by client via portal",
-    },
+  await prisma.milestoneCompletion.upsert({
+    where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: def.id } },
+    create: { transactionId: txId, milestoneDefinitionId: def.id, state: "not_required", notRequiredReason: "Marked not required by client via portal" },
+    update: { state: "not_required", notRequiredReason: "Marked not required by client via portal", completedAt: null },
   });
 
   if (cascadeCodes.length > 0) {
@@ -947,19 +903,10 @@ export async function portalMarkNotRequired(input: {
       select: { id: true },
     });
     for (const cd of cascadeDefs) {
-      await prisma.milestoneCompletion.updateMany({
-        where: { transactionId: txId, milestoneDefinitionId: cd.id, isActive: true },
-        data: { isActive: false },
-      });
-      await prisma.milestoneCompletion.create({
-        data: {
-          transactionId: txId,
-          milestoneDefinitionId: cd.id,
-          isActive: true,
-          isNotRequired: true,
-          completedAt: now,
-          statusReason: "Cascade: not required (survey skipped via portal)",
-        },
+      await prisma.milestoneCompletion.upsert({
+        where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: cd.id } },
+        create: { transactionId: txId, milestoneDefinitionId: cd.id, state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)" },
+        update: { state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)", completedAt: null },
       });
     }
   }

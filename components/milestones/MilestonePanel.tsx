@@ -14,21 +14,20 @@ const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
 };
 
 const VENDOR_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["VM1","VM2","VM3","VM14","VM15","VM4"] },
-  { label: "Conveyancing",          codes: ["VM5","VM6","VM7","VM16","VM17","VM8","VM18","VM19","VM9"] },
-  { label: "Exchange & Completion", codes: ["VM10","VM11","VM20","VM12","VM13"] },
+  { label: "Onboarding",            codes: ["VM1","VM2","VM3","VM4","VM5","VM6"] },
+  { label: "Conveyancing",          codes: ["VM7","VM8","VM9","VM10","VM11","VM12","VM13","VM14","VM15","VM16","VM17"] },
+  { label: "Exchange & Completion", codes: ["VM18","VM19","VM20"] },
 ];
 
 const PURCHASER_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["PM1","PM2","PM14a","PM15a"] },
-  { label: "Finances",              codes: ["PM4","PM5","PM6"] },
-  { label: "Surveys",               codes: ["PM7","PM20"] },
-  { label: "Conveyancing",          codes: ["PM3","PM9","PM8","PM10","PM11","PM21","PM22","PM12","PM23","PM24","PM25"] },
-  { label: "Exchange & Completion", codes: ["PM26","PM13","PM14b","PM15b","PM27","PM16","PM17"] },
+  { label: "Onboarding",            codes: ["PM1","PM2","PM3","PM4"] },
+  { label: "Finances",              codes: ["PM5","PM6","PM9","PM10","PM11"] },
+  { label: "Conveyancing",          codes: ["PM7","PM8","PM12","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24"] },
+  { label: "Exchange & Completion", codes: ["PM25","PM26","PM27"] },
 ];
 
 type EnrichedDef = MilestoneDefinition & {
-  activeCompletion: MilestoneCompletion | null;
+  completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;

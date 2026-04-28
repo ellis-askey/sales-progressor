@@ -15,7 +15,8 @@ const KIND_STYLES: Record<string, { label: string; cls: string }> = {
   comm:      { label: "Comms",        cls: "bg-emerald-100 text-emerald-700" },
 };
 
-function fmtDt(d: Date) {
+function fmtDt(d: Date | null) {
+  if (!d) return "—";
   return new Date(d).toLocaleString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",

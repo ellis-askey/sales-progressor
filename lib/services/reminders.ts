@@ -139,7 +139,6 @@ export async function evaluateTransactionReminders(transactionId: string) {
     where: { id: transactionId },
     include: {
       milestoneCompletions: {
-        where: { isActive: true },
         include: { milestoneDefinition: true },
       },
     },
@@ -166,7 +165,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
   });
   const exchangeReady = allBlockers.every((def) => {
     const c = completionByDefId.get(def.id);
-    return c && c.isActive;
+    return c && (c.state === "complete" || c.state === "not_required");
   });
 
   // Load all active reminder rules
@@ -188,7 +187,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
     // Check if target milestone is already confirmed — if so, deactivate
     if (rule.targetMilestoneCode) {
       const targetCompletion = completionByCode.get(rule.targetMilestoneCode);
-      if (targetCompletion && targetCompletion.isActive) {
+      if (targetCompletion && (targetCompletion.state === "complete" || targetCompletion.state === "not_required")) {
         await deactivateLog(transactionId, rule.id, "Target milestone confirmed", assignedUserId);
         continue;
       }
@@ -199,13 +198,13 @@ export async function evaluateTransactionReminders(transactionId: string) {
 
     if (rule.anchorMilestoneId) {
       const anchorCompletion = completionByDefId.get(rule.anchorMilestoneId);
-      if (!anchorCompletion || !anchorCompletion.isActive) {
+      if (!anchorCompletion || anchorCompletion.state !== "complete") {
         await deactivateLog(transactionId, rule.id, "Anchor milestone not yet confirmed", assignedUserId);
         continue;
       }
       anchorDate = (rule.useEventDate && anchorCompletion.eventDate)
         ? anchorCompletion.eventDate
-        : anchorCompletion.completedAt;
+        : (anchorCompletion.completedAt ?? transaction.createdAt);
     } else {
       anchorDate = transaction.createdAt;
     }

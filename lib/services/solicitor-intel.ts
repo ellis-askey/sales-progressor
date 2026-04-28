@@ -29,7 +29,7 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
           createdAt: true,
           status: true,
           milestoneCompletions: {
-            where: { isActive: true, isNotRequired: false },
+            where: { state: "complete" },
             select: {
               completedAt: true,
               milestoneDefinition: { select: { code: true } },
@@ -43,7 +43,7 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
           createdAt: true,
           status: true,
           milestoneCompletions: {
-            where: { isActive: true, isNotRequired: false },
+            where: { state: "complete" },
             select: {
               completedAt: true,
               milestoneDefinition: { select: { code: true } },

@@ -56,19 +56,22 @@ export default async function PortalHomePage({
     typicalDuration: getMilestoneCopy(m.code).typicalDuration ?? null,
   }));
 
-  const preExchange = milestones.filter((m) => !m.isPostExchange && !m.isExchangeGate && !m.isNotRequired);
+  const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
+  const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
+
+  const preExchange = milestones.filter((m) => !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
   const percent     = preExchange.length > 0 ? Math.round((completed.length / preExchange.length) * 100) : 0;
 
-  const hasExchanged = milestones.some((m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete);
-  const hasCompleted = milestones.some((m) => (m.code === "VM13" || m.code === "PM17") && m.isComplete);
+  const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
+  const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
 
-  const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !m.isPostExchange && !m.isExchangeGate && m.isAvailable);
+  const available  = milestones.filter((m) => !m.isComplete && !m.isNotRequired && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && m.isAvailable);
   const nextAction = available[0] ?? null;
   const nextAfter  = available[1] ?? null;
   const comingUp   = available.slice(2, 5);
 
-  const keyDates     = milestones.filter((m) => m.timeSensitive && m.eventDate && m.isComplete);
+  const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
   const recentActivity = timeline.slice(0, 3);
 
   const stage = detectStage(milestones, side);
@@ -158,11 +161,10 @@ export default async function PortalHomePage({
         <PortalNextActionCard
           token={token}
           milestone={{
-            id:            nextAction.id,
-            label:         nextAction.label,
-            who:           nextAction.who,
-            timeSensitive: nextAction.timeSensitive,
-            code:          nextAction.code,
+            id:    nextAction.id,
+            label: nextAction.label,
+            who:   nextAction.who,
+            code:  nextAction.code,
           }}
           nextAfterDescription={nextAfter ? (getMilestoneCopy(nextAfter.code).description ?? null) : null}
         />
@@ -315,13 +317,13 @@ export default async function PortalHomePage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium leading-snug" style={{ color: P.textPrimary }}>{entry.label}</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt)}</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt ?? new Date())}</p>
                   </div>
                 </>
               ) : (
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] leading-relaxed" style={{ color: P.textPrimary }}>{entry.content}</p>
-                  <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt)}</p>
+                  <p className="text-[12px] mt-1.5" style={{ color: P.textMuted }}>{fmtDateShort(entry.createdAt ?? new Date())}</p>
                 </div>
               )}
             </div>

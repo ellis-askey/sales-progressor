@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export type AuditEntry = {
   id: string;
-  at: Date;
+  at: Date | null;
   actorName: string;
   transactionId: string;
   address: string;
@@ -53,7 +53,7 @@ export async function getAuditLog(
     prisma.milestoneCompletion.findMany({
       where: {
         transactionId: { in: allTxIds },
-        isActive: true,
+        state: { in: ["complete", "not_required"] },
         ...(userId ? { completedById: userId } : {}),
       },
       orderBy: { completedAt: "desc" },
@@ -61,8 +61,8 @@ export async function getAuditLog(
       select: {
         id: true,
         completedAt: true,
-        isNotRequired: true,
-        statusReason: true,
+        state: true,
+        confirmedByPortal: true,
         transactionId: true,
         completedBy: { select: { name: true } },
         milestoneDefinition: { select: { name: true } },
@@ -88,9 +88,9 @@ export async function getAuditLog(
 
   for (const m of completions) {
     const address = txMap.get(m.transactionId) ?? m.transactionId;
-    const isClientConfirm = m.statusReason === "Confirmed by client via portal";
+    const isClientConfirm = m.confirmedByPortal;
     const actor = isClientConfirm ? "Client (portal)" : (m.completedBy?.name ?? "System");
-    const action = m.isNotRequired ? `Marked N/A: ${m.milestoneDefinition.name}` : `Completed: ${m.milestoneDefinition.name}`;
+    const action = m.state === "not_required" ? `Marked N/A: ${m.milestoneDefinition.name}` : `Completed: ${m.milestoneDefinition.name}`;
     entries.push({
       id: `mc-${m.id}`,
       at: m.completedAt,
@@ -102,7 +102,7 @@ export async function getAuditLog(
     });
   }
 
-  entries.sort((a, b) => b.at.getTime() - a.at.getTime());
+  entries.sort((a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0));
 
   return {
     total: entries.length,

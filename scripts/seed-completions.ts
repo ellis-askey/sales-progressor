@@ -126,7 +126,7 @@ async function main() {
       data: {
         transactionId: tx.id,
         milestoneDefinitionId: vm12.id,
-        isActive: true,
+        state: "complete",
         completedAt: D(-7),
         completedById: testUser.id,
         summaryText: "Alex Morgan confirmed that contracts have successfully exchanged",

@@ -68,15 +68,15 @@ export async function confirmMilestoneAction(input: {
   revalidatePath("/portal", "layout");
 
   // Exchange: auto-confirm the counterpart milestone on the other side (same date)
-  if (def?.code === "VM12" || def?.code === "PM16") {
-    const counterCode = def.code === "VM12" ? "PM16" : "VM12";
+  if (def?.code === "VM18" || def?.code === "PM25") {
+    const counterCode = def.code === "VM18" ? "PM25" : "VM18";
     const counterDef = await prisma.milestoneDefinition.findFirst({
       where: { code: counterCode },
       select: { id: true },
     });
     if (counterDef) {
       const alreadyDone = await prisma.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDef.id, isActive: true, isNotRequired: false },
+        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDef.id, state: "complete" },
       });
       if (!alreadyDone) {
         await completeMilestone({
@@ -93,7 +93,7 @@ export async function confirmMilestoneAction(input: {
   }
 
   // Completion: sync the transaction completionDate if the confirmed date differs
-  if ((def?.code === "VM13" || def?.code === "PM17") && input.eventDate) {
+  if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
     const actualDate = new Date(input.eventDate);
     const txData = await prisma.propertyTransaction.findFirst({
       where: { id: input.transactionId },
@@ -120,13 +120,13 @@ export async function confirmMilestoneAction(input: {
     let title = "Progress update";
     let body  = `${short} — "${label}" is complete.`;
 
-    if (code === "VM12" || code === "PM16") {
+    if (code === "VM19" || code === "PM26") {
       title = "Contracts exchanged!";
       body  = `${short} — your transaction is now legally committed.`;
-    } else if (code === "VM13" || code === "PM17") {
+    } else if (code === "VM20" || code === "PM27") {
       title = "Completed!";
       body  = `${short} — congratulations, your transaction has completed.`;
-    } else if (code === "VM20" || code === "PM27") {
+    } else if (code === "VM18" || code === "PM25") {
       title = "Ready to exchange";
       body  = `${short} — your solicitor has confirmed everything is in place.`;
     } else if (input.eventDate) {

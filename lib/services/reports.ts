@@ -7,7 +7,7 @@ export type WeeklyReport = {
     transactionId: string;
     propertyAddress: string;
     milestoneName: string;
-    completedAt: Date;
+    completedAt: Date | null;
     completedByName: string | null;
   }[];
   filesExchanged: {
@@ -32,14 +32,13 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
 
   const [exchangeDefs, milestones, filesAdded, overdueTaskCount, activeFiles] = await Promise.all([
     prisma.milestoneDefinition.findMany({
-      where: { code: { in: ["VM12", "PM16"] } },
+      where: { code: { in: ["VM19", "PM26"] } },
       select: { id: true },
     }),
     prisma.milestoneCompletion.findMany({
       where: {
         transaction: { agencyId },
-        isActive: true,
-        isNotRequired: false,
+        state: "complete",
         completedAt: { gte: periodStart },
       },
       include: {

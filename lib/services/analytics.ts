@@ -57,13 +57,13 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         agentFeeAmount: true,
         agentFeePercent: true,
         milestoneCompletions: {
-          where: { isActive: true, isNotRequired: false },
+          where: { state: "complete" },
           select: { milestoneDefinitionId: true, completedAt: true },
         },
       },
     }),
     prisma.milestoneDefinition.findMany({
-      where: { code: { in: ["VM12", "PM16"] } },
+      where: { code: { in: ["VM19", "PM26"] } },
       select: { id: true },
     }),
   ]);
@@ -107,7 +107,7 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
     const exchComp = tx.milestoneCompletions.find((c) => exchangeDefIds.has(c.milestoneDefinitionId));
     if (exchComp) {
       const days = Math.round(
-        (new Date(exchComp.completedAt).getTime() - new Date(tx.createdAt).getTime()) / 86400000
+        ((exchComp.completedAt ? new Date(exchComp.completedAt) : new Date()).getTime() - new Date(tx.createdAt).getTime()) / 86400000
       );
       if (days >= 0) exchangeTimes.push(days);
     }
@@ -140,7 +140,7 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
 
     const monthExchanged = transactions.filter((t) =>
       t.milestoneCompletions.some(
-        (c) => exchangeDefIds.has(c.milestoneDefinitionId) && new Date(c.completedAt) >= start && new Date(c.completedAt) < end
+        (c) => exchangeDefIds.has(c.milestoneDefinitionId) && c.completedAt && new Date(c.completedAt) >= start && new Date(c.completedAt) < end
       )
     ).length;
 
@@ -231,7 +231,7 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
   const windowEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16"] } },
+    where: { code: { in: ["VM19", "PM26"] } },
     select: { id: true },
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
@@ -245,8 +245,7 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
       where: {
         transaction: txWhere,
         milestoneDefinitionId: { in: exchangeDefIds },
-        isActive: true,
-        isNotRequired: false,
+        state: "complete",
         completedAt: { gte: windowStart, lt: windowEnd },
       },
       select: { completedAt: true },
@@ -258,7 +257,7 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
     const end   = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const label = start.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
     const created  = txsInWindow.filter(t  => { const d = new Date(t.createdAt);   return d >= start && d < end; }).length;
-    const exchanged = exchangesInWindow.filter(e => { const d = new Date(e.completedAt); return d >= start && d < end; }).length;
+    const exchanged = exchangesInWindow.filter(e => { if (!e.completedAt) return false; const d = new Date(e.completedAt); return d >= start && d < end; }).length;
     return { month: label, created, exchanged };
   });
 }
@@ -286,7 +285,7 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
       ...txWhere,
       OR: [{ vendorSolicitorFirmId: { not: null } }, { purchaserSolicitorFirmId: { not: null } }],
       milestoneCompletions: {
-        some: { milestoneDefinitionId: { in: exchangeDefIds }, isActive: true, isNotRequired: false },
+        some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
       },
     },
     select: {
@@ -294,7 +293,7 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
       vendorSolicitorFirm:    { select: { id: true, name: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
       milestoneCompletions: {
-        where: { milestoneDefinitionId: { in: exchangeDefIds }, isActive: true, isNotRequired: false },
+        where: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
         select: { completedAt: true },
         orderBy: { completedAt: "asc" },
         take: 1,

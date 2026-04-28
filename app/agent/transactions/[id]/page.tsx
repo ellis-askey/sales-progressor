@@ -83,8 +83,7 @@ export default async function AgentTransactionDetailPage({
     code: m.code,
     isComplete: m.isComplete,
     isNotRequired: m.isNotRequired,
-    isPostExchange: m.isPostExchange,
-    completedAt: m.activeCompletion?.completedAt,
+    completedAt: m.completion?.completedAt ?? undefined,
   }));
 
   const progress = calculateProgress(
@@ -94,7 +93,7 @@ export default async function AgentTransactionDetailPage({
   );
 
   const exchangeConfirmed = allMilestones.some(
-    (m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete
+    (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete
   );
 
   const internalNotes = (activityEntries as ActivityEntry[])
@@ -109,10 +108,10 @@ export default async function AgentTransactionDetailPage({
     ...(milestoneData?.vendor ?? []),
     ...(milestoneData?.purchaser ?? []),
   ]
-    .filter((m) => m.timeSensitive && m.activeCompletion?.eventDate)
+    .filter((m) => m.completion?.eventDate)
     .map((m) => ({
       name: m.name,
-      eventDate: m.activeCompletion!.eventDate as Date,
+      eventDate: m.completion!.eventDate as Date,
     }))
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
@@ -136,12 +135,15 @@ export default async function AgentTransactionDetailPage({
     pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
   }));
 
+  const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
+  const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
+
   const vendorNext = milestoneData?.vendor.find(
-    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !m.isPostExchange && !m.isExchangeGate
+    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
   ) ?? null;
 
   const purchaserNext = milestoneData?.purchaser.find(
-    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !m.isPostExchange && !m.isExchangeGate
+    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
   ) ?? null;
 
   const openTodoCount = manualTasks.filter((t) => t.status === "open").length;
@@ -266,7 +268,7 @@ export default async function AgentTransactionDetailPage({
                 {lastUpdate ? (
                   <div>
                     <p className="text-sm text-slate-900/80 leading-snug line-clamp-2">{lastUpdate.summaryText}</p>
-                    <p className="text-xs text-slate-900/40 mt-0.5">{relativeDate(lastUpdate.completedAt)}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">{lastUpdate.completedAt ? relativeDate(lastUpdate.completedAt) : ""}</p>
                   </div>
                 ) : (
                   <span className="text-sm text-slate-900/30 italic">No progress yet</span>
@@ -299,13 +301,11 @@ export default async function AgentTransactionDetailPage({
               id: vendorNext.id,
               name: vendorNext.name,
               code: vendorNext.code,
-              timeSensitive: vendorNext.timeSensitive,
             } : null}
             purchaserNext={purchaserNext ? {
               id: purchaserNext.id,
               name: purchaserNext.name,
               code: purchaserNext.code,
-              timeSensitive: purchaserNext.timeSensitive,
             } : null}
           />
 

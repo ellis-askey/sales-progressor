@@ -11,7 +11,7 @@ import { saveCompletionDateAction } from "@/app/actions/transactions";
 
 type Props = {
   def: MilestoneDefinition & {
-    activeCompletion: MilestoneCompletion | null;
+    completion: MilestoneCompletion | null;
     isComplete: boolean;
     isNotRequired: boolean;
     isAvailable: boolean;
@@ -21,8 +21,10 @@ type Props = {
   optimisticallyAvailable?: boolean;
 };
 
-// Only these milestones can be marked N/R by the user
-const NR_ALLOWED = new Set(["PM4", "PM7"]);
+// Only PM9 (mortgage application) can be manually marked N/R
+const NR_ALLOWED = new Set(["PM9"]);
+const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
+const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 
 export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticallyAvailable }: Props) {
   const { toast } = useAgentToast();
@@ -42,9 +44,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
-  // PM4 N/R purchase type modal
+  // PM9 N/R purchase type modal
   const [showPurchaseTypeModal, setShowPurchaseTypeModal] = useState(false);
-  const [selectedPurchaseType, setSelectedPurchaseType] = useState<"cash" | "cash_from_proceeds" | null>(null);
+  const [selectedPurchaseType, setSelectedPurchaseType] = useState<"cash_buyer" | "cash_from_proceeds" | null>(null);
 
   // Implied predecessors pop-up state
   const [impliedPredecessors, setImpliedPredecessors] = useState<MilestoneDefinition[]>([]);
@@ -76,17 +78,17 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
   const isCompleted = optimisticState.isComplete;
   const isNotRequired = optimisticState.isNotRequired;
   const isDone = isCompleted || isNotRequired;
-  const isGate = def.isExchangeGate;
-  const isPost = def.isPostExchange;
-  const isPM4 = def.code === "PM4";
-  const isExchangeMilestone = def.code === "VM12" || def.code === "PM16";
+  const isGate = def.code === "VM18" || def.code === "PM25";
+  const isPost = POST_EXCHANGE_CODES.has(def.code);
+  const isPM9 = def.code === "PM9";
+  const isExchangeMilestone = def.code === "VM19" || def.code === "PM26";
   const effectivelyAvailable = def.isAvailable || (optimisticallyAvailable ?? false);
   const isOptimisticUnlock = !def.isAvailable && (optimisticallyAvailable ?? false);
 
   async function handleConfirmClick() {
     onConfirmStart?.();
     setError(null);
-    if (def.timeSensitive) { setShowEventDate(true); return; }
+    if (DATE_REQUIRED_CODES.has(def.code)) { setShowEventDate(true); return; }
     await checkImplied();
   }
 
@@ -161,10 +163,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
     });
   }
 
-  // PM4 N/R — show purchase type modal first
+  // PM9 N/R — show purchase type modal first
   function handleNRClick() {
     setError(null);
-    if (isPM4) {
+    if (isPM9) {
       setShowPurchaseTypeModal(true);
     } else {
       setShowNotRequired(true);
@@ -172,8 +174,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
   }
 
   function doNotRequired(purchaseType?: PurchaseType) {
-    const finalReason = isPM4
-      ? (purchaseType === "cash" ? "Cash buyer" : "Cash from proceeds")
+    const finalReason = isPM9
+      ? (purchaseType === "cash_buyer" ? "Cash buyer" : "Cash from proceeds")
       : notRequiredReason;
     setShowNotRequired(false);
     setShowPurchaseTypeModal(false);
@@ -259,11 +261,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
             {def.name}
             {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
           </p>
-          {isDone && def.activeCompletion && (
+          {isDone && def.completion && (
             <p className="text-xs text-slate-900/40 mt-0.5">
-              Completed {formatDate(def.activeCompletion.completedAt)}
-              {def.activeCompletion.eventDate && <span className="ml-2">· Event: {formatDate(def.activeCompletion.eventDate)}</span>}
-              {def.activeCompletion.statusReason === "Confirmed by client via portal" && (
+              Completed {formatDate(def.completion.completedAt)}
+              {def.completion.eventDate && <span className="ml-2">· Event: {formatDate(def.completion.eventDate)}</span>}
+              {def.completion.confirmedByPortal && (
                 <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   Client confirmed
@@ -288,8 +290,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
             </div>
           )}
 
-          {/* N/R reason (PM7 only — PM4 uses modal) */}
-          {showNotRequired && !isPM4 && (
+          {/* N/R reason (PM9 uses modal, others shouldn't reach here) */}
+          {showNotRequired && !isPM9 && (
             <div className="mt-2 flex items-start gap-2">
               <div className="flex-1">
                 <label className="block text-xs text-slate-900/50 mb-1">Reason <span className="text-red-400">*</span></label>
@@ -339,7 +341,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
         </div>
       </div>
 
-      {/* PM4 purchase type modal */}
+      {/* PM9 purchase type modal */}
       {showPurchaseTypeModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl">
@@ -350,7 +352,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticall
               </p>
             </div>
             <div className="px-5 py-4 space-y-2">
-              <button onClick={() => doNotRequired("cash")}
+              <button onClick={() => doNotRequired("cash_buyer")}
                 className="w-full py-2.5 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors">
                 Cash buyer
               </button>

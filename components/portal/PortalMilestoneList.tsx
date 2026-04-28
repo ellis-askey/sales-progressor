@@ -5,6 +5,8 @@ import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 import { SearchesUpload } from "./SearchesUpload";
 
+const DATE_REQUIRED_CODES_LIST = new Set(["VM19", "VM20", "PM26", "PM27"]);
+
 type Milestone = {
   id: string;
   code: string;
@@ -14,14 +16,13 @@ type Milestone = {
   isAvailable: boolean;
   isPostExchange: boolean;
   isExchangeGate: boolean;
-  timeSensitive: boolean;
   completedAt: Date | null;
   eventDate: Date | null;
   label: string;
   labelOther?: string | null;
   who: string;
   whoLabel: string;
-  confirmedByClient: boolean;
+  confirmedByPortal: boolean;
   description?: string | null;
 };
 
@@ -219,7 +220,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                             <p className="text-[12px] mt-0.5" style={{ color: m.isComplete ? P.success : P.textMuted }}>
                               {m.isComplete
-                                ? `Confirmed${m.confirmedByClient ? " by you" : ""}${m.completedAt ? ` · ${fmtDate(m.completedAt)}` : ""}${m.eventDate ? ` · ${fmtDate(m.eventDate)}` : ""}`
+                                ? `Confirmed${m.confirmedByPortal ? " by you" : ""}${m.completedAt ? ` · ${fmtDate(m.completedAt)}` : ""}${m.eventDate ? ` · ${fmtDate(m.eventDate)}` : ""}`
                                 : m.whoLabel
                               }
                             </p>
@@ -484,14 +485,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {confirmingMilestone.timeSensitive
+                {DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code)
                   ? "When is this happening?"
                   : confirmingMilestone.who === "you"
                     ? "Mark this step as done?"
                     : "Has this happened?"}
               </p>
 
-              {confirmingMilestone.timeSensitive && (
+              {DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code) && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                     Date <span style={{ color: "#EF4444" }}>*</span>
@@ -511,14 +512,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               )}
 
               <button
-                onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.timeSensitive)}
+                onClick={() => confirmMilestone(confirmingMilestone.id, DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code))}
                 disabled={loading}
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
                 {loading
                   ? "Saving…"
-                  : confirmingMilestone.timeSensitive
+                  : DATE_REQUIRED_CODES_LIST.has(confirmingMilestone.code)
                     ? "Confirm date"
                     : confirmingMilestone.who === "you"
                       ? "Yes, it's done"

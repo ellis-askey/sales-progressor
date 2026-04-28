@@ -20,7 +20,7 @@ function relativeDate(iso: string) {
 export type MilestoneRow = {
   id: string;
   completedAtIso: string;
-  statusReason: string | null;
+  confirmedByPortal: boolean;
   side: string;
   milestoneName: string;
   completedByName: string | null;
@@ -82,10 +82,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                     </Link>
                     <div className="divide-y divide-white/15">
                       {tx.milestones.map((m) => {
-                        const isPortal = !!m.statusReason?.includes("via portal");
-                        const clientName = isPortal
-                          ? (m.statusReason?.replace(/^Confirmed by /, "").replace(/ via portal$/, "") ?? "Client")
-                          : null;
+                        const isPortal = m.confirmedByPortal;
+                        const clientName = isPortal ? "Client" : null;
                         return (
                           <div key={m.id} className="flex items-start gap-3 px-4 py-3">
                             <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${isPortal ? "bg-violet-100" : "bg-emerald-100"}`}>

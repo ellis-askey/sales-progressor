@@ -114,7 +114,7 @@ export default async function ReportsPage() {
                     <p className="text-xs text-slate-900/40 mt-0.5">{m.milestoneName}{m.completedByName ? ` · ${m.completedByName}` : ""}</p>
                   </div>
                   <span className="text-xs text-slate-900/40 flex-shrink-0 self-center">
-                    {new Date(m.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    {m.completedAt ? new Date(m.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
                   </span>
                 </Link>
               ))}

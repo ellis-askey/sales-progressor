@@ -29,31 +29,29 @@ export async function GET(req: NextRequest) {
   const downstream = await getDownstreamCompleted(milestoneDefinitionId, transactionId);
 
   // Compute projected % after reversing target + all downstream
+  const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
   const removeIds = new Set([milestoneDefinitionId, ...downstream.map((d) => d.id)]);
 
   const [allDefs, allCompletions] = await Promise.all([
-    prisma.milestoneDefinition.findMany({ select: { id: true, code: true, isPostExchange: true } }),
+    prisma.milestoneDefinition.findMany({ select: { id: true, code: true } }),
     prisma.milestoneCompletion.findMany({
-      where: { transactionId, isActive: true },
-      select: { milestoneDefinitionId: true, isNotRequired: true },
+      where: { transactionId },
+      select: { milestoneDefinitionId: true, state: true },
     }),
   ]);
 
   const completionMap = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c]));
 
-  const applicable = allDefs.filter((d) => !d.isPostExchange);
+  const applicable = allDefs.filter((d) => !POST_EXCHANGE.has(d.code));
   const active = applicable.filter((d) => {
     const c = completionMap.get(d.id);
-    return !c?.isNotRequired;
+    return c?.state !== "not_required";
   });
 
   const totalWeight = active.reduce((sum, d) => sum + (MILESTONE_WEIGHTS[d.code] ?? 2), 0);
 
   // Current completed weight
-  const currentCompleted = active.filter((d) => {
-    const c = completionMap.get(d.id);
-    return c && !c.isNotRequired;
-  });
+  const currentCompleted = active.filter((d) => completionMap.get(d.id)?.state === "complete");
   const currentWeight = currentCompleted.reduce((sum, d) => sum + (MILESTONE_WEIGHTS[d.code] ?? 2), 0);
   const currentPercent = totalWeight > 0 ? Math.round((currentWeight / totalWeight) * 100) : 0;
 

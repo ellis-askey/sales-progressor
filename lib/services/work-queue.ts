@@ -46,7 +46,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
   const newFileGrace = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16"] } },
+    where: { code: { in: ["VM19", "PM26"] } },
     select: { id: true },
   });
   const exchangeDefIds = new Set(exchangeDefs.map((d) => d.id));
@@ -67,7 +67,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       agentUser: { select: { id: true, name: true } },
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false },
+        where: { state: "complete" },
         select: { milestoneDefinitionId: true, completedAt: true },
         orderBy: { completedAt: "desc" },
       },

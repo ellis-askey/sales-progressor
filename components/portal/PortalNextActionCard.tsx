@@ -4,13 +4,14 @@ import { useState, useOptimistic, useTransition } from "react";
 import { P } from "./portal-ui";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 
+const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
+
 type Props = {
   token: string;
   milestone: {
     id: string;
     label: string;
     who: string;
-    timeSensitive: boolean;
     code: string;
   };
   nextAfterDescription: string | null;
@@ -58,7 +59,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
   }
 
   function confirm() {
-    if (milestone.timeSensitive && !eventDate) {
+    if (DATE_REQUIRED_CODES.has(milestone.code) && !eventDate) {
       setError("Please enter the date for this step.");
       return;
     }
@@ -188,10 +189,10 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {milestone.timeSensitive ? "When is this happening?" : "Mark this step as done?"}
+                {DATE_REQUIRED_CODES.has(milestone.code) ? "When is this happening?" : "Mark this step as done?"}
               </p>
 
-              {milestone.timeSensitive && (
+              {DATE_REQUIRED_CODES.has(milestone.code) && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
                     Date <span style={{ color: "#EF4444" }}>*</span>
@@ -219,7 +220,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
-                {milestone.timeSensitive ? "Confirm date" : "Yes, it's done"}
+                {DATE_REQUIRED_CODES.has(milestone.code) ? "Confirm date" : "Yes, it's done"}
               </button>
               <button
                 onClick={closeSheet}
