@@ -83,30 +83,41 @@ export function AgentRequestsPanel({ requests }: { requests: ManualTaskWithRelat
 
 function RequestRow({ request }: { request: ManualTaskWithRelations }) {
   const isDone = request.status === "done";
-  return (
-    <div className={`px-5 py-3.5 flex items-start gap-3 ${isDone ? "opacity-50" : ""}`}>
-      <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${isDone ? "bg-emerald-400" : "bg-amber-400"}`} />
+  const href = request.transactionId
+    ? `/agent/transactions/${request.transactionId}`
+    : "/agent/to-do";
+
+  const content = (
+    <div
+      className={`px-5 py-3.5 flex items-start gap-3 ${isDone ? "opacity-50" : ""}`}
+      style={!isDone ? { background: "rgba(255,107,74,0.04)", boxShadow: "inset 0 0 0 1.5px rgba(255,107,74,0.22)" } : undefined}
+    >
+      {isDone && <div className="mt-1 w-2 h-2 rounded-full flex-shrink-0 bg-emerald-400" />}
       <div className="flex-1 min-w-0">
         <p className={`text-sm text-slate-900/80 leading-snug ${isDone ? "line-through" : "font-medium"}`}>
           {request.title}
         </p>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {request.transaction && (
-            <Link
-              href={`/agent/transactions/${request.transactionId}`}
-              className="text-xs text-blue-500 hover:text-blue-600 truncate max-w-[200px]"
-            >
+            <span className="text-xs text-slate-900/40 truncate max-w-[200px]">
               {request.transaction.propertyAddress}
-            </Link>
+            </span>
           )}
           <span className="text-xs text-slate-900/40">{fmtDate(request.createdAt)}</span>
         </div>
       </div>
-      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-        isDone ? "bg-emerald-100/80 text-emerald-700" : "bg-amber-100/80 text-amber-700"
-      }`}>
-        {isDone ? "Resolved" : "Pending"}
-      </span>
+      {isDone && (
+        <span className="flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100/80 text-emerald-700">
+          Resolved
+        </span>
+      )}
     </div>
+  );
+
+  if (isDone) return content;
+  return (
+    <Link href={href} style={{ textDecoration: "none", display: "block" }}>
+      {content}
+    </Link>
   );
 }
