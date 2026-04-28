@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log(`[AUDIT] user_created createdUserId=${user.id} role=${user.role} agencyId=${user.agencyId}`);
     return NextResponse.json({ ok: true, id: user.id }, { status: 201 });
   } catch (e) {
     console.error("Register error:", e);

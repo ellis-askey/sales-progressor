@@ -617,6 +617,12 @@ model TransactionFlag {
 
 // ─── NextAuth ─────────────────────────────────────────────────────────────────
 
+// NOTE: Account and Session are part of NextAuth's standard adapter scaffolding.
+// We use the Credentials provider with JWT strategy, which does NOT write to
+// either table. Both are expected to remain empty in production.
+// Do not delete — keeping the schema standard simplifies any future migration
+// to a database session strategy or addition of OAuth providers.
+
 model Account {
   id                String  @id @default(cuid())
   userId            String

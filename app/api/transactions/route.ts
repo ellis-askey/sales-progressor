@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       console.error(`[reminders] Failed to evaluate on creation for tx ${tx.id}:`, err);
     });
 
+    console.log(`[AUDIT] transaction_created transactionId=${tx.id} agencyId=${session.user.agencyId} createdByUserId=${session.user.id}`);
     return NextResponse.json(tx, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create";

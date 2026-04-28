@@ -67,6 +67,7 @@ export function ChaseDrawer({
         body: JSON.stringify({ chaseTaskId, channel, tone }),
       });
       const data = await res.json();
+      if (res.status === 429) { setError(data.message ?? "Too many requests — please wait a few minutes and try again."); return; }
       if (!res.ok) { setError(data.error ?? "Generation failed"); return; }
       setGeneratedText(data.generated);
       setMessage(data.generated);
@@ -132,7 +133,10 @@ export function ChaseDrawer({
           });
           const emailData: SendResult = await emailRes.json();
           if (!emailRes.ok) {
-            setError(`Logged but email delivery failed: ${emailData.error ?? "unknown error"}`);
+            const msg = emailRes.status === 429
+              ? (emailData as { message?: string }).message ?? "Too many emails sent — please wait before sending more."
+              : `Logged but email delivery failed: ${emailData.error ?? "unknown error"}`;
+            setError(msg);
             onSent();
             onClose();
             return;

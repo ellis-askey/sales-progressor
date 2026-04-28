@@ -265,7 +265,7 @@ export function ContactsSection({
                     <div className="flex-1 min-w-0">
                       {/* Name row */}
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
+                        <span data-sensitive="true" className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-white/20 text-slate-900/50 border-white/20"}`}>
                           {CONTACT_ROLE_LABELS[role]}
                         </span>
@@ -278,13 +278,13 @@ export function ContactsSection({
                       {/* Contact details */}
                       <div className="flex flex-col gap-0.5 mb-2.5">
                         {contact.email && (
-                          <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
+                          <a data-sensitive="true" href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
                             <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
                             <span className="truncate">{contact.email}</span>
                           </a>
                         )}
                         {contact.phone && (
-                          <a href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
+                          <a data-sensitive="true" href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
                             <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
                             {contact.phone}
                           </a>

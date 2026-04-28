@@ -57,5 +57,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  console.log(`[AUDIT] transaction_status_changed transactionId=${transactionId} oldStatus=${tx.status} newStatus=${status} changedByUserId=${session.user.id} agencyId=${session.user.agencyId}`);
   return NextResponse.json({ success: true });
 }

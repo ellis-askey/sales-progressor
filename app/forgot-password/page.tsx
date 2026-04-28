@@ -14,11 +14,16 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError("");
     try {
-      await fetch("/api/auth/forgot-password", {
+      const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message ?? "Too many attempts — please wait a few minutes before trying again.");
+        return;
+      }
       setSent(true);
     } catch {
       setError("Something went wrong. Please try again.");
