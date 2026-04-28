@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
-import { completeMilestone } from "@/lib/services/milestones";
+import { completeMilestone, initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole } from "@prisma/client";
@@ -72,6 +72,11 @@ export async function createTransactionAction(input: {
         portalToken: randomUUID(),
       })),
     });
+  }
+
+  // Initialize all milestone completions (available/locked/not_required per tenure+purchaseType)
+  if (input.tenure && input.purchaseType) {
+    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id);
   }
 
   // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides

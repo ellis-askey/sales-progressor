@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
@@ -21,7 +21,7 @@ const VENDOR_SECTIONS: { label: string; codes: string[] }[] = [
 
 const PURCHASER_SECTIONS: { label: string; codes: string[] }[] = [
   { label: "Onboarding",            codes: ["PM1","PM2","PM3","PM4"] },
-  { label: "Finances",              codes: ["PM5","PM6","PM9","PM10","PM11"] },
+  { label: "Finances",              codes: ["PM5","PM6","PM11","PM9","PM10"] },
   { label: "Conveyancing",          codes: ["PM7","PM8","PM12","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24"] },
   { label: "Exchange & Completion", codes: ["PM25","PM26","PM27"] },
 ];
@@ -71,11 +71,6 @@ export function MilestonePanel({
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed);
   const [nrCollapsed, setNrCollapsed] = useState(true);
-  const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setOptimisticallyUnlockedIds(new Set());
-  }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
     setActiveTab(side);
@@ -92,29 +87,6 @@ export function MilestonePanel({
 
   function toggleSection(label: string) {
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
-  }
-
-  const orderedRows = useMemo(() => {
-    const result: EnrichedDef[] = [];
-    for (const section of sectionDefs) {
-      const codeSet = new Set(section.codes);
-      const rows = milestones
-        .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
-        .sort((a, b) => a.orderIndex - b.orderIndex);
-      result.push(...rows);
-    }
-    return result;
-  }, [milestones, sectionDefs]);
-
-  function handleConfirmStart(currentId: string) {
-    const currentIdx = orderedRows.findIndex((m) => m.id === currentId);
-    if (currentIdx === -1) return;
-    const next = orderedRows.slice(currentIdx + 1).find(
-      (m) => !m.isComplete && !m.isNotRequired && !m.isAvailable
-    );
-    if (next) {
-      setOptimisticallyUnlockedIds((prev) => new Set([...prev, next.id]));
-    }
   }
 
   const totalAll = milestones.length;
@@ -257,7 +229,7 @@ export function MilestonePanel({
             const codeSet = new Set(section.codes);
             const rows = milestones
               .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
-              .sort((a, b) => a.orderIndex - b.orderIndex);
+              .sort((a, b) => section.codes.indexOf(a.code) - section.codes.indexOf(b.code));
             const allInSection = milestones.filter((m) => codeSet.has(m.code));
             if (allInSection.length === 0) return null;
             const sectionDone = allInSection.filter((m) => m.isComplete || m.isNotRequired).length;
@@ -302,8 +274,6 @@ export function MilestonePanel({
                         key={def.id}
                         def={def}
                         transactionId={transactionId}
-                        onConfirmStart={() => handleConfirmStart(def.id)}
-                        optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
                       />
                     ))}
                   </div>
