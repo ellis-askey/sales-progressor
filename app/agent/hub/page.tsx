@@ -443,7 +443,7 @@ export default async function HubPreviewPage() {
                   textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
                 }}
               >
-                Work queue
+                Reminders
                 <ArrowRight size={12} />
               </Link>
             )}
