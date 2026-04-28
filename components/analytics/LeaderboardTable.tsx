@@ -183,14 +183,14 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
               key={row.id}
               onClick={() => router.push(rowHref(row.id, period))}
               style={{
-                padding: "14px 16px",
+                padding: "11px 14px",
                 borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                 cursor: "pointer",
                 borderLeft: isFirst ? "3px solid var(--agent-coral)" : "3px solid transparent",
                 background: isFirst ? "rgba(255,138,101,0.04)" : undefined,
               }}
             >
-              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              <p style={{ margin: "0 0 7px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                 {row.name}
                 <span style={{ fontWeight: 400, color: "var(--agent-text-muted)", marginLeft: 4 }}>
                   · {ROLE_LABEL[row.role] ?? row.role}
@@ -199,11 +199,11 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
                   <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: 4 }}>(you)</span>
                 )}
               </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {SORT_COLS.map(({ key, label }) => (
                   <div key={key}>
                     <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{vals[key]}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: vals[key] === "—" ? "rgba(15,23,42,0.18)" : "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{vals[key]}</p>
                   </div>
                 ))}
               </div>

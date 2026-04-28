@@ -4,7 +4,7 @@ import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/l
 import { getSolicitorExchangeStats, getMonthlyActivity } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
-import { MissingFeeRow } from "@/components/analytics/MissingFeeRow";
+import { MissingFeesList } from "@/components/analytics/MissingFeesList";
 import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
 
@@ -186,6 +186,10 @@ export default async function AgentAnalyticsPage({
 
   // ── Files missing a fee ───────────────────────────────────────────────────
   const noFeeTransactions = transactions.filter((t) => calcFeeIncVat(t) === null && t.status === "active");
+  const noFeeFiles = noFeeTransactions.map((t) => {
+    const { line, awaiting } = fmtOwnerLine(t);
+    return { id: t.id, propertyAddress: t.propertyAddress, ownerLine: line || null, awaitingAssignment: awaiting };
+  });
 
   // ── Volume bar chart data ─────────────────────────────────────────────────
   const today = new Date();
@@ -263,20 +267,6 @@ export default async function AgentAnalyticsPage({
       };
     });
   })();
-
-  function StatCard({ label, value, sub, sub2, sub3, sub3Color, color }: { label: string; value: string | number; sub?: string; sub2?: string; sub3?: string; sub3Color?: string; color?: string }) {
-    return (
-      <div className="agent-glass" style={{ padding: "18px 22px" }}>
-        <p className="agent-eyebrow" style={{ marginBottom: 6 }}>{label}</p>
-        <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: color ?? "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-          {value}
-        </p>
-        {sub  && <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{sub}</p>}
-        {sub2 && <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{sub2}</p>}
-        {sub3 && <p style={{ margin: "3px 0 0", fontSize: 11, color: sub3Color ?? "var(--agent-text-muted)" }}>{sub3}</p>}
-      </div>
-    );
-  }
 
   // ── Full empty state (zero files ever) ───────────────────────────────────
   if (transactions.length === 0) {
@@ -425,40 +415,94 @@ export default async function AgentAnalyticsPage({
           </div>
         )}
 
-        {/* ── Counts ───────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <StatCard label="Files submitted" value={periodTx.length}  sub={periodLabel.toLowerCase()} sub3={deltaSubmitted?.text} sub3Color={deltaSubmitted?.color} color="var(--agent-coral)" />
-          <StatCard label="Exchanged"       value={exchanged.length} sub={periodLabel.toLowerCase()} sub2={exchangeRate   !== null ? `${exchangeRate}% of submitted have exchanged`   : undefined} sub3={deltaExchanged?.text} sub3Color={deltaExchanged?.color} color="var(--agent-success)" />
-          <StatCard label="Completed"       value={completed.length} sub={periodLabel.toLowerCase()} sub2={completionRate !== null ? `${completionRate}% of exchanged have completed` : undefined} sub3={deltaCompleted?.text} sub3Color={deltaCompleted?.color} />
+        {/* ── Counts — single compact card ──────────────────────────────────── */}
+        <div className="agent-glass" style={{ padding: "16px 20px" }}>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Submitted</p>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                {periodTx.length}
+              </p>
+              {deltaSubmitted && (
+                <p style={{ margin: "4px 0 0", fontSize: 10, color: deltaSubmitted.color }}>{deltaSubmitted.text}</p>
+              )}
+            </div>
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Exchanged</p>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-success)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                {exchanged.length}
+              </p>
+              {exchangeRate !== null && (
+                <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{exchangeRate}% of submitted</p>
+              )}
+              {deltaExchanged && (
+                <p style={{ margin: "2px 0 0", fontSize: 10, color: deltaExchanged.color }}>{deltaExchanged.text}</p>
+              )}
+            </div>
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Completed</p>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                {completed.length}
+              </p>
+              {completionRate !== null && (
+                <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{completionRate}% of exchanged</p>
+              )}
+              {deltaCompleted && (
+                <p style={{ margin: "2px 0 0", fontSize: 10, color: deltaCompleted.color }}>{deltaCompleted.text}</p>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* ── Values ───────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <StatCard label="Pipeline value"  value={fmtGBP(pipelineValuePence)}  sub={`purchase prices · ${periodLabel.toLowerCase()}`} />
-          <StatCard label="Value exchanged" value={fmtGBP(exchangedValuePence)} sub={`exchanged files · ${periodLabel.toLowerCase()}`} color="var(--agent-success)" />
+        {/* ── Values — compact 2-col card ───────────────────────────────────── */}
+        <div className="agent-glass" style={{ padding: "16px 20px" }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Pipeline value</p>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {fmtGBP(pipelineValuePence)}
+              </p>
+              <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Purchase prices</p>
+            </div>
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Value exchanged</p>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {fmtGBP(exchangedValuePence)}
+              </p>
+              <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
+            </div>
+          </div>
         </div>
 
-        {/* ── Fees ─────────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="agent-glass" style={{ padding: "18px 22px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Total fee pipeline</p>
-            <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Inc. VAT where set</p>
-            <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>{feesAll.length > 0 ? fmtGBP(totalFeePence) : "—"}</p>
-            {noFeeTransactions.length > 0 && (
-              <a href="#missing-fees" style={{ display: "inline-block", marginTop: 6, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none" }}>
-                {noFeeTransactions.length} file{noFeeTransactions.length !== 1 ? "s" : ""} need a fee →
-              </a>
-            )}
-          </div>
-          <div className="agent-glass" style={{ padding: "18px 22px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Fees locked in</p>
-            <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Exchanged files</p>
-            <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em" }}>{feeExchanged.length > 0 ? fmtGBP(lockedFeePence) : "—"}</p>
-          </div>
-          <div className="agent-glass" style={{ padding: "18px 22px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Average fee</p>
-            <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Inc. VAT per file</p>
-            <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>{feesAll.length > 0 ? fmtGBP(avgFeePence) : "—"}</p>
+        {/* ── Fees — compact 3-col card ─────────────────────────────────────── */}
+        <div className="agent-glass" style={{ padding: "16px 20px" }}>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Fee pipeline</p>
+              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT where set</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {feesAll.length > 0 ? fmtGBP(totalFeePence) : "—"}
+              </p>
+              {noFeeTransactions.length > 0 && (
+                <a href="#missing-fees" style={{ display: "inline-block", marginTop: 4, fontSize: 10, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none" }}>
+                  {noFeeTransactions.length} need fee →
+                </a>
+              )}
+            </div>
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Locked in</p>
+              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {feeExchanged.length > 0 ? fmtGBP(lockedFeePence) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Average fee</p>
+              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT per file</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                {feesAll.length > 0 ? fmtGBP(avgFeePence) : "—"}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -580,27 +624,7 @@ export default async function AgentAnalyticsPage({
               <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Set the agent fee to include these files in your pipeline total.</p>
             )}
           </div>
-          {noFeeTransactions.length === 0 ? (
-            <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "var(--agent-success)", fontSize: 15, fontWeight: 700, lineHeight: 1 }}>✓</span>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>All files have fees set.</p>
-            </div>
-          ) : (
-            noFeeTransactions.map((t, i) => {
-              const { line: ownerLine, awaiting } = fmtOwnerLine(t);
-              return (
-                <div key={t.id} style={{ borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-                  <MissingFeeRow
-                    id={t.id}
-                    propertyAddress={t.propertyAddress}
-                    ownerLine={ownerLine || null}
-                    awaitingAssignment={awaiting}
-                    txBasePath="/agent/transactions"
-                  />
-                </div>
-              );
-            })
-          )}
+          <MissingFeesList files={noFeeFiles} txBasePath="/agent/transactions" />
         </div>
 
         {/* ── Team leaderboard ──────────────────────────────────────────────── */}
