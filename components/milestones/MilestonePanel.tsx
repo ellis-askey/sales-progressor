@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -71,6 +72,12 @@ export function MilestonePanel({
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed);
   const [nrCollapsed, setNrCollapsed] = useState(true);
+  const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
+
+  // Clear optimistic state once the server data arrives with the real unlock
+  useEffect(() => {
+    setOptimisticallyUnlockedIds(new Set());
+  }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
     setActiveTab(side);
@@ -87,6 +94,32 @@ export function MilestonePanel({
 
   function toggleSection(label: string) {
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  // After confirming a milestone, immediately show Confirm on any milestone whose
+  // prerequisites are now fully satisfied. Checks every prereq against current state
+  // plus the just-confirmed milestone — no false positives.
+  function handleConfirmStart(confirmedId: string, confirmedCode: string) {
+    const codeToId = new Map(milestones.map((m) => [m.code, m.id]));
+    const satisfiedIds = new Set(
+      milestones.filter((m) => m.isComplete || m.isNotRequired).map((m) => m.id)
+    );
+    satisfiedIds.add(confirmedId); // count the confirmed row as done immediately
+
+    const toUnlock: string[] = [];
+    for (const m of milestones) {
+      if (m.isComplete || m.isNotRequired || m.isAvailable) continue;
+      const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
+      if (!prereqs.includes(confirmedCode)) continue;
+      const allMet = prereqs.every((p) => {
+        const pid = codeToId.get(p);
+        return pid ? satisfiedIds.has(pid) : true;
+      });
+      if (allMet) toUnlock.push(m.id);
+    }
+    if (toUnlock.length > 0) {
+      setOptimisticallyUnlockedIds((prev) => new Set([...prev, ...toUnlock]));
+    }
   }
 
   const totalAll = milestones.length;
@@ -274,6 +307,8 @@ export function MilestonePanel({
                         key={def.id}
                         def={def}
                         transactionId={transactionId}
+                        onConfirmStart={() => handleConfirmStart(def.id, def.code)}
+                        optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
                       />
                     ))}
                   </div>

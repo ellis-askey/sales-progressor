@@ -3,7 +3,7 @@
 
 import { useState, useOptimistic, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
+import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction } from "@/app/actions/milestones";
@@ -17,6 +17,8 @@ type Props = {
     isAvailable: boolean;
   };
   transactionId: string;
+  onConfirmStart?: () => void;
+  optimisticallyAvailable?: boolean;
 };
 
 // Only PM9 (mortgage application) can be manually marked N/R
@@ -24,7 +26,7 @@ const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const DATE_REQUIRED_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 
-export function MilestoneRow({ def, transactionId }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, optimisticallyAvailable }: Props) {
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -42,9 +44,8 @@ export function MilestoneRow({ def, transactionId }: Props) {
   const [showNotRequired, setShowNotRequired] = useState(false);
   const [notRequiredReason, setNotRequiredReason] = useState("");
 
-  // PM9 N/R purchase type modal
-  const [showPurchaseTypeModal, setShowPurchaseTypeModal] = useState(false);
-  const [selectedPurchaseType, setSelectedPurchaseType] = useState<"cash_buyer" | "cash_from_proceeds" | null>(null);
+  // PM9 N/R — simple survey confirmation modal
+  const [showSurveyNrConfirm, setShowSurveyNrConfirm] = useState(false);
 
   // Implied predecessors pop-up state
   const [impliedPredecessors, setImpliedPredecessors] = useState<MilestoneDefinition[]>([]);
@@ -80,8 +81,10 @@ export function MilestoneRow({ def, transactionId }: Props) {
   const isPost = POST_EXCHANGE_CODES.has(def.code);
   const isPM9 = def.code === "PM9";
   const isExchangeMilestone = def.code === "VM19" || def.code === "PM26";
+  const effectivelyAvailable = def.isAvailable || (optimisticallyAvailable ?? false);
 
   async function handleConfirmClick() {
+    onConfirmStart?.();
     setError(null);
     if (DATE_REQUIRED_CODES.has(def.code)) { setShowEventDate(true); return; }
     await checkImplied();
@@ -158,22 +161,20 @@ export function MilestoneRow({ def, transactionId }: Props) {
     });
   }
 
-  // PM9 N/R — show purchase type modal first
+  // PM9 N/R — simple survey confirmation
   function handleNRClick() {
     setError(null);
     if (isPM9) {
-      setShowPurchaseTypeModal(true);
+      setShowSurveyNrConfirm(true);
     } else {
       setShowNotRequired(true);
     }
   }
 
-  function doNotRequired(purchaseType?: PurchaseType) {
-    const finalReason = isPM9
-      ? (purchaseType === "cash_buyer" ? "Cash buyer" : "Cash from proceeds")
-      : notRequiredReason;
+  function doNotRequired() {
+    const finalReason = isPM9 ? "Buyer confirmed no private survey required" : notRequiredReason;
     setShowNotRequired(false);
-    setShowPurchaseTypeModal(false);
+    setShowSurveyNrConfirm(false);
     setNotRequiredReason("");
     setError(null);
     startTransition(async () => {
@@ -183,7 +184,6 @@ export function MilestoneRow({ def, transactionId }: Props) {
           transactionId,
           milestoneDefinitionId: def.id,
           reason: finalReason,
-          ...(purchaseType ? { purchaseType } : {}),
         });
         toast.success("Marked not required");
       } catch (err: unknown) {
@@ -207,7 +207,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
     });
   }
 
-  const isBlocked = !isDone && !def.isAvailable;
+  const isBlocked = !isDone && !effectivelyAvailable;
   const canBeNR = NR_ALLOWED.has(def.code);
 
   let rowBg = "";
@@ -305,7 +305,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {!isDone && !showEventDate && !showNotRequired && (
             <>
-              {def.isAvailable && (
+              {effectivelyAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading}
                   className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-400 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
                   {loading ? (
@@ -319,7 +319,7 @@ export function MilestoneRow({ def, transactionId }: Props) {
                   ) : "Confirm"}
                 </button>
               )}
-              {def.isAvailable && canBeNR && (
+              {effectivelyAvailable && canBeNR && (
                 <button onClick={handleNRClick}
                   className="px-2 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors"
                   title="Mark as not required">
@@ -336,26 +336,22 @@ export function MilestoneRow({ def, transactionId }: Props) {
         </div>
       </div>
 
-      {/* PM9 purchase type modal */}
-      {showPurchaseTypeModal && createPortal(
+      {/* PM9 N/R — survey confirmation */}
+      {showSurveyNrConfirm && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl">
-            <div className="px-5 py-4 border-b border-white/20">
-              <p className="text-sm font-semibold text-slate-900/90">How is the buyer purchasing?</p>
-              <p className="text-xs text-slate-900/40 mt-1">
-                Marking mortgage milestones as not required — confirm the buyer's purchase method to update the file.
+            <div className="px-5 py-4 border-b border-slate-100">
+              <p className="text-sm font-semibold text-slate-900/90">No private survey required?</p>
+              <p className="text-xs text-slate-900/50 mt-1">
+                Please confirm the buyer does not require a private Level 2 or Level 3 survey. The survey report milestone will also be marked as not required.
               </p>
             </div>
             <div className="px-5 py-4 space-y-2">
-              <button onClick={() => doNotRequired("cash_buyer")}
+              <button onClick={() => doNotRequired()}
                 className="w-full py-2.5 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors">
-                Cash buyer
+                Yes, mark as not required
               </button>
-              <button onClick={() => doNotRequired("cash_from_proceeds")}
-                className="w-full py-2.5 text-sm font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition-colors">
-                Cash from proceeds
-              </button>
-              <button onClick={() => setShowPurchaseTypeModal(false)}
+              <button onClick={() => setShowSurveyNrConfirm(false)}
                 className="w-full py-2 text-xs text-slate-900/30 hover:text-slate-900/60 transition-colors">
                 Cancel
               </button>
