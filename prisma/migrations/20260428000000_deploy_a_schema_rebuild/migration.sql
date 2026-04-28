@@ -81,10 +81,13 @@ ALTER TABLE "MilestoneCompletion" DROP COLUMN IF EXISTS "statusReason";
 -- Upgrade non-unique index → unique constraint
 DROP INDEX IF EXISTS "MilestoneCompletion_transactionId_milestoneDefinitionId_idx";
 DO $$ BEGIN
-  ALTER TABLE "MilestoneCompletion"
-    ADD CONSTRAINT "MilestoneCompletion_transactionId_milestoneDefinitionId_key"
-    UNIQUE ("transactionId", "milestoneDefinitionId");
-EXCEPTION WHEN duplicate_object THEN null;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class WHERE relname = 'MilestoneCompletion_transactionId_milestoneDefinitionId_key'
+  ) THEN
+    ALTER TABLE "MilestoneCompletion"
+      ADD CONSTRAINT "MilestoneCompletion_transactionId_milestoneDefinitionId_key"
+      UNIQUE ("transactionId", "milestoneDefinitionId");
+  END IF;
 END $$;
 
 -- ── 4. MilestoneDefinition: schema alignment ──────────────────────────────────
