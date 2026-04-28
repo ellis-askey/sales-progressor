@@ -249,7 +249,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 >
                                   Confirm
                                 </button>
-                                {m.code === "PM7" && (
+                                {m.code === "PM9" && (
                                   <button
                                     onClick={() => setSkipSurveyId(m.id)}
                                     className="text-[11px] font-medium underline"

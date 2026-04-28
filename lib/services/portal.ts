@@ -864,7 +864,7 @@ export async function getPortalTimeline(
 
 // Only these codes may be marked not-required by the client, with their cascades
 const PORTAL_NOT_REQUIRED_WHITELIST: Record<string, string[]> = {
-  PM7: ["PM20"],
+  PM9: ["PM10"],
 };
 
 export async function portalMarkNotRequired(input: {
