@@ -1,8 +1,10 @@
 # Sales Progressor — Milestone Weights
 
-**Version:** 1.0 (Locked)
+**Version:** 1.1 (Locked)
 **Last updated:** 2026-04-28
 **Companion to:** `MILESTONES_SPEC_v1.md`
+
+**v1.1 change note:** PM25: 5.00 → 6.00; PM5: 3.00 → 4.00. Original PM25=5 was an arithmetic error in v1.0 that caused the purchaser total to sum to 98 instead of 100. Fix applied as PM25 6.00 (aligns with Major-band peers PM20/PM23/PM11) + PM5 4.00 (mortgage application deserves more weight than 3 as it kicks off the lender process). Net effect: purchaser sum remains 100.00.
 
 ---
 
@@ -89,7 +91,7 @@ This means each side has equal influence on the overall progress, regardless of 
 | 2 | PM2 | Buyer has received the memorandum of sale | 3.00 |
 | 3 | PM3 | Buyer has completed ID and AML checks with their solicitor | 2.00 |
 | 4 | PM4 | Buyer has paid money on account to their solicitor | 6.00 |
-| 5 | PM5 | Buyer has submitted their mortgage application | 3.00 |
+| 5 | PM5 | Buyer has submitted their mortgage application | 4.00 |
 | 6 | PM6 | Lender valuation has been booked | 2.00 |
 | 7 | PM7 | Buyer's solicitor has received the draft contract pack | 3.00 |
 | 8 | PM8 | Buyer's solicitor has ordered searches | 3.00 |
@@ -109,7 +111,7 @@ This means each side has equal influence on the overall progress, regardless of 
 | 22 | PM22 | Buyer's solicitor has issued contract documents to the buyer | 3.00 |
 | 23 | PM23 | Buyer's solicitor has received the signed contract documents back from the buyer | 6.00 |
 | 24 | PM24 | Buyer has transferred the deposit | 3.00 |
-| 25 | PM25 | Buyer's solicitor has confirmed readiness to exchange | 7.00 |
+| 25 | PM25 | Buyer's solicitor has confirmed readiness to exchange | 6.00 |
 | 26 | PM26 | Buyer has received confirmation that contracts have exchanged | 8.00 |
 | 27 | PM27 | Buyer has received confirmation that the sale has completed | 5.00 |
 

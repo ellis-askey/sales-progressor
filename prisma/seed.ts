@@ -195,7 +195,7 @@ async function main() {
     },
     {
       code: "PM5",  orderIndex: 5,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.auto_only,
-      weight: 3.00, name: "Buyer has submitted their mortgage application",
+      weight: 4.00, name: "Buyer has submitted their mortgage application",
       summaryTemplate: "{agent} confirmed that {purchasers} have submitted their mortgage application",
     },
     {
@@ -295,7 +295,7 @@ async function main() {
     },
     {
       code: "PM25", orderIndex: 25, blocksExchange: false, predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
-      weight: 7.00, name: "Buyer's solicitor has confirmed readiness to exchange",
+      weight: 6.00, name: "Buyer's solicitor has confirmed readiness to exchange",
       summaryTemplate: "{agent} confirmed that {purchasers}'s solicitor is ready to exchange",
     },
     {
