@@ -58,6 +58,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
 
   function dismiss() {
     localStorage.setItem(DISMISSED_KEY, "1");
+    window.dispatchEvent(new Event("sp_checklist_dismissed"));
     setDismissed(true);
   }
 

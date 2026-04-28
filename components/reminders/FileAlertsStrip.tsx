@@ -25,7 +25,7 @@ function getPrimaryAlert(alerts: AlertType[]): AlertType | null {
 }
 
 export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (items.length === 0) return null;
 
