@@ -2,35 +2,24 @@ import Link from "next/link";
 import { ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
 import { getAgentCompletions, resolveAgentVisibility } from "@/lib/services/agent";
+import {
+  CompletionsGroupList,
+  type CompletionGroup,
+  type CompletionFileRow,
+} from "@/components/completions/CompletionsGroupList";
 
-function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
 function fmtCompact(pence: number) {
   const pounds = pence / 100;
   if (pounds >= 1_000_000) return "£" + (pounds / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
   return "£" + pounds.toLocaleString("en-GB");
 }
-function fmtDate(d: Date | string | null) {
-  if (!d) return "No date set";
-  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
-}
-function fmtShortDate(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-function timeSinceExchange(exchangedAt: Date | null): string {
-  if (!exchangedAt) return "Exchange date not recorded";
-  const d = new Date(exchangedAt);
-  const days = Math.round((Date.now() - d.getTime()) / 86400000);
-  if (days === 0) return "Exchanged today";
-  if (days === 1) return "Exchanged yesterday";
-  return `Exchanged ${fmtShortDate(d)} · ${days} days ago`;
-}
 
-const GROUP_STYLES = {
-  overdue:   { dot: "bg-red-500",   label: "text-red-600",      badge: "bg-red-50/60 text-red-600",    border: "border-red-200/40",  statColor: "#dc2626" },
-  this_week: { dot: "bg-amber-500", label: "text-amber-600",    badge: "bg-amber-50/60 text-amber-600", border: "border-amber-200/40", statColor: "#d97706" },
-  next_week: { dot: "bg-blue-500",  label: "text-blue-600",     badge: "bg-blue-50/60 text-blue-600",   border: "border-blue-200/40",  statColor: "#3b82f6" },
-  later:     { dot: "bg-slate-400", label: "text-slate-900/60", badge: "", border: "border-white/20",  statColor: "rgba(15,23,42,0.5)" },
-  no_date:   { dot: "bg-slate-300", label: "text-slate-900/40", badge: "", border: "border-white/15", statColor: "rgba(15,23,42,0.4)" },
+const GROUP_STYLES_STAT = {
+  overdue:   { statColor: "#dc2626" },
+  this_week: { statColor: "#d97706" },
+  next_week: { statColor: "#3b82f6" },
+  later:     { statColor: "rgba(15,23,42,0.5)" },
+  no_date:   { statColor: "rgba(15,23,42,0.4)" },
 } as const;
 
 const STAT_LABELS: Record<string, string> = {
@@ -41,23 +30,13 @@ const STAT_LABELS: Record<string, string> = {
   no_date:   "no date",
 };
 
-const groups = [
+const ALL_GROUPS = [
   { key: "overdue"   as const, label: "Overdue" },
   { key: "this_week" as const, label: "Completing this week" },
   { key: "next_week" as const, label: "Completing next week" },
   { key: "later"     as const, label: "Later" },
   { key: "no_date"   as const, label: "No completion date set" },
 ];
-
-const SET_DATE_STYLE: React.CSSProperties = {
-  fontSize: 12,
-  color: "rgba(15,23,42,0.45)",
-  border: "1px solid rgba(15,23,42,0.15)",
-  borderRadius: 6,
-  padding: "3px 8px",
-  whiteSpace: "nowrap",
-  display: "inline-block",
-};
 
 export default async function AgentCompletionsPage() {
   const session = await requireSession();
@@ -82,12 +61,55 @@ export default async function AgentCompletionsPage() {
 
   const statSegments = (["overdue", "this_week", "next_week", "later", "no_date"] as const)
     .filter((k) => counts[k] > 0)
-    .map((k) => ({ key: k, label: STAT_LABELS[k], count: counts[k], color: GROUP_STYLES[k].statColor, anchor: `#section-${k}` }));
+    .map((k) => ({ key: k, label: STAT_LABELS[k], count: counts[k], color: GROUP_STYLES_STAT[k].statColor, anchor: `#section-${k}` }));
 
-  const totalValue = files.reduce((sum, f) => sum + (f.purchasePrice ?? 0), 0);
+  const totalValue    = files.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
   const filesWithPrice = files.filter((f) => f.purchasePrice).length;
-  const totalFees = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
-  const filesWithFee = files.filter((f) => f.agentFeeAmount).length;
+  const totalFees     = files.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
+  const filesWithFee  = files.filter((f) => f.agentFeeAmount).length;
+
+  // Pre-compute groups with serialisable per-file data for the client component
+  const completionGroups: CompletionGroup[] = ALL_GROUPS.flatMap(({ key, label }) => {
+    const group = files.filter((f) => urgencyFor(f.completionDate) === key);
+    if (group.length === 0) return [];
+
+    const groupValue      = group.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
+    const groupFeeTotal   = group.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
+    const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
+
+    const fileRows: CompletionFileRow[] = group.map((f) => {
+      const daysRel = f.completionDate
+        ? Math.round((new Date(f.completionDate).setHours(0, 0, 0, 0) - today.getTime()) / 86400000)
+        : null;
+
+      let daysLabel = "";
+      let daysColor = "rgba(15,23,42,0.4)";
+      if (daysRel !== null) {
+        if (daysRel < 0)        { daysLabel = `${Math.abs(daysRel)} days overdue`; daysColor = "#dc2626"; }
+        else if (daysRel === 0) { daysLabel = "today";    daysColor = "#d97706"; }
+        else if (daysRel === 1) { daysLabel = "tomorrow"; }
+        else                    { daysLabel = `in ${daysRel} days`; }
+      }
+
+      return {
+        id:                    f.id,
+        propertyAddress:       f.propertyAddress,
+        purchasePrice:         f.purchasePrice ?? null,
+        agentFeeAmount:        f.agentFeeAmount ?? null,
+        purchasers:            f.purchasers,
+        assignedUserName:      f.assignedUserName ?? null,
+        exchangedAtIso:        f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,
+        completionDateIso:     f.completionDate ? new Date(f.completionDate).toISOString() : null,
+        vendorSolicitorName:   f.vendorSolicitorName ?? null,
+        purchaserSolicitorName: f.purchaserSolicitorName ?? null,
+        daysRel,
+        daysLabel,
+        daysColor,
+      };
+    });
+
+    return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
+  });
 
   return (
     <>
@@ -103,11 +125,11 @@ export default async function AgentCompletionsPage() {
       }}>
         <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="relative px-4 pt-6 pb-7 md:px-8">
+        <div className="relative px-4 pt-6 pb-4 md:px-8">
           <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Completions</h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>Files that have exchanged and are heading to completion.</p>
 
-          {/* Stat row — wraps to 2 lines on narrow screens; each anchor is ≥44px tall for touch */}
+          {/* Stat row — each anchor is ≥44px tall for touch */}
           {statSegments.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 0, marginTop: 10 }}>
               {statSegments.map((s, i) => (
@@ -133,140 +155,29 @@ export default async function AgentCompletionsPage() {
               <ClockCountdown size={40} weight="thin" style={{ color: "rgba(15,23,42,0.2)" }} />
             </div>
             <p className="text-base font-medium text-slate-900/50 mb-2">No files awaiting completion</p>
-            <p className="text-sm text-slate-900/40 mb-1">Once a file exchanges, it'll appear here as it heads toward completion.</p>
-            <p className="text-sm text-slate-900/30">We'll track target dates, days remaining, and surface anything that drifts past its date.</p>
+            <p className="text-sm text-slate-900/40 mb-1">Once a file exchanges, it&apos;ll appear here as it heads toward completion.</p>
+            <p className="text-sm text-slate-900/30">We&apos;ll track target dates, days remaining, and surface anything that drifts past its date.</p>
           </div>
         )}
 
-        {/* Pipeline total */}
+        {/* Pipeline summary — numbers prominent, descriptors muted */}
         {files.length > 0 && (
-          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", margin: 0 }}>
-            {files.length} file{files.length !== 1 ? "s" : ""}
-            {filesWithFee > 0 && <>{" · "}<span style={{ color: "rgba(15,23,42,0.65)", fontWeight: 500 }}>{fmtCompact(totalFees)} total fees</span></>}
-            {filesWithPrice > 0 && <>{" · "}{fmtCompact(totalValue)} in sales</>}
+          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.40)", margin: 0 }}>
+            <span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{files.length}</span>
+            {" "}{files.length !== 1 ? "files" : "file"}
+            {filesWithFee > 0 && (
+              <>{" · "}<span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{fmtCompact(totalFees)}</span>{" total fees"}</>
+            )}
+            {filesWithPrice > 0 && (
+              <>{" · "}<span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{fmtCompact(totalValue)}</span>{" in sales"}</>
+            )}
           </p>
         )}
 
-        {/* ── Groups ───────────────────────────────────────────────────────── */}
-        {groups.map(({ key, label }) => {
-          const group = files.filter((f) => urgencyFor(f.completionDate) === key);
-          if (group.length === 0) return null;
-          const s = GROUP_STYLES[key];
-
-          const groupValue    = group.reduce((sum, f) => sum + (f.purchasePrice   ?? 0), 0);
-          const groupFeeTotal = group.reduce((sum, f) => sum + (f.agentFeeAmount  ?? 0), 0);
-          const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
-
-          return (
-            <div key={key} id={`section-${key}`}>
-              {/* Group header — wraps on narrow screens */}
-              <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                <p className={`text-xs font-bold uppercase tracking-[0.07em] ${s.label} flex-1`}>
-                  {label} ({group.length})
-                </p>
-                {/* Fee total takes priority; fall back to sale price total */}
-                {groupFeeTotal > 0 ? (
-                  <p className="text-xs font-semibold tabular-nums" style={{ color: "rgba(15,23,42,0.6)" }}>{fmt(groupFeeTotal / 100)} fees</p>
-                ) : groupValue > 0 ? (
-                  <p className="text-xs text-slate-900/40 font-medium tabular-nums">{fmt(groupValue / 100)}</p>
-                ) : null}
-              </div>
-              {groupFeeTotal > 0 && missingFeeCount > 0 && (
-                <p className="text-xs text-slate-900/30 -mt-2 mb-2 ml-[22px]">({missingFeeCount} file{missingFeeCount !== 1 ? "s" : ""} with no fee set)</p>
-              )}
-
-              <div className="space-y-2">
-                {group.map((f) => {
-                  const daysRel = f.completionDate
-                    ? Math.round((new Date(f.completionDate).setHours(0, 0, 0, 0) - today.getTime()) / 86400000)
-                    : null;
-
-                  let daysLabel = "";
-                  let daysColor = "rgba(15,23,42,0.4)";
-                  if (daysRel !== null) {
-                    if (daysRel < 0)       { daysLabel = `${Math.abs(daysRel)} days overdue`; daysColor = "#dc2626"; }
-                    else if (daysRel === 0) { daysLabel = "today";    daysColor = "#d97706"; }
-                    else if (daysRel === 1) { daysLabel = "tomorrow"; }
-                    else                   { daysLabel = `in ${daysRel} days`; }
-                  }
-
-                  const hasNeitherSol = !f.vendorSolicitorName && !f.purchaserSolicitorName;
-                  const isNoDate = key === "no_date";
-
-                  // Date/days block — reused in both desktop-right and mobile-bottom positions
-                  const DateBlock = () => isNoDate ? (
-                    <span style={SET_DATE_STYLE}>Set date →</span>
-                  ) : (
-                    <div className="text-right">
-                      <p className={`text-sm font-bold mb-0.5 ${s.label}`}>{fmtDate(f.completionDate)}</p>
-                      {daysLabel && <p className="text-xs" style={{ color: daysColor }}>{daysLabel}</p>}
-                    </div>
-                  );
-
-                  return (
-                    <Link
-                      key={f.id}
-                      href={`/agent/transactions/${f.id}`}
-                      className={`glass-card block px-5 py-4 border ${s.border} hover:shadow-md transition-shadow`}
-                      style={{ textDecoration: "none" }}
-                    >
-                      {/* ── Desktop layout: left info + right date ────────────── */}
-                      <div className="hidden md:flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[15px] font-bold text-slate-900/90 mb-1 truncate">{f.propertyAddress}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-1">
-                            {f.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(f.purchasePrice / 100)}</span>}
-                            {f.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "rgba(15,23,42,0.7)" }}>Fee: {fmt(f.agentFeeAmount / 100)}</span>}
-                            {f.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {f.purchasers.join(", ")}</span>}
-                            {f.assignedUserName && <span className="text-sm text-slate-900/50">Progressor: {f.assignedUserName}</span>}
-                          </div>
-                          <p className="text-xs text-slate-900/40 mb-0.5">{timeSinceExchange(f.exchangedAt)}</p>
-                          {hasNeitherSol ? (
-                            <p className="text-xs" style={{ color: "#b45309" }}>No solicitors set</p>
-                          ) : (
-                            <p className="text-xs text-slate-900/40 truncate">
-                              Vendor sol: {f.vendorSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}
-                              {" · "}
-                              Purchaser sol: {f.purchaserSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 self-start">
-                          <DateBlock />
-                        </div>
-                      </div>
-
-                      {/* ── Mobile layout: full-width stack ──────────────────── */}
-                      <div className="flex md:hidden flex-col gap-1">
-                        <p className="text-[15px] font-bold text-slate-900/90 leading-snug">{f.propertyAddress}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                          {f.purchasePrice && <span className="text-sm text-slate-900/50">{fmt(f.purchasePrice / 100)}</span>}
-                          {f.agentFeeAmount && <span className="text-sm font-medium" style={{ color: "rgba(15,23,42,0.7)" }}>Fee: {fmt(f.agentFeeAmount / 100)}</span>}
-                          {f.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {f.purchasers.join(", ")}</span>}
-                          {f.assignedUserName && <span className="text-sm text-slate-900/50">Progressor: {f.assignedUserName}</span>}
-                        </div>
-                        <p className="text-xs text-slate-900/40">{timeSinceExchange(f.exchangedAt)}</p>
-                        {hasNeitherSol ? (
-                          <p className="text-xs" style={{ color: "#b45309" }}>No solicitors set</p>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <p className="text-xs text-slate-900/40">Vendor sol: {f.vendorSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}</p>
-                            <p className="text-xs text-slate-900/40">Purchaser sol: {f.purchaserSolicitorName ?? <span style={{ fontStyle: "italic" }}>not set</span>}</p>
-                          </div>
-                        )}
-                        {/* Date/days at bottom-right on mobile */}
-                        <div className="flex justify-end mt-1">
-                          <DateBlock />
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {/* ── Groups (collapsible, all start collapsed) ───────────────────── */}
+        {completionGroups.length > 0 && (
+          <CompletionsGroupList groups={completionGroups} />
+        )}
       </div>
     </>
   );
