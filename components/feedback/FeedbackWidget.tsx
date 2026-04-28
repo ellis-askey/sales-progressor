@@ -216,7 +216,7 @@ function SubmitBtn({ label, disabled }: { label: string; disabled: boolean }) {
 
 // ── Main widget ───────────────────────────────────────────────────────────────
 
-export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
+export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: string; checklistAware?: boolean }) {
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -226,10 +226,12 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
   const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [capturedCtx, setCapturedCtx] = useState<{ url: string; browser: string; viewportSize: string; userAgent: string } | null>(null);
+  const [triggerPosition, setTriggerPosition] = useState<"left" | "right">("right");
 
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeRef   = useRef<HTMLButtonElement>(null);
-  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef    = useRef<HTMLButtonElement>(null);
+  const triggerWrapRef = useRef<HTMLDivElement>(null);
+  const closeRef      = useRef<HTMLButtonElement>(null);
+  const scrollTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Scroll compact behaviour
   useEffect(() => {
@@ -266,6 +268,31 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
+
+  // Checklist-aware positioning: sit at left while onboarding checklist is active, animate to right on dismiss
+  useEffect(() => {
+    if (!checklistAware) return;
+    const done = !!localStorage.getItem("sp_onboarding_dismissed");
+    if (!done) setTriggerPosition("left");
+
+    function handleDismiss() {
+      const el = triggerWrapRef.current;
+      if (!el) { setTriggerPosition("right"); return; }
+      const width = el.offsetWidth;
+      const translateX = window.innerWidth - 48 - width;
+      el.style.transition = "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)";
+      el.style.transform = `translateX(${translateX}px)`;
+      setTimeout(() => {
+        el.style.transition = "";
+        el.style.transform = "";
+        setTriggerPosition("right");
+      }, 510);
+    }
+
+    window.addEventListener("sp_checklist_dismissed", handleDismiss);
+    return () => window.removeEventListener("sp_checklist_dismissed", handleDismiss);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checklistAware]);
 
   function open() {
     setCapturedCtx({
@@ -435,6 +462,7 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
         className="feedback-panel-wrap"
         role="dialog" aria-modal="true" aria-label="Support and Feedback"
         style={{
+          ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
           width: "min(380px, calc(100vw - 32px))",
           maxHeight: "80vh",
           background: "#fff",
@@ -454,7 +482,11 @@ export function FeedbackWidget({ portalToken }: { portalToken?: string }) {
       </div>
 
       {/* Trigger button */}
-      <div className="feedback-trigger-wrap" style={{ zIndex: 40 }}>
+      <div
+        ref={triggerWrapRef}
+        className="feedback-trigger-wrap"
+        style={{ zIndex: 40, ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}) }}
+      >
         <button
           ref={triggerRef}
           onClick={isOpen ? close : open}

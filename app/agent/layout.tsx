@@ -22,7 +22,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   return (
     <AgentToaster>
       <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
-      <FeedbackWidget />
+      <FeedbackWidget checklistAware />
     </AgentToaster>
   );
 }
