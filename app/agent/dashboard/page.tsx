@@ -92,64 +92,70 @@ export default async function AgentDashboard({
           <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
         )}
 
-        <div>
-          <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">
-            {([
-              { value: "all",       label: "All",       count: transactions.length },
-              { value: "active",    label: "Active",    count: counts.active },
-              { value: "on_hold",   label: "On Hold",   count: counts.on_hold },
-              { value: "completed", label: "Completed", count: counts.completed },
-              { value: "withdrawn", label: "Withdrawn", count: counts.withdrawn },
-            ] as { value: string; label: string; count: number }[]).map(({ value, label, count }) => {
-              const isActive = activeFilter === value;
-              return (
-                <Link
-                  key={value}
-                  href={value === "active" ? "/agent/dashboard" : `/agent/dashboard?filter=${value}`}
-                  scroll={false}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-white/60 text-slate-900/90 shadow-sm"
-                      : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"
-                  }`}
-                >
-                  {label}
-                  <span className={`text-xs rounded-full px-1.5 py-0.5 font-normal ${
-                    isActive ? "bg-blue-50/80 text-blue-600" : "bg-white/30 text-slate-900/50"
-                  }`}>
-                    {count}
-                  </span>
-                </Link>
-              );
-            })}
+        {transactions.length === 0 ? (
+          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <HouseLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              Create your first sale
+            </p>
+            <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+              Once you submit a sale, you&apos;ll see it here. Track milestones, manage chases, and progress to exchange.
+            </p>
+            <Link
+              href="/agent/transactions/new"
+              className="agent-btn agent-btn-primary agent-btn-md"
+              style={{ textDecoration: "none" }}
+            >
+              <Plus size={16} weight="bold" />
+              New sale
+            </Link>
           </div>
+        ) : (
+          <div>
+            <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">
+              {([
+                { value: "all",       label: "All",       count: transactions.length },
+                { value: "active",    label: "Active",    count: counts.active },
+                { value: "on_hold",   label: "On Hold",   count: counts.on_hold },
+                { value: "completed", label: "Completed", count: counts.completed },
+                { value: "withdrawn", label: "Withdrawn", count: counts.withdrawn },
+              ] as { value: string; label: string; count: number }[]).map(({ value, label, count }) => {
+                const isActive = activeFilter === value;
+                return (
+                  <Link
+                    key={value}
+                    href={value === "active" ? "/agent/dashboard" : `/agent/dashboard?filter=${value}`}
+                    scroll={false}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-white/60 text-slate-900/90 shadow-sm"
+                        : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"
+                    }`}
+                  >
+                    {label}
+                    <span className={`text-xs rounded-full px-1.5 py-0.5 font-normal ${
+                      isActive ? "bg-blue-50/80 text-blue-600" : "bg-white/30 text-slate-900/50"
+                    }`}>
+                      {count}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
 
-          {filtered.length === 0 ? (
-            <div className="glass-card">
-              {activeFilter === "all" ? (
-                <EmptyState
-                  title="Your pipeline starts here"
-                  description="Add your first sale and we'll track it through to completion."
-                  icon={<HouseLine size={20} className="text-blue-400" />}
-                  action={
-                    <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
-                      <Plus size={14} weight="bold" />
-                      Add a sale
-                    </Link>
-                  }
-                />
-              ) : (
+            {filtered.length === 0 ? (
+              <div className="glass-card">
                 <EmptyState
                   title={`No ${activeFilter.replace("_", " ")} files`}
                   description="Try a different filter."
-                  action={<Link href="/agent/dashboard?filter=all" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
+                  action={<Link href="/agent/dashboard" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
                 />
-              )}
-            </div>
-          ) : (
-            <TransactionListWithSearch transactions={filtered} basePath="/agent/transactions" isDirector={isDirector} />
-          )}
-        </div>
+              </div>
+            ) : (
+              <TransactionListWithSearch transactions={filtered} basePath="/agent/transactions" isDirector={isDirector} />
+            )}
+          </div>
+        )}
 
         {agentRequests.length > 0 && (
           <AgentRequestsPanel requests={agentRequests} />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getAgentMilestoneActivity, resolveAgentVisibility } from "@/lib/services/agent";
+import { Activity } from "@phosphor-icons/react/dist/ssr";
 import {
   CommsActivityFeed,
   type DayBucket,
@@ -80,7 +81,6 @@ export default async function AgentCommsPage({
         <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="relative px-4 pt-6 pb-7 md:px-8">
-          <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Agent Portal</p>
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-4">
             <div>
               <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Updates</h1>
@@ -132,11 +132,12 @@ export default async function AgentCommsPage({
       <div className="px-4 md:px-8 py-5 md:py-7 space-y-6">
 
         {milestones.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-base text-slate-900/50 mb-1">
+          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <Activity weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               {portalOnly ? "No client confirmations yet" : "No milestone activity yet"}
             </p>
-            <p className="text-sm text-slate-900/40">
+            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
               {portalOnly
                 ? "Client confirmations will appear here when clients confirm their milestones via the portal."
                 : "Completed milestones across your files will appear here."}

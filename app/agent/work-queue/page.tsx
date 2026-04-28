@@ -4,6 +4,8 @@ import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
 import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
+import { prisma } from "@/lib/prisma";
+import { Bell } from "@phosphor-icons/react/dist/ssr";
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -32,9 +34,10 @@ function classifyForStats(log: AgentLog, today: Date): "overdue" | "due_today" |
 export default async function WorkQueuePage() {
   const session = await requireSession();
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const [items, reminderLogs] = await Promise.all([
+  const [items, reminderLogs, activeFileCount] = await Promise.all([
     getWorkQueueItems(vis),
     getAgentReminderLogs(vis),
+    prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, status: { in: ["active", "on_hold"] } } }),
   ]);
 
   const now = new Date();
@@ -96,7 +99,19 @@ export default async function WorkQueuePage() {
 
       <div className="px-4 md:px-8 py-5 md:py-7 space-y-6">
         {items.length > 0 && <FileAlertsStrip items={items} />}
-        <AgentRemindersList logs={reminderLogs} />
+        {reminderLogs.length === 0 && activeFileCount === 0 ? (
+          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              Your reminders will appear here
+            </p>
+            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+              Once you create a sale, we&apos;ll surface chases and follow-ups as files progress.
+            </p>
+          </div>
+        ) : (
+          <AgentRemindersList logs={reminderLogs} />
+        )}
       </div>
     </>
   );
