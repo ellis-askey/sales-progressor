@@ -92,7 +92,8 @@ export default async function TransactionDetailPage({
   }));
 
   const progress = calculateProgress(
-    allMilestones,
+    (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
+    (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     transaction.createdAt,
     transaction.overridePredictedDate ?? null
   );

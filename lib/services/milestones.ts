@@ -232,6 +232,70 @@ async function unlockDirectDependents(transactionId: string, completedCode: stri
   }
 }
 
+// ── Exchange gate unlock ──────────────────────────────────────────────────────
+// Called after completeMilestone / markNotRequired / bulkCompleteMilestones.
+// Flips VM18 (vendor) or PM25 (purchaser) from locked → available when every
+// same-side blocksExchange milestone is complete or not_required.
+
+async function maybeUnlockExchangeGate(
+  transactionId: string,
+  side: MilestoneSide,
+  createdById: string
+): Promise<void> {
+  const gateCode = side === "vendor" ? "VM18" : "PM25";
+
+  const gateDef = await prisma.milestoneDefinition.findFirst({
+    where: { code: gateCode },
+    select: { id: true },
+  });
+  if (!gateDef) return;
+
+  const gateCompletion = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: gateDef.id },
+    select: { state: true },
+  });
+  if (!gateCompletion || gateCompletion.state !== "locked") return;
+
+  const blockers = await prisma.milestoneDefinition.findMany({
+    where: { side, blocksExchange: true },
+    select: { id: true },
+  });
+  if (blockers.length === 0) return;
+
+  const blockerCompletions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const blockerMap = new Map(blockerCompletions.map((c) => [c.milestoneDefinitionId, c.state]));
+
+  const allClear = blockers.every((b) => {
+    const s = blockerMap.get(b.id);
+    return s === "complete" || s === "not_required";
+  });
+  if (!allClear) return;
+
+  await prisma.milestoneCompletion.update({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId,
+        milestoneDefinitionId: gateDef.id,
+      },
+    },
+    data: { state: "available" },
+  });
+
+  const sideLabel = side === "vendor" ? "Vendor" : "Purchaser";
+  await prisma.communicationRecord.create({
+    data: {
+      transactionId,
+      type: "internal_note",
+      contactIds: [],
+      content: `${sideLabel} side ready to exchange — all required milestones complete`,
+      createdById,
+    },
+  });
+}
+
 // ── getMilestonesForTransaction ───────────────────────────────────────────────
 
 export async function getMilestonesForTransaction(
@@ -362,7 +426,7 @@ export type CompleteMilestoneInput = {
 export async function completeMilestone(input: CompleteMilestoneInput) {
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
-    select: { code: true, summaryTemplate: true },
+    select: { code: true, summaryTemplate: true, side: true },
   });
   if (!def) throw new Error("Milestone definition not found");
 
@@ -417,6 +481,7 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
 
   await unlockDirectDependents(input.transactionId, def.code);
   await autoCompleteRemindersForMilestone(input.transactionId, def.code);
+  await maybeUnlockExchangeGate(input.transactionId, def.side, input.completedById);
   touchLastActivity(input.transactionId).catch(() => {});
 
   return completion;
@@ -436,7 +501,7 @@ export async function bulkCompleteMilestones(
 
   const defs = await prisma.milestoneDefinition.findMany({
     where: { id: { in: milestoneDefinitionIds } },
-    select: { id: true, code: true, summaryTemplate: true },
+    select: { id: true, code: true, summaryTemplate: true, side: true },
   });
   const defMap = new Map(defs.map((d) => [d.id, d]));
 
@@ -487,6 +552,10 @@ export async function bulkCompleteMilestones(
       return autoCompleteRemindersForMilestone(transactionId, def.code);
     })
   );
+
+  // Check exchange gate for each affected side
+  const uniqueSides = [...new Set(defs.map((d) => d.side))];
+  await Promise.all(uniqueSides.map((side) => maybeUnlockExchangeGate(transactionId, side, completedById)));
 
   touchLastActivity(transactionId).catch(() => {});
   return results;
@@ -577,7 +646,7 @@ export async function markNotRequired(
 ) {
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: milestoneDefinitionId },
-    select: { name: true, code: true },
+    select: { name: true, code: true, side: true },
   });
 
   const completion = await prisma.milestoneCompletion.upsert({
@@ -603,6 +672,9 @@ export async function markNotRequired(
   // NR also unlocks dependents (NR counts as satisfied for prereq purposes)
   if (def?.code) {
     await unlockDirectDependents(transactionId, def.code);
+  }
+  if (def?.side) {
+    await maybeUnlockExchangeGate(transactionId, def.side, completedById);
   }
 
   await prisma.communicationRecord.create({

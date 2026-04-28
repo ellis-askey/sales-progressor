@@ -119,7 +119,10 @@ export function MilestonePanel({
 
   const totalAll = milestones.length;
   const doneAll = milestones.filter((m) => m.isComplete || m.isNotRequired).length;
-  const progressPct = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+  const applicableMs = milestones.filter((m) => !m.isNotRequired);
+  const applicableWeight = applicableMs.reduce((s, m) => s + Number(m.weight), 0);
+  const completedWeight = applicableMs.filter((m) => m.isComplete).reduce((s, m) => s + Number(m.weight), 0);
+  const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
 
   const barGradient =
     progressPct < 40

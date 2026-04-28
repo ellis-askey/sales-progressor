@@ -66,11 +66,11 @@ export async function listTransactions(
       : null;
 
     // Confidence score: completed milestones vs 12-week benchmark
-    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 38 pre-exchange milestones.
+    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 47 milestones.
     const completedCount = tx._count.milestoneCompletions;
     const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
     const weeksElapsed = daysElapsed / 7;
-    const actualPercent = Math.min(100, (completedCount / 38) * 100);
+    const actualPercent = Math.min(100, (completedCount / 47) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
     const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
