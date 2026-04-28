@@ -21,7 +21,7 @@ const SLIDES = [
   },
   {
     title: "Nothing slips through",
-    description: "The Work Queue flags files that need attention before they become problems. Your progressor is watching too.",
+    description: "The Reminders tab flags files that need attention before they become problems. Your progressor is watching too.",
     Visual: WorkQueueVisual,
   },
 ];
