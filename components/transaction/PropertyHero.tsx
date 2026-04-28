@@ -127,15 +127,15 @@ export function PropertyHero({
 
           {/* Address */}
           <div className="mb-4 md:mb-[18px]">
-            <h1 className="text-2xl md:text-[30px] font-bold" style={{ margin: 0, color: "var(--agent-text-primary)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{line1}</h1>
-            {line2 && <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)", fontWeight: 500 }}>{line2}</p>}
+            <h1 data-sensitive="true" className="text-2xl md:text-[30px] font-bold" style={{ margin: 0, color: "var(--agent-text-primary)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{line1}</h1>
+            {line2 && <p data-sensitive="true" style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)", fontWeight: 500 }}>{line2}</p>}
           </div>
 
           {/* Bottom row: price/pills + exchange/progress */}
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               {price && (
-                <p style={{ margin: "0 0 10px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.015em" }}>{price}</p>
+                <p data-sensitive="true" style={{ margin: "0 0 10px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.015em" }}>{price}</p>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 {tenure && (
@@ -243,13 +243,13 @@ export function PropertyHero({
         </div>
 
         <div className="mb-5">
-          <h1 className="text-[2.125rem] font-bold text-white leading-tight tracking-tight">{line1}</h1>
-          {line2 && <p className="text-sm text-slate-400 mt-1 font-medium">{line2}</p>}
+          <h1 data-sensitive="true" className="text-[2.125rem] font-bold text-white leading-tight tracking-tight">{line1}</h1>
+          {line2 && <p data-sensitive="true" className="text-sm text-slate-400 mt-1 font-medium">{line2}</p>}
         </div>
 
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <div>
-            {price && <p className="text-xl font-bold text-white tracking-tight mb-2.5">{price}</p>}
+            {price && <p data-sensitive="true" className="text-xl font-bold text-white tracking-tight mb-2.5">{price}</p>}
             <div className="flex items-center gap-2 flex-wrap">
               {tenure && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/12 text-slate-200 ring-1 ring-white/25">

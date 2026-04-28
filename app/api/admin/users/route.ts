@@ -28,5 +28,6 @@ export async function PATCH(req: NextRequest) {
     },
   });
 
+  console.log(`[AUDIT] user_updated userId=${userId} fieldsChanged=clientType,legacyFee updatedByUserId=${session.user.id} agencyId=${session.user.agencyId}`);
   return NextResponse.json({ success: true });
 }

@@ -20,8 +20,8 @@ const TEST_PASSWORD = hashSync("Hartwell2024!", 12);
 
 const prisma = new PrismaClient();
 
-// Dates relative to today (2026-04-19)
-const TODAY = new Date("2026-04-19T10:00:00.000Z");
+// Dates relative to today (2026-04-27)
+const TODAY = new Date("2026-04-27T10:00:00.000Z");
 function D(offsetDays: number): Date {
   const d = new Date(TODAY);
   d.setDate(d.getDate() + offsetDays);
@@ -194,6 +194,11 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
+  await prisma.feedbackSubmission.deleteMany();
+  await prisma.portalPushSubscription.deleteMany();
+  await prisma.portalMessage.deleteMany();
+  await prisma.transactionDocument.deleteMany();
+  await prisma.transactionFlag.deleteMany();
   await prisma.communicationRecord.deleteMany();
   await prisma.chaseTask.deleteMany();
   await prisma.reminderLog.deleteMany();
@@ -204,12 +209,13 @@ async function main() {
   await prisma.contact.deleteMany();
   await prisma.priceHistory.deleteMany();
   await prisma.manualTask.deleteMany();
-  await prisma.communicationRecord.deleteMany();
-  await prisma.chaseTask.deleteMany();
   await prisma.propertyChain.deleteMany();
   await prisma.propertyTransaction.deleteMany();
+  await prisma.agencyRecommendedSolicitor.deleteMany();
   await prisma.solicitorContact.deleteMany();
   await prisma.solicitorFirm.deleteMany();
+  await prisma.userVerifiedEmail.deleteMany();
+  await prisma.verifiedDomain.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.user.deleteMany();
@@ -232,6 +238,9 @@ async function main() {
   });
   const emily = await prisma.user.create({
     data: { name: "Emily Chen", email: "emily@hartwellpartners.co.uk", role: UserRole.negotiator, agencyId: agency.id, password: TEST_PASSWORD, firmName: "Hartwell & Partners" },
+  });
+  const alex = await prisma.user.create({
+    data: { name: "Alex Morgan", email: "alex@hartwellpartners.co.uk", role: UserRole.director, agencyId: agency.id, password: TEST_PASSWORD, firmName: "Hartwell & Partners" },
   });
   console.log("✓ Agency and users");
 
@@ -810,14 +819,305 @@ async function main() {
 
   console.log("✓ 13 transactions with contacts, milestones, reminders, tasks, comms, and notes");
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIRECTOR (Alex Morgan) — 8 agent-managed files
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // TXA1 — Near exchange (15 days), mortgage, £395k
+  const txA1 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "31 Richmond Hill, Clifton, Bristol, BS8 1BA",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(15), purchasePrice: 39500000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    vendorSolicitorFirmId: firmThornton.id, vendorSolicitorContactId: contactThorntonHenry.id,
+    purchaserSolicitorFirmId: firmDevlin.id, purchaserSolicitorContactId: contactDevlinMark.id,
+    agentFeeAmount: 395000, agentFeeIsVatInclusive: false, createdAt: D(-52),
+  }});
+  const txA1V = await prisma.contact.create({ data: { propertyTransactionId: txA1.id, name: "Catherine Blake", email: "c.blake@email.com", phone: "07711 334 556", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA1P = await prisma.contact.create({ data: { propertyTransactionId: txA1.id, name: "Oliver Grant", email: "o.grant@email.com", phone: "07823 556 778", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA1.id, vmDefs, 17, alex.id, { agent: "Alex", vendors: "Catherine", purchasers: "Oliver", solicitor: "Thornton & Co" }, 50);
+  await completeN(txA1.id, pmDefs, 22, alex.id, { agent: "Alex", vendors: "Catherine", purchasers: "Oliver", solicitor: "Thornton & Co" }, 50);
+  await addReminder(txA1.id, ruleByCode.get("VM20")!, alex.id, -1, "normal", 2, "Henry confirmed readiness expected by end of week");
+  await addReminder(txA1.id, ruleByCode.get("PM27")!, alex.id, 2, "normal", 1);
+  await addDoneReminder(txA1.id, ruleByCode.get("VM11")!, alex.id, 9);
+  await addComm(txA1.id, alex.id, "outbound", "phone", "Called Henry Thornton — he's expecting to confirm exchange readiness by Thursday. Oliver's solicitor has already confirmed. On track for 12 May exchange.", [txA1V.id], 2);
+  await addComm(txA1.id, alex.id, "inbound", "email", "Oliver emailed asking for update on exchange date. Replied confirming we're targeting 12 May and both solicitors are nearly ready.", [txA1P.id], 3);
+  await addNote(txA1.id, alex.id, "Catherine has agreed the adjusted completion date of 19th May — she's moving in with her sister temporarily in the gap. No chain on either side.", 5);
+
+  // TXA2 — Enquiries/mortgage stage, leasehold, £265k
+  const txA2 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "Flat 4, The Polygon, Clifton, Bristol, BS8 4PR",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(45), purchasePrice: 26500000,
+    tenure: Tenure.leasehold, purchaseType: PurchaseType.mortgage,
+    vendorSolicitorFirmId: firmAndersons.id, vendorSolicitorContactId: contactAndersonLucy.id,
+    purchaserSolicitorFirmId: firmWright.id, purchaserSolicitorContactId: contactWrightTom.id,
+    agentFeePercent: 1.25, agentFeeIsVatInclusive: false, createdAt: D(-38),
+  }});
+  const txA2V = await prisma.contact.create({ data: { propertyTransactionId: txA2.id, name: "Natasha Brennan", email: "n.brennan@email.com", phone: "07812 009 334", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA2P = await prisma.contact.create({ data: { propertyTransactionId: txA2.id, name: "Kieran Moss", email: "k.moss@email.com", phone: "07934 667 110", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA2.id, vmDefs, 11, alex.id, { agent: "Alex", vendors: "Natasha", purchasers: "Kieran", solicitor: "Andersons Property Law" }, 36);
+  await completeN(txA2.id, pmDefs, 13, alex.id, { agent: "Alex", vendors: "Natasha", purchasers: "Kieran", solicitor: "Andersons Property Law" }, 36);
+  await addReminder(txA2.id, ruleByCode.get("VM17")!, alex.id, 4, "normal", 1);
+  await addReminder(txA2.id, ruleByCode.get("PM6")!, alex.id, 7, "normal", 1, "Valuation done 10 days ago — mortgage offer due any day");
+  await addReminder(txA2.id, ruleByCode.get("PM10")!, alex.id, 14, "normal", 0);
+  await addDoneReminder(txA2.id, ruleByCode.get("VM5")!, alex.id, 15);
+  await addComm(txA2.id, alex.id, "outbound", "phone", "Called Tom Wright at Wright & Hughes — searches ordered, results expected in 2 weeks. Kieran's mortgage valuation done last week, offer imminent.", [txA2P.id], 3);
+  await addComm(txA2.id, alex.id, "inbound", "email", "Natasha emailed to chase progress. Replied confirming initial enquiries are in and Kieran's solicitor is reviewing replies.", [txA2V.id], 5);
+  await addNote(txA2.id, alex.id, "Management pack requested from Clifton Estates Ltd (managing agent for The Polygon). Lucy Anderson says it typically takes 3–4 weeks. Chasing directly.", 6);
+
+  // TXA3 — Contract pack issued, £485k freehold, cash purchase
+  const txA3 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "8 Cornwallis Crescent, Clifton, Bristol, BS8 4PH",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(35), purchasePrice: 48500000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.cash,
+    vendorSolicitorFirmId: firmThornton.id, vendorSolicitorContactId: contactThorntonSarah.id,
+    purchaserSolicitorFirmId: firmDevlin.id, purchaserSolicitorContactId: contactDevlinPriya.id,
+    agentFeeAmount: 550000, agentFeeIsVatInclusive: false, createdAt: D(-32),
+  }});
+  const txA3V = await prisma.contact.create({ data: { propertyTransactionId: txA3.id, name: "Philip & Rosemary Carr", email: "p.carr@email.com", phone: "07700 556 334", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA3P = await prisma.contact.create({ data: { propertyTransactionId: txA3.id, name: "Isabelle Fontaine", email: "i.fontaine@email.com", phone: "07812 990 223", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA3.id, vmDefs, 9, alex.id, { agent: "Alex", vendors: "Philip and Rosemary", purchasers: "Isabelle", solicitor: "Thornton & Co" }, 30);
+  await completeN(txA3.id, pmDefs, 7, alex.id, { agent: "Alex", vendors: "Philip and Rosemary", purchasers: "Isabelle", solicitor: "Thornton & Co" }, 30);
+  await markNotRequired(txA3.id, pmDefs, ["PM4", "PM5", "PM6", "PM7", "PM20"], defIdMap, alex.id, "Cash purchase — no mortgage or survey required");
+  await addReminder(txA3.id, ruleByCode.get("PM11")!, alex.id, 5, "normal", 1, "Searches ordered — enquiries expected next week");
+  await addReminder(txA3.id, ruleByCode.get("PM10")!, alex.id, 16, "normal", 0);
+  await addDoneReminder(txA3.id, ruleByCode.get("VM7")!, alex.id, 7);
+  await addComm(txA3.id, alex.id, "outbound", "phone", "Called Priya at Devlin Law — contract pack received and searches ordered. Isabelle is a cash buyer, no mortgage required. Expecting enquiries within 5 days.", [txA3P.id], 2);
+  await addNote(txA3.id, alex.id, "Isabelle's funds are from an inheritance held by Devlin Law. No chain on the buyer side. Vendor has agreed 6-week completion from exchange.", 4);
+
+  // TXA4 — Early stage, freehold, £320k, mortgage
+  const txA4 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "14 Cromwell Road, Kingsdown, Bristol, BS2 8DF",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(65), purchasePrice: 32000000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    agentFeeAmount: 299500, agentFeeIsVatInclusive: false, createdAt: D(-18),
+  }});
+  const txA4V = await prisma.contact.create({ data: { propertyTransactionId: txA4.id, name: "Sandra Fletcher", email: "s.fletcher@email.com", phone: "07534 112 998", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA4P = await prisma.contact.create({ data: { propertyTransactionId: txA4.id, name: "Ben & Laura Ashby", email: "b.ashby@email.com", phone: "07712 445 001", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA4.id, vmDefs, 4, alex.id, { agent: "Alex", vendors: "Sandra", purchasers: "Ben and Laura", solicitor: "their solicitor" }, 16);
+  await completeN(txA4.id, pmDefs, 3, alex.id, { agent: "Alex", vendors: "Sandra", purchasers: "Ben and Laura", solicitor: "their solicitor" }, 16);
+  await addReminder(txA4.id, ruleByCode.get("VM15")!, alex.id, 6, "normal", 0);
+  await addReminder(txA4.id, ruleByCode.get("PM4")!, alex.id, 8, "normal", 0);
+  await addReminder(txA4.id, ruleByCode.get("PM7")!, alex.id, 10, "normal", 0);
+  await addComm(txA4.id, alex.id, "outbound", "phone", "Called Sandra — she's received the welcome pack from her solicitor and is working through the property information forms this week.", [txA4V.id], 3);
+  await addComm(txA4.id, alex.id, "outbound", "phone", "Spoke with Ben — he and Laura have submitted their mortgage application. Broker says valuation will be booked within 7–10 days.", [txA4P.id], 4);
+
+  // TXA5 — Mid-stage, leasehold flat, £215k, searches ordered, escalated on search delay
+  const txA5 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "Flat 6, Harbourside Point, Bristol, BS1 4RQ",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(50), purchasePrice: 21500000,
+    tenure: Tenure.leasehold, purchaseType: PurchaseType.mortgage,
+    vendorSolicitorFirmId: firmDevlin.id, vendorSolicitorContactId: contactDevlinMark.id,
+    createdAt: D(-40),
+  }});
+  const txA5V = await prisma.contact.create({ data: { propertyTransactionId: txA5.id, name: "Jessica Ward", email: "j.ward@email.com", phone: "07623 334 112", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA5P = await prisma.contact.create({ data: { propertyTransactionId: txA5.id, name: "Anton Reeves", email: "a.reeves@email.com", phone: "07811 009 445", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA5.id, vmDefs, 13, alex.id, { agent: "Alex", vendors: "Jessica", purchasers: "Anton", solicitor: "Devlin Law" }, 38);
+  await completeN(txA5.id, pmDefs, 11, alex.id, { agent: "Alex", vendors: "Jessica", purchasers: "Anton", solicitor: "Devlin Law" }, 38);
+  await addReminder(txA5.id, ruleByCode.get("PM10")!, alex.id, -6, "escalated", 4, "Search results 6 days overdue — BANES council running 8-week turnaround");
+  await addReminder(txA5.id, ruleByCode.get("PM6")!, alex.id, 5, "normal", 1);
+  await addDoneReminder(txA5.id, ruleByCode.get("PM9")!, alex.id, 22);
+  await addComm(txA5.id, alex.id, "outbound", "phone", "Called Anton's solicitor — search results now 6 days overdue. BANES are running 8 weeks. Escalating directly to council.", [txA5P.id], 1);
+  await addComm(txA5.id, alex.id, "outbound", "email", "Sent urgent email to Bath & NE Somerset council search dept requesting prioritisation due to time-sensitive nature of sale.", [], 2);
+  await addNote(txA5.id, alex.id, "Management pack for Harbourside Point received from Portway Property Management — reviewed by Mark Devlin, all clear. Search delay is the only blocker.", 3);
+
+  // TXA6 — Exchanged, completing in 8 days
+  const txA6 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "27 Westbury Park, Bristol, BS6 7JE",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 44500000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    completionDate: D(8), expectedExchangeDate: D(-5),
+    vendorSolicitorFirmId: firmThornton.id, vendorSolicitorContactId: contactThorntonHenry.id,
+    purchaserSolicitorFirmId: firmAndersons.id, purchaserSolicitorContactId: contactAndersonLucy.id,
+    agentFeeAmount: 445000, agentFeeIsVatInclusive: false, createdAt: D(-70),
+  }});
+  const txA6V = await prisma.contact.create({ data: { propertyTransactionId: txA6.id, name: "Martin & Claire Hollis", email: "m.hollis@email.com", phone: "07712 889 334", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA6P = await prisma.contact.create({ data: { propertyTransactionId: txA6.id, name: "Priti Sharma", email: "p.sharma@email.com", phone: "07823 001 556", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA6.id, vmDefs, 19, alex.id, { agent: "Alex", vendors: "Martin and Claire", purchasers: "Priti", solicitor: "Thornton & Co" }, 68);
+  await completeN(txA6.id, pmDefs, 26, alex.id, { agent: "Alex", vendors: "Martin and Claire", purchasers: "Priti", solicitor: "Thornton & Co" }, 68);
+  await addComm(txA6.id, alex.id, "outbound", "phone", "Congratulations calls to Martin, Claire and Priti — contracts exchanged this morning. Completing 5th May. Everyone delighted.", [txA6V.id, txA6P.id], 5);
+  await addNote(txA6.id, alex.id, "Exchanged 22nd April. Completing 5th May. Martin and Claire moving to their new place in Bath. Priti taking over on 5th May. All straightforward.", 5);
+
+  // TXA7 — On hold (buyer's mortgage declined, seeking new lender), £345k
+  const txA7 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "9 Queen Anne Road, Bishopston, Bristol, BS7 8EA",
+    status: TransactionStatus.on_hold, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 34500000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    createdAt: D(-30),
+  }});
+  const txA7V = await prisma.contact.create({ data: { propertyTransactionId: txA7.id, name: "Trevor & Gill Manning", email: "t.manning@email.com", phone: "07811 234 556", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA7P = await prisma.contact.create({ data: { propertyTransactionId: txA7.id, name: "Curtis Reade", email: "c.reade@email.com", phone: "07934 778 009", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA7.id, vmDefs, 7, alex.id, { agent: "Alex", vendors: "Trevor and Gill", purchasers: "Curtis", solicitor: "their solicitor" }, 28);
+  await completeN(txA7.id, pmDefs, 8, alex.id, { agent: "Alex", vendors: "Trevor and Gill", purchasers: "Curtis", solicitor: "their solicitor" }, 28);
+  await addComm(txA7.id, alex.id, "inbound", "phone", "Curtis's broker called — mortgage application declined by Halifax due to a CCJ from 2019 that Curtis wasn't aware of. Seeking a specialist lender. May take 3–4 weeks.", [txA7P.id], 10);
+  await addComm(txA7.id, alex.id, "outbound", "phone", "Called Trevor and Gill to explain the situation. They want to hold for 4 weeks before considering remarketing. File placed on hold.", [txA7V.id], 9);
+  await addNote(txA7.id, alex.id, "On hold — Curtis's mortgage declined (CCJ). Broker trying specialist lenders. Trevor and Gill willing to wait 4 weeks. Review 20th May.", 9);
+
+  // TXA8 — Completed 3 weeks ago
+  const txA8 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "42 Somerset Road, Redland, Bristol, BS6 6HX",
+    status: TransactionStatus.completed, agencyId: agency.id,
+    agentUserId: alex.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 51000000, tenure: Tenure.freehold, purchaseType: PurchaseType.cash,
+    expectedExchangeDate: D(-35), completionDate: D(-21),
+    agentFeeAmount: 650000, agentFeeIsVatInclusive: false, createdAt: D(-70),
+  }});
+  const txA8V = await prisma.contact.create({ data: { propertyTransactionId: txA8.id, name: "Deborah Liang", email: "d.liang@email.com", phone: "07534 009 112", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txA8P = await prisma.contact.create({ data: { propertyTransactionId: txA8.id, name: "Frederick & Anna Howell", email: "f.howell@email.com", phone: "07723 445 889", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txA8.id, vmDefs, 20, alex.id, { agent: "Alex", vendors: "Deborah", purchasers: "Frederick and Anna", solicitor: "their solicitor" }, 68);
+  await completeN(txA8.id, pmDefs, 27, alex.id, { agent: "Alex", vendors: "Deborah", purchasers: "Frederick and Anna", solicitor: "their solicitor" }, 68);
+  await addComm(txA8.id, alex.id, "outbound", "phone", "Congratulations to Deborah, Frederick and Anna on completion. All keys handed over at midday. Deborah was very complimentary about the service throughout.", [txA8V.id], 21);
+  await addNote(txA8.id, alex.id, "Completed 6th April 2026. Cash purchase — completed in 9 weeks from submission which is exceptional. Deborah has asked Alex to value her holiday let in Weston for possible sale later this year.", 21);
+
+  console.log("✓ 8 director (Alex) transactions");
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NEGOTIATOR (Emily Chen) — 6 additional agent-managed files (she already has 4)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // TXE1 — Mid-stage, enquiries underway, leasehold, £275k
+  const txE1 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "5 Beaufort Road, Clifton, Bristol, BS8 2JP",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(42), purchasePrice: 27500000,
+    tenure: Tenure.leasehold, purchaseType: PurchaseType.mortgage,
+    vendorSolicitorFirmId: firmWright.id, vendorSolicitorContactId: contactWrightTom.id,
+    purchaserSolicitorFirmId: firmThornton.id, purchaserSolicitorContactId: contactThorntonSarah.id,
+    agentFeeAmount: 249500, agentFeeIsVatInclusive: false, createdAt: D(-36),
+  }});
+  const txE1V = await prisma.contact.create({ data: { propertyTransactionId: txE1.id, name: "Alistair & Joanna Wade", email: "a.wade@email.com", phone: "07623 556 009", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE1P = await prisma.contact.create({ data: { propertyTransactionId: txE1.id, name: "Lucy Forsythe", email: "l.forsythe@email.com", phone: "07912 334 667", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE1.id, vmDefs, 12, emily.id, { agent: "Emily", vendors: "Alistair and Joanna", purchasers: "Lucy", solicitor: "Wright & Hughes" }, 34);
+  await completeN(txE1.id, pmDefs, 13, emily.id, { agent: "Emily", vendors: "Alistair and Joanna", purchasers: "Lucy", solicitor: "Wright & Hughes" }, 34);
+  await addReminder(txE1.id, ruleByCode.get("VM18")!, emily.id, 5, "normal", 1);
+  await addReminder(txE1.id, ruleByCode.get("PM21")!, emily.id, 3, "normal", 1, "Thornton & Co received initial replies last week — Lucy's solicitor reviewing");
+  await addReminder(txE1.id, ruleByCode.get("PM6")!, emily.id, 6, "normal", 1);
+  await addDoneReminder(txE1.id, ruleByCode.get("VM8")!, emily.id, 8);
+  await addComm(txE1.id, emily.id, "outbound", "phone", "Called Sarah Marsh at Thornton & Co — initial replies sent to Lucy's solicitor yesterday. Enquiries review expected within the week.", [txE1V.id], 2);
+  await addNote(txE1.id, emily.id, "Management pack for Beaufort Road (leasehold) requested from Clifton Estates — standard 3-week turnaround expected. Tom Wright at Wright & Hughes has been chased.", 5);
+
+  // TXE2 — Near exchange (12 days), mortgage, £380k, both exchange gates active
+  const txE2 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "11 Oakfield Road, Clifton, Bristol, BS8 2BH",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(12), purchasePrice: 38000000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    vendorSolicitorFirmId: firmDevlin.id, vendorSolicitorContactId: contactDevlinPriya.id,
+    purchaserSolicitorFirmId: firmWright.id, purchaserSolicitorContactId: contactWrightTom.id,
+    agentFeeAmount: 380000, agentFeeIsVatInclusive: false, createdAt: D(-50),
+  }});
+  const txE2V = await prisma.contact.create({ data: { propertyTransactionId: txE2.id, name: "Hugo Sinclair", email: "h.sinclair@email.com", phone: "07712 001 334", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE2P = await prisma.contact.create({ data: { propertyTransactionId: txE2.id, name: "Maria & Tom Blackwood", email: "m.blackwood@email.com", phone: "07823 334 556", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE2.id, vmDefs, 17, emily.id, { agent: "Emily", vendors: "Hugo", purchasers: "Maria and Tom", solicitor: "Devlin Law" }, 48);
+  await completeN(txE2.id, pmDefs, 24, emily.id, { agent: "Emily", vendors: "Hugo", purchasers: "Maria and Tom", solicitor: "Devlin Law" }, 48);
+  await addReminder(txE2.id, ruleByCode.get("VM20")!, emily.id, 1, "normal", 2, "Priya confirmed she'll send formal readiness by COB today");
+  await addReminder(txE2.id, ruleByCode.get("PM27")!, emily.id, -1, "escalated", 3, "Tom Wright has gone quiet — chasing urgently, exchange in 12 days");
+  await addDoneReminder(txE2.id, ruleByCode.get("PM15b")!, emily.id, 6);
+  await addComm(txE2.id, emily.id, "outbound", "phone", "Called Tom Wright urgently re exchange readiness — his assistant said he's in court today, calling back tomorrow. Not acceptable given exchange timescale.", [txE2P.id], 1);
+  await addComm(txE2.id, emily.id, "outbound", "email", "Sent formal chase to Wright & Hughes — exchange gate confirmation required within 24 hours. Copied their managing partner.", [], 1);
+  await addNote(txE2.id, emily.id, "Maria and Tom have removals booked for 9 May — exchange MUST happen by 2 May at latest. Hugo has been patient but is getting anxious.", 3);
+
+  // TXE3 — Early stage, first-time buyer, £185k leasehold
+  const txE3 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "Flat 9, Clifton Heights, Queen's Road, Bristol, BS8 1QU",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 18500000,
+    tenure: Tenure.leasehold, purchaseType: PurchaseType.mortgage,
+    createdAt: D(-12),
+  }});
+  const txE3V = await prisma.contact.create({ data: { propertyTransactionId: txE3.id, name: "Amanda Pierce", email: "a.pierce@email.com", phone: "07534 889 001", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE3P = await prisma.contact.create({ data: { propertyTransactionId: txE3.id, name: "Jake Lawson", email: "j.lawson@email.com", phone: "07911 334 778", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE3.id, vmDefs, 3, emily.id, { agent: "Emily", vendors: "Amanda", purchasers: "Jake", solicitor: "their solicitor" }, 10);
+  await completeN(txE3.id, pmDefs, 3, emily.id, { agent: "Emily", vendors: "Amanda", purchasers: "Jake", solicitor: "their solicitor" }, 10);
+  await addReminder(txE3.id, ruleByCode.get("VM14")!, emily.id, 5, "normal", 0);
+  await addReminder(txE3.id, ruleByCode.get("PM4")!, emily.id, 7, "normal", 0);
+  await addReminder(txE3.id, ruleByCode.get("PM7")!, emily.id, 10, "normal", 0);
+  await addComm(txE3.id, emily.id, "outbound", "phone", "Called Amanda — solicitor instructed, MOS received, ID and AML in progress. All looking good at this stage.", [txE3V.id], 2);
+  await addComm(txE3.id, emily.id, "outbound", "phone", "Spoke with Jake — FTB, working with broker at Nationwide. Mortgage application going in this week. He's keen to complete before his tenancy ends in July.", [txE3P.id], 3);
+  await addNote(txE3.id, emily.id, "Jake is a first-time buyer — needs extra guidance. His broker is Hannah Davies at Stonebridge Mortgages. Lease is 112 years — no issue for mortgage purposes.", 3);
+
+  // TXE4 — Contract pack issued, cash purchase, £340k freehold
+  const txE4 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "33 Hampton Road, Redland, Bristol, BS6 6HY",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    expectedExchangeDate: D(32), purchasePrice: 34000000,
+    tenure: Tenure.freehold, purchaseType: PurchaseType.cash,
+    vendorSolicitorFirmId: firmAndersons.id, vendorSolicitorContactId: contactAndersonLucy.id,
+    agentFeePercent: 1.0, agentFeeIsVatInclusive: false, createdAt: D(-28),
+  }});
+  const txE4V = await prisma.contact.create({ data: { propertyTransactionId: txE4.id, name: "Carolyn & Pete Marsh", email: "c.marsh@email.com", phone: "07700 991 334", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE4P = await prisma.contact.create({ data: { propertyTransactionId: txE4.id, name: "Arun Patel", email: "a.patel@email.com", phone: "07812 667 009", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE4.id, vmDefs, 10, emily.id, { agent: "Emily", vendors: "Carolyn and Pete", purchasers: "Arun", solicitor: "Andersons Property Law" }, 26);
+  await completeN(txE4.id, pmDefs, 7, emily.id, { agent: "Emily", vendors: "Carolyn and Pete", purchasers: "Arun", solicitor: "Andersons Property Law" }, 26);
+  await markNotRequired(txE4.id, pmDefs, ["PM4", "PM5", "PM6", "PM7", "PM20"], defIdMap, emily.id, "Cash purchase");
+  await addReminder(txE4.id, ruleByCode.get("PM11")!, emily.id, 6, "normal", 1, "Searches ordered — enquiries due next week");
+  await addReminder(txE4.id, ruleByCode.get("VM16")!, emily.id, 4, "normal", 0);
+  await addDoneReminder(txE4.id, ruleByCode.get("PM9")!, emily.id, 10);
+  await addComm(txE4.id, emily.id, "outbound", "phone", "Called Lucy Anderson at Andersons — contract pack received by Arun's solicitor. Searches ordered last week. Enquiries expected in 5 days.", [txE4P.id], 3);
+  await addNote(txE4.id, emily.id, "Arun is purchasing as investment — he already owns 3 properties. Cash buyer, funds held by his solicitor (Devlin Law, separately engaged). No chain.", 4);
+
+  // TXE5 — Completed 4 weeks ago
+  const txE5 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "7 Grove Road, Totterdown, Bristol, BS3 4LG",
+    status: TransactionStatus.completed, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 23500000, tenure: Tenure.freehold, purchaseType: PurchaseType.mortgage,
+    expectedExchangeDate: D(-35), completionDate: D(-28),
+    agentFeeAmount: 249500, agentFeeIsVatInclusive: false, createdAt: D(-68),
+  }});
+  const txE5V = await prisma.contact.create({ data: { propertyTransactionId: txE5.id, name: "Paula Griffiths", email: "p.griffiths@email.com", phone: "07623 112 889", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE5P = await prisma.contact.create({ data: { propertyTransactionId: txE5.id, name: "Sean & Beth O'Connor", email: "s.oconnor@email.com", phone: "07712 334 009", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE5.id, vmDefs, 20, emily.id, { agent: "Emily", vendors: "Paula", purchasers: "Sean and Beth", solicitor: "their solicitor" }, 66);
+  await completeN(txE5.id, pmDefs, 27, emily.id, { agent: "Emily", vendors: "Paula", purchasers: "Sean and Beth", solicitor: "their solicitor" }, 66);
+  await addComm(txE5.id, emily.id, "outbound", "phone", "Congratulations call to Paula, Sean and Beth on completion day — all keys collected, very smooth throughout. Paula was emotional — first time selling in 22 years.", [txE5V.id], 28);
+
+  // TXE6 — Just started, mortgage, £175k leasehold
+  const txE6 = await prisma.propertyTransaction.create({ data: {
+    propertyAddress: "Flat 2, Stokes Croft House, Bristol, BS1 3PR",
+    status: TransactionStatus.active, agencyId: agency.id,
+    agentUserId: emily.id, progressedBy: "agent", serviceType: "self_managed",
+    purchasePrice: 17500000,
+    tenure: Tenure.leasehold, purchaseType: PurchaseType.mortgage,
+    createdAt: D(-7),
+  }});
+  const txE6V = await prisma.contact.create({ data: { propertyTransactionId: txE6.id, name: "Nina Obi", email: "n.obi@email.com", phone: "07534 667 112", roleType: ContactRole.vendor, portalToken: randomUUID() }});
+  const txE6P = await prisma.contact.create({ data: { propertyTransactionId: txE6.id, name: "Callum Reed", email: "c.reed@email.com", phone: "07812 889 334", roleType: ContactRole.purchaser, portalToken: randomUUID() }});
+  await completeN(txE6.id, vmDefs, 2, emily.id, { agent: "Emily", vendors: "Nina", purchasers: "Callum", solicitor: "their solicitor" }, 5);
+  await completeN(txE6.id, pmDefs, 1, emily.id, { agent: "Emily", vendors: "Nina", purchasers: "Callum", solicitor: "their solicitor" }, 5);
+  await addReminder(txE6.id, ruleByCode.get("VM3")!, emily.id, 5, "normal", 0);
+  await addReminder(txE6.id, ruleByCode.get("PM14a")!, emily.id, 7, "normal", 0);
+  await addReminder(txE6.id, ruleByCode.get("PM4")!, emily.id, 9, "normal", 0);
+  await addComm(txE6.id, emily.id, "outbound", "phone", "Called Nina — she's instructed her solicitor (Devlin Law) and MOS received. Waiting on welcome pack. All normal at this stage.", [txE6V.id], 2);
+  await addComm(txE6.id, emily.id, "outbound", "phone", "Spoke with Callum — he's instructed a local solicitor and is submitting his mortgage application this week. Long-term tenant buying for the first time.", [txE6P.id], 3);
+
+  console.log("✓ 6 negotiator (Emily) additional transactions — she now has 10 total");
+
   console.log("\n✅ Seed complete.");
   console.log("   Password for all accounts: Hartwell2024!");
   console.log("");
-  console.log("   ellisaskey@googlemail.com    — Admin (you)          → /dashboard");
+  console.log("   ellisaskey@googlemail.com      — Admin (you)         → /dashboard");
   console.log("   ellis@thesalesprogressor.co.uk — Admin              → /dashboard");
-  console.log("   sarah@hartwellpartners.co.uk — Admin                → /dashboard");
-  console.log("   james@hartwellpartners.co.uk — Sales Progressor     → /dashboard");
-  console.log("   emily@hartwellpartners.co.uk — Negotiator (agent)   → /agent/dashboard");
+  console.log("   sarah@hartwellpartners.co.uk   — Admin              → /dashboard");
+  console.log("   james@hartwellpartners.co.uk   — Sales Progressor   → /dashboard");
+  console.log("   alex@hartwellpartners.co.uk    — Director (agent)   → /agent/hub  ← MOBILE AUDIT");
+  console.log("   emily@hartwellpartners.co.uk   — Negotiator (agent) → /agent/hub  ← MOBILE AUDIT");
   console.log("\n   Transactions:");
   console.log("   TX1  Active  Near exchange (14 days)      — 14 Elmwood Avenue");
   console.log("   TX2  Active  URGENT exchange (9 days)     — 83 Victoria Park Road");

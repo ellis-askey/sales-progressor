@@ -3,10 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, parseEmailMessage } from "@/lib/email";
+import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+
+  const rateLimit = await checkEmailLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 50 }));
+  if (!rateLimit.success) {
+    return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
+  }
 
   const { chaseTaskId, transactionId, toEmail, toName, messageText } = await req.json();
   if (!transactionId || !toEmail || !messageText) {

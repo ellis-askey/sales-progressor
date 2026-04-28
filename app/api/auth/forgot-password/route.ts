@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { checkAuthLimit, rateLimitJson } from "@/lib/ratelimit";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = forwarded?.split(",")[0].trim() ?? req.headers.get("x-real-ip") ?? "unknown";
+
+  const rateLimit = await checkAuthLimit(ip).catch(() => ({ success: true, reset: 0, remaining: 5 }));
+  if (!rateLimit.success) {
+    console.log(`[AUDIT] password_reset_rate_limited ip=${ip}`);
+    return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
+  }
+
   const { email } = await req.json();
   if (!email || typeof email !== "string") {
     return NextResponse.json({ error: "Email required" }, { status: 400 });
   }
 
   const normalised = email.trim().toLowerCase();
+
+  console.log(`[AUDIT] password_reset_requested email=${normalised} ip=${ip}`);
 
   // Always return 200 so we don't reveal whether an account exists
   const user = await prisma.user.findUnique({ where: { email: normalised } });

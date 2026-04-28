@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
     screenshotFilename: uploadedPath ? screenshotFilename : null,
   }).catch(console.error);
 
+  console.log(`[AUDIT] feedback_submitted feedbackId=${submission.id} category=${category} userId=${userId ?? "portal"} agencyId=${agencyId ?? "unknown"}`);
   return NextResponse.json({ success: true, id: submission.id });
   } catch (err) {
     console.error("[feedback] POST error:", err);

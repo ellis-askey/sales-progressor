@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
       createdById: session.user.id,
       agencyId: session.user.agencyId,
     });
+    if (type === "outbound") {
+      console.log(`[AUDIT] communication_sent transactionId=${transactionId} method=${method ?? "unknown"} sentByUserId=${session.user.id} agencyId=${session.user.agencyId}`);
+    }
     return NextResponse.json(record, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create record";

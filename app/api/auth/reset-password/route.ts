@@ -35,5 +35,7 @@ export async function POST(req: NextRequest) {
   await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
   await prisma.verificationToken.delete({ where: { identifier_token: { identifier: normalised, token } } });
 
+  console.log(`[AUDIT] password_reset_completed userId=${user.id}`);
+
   return NextResponse.json({ ok: true });
 }
