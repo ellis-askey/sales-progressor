@@ -23,7 +23,8 @@ export type MilestonesByTransaction = {
 
 // ── Prerequisite maps ──────────────────────────────────────────────────────────
 
-export { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+export { DIRECT_PREREQUISITES };
 
 // Only PM9 can be manually marked Not Required; PM10 cascades from it.
 export const NR_CASCADE: Record<string, string[]> = {
