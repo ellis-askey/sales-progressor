@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
@@ -87,6 +87,7 @@ function GroupedFileCard({
   handleSnooze,
   handleEscalate,
   handleManualChase,
+  handleChased,
 }: {
   txId: string;
   address: string;
@@ -99,6 +100,7 @@ function GroupedFileCard({
   handleSnooze: (taskId: string, hours: number) => void;
   handleEscalate: (taskId: string) => void;
   handleManualChase: (taskId: string) => void;
+  handleChased: (taskId: string) => void;
 }) {
   const leftBorder = GROUP_LEFT_BORDER[groupKey];
   return (
@@ -146,6 +148,7 @@ function GroupedFileCard({
             onSnooze={handleSnooze}
             onEscalate={handleEscalate}
             onManualChase={handleManualChase}
+            onChased={handleChased}
             grouped={true}
             lastComm={lastCommByTx.get(txId) ?? null}
             totalActiveOnFile={activeCountByTx.get(txId) ?? 1}
@@ -256,6 +259,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
     act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
   }
   function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
+  function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, "/agent/work-queue")); }
 
   function toggleCollapse(key: string) {
     setCollapsed((p) => ({ ...p, [key]: !p[key] }));
@@ -374,6 +378,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                         onSnooze={handleSnooze}
                         onEscalate={handleEscalate}
                         onManualChase={handleManualChase}
+                        onChased={handleChased}
                         lastComm={lastCommByTx.get(txId) ?? null}
                         totalActiveOnFile={activeCountByTx.get(txId) ?? 1}
                       />
@@ -393,6 +398,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                       handleSnooze={handleSnooze}
                       handleEscalate={handleEscalate}
                       handleManualChase={handleManualChase}
+                      handleChased={handleChased}
                     />
                   );
                 })}

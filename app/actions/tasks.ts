@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
-import { completeChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 
@@ -21,6 +21,12 @@ export async function snoozeTaskAction(taskId: string, snoozeHours: number, path
 export async function wakeupReminderAction(logId: string, pathname: string) {
   const session = await requireSession();
   await wakeUpReminderLog(logId, session.user.agencyId);
+  revalidatePath(pathname, "page");
+}
+
+export async function advanceChaseTaskAction(taskId: string, pathname: string) {
+  const session = await requireSession();
+  await advanceChaseTask(taskId, session.user.agencyId);
   revalidatePath(pathname, "page");
 }
 

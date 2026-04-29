@@ -240,6 +240,7 @@ interface ReminderCardProps {
   onEscalate: (taskId: string) => void;
   onWakeup?: (logId: string) => void;
   onManualChase?: (taskId: string) => void;
+  onChased?: (taskId: string) => void;
   mode?: "active" | "snoozed";
   grouped?: boolean;
   lastComm?: { createdAt: Date; method: string | null } | null;
@@ -259,6 +260,7 @@ export function ReminderCard({
   onEscalate,
   onWakeup,
   onManualChase,
+  onChased,
   mode = "active",
   grouped = false,
   lastComm,
@@ -454,7 +456,7 @@ export function ReminderCard({
                     milestoneName={stripChase(log.reminderRule.name)}
                     chaseCount={openTask.chaseCount}
                     contacts={chaseContacts}
-                    onSent={() => triggerComplete(openTask.id)}
+                    onSent={() => onChased?.(openTask.id)}
                   />
                   <SnoozeDropdown
                     taskId={openTask.id}

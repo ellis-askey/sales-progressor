@@ -50,7 +50,7 @@ export async function getReminderLogsForTransaction(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  return prisma.reminderLog.findMany({
+  const logs = await prisma.reminderLog.findMany({
     where: { transactionId },
     orderBy: { nextDueDate: "asc" },
     include: {
@@ -70,7 +70,24 @@ export async function getReminderLogsForTransaction(
         orderBy: { createdAt: "desc" },
       },
     },
-  }) as Promise<ReminderLogWithRule[]>;
+  }) as ReminderLogWithRule[];
+
+  const now = new Date();
+  const dueWithNoTask = logs.filter(
+    (l) => l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && new Date(l.nextDueDate) <= now
+  );
+  if (dueWithNoTask.length > 0) {
+    await Promise.all(
+      dueWithNoTask.map((l) =>
+        prisma.chaseTask.create({
+          data: { transactionId, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0 },
+        })
+      )
+    );
+    return getReminderLogsForTransaction(transactionId, agencyId);
+  }
+
+  return logs;
 }
 
 export async function getAgentReminderLogs(vis: AgentVisibility) {
@@ -81,7 +98,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       : { ...baseTxWhere, agentUserId: vis.userId }
     : { ...baseTxWhere, agentUserId: vis.userId };
 
-  return prisma.reminderLog.findMany({
+  const logs = await prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
     include: {
       reminderRule: {
@@ -111,6 +128,23 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     },
     orderBy: { nextDueDate: "asc" },
   });
+
+  const now = new Date();
+  const dueWithNoTask = logs.filter(
+    (l) => l.chaseTasks.length === 0 && new Date(l.nextDueDate) <= now
+  );
+  if (dueWithNoTask.length > 0) {
+    await Promise.all(
+      dueWithNoTask.map((l) =>
+        prisma.chaseTask.create({
+          data: { transactionId: l.transaction.id, reminderLogId: l.id, dueDate: l.nextDueDate, status: "pending", priority: "normal", chaseCount: 0 },
+        })
+      )
+    );
+    return getAgentReminderLogs(vis);
+  }
+
+  return logs;
 }
 
 export async function getChaseTasksForTransaction(transactionId: string, agencyId: string) {
@@ -429,6 +463,43 @@ async function deactivateLog(
 }
 
 // ─── Task actions ─────────────────────────────────────────────────────────────
+
+export async function advanceChaseTask(taskId: string, agencyId: string) {
+  const task = await prisma.chaseTask.findFirst({
+    where: { id: taskId, transaction: { agencyId } },
+    select: {
+      id: true,
+      chaseCount: true,
+      reminderLog: {
+        select: {
+          id: true,
+          nextDueDate: true,
+          reminderRule: { select: { repeatEveryDays: true, escalateAfterChases: true } },
+        },
+      },
+    },
+  });
+  if (!task) throw new Error("Task not found");
+
+  const newChaseCount = task.chaseCount + 1;
+  const repeatDays = task.reminderLog.reminderRule.repeatEveryDays;
+  const newPriority: TaskPriority = newChaseCount >= task.reminderLog.reminderRule.escalateAfterChases
+    ? "escalated"
+    : "normal";
+  const nextDue = new Date(task.reminderLog.nextDueDate);
+  nextDue.setDate(nextDue.getDate() + repeatDays);
+
+  await prisma.$transaction([
+    prisma.chaseTask.update({
+      where: { id: taskId },
+      data: { chaseCount: newChaseCount, priority: newPriority },
+    }),
+    prisma.reminderLog.update({
+      where: { id: task.reminderLog.id },
+      data: { nextDueDate: nextDue },
+    }),
+  ]);
+}
 
 export async function completeChaseTask(taskId: string, agencyId: string) {
   const task = await prisma.chaseTask.findFirst({

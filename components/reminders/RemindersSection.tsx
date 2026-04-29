@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { formatDate } from "@/lib/utils";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard, type Contact } from "@/components/reminders/ReminderCard";
 
 type ChaseTask = {
@@ -136,6 +136,9 @@ export function RemindersSection({
   function handleManualChase(taskId: string) {
     act(taskId, () => recordManualChaseAction(taskId, pathname));
   }
+  function handleChased(taskId: string) {
+    act(taskId, () => advanceChaseTaskAction(taskId, pathname));
+  }
 
   async function runEngine() {
     setLoading("engine");
@@ -216,6 +219,7 @@ export function RemindersSection({
                 onSnooze={handleSnooze}
                 onEscalate={handleEscalate}
                 onManualChase={handleManualChase}
+                onChased={handleChased}
               />
             ))}
           </div>
@@ -273,6 +277,7 @@ export function RemindersSection({
                 onEscalate={handleEscalate}
                 onWakeup={handleWakeup}
                 onManualChase={handleManualChase}
+                onChased={handleChased}
               />
             ))}
           </div>
