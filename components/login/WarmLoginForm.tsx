@@ -18,11 +18,12 @@ export function WarmLoginForm() {
     setError(null)
     setLoading(true)
     const result = await signIn("credentials", { email: email.trim(), password, redirect: false })
-    setLoading(false)
     if (result?.error || !result?.ok) {
+      setLoading(false)
       setError("Incorrect email or password.")
     } else {
       router.push("/")
+      // loading stays true — component unmounts on navigation, no flash
     }
   }
 

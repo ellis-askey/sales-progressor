@@ -101,9 +101,10 @@ export function AgentShell({ children, session, showWelcome }: { children: React
         className={`agent-glass agent-sidebar-mobile agent-sidebar-height${mobileOpen ? " agent-sidebar-mobile-open" : ""}`}
         style={{
           width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
-          position: "sticky", top: 0, overflowY: "auto",
+          position: "fixed", top: 0, left: 0, overflowY: "auto",
           borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
           borderRight: "0.5px solid var(--agent-glass-border)",
+          zIndex: 10,
         }}
       >
         {/* Brand */}
@@ -226,8 +227,8 @@ export function AgentShell({ children, session, showWelcome }: { children: React
         </div>
       </aside>
 
-      {/* Main content */}
-      <main style={{ flex: 1, minWidth: 0 }}>
+      {/* Main content — offset by fixed sidebar width on desktop */}
+      <main className="agent-main-content" style={{ flex: 1, minWidth: 0 }}>
         {children}
       </main>
 

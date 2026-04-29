@@ -79,9 +79,12 @@ export async function listTransactions(
       diff >= -25 ? "at_risk" :
       "off_track";
 
-    const { chaseTasks: _c, _count: _cnt, ...rest } = tx;
+    const { chaseTasks: _c, _count: _cnt, agentFeeAmount, agentFeePercent, referralFee, ...rest } = tx;
     return {
       ...rest,
+      agentFeeAmount: agentFeeAmount != null ? Number(agentFeeAmount) : null,
+      agentFeePercent: agentFeePercent != null ? Number(agentFeePercent) : null,
+      referralFee: referralFee != null ? Number(referralFee) : null,
       health: {
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,

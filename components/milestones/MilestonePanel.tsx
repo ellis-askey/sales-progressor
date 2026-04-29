@@ -27,7 +27,8 @@ const PURCHASER_SECTIONS: { label: string; codes: string[] }[] = [
   { label: "Exchange & Completion", codes: ["PM25","PM26","PM27"] },
 ];
 
-type EnrichedDef = MilestoneDefinition & {
+type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
+  weight: number;
   completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;

@@ -52,8 +52,8 @@ export function AppShell({
         background: "linear-gradient(rgba(8,12,25,0.52), rgba(6,10,22,0.58)), url('/hero-bg.jpg') center center / cover no-repeat",
       }} />
 
-      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-white/10 sticky top-0 h-screen overflow-y-auto"
-             style={{ boxShadow: "var(--shadow-sidebar)" }}>
+      <aside className="glass-sidebar w-56 flex-shrink-0 flex flex-col border-r border-white/10 fixed top-0 left-0 h-screen overflow-y-auto"
+             style={{ boxShadow: "var(--shadow-sidebar)", zIndex: 10 }}>
         <div className="px-5 py-5 border-b border-white/20">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -119,7 +119,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 min-h-screen">{children}</main>
+      <main className="flex-1 min-h-screen ml-56">{children}</main>
     </div>
     </AppShellClient>
   );

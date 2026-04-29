@@ -5,7 +5,8 @@ import { formatDate } from "@/lib/utils";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { reverseMilestoneAction } from "@/app/actions/milestones";
 
-type EnrichedDef = MilestoneDefinition & {
+type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
+  weight: number;
   completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;

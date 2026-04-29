@@ -6,7 +6,8 @@ import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
-export type DefinitionWithCompletion = MilestoneDefinition & {
+export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
+  weight: number;
   completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;
@@ -352,6 +353,7 @@ export async function getMilestonesForTransaction(
       const state = completion?.state ?? "locked";
       return {
         ...def,
+        weight: Number(def.weight),
         completion,
         isComplete: state === "complete",
         isNotRequired: state === "not_required",

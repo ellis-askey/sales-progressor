@@ -1033,7 +1033,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
               <div className="flex flex-col gap-2">
                 {([
                   ["mortgage", "Mortgage", "All mortgage milestones apply"],
-                  ["cash", "Cash", "Mortgage milestones not required"],
+                  ["cash_buyer", "Cash", "Mortgage milestones not required"],
                   ["cash_from_proceeds", "Cash from Proceeds", "Mortgage + deposit not required"],
                 ] as [PurchaseType, string, string][]).map(([value, label, note]) => (
                   <button

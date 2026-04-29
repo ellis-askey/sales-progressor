@@ -71,6 +71,7 @@ body {
    older browsers; 100dvh overrides it in browsers that support it. */
 .agent-shell-root  { min-height: 100vh; min-height: 100dvh; }
 .agent-sidebar-height { height: 100vh; height: 100dvh; }
+.agent-main-content { margin-left: 220px; }
 
 /* ─── Glass surface primitives ───────────────────────────────────────────── */
 /*
@@ -505,6 +506,11 @@ select {
   /* Stack header above main — sidebar is position:fixed (out of flow) on mobile */
   .agent-shell-root {
     flex-direction: column;
+  }
+
+  /* Remove sidebar offset on mobile — sidebar slides in as overlay */
+  .agent-main-content {
+    margin-left: 0;
   }
 
   /* Show top bar, hide desktop sidebar by default */

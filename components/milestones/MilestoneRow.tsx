@@ -12,7 +12,8 @@ import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 
 type Props = {
-  def: MilestoneDefinition & {
+  def: Omit<MilestoneDefinition, "weight"> & {
+    weight: number;
     completion: MilestoneCompletion | null;
     isComplete: boolean;
     isNotRequired: boolean;
