@@ -90,7 +90,7 @@ async function seed() {
       data: {
         transactionId: tx.id,
         milestoneDefinitionId: defId,
-        isActive: true,
+        state: "complete",
         completedAt: daysAgo(completedDaysAgo),
         completedById: user.id,
         summaryText: null,

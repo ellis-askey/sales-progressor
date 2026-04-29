@@ -158,8 +158,21 @@ enum Tenure {
 
 enum PurchaseType {
   mortgage
-  cash
+  cash_buyer
   cash_from_proceeds
+}
+
+enum MilestoneState {
+  locked
+  available
+  complete
+  not_required
+}
+
+enum CanBeMarkedNr {
+  never
+  auto_only
+  manual_allowed
 }
 
 model PriceHistory {
@@ -280,12 +293,12 @@ model MilestoneDefinition {
   name            String
   side            MilestoneSide
   orderIndex      Int
-  blocksExchange  Boolean       @default(true)
-  timeSensitive   Boolean       @default(false)
-  isExchangeGate  Boolean       @default(false)
-  isPostExchange  Boolean       @default(false)
+  blocksExchange     Boolean       @default(true)
+  eventDateRequired  Boolean       @default(false)
+  predecessorCode    String?
+  canBeMarkedNr      CanBeMarkedNr @default(never)
   summaryTemplate String        @default("")
-  weight          Int           @default(2)
+  weight          Decimal       @default(0)
   createdAt       DateTime      @default(now())
 
   completions   MilestoneCompletion[]
@@ -298,25 +311,26 @@ enum MilestoneSide {
 }
 
 model MilestoneCompletion {
-  id                    String    @id @default(cuid())
+  id                    String         @id @default(cuid())
   transactionId         String
   milestoneDefinitionId String
-  isActive              Boolean   @default(true)
-  completedAt           DateTime  @default(now())
+  state                 MilestoneState @default(locked)
+  completedAt           DateTime?
   eventDate             DateTime?
-  isNotRequired         Boolean   @default(false)
   notRequiredReason     String?
   completedById         String?
-  statusReason          String?
+  confirmedByPortal     Boolean        @default(false)
   summaryText           String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  reconciledAtExchange  Boolean        @default(false)
+  outOfOrderCompletion  Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   transaction         PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
   completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
 
-  @@index([transactionId, milestoneDefinitionId])
+  @@unique([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
 }
 

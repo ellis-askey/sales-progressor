@@ -15,7 +15,7 @@ export type ChainLinkData = {
     expectedExchangeDate: Date | null;
     vendorSolicitorFirm: { name: string } | null;
     purchaserSolicitorFirm: { name: string } | null;
-    milestoneCompletions: { completedAt: Date }[];
+    milestoneCompletions: { completedAt: Date | null }[];
   } | null;
 };
 
@@ -43,7 +43,7 @@ export async function getChainForTransaction(transactionId: string): Promise<Cha
                   vendorSolicitorFirm: { select: { name: true } },
                   purchaserSolicitorFirm: { select: { name: true } },
                   milestoneCompletions: {
-                    where: { isActive: true, isNotRequired: false },
+                    where: { state: "complete" },
                     orderBy: { completedAt: "desc" },
                     take: 1,
                     select: { completedAt: true },

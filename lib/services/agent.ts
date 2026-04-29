@@ -37,15 +37,15 @@ function txWhere(vis: AgentVisibility) {
 
 export async function getAgentTransactions(vis: AgentVisibility) {
   const defs = await prisma.milestoneDefinition.findMany({
-    where: { blocksExchange: true, isPostExchange: false, isExchangeGate: false },
+    where: { blocksExchange: true },
     select: { id: true },
   });
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16"] } },
+    where: { code: { in: ["VM19", "PM26"] } },
     select: { id: true },
   });
   const completionDefs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM13", "PM17"] } },
+    where: { code: { in: ["VM20", "PM27"] } },
     select: { id: true },
   });
 
@@ -61,7 +61,7 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false },
+        where: { state: "complete" },
         select: { milestoneDefinitionId: true },
       },
     },
@@ -125,12 +125,12 @@ export async function getAgentStats(vis: AgentVisibility) {
 
 export async function getAgentCompletions(vis: AgentVisibility) {
   const defs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
+    where: { code: { in: ["VM19", "PM26", "VM20", "PM27"] } },
     select: { id: true, code: true },
   });
 
-  const exchangeDefIds = defs.filter((d) => d.code === "VM12" || d.code === "PM16").map((d) => d.id);
-  const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
+  const exchangeDefIds = defs.filter((d) => d.code === "VM19" || d.code === "PM26").map((d) => d.id);
+  const completionDefIds = defs.filter((d) => d.code === "VM20" || d.code === "PM27").map((d) => d.id);
 
   const allPostExchangeDefIds = [...exchangeDefIds, ...completionDefIds];
 
@@ -139,7 +139,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       ...txWhere(vis),
       status: "active",
       milestoneCompletions: {
-        some: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: exchangeDefIds } },
+        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
     },
     select: {
@@ -153,7 +153,7 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: allPostExchangeDefIds } },
+        where: { state: "complete", milestoneDefinitionId: { in: allPostExchangeDefIds } },
         select: { milestoneDefinitionId: true, completedAt: true },
       },
     },
@@ -191,9 +191,8 @@ export async function getAgentMilestoneActivity(
   return prisma.milestoneCompletion.findMany({
     where: {
       transaction: { ...txWhere(vis), status: { not: DRAFT } },
-      isActive: true,
-      isNotRequired: false,
-      ...(portalOnly ? { statusReason: { contains: "via portal" } } : {}),
+      state: "complete",
+      ...(portalOnly ? { confirmedByPortal: true } : {}),
     },
     orderBy: { completedAt: "desc" },
     take: 150,

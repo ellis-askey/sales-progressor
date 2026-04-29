@@ -1387,6 +1387,14 @@ export function getMilestoneCopy(code: string): PortalCopy {
   return copy[code] ?? { label: code, who: "solicitor" };
 }
 
+export function getEventDateLabel(code: string): string {
+  if (code === "PM6") return "Valuation date";
+  if (code === "PM9") return "Survey date";
+  if (code === "VM19" || code === "PM26") return "Exchanged on";
+  if (code === "VM20" || code === "PM27") return "Completion date";
+  return "Event date";
+}
+
 export const WHO_LABELS: Record<string, string> = {
   you:       "You",
   solicitor: "Your solicitor",

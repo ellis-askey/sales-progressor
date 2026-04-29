@@ -63,7 +63,7 @@ function formatTenure(t: Tenure): string {
 }
 
 function formatPurchaseType(p: PurchaseType): string {
-  return { mortgage: "Mortgage", cash: "Cash", cash_from_proceeds: "Cash from Proceeds" }[p] ?? p;
+  return { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" }[p] ?? p;
 }
 
 export function PropertyHero({

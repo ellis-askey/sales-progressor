@@ -6,10 +6,11 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
-import { completeMilestone } from "@/lib/services/milestones";
+import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
-import type { TransactionStatus, PurchaseType, Tenure, ContactRole } from "@prisma/client";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
 
@@ -72,6 +73,11 @@ export async function createTransactionAction(input: {
         portalToken: randomUUID(),
       })),
     });
+  }
+
+  // Initialize all milestone completions (available/locked/not_required per tenure+purchaseType)
+  if (input.tenure && input.purchaseType) {
+    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id);
   }
 
   // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides
@@ -528,4 +534,329 @@ export async function discardDraftAction(draftId: string) {
   });
   revalidatePath("/agent/quick-add");
   revalidatePath("/agent/transactions/new");
+}
+
+// ─── Edit Sale Details reconciliation ────────────────────────────────────────
+
+const CASH_NR_CODES = new Set(["PM5", "PM6", "PM11"]);
+const FREEHOLD_NR_CODES = new Set(["VM8", "VM9", "PM12"]);
+const EXCHANGE_GATE_CODES_SET = new Set(["VM18", "PM25"]);
+
+function computeAutoNrCodes(purchaseType: PurchaseType | null, tenure: Tenure | null): Set<string> {
+  const codes = new Set<string>();
+  if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {
+    CASH_NR_CODES.forEach((c) => codes.add(c));
+  }
+  if (tenure === "freehold") {
+    FREEHOLD_NR_CODES.forEach((c) => codes.add(c));
+  }
+  return codes;
+}
+
+function computeNewMilestoneState(code: string, stateByCode: Map<string, string>): "available" | "locked" {
+  if (EXCHANGE_GATE_CODES_SET.has(code)) return "locked";
+  const prereqs = DIRECT_PREREQUISITES[code] ?? [];
+  if (prereqs.length === 0) return "available";
+  const allSatisfied = prereqs.every((p) => {
+    const s = stateByCode.get(p);
+    return s === "complete" || s === "not_required";
+  });
+  return allSatisfied ? "available" : "locked";
+}
+
+function calcSidePercent(milestones: { weight: number; isComplete: boolean; isNotRequired: boolean }[]): number {
+  const applicable = milestones.filter((m) => !m.isNotRequired);
+  const denom = applicable.reduce((s, m) => s + m.weight, 0);
+  if (denom === 0) return 100;
+  const num = applicable.filter((m) => m.isComplete).reduce((s, m) => s + m.weight, 0);
+  return (num / denom) * 100;
+}
+
+export type SaleDetailsDeltaItem = { id: string; name: string; code: string; side: string; weight: number; wasComplete: boolean };
+
+export type SaleDetailsDelta = {
+  noChange: boolean;
+  becomingNr: SaleDetailsDeltaItem[];
+  becomingRequired: SaleDetailsDeltaItem[];
+  currentPercent: number;
+  projectedPercent: number;
+  currentRemaining: number;
+  projectedRemaining: number;
+};
+
+export async function getSaleDetailsDelta(input: {
+  transactionId: string;
+  newPurchaseType: PurchaseType;
+  newTenure: Tenure;
+}): Promise<SaleDetailsDelta> {
+  const session = await requireSession();
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true, purchaseType: true, tenure: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure) {
+    return { noChange: true, becomingNr: [], becomingRequired: [], currentPercent: 0, projectedPercent: 0, currentRemaining: 0, projectedRemaining: 0 };
+  }
+
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure);
+
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, name: true, side: true, weight: true },
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+  });
+
+  const defByCode = new Map(allDefs.map((d) => [d.code, d]));
+  const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
+
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: input.transactionId },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+
+  const stateByCode = new Map(completions.map((c) => [codeById.get(c.milestoneDefinitionId) ?? "", c.state as string]));
+
+  const becomingNr: SaleDetailsDeltaItem[] = [];
+  const becomingRequired: SaleDetailsDeltaItem[] = [];
+
+  for (const code of newNrCodes) {
+    if (oldNrCodes.has(code)) continue;
+    const def = defByCode.get(code);
+    if (!def) continue;
+    const state = stateByCode.get(code);
+    if (state === "not_required") continue; // already NR — no-op
+    becomingNr.push({ id: def.id, name: def.name, code, side: def.side, weight: Number(def.weight), wasComplete: state === "complete" });
+  }
+
+  for (const code of oldNrCodes) {
+    if (newNrCodes.has(code)) continue;
+    const def = defByCode.get(code);
+    if (!def) continue;
+    if (stateByCode.get(code) === "not_required") {
+      becomingRequired.push({ id: def.id, name: def.name, code, side: def.side, weight: Number(def.weight), wasComplete: false });
+    }
+  }
+
+  // Simulate projected state for percent calculation
+  const projectedStates = new Map(stateByCode);
+  for (const item of becomingNr) projectedStates.set(item.code, "not_required");
+  for (const item of becomingRequired) projectedStates.set(item.code, computeNewMilestoneState(item.code, projectedStates));
+
+  const vendor = allDefs.filter((d) => d.side === "vendor");
+  const purchaser = allDefs.filter((d) => d.side === "purchaser");
+
+  const toLite = (defs: typeof allDefs, states: Map<string, string>) =>
+    defs.map((d) => {
+      const s = states.get(d.code) ?? "locked";
+      return { weight: Number(d.weight), isComplete: s === "complete", isNotRequired: s === "not_required" };
+    });
+
+  const currentLite = [...toLite(vendor, stateByCode), ...toLite(purchaser, stateByCode)];
+  const projectedLite = [...toLite(vendor, projectedStates), ...toLite(purchaser, projectedStates)];
+
+  const currentPercent = Math.round((calcSidePercent(toLite(vendor, stateByCode)) + calcSidePercent(toLite(purchaser, stateByCode))) / 2);
+  const projectedPercent = Math.round((calcSidePercent(toLite(vendor, projectedStates)) + calcSidePercent(toLite(purchaser, projectedStates))) / 2);
+  const currentRemaining = currentLite.filter((m) => !m.isNotRequired && !m.isComplete).length;
+  const projectedRemaining = projectedLite.filter((m) => !m.isNotRequired && !m.isComplete).length;
+
+  return { noChange: false, becomingNr, becomingRequired, currentPercent, projectedPercent, currentRemaining, projectedRemaining };
+}
+
+export async function confirmSaleDetailsAction(input: {
+  transactionId: string;
+  newPurchaseType: PurchaseType;
+  newTenure: Tenure;
+}): Promise<void> {
+  const session = await requireSession();
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true, purchaseType: true, tenure: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (input.newPurchaseType === tx.purchaseType && input.newTenure === tx.tenure) return;
+
+  const oldNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
+  const newNrCodes = computeAutoNrCodes(input.newPurchaseType, input.newTenure);
+
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, name: true, side: true, blocksExchange: true },
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+  });
+  const defByCode = new Map(allDefs.map((d) => [d.code, d]));
+  const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
+
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: input.transactionId },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const stateByCode = new Map(completions.map((c) => [codeById.get(c.milestoneDefinitionId) ?? "", c.state as string]));
+
+  // Codes that are newly becoming NR — includes complete milestones (will be reversed)
+  const toNrCodes = [...newNrCodes].filter((c) => !oldNrCodes.has(c) && stateByCode.get(c) !== "not_required");
+
+  // Codes that were auto-NR and must return to required
+  const toRequiredCodes = [...oldNrCodes].filter((c) => !newNrCodes.has(c) && stateByCode.get(c) === "not_required");
+
+  // Simulate NR writes first so re-activation prereq check sees correct state
+  const projectedStates = new Map(stateByCode);
+  for (const code of toNrCodes) projectedStates.set(code, "not_required");
+
+  const reactivatedStates = new Map<string, "available" | "locked">();
+  for (const code of toRequiredCodes) {
+    const newState = computeNewMilestoneState(code, projectedStates);
+    reactivatedStates.set(code, newState);
+    projectedStates.set(code, newState);
+  }
+
+  // Reminder logs for NR'd milestones
+  const nrReminderLogs = toNrCodes.length > 0
+    ? await prisma.reminderLog.findMany({
+        where: {
+          transactionId: input.transactionId,
+          status: "active",
+          reminderRule: { targetMilestoneCode: { in: toNrCodes } },
+        },
+        select: { id: true },
+      })
+    : [];
+
+  // Which sides have blocksExchange milestones in the affected set — need gate sync
+  const affectedSides = new Set<MilestoneSide>();
+  for (const code of [...toNrCodes, ...toRequiredCodes]) {
+    const def = defByCode.get(code);
+    if (def?.blocksExchange) affectedSides.add(def.side);
+  }
+
+
+  await prisma.$transaction(async (ptx) => {
+    // 1. Update sale details
+    await ptx.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { purchaseType: input.newPurchaseType, tenure: input.newTenure },
+    });
+
+    // 2. NR milestones (includes reversal of complete ones)
+    const reversedCodes: string[] = [];
+    for (const code of toNrCodes) {
+      const def = defByCode.get(code);
+      if (!def) continue;
+      const nrReason = FREEHOLD_NR_CODES.has(code) ? "Freehold property"
+        : input.newPurchaseType === "cash_buyer" ? "Cash buyer" : "Cash from proceeds";
+      const wasComplete = stateByCode.get(code) === "complete";
+      await ptx.milestoneCompletion.update({
+        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def.id } },
+        data: {
+          state: "not_required",
+          notRequiredReason: nrReason,
+          completedAt: null,
+          completedById: session.user.id,
+          summaryText: wasComplete ? null : undefined,
+        },
+      });
+      if (wasComplete) reversedCodes.push(code);
+    }
+
+    // 3a. Comms records for reversed milestones
+    const TYPE_LABEL_COMMS: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" };
+    const TENURE_LABEL_COMMS: Record<string, string> = { leasehold: "Leasehold", freehold: "Freehold" };
+    for (const code of reversedCodes) {
+      const def = defByCode.get(code);
+      if (!def) continue;
+      const changeDesc = CASH_NR_CODES.has(code)
+        ? `purchase type changed from ${TYPE_LABEL_COMMS[tx.purchaseType ?? ""] ?? tx.purchaseType} to ${TYPE_LABEL_COMMS[input.newPurchaseType]}`
+        : `tenure changed from ${TENURE_LABEL_COMMS[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL_COMMS[input.newTenure]}`;
+      await ptx.communicationRecord.create({
+        data: {
+          transactionId: input.transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: `Milestone reversed: "${def.name}" no longer applies — ${changeDesc}.`,
+          createdById: session.user.id,
+        },
+      });
+    }
+
+    // ATOMICITY_TEST: throw new Error("Atomicity test — roll back");
+
+    // 4. Re-activate milestones
+    for (const [code, newState] of reactivatedStates) {
+      const def = defByCode.get(code);
+      if (!def) continue;
+      await ptx.milestoneCompletion.update({
+        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def!.id } },
+        data: { state: newState, notRequiredReason: null, completedAt: null, completedById: null },
+      });
+    }
+
+    // 5. Deactivate reminder logs for NR'd milestones
+    if (nrReminderLogs.length > 0) {
+      const logIds = nrReminderLogs.map((l) => l.id);
+      await ptx.chaseTask.updateMany({
+        where: { reminderLogId: { in: logIds }, status: "pending" },
+        data: { status: "inactive" },
+      });
+      await ptx.reminderLog.updateMany({
+        where: { id: { in: logIds } },
+        data: { status: "inactive", statusReason: "Marked not required — sale details changed" },
+      });
+    }
+
+    // 6. Gate sync for each affected side
+    for (const side of affectedSides) {
+      const gateCode = side === "vendor" ? "VM18" : "PM25";
+      const gateDef = defByCode.get(gateCode);
+      if (!gateDef) continue;
+      const gateDefId = gateDef!.id;
+
+      const gateComp = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId },
+        select: { state: true },
+      });
+      if (!gateComp) continue;
+      const gateState = gateComp!.state;
+      if (gateState === "complete" || gateState === "not_required") continue;
+
+      const blockers = allDefs.filter((d) => d.side === side && d.blocksExchange && d.code !== gateCode);
+      const blockerComps = await ptx.milestoneCompletion.findMany({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+        select: { milestoneDefinitionId: true, state: true },
+      });
+      const blockerMap = new Map(blockerComps.map((c) => [c.milestoneDefinitionId, c.state]));
+
+      const allClear = blockers.every((b) => {
+        const s = blockerMap.get(b.id);
+        return s === "complete" || s === "not_required";
+      });
+
+      if (allClear && gateState === "locked") {
+        await ptx.milestoneCompletion.update({
+          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
+          data: { state: "available" },
+        });
+      } else if (!allClear && gateState === "available") {
+        await ptx.milestoneCompletion.update({
+          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
+          data: { state: "locked" },
+        });
+      }
+    }
+  });
+
+  const TYPE_LABEL: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" };
+  const TENURE_LABEL: Record<string, string> = { leasehold: "Leasehold", freehold: "Freehold" };
+  const changes: string[] = [];
+  if (input.newPurchaseType !== tx.purchaseType) {
+    changes.push(`purchase type from ${TYPE_LABEL[tx.purchaseType ?? ""] ?? tx.purchaseType} to ${TYPE_LABEL[input.newPurchaseType]}`);
+  }
+  if (input.newTenure !== tx.tenure) {
+    changes.push(`tenure from ${TENURE_LABEL[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL[input.newTenure]}`);
+  }
+  await logActivity(input.transactionId, `${session.user.name} updated ${changes.join(" and ")}`, session.user.id);
+
+  revalidateTx(input.transactionId);
 }

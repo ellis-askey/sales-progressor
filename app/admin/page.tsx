@@ -102,20 +102,20 @@ export default async function AdminPage() {
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40 w-12">#</th>
                         <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Name</th>
                         <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Blocks exch.</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Time sensitive</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Exchange gate</th>
-                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Post exchange</th>
+                        <th className="text-left px-3 py-2.5 text-xs font-medium text-slate-900/40">Code</th>
+                        <th className="text-left px-3 py-2.5 text-xs font-medium text-slate-900/40">Predecessor</th>
+                        <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Can N/R</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/15">
                       {defs.map((d) => (
-                        <tr key={d.id} className={d.isExchangeGate || d.isPostExchange ? "bg-amber-50/20" : ""}>
+                        <tr key={d.id}>
                           <td className="px-4 py-2.5 text-xs text-slate-900/40">{d.orderIndex}</td>
                           <td className="px-4 py-2.5 text-slate-900/80">{d.name}</td>
                           <td className="px-3 py-2.5 text-center">{d.blocksExchange ? <Flag color="blue" /> : <Dash />}</td>
-                          <td className="px-3 py-2.5 text-center">{d.timeSensitive ? <Flag color="amber" /> : <Dash />}</td>
-                          <td className="px-3 py-2.5 text-center">{d.isExchangeGate ? <Flag color="green" /> : <Dash />}</td>
-                          <td className="px-3 py-2.5 text-center">{d.isPostExchange ? <Flag color="gray" /> : <Dash />}</td>
+                          <td className="px-3 py-2.5 text-xs text-slate-900/60 font-mono">{d.code}</td>
+                          <td className="px-3 py-2.5 text-xs text-slate-900/40 font-mono">{d.predecessorCode ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-slate-900/60">{d.canBeMarkedNr === "never" ? <Dash /> : d.canBeMarkedNr}</td>
                         </tr>
                       ))}
                     </tbody>

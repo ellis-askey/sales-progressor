@@ -29,7 +29,7 @@ function groupTimeline(entries: TimelineEntry[]): { label: string; items: Timeli
   const groups: { label: string; items: TimelineEntry[] }[] = [];
   const seen = new Set<string>();
   for (const e of entries) {
-    const label = groupLabel(e.createdAt);
+    const label = groupLabel(e.createdAt ?? new Date());
     if (!seen.has(label)) { seen.add(label); groups.push({ label, items: [] }); }
     groups[groups.length - 1].items.push(e);
   }
@@ -145,7 +145,7 @@ export default async function PortalUpdatesPage({
                             : entry.completedByName
                               ? `Confirmed by ${entry.completedByName}`
                               : "Milestone confirmed"}
-                          {" · "}{fmtDate(entry.createdAt)} · {fmtTime(entry.createdAt)}
+                          {" · "}{fmtDate(entry.createdAt ?? new Date())} · {fmtTime(entry.createdAt ?? new Date())}
                         </p>
                       </div>
                     </div>

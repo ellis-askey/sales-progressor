@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -14,21 +15,20 @@ const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
 };
 
 const VENDOR_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["VM1","VM2","VM3","VM14","VM15","VM4"] },
-  { label: "Conveyancing",          codes: ["VM5","VM6","VM7","VM16","VM17","VM8","VM18","VM19","VM9"] },
-  { label: "Exchange & Completion", codes: ["VM10","VM11","VM20","VM12","VM13"] },
+  { label: "Onboarding",            codes: ["VM1","VM2","VM3","VM4","VM5","VM6"] },
+  { label: "Conveyancing",          codes: ["VM7","VM8","VM9","VM10","VM11","VM12","VM13","VM14","VM15","VM16","VM17"] },
+  { label: "Exchange & Completion", codes: ["VM18","VM19","VM20"] },
 ];
 
 const PURCHASER_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["PM1","PM2","PM14a","PM15a"] },
-  { label: "Finances",              codes: ["PM4","PM5","PM6"] },
-  { label: "Surveys",               codes: ["PM7","PM20"] },
-  { label: "Conveyancing",          codes: ["PM3","PM9","PM8","PM10","PM11","PM21","PM22","PM12","PM23","PM24","PM25"] },
-  { label: "Exchange & Completion", codes: ["PM26","PM13","PM14b","PM15b","PM27","PM16","PM17"] },
+  { label: "Onboarding",            codes: ["PM1","PM2","PM3","PM4"] },
+  { label: "Finances",              codes: ["PM5","PM6","PM11","PM9","PM10"] },
+  { label: "Conveyancing",          codes: ["PM7","PM8","PM12","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24"] },
+  { label: "Exchange & Completion", codes: ["PM25","PM26","PM27"] },
 ];
 
 type EnrichedDef = MilestoneDefinition & {
-  activeCompletion: MilestoneCompletion | null;
+  completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;
@@ -73,9 +73,12 @@ export function MilestonePanel({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed);
   const [nrCollapsed, setNrCollapsed] = useState(true);
   const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
+  const [optimisticallyRelockedIds, setOptimisticallyRelockedIds] = useState<Set<string>>(new Set());
 
+  // Clear optimistic state once the server data arrives with the real unlock/relock
   useEffect(() => {
     setOptimisticallyUnlockedIds(new Set());
+    setOptimisticallyRelockedIds(new Set());
   }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
@@ -95,32 +98,66 @@ export function MilestonePanel({
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
-  const orderedRows = useMemo(() => {
-    const result: EnrichedDef[] = [];
-    for (const section of sectionDefs) {
-      const codeSet = new Set(section.codes);
-      const rows = milestones
-        .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
-        .sort((a, b) => a.orderIndex - b.orderIndex);
-      result.push(...rows);
-    }
-    return result;
-  }, [milestones, sectionDefs]);
-
-  function handleConfirmStart(currentId: string) {
-    const currentIdx = orderedRows.findIndex((m) => m.id === currentId);
-    if (currentIdx === -1) return;
-    const next = orderedRows.slice(currentIdx + 1).find(
-      (m) => !m.isComplete && !m.isNotRequired && !m.isAvailable
+  // Shared: after a milestone is confirmed or NR'd, unlock any dependent that is
+  // now fully satisfied. Called by handleConfirmStart and handleNRStart.
+  function unlockDependents(doneId: string, doneCode: string) {
+    const codeToId = new Map(milestones.map((m) => [m.code, m.id]));
+    const satisfiedIds = new Set(
+      milestones.filter((m) => m.isComplete || m.isNotRequired).map((m) => m.id)
     );
-    if (next) {
-      setOptimisticallyUnlockedIds((prev) => new Set([...prev, next.id]));
+    satisfiedIds.add(doneId);
+
+    const toUnlock: string[] = [];
+    for (const m of milestones) {
+      if (m.isComplete || m.isNotRequired || m.isAvailable) continue;
+      const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
+      if (!prereqs.includes(doneCode)) continue;
+      const allMet = prereqs.every((p) => {
+        const pid = codeToId.get(p);
+        return pid ? satisfiedIds.has(pid) : true;
+      });
+      if (allMet) toUnlock.push(m.id);
     }
+    if (toUnlock.length > 0) {
+      setOptimisticallyUnlockedIds((prev) => new Set([...prev, ...toUnlock]));
+    }
+  }
+
+  function handleConfirmStart(confirmedId: string, confirmedCode: string) {
+    unlockDependents(confirmedId, confirmedCode);
+  }
+
+  // N/R counts as "satisfied" for prereq purposes — same cascade as Confirm.
+  function handleNRStart(nrId: string, nrCode: string) {
+    unlockDependents(nrId, nrCode);
+  }
+
+  // After undoing a milestone, re-lock any dependent that is now no longer
+  // fully satisfied. Only affects available (not yet confirmed) dependents.
+  function handleUndoStart(undoneId: string, undoneCode: string) {
+    const toRelock: string[] = [];
+    for (const m of milestones) {
+      if (m.isComplete || m.isNotRequired || !m.isAvailable) continue;
+      const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
+      if (prereqs.includes(undoneCode)) toRelock.push(m.id);
+    }
+    if (toRelock.length > 0) {
+      setOptimisticallyRelockedIds((prev) => new Set([...prev, ...toRelock]));
+    }
+    // The undone milestone itself loses its "complete" status — remove from unlocked set
+    setOptimisticallyUnlockedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(undoneId);
+      return next;
+    });
   }
 
   const totalAll = milestones.length;
   const doneAll = milestones.filter((m) => m.isComplete || m.isNotRequired).length;
-  const progressPct = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+  const applicableMs = milestones.filter((m) => !m.isNotRequired);
+  const applicableWeight = applicableMs.reduce((s, m) => s + Number(m.weight), 0);
+  const completedWeight = applicableMs.filter((m) => m.isComplete).reduce((s, m) => s + Number(m.weight), 0);
+  const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
 
   const barGradient =
     progressPct < 40
@@ -255,7 +292,7 @@ export function MilestonePanel({
             const codeSet = new Set(section.codes);
             const rows = milestones
               .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
-              .sort((a, b) => a.orderIndex - b.orderIndex);
+              .sort((a, b) => section.codes.indexOf(a.code) - section.codes.indexOf(b.code));
             const allInSection = milestones.filter((m) => codeSet.has(m.code));
             if (allInSection.length === 0) return null;
             const sectionDone = allInSection.filter((m) => m.isComplete || m.isNotRequired).length;
@@ -300,8 +337,11 @@ export function MilestonePanel({
                         key={def.id}
                         def={def}
                         transactionId={transactionId}
-                        onConfirmStart={() => handleConfirmStart(def.id)}
+                        onConfirmStart={() => handleConfirmStart(def.id, def.code)}
                         optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                        optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                        onNRStart={() => handleNRStart(def.id, def.code)}
+                        onUndoStart={() => handleUndoStart(def.id, def.code)}
                       />
                     ))}
                   </div>

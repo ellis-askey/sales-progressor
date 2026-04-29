@@ -58,7 +58,7 @@ export function RecentActivityWidget({ entries }: Props) {
                     <p className="text-xs font-semibold text-slate-900/80 truncate">
                       {entry.isNotRequired ? "N/A — " : ""}{entry.milestoneName}
                     </p>
-                    <p className="text-xs text-slate-900/40 mt-0.5">{relativeDate(entry.at)}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5">{entry.at ? relativeDate(entry.at) : ""}</p>
                   </div>
                 </div>
               );

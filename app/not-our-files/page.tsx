@@ -30,7 +30,7 @@ export default async function NotOurFilesPage() {
         agentUser: { select: { name: true, email: true } },
         contacts: { select: { name: true, roleType: true } },
         milestoneCompletions: {
-          where: { isActive: true, isNotRequired: false },
+          where: { state: "complete" },
           orderBy: { completedAt: "desc" },
           take: 1,
           select: { completedAt: true, summaryText: true },
@@ -131,7 +131,7 @@ export default async function NotOurFilesPage() {
                         {lastMilestone && (
                           <p className="text-xs text-slate-900/40 mt-1 truncate">
                             Last: {lastMilestone.summaryText ?? "Milestone completed"} ·{" "}
-                            {new Date(lastMilestone.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            {lastMilestone.completedAt ? new Date(lastMilestone.completedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
                           </p>
                         )}
                       </div>

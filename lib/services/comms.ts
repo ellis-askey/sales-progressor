@@ -15,7 +15,7 @@ export type ActivityEntry =
   | {
       kind: "milestone";
       id: string;
-      at: Date;
+      at: Date | null;
       summaryText: string | null;
       milestoneName: string;
       milestoneCode: string;
@@ -53,7 +53,7 @@ export async function getActivityTimeline(
 
   const [completions, comms] = await Promise.all([
     prisma.milestoneCompletion.findMany({
-      where: { transactionId, isActive: true },
+      where: { transactionId, state: { in: ["complete", "not_required"] } },
       orderBy: { completedAt: "desc" },
       include: {
         milestoneDefinition: { select: { name: true, code: true } },
@@ -70,10 +70,8 @@ export async function getActivityTimeline(
   ]);
 
   const milestoneEntries: ActivityEntry[] = completions.map((c) => {
-    const confirmedByClient = c.statusReason?.startsWith("Confirmed by") ?? false;
-    const confirmerName = confirmedByClient
-      ? (c.statusReason?.replace(/^Confirmed by /, "").replace(/ via portal$/, "") ?? null)
-      : null;
+    const confirmedByClient = c.confirmedByPortal;
+    const confirmerName = confirmedByClient ? "Client (portal)" : null;
     return {
       kind: "milestone",
       id: c.id,
@@ -82,7 +80,7 @@ export async function getActivityTimeline(
       milestoneName: c.milestoneDefinition.name,
       milestoneCode: c.milestoneDefinition.code,
       completedByName: c.completedBy?.name ?? null,
-      isNotRequired: c.isNotRequired,
+      isNotRequired: c.state === "not_required",
       confirmedByClient,
       confirmerName,
     };
@@ -104,7 +102,7 @@ export async function getActivityTimeline(
   }));
 
   return [...milestoneEntries, ...commEntries].sort(
-    (a, b) => b.at.getTime() - a.at.getTime()
+    (a, b) => (b.at?.getTime() ?? 0) - (a.at?.getTime() ?? 0)
   );
 }
 

@@ -27,14 +27,14 @@ export async function listTransactions(
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false },
+        where: { state: "complete" },
         orderBy: { completedAt: "desc" },
         take: 1,
         select: { completedAt: true },
       },
       _count: {
         select: {
-          milestoneCompletions: { where: { isActive: true, isNotRequired: false } },
+          milestoneCompletions: { where: { state: "complete" } },
         },
       },
       chaseTasks: {
@@ -66,11 +66,11 @@ export async function listTransactions(
       : null;
 
     // Confidence score: completed milestones vs 12-week benchmark
-    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 38 pre-exchange milestones.
+    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 47 milestones.
     const completedCount = tx._count.milestoneCompletions;
     const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
     const weeksElapsed = daysElapsed / 7;
-    const actualPercent = Math.min(100, (completedCount / 38) * 100);
+    const actualPercent = Math.min(100, (completedCount / 47) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
     const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
@@ -160,6 +160,14 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
         { overridePredictedDate: { not: null } },
         { expectedExchangeDate: { not: null } },
       ],
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          },
+        },
+      },
     },
     select: {
       id: true,
@@ -218,12 +226,12 @@ export type PostExchangeGroup = {
 
 export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<PostExchangeGroup[]> {
   const defs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
+    where: { code: { in: ["VM19", "PM26", "VM20", "PM27"] } },
     select: { id: true, code: true },
   });
 
-  const exchangeDefIds = defs.filter((d) => d.code === "VM12" || d.code === "PM16").map((d) => d.id);
-  const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
+  const exchangeDefIds = defs.filter((d) => d.code === "VM19" || d.code === "PM26").map((d) => d.id);
+  const completionDefIds = defs.filter((d) => d.code === "VM20" || d.code === "PM27").map((d) => d.id);
 
   let agentFilter: Record<string, unknown>;
   if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
@@ -236,7 +244,7 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
       status: "active",
       ...agentFilter,
       milestoneCompletions: {
-        some: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: exchangeDefIds } },
+        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
     },
     select: {
@@ -245,7 +253,7 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
       completionDate: true,
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: completionDefIds } },
+        where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
         select: { id: true },
       },
     },
@@ -314,12 +322,12 @@ export type PostExchangeGroupDetailed = {
 
 export async function getCompletingFilesDetailed(agencyId: string): Promise<PostExchangeGroupDetailed[]> {
   const defs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16", "VM13", "PM17"] } },
+    where: { code: { in: ["VM19", "PM26", "VM20", "PM27"] } },
     select: { id: true, code: true },
   });
 
-  const exchangeDefIds = defs.filter((d) => d.code === "VM12" || d.code === "PM16").map((d) => d.id);
-  const completionDefIds = defs.filter((d) => d.code === "VM13" || d.code === "PM17").map((d) => d.id);
+  const exchangeDefIds = defs.filter((d) => d.code === "VM19" || d.code === "PM26").map((d) => d.id);
+  const completionDefIds = defs.filter((d) => d.code === "VM20" || d.code === "PM27").map((d) => d.id);
 
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
@@ -327,7 +335,7 @@ export async function getCompletingFilesDetailed(agencyId: string): Promise<Post
       status: "active",
       progressedBy: "progressor",
       milestoneCompletions: {
-        some: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: exchangeDefIds } },
+        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
     },
     select: {
@@ -340,7 +348,7 @@ export async function getCompletingFilesDetailed(agencyId: string): Promise<Post
       purchaserSolicitorFirm: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false, milestoneDefinitionId: { in: completionDefIds } },
+        where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
         select: { id: true },
       },
     },
@@ -446,69 +454,5 @@ export async function createTransaction(input: CreateTransactionInput) {
     },
   });
 
-  // Fire-and-forget — don't block the create response
-  autoSetNotRequired(tx.id, input.tenure, input.purchaseType).catch(console.error);
-
   return tx;
-}
-
-/**
- * Automatically mark milestones as not required based on tenure and purchase type.
- * Freehold → management pack milestones not required
- * Cash / cash from proceeds → mortgage milestones not required
- * Cash from proceeds → deposit also not required
- */
-async function autoSetNotRequired(
-  transactionId: string,
-  tenure: Tenure | null | undefined,
-  purchaseType: PurchaseType | null | undefined
-) {
-  const notRequiredCodes: string[] = [];
-
-  if (tenure === "freehold") {
-    notRequiredCodes.push("VM6", "VM7", "PM8");
-  }
-
-  if (purchaseType === "cash" || purchaseType === "cash_from_proceeds") {
-    notRequiredCodes.push("PM4", "PM5", "PM6");
-  }
-
-  if (purchaseType === "cash_from_proceeds") {
-    notRequiredCodes.push("PM15b");
-  }
-
-  if (notRequiredCodes.length === 0) return;
-
-  const defs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: notRequiredCodes } },
-    select: { id: true, code: true },
-  });
-
-  for (const def of defs) {
-    await prisma.milestoneCompletion.create({
-      data: {
-        transactionId,
-        milestoneDefinitionId: def.id,
-        isActive: true,
-        isNotRequired: true,
-        notRequiredReason: `Auto-set on file creation (${tenure ?? ""}${purchaseType ? ` / ${purchaseType}` : ""})`,
-        statusReason: "Auto-set on file creation",
-      },
-    });
-  }
-
-  // Log to activity timeline — only if there's a valid user to attribute it to
-  const txRecord = await prisma.propertyTransaction.findUnique({ where: { id: transactionId }, select: { assignedUserId: true } });
-  const createdById = txRecord?.assignedUserId ?? null;
-  if (notRequiredCodes.length > 0 && createdById) {
-    await prisma.communicationRecord.create({
-      data: {
-        transactionId,
-        type: "internal_note",
-        contactIds: [],
-        content: `File created as ${tenure ?? "unknown tenure"} / ${(purchaseType ?? "unknown purchase type").replace("_", " ")}. The following milestones were automatically set to not required: ${notRequiredCodes.join(", ")}.`,
-        createdById,
-      },
-    });
-  }
 }

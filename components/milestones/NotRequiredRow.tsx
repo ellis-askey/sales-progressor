@@ -6,7 +6,7 @@ import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@pr
 import { reverseMilestoneAction } from "@/app/actions/milestones";
 
 type EnrichedDef = MilestoneDefinition & {
-  activeCompletion: MilestoneCompletion | null;
+  completion: MilestoneCompletion | null;
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;
@@ -21,7 +21,7 @@ export function NotRequiredRow({ def, transactionId }: Props) {
   const [loading, setLoading] = useState(false);
   const [showMortgageModal, setShowMortgageModal] = useState(false);
 
-  const isPM4 = def.code === "PM4";
+  const isPM9 = def.code === "PM9";
 
   async function doReinstate(newPurchaseType?: PurchaseType) {
     setLoading(true);
@@ -41,7 +41,7 @@ export function NotRequiredRow({ def, transactionId }: Props) {
   }
 
   function handleReinstate() {
-    if (isPM4) {
+    if (isPM9) {
       setShowMortgageModal(true);
     } else {
       doReinstate();
@@ -56,11 +56,11 @@ export function NotRequiredRow({ def, transactionId }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-slate-900/50 truncate">{def.name}</p>
-          {def.activeCompletion?.notRequiredReason && (
-            <p className="text-xs text-slate-900/40 mt-0.5 italic">{def.activeCompletion.notRequiredReason}</p>
+          {def.completion?.notRequiredReason && (
+            <p className="text-xs text-slate-900/40 mt-0.5 italic">{def.completion.notRequiredReason}</p>
           )}
-          {def.activeCompletion?.completedAt && (
-            <p className="text-xs text-slate-900/30 mt-0.5">{formatDate(def.activeCompletion.completedAt)}</p>
+          {def.completion?.completedAt && (
+            <p className="text-xs text-slate-900/30 mt-0.5">{formatDate(def.completion.completedAt)}</p>
           )}
         </div>
         <button

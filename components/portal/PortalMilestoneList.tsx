@@ -3,7 +3,9 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { getEventDateLabel } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
+
 
 type Milestone = {
   id: string;
@@ -14,15 +16,15 @@ type Milestone = {
   isAvailable: boolean;
   isPostExchange: boolean;
   isExchangeGate: boolean;
-  timeSensitive: boolean;
   completedAt: Date | null;
   eventDate: Date | null;
   label: string;
   labelOther?: string | null;
   who: string;
   whoLabel: string;
-  confirmedByClient: boolean;
+  confirmedByPortal: boolean;
   description?: string | null;
+  eventDateRequired: boolean;
 };
 
 type Props = {
@@ -219,7 +221,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                             <p className="text-[12px] mt-0.5" style={{ color: m.isComplete ? P.success : P.textMuted }}>
                               {m.isComplete
-                                ? `Confirmed${m.confirmedByClient ? " by you" : ""}${m.completedAt ? ` · ${fmtDate(m.completedAt)}` : ""}${m.eventDate ? ` · ${fmtDate(m.eventDate)}` : ""}`
+                                ? `Confirmed${m.confirmedByPortal ? " by you" : ""}${m.completedAt ? ` · ${fmtDate(m.completedAt)}` : ""}${m.eventDate ? ` · ${fmtDate(m.eventDate)}` : ""}`
                                 : m.whoLabel
                               }
                             </p>
@@ -248,7 +250,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 >
                                   Confirm
                                 </button>
-                                {m.code === "PM7" && (
+                                {m.code === "PM9" && (
                                   <button
                                     onClick={() => setSkipSurveyId(m.id)}
                                     className="text-[11px] font-medium underline"
@@ -484,17 +486,17 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 Confirm step
               </p>
               <p className="text-[18px] font-semibold leading-snug mb-4" style={{ color: P.textPrimary }}>
-                {confirmingMilestone.timeSensitive
+                {confirmingMilestone.eventDateRequired
                   ? "When is this happening?"
                   : confirmingMilestone.who === "you"
                     ? "Mark this step as done?"
                     : "Has this happened?"}
               </p>
 
-              {confirmingMilestone.timeSensitive && (
+              {confirmingMilestone.eventDateRequired && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    Date <span style={{ color: "#EF4444" }}>*</span>
+                    {getEventDateLabel(confirmingMilestone.code)} <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="date"
@@ -511,14 +513,14 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               )}
 
               <button
-                onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.timeSensitive)}
+                onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.eventDateRequired)}
                 disabled={loading}
                 className="w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
                 style={{ background: P.primary, borderRadius: P.radiusMd }}
               >
                 {loading
                   ? "Saving…"
-                  : confirmingMilestone.timeSensitive
+                  : confirmingMilestone.eventDateRequired
                     ? "Confirm date"
                     : confirmingMilestone.who === "you"
                       ? "Yes, it's done"

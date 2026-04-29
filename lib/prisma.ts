@@ -1,6 +1,7 @@
 // lib/prisma.ts
 // Single Prisma client instance shared across the app.
 // Next.js hot-reload in dev can create multiple instances without this pattern.
+// Schema: Deploy A — MilestoneState enum, state column, dropped isActive/isNotRequired.
 
 import { PrismaClient } from "@prisma/client";
 

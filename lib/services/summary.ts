@@ -69,8 +69,7 @@ export async function getLastUpdate(transactionId: string) {
   return prisma.milestoneCompletion.findFirst({
     where: {
       transactionId,
-      isActive: true,
-      isNotRequired: false,
+      state: "complete",
       summaryText: { not: null },
     },
     orderBy: { completedAt: "desc" },

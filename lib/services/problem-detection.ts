@@ -33,7 +33,7 @@ type TxData = {
   communications: { createdAt: Date; type: string }[];
   chaseTasks: { dueDate: Date }[];
   contacts: { portalToken: string | null }[];
-  milestoneCompletions: { completedAt: Date }[];
+  milestoneCompletions: { completedAt: Date | null }[];
 };
 
 type DetectedFlag = { kind: FlagKind; context: string };
@@ -116,7 +116,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   if (tx.status === "active") {
     const completedCount = tx._count.milestoneCompletions;
     const sorted = [...tx.milestoneCompletions].sort(
-      (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+      (a, b) => (b.completedAt ? new Date(b.completedAt).getTime() : 0) - (a.completedAt ? new Date(a.completedAt).getTime() : 0)
     );
     const lastMilestoneAt = sorted[0]?.completedAt;
     if (lastMilestoneAt && completedCount > 0 && completedCount < 35) {
@@ -176,7 +176,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       updatedAt: true,
       expectedExchangeDate: true,
       _count: {
-        select: { milestoneCompletions: { where: { isActive: true, isNotRequired: false } } },
+        select: { milestoneCompletions: { where: { state: "complete" } } },
       },
       communications: {
         where: { type: { in: ["outbound", "inbound"] } },
@@ -192,7 +192,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       },
       contacts: { select: { portalToken: true } },
       milestoneCompletions: {
-        where: { isActive: true, isNotRequired: false },
+        where: { state: "complete" },
         orderBy: { completedAt: "desc" },
         take: 1,
         select: { completedAt: true },
