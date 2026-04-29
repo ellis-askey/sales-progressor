@@ -216,6 +216,7 @@ export default async function TransactionDetailPage({
           agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
           referralFee: transaction.referralFee ?? null,
           referredFirmName: transaction.referredFirm?.name ?? null,
+          serviceType: transaction.serviceType ?? null,
         }}
         assignedUser={assignedUser}
         agentUser={agentUser}

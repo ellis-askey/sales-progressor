@@ -221,6 +221,7 @@ export default async function AgentTransactionDetailPage({
         referralFee: transaction.referralFee ?? null,
         referredFirmName: transaction.referredFirm?.name ?? null,
         referredFirmId: transaction.referredFirmId ?? null,
+        serviceType: transaction.serviceType ?? null,
       }}
       recommendedFirms={recommendedFirms}
       showOurFee={session.user.role === "director"}
@@ -262,7 +263,11 @@ export default async function AgentTransactionDetailPage({
               </MetaField>
               <MetaField label="Assigned to">
                 <span className="text-sm text-slate-900/80">
-                  {transaction.assignedUser?.name ?? <span className="text-slate-900/30 italic">Unassigned</span>}
+                  {transaction.assignedUser?.name
+                    ?? (transaction.serviceType === "self_managed"
+                      ? (agentUser?.name ?? <span className="text-slate-900/30 italic">Self-progressed</span>)
+                      : <span className="text-slate-900/30 italic">Unassigned</span>)
+                  }
                 </span>
               </MetaField>
               <MetaField label="Last progress" className="col-span-2 border-t border-white/20 md:col-span-1 md:border-t-0">

@@ -67,6 +67,7 @@ type Props = {
     referralFee?: number | null;
     referredFirmName?: string | null;
     referredFirmId?: string | null;
+    serviceType?: "self_managed" | "outsourced" | null;
   };
   recommendedFirms?: { id: string; name: string; defaultReferralFeePence: number | null }[] | null;
   assignedUser: {
@@ -109,7 +110,9 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
-    : { fee: null, label: "No agent assigned" };
+    : transaction.serviceType === "self_managed"
+      ? { fee: 5900, label: "Self-progressed (inc VAT)" }
+      : { fee: null, label: "No progressor assigned" };
 
   function savePrice() {
     if (pricePence == null) return;

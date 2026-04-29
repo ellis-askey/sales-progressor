@@ -23,6 +23,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noEmailDismissed, setNoEmailDismissed] = useState(false);
 
   useEffect(() => {
     fetch("/api/agent/verified-emails")
@@ -55,10 +56,11 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   }
 
   if (verifiedEmails.length === 0) {
+    if (noEmailDismissed) return null;
     return (
       <div className="flex items-start gap-3 px-4 py-4 rounded-xl bg-amber-50 border border-amber-100">
         <Warning className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" weight="fill" />
-        <div>
+        <div className="flex-1">
           <p className="text-sm font-semibold text-amber-800">No verified sending address</p>
           <p className="text-xs text-amber-700 mt-0.5">
             Go to{" "}
@@ -66,6 +68,13 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
             {" "}to verify a work email address before sending.
           </p>
         </div>
+        <button
+          onClick={() => setNoEmailDismissed(true)}
+          className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition-colors text-sm leading-none"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
       </div>
     );
   }
