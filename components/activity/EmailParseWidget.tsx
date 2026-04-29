@@ -33,24 +33,6 @@ export function EmailParseWidget({ transactionId: _ }: { transactionId: string }
         className="glass-card"
         style={{ clipPath: "inset(0 round 20px)", opacity: 0.6, pointerEvents: "none", userSelect: "none" }}
       >
-        {/* Coming soon badge */}
-        <div
-          style={{
-            position: "absolute", top: 12, right: 12,
-            background: "rgba(139,92,246,0.12)",
-            border: "0.5px solid rgba(139,92,246,0.30)",
-            borderRadius: 99,
-            padding: "2px 9px",
-            fontSize: 10,
-            fontWeight: 700,
-            color: "rgba(109,40,217,0.80)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          Coming soon
-        </div>
-
         <div className="w-full px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
@@ -59,9 +41,9 @@ export function EmailParseWidget({ transactionId: _ }: { transactionId: string }
               </svg>
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold text-slate-900/60">Email milestone parser — coming soon</p>
+              <p className="text-sm font-semibold text-slate-900/60">Smart email reader — coming soon</p>
               <p className="text-xs text-slate-900/35">
-                Paste an email and we&apos;ll suggest milestone updates. We&apos;re refining this feature — check back soon.
+                Paste an email and we&apos;ll suggest which milestones to update. We&apos;re refining this — check back soon.
               </p>
             </div>
           </div>
