@@ -73,6 +73,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [reconciliationExpanded, setReconciliationExpanded] = useState(false);
   const [pendingReconcileImplied, setPendingReconcileImplied] = useState<string[]>([]);
   const [pendingReconcileEd, setPendingReconcileEd] = useState<string | undefined>(undefined);
+  const [reconcileEventDate, setReconcileEventDate] = useState("");
+  const [reconcileCompletionDate, setReconcileCompletionDate] = useState("");
 
   // AbortController for the implied-predecessor fetch — prevents double-fire on rapid taps
   const impliedFetchController = useRef<AbortController | null>(null);
@@ -155,17 +157,16 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       getExchangeReconciliationList({ transactionId, milestoneDefinitionId: def.id })
         .then((data) => {
           setLoading(false);
-          if (data.skipModal) {
-            doReconciliationConfirm(impliedIds, ed, [], {});
-          } else {
-            setReconciliationOutstanding(data.outstanding);
-            setReconciledIds(new Set(data.outstanding.map((m) => m.id)));
-            setReconciledDates({});
-            setReconciliationExpanded(false);
-            setPendingReconcileImplied(impliedIds);
-            setPendingReconcileEd(ed);
-            setShowReconciliationModal(true);
-          }
+          const todayStr = new Date().toISOString().split("T")[0];
+          setReconciliationOutstanding(data.outstanding);
+          setReconciledIds(new Set(data.outstanding.map((m) => m.id)));
+          setReconciledDates({});
+          setReconciliationExpanded(false);
+          setPendingReconcileImplied(impliedIds);
+          setPendingReconcileEd(ed);
+          setReconcileEventDate(ed ?? todayStr);
+          setReconcileCompletionDate("");
+          setShowReconciliationModal(true);
         })
         .catch((err: unknown) => {
           setLoading(false);
@@ -204,7 +205,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     impliedIds: string[],
     ed: string | undefined,
     outstandingIds: string[],
-    outstandingDates: Record<string, string>
+    outstandingDates: Record<string, string>,
+    completionDate?: string
   ) {
     setShowReconciliationModal(false);
     startTransition(async () => {
@@ -217,6 +219,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           impliedIds,
           outstandingIds,
           outstandingDates,
+          completionDate: completionDate || undefined,
         });
         if (result.triggeredCelebration && result.propertyAddress) {
           setCelebrationAddress(result.propertyAddress);
@@ -579,63 +582,98 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       {/* Exchange / completion reconciliation modal */}
       {showReconciliationModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
-            <h3 className="text-base font-semibold text-slate-900 mb-1">
-              {def.code === "VM19" || def.code === "PM26" ? "Exchange reconciliation" : "Completion reconciliation"}
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <h3 className="text-base font-semibold text-slate-900 mb-3">
+              {def.code === "VM19" || def.code === "PM26" ? "Confirm exchange" : "Confirm completion"}
             </h3>
-            <p className="text-sm text-slate-500 mb-4">
-              The milestones below haven't been confirmed yet. Tick those that are done — they'll be marked as reconciled at exchange.
-              Leave a milestone unticked (or leave a date blank) to exclude it.
-            </p>
 
-            <div className="rounded-lg border border-slate-100 divide-y divide-slate-100 mb-3 overflow-y-auto flex-1 min-h-0">
-              {(reconciliationExpanded ? reconciliationOutstanding : reconciliationOutstanding.slice(0, 5)).map((item) => (
-                <div key={item.id} className="px-4 py-2.5">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 rounded"
-                      checked={reconciledIds.has(item.id)}
-                      onChange={(e) => {
-                        setReconciledIds((prev) => {
-                          const next = new Set(prev);
-                          e.target.checked ? next.add(item.id) : next.delete(item.id);
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className="flex-1 min-w-0">
-                      <span className="text-sm text-slate-700 block">{item.name}</span>
-                      <span className="text-xs text-slate-400">{item.side === "vendor" ? "Vendor" : "Purchaser"}</span>
-                    </span>
+            {/* Date inputs */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-4 space-y-3 flex-shrink-0">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  {def.code === "VM19" || def.code === "PM26" ? "Date contracts exchanged" : "Date sale completed"}
+                </label>
+                <input
+                  type="date"
+                  value={reconcileEventDate}
+                  onChange={(e) => setReconcileEventDate(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <p className="text-xs text-slate-400 mt-1">Pre-filled with today — change if it was different</p>
+              </div>
+              {(def.code === "VM19" || def.code === "PM26") && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Expected completion date <span className="font-normal text-slate-400">(optional)</span>
                   </label>
-                  {item.eventDateRequired && reconciledIds.has(item.id) && (
-                    <div className="mt-2 ml-6">
-                      <label className="block text-xs text-slate-500 mb-1">{getEventDateLabel(item.code)} <span className="text-slate-400">(blank = exclude)</span></label>
-                      <input
-                        type="date"
-                        value={reconciledDates[item.id] ?? ""}
-                        onChange={(e) => setReconciledDates((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                        className="border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-[180px]"
-                      />
-                    </div>
-                  )}
+                  <input
+                    type="date"
+                    value={reconcileCompletionDate}
+                    onChange={(e) => setReconcileCompletionDate(e.target.value)}
+                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
                 </div>
-              ))}
+              )}
             </div>
 
-            {reconciliationOutstanding.length > 5 && (
-              <button
-                onClick={() => setReconciliationExpanded((v) => !v)}
-                className="text-xs text-blue-500 hover:text-blue-600 mb-3 text-left"
-              >
-                {reconciliationExpanded
-                  ? "Show fewer"
-                  : `Show ${reconciliationOutstanding.length - 5} more`}
-              </button>
+            {reconciliationOutstanding.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 flex-shrink-0">Outstanding milestones</p>
+                <p className="text-xs text-slate-400 mb-3 flex-shrink-0">
+                  These haven{"'"}t been confirmed yet. Tick those that are done — they{"'"}ll be marked as reconciled at exchange.
+                  Untick or leave a date blank to exclude.
+                </p>
+
+                <div className="rounded-lg border border-slate-100 divide-y divide-slate-100 mb-3 overflow-y-auto flex-1 min-h-0">
+                  {(reconciliationExpanded ? reconciliationOutstanding : reconciliationOutstanding.slice(0, 5)).map((item) => (
+                    <div key={item.id} className="px-4 py-2.5">
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 rounded"
+                          checked={reconciledIds.has(item.id)}
+                          onChange={(e) => {
+                            setReconciledIds((prev) => {
+                              const next = new Set(prev);
+                              e.target.checked ? next.add(item.id) : next.delete(item.id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span className="flex-1 min-w-0">
+                          <span className="text-sm text-slate-700 block">{item.name}</span>
+                          <span className="text-xs text-slate-400">{item.side === "vendor" ? "Vendor" : "Purchaser"}</span>
+                        </span>
+                      </label>
+                      {item.eventDateRequired && reconciledIds.has(item.id) && (
+                        <div className="mt-2 ml-6">
+                          <label className="block text-xs text-slate-500 mb-1">{getEventDateLabel(item.code)} <span className="text-slate-400">(blank = exclude)</span></label>
+                          <input
+                            type="date"
+                            value={reconciledDates[item.id] ?? ""}
+                            onChange={(e) => setReconciledDates((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            className="border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-[180px]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {reconciliationOutstanding.length > 5 && (
+                  <button
+                    onClick={() => setReconciliationExpanded((v) => !v)}
+                    className="text-xs text-blue-500 hover:text-blue-600 mb-3 text-left flex-shrink-0"
+                  >
+                    {reconciliationExpanded
+                      ? "Show fewer"
+                      : `Show ${reconciliationOutstanding.length - 5} more`}
+                  </button>
+                )}
+              </>
             )}
 
-            <div className="flex gap-3 pt-1">
+            <div className="flex gap-3 pt-1 flex-shrink-0">
               <button
                 onClick={() => {
                   const effectiveIds = [...reconciledIds].filter((id) => {
@@ -646,16 +684,17 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   });
                   doReconciliationConfirm(
                     pendingReconcileImplied,
-                    pendingReconcileEd,
+                    reconcileEventDate || pendingReconcileEd,
                     effectiveIds,
                     Object.fromEntries(
                       Object.entries(reconciledDates).filter(([, v]) => !!v)
-                    )
+                    ),
+                    reconcileCompletionDate || undefined
                   );
                 }}
                 className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-sm font-medium text-white transition-colors"
               >
-                Reconcile and confirm
+                {reconciliationOutstanding.length > 0 ? "Reconcile and confirm" : "Confirm"}
               </button>
               <button
                 onClick={() => setShowReconciliationModal(false)}

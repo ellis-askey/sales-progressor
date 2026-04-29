@@ -342,6 +342,7 @@ export async function confirmExchangeReconciliationAction(input: {
   impliedIds?: string[];
   outstandingIds: string[];
   outstandingDates: Record<string, string>;
+  completionDate?: string;
 }) {
   const session = await requireSession();
 
@@ -386,40 +387,9 @@ export async function confirmExchangeReconciliationAction(input: {
   const now = new Date();
 
   await prisma.$transaction(async (ptx) => {
-    // Primary milestone — reconciledAtExchange stays false (real confirmed event)
-    await completeMilestone({
-      transactionId: input.transactionId,
-      milestoneDefinitionId: input.milestoneDefinitionId,
-      completedById: session.user.id,
-      completedByName: session.user.name ?? "",
-      eventDate: input.eventDate ? new Date(input.eventDate) : null,
-    }, ptx);
-
-    // Bilateral counterpart
-    if (counterDefId) {
-      const alreadyDone = await ptx.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
-      });
-      if (!alreadyDone) {
-        await completeMilestone({
-          transactionId: input.transactionId,
-          milestoneDefinitionId: counterDefId,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
-          eventDate: input.eventDate ? new Date(input.eventDate) : null,
-        }, ptx);
-      }
-    }
-
-    // Exchange Forecast sync
-    if ((def.code === "VM19" || def.code === "PM26") && input.eventDate) {
-      await ptx.propertyTransaction.update({
-        where: { id: input.transactionId },
-        data: { expectedExchangeDate: new Date(input.eventDate) },
-      });
-    }
-
-    // Sweep outstanding milestones (reconciledAtExchange: true)
+    // 1. Sweep outstanding milestones FIRST so prerequisite chains are satisfied
+    //    before completeMilestone runs its prereq guard for the counterpart
+    //    (e.g. PM25 must be complete before completeMilestone(PM26) checks it).
     if (input.outstandingIds.length > 0) {
       await Promise.all(
         input.outstandingIds.map((defId, i) => {
@@ -475,12 +445,45 @@ export async function confirmExchangeReconciliationAction(input: {
         });
       }
     }
+
+    // 2. Primary milestone
+    await completeMilestone({
+      transactionId: input.transactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      completedById: session.user.id,
+      completedByName: session.user.name ?? "",
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+    }, ptx);
+
+    // 3. Bilateral counterpart — prereqs now satisfied by the sweep above
+    if (counterDefId) {
+      const alreadyDone = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+      });
+      if (!alreadyDone) {
+        await completeMilestone({
+          transactionId: input.transactionId,
+          milestoneDefinitionId: counterDefId,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+          eventDate: input.eventDate ? new Date(input.eventDate) : null,
+        }, ptx);
+      }
+    }
+
+    // 4. Exchange Forecast sync
+    if ((def.code === "VM19" || def.code === "PM26") && input.eventDate) {
+      await ptx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { expectedExchangeDate: new Date(input.eventDate) },
+      });
+    }
   });
 
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
 
-  // Completion date sync for VM20/PM27
+  // Completion date sync for VM20/PM27 (confirmed at completion)
   if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
     const actualDate = new Date(input.eventDate);
     const txData = await prisma.propertyTransaction.findFirst({
@@ -497,6 +500,15 @@ export async function confirmExchangeReconciliationAction(input: {
       });
       revalidateTx(input.transactionId);
     }
+  }
+
+  // Expected completion date captured at exchange time (VM19/PM26)
+  if ((def.code === "VM19" || def.code === "PM26") && input.completionDate) {
+    await prisma.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { completionDate: new Date(input.completionDate) },
+    });
+    revalidateTx(input.transactionId);
   }
 
   // Push notifications (fire-and-forget)
