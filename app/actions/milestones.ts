@@ -11,7 +11,6 @@ import { prisma } from "@/lib/prisma";
 import type { PurchaseType } from "@prisma/client";
 import {
   completeMilestone,
-  bulkCompleteMilestones,
   markNotRequiredWithCascade,
   reverseMilestoneWithCascade,
   getUndoImpact,
@@ -34,7 +33,6 @@ import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 export async function confirmMilestoneAction(input: {
   transactionId: string;
   milestoneDefinitionId: string;
-  impliedIds?: string[];
   eventDate?: string | null;
 }) {
   const session = await requireSession();
@@ -44,15 +42,6 @@ export async function confirmMilestoneAction(input: {
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
-
-  if (input.impliedIds && input.impliedIds.length > 0) {
-    await bulkCompleteMilestones(
-      input.impliedIds,
-      input.transactionId,
-      session.user.id,
-      session.user.name ?? ""
-    );
-  }
 
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
@@ -339,7 +328,6 @@ export async function confirmExchangeReconciliationAction(input: {
   transactionId: string;
   milestoneDefinitionId: string;
   eventDate?: string | null;
-  impliedIds?: string[];
   outstandingIds: string[];
   outstandingDates: Record<string, string>;
   completionDate?: string;
@@ -351,15 +339,6 @@ export async function confirmExchangeReconciliationAction(input: {
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
-
-  if (input.impliedIds && input.impliedIds.length > 0) {
-    await bulkCompleteMilestones(
-      input.impliedIds,
-      input.transactionId,
-      session.user.id,
-      session.user.name ?? ""
-    );
-  }
 
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },

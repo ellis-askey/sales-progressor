@@ -30,8 +30,6 @@ function MilestoneQuickComplete({
   const { toast } = useAgentToast();
   const { setActiveTab } = useTabContext();
   const [loading, setLoading] = useState(false);
-  const [showImplied, setShowImplied] = useState(false);
-  const [implied, setImplied] = useState<{ id: string; name: string }[]>([]);
 
   if (!milestone) {
     return (
@@ -70,30 +68,9 @@ function MilestoneQuickComplete({
   async function handleClick() {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/milestones/implied?milestoneDefinitionId=${milestone!.id}&transactionId=${transactionId}`
-      );
-      const impliedList: { id: string; name: string }[] = await res.json();
-      if (impliedList.length > 0) {
-        setImplied(impliedList);
-        setShowImplied(true);
-        setLoading(false);
-      } else {
-        await doComplete([]);
-      }
-    } catch {
-      setLoading(false);
-    }
-  }
-
-  async function doComplete(impliedIds: string[]) {
-    setLoading(true);
-    setShowImplied(false);
-    try {
       await confirmMilestoneAction({
         transactionId,
         milestoneDefinitionId: milestone!.id,
-        impliedIds,
       });
       toast.success(milestone!.name);
     } catch (err: unknown) {
@@ -105,61 +82,20 @@ function MilestoneQuickComplete({
   }
 
   return (
-    <>
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs font-semibold text-slate-900/80 truncate">{milestone.name}</p>
-        </div>
-        <button
-          onClick={handleClick}
-          disabled={loading}
-          className="text-xs bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
-        >
-          {loading ? "…" : "Complete"}
-        </button>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-slate-900/40">{label}</p>
+        <p className="text-xs font-semibold text-slate-900/80 truncate">{milestone.name}</p>
       </div>
-
-      {/* Implied modal */}
-      {showImplied && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="glass-card-strong w-full max-w-sm mx-4">
-            <div className="px-5 py-4 border-b border-white/20">
-              <p className="text-sm font-semibold text-slate-900/90">Also completing</p>
-              <p className="text-xs text-slate-900/40 mt-0.5">These steps are implied by this milestone</p>
-            </div>
-            <ul className="px-5 py-3 space-y-1.5 max-h-48 overflow-y-auto">
-              {implied.map((m) => (
-                <li key={m.id} className="flex items-center gap-2 text-xs text-slate-900/60">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                  {m.name}
-                </li>
-              ))}
-              <li className="flex items-center gap-2 text-xs font-semibold text-slate-900/90">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                {milestone.name}
-              </li>
-            </ul>
-            <div className="px-5 py-4 border-t border-white/20 flex gap-2">
-              <button
-                onClick={() => doComplete(implied.map((m) => m.id))}
-                className="flex-1 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
-              >
-                Confirm all
-              </button>
-              <button
-                onClick={() => setShowImplied(false)}
-                className="flex-1 py-2 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </>
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className="text-xs bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
+      >
+        {loading ? "…" : "Complete"}
+      </button>
+    </div>
   );
 }
 

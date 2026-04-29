@@ -8,7 +8,6 @@ import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction, getExchangeReconciliationList, confirmExchangeReconciliationAction, getUndoImpactAction, executeUndoMilestoneAction } from "@/app/actions/milestones";
 import type { UndoImpact } from "@/app/actions/milestones";
-import { saveCompletionDateAction } from "@/app/actions/transactions";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 
@@ -54,10 +53,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // PM9 N/R — simple survey confirmation modal
   const [showSurveyNrConfirm, setShowSurveyNrConfirm] = useState(false);
 
-  // Implied predecessors pop-up state
-  const [impliedPredecessors, setImpliedPredecessors] = useState<MilestoneDefinition[]>([]);
-  const [showImpliedModal, setShowImpliedModal] = useState(false);
-
   // Undo modal state (two-step: read impact → show modal → confirm)
   const [showUndoModal, setShowUndoModal] = useState(false);
   const [undoData, setUndoData] = useState<UndoImpact | null>(null);
@@ -71,13 +66,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [reconciledIds, setReconciledIds] = useState<Set<string>>(new Set());
   const [reconciledDates, setReconciledDates] = useState<Record<string, string>>({});
   const [reconciliationExpanded, setReconciliationExpanded] = useState(false);
-  const [pendingReconcileImplied, setPendingReconcileImplied] = useState<string[]>([]);
   const [pendingReconcileEd, setPendingReconcileEd] = useState<string | undefined>(undefined);
   const [reconcileEventDate, setReconcileEventDate] = useState("");
   const [reconcileCompletionDate, setReconcileCompletionDate] = useState("");
-
-  // AbortController for the implied-predecessor fetch — prevents double-fire on rapid taps
-  const impliedFetchController = useRef<AbortController | null>(null);
 
   // Detect when this row transitions from blocked → available and play unlock animation
   const wasAvailableRef = useRef(def.isAvailable);
@@ -91,14 +82,13 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     wasAvailableRef.current = def.isAvailable;
   }, [def.isAvailable]);
 
+  useEffect(() => {
+    if (def.isComplete) setError(null);
+  }, [def.isComplete]);
+
   // Exchange celebration overlay
   const [celebrating, setCelebrating] = useState(false);
   const [celebrationAddress, setCelebrationAddress] = useState("");
-
-  // Completion date prompt (after exchange confirmed)
-  const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
-  const [completionInput, setCompletionInput] = useState("");
-  const [savingCompletion, setSavingCompletion] = useState(false);
 
   const isCompleted = optimisticState.isComplete;
   const isNotRequired = optimisticState.isNotRequired;
@@ -109,46 +99,18 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const isExchangeMilestone = def.code === "VM19" || def.code === "PM26";
   const effectivelyAvailable = (def.isAvailable || (optimisticallyAvailable ?? false)) && !(optimisticallyRelocked ?? false);
 
-  async function handleConfirmClick() {
+  function handleConfirmClick() {
     onConfirmStart?.();
     setError(null);
-    if (def.eventDateRequired) { setShowEventDate(true); return; }
-    await checkImplied();
-  }
-
-  async function checkImplied(ed?: string) {
-    // First-wins: if a fetch is already in flight, ignore the new call
-    if (impliedFetchController.current) return;
-    const controller = new AbortController();
-    impliedFetchController.current = controller;
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/milestones/implied?milestoneDefinitionId=${def.id}&transactionId=${transactionId}`,
-        { signal: controller.signal }
-      );
-      if (controller.signal.aborted) { setLoading(false); return; }
-      const implied: MilestoneDefinition[] = await res.json();
-      if (implied.length > 0) {
-        setImpliedPredecessors(implied);
-        setShowImpliedModal(true);
-        setLoading(false);
-      } else {
-        doComplete([], ed);
-        // loading cleared inside doComplete's startTransition finally block
-      }
-    } catch (err) {
-      setLoading(false);
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    } finally {
-      impliedFetchController.current = null;
+    if (def.eventDateRequired && !RECONCILIATION_CODES.has(def.code)) {
+      setShowEventDate(true);
+      return;
     }
+    doComplete();
   }
 
-  function doComplete(impliedIds: string[], ed?: string) {
-    setShowImpliedModal(false);
+  function doComplete() {
     setShowEventDate(false);
-    setEventDate("");
     setDesktopValuation(false);
     setError(null);
 
@@ -162,9 +124,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           setReconciledIds(new Set(data.outstanding.map((m) => m.id)));
           setReconciledDates({});
           setReconciliationExpanded(false);
-          setPendingReconcileImplied(impliedIds);
-          setPendingReconcileEd(ed);
-          setReconcileEventDate(ed ?? todayStr);
+          setPendingReconcileEd(eventDate || undefined);
+          setReconcileEventDate(eventDate || todayStr);
           setReconcileCompletionDate("");
           setShowReconciliationModal(true);
         })
@@ -181,28 +142,25 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         const result = await confirmMilestoneAction({
           transactionId,
           milestoneDefinitionId: def.id,
-          eventDate: ed || eventDate || null,
-          impliedIds,
+          eventDate: eventDate || null,
         });
         if (result.triggeredCelebration && result.propertyAddress) {
           setCelebrationAddress(result.propertyAddress);
           setCelebrating(true);
         } else {
-          const count = impliedIds.length;
-          toast.success(def.name, count > 0 ? { description: `+${count} implied milestone${count > 1 ? "s" : ""} also confirmed` } : undefined);
+          toast.success(def.name);
         }
-        if (isExchangeMilestone) setShowCompletionPrompt(true);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not complete this milestone.";
         setError(message);
       } finally {
         setLoading(false);
+        setEventDate("");
       }
     });
   }
 
   function doReconciliationConfirm(
-    impliedIds: string[],
     ed: string | undefined,
     outstandingIds: string[],
     outstandingDates: Record<string, string>,
@@ -215,8 +173,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         const result = await confirmExchangeReconciliationAction({
           transactionId,
           milestoneDefinitionId: def.id,
-          eventDate: ed || eventDate || null,
-          impliedIds,
+          eventDate: ed || null,
           outstandingIds,
           outstandingDates,
           completionDate: completionDate || undefined,
@@ -228,7 +185,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           const count = outstandingIds.length;
           toast.success(def.name, count > 0 ? { description: `+${count} milestone${count > 1 ? "s" : ""} reconciled` } : undefined);
         }
-        if (isExchangeMilestone) setShowCompletionPrompt(true);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not complete this milestone.";
         setError(message);
@@ -306,20 +262,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         setError(message);
       } finally {
         setLoading(false);
-      }
-    });
-  }
-
-  function saveCompletionDate() {
-    if (!completionInput) { setShowCompletionPrompt(false); return; }
-    setShowCompletionPrompt(false);
-    setCompletionInput("");
-    setSavingCompletion(true);
-    startTransition(async () => {
-      try {
-        await saveCompletionDateAction(transactionId, completionInput);
-      } finally {
-        setSavingCompletion(false);
       }
     });
   }
@@ -406,7 +348,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   />
                 </div>
                 <button
-                  onClick={() => checkImplied(eventDate)}
+                  onClick={() => doComplete()}
                   disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
                   className="mt-5 px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
                 >
@@ -503,75 +445,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               <button onClick={() => setShowSurveyNrConfirm(false)}
                 className="w-full py-2 text-xs text-slate-900/30 hover:text-slate-900/60 transition-colors">
                 Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Implied predecessors modal */}
-      {showImpliedModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-slate-900 mb-1">This milestone implies others</h3>
-            <p className="text-sm text-slate-500 mb-4">
-              You've confirmed <strong>"{def.name}"</strong>. That usually means the following milestone{impliedPredecessors.length > 1 ? "s are" : " is"} also complete:
-            </p>
-            <div className="rounded-lg border border-slate-100 divide-y divide-slate-100 mb-5">
-              {impliedPredecessors.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 px-4 py-2.5">
-                  <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-2.5 h-2.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-sm text-slate-700">{p.name}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400 mb-4">Complete these as well? This will keep your progress clean and avoid confusion later.</p>
-            <div className="flex gap-3">
-              <button onClick={() => doComplete(impliedPredecessors.map((p) => p.id), eventDate || undefined)} disabled={loading}
-                className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-sm font-medium text-white transition-colors">
-                {loading ? "Completing…" : "Yes, complete all"}
-              </button>
-              <button onClick={() => doComplete([], eventDate || undefined)} disabled={loading}
-                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                No, just this one
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 text-center mt-3">You can undo this later from the milestone timeline</p>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Completion date prompt (after exchange confirmed) */}
-      {showCompletionPrompt && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-slate-900 mb-1">Exchange confirmed</h3>
-            <p className="text-sm text-slate-500 mb-4">When is the expected completion date?</p>
-            <input
-              type="date"
-              value={completionInput}
-              onChange={(e) => setCompletionInput(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={saveCompletionDate}
-                disabled={savingCompletion || !completionInput}
-                className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
-              >
-                {savingCompletion ? "Saving…" : "Set completion date"}
-              </button>
-              <button
-                onClick={() => { setShowCompletionPrompt(false); setCompletionInput(""); }}
-                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Skip for now
               </button>
             </div>
           </div>
@@ -683,7 +556,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     return true;
                   });
                   doReconciliationConfirm(
-                    pendingReconcileImplied,
                     reconcileEventDate || pendingReconcileEd,
                     effectiveIds,
                     Object.fromEntries(
@@ -694,7 +566,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 }}
                 className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-sm font-medium text-white transition-colors"
               >
-                {reconciliationOutstanding.length > 0 ? "Reconcile and confirm" : "Confirm"}
+                {isExchangeMilestone ? "Confirm exchange" : "Confirm completion"}
               </button>
               <button
                 onClick={() => setShowReconciliationModal(false)}

@@ -120,7 +120,7 @@ export async function getHubMomentum(vis: AgentVisibility) {
   const txWhere = buildTxWhere(vis);
 
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
-    where: { code: { in: ["VM12", "PM16"] } },
+    where: { code: { in: ["VM19", "PM26"] } },
     select: { id: true },
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
