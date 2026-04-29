@@ -2,7 +2,7 @@
 // Updated engine: graceDays, repeatEveryDays, escalateAfterChases, priority, chaseCount
 
 import { prisma } from "@/lib/prisma";
-import type { ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
+import type { Prisma, ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 
@@ -496,9 +496,12 @@ export async function wakeUpReminderLog(logId: string, agencyId: string) {
 
 export async function autoCompleteRemindersForMilestone(
   transactionId: string,
-  milestoneCode: string
+  milestoneCode: string,
+  tx?: Prisma.TransactionClient
 ) {
-  const logs = await prisma.reminderLog.findMany({
+  const db = tx ?? prisma;
+
+  const logs = await db.reminderLog.findMany({
     where: {
       transactionId,
       status: "active",
@@ -510,12 +513,12 @@ export async function autoCompleteRemindersForMilestone(
 
   const logIds = logs.map((l) => l.id);
 
-  await prisma.chaseTask.updateMany({
+  await db.chaseTask.updateMany({
     where: { reminderLogId: { in: logIds }, status: "pending" },
     data: { status: "cancelled" },
   });
 
-  await prisma.reminderLog.updateMany({
+  await db.reminderLog.updateMany({
     where: { id: { in: logIds } },
     data: { status: "completed", statusReason: "Milestone completed" },
   });

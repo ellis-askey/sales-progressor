@@ -14,7 +14,10 @@ import {
   bulkCompleteMilestones,
   markNotRequiredWithCascade,
   reverseMilestoneWithCascade,
+  getUndoImpact,
+  executeUndoMilestone,
 } from "@/lib/services/milestones";
+export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
@@ -56,42 +59,56 @@ export async function confirmMilestoneAction(input: {
     select: { code: true },
   });
 
-  const result = await completeMilestone({
-    transactionId: input.transactionId,
-    milestoneDefinitionId: input.milestoneDefinitionId,
-    completedById: session.user.id,
-    completedByName: session.user.name ?? "",
-    eventDate: input.eventDate ? new Date(input.eventDate) : null,
-  });
-
-  // Bilateral pairs: auto-confirm the counterpart milestone on the other side.
-  // All counterpart writes happen before revalidate so there is a single rerender.
+  // Resolve counterpart definition id before the transaction (read-only lookup)
   const BILATERAL_PAIRS: Record<string, string> = {
-    VM18: "PM25", PM25: "VM18",
     VM19: "PM26", PM26: "VM19",
     VM20: "PM27", PM27: "VM20",
   };
   const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
+  let counterDefId: string | undefined;
   if (counterCode) {
     const counterDef = await prisma.milestoneDefinition.findFirst({
       where: { code: counterCode },
       select: { id: true },
     });
-    if (counterDef) {
-      const alreadyDone = await prisma.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDef.id, state: "complete" },
+    counterDefId = counterDef?.id;
+  }
+
+  // Primary + bilateral counterpart writes in a single atomic transaction
+  const result = await prisma.$transaction(async (ptx) => {
+    const primary = await completeMilestone({
+      transactionId: input.transactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      completedById: session.user.id,
+      completedByName: session.user.name ?? "",
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+    }, ptx);
+
+    if (counterDefId) {
+      const alreadyDone = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
       });
       if (!alreadyDone) {
         await completeMilestone({
           transactionId: input.transactionId,
-          milestoneDefinitionId: counterDef.id,
+          milestoneDefinitionId: counterDefId,
           completedById: session.user.id,
           completedByName: session.user.name ?? "",
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
-        });
+        }, ptx);
       }
     }
-  }
+
+    // Exchange Forecast sync: lock in confirmed exchange date
+    if ((def?.code === "VM19" || def?.code === "PM26") && input.eventDate) {
+      await ptx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { expectedExchangeDate: new Date(input.eventDate) },
+      });
+    }
+
+    return primary;
+  });
 
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
@@ -154,7 +171,11 @@ export async function confirmMilestoneAction(input: {
     ).catch(() => {});
   }
 
-  return result;
+  const isExchangeCode = def?.code === "VM19" || def?.code === "PM26";
+  return {
+    triggeredCelebration: isExchangeCode,
+    propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
+  };
 }
 
 export async function markNotRequiredAction(input: {
@@ -211,4 +232,299 @@ export async function reverseMilestoneAction(input: {
   });
 
   revalidateTx(input.transactionId);
+}
+
+// ─── Undo milestone (two-step: impact read + atomic write) ───────────────────
+
+export async function getUndoImpactAction(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+}) {
+  const session = await requireSession();
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  return getUndoImpact(input.transactionId, input.milestoneDefinitionId);
+}
+
+export async function executeUndoMilestoneAction(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  mode: "target_only" | "cascade";
+}) {
+  const session = await requireSession();
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await executeUndoMilestone({
+    transactionId: input.transactionId,
+    milestoneDefinitionId: input.milestoneDefinitionId,
+    mode: input.mode,
+    completedById: session.user.id,
+    completedByName: session.user.name ?? "",
+  });
+
+  revalidateTx(input.transactionId);
+}
+
+// ─── Exchange / Completion reconciliation ────────────────────────────────────
+
+const BILATERAL_PAIRS: Record<string, string> = {
+  VM19: "PM26", PM26: "VM19",
+  VM20: "PM27", PM27: "VM20",
+};
+
+export async function getExchangeReconciliationList(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+}): Promise<{
+  outstanding: { id: string; name: string; side: string; code: string; eventDateRequired: boolean }[];
+  counterDefId: string | null;
+  skipModal: boolean;
+}> {
+  const session = await requireSession();
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+  if (!def) throw new Error("Milestone definition not found");
+
+  const counterCode = BILATERAL_PAIRS[def.code];
+  let counterDefId: string | null = null;
+  if (counterCode) {
+    const counterDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: counterCode },
+      select: { id: true },
+    });
+    counterDefId = counterDef?.id ?? null;
+  }
+
+  const excludeIds = [input.milestoneDefinitionId, counterDefId].filter(Boolean) as string[];
+
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    where: { id: { notIn: excludeIds } },
+    select: { id: true, name: true, side: true, code: true, eventDateRequired: true, orderIndex: true },
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+  });
+
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: input.transactionId,
+      state: { in: ["complete", "not_required"] },
+    },
+    select: { milestoneDefinitionId: true },
+  });
+  const doneIds = new Set(completions.map((c) => c.milestoneDefinitionId));
+
+  const outstanding = allDefs
+    .filter((d) => !doneIds.has(d.id))
+    .map(({ id, name, side, code, eventDateRequired }) => ({ id, name, side, code, eventDateRequired }));
+
+  return { outstanding, counterDefId, skipModal: outstanding.length === 0 };
+}
+
+export async function confirmExchangeReconciliationAction(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  eventDate?: string | null;
+  impliedIds?: string[];
+  outstandingIds: string[];
+  outstandingDates: Record<string, string>;
+}) {
+  const session = await requireSession();
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    select: { id: true, propertyAddress: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (input.impliedIds && input.impliedIds.length > 0) {
+    await bulkCompleteMilestones(
+      input.impliedIds,
+      input.transactionId,
+      session.user.id,
+      session.user.name ?? ""
+    );
+  }
+
+  const def = await prisma.milestoneDefinition.findUnique({
+    where: { id: input.milestoneDefinitionId },
+    select: { code: true },
+  });
+  if (!def) throw new Error("Milestone definition not found");
+
+  const counterCode = BILATERAL_PAIRS[def.code];
+  let counterDefId: string | undefined;
+  if (counterCode) {
+    const counterDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: counterCode },
+      select: { id: true },
+    });
+    counterDefId = counterDef?.id;
+  }
+
+  const outstandingDefs = input.outstandingIds.length > 0
+    ? await prisma.milestoneDefinition.findMany({
+        where: { id: { in: input.outstandingIds } },
+        select: { id: true, code: true },
+      })
+    : [];
+
+  const now = new Date();
+
+  await prisma.$transaction(async (ptx) => {
+    // Primary milestone — reconciledAtExchange stays false (real confirmed event)
+    await completeMilestone({
+      transactionId: input.transactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      completedById: session.user.id,
+      completedByName: session.user.name ?? "",
+      eventDate: input.eventDate ? new Date(input.eventDate) : null,
+    }, ptx);
+
+    // Bilateral counterpart
+    if (counterDefId) {
+      const alreadyDone = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+      });
+      if (!alreadyDone) {
+        await completeMilestone({
+          transactionId: input.transactionId,
+          milestoneDefinitionId: counterDefId,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+          eventDate: input.eventDate ? new Date(input.eventDate) : null,
+        }, ptx);
+      }
+    }
+
+    // Exchange Forecast sync
+    if ((def.code === "VM19" || def.code === "PM26") && input.eventDate) {
+      await ptx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { expectedExchangeDate: new Date(input.eventDate) },
+      });
+    }
+
+    // Sweep outstanding milestones (reconciledAtExchange: true)
+    if (input.outstandingIds.length > 0) {
+      await Promise.all(
+        input.outstandingIds.map((defId, i) => {
+          const dateStr = input.outstandingDates[defId];
+          return ptx.milestoneCompletion.upsert({
+            where: {
+              transactionId_milestoneDefinitionId: {
+                transactionId: input.transactionId,
+                milestoneDefinitionId: defId,
+              },
+            },
+            create: {
+              transactionId: input.transactionId,
+              milestoneDefinitionId: defId,
+              state: "complete",
+              completedAt: new Date(now.getTime() + i),
+              eventDate: dateStr ? new Date(dateStr) : null,
+              completedById: session.user.id,
+              reconciledAtExchange: true,
+            },
+            update: {
+              state: "complete",
+              completedAt: new Date(now.getTime() + i),
+              eventDate: dateStr ? new Date(dateStr) : null,
+              completedById: session.user.id,
+              notRequiredReason: null,
+              reconciledAtExchange: true,
+            },
+          });
+        })
+      );
+
+      // Cancel pending chase tasks + complete reminder logs for swept milestones
+      const sweptCodes = outstandingDefs.map((d) => d.code);
+      const logs = await ptx.reminderLog.findMany({
+        where: {
+          transactionId: input.transactionId,
+          status: "active",
+          reminderRule: { targetMilestoneCode: { in: sweptCodes } },
+        },
+        select: { id: true },
+      });
+
+      if (logs.length > 0) {
+        const logIds = logs.map((l) => l.id);
+        await ptx.chaseTask.updateMany({
+          where: { reminderLogId: { in: logIds }, status: "pending" },
+          data: { status: "cancelled" },
+        });
+        await ptx.reminderLog.updateMany({
+          where: { id: { in: logIds } },
+          data: { status: "completed", statusReason: "Exchange confirmed" },
+        });
+      }
+    }
+  });
+
+  revalidateTx(input.transactionId);
+  revalidatePath("/portal", "layout");
+
+  // Completion date sync for VM20/PM27
+  if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
+    const actualDate = new Date(input.eventDate);
+    const txData = await prisma.propertyTransaction.findFirst({
+      where: { id: input.transactionId },
+      select: { completionDate: true },
+    });
+    const existingDate = txData?.completionDate;
+    const dateMismatch = !existingDate ||
+      Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
+    if (dateMismatch) {
+      await prisma.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { completionDate: actualDate },
+      });
+      revalidateTx(input.transactionId);
+    }
+  }
+
+  // Push notifications (fire-and-forget)
+  const code  = def.code;
+  const label = getMilestoneCopy(code).label;
+  const short = tx.propertyAddress.split(",")[0];
+
+  let title = "Progress update";
+  let body  = `${short} — "${label}" is complete.`;
+
+  if (code === "VM19" || code === "PM26") {
+    title = "Contracts exchanged!";
+    body  = `${short} — your transaction is now legally committed.`;
+  } else if (code === "VM20" || code === "PM27") {
+    title = "Completed!";
+    body  = `${short} — congratulations, your transaction has completed.`;
+  }
+
+  pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+  sendAdminMilestoneNotificationToPortal(
+    input.transactionId,
+    code,
+    input.eventDate ?? null
+  ).catch(() => {});
+
+  const isExchangeCode = def.code === "VM19" || def.code === "PM26";
+  return {
+    triggeredCelebration: isExchangeCode,
+    propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
+  };
 }

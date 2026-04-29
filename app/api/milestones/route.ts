@@ -34,44 +34,62 @@ export async function POST(req: NextRequest) {
       if (impliedIds && Array.isArray(impliedIds) && impliedIds.length > 0) {
         await bulkCompleteMilestones(impliedIds, transactionId, session.user.id, session.user.name ?? "");
       }
+
+      // Resolve counterpart definition id before the transaction (read-only lookup)
       const def = await prisma.milestoneDefinition.findUnique({
         where: { id: milestoneDefinitionId },
         select: { code: true },
       });
-      const result = await completeMilestone({
-        transactionId,
-        milestoneDefinitionId,
-        completedById: session.user.id,
-        completedByName: session.user.name ?? "",
-        eventDate: eventDate ? new Date(eventDate) : null,
-      });
-      // Bilateral pairs — same logic as the Server Action
       const BILATERAL_PAIRS: Record<string, string> = {
-        VM18: "PM25", PM25: "VM18",
         VM19: "PM26", PM26: "VM19",
         VM20: "PM27", PM27: "VM20",
       };
       const counterCode = def?.code ? BILATERAL_PAIRS[def.code] : undefined;
+      let counterDefId: string | undefined;
       if (counterCode) {
         const counterDef = await prisma.milestoneDefinition.findFirst({
           where: { code: counterCode },
           select: { id: true },
         });
-        if (counterDef) {
-          const alreadyDone = await prisma.milestoneCompletion.findFirst({
-            where: { transactionId, milestoneDefinitionId: counterDef.id, state: "complete" },
+        counterDefId = counterDef?.id;
+      }
+
+      // Primary + bilateral counterpart writes in a single atomic transaction
+      const result = await prisma.$transaction(async (ptx) => {
+        const primary = await completeMilestone({
+          transactionId,
+          milestoneDefinitionId,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+          eventDate: eventDate ? new Date(eventDate) : null,
+        }, ptx);
+
+        if (counterDefId) {
+          const alreadyDone = await ptx.milestoneCompletion.findFirst({
+            where: { transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
           });
           if (!alreadyDone) {
             await completeMilestone({
               transactionId,
-              milestoneDefinitionId: counterDef.id,
+              milestoneDefinitionId: counterDefId,
               completedById: session.user.id,
               completedByName: session.user.name ?? "",
               eventDate: eventDate ? new Date(eventDate) : null,
-            });
+            }, ptx);
           }
         }
-      }
+
+        // Exchange Forecast sync: lock in confirmed exchange date
+        if ((def?.code === "VM19" || def?.code === "PM26") && eventDate) {
+          await ptx.propertyTransaction.update({
+            where: { id: transactionId },
+            data: { expectedExchangeDate: new Date(eventDate) },
+          });
+        }
+
+        return primary;
+      });
+
       return NextResponse.json(result, { status: 201 });
     }
 

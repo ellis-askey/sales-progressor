@@ -3,6 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { P } from "./portal-ui";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
+import { getEventDateLabel } from "@/lib/portal-copy";
 
 type Props = {
   token: string;
@@ -194,7 +195,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
               {milestone.eventDateRequired && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    Date <span style={{ color: "#EF4444" }}>*</span>
+                    {getEventDateLabel(milestone.code)} <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="date"

@@ -160,6 +160,14 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
         { overridePredictedDate: { not: null } },
         { expectedExchangeDate: { not: null } },
       ],
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          },
+        },
+      },
     },
     select: {
       id: true,

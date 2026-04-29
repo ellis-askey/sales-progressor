@@ -321,6 +321,8 @@ model MilestoneCompletion {
   completedById         String?
   confirmedByPortal     Boolean        @default(false)
   summaryText           String?
+  reconciledAtExchange  Boolean        @default(false)
+  outOfOrderCompletion  Boolean        @default(false)
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 

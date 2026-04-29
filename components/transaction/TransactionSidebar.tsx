@@ -47,6 +47,7 @@ import { useState, useTransition } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction, saveReferralAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { EditSaleDetailsModal } from "@/components/transaction/EditSaleDetailsModal";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
@@ -104,6 +105,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   const [editingReferral, setEditingReferral] = useState(false);
   const [editFirmId, setEditFirmId] = useState<string>("");
   const [editFeePence, setEditFeePence] = useState<number | null>(null);
+  const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
@@ -380,18 +382,37 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           </div>
 
           {/* Tenure + purchase type */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {transaction.tenure && (
-              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                {transaction.tenure}
-              </span>
-            )}
-            {transaction.purchaseType && (
-              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                {transaction.purchaseType.replace("_", " ")}
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {transaction.tenure && (
+                <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
+                  {transaction.tenure}
+                </span>
+              )}
+              {transaction.purchaseType && (
+                <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
+                  {transaction.purchaseType.replace(/_/g, " ")}
+                </span>
+              )}
+            </div>
+            {transaction.tenure && transaction.purchaseType && (
+              <button
+                onClick={() => setShowSaleDetailsModal(true)}
+                className="text-xs text-slate-900/30 hover:text-slate-900/60 flex-shrink-0"
+              >
+                Edit
+              </button>
             )}
           </div>
+
+          {showSaleDetailsModal && transaction.tenure && transaction.purchaseType && (
+            <EditSaleDetailsModal
+              transactionId={transaction.id}
+              currentPurchaseType={transaction.purchaseType}
+              currentTenure={transaction.tenure}
+              onClose={() => setShowSaleDetailsModal(false)}
+            />
+          )}
 
           {/* Progressor fee — progressors always, directors only on agent side */}
           {showOurFee && (

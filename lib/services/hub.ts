@@ -185,6 +185,14 @@ export async function getHubWeeklyForecast(
         { overridePredictedDate: { gte: now, lte: cutoff } },
         { expectedExchangeDate: { gte: now, lte: cutoff } },
       ],
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          },
+        },
+      },
     },
     select: { overridePredictedDate: true, expectedExchangeDate: true },
   });

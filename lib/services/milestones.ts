@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
-import type { MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
+import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = MilestoneDefinition & {
   completion: MilestoneCompletion | null;
@@ -45,6 +45,12 @@ const DIRECT_DEPENDENTS: Record<string, string[]> = (() => {
   }
   return map;
 })();
+
+// Bilateral milestone pairs — reverse (or confirm) together
+export const BILATERAL_UNDO_PAIRS: Record<string, string> = {
+  VM19: "PM26", PM26: "VM19",
+  VM20: "PM27", PM27: "VM20",
+};
 
 function collectAllDependentCodes(startCode: string): string[] {
   const visited = new Set<string>();
@@ -145,22 +151,24 @@ export async function initializeMilestoneCompletions(
 
 // ── Re-evaluate availability of direct dependents after a state change ─────────
 
-async function unlockDirectDependents(transactionId: string, completedCode: string) {
+async function unlockDirectDependents(
+  transactionId: string,
+  completedCode: string,
+  tx?: Prisma.TransactionClient
+) {
+  const db = tx ?? prisma;
   const dependentCodes = DIRECT_DEPENDENTS[completedCode] ?? [];
   if (dependentCodes.length === 0) return;
 
-  const dependentDefs = await prisma.milestoneDefinition.findMany({
+  const dependentDefs = await db.milestoneDefinition.findMany({
     where: { code: { in: dependentCodes } },
     select: { id: true, code: true },
   });
 
-  const codeToId = new Map(dependentDefs.map((d) => [d.code, d.id]));
-
-  // For each dependent, check if all its prereqs are now satisfied
-  const allDefs = await prisma.milestoneDefinition.findMany({ select: { id: true, code: true } });
+  const allDefs = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
   const allCodeToId = new Map(allDefs.map((d) => [d.code, d.id]));
 
-  const allCompletions = await prisma.milestoneCompletion.findMany({
+  const allCompletions = await db.milestoneCompletion.findMany({
     where: { transactionId },
     select: { milestoneDefinitionId: true, state: true },
   });
@@ -178,7 +186,7 @@ async function unlockDirectDependents(transactionId: string, completedCode: stri
     if (allSatisfied) {
       const currentState = completionMap.get(dep.id);
       if (currentState === "locked") {
-        await prisma.milestoneCompletion.update({
+        await db.milestoneCompletion.update({
           where: {
             transactionId_milestoneDefinitionId: {
               transactionId,
@@ -197,32 +205,34 @@ async function unlockDirectDependents(transactionId: string, completedCode: stri
 // Flips VM18 (vendor) or PM25 (purchaser) from locked → available when every
 // same-side blocksExchange milestone is complete or not_required.
 
-async function maybeUnlockExchangeGate(
+export async function maybeUnlockExchangeGate(
   transactionId: string,
   side: MilestoneSide,
-  createdById: string
+  createdById: string,
+  tx?: Prisma.TransactionClient
 ): Promise<void> {
+  const db = tx ?? prisma;
   const gateCode = side === "vendor" ? "VM18" : "PM25";
 
-  const gateDef = await prisma.milestoneDefinition.findFirst({
+  const gateDef = await db.milestoneDefinition.findFirst({
     where: { code: gateCode },
     select: { id: true },
   });
   if (!gateDef) return;
 
-  const gateCompletion = await prisma.milestoneCompletion.findFirst({
+  const gateCompletion = await db.milestoneCompletion.findFirst({
     where: { transactionId, milestoneDefinitionId: gateDef.id },
     select: { state: true },
   });
   if (!gateCompletion || gateCompletion.state !== "locked") return;
 
-  const blockers = await prisma.milestoneDefinition.findMany({
+  const blockers = await db.milestoneDefinition.findMany({
     where: { side, blocksExchange: true },
     select: { id: true },
   });
   if (blockers.length === 0) return;
 
-  const blockerCompletions = await prisma.milestoneCompletion.findMany({
+  const blockerCompletions = await db.milestoneCompletion.findMany({
     where: { transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
     select: { milestoneDefinitionId: true, state: true },
   });
@@ -234,7 +244,7 @@ async function maybeUnlockExchangeGate(
   });
   if (!allClear) return;
 
-  await prisma.milestoneCompletion.update({
+  await db.milestoneCompletion.update({
     where: {
       transactionId_milestoneDefinitionId: {
         transactionId,
@@ -245,7 +255,7 @@ async function maybeUnlockExchangeGate(
   });
 
   const sideLabel = side === "vendor" ? "Vendor" : "Purchaser";
-  await prisma.communicationRecord.create({
+  await db.communicationRecord.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -254,6 +264,60 @@ async function maybeUnlockExchangeGate(
       createdById,
     },
   });
+}
+
+// ── maybeLockExchangeGate ────────────────────────────────────────────────────
+// Called after a milestone reversal. Re-locks VM18 or PM25 if a blocker is no
+// longer complete, and the gate was previously available (not yet confirmed).
+
+export async function maybeLockExchangeGate(
+  transactionId: string,
+  side: MilestoneSide,
+  tx?: Prisma.TransactionClient
+): Promise<void> {
+  const db = tx ?? prisma;
+  const gateCode = side === "vendor" ? "VM18" : "PM25";
+
+  const gateDef = await db.milestoneDefinition.findFirst({
+    where: { code: gateCode },
+    select: { id: true },
+  });
+  if (!gateDef) return;
+
+  const gateCompletion = await db.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: gateDef.id },
+    select: { state: true },
+  });
+  if (!gateCompletion || gateCompletion.state !== "available") return;
+
+  const blockers = await db.milestoneDefinition.findMany({
+    where: { side, blocksExchange: true, code: { not: gateCode } },
+    select: { id: true },
+  });
+  if (blockers.length === 0) return;
+
+  const blockerCompletions = await db.milestoneCompletion.findMany({
+    where: { transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const blockerMap = new Map(blockerCompletions.map((c) => [c.milestoneDefinitionId, c.state]));
+
+  const allClear = blockers.every((b) => {
+    const s = blockerMap.get(b.id);
+    return s === "complete" || s === "not_required";
+  });
+
+  if (!allClear) {
+    await db.milestoneCompletion.update({
+      where: {
+        transactionId_milestoneDefinitionId: {
+          transactionId,
+          milestoneDefinitionId: gateDef.id,
+        },
+      },
+      data: { state: "locked" },
+    });
+  }
 }
 
 // ── getMilestonesForTransaction ───────────────────────────────────────────────
@@ -383,8 +447,10 @@ export type CompleteMilestoneInput = {
   completedAt?: Date;
 };
 
-export async function completeMilestone(input: CompleteMilestoneInput) {
-  const def = await prisma.milestoneDefinition.findUnique({
+export async function completeMilestone(input: CompleteMilestoneInput, tx?: Prisma.TransactionClient) {
+  const db = tx ?? prisma;
+
+  const def = await db.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
     select: { code: true, summaryTemplate: true, side: true },
   });
@@ -393,11 +459,11 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
   // Prerequisite guard
   const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
   if (prereqCodes.length > 0) {
-    const prereqDefs = await prisma.milestoneDefinition.findMany({
+    const prereqDefs = await db.milestoneDefinition.findMany({
       where: { code: { in: prereqCodes } },
       select: { id: true },
     });
-    const satisfied = await prisma.milestoneCompletion.count({
+    const satisfied = await db.milestoneCompletion.count({
       where: {
         transactionId: input.transactionId,
         milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
@@ -413,7 +479,7 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
     ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.completedByName)
     : null;
 
-  const completion = await prisma.milestoneCompletion.upsert({
+  const completion = await db.milestoneCompletion.upsert({
     where: {
       transactionId_milestoneDefinitionId: {
         transactionId: input.transactionId,
@@ -439,9 +505,51 @@ export async function completeMilestone(input: CompleteMilestoneInput) {
     },
   });
 
-  await unlockDirectDependents(input.transactionId, def.code);
-  await autoCompleteRemindersForMilestone(input.transactionId, def.code);
-  await maybeUnlockExchangeGate(input.transactionId, def.side, input.completedById);
+  await unlockDirectDependents(input.transactionId, def.code, tx);
+  await autoCompleteRemindersForMilestone(input.transactionId, def.code, tx);
+  await maybeUnlockExchangeGate(input.transactionId, def.side, input.completedById, tx);
+
+  // Self-resolve outOfOrderCompletion flags: clear them when their full prereq
+  // chain is now satisfied (the agent re-confirmed the missing upstream milestone).
+  const outOfOrderRows = await db.milestoneCompletion.findMany({
+    where: { transactionId: input.transactionId, outOfOrderCompletion: true },
+    select: { milestoneDefinitionId: true },
+  });
+  if (outOfOrderRows.length > 0) {
+    const allCurrentCompletions = await db.milestoneCompletion.findMany({
+      where: { transactionId: input.transactionId },
+      select: { milestoneDefinitionId: true, state: true },
+    });
+    const resolveStateMap = new Map(allCurrentCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
+    resolveStateMap.set(input.milestoneDefinitionId, "complete");
+    const allDefCodes = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
+    const resolveCodeToId = new Map(allDefCodes.map((d) => [d.code, d.id]));
+    const resolveIdToCode = new Map(allDefCodes.map((d) => [d.id, d.code]));
+    const toResolve: string[] = [];
+    for (const { milestoneDefinitionId } of outOfOrderRows) {
+      const code = resolveIdToCode.get(milestoneDefinitionId);
+      if (!code) continue;
+      const allPrereqs = collectAllPrereqCodes(code);
+      const allSatisfied = allPrereqs.every((prereqCode) => {
+        const pid = resolveCodeToId.get(prereqCode);
+        if (!pid) return true;
+        const s = resolveStateMap.get(pid);
+        return s === "complete" || s === "not_required";
+      });
+      if (allSatisfied) toResolve.push(milestoneDefinitionId);
+    }
+    if (toResolve.length > 0) {
+      await db.milestoneCompletion.updateMany({
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: { in: toResolve },
+          outOfOrderCompletion: true,
+        },
+        data: { outOfOrderCompletion: false },
+      });
+    }
+  }
+
   touchLastActivity(input.transactionId).catch(() => {});
 
   return completion;
@@ -729,6 +837,325 @@ export async function markNotRequiredWithCascade(input: {
     input.completedByName,
     input.reason
   );
+}
+
+// ── getUndoImpact ─────────────────────────────────────────────────────────────
+// Read-only: returns the cascade list and three projected % values.
+
+export type UndoImpactItem = {
+  id: string;
+  name: string;
+  side: string;
+  code: string;
+  reconciledAtExchange: boolean;
+};
+
+export type UndoImpact = {
+  cascade: UndoImpactItem[];
+  currentPercent: number;
+  targetOnlyPercent: number;
+  cascadePercent: number;
+};
+
+export async function getUndoImpact(
+  transactionId: string,
+  milestoneDefinitionId: string
+): Promise<UndoImpact> {
+  const target = await prisma.milestoneDefinition.findUnique({
+    where: { id: milestoneDefinitionId },
+    select: { id: true, code: true, side: true, name: true },
+  });
+  if (!target) throw new Error("Milestone not found");
+
+  const partnerCode = BILATERAL_UNDO_PAIRS[target.code];
+  let partnerDef: { id: string; code: string; name: string; side: string } | null = null;
+  if (partnerCode) {
+    partnerDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: partnerCode },
+      select: { id: true, code: true, name: true, side: true },
+    }) ?? null;
+  }
+
+  const targetDownstream = await getDownstreamCompleted(milestoneDefinitionId, transactionId);
+  const partnerDownstream = partnerDef
+    ? await getDownstreamCompleted(partnerDef.id, transactionId)
+    : [];
+
+  const allDownstreamIds = [...new Set([
+    ...targetDownstream.map((m) => m.id),
+    ...partnerDownstream.map((m) => m.id),
+  ])];
+
+  const reconciledCompletions = allDownstreamIds.length > 0
+    ? await prisma.milestoneCompletion.findMany({
+        where: { transactionId, milestoneDefinitionId: { in: allDownstreamIds }, reconciledAtExchange: true },
+        select: { milestoneDefinitionId: true },
+      })
+    : [];
+  const reconciledSet = new Set(reconciledCompletions.map((c) => c.milestoneDefinitionId));
+
+  const cascadeMap = new Map<string, UndoImpactItem>();
+  for (const m of [...targetDownstream, ...partnerDownstream]) {
+    if (!cascadeMap.has(m.id)) {
+      cascadeMap.set(m.id, {
+        id: m.id,
+        name: m.name,
+        side: m.side,
+        code: m.code,
+        reconciledAtExchange: reconciledSet.has(m.id),
+      });
+    }
+  }
+  const cascade = Array.from(cascadeMap.values());
+
+  const [allDefs, allCompletions] = await Promise.all([
+    prisma.milestoneDefinition.findMany({ select: { id: true, side: true, weight: true } }),
+    prisma.milestoneCompletion.findMany({
+      where: { transactionId },
+      select: { milestoneDefinitionId: true, state: true },
+    }),
+  ]);
+  const completionMap = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c]));
+
+  const targetAndPartnerIds = new Set<string>([milestoneDefinitionId]);
+  if (partnerDef) targetAndPartnerIds.add(partnerDef.id);
+  const allRemovedIds = new Set<string>([...targetAndPartnerIds, ...cascade.map((m) => m.id)]);
+
+  function sidePercent(side: string, removeSet: Set<string>): number {
+    const sideDefs = allDefs.filter((d) => d.side === side);
+    const applicable = sideDefs.filter((d) => completionMap.get(d.id)?.state !== "not_required");
+    const applicableWeight = applicable.reduce((s, d) => s + Number(d.weight), 0);
+    if (applicableWeight === 0) return 100;
+    const completedWeight = applicable
+      .filter((d) => completionMap.get(d.id)?.state === "complete" && !removeSet.has(d.id))
+      .reduce((s, d) => s + Number(d.weight), 0);
+    return (completedWeight / applicableWeight) * 100;
+  }
+
+  const emptySet = new Set<string>();
+  const currentPercent = Math.round((sidePercent("vendor", emptySet) + sidePercent("purchaser", emptySet)) / 2);
+  const targetOnlyPercent = Math.round(
+    (sidePercent("vendor", targetAndPartnerIds) + sidePercent("purchaser", targetAndPartnerIds)) / 2
+  );
+  const cascadePercent = Math.round(
+    (sidePercent("vendor", allRemovedIds) + sidePercent("purchaser", allRemovedIds)) / 2
+  );
+
+  return { cascade, currentPercent, targetOnlyPercent, cascadePercent };
+}
+
+// ── executeUndoMilestone ──────────────────────────────────────────────────────
+// Atomic write: reverse target (+ bilateral partner) and optionally all cascade.
+
+export async function executeUndoMilestone(input: {
+  transactionId: string;
+  milestoneDefinitionId: string;
+  mode: "target_only" | "cascade";
+  completedById: string;
+  completedByName: string;
+}): Promise<void> {
+  const { transactionId, milestoneDefinitionId, mode, completedById, completedByName } = input;
+
+  const targetDef = await prisma.milestoneDefinition.findUnique({
+    where: { id: milestoneDefinitionId },
+    select: { id: true, code: true, name: true, side: true },
+  });
+  if (!targetDef) throw new Error("Milestone definition not found");
+
+  const partnerCode = BILATERAL_UNDO_PAIRS[targetDef.code];
+  let partnerDef: { id: string; code: string; name: string; side: string } | null = null;
+  if (partnerCode) {
+    partnerDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: partnerCode },
+      select: { id: true, code: true, name: true, side: true },
+    }) ?? null;
+  }
+
+  const targetDownstream = await getDownstreamCompleted(milestoneDefinitionId, transactionId);
+  const partnerDownstream = partnerDef
+    ? await getDownstreamCompleted(partnerDef.id, transactionId)
+    : [];
+
+  const cascadeMap = new Map<string, { id: string; code: string; name: string }>();
+  for (const m of [...targetDownstream, ...partnerDownstream]) {
+    if (!cascadeMap.has(m.id)) cascadeMap.set(m.id, { id: m.id, code: m.code, name: m.name });
+  }
+  const cascadeItems = Array.from(cascadeMap.values());
+
+  const primaryIds = [milestoneDefinitionId, ...(partnerDef ? [partnerDef.id] : [])];
+  const primaryCodes = new Set([targetDef.code, ...(partnerDef ? [partnerDef.code] : [])]);
+  const cascadeIds = mode === "cascade" ? cascadeItems.map((m) => m.id) : [];
+  const allReverseIds = [...primaryIds, ...cascadeIds];
+  const allReverseCodes = new Set([
+    ...primaryCodes,
+    ...(mode === "cascade" ? cascadeItems.map((m) => m.code) : []),
+  ]);
+
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, side: true },
+  });
+  const codeToId = new Map(allDefs.map((d) => [d.code, d.id]));
+  const idToCode = new Map(allDefs.map((d) => [d.id, d.code]));
+  const idToSide = new Map(allDefs.map((d) => [d.id, d.side]));
+
+  const allCompletions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const stateMap = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
+
+  function computeNewState(defId: string): "available" | "locked" {
+    const code = idToCode.get(defId);
+    if (!code) return "locked";
+    const prereqs = DIRECT_PREREQUISITES[code] ?? [];
+    const allSatisfied = prereqs.every((p) => {
+      if (allReverseCodes.has(p)) return false;
+      const pid = codeToId.get(p);
+      if (!pid) return true;
+      const s = stateMap.get(pid);
+      return s === "complete" || s === "not_required";
+    });
+    return allSatisfied ? "available" : "locked";
+  }
+
+  // Available milestones that now have an unsatisfied prereq (need re-locking)
+  const availableToRelock: string[] = [];
+  for (const def of allDefs) {
+    if (allReverseCodes.has(def.code)) continue;
+    if (stateMap.get(def.id) !== "available") continue;
+    const prereqs = DIRECT_PREREQUISITES[def.code] ?? [];
+    if (!prereqs.some((p) => allReverseCodes.has(p))) continue;
+    const stillSatisfied = prereqs.every((p) => {
+      if (allReverseCodes.has(p)) return false;
+      const pid = codeToId.get(p);
+      if (!pid) return true;
+      const s = stateMap.get(pid);
+      return s === "complete" || s === "not_required";
+    });
+    if (!stillSatisfied) availableToRelock.push(def.id);
+  }
+
+  const affectedSides = new Set<MilestoneSide>();
+  for (const id of allReverseIds) {
+    const side = idToSide.get(id) as MilestoneSide | undefined;
+    if (side) affectedSides.add(side);
+  }
+
+  const cancelReminderCodes = mode === "target_only"
+    ? Array.from(primaryCodes)
+    : Array.from(allReverseCodes);
+
+  await prisma.$transaction(async (ptx) => {
+    // Reverse primary milestones (target + bilateral partner)
+    for (const defId of primaryIds) {
+      await ptx.milestoneCompletion.update({
+        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        data: {
+          state: computeNewState(defId),
+          completedAt: null,
+          completedById: null,
+          summaryText: null,
+          notRequiredReason: null,
+          reconciledAtExchange: false,
+          outOfOrderCompletion: false,
+        },
+      });
+    }
+
+    // Reverse cascade milestones (cascade mode only)
+    for (const defId of cascadeIds) {
+      await ptx.milestoneCompletion.update({
+        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        data: {
+          state: computeNewState(defId),
+          completedAt: null,
+          completedById: null,
+          summaryText: null,
+          notRequiredReason: null,
+          reconciledAtExchange: false,
+          outOfOrderCompletion: false,
+        },
+      });
+    }
+
+    // Re-lock available milestones whose prereqs are now unsatisfied
+    if (availableToRelock.length > 0) {
+      await ptx.milestoneCompletion.updateMany({
+        where: { transactionId, milestoneDefinitionId: { in: availableToRelock } },
+        data: { state: "locked" },
+      });
+    }
+
+    // target_only: flag still-complete downstream with outOfOrderCompletion
+    if (mode === "target_only" && cascadeItems.length > 0) {
+      await ptx.milestoneCompletion.updateMany({
+        where: { transactionId, milestoneDefinitionId: { in: cascadeItems.map((m) => m.id) } },
+        data: { outOfOrderCompletion: true },
+      });
+    }
+
+    // Re-evaluate exchange gate (re-lock if a blocker was undone)
+    for (const side of affectedSides) {
+      await maybeLockExchangeGate(transactionId, side, ptx);
+    }
+
+    // Cancel active reminder logs + pending chase tasks for reversed codes
+    const logs = await ptx.reminderLog.findMany({
+      where: {
+        transactionId,
+        status: "active",
+        reminderRule: { targetMilestoneCode: { in: cancelReminderCodes } },
+      },
+      select: { id: true },
+    });
+    if (logs.length > 0) {
+      const logIds = logs.map((l) => l.id);
+      await ptx.chaseTask.updateMany({
+        where: { reminderLogId: { in: logIds }, status: "pending" },
+        data: { status: "cancelled" },
+      });
+      await ptx.reminderLog.updateMany({
+        where: { id: { in: logIds } },
+        data: { status: "cancelled", statusReason: "Milestone reversed" },
+      });
+    }
+
+    // Communication records — primary milestones
+    const modeNote = mode === "target_only"
+      ? " — downstream milestones kept as-is"
+      : ` — undone by ${completedByName}`;
+    for (const defId of primaryIds) {
+      const defName = defId === milestoneDefinitionId
+        ? targetDef.name
+        : (partnerDef?.name ?? "milestone");
+      await ptx.communicationRecord.create({
+        data: {
+          transactionId,
+          type: "internal_note",
+          contactIds: [],
+          content: `Milestone reversed: ${defName}${modeNote}`,
+          createdById: completedById,
+        },
+      });
+    }
+
+    // Communication records — cascade milestones
+    if (mode === "cascade") {
+      for (const item of cascadeItems) {
+        await ptx.communicationRecord.create({
+          data: {
+            transactionId,
+            type: "internal_note",
+            contactIds: [],
+            content: `Milestone reversed: ${item.name} — cascaded from undo of ${targetDef.name}`,
+            createdById: completedById,
+          },
+        });
+      }
+    }
+  });
+
+  touchLastActivity(transactionId).catch(() => {});
 }
 
 // ── reverseMilestoneWithCascade ──────────────────────────────────────────────

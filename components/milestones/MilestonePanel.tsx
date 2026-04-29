@@ -73,10 +73,12 @@ export function MilestonePanel({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(initialCollapsed);
   const [nrCollapsed, setNrCollapsed] = useState(true);
   const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
+  const [optimisticallyRelockedIds, setOptimisticallyRelockedIds] = useState<Set<string>>(new Set());
 
-  // Clear optimistic state once the server data arrives with the real unlock
+  // Clear optimistic state once the server data arrives with the real unlock/relock
   useEffect(() => {
     setOptimisticallyUnlockedIds(new Set());
+    setOptimisticallyRelockedIds(new Set());
   }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
@@ -96,21 +98,20 @@ export function MilestonePanel({
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
-  // After confirming a milestone, immediately show Confirm on any milestone whose
-  // prerequisites are now fully satisfied. Checks every prereq against current state
-  // plus the just-confirmed milestone — no false positives.
-  function handleConfirmStart(confirmedId: string, confirmedCode: string) {
+  // Shared: after a milestone is confirmed or NR'd, unlock any dependent that is
+  // now fully satisfied. Called by handleConfirmStart and handleNRStart.
+  function unlockDependents(doneId: string, doneCode: string) {
     const codeToId = new Map(milestones.map((m) => [m.code, m.id]));
     const satisfiedIds = new Set(
       milestones.filter((m) => m.isComplete || m.isNotRequired).map((m) => m.id)
     );
-    satisfiedIds.add(confirmedId); // count the confirmed row as done immediately
+    satisfiedIds.add(doneId);
 
     const toUnlock: string[] = [];
     for (const m of milestones) {
       if (m.isComplete || m.isNotRequired || m.isAvailable) continue;
       const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
-      if (!prereqs.includes(confirmedCode)) continue;
+      if (!prereqs.includes(doneCode)) continue;
       const allMet = prereqs.every((p) => {
         const pid = codeToId.get(p);
         return pid ? satisfiedIds.has(pid) : true;
@@ -120,6 +121,35 @@ export function MilestonePanel({
     if (toUnlock.length > 0) {
       setOptimisticallyUnlockedIds((prev) => new Set([...prev, ...toUnlock]));
     }
+  }
+
+  function handleConfirmStart(confirmedId: string, confirmedCode: string) {
+    unlockDependents(confirmedId, confirmedCode);
+  }
+
+  // N/R counts as "satisfied" for prereq purposes — same cascade as Confirm.
+  function handleNRStart(nrId: string, nrCode: string) {
+    unlockDependents(nrId, nrCode);
+  }
+
+  // After undoing a milestone, re-lock any dependent that is now no longer
+  // fully satisfied. Only affects available (not yet confirmed) dependents.
+  function handleUndoStart(undoneId: string, undoneCode: string) {
+    const toRelock: string[] = [];
+    for (const m of milestones) {
+      if (m.isComplete || m.isNotRequired || !m.isAvailable) continue;
+      const prereqs = DIRECT_PREREQUISITES[m.code] ?? [];
+      if (prereqs.includes(undoneCode)) toRelock.push(m.id);
+    }
+    if (toRelock.length > 0) {
+      setOptimisticallyRelockedIds((prev) => new Set([...prev, ...toRelock]));
+    }
+    // The undone milestone itself loses its "complete" status — remove from unlocked set
+    setOptimisticallyUnlockedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(undoneId);
+      return next;
+    });
   }
 
   const totalAll = milestones.length;
@@ -309,6 +339,9 @@ export function MilestonePanel({
                         transactionId={transactionId}
                         onConfirmStart={() => handleConfirmStart(def.id, def.code)}
                         optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                        optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                        onNRStart={() => handleNRStart(def.id, def.code)}
+                        onUndoStart={() => handleUndoStart(def.id, def.code)}
                       />
                     ))}
                   </div>

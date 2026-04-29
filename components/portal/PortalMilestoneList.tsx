@@ -3,6 +3,7 @@
 import { useState, useOptimistic, useTransition } from "react";
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
+import { getEventDateLabel } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
 
 
@@ -495,7 +496,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
               {confirmingMilestone.eventDateRequired && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    Date <span style={{ color: "#EF4444" }}>*</span>
+                    {getEventDateLabel(confirmingMilestone.code)} <span style={{ color: "#EF4444" }}>*</span>
                   </label>
                   <input
                     type="date"
