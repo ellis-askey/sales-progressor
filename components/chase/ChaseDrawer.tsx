@@ -170,7 +170,7 @@ export function ChaseDrawer({
     contacts[0];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex justify-end" onClick={onClose}>
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         style={{ animation: "agent-backdrop-in 200ms ease both" }}
