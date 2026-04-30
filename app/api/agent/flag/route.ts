@@ -21,14 +21,14 @@ export async function POST(req: NextRequest) {
 
   if (transactionId) {
     const tx = await prisma.propertyTransaction.findFirst({
-      where: { id: transactionId, agencyId: agentUser?.agencyId },
+      where: { id: transactionId, agencyId: agentUser?.agencyId ?? undefined },
     });
     if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   await prisma.manualTask.create({
     data: {
-      agencyId: agentUser!.agencyId,
+      agencyId: agentUser!.agencyId ?? "",
       transactionId: transactionId ?? null,
       title: message.trim(),
       isAgentRequest: true,
