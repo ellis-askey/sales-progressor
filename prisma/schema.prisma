@@ -32,7 +32,7 @@ model User {
   email           String     @unique
   password        String?
   role            UserRole   @default(viewer)
-  agencyId        String
+  agencyId        String?
   firmName        String?
   progressorId    String?
   clientType      ClientType @default(standard)
@@ -43,7 +43,7 @@ model User {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  agency               Agency                @relation(fields: [agencyId], references: [id])
+  agency               Agency?               @relation(fields: [agencyId], references: [id])
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
   managedAgents        User[]                @relation("ProgressorAgents")
   assignedTransactions PropertyTransaction[] @relation("AssignedUser")
@@ -63,6 +63,18 @@ model User {
   createdDomains       VerifiedDomain[]   @relation("DomainCreatedBy")
   verifiedEmails       UserVerifiedEmail[]
   feedbackSubmissions  FeedbackSubmission[]
+  agentPushSubscriptions AgentPushSubscription[]
+}
+
+model AgentPushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum UserRole {

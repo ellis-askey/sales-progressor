@@ -33,6 +33,13 @@ export function AgentBell({ userKey }: { userKey: string }) {
     return () => clearInterval(id);
   }, [fetchCount]);
 
+  useEffect(() => {
+    if ("setAppBadge" in navigator) {
+      if (count > 0) navigator.setAppBadge(count).catch(() => {});
+      else navigator.clearAppBadge().catch(() => {});
+    }
+  }, [count]);
+
   function handleClick() {
     localStorage.setItem(storageKey, new Date().toISOString());
     setCount(0);

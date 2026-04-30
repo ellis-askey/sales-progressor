@@ -143,7 +143,7 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
   return (
     <div>
       <p style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Screenshot (optional)</p>
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" capture="environment" className="sr-only"
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
       <button type="button"
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -204,12 +204,12 @@ function CategoryCard({ icon, title, description, onClick }: { icon: React.React
 
 // ── Submit button ─────────────────────────────────────────────────────────────
 
-function SubmitBtn({ label, disabled }: { label: string; disabled: boolean }) {
+function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: boolean; submitting: boolean }) {
   return (
     <button type="submit" disabled={disabled}
       style={{ width: "100%", padding: "11px 16px", background: disabled ? "#fed7aa" : "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", transition: "background 150ms ease" }}
     >
-      {disabled ? "Sending…" : label}
+      {submitting ? "Sending…" : label}
     </button>
   );
 }
@@ -433,7 +433,7 @@ export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: 
               <Field label="What's your question?" value={field1} onChange={setField1} rows={4} placeholder="Ask away — we'll get back to you soon…" required />
             )}
             <ScreenshotUpload value={screenshot} onChange={setScreenshot} />
-            <SubmitBtn label={meta.label} disabled={submitting || !field1.trim() || (category === "bug" && !field2.trim())} />
+            <SubmitBtn label={meta.label} disabled={submitting || !field1.trim() || (category === "bug" && !field2.trim())} submitting={submitting} />
           </form>
         </>
       );

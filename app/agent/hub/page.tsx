@@ -374,6 +374,7 @@ export default async function HubPreviewPage() {
                 color: "var(--agent-success)", background: "var(--agent-success-bg)",
                 border: "1px solid var(--agent-success-border)",
                 padding: "3px 10px", borderRadius: 99,
+                flexShrink: 0, whiteSpace: "nowrap",
               }}>
                 {diaryItems.length} {diaryItems.length === 1 ? "event" : "events"} today
               </span>
