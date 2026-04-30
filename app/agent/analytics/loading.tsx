@@ -151,6 +151,33 @@ export default function AnalyticsLoading() {
           ))}
         </div>
 
+        {/* Files at risk panel */}
+        <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div className="agent-skeleton" style={{ height: 13, width: 100, borderRadius: 6, marginBottom: 5 }} />
+              <div className="agent-skeleton" style={{ height: 10, width: 220, borderRadius: 6 }} />
+            </div>
+            <div className="agent-skeleton" style={{ height: 20, width: 60, borderRadius: 99 }} />
+          </div>
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              style={{
+                padding: "11px 20px",
+                borderTop: i > 1 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}
+            >
+              <div>
+                <div className="agent-skeleton" style={{ height: 12, width: 130, borderRadius: 6, marginBottom: 4 }} />
+                <div className="agent-skeleton" style={{ height: 10, width: 200, borderRadius: 6 }} />
+              </div>
+              <div className="agent-skeleton" style={{ height: 20, width: 44, borderRadius: 99 }} />
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   );
