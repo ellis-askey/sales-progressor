@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
-import { getSolicitorExchangeStats, getMonthlyActivity } from "@/lib/services/analytics";
+import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, buildSubmissionFunnel } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
+import { DeltaPill } from "@/components/analytics/DeltaPill";
+import { KpiSparkline } from "@/components/analytics/KpiSparkline";
+import { SubmissionFunnel } from "@/components/analytics/SubmissionFunnel";
+import { FilesAtRiskPanel } from "@/components/analytics/FilesAtRiskPanel";
 import { MissingFeesList } from "@/components/analytics/MissingFeesList";
 import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
@@ -88,12 +92,6 @@ function getPrevPeriodBounds(p: string): { start: Date; end: Date } | null {
   return null;
 }
 
-function fmtDelta(curr: number, prev: number, periodWord: string): { text: string; color: string } {
-  const diff = curr - prev;
-  if (diff > 0) return { text: `↑ ${diff} vs last ${periodWord}`, color: "var(--agent-success)" };
-  if (diff < 0) return { text: `↓ ${Math.abs(diff)} vs last ${periodWord}`, color: "var(--agent-warning)" };
-  return { text: `no change vs last ${periodWord}`, color: "var(--agent-text-muted)" };
-}
 
 function periodHref(p: string, userId?: string) {
   const params = new URLSearchParams();
@@ -132,11 +130,14 @@ export default async function AgentAnalyticsPage({
     ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }
     : vis;
 
-  const [transactions, team, solicitorStats, monthlyActivity] = await Promise.all([
+  const pageNow = new Date();
+  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk] = await Promise.all([
     getAgentTransactions(effectiveVis),
     isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
     getSolicitorExchangeStats(effectiveVis),
     getMonthlyActivity(effectiveVis),
+    getKpiTrendsForAgency(effectiveVis, { start: new Date(0), end: pageNow }),
+    getFilesAtRisk(effectiveVis),
   ]);
 
   // ── Period slice ──────────────────────────────────────────────────────────
@@ -230,9 +231,7 @@ export default async function AgentAnalyticsPage({
   const periodWord     = period === "week" ? "week" : period === "month" ? "month" : "year";
   const exchangeRate   = periodTx.length > 0 ? Math.round((exchanged.length / periodTx.length) * 100) : null;
   const completionRate = exchanged.length  > 0 ? Math.round((completed.length / exchanged.length) * 100) : null;
-  const deltaSubmitted = showDelta ? fmtDelta(periodTx.length,   prevPeriodTx.length,  periodWord) : null;
-  const deltaExchanged = showDelta ? fmtDelta(exchanged.length,  prevExchanged.length, periodWord) : null;
-  const deltaCompleted = showDelta ? fmtDelta(completed.length,  prevCompleted.length, periodWord) : null;
+  const funnelData = buildSubmissionFunnel(periodTx.length, exchanged.length, completed.length);
 
   // ── Team leaderboard ──────────────────────────────────────────────────────
   const showLeaderboard = isDirector && !filterUserId && team.length > 1;
@@ -423,8 +422,9 @@ export default async function AgentAnalyticsPage({
               <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
                 {periodTx.length}
               </p>
-              {deltaSubmitted && (
-                <p style={{ margin: "4px 0 0", fontSize: 10, color: deltaSubmitted.color }}>{deltaSubmitted.text}</p>
+              <KpiSparkline data={kpiSparklines.submitted} color="var(--agent-coral)" />
+              {showDelta && (
+                <DeltaPill current={periodTx.length} previous={prevPeriodTx.length} periodWord={periodWord} />
               )}
             </div>
             <div>
@@ -435,8 +435,9 @@ export default async function AgentAnalyticsPage({
               {exchangeRate !== null && (
                 <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{exchangeRate}% of submitted</p>
               )}
-              {deltaExchanged && (
-                <p style={{ margin: "2px 0 0", fontSize: 10, color: deltaExchanged.color }}>{deltaExchanged.text}</p>
+              <KpiSparkline data={kpiSparklines.exchanged} color="var(--agent-success)" />
+              {showDelta && (
+                <DeltaPill current={exchanged.length} previous={prevExchanged.length} periodWord={periodWord} />
               )}
             </div>
             <div>
@@ -447,12 +448,21 @@ export default async function AgentAnalyticsPage({
               {completionRate !== null && (
                 <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{completionRate}% of exchanged</p>
               )}
-              {deltaCompleted && (
-                <p style={{ margin: "2px 0 0", fontSize: 10, color: deltaCompleted.color }}>{deltaCompleted.text}</p>
+              <KpiSparkline data={kpiSparklines.completed} color="var(--agent-text-secondary)" />
+              {showDelta && (
+                <DeltaPill current={completed.length} previous={prevCompleted.length} periodWord={periodWord} />
               )}
             </div>
           </div>
         </div>
+
+        {/* ── Submission funnel ─────────────────────────────────────────────── */}
+        {periodTx.length > 0 && (
+          <div className="agent-glass" style={{ padding: "16px 20px" }}>
+            <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel — {periodLabel.toLowerCase()}</p>
+            <SubmissionFunnel data={funnelData} />
+          </div>
+        )}
 
         {/* ── Values — compact 2-col card ───────────────────────────────────── */}
         <div className="agent-glass" style={{ padding: "16px 20px" }}>
@@ -626,6 +636,9 @@ export default async function AgentAnalyticsPage({
           </div>
           <MissingFeesList files={noFeeFiles} txBasePath="/agent/transactions" />
         </div>
+
+        {/* ── Files at risk ─────────────────────────────────────────────────── */}
+        <FilesAtRiskPanel data={filesAtRisk} />
 
         {/* ── Team leaderboard ──────────────────────────────────────────────── */}
         {showLeaderboard && (

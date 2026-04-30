@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { calculateOurFee } from "@/lib/services/fees";
 import type { AgentVisibility } from "./agent";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, TransactionStatus } from "@prisma/client";
+
+// "draft" exists in the DB enum but may not be in the generated Prisma client yet
+const DRAFT = "draft" as TransactionStatus;
 
 // ── Shared visibility where ───────────────────────────────────────────────────
 
@@ -326,4 +329,212 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
       avgDaysToExchange: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
     }))
     .sort((a, b) => a.avgDaysToExchange - b.avgDaysToExchange);
+}
+
+// ── KPI sparklines ────────────────────────────────────────────────────────────
+
+export type KpiSparklines = {
+  labels: string[];
+  submitted: number[];  // transaction submitted count per weekly bucket
+  exchanged: number[];  // distinct transactions that exchanged per bucket (event date)
+  completed: number[];  // distinct transactions that completed per bucket (event date)
+};
+
+export async function getKpiTrendsForAgency(
+  vis: AgentVisibility,
+  range: { start: Date; end: Date }
+): Promise<KpiSparklines> {
+  const txWhere = buildTxWhere(vis);
+  const rangeEnd = range.end;
+
+  // 8 weekly buckets (oldest → newest), each 7 days, last ending at rangeEnd
+  const buckets = Array.from({ length: 8 }, (_, i) => {
+    const end = new Date(rangeEnd);
+    end.setDate(end.getDate() - (7 - i) * 7);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 7);
+    return {
+      start,
+      end,
+      label: start.toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+    };
+  });
+
+  const windowStart = buckets[0].start;
+
+  const [exchangeDefs, completionDefs] = await Promise.all([
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM19", "PM26"] } },
+      select: { id: true },
+    }),
+    prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    }),
+  ]);
+
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+  const completionDefIds = completionDefs.map((d) => d.id);
+
+  const [txsInWindow, exchangesInWindow, completionsInWindow] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: { ...txWhere, status: { not: DRAFT }, createdAt: { gte: windowStart, lt: rangeEnd } },
+      select: { createdAt: true },
+    }),
+    // Exclude reconciledAtExchange completions — Fix 5 risk callout: sweep completions
+    // added during bilateral exchange reconciliation corrupt trend counts.
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: { ...txWhere, status: { not: DRAFT } },
+        milestoneDefinitionId: { in: exchangeDefIds },
+        state: "complete",
+        reconciledAtExchange: false,
+        completedAt: { gte: windowStart, lt: rangeEnd },
+      },
+      select: { transactionId: true, completedAt: true },
+    }),
+    prisma.milestoneCompletion.findMany({
+      where: {
+        transaction: { ...txWhere, status: { not: DRAFT } },
+        milestoneDefinitionId: { in: completionDefIds },
+        state: "complete",
+        reconciledAtExchange: false,
+        completedAt: { gte: windowStart, lt: rangeEnd },
+      },
+      select: { transactionId: true, completedAt: true },
+    }),
+  ]);
+
+  // One event per transaction: keep earliest completedAt per transactionId
+  const dedupByTx = (rows: { transactionId: string; completedAt: Date | null }[]): Date[] => {
+    const map = new Map<string, Date>();
+    for (const r of rows) {
+      if (!r.completedAt) continue;
+      const d = new Date(r.completedAt);
+      const prev = map.get(r.transactionId);
+      if (!prev || d < prev) map.set(r.transactionId, d);
+    }
+    return Array.from(map.values());
+  };
+
+  const exchangeDates   = dedupByTx(exchangesInWindow);
+  const completionDates = dedupByTx(completionsInWindow);
+
+  return {
+    labels:    buckets.map((b) => b.label),
+    submitted: buckets.map(({ start, end }) =>
+      txsInWindow.filter((t) => { const d = new Date(t.createdAt); return d >= start && d < end; }).length
+    ),
+    exchanged: buckets.map(({ start, end }) =>
+      exchangeDates.filter((d) => d >= start && d < end).length
+    ),
+    completed: buckets.map(({ start, end }) =>
+      completionDates.filter((d) => d >= start && d < end).length
+    ),
+  };
+}
+
+// ── Submission funnel (pure helper — data is already computed in the page) ────
+
+export type SubmissionFunnelData = {
+  stages: Array<{ key: string; label: string; count: number }>;
+  conversions: Array<{ from: string; to: string; percent: number }>;
+};
+
+export function buildSubmissionFunnel(
+  submitted: number,
+  exchanged: number,
+  completed: number
+): SubmissionFunnelData {
+  return {
+    stages: [
+      { key: "submitted", label: "Submitted", count: submitted },
+      { key: "exchanged", label: "Exchanged", count: exchanged },
+      { key: "completed", label: "Completed", count: completed },
+    ],
+    conversions: [
+      {
+        from: "submitted",
+        to: "exchanged",
+        percent: submitted > 0 ? Math.round((exchanged / submitted) * 100) : 0,
+      },
+      {
+        from: "exchanged",
+        to: "completed",
+        percent: exchanged > 0 ? Math.round((completed / exchanged) * 100) : 0,
+      },
+    ],
+  };
+}
+
+// ── Files at risk ─────────────────────────────────────────────────────────────
+
+export type FilesAtRiskData = {
+  overdueChases:    { count: number; transactionIds: string[] };
+  stalled:          { count: number; transactionIds: string[] };
+  missingEventDate: { count: number; transactionIds: string[] };
+};
+
+export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskData> {
+  const txWhere = buildTxWhere(vis);
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const exchangeDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM19", "PM26"] } },
+    select: { id: true },
+  });
+  const exchangeDefIds = exchangeDefs.map((d) => d.id);
+
+  const [overdueChaseTasks, stalledTxs, missingEventDateTxs] = await Promise.all([
+    // Pending chase tasks past their due date, on active files only
+    prisma.chaseTask.findMany({
+      where: {
+        status: "pending",
+        dueDate: { lt: now },
+        transaction: { ...txWhere, status: "active" },
+      },
+      select: { transactionId: true },
+    }),
+    // Active, not yet exchanged, no milestone completed in the last 14 days
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        milestoneCompletions: {
+          none: { state: "complete", completedAt: { gte: fourteenDaysAgo } },
+        },
+        NOT: {
+          milestoneCompletions: {
+            some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
+          },
+        },
+      },
+      select: { id: true },
+    }),
+    // Active files with a completed milestone that required an event date but has none set
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            eventDate: null,
+            milestoneDefinition: { eventDateRequired: true },
+          },
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  const overdueChaseIds = [...new Set(overdueChaseTasks.map((t) => t.transactionId))];
+
+  return {
+    overdueChases:    { count: overdueChaseIds.length,         transactionIds: overdueChaseIds.slice(0, 50) },
+    stalled:          { count: stalledTxs.length,              transactionIds: stalledTxs.map((t) => t.id).slice(0, 50) },
+    missingEventDate: { count: missingEventDateTxs.length,     transactionIds: missingEventDateTxs.map((t) => t.id).slice(0, 50) },
+  };
 }
