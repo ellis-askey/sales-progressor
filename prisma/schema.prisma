@@ -441,6 +441,7 @@ model CommunicationRecord {
   tone            String?
   wasAiGenerated  Boolean     @default(false)
   wasEdited       Boolean     @default(false)
+  isAutomated     Boolean     @default(false)
   visibleToClient Boolean     @default(false)
   ccEmails        String?
   createdById     String?

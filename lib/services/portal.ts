@@ -27,6 +27,25 @@ export type PortalUpdate = {
   method: string | null;
 };
 
+async function logAutomatedEmail(
+  transactionId: string,
+  contactIds: string[],
+  subject: string,
+  bodyPlain: string,
+): Promise<void> {
+  await prisma.communicationRecord.create({
+    data: {
+      transactionId,
+      type: "outbound",
+      method: "email",
+      isAutomated: true,
+      contactIds,
+      content: `Subject: ${subject}\n\n${bodyPlain}`,
+      createdById: null,
+    },
+  });
+}
+
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   for (let i = 0; i < attempts; i++) {
     try {
@@ -472,6 +491,8 @@ export async function sendAdminMilestoneNotificationToPortal(
       })
     : null;
 
+  const sideLog = new Map<string, { ids: string[]; subject: string; text: string }>();
+
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
 
@@ -517,6 +538,19 @@ export async function sendAdminMilestoneNotificationToPortal(
     lines.push(`View your portal: ${portalUrl}`);
 
     sendEmail({ to: c.email, subject, text: lines.join("\n"), html }).catch(() => {});
+
+    // Track per-role for activity log (first contact per role provides the representative body)
+    const roleKey = c.roleType === "vendor" ? "vendor" : "purchaser";
+    const existing = sideLog.get(roleKey);
+    if (existing) {
+      existing.ids.push(c.id);
+    } else {
+      sideLog.set(roleKey, { ids: [c.id], subject, text: lines.join("\n") });
+    }
+  }
+
+  for (const { ids, subject, text } of sideLog.values()) {
+    logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 }
 
@@ -668,6 +702,8 @@ async function sendRichMilestoneEmails(
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Vendor and purchaser contacts
+  const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
+
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
     const recipientKey = c.roleType as "vendor" | "purchaser";
@@ -683,6 +719,17 @@ async function sendRichMilestoneEmails(
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
     sendEmail({ to: c.email, subject, text, html }).catch(() => {});
+
+    const existing = sideLog.get(recipientKey);
+    if (existing) {
+      existing.ids.push(c.id);
+    } else {
+      sideLog.set(recipientKey, { ids: [c.id], subject, text });
+    }
+  }
+
+  for (const { ids, subject, text } of sideLog.values()) {
+    logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 
   // Agent notification
@@ -758,6 +805,7 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
     </ul>`;
   const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- Make sure your buildings insurance is active from today — you are now legally the owner.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
+  const vendorIds: string[] = [];
   for (const c of vendors) {
     const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
     await sendEmail({
@@ -771,8 +819,13 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
         ctaUrl: portalUrl,
       }),
     }).catch(() => {});
+    vendorIds.push(c.id);
+  }
+  if (vendorIds.length > 0) {
+    logAutomatedEmail(transactionId, vendorIds, "Contracts exchanged — what happens next for your sale", vendorBodyPlain).catch(() => {});
   }
 
+  const purchaserIds: string[] = [];
   for (const c of purchasers) {
     const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
     await sendEmail({
@@ -786,6 +839,10 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
         ctaUrl: portalUrl,
       }),
     }).catch(() => {});
+    purchaserIds.push(c.id);
+  }
+  if (purchaserIds.length > 0) {
+    logAutomatedEmail(transactionId, purchaserIds, "Contracts exchanged — what happens next for your purchase", purchaserBodyPlain).catch(() => {});
   }
 }
 

@@ -34,6 +34,7 @@ export type ActivityEntry =
       createdByName: string | null;
       contactNames: string[];
       wasAiGenerated: boolean;
+      isAutomated: boolean;
       tone: string | null;
     };
 
@@ -98,6 +99,7 @@ export async function getActivityTimeline(
       .map((id) => contactMap.get(id))
       .filter(Boolean) as string[],
     wasAiGenerated: c.wasAiGenerated,
+    isAutomated: c.isAutomated,
     tone: c.tone,
   }));
 
@@ -120,6 +122,7 @@ export type CreateCommInput = {
   tone?: string | null;
   wasAiGenerated?: boolean;
   wasEdited?: boolean;
+  isAutomated?: boolean;
   visibleToClient?: boolean;
   createdById: string;
   agencyId: string;
@@ -145,6 +148,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       tone: input.tone ?? null,
       wasAiGenerated: input.wasAiGenerated ?? false,
       wasEdited: input.wasEdited ?? false,
+      isAutomated: input.isAutomated ?? false,
       visibleToClient: input.visibleToClient ?? false,
       createdById: input.createdById,
     },

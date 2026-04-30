@@ -31,12 +31,13 @@ const METHOD_LABELS: Record<string, string> = {
   post: "Post",
 };
 
-type FilterKind = "all" | "milestones" | "comms" | "notes";
+type FilterKind = "all" | "milestones" | "comms" | "automated" | "notes";
 
 const FILTERS: { value: FilterKind; label: string }[] = [
   { value: "all", label: "All" },
   { value: "milestones", label: "Milestones" },
   { value: "comms", label: "Comms" },
+  { value: "automated", label: "Automated" },
   { value: "notes", label: "Notes" },
 ];
 
@@ -69,7 +70,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
     if (!showPortalVisits && isPortalView(entry)) return false;
 
     if (filter === "milestones" && entry.kind !== "milestone") return false;
-    if (filter === "comms" && (entry.kind !== "comm" || entry.type === "internal_note")) return false;
+    if (filter === "comms" && (entry.kind !== "comm" || entry.type === "internal_note" || entry.isAutomated)) return false;
+    if (filter === "automated" && (entry.kind !== "comm" || !entry.isAutomated)) return false;
     if (filter === "notes" && (entry.kind !== "comm" || entry.type !== "internal_note")) return false;
 
     if (search) {
@@ -177,6 +179,14 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
                     </svg>
                   )}
                 </div>
+              ) : entry.isAutomated ? (
+                <div className="w-9 h-9 rounded-full flex items-center justify-center border-2 bg-indigo-50/60 border-indigo-200/60">
+                  <svg className="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                    <polyline points="16 2 12 6 8 2" />
+                  </svg>
+                </div>
               ) : (
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 text-base ${
                   entry.type === "internal_note"
@@ -239,15 +249,26 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
                 <div className="glass-card px-4 py-3 group">
                   {/* Badges */}
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      entry.type === "internal_note" ? "bg-amber-100/80 text-amber-700" :
-                      entry.type === "outbound" ? "bg-blue-100/80 text-blue-700" :
-                      "bg-emerald-100/80 text-emerald-700"
-                    }`}>
-                      {entry.type === "internal_note" ? "Internal" :
-                       entry.type === "outbound" ? "→ Outbound" : "← Inbound"}
-                    </span>
-                    {entry.method && (
+                    {entry.isAutomated ? (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100/80 text-indigo-700 inline-flex items-center gap-1">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                          <polyline points="22,6 12,13 2,6" />
+                          <polyline points="16 2 12 6 8 2" />
+                        </svg>
+                        System email
+                      </span>
+                    ) : (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        entry.type === "internal_note" ? "bg-amber-100/80 text-amber-700" :
+                        entry.type === "outbound" ? "bg-blue-100/80 text-blue-700" :
+                        "bg-emerald-100/80 text-emerald-700"
+                      }`}>
+                        {entry.type === "internal_note" ? "Internal" :
+                         entry.type === "outbound" ? "→ Outbound" : "← Inbound"}
+                      </span>
+                    )}
+                    {entry.method && !entry.isAutomated && (
                       <span className="text-xs text-slate-900/50 font-medium">
                         {METHOD_ICONS[entry.method]} {METHOD_LABELS[entry.method]}
                       </span>
