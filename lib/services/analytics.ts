@@ -467,6 +467,59 @@ export function buildSubmissionFunnel(
   };
 }
 
+// ── Avg days to exchange ──────────────────────────────────────────────────────
+
+export type AvgDaysToExchangeData = {
+  avgDays: number | null;
+  count: number;
+};
+
+export async function getAvgDaysToExchange(
+  vis: AgentVisibility,
+  range: { start: Date; end: Date }
+): Promise<AvgDaysToExchangeData> {
+  const txWhere = buildTxWhere(vis);
+
+  const exchangeDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM19", "PM26"] } },
+    select: { id: true },
+  });
+
+  const completions = await prisma.milestoneCompletion.findMany({
+    where: {
+      transaction: { ...txWhere, status: { not: DRAFT } },
+      milestoneDefinitionId: { in: exchangeDefs.map((d) => d.id) },
+      state: "complete",
+      reconciledAtExchange: false,
+      completedAt: { gte: range.start, lt: range.end },
+    },
+    select: {
+      transactionId: true,
+      completedAt: true,
+      transaction: { select: { createdAt: true } },
+    },
+  });
+
+  const seen = new Set<string>();
+  const diffs: number[] = [];
+  for (const c of completions) {
+    if (!c.completedAt || seen.has(c.transactionId)) continue;
+    seen.add(c.transactionId);
+    diffs.push(
+      Math.round(
+        (new Date(c.completedAt).getTime() - new Date(c.transaction.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    );
+  }
+
+  if (diffs.length === 0) return { avgDays: null, count: 0 };
+  return {
+    avgDays: Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length),
+    count: diffs.length,
+  };
+}
+
 // ── Files at risk ─────────────────────────────────────────────────────────────
 
 export type FilesAtRiskData = {

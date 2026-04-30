@@ -41,6 +41,18 @@ export default function AnalyticsLoading() {
           </div>
         </div>
 
+        {/* Funnel + Speed — 2-col grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="agent-glass" style={{ padding: "16px 20px" }}>
+              <div className="agent-skeleton" style={{ height: 10, width: 120, borderRadius: 6, marginBottom: 14 }} />
+              {[85, 55, 35].map((w, j) => (
+                <div key={j} className="agent-skeleton" style={{ height: 10, width: `${w}%`, borderRadius: 3, marginBottom: 10 }} />
+              ))}
+            </div>
+          ))}
+        </div>
+
         {/* Values — 2-col card */}
         <div className="agent-glass" style={{ padding: "16px 20px" }}>
           <div className="grid grid-cols-2 gap-4">

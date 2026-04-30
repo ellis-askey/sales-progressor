@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
-import { AgentInstallPrompt, AgentPushPrompt } from "@/components/agent/AgentInstallPrompt";
+import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,6 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
       <FeedbackWidget checklistAware />
       <AgentInstallPrompt />
-      <AgentPushPrompt />
     </AgentToaster>
   );
 }

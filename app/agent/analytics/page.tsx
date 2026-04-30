@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
-import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, buildSubmissionFunnel } from "@/lib/services/analytics";
+import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, buildSubmissionFunnel, getAvgDaysToExchange } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
 import { DeltaPill } from "@/components/analytics/DeltaPill";
 import { KpiSparkline } from "@/components/analytics/KpiSparkline";
 import { SubmissionFunnel } from "@/components/analytics/SubmissionFunnel";
 import { FilesAtRiskPanel } from "@/components/analytics/FilesAtRiskPanel";
+import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
 import { MissingFeesList } from "@/components/analytics/MissingFeesList";
 import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
@@ -131,17 +132,18 @@ export default async function AgentAnalyticsPage({
     : vis;
 
   const pageNow = new Date();
-  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk] = await Promise.all([
+  const since   = getPeriodStart(period);
+  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk, speedToExchange] = await Promise.all([
     getAgentTransactions(effectiveVis),
     isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
     getSolicitorExchangeStats(effectiveVis),
     getMonthlyActivity(effectiveVis),
     getKpiTrendsForAgency(effectiveVis, { start: new Date(0), end: pageNow }),
     getFilesAtRisk(effectiveVis),
+    getAvgDaysToExchange(effectiveVis, { start: since ?? new Date(0), end: pageNow }),
   ]);
 
   // ── Period slice ──────────────────────────────────────────────────────────
-  const since    = getPeriodStart(period);
   const periodTx = since ? transactions.filter(t => new Date(t.createdAt) >= since) : transactions;
 
   // ── Counts ────────────────────────────────────────────────────────────────
@@ -400,6 +402,9 @@ export default async function AgentAnalyticsPage({
               </Link>
             );
           })}
+          <div className="md:hidden" style={{ marginLeft: "auto", flexShrink: 0 }}>
+            <AnalyticsNotifCta />
+          </div>
         </div>
 
         {/* ── Partial empty state banner ────────────────────────────────── */}
@@ -422,7 +427,7 @@ export default async function AgentAnalyticsPage({
               <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
                 {periodTx.length}
               </p>
-              <KpiSparkline data={kpiSparklines.submitted} color="var(--agent-coral)" />
+              <KpiSparkline data={kpiSparklines.submitted} labels={kpiSparklines.labels} color="var(--agent-coral)" />
               {showDelta && (
                 <DeltaPill current={periodTx.length} previous={prevPeriodTx.length} periodWord={periodWord} />
               )}
@@ -435,7 +440,7 @@ export default async function AgentAnalyticsPage({
               {exchangeRate !== null && (
                 <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{exchangeRate}% of submitted</p>
               )}
-              <KpiSparkline data={kpiSparklines.exchanged} color="var(--agent-success)" />
+              <KpiSparkline data={kpiSparklines.exchanged} labels={kpiSparklines.labels} color="var(--agent-success)" />
               {showDelta && (
                 <DeltaPill current={exchanged.length} previous={prevExchanged.length} periodWord={periodWord} />
               )}
@@ -448,7 +453,7 @@ export default async function AgentAnalyticsPage({
               {completionRate !== null && (
                 <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{completionRate}% of exchanged</p>
               )}
-              <KpiSparkline data={kpiSparklines.completed} color="var(--agent-text-secondary)" />
+              <KpiSparkline data={kpiSparklines.completed} labels={kpiSparklines.labels} color="var(--agent-text-secondary)" />
               {showDelta && (
                 <DeltaPill current={completed.length} previous={prevCompleted.length} periodWord={periodWord} />
               )}
@@ -456,11 +461,45 @@ export default async function AgentAnalyticsPage({
           </div>
         </div>
 
-        {/* ── Submission funnel ─────────────────────────────────────────────── */}
+        {/* ── Submission funnel + Speed to exchange ─────────────────────────── */}
         {periodTx.length > 0 && (
-          <div className="agent-glass" style={{ padding: "16px 20px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel — {periodLabel.toLowerCase()}</p>
-            <SubmissionFunnel data={funnelData} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Funnel */}
+            <div className="agent-glass" style={{ padding: "16px 20px" }}>
+              <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel — {periodLabel.toLowerCase()}</p>
+              <SubmissionFunnel data={funnelData} />
+            </div>
+            {/* Speed to exchange */}
+            <div className="agent-glass" style={{ padding: "16px 20px" }}>
+              <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Speed to exchange</p>
+              {speedToExchange.avgDays !== null ? (() => {
+                const badge = speedBadge(speedToExchange.avgDays);
+                return (
+                  <>
+                    <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                      {speedToExchange.avgDays} days
+                    </p>
+                    <p style={{ margin: "4px 0 8px", fontSize: 10, color: "var(--agent-text-muted)" }}>
+                      avg from instruction · {speedToExchange.count} file{speedToExchange.count !== 1 ? "s" : ""} exchanged
+                    </p>
+                    <span style={{
+                      display: "inline-block",
+                      fontSize: 11, fontWeight: 600,
+                      padding: "3px 10px", borderRadius: 99,
+                      color: badge.color,
+                      background: badge.bg,
+                      border: `1px solid ${badge.border}`,
+                    }}>
+                      {badge.label}
+                    </span>
+                  </>
+                );
+              })() : (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
+                  No exchanges {periodLabel.toLowerCase()}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
