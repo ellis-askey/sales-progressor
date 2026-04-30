@@ -335,9 +335,10 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
 
 export type KpiSparklines = {
   labels: string[];
-  submitted: number[];  // transaction submitted count per weekly bucket
-  exchanged: number[];  // distinct transactions that exchanged per bucket (event date)
-  completed: number[];  // distinct transactions that completed per bucket (event date)
+  submitted: number[];       // transaction submitted count per weekly bucket
+  exchanged: number[];       // distinct transactions that exchanged per bucket (event date)
+  completed: number[];       // distinct transactions that completed per bucket (event date)
+  submittedValue: number[];  // sum of purchasePrice (pence) for submitted transactions per bucket
 };
 
 export async function getKpiTrendsForAgency(
@@ -379,7 +380,7 @@ export async function getKpiTrendsForAgency(
   const [txsInWindow, exchangesInWindow, completionsInWindow] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: { ...txWhere, status: { not: DRAFT }, createdAt: { gte: windowStart, lt: rangeEnd } },
-      select: { createdAt: true },
+      select: { createdAt: true, purchasePrice: true },
     }),
     // Exclude reconciledAtExchange completions — Fix 5 risk callout: sweep completions
     // added during bilateral exchange reconciliation corrupt trend counts.
@@ -430,6 +431,11 @@ export async function getKpiTrendsForAgency(
     ),
     completed: buckets.map(({ start, end }) =>
       completionDates.filter((d) => d >= start && d < end).length
+    ),
+    submittedValue: buckets.map(({ start, end }) =>
+      txsInWindow
+        .filter((t) => { const d = new Date(t.createdAt); return d >= start && d < end; })
+        .reduce((s, t) => s + (t.purchasePrice ?? 0), 0)
     ),
   };
 }

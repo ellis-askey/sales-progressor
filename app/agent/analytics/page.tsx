@@ -9,6 +9,8 @@ import { KpiSparkline } from "@/components/analytics/KpiSparkline";
 import { SubmissionFunnel } from "@/components/analytics/SubmissionFunnel";
 import { FilesAtRiskPanel } from "@/components/analytics/FilesAtRiskPanel";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
+import { ValueHeatTiles } from "@/components/analytics/ValueHeatTiles";
+import { SpeedGauge } from "@/components/analytics/SpeedGauge";
 import { MissingFeesList } from "@/components/analytics/MissingFeesList";
 import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
@@ -157,6 +159,7 @@ export default async function AgentAnalyticsPage({
     : [];
   const prevExchanged = prevPeriodTx.filter(t => t.hasExchanged);
   const prevCompleted = prevPeriodTx.filter(t => t.hasCompleted);
+  const prevExchangedValuePence = prevExchanged.reduce((s, t) => s + (t.purchasePrice ?? 0), 0);
   // Only show deltas when the agency had transactions before the current period started
   const hasHistory   = !!since && transactions.some(t => new Date(t.createdAt) < since);
   const showDelta    = period !== "all" && hasHistory;
@@ -492,6 +495,7 @@ export default async function AgentAnalyticsPage({
                     }}>
                       {badge.label}
                     </span>
+                    <SpeedGauge avgDays={speedToExchange.avgDays} />
                   </>
                 );
               })() : (
@@ -512,6 +516,7 @@ export default async function AgentAnalyticsPage({
                 {fmtGBP(pipelineValuePence)}
               </p>
               <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Purchase prices</p>
+              <ValueHeatTiles data={kpiSparklines.submittedValue} labels={kpiSparklines.labels} />
             </div>
             <div>
               <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Value exchanged</p>
@@ -519,6 +524,16 @@ export default async function AgentAnalyticsPage({
                 {fmtGBP(exchangedValuePence)}
               </p>
               <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
+              {showDelta && (() => {
+                const diff = exchangedValuePence - prevExchangedValuePence;
+                const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "·";
+                const color = diff > 0 ? "var(--agent-success)" : diff < 0 ? "var(--agent-warning)" : "var(--agent-text-muted)";
+                return (
+                  <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 700, color }}>
+                    {arrow} {diff !== 0 ? `${fmtGBP(Math.abs(diff))} vs last ${periodWord}` : "no change"}
+                  </p>
+                );
+              })()}
             </div>
           </div>
         </div>
