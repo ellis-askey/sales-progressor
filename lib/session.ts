@@ -13,6 +13,14 @@ export async function requireSession() {
   return session;
 }
 
+// Use in routes that require an agency-scoped user (admin/sales_progressor have no agencyId)
+export async function requireAgencySession() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) redirect("/login");
+  if (!session.user.agencyId) redirect("/login");
+  return session;
+}
+
 export async function getSession() {
   return getServerSession(authOptions);
 }

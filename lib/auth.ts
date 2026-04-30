@@ -82,7 +82,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
-          agencyId: user.agencyId,
+          agencyId: user.agencyId ?? "",
           firmName: user.firmName ?? null,
         };
       },
@@ -94,7 +94,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: UserRole }).role;
-        token.agencyId = (user as { agencyId: string }).agencyId;
+        token.agencyId = (user as { agencyId: string | null }).agencyId ?? "";
         token.firmName = (user as { firmName: string | null }).firmName;
       }
       return token;
