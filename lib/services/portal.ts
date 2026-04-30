@@ -326,6 +326,7 @@ export async function logPortalMilestoneConfirm(
   if (richCopy) {
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
+    const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
       const recipientKey = c.roleType as "vendor" | "purchaser";
@@ -337,26 +338,33 @@ export async function logPortalMilestoneConfirm(
       const subject   = interpolate(copy.subject, { address });
       const text      = [greeting, "", interpolate(copy.opening, { address }), "", interpolate(copy.whatHappened, { address }), ...(copy.whatNext ? ["", interpolate(copy.whatNext, { address })] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text }).catch(() => {});
+      const existing = sideLog.get(recipientKey);
+      if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
+    }
+    for (const { ids, subject, text } of sideLog.values()) {
+      logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
     }
   } else {
     // Fallback for milestones without structured emailCopy: generic thank-you to confirming
     // contact and generic progress update to the other side.
     if (confirmingContact?.email && confirmingContact.portalToken) {
       const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
+      const confirmSubject = `Step confirmed — ${address}`;
+      const confirmText = [
+        `Hi ${confirmingContact.name.split(" ")[0]},`,
+        ``,
+        `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${address}:`,
+        ``,
+        `  ✓ ${portalLabel}`,
+        ``,
+        `Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.`,
+        ``,
+        `View your portal: ${portalUrl}`,
+      ].join("\n");
       sendEmail({
         to: confirmingContact.email,
-        subject: `Step confirmed — ${address}`,
-        text: [
-          `Hi ${confirmingContact.name.split(" ")[0]},`,
-          ``,
-          `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${address}:`,
-          ``,
-          `  ✓ ${portalLabel}`,
-          ``,
-          `Your conveyancing is moving forward. We'll be in touch when there's something new to update you on.`,
-          ``,
-          `View your portal: ${portalUrl}`,
-        ].join("\n"),
+        subject: confirmSubject,
+        text: confirmText,
         html: portalStepConfirmedHtml({
           firstName: confirmingContact.name.split(" ")[0],
           address,
@@ -365,24 +373,27 @@ export async function logPortalMilestoneConfirm(
           portalUrl,
         }),
       }).catch(() => {});
+      logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
     }
 
     const otherSideRole = confirmingRole === "vendor" ? "purchaser" : "vendor";
     const otherContacts = tx.contacts.filter(
       (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken
     );
+    const otherIds: string[] = [];
     for (const other of otherContacts) {
       const portalUrl = `${base}/portal/${other.portalToken!}`;
+      const otherText = [
+        `Hi ${other.name.split(" ")[0]},`,
+        ``,
+        `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`,
+        ``,
+        `View your portal: ${portalUrl}`,
+      ].join("\n");
       sendEmail({
         to: other.email!,
         subject: `Progress update — ${address}`,
-        text: [
-          `Hi ${other.name.split(" ")[0]},`,
-          ``,
-          `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`,
-          ``,
-          `View your portal: ${portalUrl}`,
-        ].join("\n"),
+        text: otherText,
         html: portalEmailHtml({
           greeting: `Hi ${other.name.split(" ")[0]},`,
           body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${address}</strong>. Log in to your portal to see the latest.`,
@@ -390,6 +401,10 @@ export async function logPortalMilestoneConfirm(
           ctaUrl: portalUrl,
         }),
       }).catch(() => {});
+      otherIds.push(other.id);
+    }
+    if (otherIds.length > 0) {
+      logAutomatedEmail(transactionId, otherIds, `Progress update — ${address}`, `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`).catch(() => {});
     }
   }
 
