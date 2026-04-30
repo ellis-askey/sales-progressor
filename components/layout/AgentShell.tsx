@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
@@ -40,6 +40,16 @@ export function AgentShell({ children, session, showWelcome }: { children: React
   const navGroups   = buildNavGroups(role);
   const initials    = session.user.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
 
   return (
     <div className="agent-shell-root" style={{ display: "flex" }}>
@@ -104,7 +114,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
           position: "fixed", top: 0, left: 0, overflowY: "auto",
           borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
           borderRight: "0.5px solid var(--agent-glass-border)",
-          zIndex: 10,
+          zIndex: 100,
         }}
       >
         {/* Brand */}
