@@ -1,10 +1,100 @@
-# Phase 0 — Discovery Report
+# Phase 0 — Pipeline Health Additions Discovery Report
 
 Generated: 2026-05-01
 
 ---
 
-## 1. Activity Timeline Rendering
+## 1. Hub page location
+
+`app/agent/hub/page.tsx`
+
+No separate component file for the Pipeline Health card — it is rendered inline in the page at line 512 ("Pipeline health + Momentum" section). The card lives inside a CSS grid div with the Momentum card (`gridTemplateColumns: "2fr 1fr"`).
+
+---
+
+## 2. Service function for Pipeline Health
+
+**File:** `lib/services/hub.ts`
+**Function:** `getHubPipelineStats(vis: AgentVisibility)`
+**Return shape:**
+```ts
+{
+  activeFiles: number;          // count of active transactions
+  exchangingSoon: number;       // active txns where expectedExchangeDate OR overridePredictedDate in next 30 days
+  pipelineValuePence: number;   // sum of purchasePrice for active txns (in pence)
+  newThisMonth: number;         // txns created since start of current calendar month
+}
+```
+
+What feeds each hero number:
+- **Active files** → `pipelineStats.activeFiles`
+- **Exchanging soon** → `pipelineStats.exchangingSoon`
+- **Need attention** → `attentionFileCount` (derived from `getHubAttentionItems`, distinct transaction count)
+- **Pipeline value** → `pipelineStats.pipelineValuePence` formatted by `fmtCurrency()`
+
+---
+
+## 3. CRITICAL: Definition of "Exchanging soon"
+
+"Exchanging soon" counts active transactions where `expectedExchangeDate` OR `overridePredictedDate` falls **within the next 30 days** (not 7 days). It does NOT check milestone readiness.
+
+**Conclusion:** The new `exchangingThisWeek` metric (7-day window, VM19/PM26 not yet complete) is **NOT a duplicate**. Different window (7 vs 30 days) and different filter (milestone gate). Keep `exchangingThisWeek` as specified — no rename needed.
+
+---
+
+## 4. AgentVisibility pattern
+
+All hub service functions accept `AgentVisibility` from `lib/services/agent.ts`. Scoping helpers in hub.ts:
+- `buildTxWhere(vis)` — top-level `PropertyTransaction.where` (includes `agencyId`)
+- `buildTxNested(vis)` — nested relation filter (no `agencyId` — already on parent)
+
+New queries must use `buildTxWhere(vis)` for agency/agent scoping.
+
+---
+
+## 5. Pipeline Health card location and layout
+
+Card at lines 516–608 in `app/agent/hub/page.tsx`. It is a `div.agent-glass` with `padding: "20px 24px"`. The four hero numbers are in a `hubStats-grid` (CSS grid `repeat(4, 1fr)`). Below the stats grid there is no additional content — that is the empty space to fill.
+
+---
+
+## 6. Existing stalled/dormant logic
+
+Found in `lib/services/analytics.ts`, function `getFilesAtRisk()` (line 537).
+
+Analytics stalled definition: active transactions with `milestoneCompletions: { none: { state: "complete", completedAt: { gte: fourteenDaysAgo } } }` AND NOT having VM19/PM26 complete.
+
+**Difference from spec:** Analytics version does NOT filter `reconciledAtExchange`. The hub spec requires `reconciledAtExchange = false OR null`. The hub version adds this filter. Analytics query is a structural template only.
+
+---
+
+## 7. "Needs your attention" definition
+
+Sourced from `getHubAttentionItems()`. Finds active `ReminderLog` records where `status = "active"`, not snoozed, and `nextDueDate <= today`. These are overdue chase reminders — entirely distinct from stalled (milestone inactivity). No overlap.
+
+---
+
+## 8–10. Schema fields confirmed
+
+- `PropertyTransaction.expectedExchangeDate DateTime?` ✓ (schema line 112)
+- `PropertyTransaction.completionDate DateTime?` ✓ (schema line 119)
+- `MilestoneCompletion.reconciledAtExchange Boolean @default(false)` ✓ (schema line 336)
+- `MilestoneCompletion.completedAt DateTime?` ✓ (schema line 330)
+- Index on `[transactionId, completedAt]` exists ✓ (schema line 346)
+
+---
+
+## Build / Lint status (pre-change)
+
+- `npx next build` — passes cleanly (one harmless workspace root inference warning)
+- `npm run lint` — `next lint` command does not exist in this Next.js v16 build; `npx tsc --noEmit` passes with 0 errors
+- Pre-existing: `npm run build` fails on `prisma generate` due to Windows EPERM file lock — dev-environment issue only; `npx next build` succeeds independently
+
+---
+
+## Previous Phase 0 report content (from earlier task)
+
+(Preserved below for reference — relates to Activity Timeline / Milestone confirmation work, not this task)
 
 **Component:** `components/activity/ActivityTimeline.tsx`
 

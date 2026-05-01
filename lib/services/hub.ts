@@ -37,11 +37,26 @@ function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInp
 
 export async function getHubPipelineStats(vis: AgentVisibility) {
   const now = new Date();
+  const in7Days = new Date(now.getTime() + 7 * 86400000);
   const in30Days = new Date(now.getTime() + 30 * 86400000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
   const txWhere = buildTxWhere(vis);
 
-  const [activeCount, exchangingSoon, pipelineFiles, newThisMonth] = await Promise.all([
+  const [
+    activeCount,
+    exchangingSoon,
+    pipelineFiles,
+    newThisMonth,
+    // Coming up
+    exchangingThisWeekTxs,
+    completingThisWeekTxs,
+    closingThisMonthTxs,
+    // Stalled
+    stalledTxs,
+  ] = await Promise.all([
+    // ── Existing hero numbers ──────────────────────────────────────────────────
     prisma.propertyTransaction.count({
       where: { ...txWhere, status: "active" },
     }),
@@ -62,13 +77,122 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     prisma.propertyTransaction.count({
       where: { ...txWhere, createdAt: { gte: startOfMonth } },
     }),
+
+    // ── Coming up: exchanging this week ────────────────────────────────────────
+    // Active txns where expectedExchangeDate falls in next 7 days AND VM19/PM26 not yet complete
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        expectedExchangeDate: { gte: now, lte: in7Days },
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              state: "complete",
+              milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    }),
+
+    // ── Coming up: completing this week ───────────────────────────────────────
+    // Active txns where completionDate falls in next 7 days AND VM20/PM27 not yet complete
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        completionDate: { gte: now, lte: in7Days },
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              state: "complete",
+              milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    }),
+
+    // ── Coming up: closing this month (purchase price sum) ────────────────────
+    // Active txns where expectedExchangeDate is in current calendar month, VM19/PM26 not complete
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              state: "complete",
+              milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            },
+          },
+        },
+      },
+      select: { purchasePrice: true },
+    }),
+
+    // ── Stalled: active, not exchanged, no genuine milestone in 14 days ───────
+    // "Genuine" = reconciledAtExchange is false (excludes synthetic reconcile-at-exchange completions)
+    prisma.propertyTransaction.findMany({
+      where: {
+        ...txWhere,
+        status: "active",
+        // No genuine (non-reconciled) milestone completion in last 14 days
+        milestoneCompletions: {
+          none: {
+            state: "complete",
+            completedAt: { gte: fourteenDaysAgo },
+            reconciledAtExchange: false,
+          },
+        },
+        // Not already exchanged
+        NOT: {
+          milestoneCompletions: {
+            some: {
+              state: "complete",
+              milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    }),
   ]);
+
+  // ── Derived values ─────────────────────────────────────────────────────────
 
   const pipelineValuePence = pipelineFiles.reduce(
     (sum, tx) => sum + (tx.purchasePrice ?? 0), 0
   );
 
-  return { activeFiles: activeCount, exchangingSoon, pipelineValuePence, newThisMonth };
+  const closingThisMonthTotal = closingThisMonthTxs.reduce(
+    (sum, tx) => sum + (tx.purchasePrice ?? 0), 0
+  );
+
+  return {
+    // Existing
+    activeFiles: activeCount,
+    exchangingSoon,
+    pipelineValuePence,
+    newThisMonth,
+    // Coming up
+    comingUp: {
+      exchangingThisWeek: exchangingThisWeekTxs.length,
+      completingThisWeek: completingThisWeekTxs.length,
+      closingThisMonth: {
+        total: closingThisMonthTotal, // in pence, same unit as pipelineValuePence
+      },
+    },
+    // Stalled
+    stalled: {
+      count: stalledTxs.length,
+      transactionIds: stalledTxs.map((t) => t.id).slice(0, 50),
+    },
+  };
 }
 
 // ── Flags with severity ───────────────────────────────────────────────────────

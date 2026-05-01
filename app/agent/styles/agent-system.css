@@ -813,6 +813,14 @@
   /* ── Solicitor file chip hover ──────────────────────────────────────────── */
   .solicitor-file-chip:hover { background: rgba(99,102,241,0.08) !important; color: #6366f1 !important; }
 
+  /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
+  .coming-up-link { text-underline-offset: 2px; }
+  .coming-up-link:hover { text-decoration: underline; }
+
+  /* ── Pipeline Health: Stalled row hover ─────────────────────────────────── */
+  .stalled-row-link { display: flex; }
+  .stalled-row-link:hover { background: rgba(201,125,26,0.06) !important; }
+
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {

@@ -21,6 +21,7 @@ import {
 } from "@/components/hub/HubCharts";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { AlertCircle, ChevronRight } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,14 @@ function fmtCurrency(pence: number): string {
   if (p >= 1_000_000_000) return `£${(p / 1_000_000_000).toFixed(2)}bn`;
   if (p >= 1_000_000)     return `£${(p / 1_000_000).toFixed(2)}m`;
   return `£${Math.round(p).toLocaleString("en-GB")}`;
+}
+
+/** Compact currency for "Coming up" strip: £142k / £1.2M / £850 */
+function fmtCompact(pence: number): string {
+  const p = pence / 100;
+  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (p >= 1_000)     return `£${Math.round(p / 1_000)}k`;
+  return `£${Math.round(p)}`;
 }
 
 function formatAsOf(date: Date): string {
@@ -604,6 +613,131 @@ export default async function HubPreviewPage() {
                   <div key={i} style={cellStyle}>{inner}</div>
                 );
               })}
+            </div>
+
+            {/* ── Coming up strip ─────────────────────────────────────────────── */}
+            <div style={{
+              borderTop: "1px solid var(--agent-border-subtle)",
+              marginTop: 14,
+              paddingTop: 10,
+              paddingBottom: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}>
+              <span style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--agent-text-secondary)",
+                whiteSpace: "nowrap",
+              }}>
+                Coming up:
+              </span>
+
+              {/* Exchanging this week */}
+              {/* TODO: implement filter on /agent/transactions */}
+              <Link
+                href="/agent/transactions?filter=exchanging-this-week"
+                style={{
+                  fontSize: 13,
+                  color: pipelineStats.comingUp.exchangingThisWeek === 0
+                    ? "var(--agent-text-muted)"
+                    : "var(--agent-text-secondary)",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+                className="coming-up-link"
+              >
+                {pipelineStats.comingUp.exchangingThisWeek} exchanging this week
+              </Link>
+
+              <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
+
+              {/* Completing this week */}
+              {/* TODO: implement filter on /agent/transactions */}
+              <Link
+                href="/agent/transactions?filter=completing-this-week"
+                style={{
+                  fontSize: 13,
+                  color: pipelineStats.comingUp.completingThisWeek === 0
+                    ? "var(--agent-text-muted)"
+                    : "var(--agent-text-secondary)",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+                className="coming-up-link"
+              >
+                {pipelineStats.comingUp.completingThisWeek} completing this week
+              </Link>
+
+              <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
+
+              {/* Closing this month (currency) */}
+              {/* TODO: implement filter on /agent/transactions */}
+              <Link
+                href="/agent/transactions?filter=closing-this-month"
+                style={{
+                  fontSize: 13,
+                  color: pipelineStats.comingUp.closingThisMonth.total === 0
+                    ? "var(--agent-text-muted)"
+                    : "var(--agent-text-secondary)",
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+                className="coming-up-link"
+              >
+                {fmtCompact(pipelineStats.comingUp.closingThisMonth.total)} closing this month
+              </Link>
+            </div>
+
+            {/* ── Stalled files row ───────────────────────────────────────────── */}
+            <div style={{
+              borderTop: "1px solid var(--agent-border-subtle)",
+              marginTop: 10,
+            }}>
+              {pipelineStats.stalled.count === 0 ? (
+                <div style={{
+                  paddingTop: 10,
+                  paddingBottom: 2,
+                  fontSize: 13,
+                  color: "var(--agent-text-muted)",
+                }}>
+                  All files have recent activity
+                </div>
+              ) : (
+                /* TODO: implement stalled filter on /agent/transactions */
+                <Link
+                  href="/agent/transactions?filter=stalled"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingTop: 10,
+                    paddingBottom: 2,
+                    textDecoration: "none",
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    transition: "background 120ms",
+                    gap: 8,
+                  }}
+                  className="stalled-row-link"
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <AlertCircle
+                      size={14}
+                      color="var(--agent-warning)"
+                      style={{ flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>
+                      <strong>{pipelineStats.stalled.count} files stalled</strong>
+                      {" — "}
+                      <span style={{ color: "var(--agent-text-secondary)" }}>no activity in 14+ days</span>
+                    </span>
+                  </div>
+                  <ChevronRight size={14} color="var(--agent-text-muted)" style={{ flexShrink: 0 }} />
+                </Link>
+              )}
             </div>
           </div>
 

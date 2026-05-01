@@ -1,8 +1,116 @@
-# UX Polish Pass — Implementation Report
+# Pipeline Health Additions — Implementation Report
 
 Completed: 2026-05-01
 
 ---
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `lib/services/hub.ts` | Extended `getHubPipelineStats` with `comingUp` and `stalled` metrics |
+| `app/agent/hub/page.tsx` | Added `fmtCompact` helper, Lucide imports, "Coming up" strip, "Stalled files" row |
+| `app/agent/styles/agent-system.css` | Added `.coming-up-link` and `.stalled-row-link` hover CSS rules |
+| `PHASE_0_REPORT.md` | Updated with discovery findings for this task |
+| `OPEN_QUESTIONS.md` | Added OQ-7 for "Exchanging soon" conflict decision |
+
+## Files Added
+
+None. All changes were extensions to existing files.
+
+---
+
+## New Service Return Shape
+
+`getHubPipelineStats(vis)` now returns:
+
+```ts
+{
+  // Existing (unchanged)
+  activeFiles: number;
+  exchangingSoon: number;
+  pipelineValuePence: number;
+  newThisMonth: number;
+
+  // New
+  comingUp: {
+    exchangingThisWeek: number;      // active txns: expectedExchangeDate in next 7d, VM19/PM26 not complete
+    completingThisWeek: number;      // active txns: completionDate in next 7d, VM20/PM27 not complete
+    closingThisMonth: {
+      total: number;                 // sum purchasePrice (pence) for active txns with expectedExchangeDate in current month, VM19/PM26 not complete
+    };
+  };
+  stalled: {
+    count: number;                   // active, not exchanged, no genuine MilestoneCompletion.reconciledAtExchange=false in last 14d
+    transactionIds: string[];        // capped at 50
+  };
+}
+```
+
+All queries run in a single `Promise.all` — no serial round-trips. Milestone definition codes are resolved via nested `milestoneDefinition: { code: { in: [...] } }` Prisma filters (same pattern as `getHubWeeklyForecast`).
+
+---
+
+## "Exchanging soon" vs "exchange-ready" Decision
+
+**Path taken:** kept `exchangingThisWeek` as specified (no rename).
+
+**Reason:** Phase 0 confirmed "Exchanging soon" uses a **30-day** window on `expectedExchangeDate OR overridePredictedDate`, with no milestone gate. The new `exchangingThisWeek` uses a **7-day** window on `expectedExchangeDate` only, gated by VM19/PM26 not yet complete. These are different in window length, date field used, and milestone filter — no duplication.
+
+See `OPEN_QUESTIONS.md` OQ-7 for full reasoning (tagged REVERSIBLE).
+
+---
+
+## Coming up strip — visual spec compliance
+
+- Thin `border-top: 1px solid var(--agent-border-subtle)` separator above ✓
+- Single line, 13px text ✓
+- "Coming up:" label in `font-weight: 600`, `var(--agent-text-secondary)` colour ✓
+- Each metric has explicit time anchor ("this week", "this month") ✓
+- Separated by ` · ` middle dot ✓
+- Zero values rendered greyed out (`var(--agent-text-muted)`) — not hidden ✓
+- Currency uses `fmtCompact`: £Xk for ≥1000, £X.XM for ≥1,000,000 ✓
+- Each metric is a hover-underline link via `.coming-up-link` CSS class ✓
+- Link destinations: `?filter=exchanging-this-week`, `?filter=completing-this-week`, `?filter=closing-this-month` ✓
+- TODO comments adjacent to each link ✓
+
+---
+
+## Stalled files row — visual spec compliance
+
+- Thin `border-top: 1px solid var(--agent-border-subtle)` separator above ✓
+- Whole row is clickable → `?filter=stalled` ✓
+- Hover: `rgba(201,125,26,0.06)` amber tint via `.stalled-row-link:hover` CSS ✓
+- Left: `AlertCircle` (Lucide, 14px, `var(--agent-warning)`) ✓
+- Bold count + ` files stalled` + ` — ` + plain description ✓
+- Right: `ChevronRight` (Lucide, 14px, `var(--agent-text-muted)`) ✓
+- count === 0: muted grey, no icon, no chevron, no click target, "All files have recent activity" ✓
+- TODO comment near the link ✓
+
+---
+
+## TODOs left for follow-up (destination filter routes)
+
+1. `GET /agent/transactions?filter=exchanging-this-week` — filter active txns by expectedExchangeDate in next 7 days, not yet exchanged
+2. `GET /agent/transactions?filter=completing-this-week` — filter active txns by completionDate in next 7 days, not yet completed
+3. `GET /agent/transactions?filter=closing-this-month` — filter active txns by expectedExchangeDate in current calendar month, not yet exchanged
+4. `GET /agent/transactions?filter=stalled` — filter active txns with no genuine milestone activity in 14+ days, not yet exchanged
+
+These are marked with `{/* TODO: implement filter on /agent/transactions */}` and `{/* TODO: implement stalled filter on /agent/transactions */}` comments in `app/agent/hub/page.tsx`.
+
+---
+
+## Reference
+
+See `OPEN_QUESTIONS.md` OQ-7 for the "Exchanging soon" naming decision.
+
+---
+
+## Previous Implementation Report content (from earlier task)
+
+(Preserved below — relates to UX Polish pass, not this task)
+
+
 
 ## Phase 0: Discovery
 

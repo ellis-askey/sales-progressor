@@ -76,3 +76,18 @@
 **Question:** `resolveTemplateTokens` in `lib/services/summary.ts` also does `agentName.split(" ")[0]` for the `{agent}` token (line 34). `agentName` comes from `User.name` which also could start with a title.
 
 **Choice made:** Fix this with the same `extractFirstName()` helper. Low risk — User names are less likely to start with titles, but the fix is trivial and consistent.
+
+---
+
+## OQ-7 — "Exchanging soon" conflict check: rename or keep `exchangingThisWeek` [REVERSIBLE]
+
+**Question:** The spec says: if "Exchanging soon" already counts a 7-day window using `expectedExchangeDate`, rename `exchangingThisWeek` to `exchangeReadyCount` and source it from milestone readiness (VM18/PM25 complete, VM19/PM26 not complete).
+
+**Phase 0 finding:** "Exchanging soon" (hero number) uses a **30-day** window (`expectedExchangeDate OR overridePredictedDate`), with no milestone gate. It is NOT a 7-day window.
+
+**Choice made:** Keep `exchangingThisWeek` as specified. The 7-day window on `expectedExchangeDate` (gated by VM19/PM26 not complete) is not a duplicate:
+- Different time window (7 days vs 30 days)  
+- Different date field (only `expectedExchangeDate`, vs `expectedExchangeDate OR overridePredictedDate`)
+- Different milestone gate (VM19/PM26 not complete, vs no gate)
+
+**Why REVERSIBLE:** If the product decision changes to source `exchangingThisWeek` from milestone readiness instead (VM18/PM25 complete, VM19/PM26 not), the service query changes to a milestone filter rather than a date-window filter. The UI copy and link destination would also change. All three touch points are isolated to `lib/services/hub.ts` and `app/agent/hub/page.tsx`.
