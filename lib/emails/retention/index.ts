@@ -193,7 +193,7 @@ export function buildQuiet30d(vars: TemplateVars): RetentionEmailResult {
 }
 
 // ─── Email 5 — send_to_us_drop_21d ───────────────────────────────────────────
-// Sender: "Rachel — Sales Progressor" | No CTA button
+// Sender: "Ellis — Sales Progressor" | No CTA button
 
 export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
   const { firstName, unsubscribeUrl = "" } = vars;
@@ -209,7 +209,7 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
     ``,
     `If it's the last one, I'd love to hear from you to see if there's any way we can improve our service. I'm available noon or night, hope to hear from you soon.`,
     ``,
-    `Rachel`,
+    `Ellis`,
     `Sales Progressor`,
     ``,
     unsubscribeUrl ? unsubscribeFooterText(unsubscribeUrl) : "",
@@ -220,7 +220,7 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">You've used our progression service before, so I wanted to drop you a line — we haven't had a file from you for a few weeks.</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">That usually means one of three things: a quiet patch, someone made you a better offer, or we got something wrong.</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">If it's the last one, I'd love to hear from you to see if there's any way we can improve our service. I'm available noon or night, hope to hear from you soon.</p>`,
-    `<p style="margin:0 0 4px;color:#374151;font-size:15px;line-height:1.6">Rachel</p>`,
+    `<p style="margin:0 0 4px;color:#374151;font-size:15px;line-height:1.6">Ellis</p>`,
     `<p style="margin:0;color:#374151;font-size:15px;line-height:1.6">Sales Progressor</p>`,
   ].join("");
 
@@ -228,7 +228,7 @@ export function buildSendToUsDrop21d(vars: TemplateVars): RetentionEmailResult {
     subject,
     html: buildHtmlWrapper(bodyHtml, unsubscribeUrl ? unsubscribeFooterHtml(unsubscribeUrl) : undefined),
     text,
-    fromDisplayName: "Rachel — Sales Progressor",
+    fromDisplayName: "Ellis — Sales Progressor",
   };
 }
 
