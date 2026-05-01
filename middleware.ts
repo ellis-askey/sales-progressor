@@ -3,10 +3,103 @@ import { NextResponse } from "next/server";
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+// Command centre timing constants (ms) — kept inline to avoid Node.js module
+// imports that are unavailable in the Edge Runtime.
+const STEP_UP_MAX_AGE_MS  = 30 * 60 * 1000;
+const IDLE_MAX_AGE_MS     =  8 * 60 * 60 * 1000;
+const SESSION_HARD_MAX_MS = 24 * 60 * 60 * 1000;
+const COMMAND_COOKIE      = "command_session";
+
+/** Verifies HMAC-SHA256 signature using the Web Crypto API (Edge-compatible). */
+async function verifyCommandHmac(encoded: string, sig: string, keyHex: string): Promise<boolean> {
+  try {
+    const keyBytes = Uint8Array.from(keyHex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyBytes,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    const sigBytes = Uint8Array.from(sig.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+    const data = new TextEncoder().encode(encoded);
+    return crypto.subtle.verify("HMAC", key, sigBytes, data);
+  } catch {
+    return false;
+  }
+}
+
 export default withAuth(
-  function middleware(req) {
+  async function middleware(req) {
     const { pathname, searchParams } = req.nextUrl;
     const role = req.nextauth.token?.role;
+
+    // ── Command centre gate ───────────────────────────────────────────────────
+    if (pathname.startsWith("/command")) {
+      // 1. Superadmin role required
+      if (role !== "superadmin") {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+
+      // 2. IP allowlist (skipped when env var is empty)
+      const allowlistRaw = process.env.ADMIN_IP_ALLOWLIST ?? "";
+      if (allowlistRaw.trim()) {
+        const allowed = allowlistRaw.split(",").map((s) => s.trim()).filter(Boolean);
+        const ip =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          req.headers.get("x-real-ip") ??
+          "";
+        if (!allowed.includes(ip)) {
+          return new NextResponse("Forbidden", { status: 403 });
+        }
+      }
+
+      // Step-up / enrollment pages are exempt from the step-up cookie check
+      const isStepUpPath =
+        pathname.startsWith("/command/auth/step-up") ||
+        pathname.startsWith("/command/setup-2fa") ||
+        pathname.startsWith("/api/command/auth/step-up") ||
+        pathname.startsWith("/api/command/setup-2fa");
+
+      if (!isStepUpPath) {
+        // 3. Cookie presence
+        const cookie = req.cookies.get(COMMAND_COOKIE)?.value ?? "";
+        const dot = cookie.lastIndexOf(".");
+        if (!cookie || dot === -1) {
+          return NextResponse.redirect(new URL("/command/auth/step-up", req.url));
+        }
+
+        const encoded = cookie.slice(0, dot);
+        const sig = cookie.slice(dot + 1);
+
+        // 4. HMAC signature
+        const keyHex = process.env.ADMIN_AUDIT_HMAC_KEY ?? "";
+        const valid = await verifyCommandHmac(encoded, sig, keyHex);
+        if (!valid) {
+          return NextResponse.redirect(new URL("/command/auth/step-up", req.url));
+        }
+
+        // 5. Timestamp checks
+        let payload: { issuedAt: number; lastSeenAt: number; stepUpAt: number };
+        try {
+          payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+        } catch {
+          return NextResponse.redirect(new URL("/command/auth/step-up", req.url));
+        }
+
+        const now = Date.now();
+        if (now - payload.issuedAt > SESSION_HARD_MAX_MS) {
+          return NextResponse.redirect(new URL("/login", req.url));
+        }
+        if (now - payload.lastSeenAt > IDLE_MAX_AGE_MS) {
+          return NextResponse.redirect(new URL("/command/auth/step-up", req.url));
+        }
+        if (now - payload.stepUpAt > STEP_UP_MAX_AGE_MS) {
+          return NextResponse.redirect(new URL("/command/auth/step-up", req.url));
+        }
+      }
+    }
+    // ── End command centre gate ───────────────────────────────────────────────
 
     // Pass-through response (may carry UTM attribution cookie)
     const res = NextResponse.next();
