@@ -16,6 +16,17 @@ model Agency {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  modeProfile           AgencyModeProfile @default(self_progressed)
+  modeProfileComputedAt DateTime?
+
+  // Signup attribution
+  signupSource      String?
+  signupMedium      String?
+  signupCampaign    String?
+  signupReferrer    String?
+  signupLandingPage String?
+  signupAt          DateTime?
+
   users                    User[]
   transactions             PropertyTransaction[]
   solicitorFirms           SolicitorFirm[]
@@ -24,6 +35,15 @@ model Agency {
   verifiedDomains          VerifiedDomain[]
   recommendedSolicitors    AgencyRecommendedSolicitor[]
   feedbackSubmissions      FeedbackSubmission[]
+
+  @@index([modeProfile])
+  @@index([signupAt])
+}
+
+enum AgencyModeProfile {
+  self_progressed
+  progressor_managed
+  mixed
 }
 
 model User {
@@ -50,7 +70,7 @@ model User {
   agentFiles           PropertyTransaction[] @relation("AgentFiles")
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
   chaseTasks           ChaseTask[]
-  communications       CommunicationRecord[] @relation("CommCreatedBy")
+  communications       OutboundMessage[] @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
 
   retentionEmailOptOut    Boolean   @default(false)
@@ -81,6 +101,7 @@ model AgentPushSubscription {
 }
 
 enum UserRole {
+  superadmin
   admin
   sales_progressor
   director
@@ -148,7 +169,7 @@ model PropertyTransaction {
   milestoneCompletions       MilestoneCompletion[]
   reminderLogs               ReminderLog[]
   chaseTasks                 ChaseTask[]
-  communications             CommunicationRecord[]
+  communications             OutboundMessage[]
   priceHistory               PriceHistory[]
   transactionNotes           TransactionNote[]
   manualTasks                ManualTask[]
@@ -156,6 +177,8 @@ model PropertyTransaction {
   portalMessages             PortalMessage[]
   documents                  TransactionDocument[]
   flags                      TransactionFlag[]
+
+  @@index([serviceType, createdAt])
 }
 
 enum TransactionStatus {
@@ -413,7 +436,7 @@ model ChaseTask {
   transaction    PropertyTransaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   reminderLog    ReminderLog           @relation(fields: [reminderLogId], references: [id])
   assignedTo     User?                 @relation(fields: [assignedToId], references: [id])
-  communications CommunicationRecord[]
+  communications OutboundMessage[]
 
   @@index([transactionId])
   @@index([status, dueDate])
@@ -432,31 +455,78 @@ enum TaskPriority {
   escalated
 }
 
-model CommunicationRecord {
-  id              String      @id @default(cuid())
-  transactionId   String
+model OutboundMessage {
+  id              String          @id @default(cuid())
+  agencyId        String?
+
+  // Channel + purpose (command centre fields)
+  channel         OutboundChannel @default(email)
+  purpose         OutboundPurpose @default(chase)
+  status          OutboundStatus  @default(sent)
+
+  // Routing — transactionId is nullable (non-transaction messages: LinkedIn, digest, etc.)
+  transactionId   String?
   chaseTaskId     String?
+  recipientName   String?
+  recipientEmail  String?
+  recipientHandle String?
+
+  // Content — legacy fields kept for backward compat
   type            CommType
   method          CommMethod?
   contactIds      String[]
   content         String
+  subject         String?
+  bodyFormat      String          @default("plain")
+
+  // Legacy AI fields
   generatedText   String?
   tone            String?
-  wasAiGenerated  Boolean     @default(false)
-  wasEdited       Boolean     @default(false)
-  isAutomated     Boolean     @default(false)
-  visibleToClient Boolean     @default(false)
+  wasAiGenerated  Boolean         @default(false)
+  wasEdited       Boolean         @default(false)
+  isAutomated     Boolean         @default(false)
+  visibleToClient Boolean         @default(false)
   ccEmails        String?
-  createdById     String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
 
-  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  createdBy   User?               @relation("CommCreatedBy", fields: [createdById], references: [id])
-  chaseTask   ChaseTask?          @relation(fields: [chaseTaskId], references: [id])
+  // New AI provenance
+  aiModel         String?
+  aiPromptVersion String?
+  aiTokensInput   Int?
+  aiTokensOutput  Int?
+  aiCostCents     Int?
+
+  // Lifecycle
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+
+  // Approval (Phase 5 LinkedIn flow)
+  requiresApproval  Boolean       @default(false)
+  approvedByUserId  String?
+  approvedAt        DateTime?
+  editedByHuman     Boolean       @default(false)
+
+  // Provider data
+  providerMessageId   String?
+  providerWebhookData Json?
+
+  transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
+  chaseTask   ChaseTask?           @relation(fields: [chaseTaskId], references: [id])
 
   @@index([transactionId, createdAt])
   @@index([chaseTaskId])
+  @@index([agencyId, createdAt])
+  @@index([channel, status, scheduledFor])
+  @@index([purpose, createdAt])
+  @@index([sentAt])
 }
 
 enum CommType {
@@ -472,6 +542,38 @@ enum CommMethod {
   voicemail
   whatsapp
   post
+}
+
+enum OutboundChannel {
+  email
+  sms
+  linkedin
+  twitter
+  in_app
+  other
+}
+
+enum OutboundPurpose {
+  chase
+  password_reset
+  retention_email
+  scheduled_post
+  digest
+  notification
+  other
+}
+
+enum OutboundStatus {
+  draft
+  scheduled
+  queued
+  sent
+  delivered
+  opened
+  clicked
+  bounced
+  failed
+  cancelled
 }
 
 model TransactionNote {
@@ -732,5 +834,165 @@ model RetentionEmailLog {
 
   @@index([userId, emailKey])
   @@index([agencyId, sentAt])
-  @@index([emailKey, sentAt])  // TODO: surface in admin dashboard — see future-admin-page ticket
+  @@index([emailKey, sentAt])
+}
+
+// ─── Command Centre: Event ────────────────────────────────────────────────────
+// Unified activity log. Append-only. Written via lib/command/events/write.ts.
+// Instrumentation calls added per-service in separate PRs (never in this migration).
+
+enum EventType {
+  // Auth
+  user_logged_in
+  user_logged_out
+  user_invited
+  user_accepted_invite
+  password_reset_requested
+  password_reset_completed
+
+  // Agency lifecycle
+  agency_created
+  agency_mode_changed
+  agency_archived
+
+  // Transaction lifecycle
+  transaction_created
+  transaction_archived
+  transaction_status_changed
+
+  // Milestone activity
+  milestone_confirmed
+  milestone_marked_not_required
+  milestone_reversed
+  exchange_gate_unlocked
+  contracts_exchanged
+  sale_completed
+
+  // Communications
+  chase_sent
+  chase_message_generated
+  email_parse_attempted
+
+  // Files
+  file_uploaded
+  file_deleted
+
+  // Feedback
+  feedback_submitted
+
+  // Admin
+  admin_logged_in
+  admin_action_performed
+}
+
+model Event {
+  id             String    @id @default(cuid())
+  occurredAt     DateTime  @default(now())
+  agencyId       String?
+  userId         String?
+  isInternalUser Boolean   @default(false)
+  type           EventType
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+
+  @@index([occurredAt])
+  @@index([agencyId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+// ─── Command Centre: Rollup tables ───────────────────────────────────────────
+// Pre-computed analytics rows. Written nightly by /api/cron/rollup-metrics.
+// Idempotent writes keyed on the @@unique constraints below.
+
+model DailyMetric {
+  id          String            @id @default(cuid())
+  date        DateTime          @db.Date
+
+  // Scope keys — exactly one pattern is set per row
+  agencyId    String?
+  serviceType ServiceType?
+  modeProfile AgencyModeProfile?
+
+  // Transaction-derived counts (split by serviceType)
+  transactionsCreated   Int @default(0)
+  transactionsExchanged Int @default(0)
+  transactionsCompleted Int @default(0)
+  milestonesConfirmed   Int @default(0)
+  chasesSent            Int @default(0)
+  aiDraftsGenerated     Int @default(0)
+  filesUploaded         Int @default(0)
+
+  // Agency/user-derived counts
+  signups             Int @default(0)
+  logins              Int @default(0)
+  uniqueActiveUsers   Int @default(0)
+  feedbackSubmitted   Int @default(0)
+
+  // AI spend (USD cents)
+  aiSpendCents        Int @default(0)
+
+  computedAt  DateTime @default(now())
+
+  @@unique([date, agencyId, serviceType, modeProfile])
+  @@index([date])
+  @@index([agencyId, date])
+  @@index([serviceType, date])
+  @@index([modeProfile, date])
+}
+
+model WeeklyCohort {
+  id           String            @id @default(cuid())
+  signupWeek   DateTime          @db.Date
+  modeProfile  AgencyModeProfile
+
+  cohortSize   Int
+  activeWeek1  Int @default(0)
+  activeWeek2  Int @default(0)
+  activeWeek4  Int @default(0)
+  activeWeek8  Int @default(0)
+  activeWeek12 Int @default(0)
+
+  computedAt   DateTime @default(now())
+
+  @@unique([signupWeek, modeProfile])
+  @@index([signupWeek])
+}
+
+model JobRun {
+  id          String    @id @default(cuid())
+  jobName     String
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  success     Boolean?
+  rowsWritten Int?
+  errorMessage String?
+
+  @@index([jobName, startedAt])
+}
+
+// ─── Command Centre: Admin audit log ─────────────────────────────────────────
+// Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  occurredAt  DateTime @default(now())
+
+  adminUserId String
+  ipAddress   String?
+  userAgent   String?
+
+  action      String
+  targetType  String?
+  targetId    String?
+
+  beforeValue Json?
+  afterValue  Json?
+  reason      String?
+
+  @@index([occurredAt])
+  @@index([adminUserId, occurredAt])
+  @@index([action, occurredAt])
+  @@index([targetType, targetId])
 }
