@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export type PortalMessageShape = {
   id: string;
@@ -90,7 +91,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
   if (!tx.assignedUser?.email) return;
 
   const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
-  const first   = tx.assignedUser.name.split(" ")[0];
+  const first   = extractFirstName(tx.assignedUser.name);
 
   await sendEmail({
     to:      tx.assignedUser.email,

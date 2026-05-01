@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { replyPortalMessageAction } from "@/app/actions/portal";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import type { ContactThread } from "@/lib/services/portal-messages";
 
 function fmtTime(d: Date | string) {
@@ -114,7 +115,7 @@ export function PortalMessagesWidget({
                   : "bg-slate-900/5 text-slate-500 hover:bg-slate-900/10"
               }`}
             >
-              {t.contactName.split(" ")[0]}
+              {extractFirstName(t.contactName)}
             </button>
           ))}
         </div>
@@ -138,7 +139,7 @@ export function PortalMessagesWidget({
               >
                 {isClient && (
                   <p className="text-[10px] font-bold text-slate-400 mb-0.5 uppercase tracking-wide">
-                    {activeThread.contactName.split(" ")[0]}
+                    {extractFirstName(activeThread.contactName)}
                   </p>
                 )}
                 <p className="text-sm leading-snug">{msg.content}</p>

@@ -20,6 +20,14 @@ export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
+import { getDisplayName } from "@/lib/contacts/displayName";
+
+export type NotificationStatus = {
+  role: "seller" | "buyer" | "agent" | "progressor";
+  contactId: string | null;
+  contactDisplayName: string;
+  status: "queued" | "skipped_no_email" | "skipped_no_contact";
+};
 
 /**
  * Confirm a milestone (and any implied predecessors) for a transaction.
@@ -160,10 +168,62 @@ export async function confirmMilestoneAction(input: {
     ).catch(() => {});
   }
 
+  // Build intent-based notification status (check email addresses without blocking on send)
+  const notifications: NotificationStatus[] = [];
+  if (def) {
+    const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
+    const notifTx = await prisma.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: {
+        assignedUser: { select: { id: true, name: true, email: true } },
+        agentUser:    { select: { id: true, name: true, email: true } },
+        contacts: {
+          where: { roleType: { in: ["vendor", "purchaser"] } },
+          select: { id: true, name: true, email: true, roleType: true },
+        },
+      },
+    });
+    if (notifTx) {
+      for (const c of notifTx.contacts) {
+        const role = c.roleType as "vendor" | "purchaser";
+        if (!emailCopy[role]) continue;
+        notifications.push({
+          role: role === "vendor" ? "seller" : "buyer",
+          contactId: c.id,
+          contactDisplayName: getDisplayName({ name: c.name }),
+          status: c.email ? "queued" : "skipped_no_email",
+        });
+      }
+      if (emailCopy.vendorAgent) {
+        if (notifTx.agentUser) {
+          notifications.push({
+            role: "agent",
+            contactId: null,
+            contactDisplayName: getDisplayName({ name: notifTx.agentUser.name }),
+            status: notifTx.agentUser.email ? "queued" : "skipped_no_email",
+          });
+        } else {
+          notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
+        }
+      }
+      if (emailCopy.progressor) {
+        if (notifTx.assignedUser) {
+          notifications.push({
+            role: "progressor",
+            contactId: null,
+            contactDisplayName: getDisplayName({ name: notifTx.assignedUser.name }),
+            status: notifTx.assignedUser.email ? "queued" : "skipped_no_email",
+          });
+        }
+      }
+    }
+  }
+
   const isExchangeCode = def?.code === "VM19" || def?.code === "PM26";
   return {
     triggeredCelebration: isExchangeCode,
     propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
+    notifications,
   };
 }
 

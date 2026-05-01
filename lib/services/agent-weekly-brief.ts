@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type AgentFile = {
   id: string;
@@ -81,7 +82,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
       : `Weekly briefing — ${transactions.length} active file${transactions.length !== 1 ? "s" : ""}`;
 
     const lines: string[] = [
-      `Good morning, ${agent.name.split(" ")[0]}.`,
+      `Good morning, ${extractFirstName(agent.name)}.`,
       ``,
       `Here is your weekly summary for the week starting ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.`,
       ``,
@@ -155,7 +156,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
 
     const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">Week of ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
-<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Good morning, ${agent.name.split(" ")[0]}.</h1>
+<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Good morning, ${extractFirstName(agent.name)}.</h1>
 <p style="margin:0 0 20px;color:#4a5162;font-size:14px">You have <strong>${transactions.length}</strong> active file${transactions.length !== 1 ? "s" : ""}${needsAttention.length > 0 ? ` · <strong style="color:#ef4444">${needsAttention.length} need${needsAttention.length === 1 ? "s" : ""} attention</strong>` : " · all progressing normally"}.${exchangeSoon.length > 0 ? ` ${exchangeSoon.length} approaching exchange.` : ""}</p>
 ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${tableRows}</tbody></table>` : ""}
 <p style="margin:0 0 24px"><a href="${base}/agent/dashboard" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your files →</a></p>

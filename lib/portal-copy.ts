@@ -43,7 +43,8 @@ export function buildGreeting(name: string | null | undefined): string {
 }
 
 const copy: Record<string, PortalCopy> = {
-  // ── Vendor milestones ────────────────────────────────────────────────────
+  // ── Vendor milestones (VM1–VM20) ─────────────────────────────────────────
+
   VM1: {
     label: "Instruct your solicitor", labelOther: "Seller instructed their solicitor", who: "you",
     description: "You need to formally appoint a solicitor to handle the legal side of your sale. Contact them directly to confirm you're instructing them — they'll then begin preparing the paperwork.",
@@ -145,7 +146,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM14: {
+  VM4: {
     label: "Complete ID & AML checks", labelOther: "Seller completed ID & AML checks", who: "you",
     description: "Anti-money laundering law requires your solicitor to verify your identity. You'll need a passport or driving licence, plus a recent utility bill or bank statement. This is a legal requirement.",
     emailCopy: {
@@ -158,8 +159,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM14 complete: Seller ID checks done — {address}",
-        heroLabel: "VM14 — Seller ID & AML complete",
+        subject: "VM4 complete: Seller ID checks done — {address}",
+        heroLabel: "VM4 — Seller ID & AML complete",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed completion of ID and AML verification.",
         whatNext: null,
@@ -168,7 +169,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM15: {
+  VM5: {
     label: "Receive property information forms", labelOther: "Seller received property information forms", who: "you",
     description: "Your solicitor will send you property information forms (TA6 and TA10) asking about the property — fixtures included in the sale, disputes, planning consents, and more. Complete these carefully and honestly.",
     emailCopy: {
@@ -181,8 +182,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM15 complete: Seller received property forms — {address}",
-        heroLabel: "VM15 — Seller received property forms",
+        subject: "VM5 complete: Seller received property forms — {address}",
+        heroLabel: "VM5 — Seller received property forms",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed receipt of TA6/TA10 property information forms.",
         whatNext: null,
@@ -191,7 +192,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM4: {
+  VM6: {
     label: "Return completed property forms", labelOther: "Seller returned completed property forms", who: "you",
     description: "Once you've filled in the property information forms, return them to your solicitor. These are sent to the buyer's solicitor as part of the contract pack.",
     emailCopy: {
@@ -220,8 +221,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM4 complete: Seller returned property forms — {address}",
-        heroLabel: "VM4 — Seller returned property forms",
+        subject: "VM6 complete: Seller returned property forms — {address}",
+        heroLabel: "VM6 — Seller returned property forms",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed return of completed TA6/TA10 forms to solicitor.",
         whatNext: null,
@@ -230,7 +231,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM5: {
+  VM7: {
     label: "Draft contract pack issued", who: "solicitor",
     description: "Your solicitor sends the draft contract pack to the buyer's solicitor. This includes the contract, property information forms, title documents, and any relevant certificates.",
     emailCopy: {
@@ -259,8 +260,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM5 complete: Contract pack issued — {address}",
-        heroLabel: "VM5 — Draft contract pack issued",
+        subject: "VM7 complete: Contract pack issued — {address}",
+        heroLabel: "VM7 — Draft contract pack issued",
         opening: "Logged on {address}.",
         whatHappened: "Vendor solicitor has issued draft contract pack to buyer's solicitor.",
         whatNext: null,
@@ -269,7 +270,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM6: {
+  VM8: {
     label: "Management pack requested", who: "solicitor",
     description: "If the property is leasehold or share of freehold, your solicitor requests a management pack from the freeholder or managing agent. This contains details about service charges, ground rent, and building insurance.",
     emailCopy: {
@@ -282,8 +283,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM6 complete: Management pack requested — {address}",
-        heroLabel: "VM6 — Management pack requested",
+        subject: "VM8 complete: Management pack requested — {address}",
+        heroLabel: "VM8 — Management pack requested",
         opening: "Logged on {address}.",
         whatHappened: "Vendor solicitor has requested management pack from freeholder/managing agent.",
         whatNext: null,
@@ -292,7 +293,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM7: {
+  VM9: {
     label: "Management pack received", who: "solicitor", typicalDuration: "can take 4–8 weeks",
     description: "The management pack has arrived from the freeholder or managing agent. These often take weeks to arrive and are one of the most common causes of delays in leasehold transactions.",
     emailCopy: {
@@ -321,8 +322,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM7 complete: Management pack received — {address}",
-        heroLabel: "VM7 — Management pack received",
+        subject: "VM9 complete: Management pack received — {address}",
+        heroLabel: "VM9 — Management pack received",
         opening: "Logged on {address}.",
         whatHappened: "Management pack confirmed received by vendor's solicitor.",
         whatNext: null,
@@ -331,7 +332,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM16: {
+  VM10: {
     label: "Initial enquiries received", who: "solicitor",
     description: "The buyer's solicitor has raised questions about the property — these might cover planning history, building works, boundaries, or anything in the documents that needs clarification.",
     emailCopy: {
@@ -344,8 +345,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM16 complete: Initial enquiries received — {address}",
-        heroLabel: "VM16 — Initial enquiries received",
+        subject: "VM10 complete: Initial enquiries received — {address}",
+        heroLabel: "VM10 — Initial enquiries received",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has raised initial enquiries.",
         whatNext: null,
@@ -354,7 +355,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM17: {
+  VM11: {
     label: "Provide replies to enquiries", labelOther: "Seller provided replies to enquiries", who: "you",
     description: "Your solicitor needs your input to answer some of the buyer's questions. Respond as quickly as you can — delays in enquiries are one of the most common reasons transactions stall.",
     emailCopy: {
@@ -367,8 +368,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM17 complete: Seller provided enquiry replies — {address}",
-        heroLabel: "VM17 — Seller provided replies",
+        subject: "VM11 complete: Seller provided enquiry replies — {address}",
+        heroLabel: "VM11 — Seller provided replies",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed they've provided replies to solicitor for initial enquiries.",
         whatNext: null,
@@ -377,7 +378,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM8: {
+  VM12: {
     label: "Replies sent to buyer's solicitor", who: "solicitor",
     description: "Your solicitor has sent replies to the buyer's enquiries. The buyer's solicitor will review these and may raise further questions.",
     emailCopy: {
@@ -406,8 +407,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM8 complete: Replies sent to buyer's solicitor — {address}",
-        heroLabel: "VM8 — Initial replies sent",
+        subject: "VM12 complete: Replies sent to buyer's solicitor — {address}",
+        heroLabel: "VM12 — Initial replies sent",
         opening: "Logged on {address}.",
         whatHappened: "Vendor solicitor has sent initial enquiry replies to buyer's solicitor.",
         whatNext: null,
@@ -416,7 +417,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM18: {
+  VM13: {
     label: "Additional enquiries received", who: "solicitor",
     description: "A second round of questions has arrived from the buyer's solicitor. This is completely normal — most transactions have at least two rounds of enquiries.",
     emailCopy: {
@@ -429,8 +430,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM18 complete: Additional enquiries received — {address}",
-        heroLabel: "VM18 — Additional enquiries received",
+        subject: "VM13 complete: Additional enquiries received — {address}",
+        heroLabel: "VM13 — Additional enquiries received",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has raised additional enquiries.",
         whatNext: null,
@@ -439,7 +440,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM19: {
+  VM14: {
     label: "Provide additional replies", labelOther: "Seller provided additional replies", who: "you",
     description: "Your solicitor needs your help with another set of questions from the buyer. Answer them as soon as possible to keep the transaction moving.",
     emailCopy: {
@@ -452,8 +453,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM19 complete: Seller provided additional replies — {address}",
-        heroLabel: "VM19 — Seller provided additional replies",
+        subject: "VM14 complete: Seller provided additional replies — {address}",
+        heroLabel: "VM14 — Seller provided additional replies",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed they've provided replies to solicitor for additional enquiries.",
         whatNext: null,
@@ -462,7 +463,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM9: {
+  VM15: {
     label: "Additional replies sent", who: "solicitor",
     description: "Your solicitor has replied to the additional enquiries. Once both solicitors are satisfied, you're moving towards exchange.",
     emailCopy: {
@@ -491,8 +492,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM9 complete: Additional replies sent — {address}",
-        heroLabel: "VM9 — Additional replies sent",
+        subject: "VM15 complete: Additional replies sent — {address}",
+        heroLabel: "VM15 — Additional replies sent",
         opening: "Logged on {address}.",
         whatHappened: "Vendor solicitor has sent additional enquiry replies to buyer's solicitor.",
         whatNext: null,
@@ -501,7 +502,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM10: {
+  VM16: {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to seller", who: "you",
     description: "Your solicitor has sent you the final contract to review and sign. Read it carefully — check the price, completion date, and what's included in the sale.",
     emailCopy: {
@@ -514,8 +515,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM10 complete: Contract issued to seller — {address}",
-        heroLabel: "VM10 — Contract issued to seller",
+        subject: "VM16 complete: Contract issued to seller — {address}",
+        heroLabel: "VM16 — Contract issued to seller",
         opening: "Logged on {address}.",
         whatHappened: "Vendor solicitor has issued contract documents to the vendor for signature.",
         whatNext: null,
@@ -524,7 +525,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM11: {
+  VM17: {
     label: "Sign and return contract documents", labelOther: "Seller signed and returned contract", who: "you",
     description: "Sign the contract documents and return them to your solicitor. The contracts aren't exchanged yet — you're signing them ready for exchange, which is the legally binding moment.",
     emailCopy: {
@@ -537,8 +538,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "VM11 complete: Seller signed and returned contract — {address}",
-        heroLabel: "VM11 — Seller signed contract",
+        subject: "VM17 complete: Seller signed and returned contract — {address}",
+        heroLabel: "VM17 — Seller signed contract",
         opening: "Logged on {address}.",
         whatHappened: "Vendor has confirmed signed contract returned to solicitor.",
         whatNext: null,
@@ -547,7 +548,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM20: {
+  VM18: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
     description: "Your solicitor has confirmed they have everything in place to exchange contracts. Once both sides are ready, your agent will coordinate the exchange.",
     emailCopy: {
@@ -576,8 +577,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM20 complete: Vendor solicitor ready to exchange — {address}",
-        heroLabel: "VM20 — Vendor solicitor ready to exchange",
+        subject: "VM18 complete: Vendor solicitor ready to exchange — {address}",
+        heroLabel: "VM18 — Vendor solicitor ready to exchange",
         opening: "Logged on {address}.",
         whatHappened: "Vendor's solicitor has confirmed readiness to exchange.",
         whatNext: null,
@@ -586,7 +587,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM12: {
+  VM19: {
     label: "Contracts exchanged", who: "agent",
     description: "Exchange is the legally binding moment of your sale. Both solicitors formally exchange signed contracts. Neither side can now withdraw without significant financial penalty. The completion date is now fixed.",
     emailCopy: {
@@ -615,8 +616,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM12 complete: Contracts exchanged — {address}",
-        heroLabel: "VM12 — Contracts exchanged",
+        subject: "VM19 complete: Contracts exchanged — {address}",
+        heroLabel: "VM19 — Contracts exchanged",
         opening: "Exchange confirmed on {address}.",
         whatHappened: "Contracts exchanged. Both parties legally committed. Completion date fixed.",
         whatNext: null,
@@ -625,7 +626,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  VM13: {
+  VM20: {
     label: "Sale completed", who: "agent",
     description: "The sale is complete. Your solicitor has received the purchase funds, redeemed your mortgage, and transferred ownership. Leave the keys and any agreed items at the property.",
     emailCopy: {
@@ -654,8 +655,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "VM13 complete: Sale completed — {address}",
-        heroLabel: "VM13 — Sale completed",
+        subject: "VM20 complete: Sale completed — {address}",
+        heroLabel: "VM20 — Sale completed",
         opening: "Completion confirmed on {address}.",
         whatHappened: "Sale completed. Transaction closed.",
         whatNext: null,
@@ -664,7 +665,8 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  // ── Purchaser milestones ─────────────────────────────────────────────────
+  // ── Purchaser milestones (PM1–PM27) ──────────────────────────────────────
+
   PM1: {
     label: "Instruct your solicitor", labelOther: "Buyer instructed their solicitor", who: "you",
     description: "Formally appoint a solicitor to handle the conveyancing for your purchase. Contact them to confirm you're instructing them — they'll send you a welcome pack and start work.",
@@ -727,7 +729,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM14a: {
+  PM3: {
     label: "Complete ID & AML checks", labelOther: "Buyer completed ID & AML checks", who: "you",
     description: "Anti-money laundering regulations require your solicitor to verify your identity before they can act for you. You'll need a photo ID and a recent proof of address.",
     emailCopy: {
@@ -740,8 +742,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM14a complete: Buyer ID checks done — {address}",
-        heroLabel: "PM14a — Buyer ID & AML complete",
+        subject: "PM3 complete: Buyer ID checks done — {address}",
+        heroLabel: "PM3 — Buyer ID & AML complete",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed completion of ID and AML verification.",
         whatNext: null,
@@ -750,7 +752,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM15a: {
+  PM4: {
     label: "Pay money on account to solicitor", labelOther: "Buyer paid money on account to solicitor", who: "you",
     description: "Your solicitor will ask for an initial payment to cover the cost of searches and disbursements. This is separate from the deposit and is typically a few hundred pounds.",
     emailCopy: {
@@ -763,8 +765,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM15a complete: Buyer paid money on account — {address}",
-        heroLabel: "PM15a — Buyer paid money on account",
+        subject: "PM4 complete: Buyer paid money on account — {address}",
+        heroLabel: "PM4 — Buyer paid money on account",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed payment on account to solicitor.",
         whatNext: null,
@@ -773,7 +775,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM4: {
+  PM5: {
     label: "Submit mortgage application", labelOther: "Buyer submitted mortgage application", who: "you",
     description: "If you're buying with a mortgage, submit your full mortgage application to your lender. Your broker can do this on your behalf. Your agreement in principle needs to be converted into a full application.",
     emailCopy: {
@@ -786,8 +788,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM4 complete: Buyer submitted mortgage application — {address}",
-        heroLabel: "PM4 — Buyer submitted mortgage application",
+        subject: "PM5 complete: Buyer submitted mortgage application — {address}",
+        heroLabel: "PM5 — Buyer submitted mortgage application",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed mortgage application submitted.",
         whatNext: null,
@@ -796,7 +798,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM5: {
+  PM6: {
     label: "Lender valuation booked", who: "lender", typicalDuration: "usually 1–2 weeks after application",
     description: "Your mortgage lender has booked a valuation of the property to confirm it's worth what you're paying. This is not a structural survey — it's for the lender's benefit, not yours. Consider booking your own survey separately.",
     emailCopy: {
@@ -809,8 +811,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM5 complete: Lender valuation booked — {address}",
-        heroLabel: "PM5 — Lender valuation booked",
+        subject: "PM6 complete: Lender valuation booked — {address}",
+        heroLabel: "PM6 — Lender valuation booked",
         opening: "Logged on {address}.",
         whatHappened: "Lender valuation confirmed booked.",
         whatNext: null,
@@ -819,7 +821,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM3: {
+  PM7: {
     label: "Draft contract pack received", who: "solicitor",
     description: "Your solicitor has received the contract pack from the seller's solicitor. This includes the draft contract, title documents, and property information forms. Your solicitor will review everything carefully.",
     emailCopy: {
@@ -848,8 +850,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "PM3 complete: Contract pack received — {address}",
-        heroLabel: "PM3 — Draft contract pack received",
+        subject: "PM7 complete: Contract pack received — {address}",
+        heroLabel: "PM7 — Draft contract pack received",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed receipt of draft contract pack.",
         whatNext: null,
@@ -858,7 +860,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM9: {
+  PM8: {
     label: "Searches ordered", who: "solicitor", typicalDuration: "results in 2–6 weeks",
     description: "Your solicitor has applied for searches — checks with the local council, water authority, and other bodies. These reveal planning permissions, flood risk, drainage, and other factors affecting the property.",
     emailCopy: {
@@ -871,8 +873,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM9 complete: Searches ordered — {address}",
-        heroLabel: "PM9 — Searches ordered",
+        subject: "PM8 complete: Searches ordered — {address}",
+        heroLabel: "PM8 — Searches ordered",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed searches ordered.",
         whatNext: null,
@@ -881,7 +883,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM7: {
+  PM9: {
     label: "Book your survey", labelOther: "Buyer booked their survey", who: "you",
     description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400–700 and covers the condition of the property in detail — something the lender's valuation does not do. It's there for your peace of mind and protection.",
     emailCopy: {
@@ -894,8 +896,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM7 complete: Buyer booked survey — {address}",
-        heroLabel: "PM7 — Buyer booked survey",
+        subject: "PM9 complete: Buyer booked survey — {address}",
+        heroLabel: "PM9 — Buyer booked survey",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed survey booked.",
         whatNext: null,
@@ -904,7 +906,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM20: {
+  PM10: {
     label: "Survey report received", who: "you",
     description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues — many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
     emailCopy: {
@@ -917,8 +919,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM20 complete: Buyer received survey report — {address}",
-        heroLabel: "PM20 — Survey report received",
+        subject: "PM10 complete: Buyer received survey report — {address}",
+        heroLabel: "PM10 — Survey report received",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed receipt of survey report.",
         whatNext: null,
@@ -927,7 +929,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM6: {
+  PM11: {
     label: "Mortgage offer received", who: "lender", typicalDuration: "typically 1–3 weeks after valuation",
     description: "Your mortgage lender has formally offered you the loan. Check the amount, interest rate, term, and any conditions. Your solicitor will receive a copy — they'll need to check it against the property title.",
     emailCopy: {
@@ -956,8 +958,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "PM6 complete: Buyer mortgage offer received — {address}",
-        heroLabel: "PM6 — Mortgage offer received",
+        subject: "PM11 complete: Buyer mortgage offer received — {address}",
+        heroLabel: "PM11 — Mortgage offer received",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed mortgage offer received from lender.",
         whatNext: null,
@@ -966,7 +968,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM8: {
+  PM12: {
     label: "Management pack received", who: "solicitor",
     description: "If the property is leasehold, the management pack from the freeholder or managing agent has arrived. Your solicitor will review service charge accounts, ground rent, building insurance, and any planned major works.",
     emailCopy: {
@@ -979,8 +981,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM8 complete: Management pack received — {address}",
-        heroLabel: "PM8 — Management pack received",
+        subject: "PM12 complete: Management pack received — {address}",
+        heroLabel: "PM12 — Management pack received",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed management pack received.",
         whatNext: null,
@@ -989,7 +991,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM10: {
+  PM13: {
     label: "Search results received", who: "solicitor", typicalDuration: "usually 2–6 weeks",
     description: "The search results have come back from the local authority and other bodies. Your solicitor will review them and flag anything that needs attention or further investigation.",
     emailCopy: {
@@ -1002,8 +1004,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM10 complete: Search results received — {address}",
-        heroLabel: "PM10 — Search results received",
+        subject: "PM13 complete: Search results received — {address}",
+        heroLabel: "PM13 — Search results received",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed search results received.",
         whatNext: null,
@@ -1012,7 +1014,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM11: {
+  PM14: {
     label: "Initial enquiries raised", who: "solicitor",
     description: "Your solicitor has sent questions to the seller's solicitor about the property. This is a normal part of the process — they're checking everything is in order before you exchange.",
     emailCopy: {
@@ -1025,8 +1027,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM11 complete: Initial enquiries raised — {address}",
-        heroLabel: "PM11 — Initial enquiries raised",
+        subject: "PM14 complete: Initial enquiries raised — {address}",
+        heroLabel: "PM14 — Initial enquiries raised",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has raised initial enquiries with vendor's solicitor.",
         whatNext: null,
@@ -1035,7 +1037,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM21: {
+  PM15: {
     label: "Initial replies received", who: "solicitor",
     description: "The seller's solicitor has replied to your solicitor's questions. Your solicitor will review the answers and decide whether further questions are needed.",
     emailCopy: {
@@ -1048,8 +1050,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM21 complete: Initial replies received — {address}",
-        heroLabel: "PM21 — Initial replies received",
+        subject: "PM15 complete: Initial replies received — {address}",
+        heroLabel: "PM15 — Initial replies received",
         opening: "Logged on {address}.",
         whatHappened: "Initial enquiry replies received from vendor's solicitor.",
         whatNext: null,
@@ -1058,7 +1060,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM22: {
+  PM16: {
     label: "Initial replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed the replies to their enquiries. They may raise further questions, or they may be satisfied and move towards exchange.",
     emailCopy: {
@@ -1071,8 +1073,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM22 complete: Initial replies reviewed — {address}",
-        heroLabel: "PM22 — Initial replies reviewed",
+        subject: "PM16 complete: Initial replies reviewed — {address}",
+        heroLabel: "PM16 — Initial replies reviewed",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has reviewed initial enquiry replies.",
         whatNext: null,
@@ -1081,7 +1083,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM12: {
+  PM17: {
     label: "Additional enquiries raised", who: "solicitor",
     description: "Your solicitor has raised a second round of questions. This is completely normal — most transactions go through two or three rounds of enquiries before all points are resolved.",
     emailCopy: {
@@ -1094,8 +1096,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM12 complete: Additional enquiries raised — {address}",
-        heroLabel: "PM12 — Additional enquiries raised",
+        subject: "PM17 complete: Additional enquiries raised — {address}",
+        heroLabel: "PM17 — Additional enquiries raised",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has raised additional enquiries.",
         whatNext: null,
@@ -1104,7 +1106,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM23: {
+  PM18: {
     label: "Additional replies received", who: "solicitor",
     description: "Replies to the additional enquiries have arrived from the seller's solicitor. Your solicitor will review them.",
     emailCopy: {
@@ -1117,8 +1119,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM23 complete: Additional replies received — {address}",
-        heroLabel: "PM23 — Additional replies received",
+        subject: "PM18 complete: Additional replies received — {address}",
+        heroLabel: "PM18 — Additional replies received",
         opening: "Logged on {address}.",
         whatHappened: "Additional enquiry replies received from vendor's solicitor.",
         whatNext: null,
@@ -1127,7 +1129,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM24: {
+  PM19: {
     label: "Additional replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed all outstanding replies. They should now have everything they need to report to you and move towards exchange.",
     emailCopy: {
@@ -1140,8 +1142,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM24 complete: Additional replies reviewed — {address}",
-        heroLabel: "PM24 — Additional replies reviewed",
+        subject: "PM19 complete: Additional replies reviewed — {address}",
+        heroLabel: "PM19 — Additional replies reviewed",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has reviewed all outstanding enquiry replies.",
         whatNext: null,
@@ -1150,7 +1152,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM25: {
+  PM20: {
     label: "All enquiries satisfied", who: "solicitor",
     description: "All legal questions about the property have been answered to your solicitor's satisfaction. This is a significant milestone — you're now in the final stretch before exchange.",
     emailCopy: {
@@ -1163,8 +1165,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM25 complete: All enquiries satisfied — {address}",
-        heroLabel: "PM25 — All enquiries satisfied",
+        subject: "PM20 complete: All enquiries satisfied — {address}",
+        heroLabel: "PM20 — All enquiries satisfied",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed all enquiries satisfied.",
         whatNext: null,
@@ -1173,7 +1175,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM26: {
+  PM21: {
     label: "Final report received from solicitor", who: "you",
     description: "Your solicitor has sent you their final report summarising everything about the property, the title, the searches, and any conditions on your mortgage offer. Read it and raise any questions before signing.",
     emailCopy: {
@@ -1186,8 +1188,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM26 complete: Buyer received final report — {address}",
-        heroLabel: "PM26 — Final report received",
+        subject: "PM21 complete: Buyer received final report — {address}",
+        heroLabel: "PM21 — Final report received",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed receipt of solicitor's final report.",
         whatNext: null,
@@ -1196,7 +1198,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM13: {
+  PM22: {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to buyer", who: "you",
     description: "Your solicitor has sent you the contract to review and sign. Check the price, completion date, and included fixtures. Signing doesn't commit you yet — that happens at exchange.",
     emailCopy: {
@@ -1209,8 +1211,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM13 complete: Contract issued to buyer — {address}",
-        heroLabel: "PM13 — Contract issued to buyer",
+        subject: "PM22 complete: Contract issued to buyer — {address}",
+        heroLabel: "PM22 — Contract issued to buyer",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has issued contract documents to purchaser for signature.",
         whatNext: null,
@@ -1219,7 +1221,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM14b: {
+  PM23: {
     label: "Sign and return contract documents", labelOther: "Buyer signed and returned contract", who: "you",
     description: "Sign the contract and return it to your solicitor. They'll hold it ready for exchange. Make sure you're happy with the completion date before signing.",
     emailCopy: {
@@ -1232,8 +1234,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM14b complete: Buyer signed and returned contract — {address}",
-        heroLabel: "PM14b — Buyer signed contract",
+        subject: "PM23 complete: Buyer signed and returned contract — {address}",
+        heroLabel: "PM23 — Buyer signed contract",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed signed contract returned to solicitor.",
         whatNext: null,
@@ -1242,7 +1244,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM15b: {
+  PM24: {
     label: "Transfer the deposit", labelOther: "Buyer transferred the deposit", who: "you",
     description: "Transfer your deposit — typically 10% of the purchase price — to your solicitor's client account. It must be cleared funds before exchange can happen. Allow a few days for bank transfers.",
     emailCopy: {
@@ -1255,8 +1257,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View your portal",
       },
       progressor: {
-        subject: "PM15b complete: Buyer transferred deposit — {address}",
-        heroLabel: "PM15b — Buyer transferred deposit",
+        subject: "PM24 complete: Buyer transferred deposit — {address}",
+        heroLabel: "PM24 — Buyer transferred deposit",
         opening: "Logged on {address}.",
         whatHappened: "Purchaser has confirmed deposit transferred to solicitor's client account.",
         whatNext: null,
@@ -1265,7 +1267,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM27: {
+  PM25: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
     description: "Your solicitor has confirmed they have everything they need to exchange. Your agent is now coordinating with the seller's side to agree a date and time.",
     emailCopy: {
@@ -1294,8 +1296,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "PM27 complete: Buyer solicitor ready to exchange — {address}",
-        heroLabel: "PM27 — Buyer solicitor ready to exchange",
+        subject: "PM25 complete: Buyer solicitor ready to exchange — {address}",
+        heroLabel: "PM25 — Buyer solicitor ready to exchange",
         opening: "Logged on {address}.",
         whatHappened: "Buyer's solicitor has confirmed readiness to exchange.",
         whatNext: null,
@@ -1304,7 +1306,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM16: {
+  PM26: {
     label: "Contracts exchanged", who: "agent",
     description: "Exchange is the legally binding moment of your purchase. Both solicitors exchange signed contracts and your deposit is transferred. The completion date is now fixed and neither side can withdraw without financial penalty.",
     emailCopy: {
@@ -1333,8 +1335,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "PM16 complete: Contracts exchanged — {address}",
-        heroLabel: "PM16 — Contracts exchanged",
+        subject: "PM26 complete: Contracts exchanged — {address}",
+        heroLabel: "PM26 — Contracts exchanged",
         opening: "Exchange confirmed on {address}.",
         whatHappened: "Contracts exchanged. Both parties legally committed. Completion date fixed.",
         whatNext: null,
@@ -1343,7 +1345,7 @@ const copy: Record<string, PortalCopy> = {
     },
   },
 
-  PM17: {
+  PM27: {
     label: "Purchase completed", who: "agent",
     description: "The purchase is complete. Your solicitor has received the title deeds and will register your ownership at HM Land Registry. The keys are yours — welcome home.",
     emailCopy: {
@@ -1372,8 +1374,8 @@ const copy: Record<string, PortalCopy> = {
         action: "View in dashboard",
       },
       progressor: {
-        subject: "PM17 complete: Purchase completed — {address}",
-        heroLabel: "PM17 — Purchase completed",
+        subject: "PM27 complete: Purchase completed — {address}",
+        heroLabel: "PM27 — Purchase completed",
         opening: "Completion confirmed on {address}.",
         whatHappened: "Purchase completed. Transaction closed.",
         whatNext: null,

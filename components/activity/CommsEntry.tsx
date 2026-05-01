@@ -5,6 +5,8 @@
 
 import { useState, useTransition } from "react";
 import { logCommAction } from "@/app/actions/comms";
+import { extractFirstName } from "@/lib/contacts/displayName";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Contact = { id: string; name: string; roleType: string };
@@ -197,11 +199,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                         : "border-white/30 text-slate-900/60 hover:bg-white/20"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                      selected ? "bg-blue-500 text-white" : "bg-white/30 text-slate-900/50"
-                    }`}>
-                      {c.name.charAt(0)}
-                    </div>
+                    <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={20} />
                     {c.name}
                   </button>
                 );
@@ -225,7 +223,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 {method && <MethodBadge method={method} />}
                 {selectedContacts.length > 0 && (
                   <span className="text-xs text-slate-900/50">
-                    {contacts.filter((c) => selectedContacts.includes(c.id)).map((c) => c.name.split(" ")[0]).join(", ")}
+                    {contacts.filter((c) => selectedContacts.includes(c.id)).map((c) => extractFirstName(c.name)).join(", ")}
                   </span>
                 )}
               </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { UserPlus, Trash, Eye, EyeSlash, Crown } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { UserAvatar } from "@/components/ui/Avatar";
 
 type TeamMember = {
   id: string;
@@ -104,10 +105,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
 
       {negotiators.map((m) => (
         <div key={m.id} className="glass-card px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-               style={{ background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" }}>
-            <span className="text-xs font-semibold text-blue-700">{m.name.charAt(0)}</span>
-          </div>
+          <UserAvatar user={{ name: m.name }} size={32} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
             <p className="text-xs text-slate-900/40 truncate">{m.email}</p>

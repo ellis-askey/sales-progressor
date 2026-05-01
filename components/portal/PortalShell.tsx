@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { P } from "./portal-ui";
 import { PortalInstallPrompt } from "./PortalInstallPrompt";
 import { PortalPushPrompt } from "./PortalPushPrompt";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type Props = {
   token: string;
@@ -65,7 +66,7 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold"
               style={{ background: P.primaryBg, color: P.primaryText }}
             >
-              {contactName.split(" ")[0]}
+              {extractFirstName(contactName)}
             </div>
           </div>
         </div>

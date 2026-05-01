@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/session";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
@@ -22,9 +23,9 @@ function getGreeting(name: string): string {
     const hour = parseInt(hourStr, 10);
     const prefix =
       hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    return `${prefix}, ${name.split(" ")[0]}`;
+    return `${prefix}, ${extractFirstName(name)}`;
   } catch {
-    return `Hello, ${name.split(" ")[0]}`;
+    return `Hello, ${extractFirstName(name)}`;
   }
 }
 

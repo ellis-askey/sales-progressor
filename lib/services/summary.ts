@@ -4,6 +4,7 @@
 // Template tokens: {agent} {vendors} {purchasers} {solicitor} {broker}
 
 import { prisma } from "@/lib/prisma";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 /**
  * Resolve contact name tokens from a transaction's contacts.
@@ -21,7 +22,7 @@ export async function resolveTemplateTokens(
   const byRole = (role: string) => {
     const names = contacts
       .filter((c) => c.roleType === role)
-      .map((c) => c.name.split(" ")[0]); // First name only
+      .map((c) => extractFirstName(c.name));
     if (names.length === 0) return role === "vendor" ? "the vendor" : role === "purchaser" ? "the purchaser" : "the solicitor";
     if (names.length === 1) return names[0];
     return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
@@ -31,7 +32,7 @@ export async function resolveTemplateTokens(
   const brokerContact = contacts.find((c) => c.roleType === "broker");
 
   return {
-    agent: agentName.split(" ")[0],
+    agent: extractFirstName(agentName),
     vendors: byRole("vendor"),
     purchasers: byRole("purchaser"),
     solicitor: solicitorContact?.name ?? "the solicitor",

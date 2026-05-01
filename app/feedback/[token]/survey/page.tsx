@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SurveyForm } from "@/components/feedback/SurveyForm";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export const metadata = { title: "Rate your experience | Sales Progressor" };
 
@@ -42,7 +43,7 @@ export default async function SurveyPage({ params }: { params: Promise<{ token: 
             How was your experience?
           </h1>
           <p style={{ margin: "0 0 28px", fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>
-            {contact.name.split(" ")[0]}, congratulations on completing your {roleLabel} at {contact.transaction.propertyAddress}. We'd love your feedback — it takes less than a minute.
+            {extractFirstName(contact.name)}, congratulations on completing your {roleLabel} at {contact.transaction.propertyAddress}. We'd love your feedback — it takes less than a minute.
           </p>
 
           <SurveyForm token={token} />

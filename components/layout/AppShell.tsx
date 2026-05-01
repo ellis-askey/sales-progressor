@@ -10,6 +10,7 @@ import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
 } from "@phosphor-icons/react";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { ChangelogDropdown } from "@/components/layout/ChangelogDropdown";
 
@@ -106,10 +107,7 @@ export function AppShell({
 
         <div className="px-4 py-4 border-t border-white/20">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 flex-shrink-0"
-                 style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", boxShadow: "0 2px 6px rgba(37,99,235,0.30)" }}>
-              <span className="text-xs font-bold text-white">{session.user.name?.charAt(0) ?? "?"}</span>
-            </div>
+            <UserAvatar user={{ name: session.user.name ?? "" }} size={32} />
             <div className="min-w-0">
               <p className="text-xs font-semibold text-slate-900/80 truncate">{session.user.name}</p>
               <p className="text-xs text-slate-900/40 truncate capitalize">{session.user.role.replace("_", " ")}</p>

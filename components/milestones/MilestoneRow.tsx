@@ -7,7 +7,7 @@ import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction, getExchangeReconciliationList, confirmExchangeReconciliationAction, getUndoImpactAction, executeUndoMilestoneAction } from "@/app/actions/milestones";
-import type { UndoImpact } from "@/app/actions/milestones";
+import type { UndoImpact, NotificationStatus } from "@/app/actions/milestones";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
 
@@ -91,6 +91,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [celebrating, setCelebrating] = useState(false);
   const [celebrationAddress, setCelebrationAddress] = useState("");
 
+  // Post-confirm notification feedback
+  const [confirmedNotifications, setConfirmedNotifications] = useState<NotificationStatus[] | null>(null);
+  const notifDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function showNotifications(notifs: NotificationStatus[]) {
+    if (notifDismissRef.current) clearTimeout(notifDismissRef.current);
+    setConfirmedNotifications(notifs);
+    notifDismissRef.current = setTimeout(() => setConfirmedNotifications(null), 5000);
+  }
+
   const isCompleted = optimisticState.isComplete;
   const isNotRequired = optimisticState.isNotRequired;
   const isDone = isCompleted || isNotRequired;
@@ -150,6 +159,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           setCelebrating(true);
         } else {
           toast.success(def.name);
+        }
+        if (result.notifications.length > 0) {
+          showNotifications(result.notifications);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not complete this milestone.";
@@ -750,6 +762,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         </div>,
         document.body
       )}
+      {confirmedNotifications && confirmedNotifications.length > 0 && (
+        <NotificationFeedback
+          notifications={confirmedNotifications}
+          onDismiss={() => setConfirmedNotifications(null)}
+        />
+      )}
       {celebrating && (
         <ExchangeCelebration
           address={celebrationAddress}
@@ -757,5 +775,78 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         />
       )}
     </>
+  );
+}
+
+// ─── Notification feedback panel ──────────────────────────────────────────────
+
+const NOTIF_ROLE_LABELS: Record<string, string> = {
+  seller: "Seller",
+  buyer: "Buyer",
+  agent: "Agent",
+  progressor: "Progressor",
+};
+
+const NOTIF_PILL_STYLES: Record<string, { bg: string; text: string }> = {
+  seller:     { bg: "bg-blue-50",   text: "text-blue-700"  },
+  buyer:      { bg: "bg-emerald-50", text: "text-emerald-700" },
+  agent:      { bg: "bg-amber-50",  text: "text-amber-700"  },
+  progressor: { bg: "bg-amber-50",  text: "text-amber-700"  },
+};
+
+function NotificationFeedback({
+  notifications,
+  onDismiss,
+}: {
+  notifications: NotificationStatus[];
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="mx-4 mb-2 px-3 py-2.5 rounded-xl bg-white/40 border border-white/40 backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-semibold text-slate-900/50 uppercase tracking-wider">Notifications</p>
+        <button
+          onClick={onDismiss}
+          className="text-[10px] text-slate-900/30 hover:text-slate-900/60 transition-colors"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {notifications.map((n, i) => {
+          const label = NOTIF_ROLE_LABELS[n.role] ?? n.role;
+          const pillStyle = NOTIF_PILL_STYLES[n.role] ?? { bg: "bg-slate-50", text: "text-slate-600" };
+          const isSkipped = n.status !== "queued";
+
+          if (isSkipped) {
+            return (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-slate-300/60 text-slate-900/40"
+              >
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {label} — {n.contactDisplayName} · no email on file
+              </span>
+            );
+          }
+
+          return (
+            <span
+              key={i}
+              className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${pillStyle.bg} ${pillStyle.text}`}
+            >
+              <svg className="w-3 h-3 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              {label} — {n.contactDisplayName}
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }

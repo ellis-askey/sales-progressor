@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { buildGreeting } from "@/lib/portal-copy";
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
@@ -31,13 +32,13 @@ export async function POST(req: NextRequest) {
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
-  const firstName = contact.name.split(" ")[0];
+  const greeting = buildGreeting(contact.name);
 
   await sendEmail({
     to: contact.email,
     subject: `Your ${saleWord} portal — ${address}`,
     text: [
-      `Hi ${firstName},`,
+      greeting,
       "",
       `You can now track the progress of your ${saleWord} at ${address} using the link below.`,
       "",
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
   <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85)">Your ${saleWord} portal is ready</p>
 </div>
 <div style="padding:32px">
-  <p style="margin:0 0 16px;font-size:15px">Hi ${firstName},</p>
+  <p style="margin:0 0 16px;font-size:15px">${greeting}</p>
   <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#4a5162">
     You can now track the progress of your ${saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.
   </p>

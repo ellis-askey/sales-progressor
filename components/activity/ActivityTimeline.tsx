@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { formatDate } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction } from "@/app/actions/comms";
+import { extractFirstName } from "@/lib/contacts/displayName";
+import { TimelineIcon, resolveEntryType } from "@/components/ui/TimelineIcon";
+import { ContactAvatar } from "@/components/ui/Avatar";
 
 type Props = {
   entries: ActivityEntry[];
@@ -12,15 +15,6 @@ type Props = {
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
-
-const METHOD_ICONS: Record<string, string> = {
-  email: "✉",
-  phone: "📞",
-  sms: "💬",
-  voicemail: "📱",
-  whatsapp: "📲",
-  post: "📮",
-};
 
 const METHOD_LABELS: Record<string, string> = {
   email: "Email",
@@ -45,6 +39,31 @@ function isPortalView(entry: { kind: string; content?: string }) {
   return entry.kind === "comm" && typeof entry.content === "string" && entry.content.includes("viewed their client portal");
 }
 
+function CommPill({ entry }: { entry: Extract<ActivityEntry, { kind: "comm" }> }) {
+  if (entry.isAutomated) {
+    return (
+      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100/80 text-indigo-700">
+        System email
+      </span>
+    );
+  }
+  const styles = {
+    internal_note: "bg-amber-100/80 text-amber-700",
+    outbound: "bg-blue-100/80 text-blue-700",
+    inbound: "bg-emerald-100/80 text-emerald-700",
+  } as Record<string, string>;
+  const labels = {
+    internal_note: "Internal",
+    outbound: "→ Outbound",
+    inbound: "← Inbound",
+  } as Record<string, string>;
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[entry.type] ?? "bg-white/30 text-slate-900/60"}`}>
+      {labels[entry.type] ?? entry.type}
+    </span>
+  );
+}
+
 export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -66,7 +85,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
   }
 
   const filtered = entries.filter((entry) => {
-    // Hide portal views unless toggled on
     if (!showPortalVisits && isPortalView(entry)) return false;
 
     if (filter === "milestones" && entry.kind !== "milestone") return false;
@@ -149,169 +167,117 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
         />
       </div>
 
-    {filtered.length === 0 ? (
-      <div className="text-center py-8 text-sm text-slate-900/40">
-        No entries match.
-      </div>
-    ) : (
-    <div className="relative">
-      {/* Vertical line */}
-      <div className="absolute left-[18px] top-2 bottom-2 w-px bg-white/30" />
+      {filtered.length === 0 ? (
+        <div className="text-center py-8 text-sm text-slate-900/40">
+          No entries match.
+        </div>
+      ) : (
+        <div className="relative">
+          {/* Vertical line */}
+          <div className="absolute left-[19px] top-2 bottom-2 w-px bg-white/30" />
 
-      <div className="space-y-0">
-        {visible.map((entry) => (
-          <div key={entry.id} className="relative flex gap-4 pb-4">
-            {/* Timeline dot */}
-            <div className="flex-shrink-0 relative z-10 mt-1">
-              {entry.kind === "milestone" ? (
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${
-                  entry.isNotRequired
-                    ? "bg-white/20 border-white/30"
-                    : entry.confirmedByClient
-                    ? "bg-emerald-50/60 border-emerald-200/60"
-                    : "bg-blue-50/60 border-blue-200/60"
-                }`}>
-                  {entry.isNotRequired ? (
-                    <span className="text-xs text-slate-900/40">—</span>
+          <div className="space-y-0">
+            {visible.map((entry) => (
+              <div key={entry.id} className="relative flex gap-4 pb-4">
+                {/* Timeline icon */}
+                <div className="flex-shrink-0 relative z-10 mt-1">
+                  <TimelineIcon type={resolveEntryType(entry)} size={38} />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 pt-1">
+                  {entry.kind === "milestone" ? (
+                    <div className="glass-card px-4 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className={`text-xs font-semibold mb-1 ${
+                            entry.isNotRequired ? "text-slate-900/40" :
+                            entry.confirmedByClient ? "text-emerald-600" : "text-blue-600"
+                          }`}>
+                            {entry.isNotRequired
+                              ? "Marked not required"
+                              : entry.confirmedByClient
+                              ? "Confirmed by client"
+                              : "Milestone confirmed"}
+                          </p>
+                          {entry.summaryText ? (
+                            <p className="text-sm text-slate-900/80 leading-snug">{entry.summaryText}</p>
+                          ) : (
+                            <p className="text-sm text-slate-900/70">{entry.milestoneName}</p>
+                          )}
+                        </div>
+                        {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
+                          <a
+                            href={mosDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors whitespace-nowrap"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            View Memo
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-900/40 mt-2">
+                        {entry.confirmedByClient && entry.confirmerName
+                          ? `${entry.confirmerName} via portal · ${formatDate(entry.at)}`
+                          : entry.confirmedByClient
+                          ? `Client via portal · ${formatDate(entry.at)}`
+                          : `${entry.completedByName ? extractFirstName(entry.completedByName) : "System"} · ${formatDate(entry.at)}`}
+                      </p>
+                    </div>
                   ) : (
-                    <svg className={`w-4 h-4 ${entry.confirmedByClient ? "text-emerald-500" : "text-blue-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <div className="glass-card px-4 py-3 group">
+                      {/* Badges */}
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <CommPill entry={entry} />
+                        {entry.method && !entry.isAutomated && (
+                          <span className="text-xs text-slate-900/50 font-medium">
+                            {METHOD_LABELS[entry.method] ?? entry.method}
+                          </span>
+                        )}
+                        {entry.contactNames.map((name) => (
+                          <span key={name} className="inline-flex items-center gap-1 text-xs bg-white/30 text-slate-900/60 pl-0.5 pr-2 py-0.5 rounded-full">
+                            <ContactAvatar contact={{ name }} size={16} />
+                            {extractFirstName(name)}
+                          </span>
+                        ))}
+                        <button
+                          onClick={() => deleteComm(entry.id)}
+                          disabled={deletingId === entry.id || isPending}
+                          className="ml-auto text-xs text-slate-900/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          {deletingId === entry.id ? "…" : "Delete"}
+                        </button>
+                      </div>
+                      {/* Content */}
+                      <p className="text-sm text-slate-900/80 leading-relaxed whitespace-pre-line">
+                        {entry.content}
+                      </p>
+                      <p className="text-xs text-slate-900/40 mt-2">
+                        {entry.createdByName ? extractFirstName(entry.createdByName) : "System"} · {formatDate(entry.at)}
+                      </p>
+                    </div>
                   )}
                 </div>
-              ) : entry.isAutomated ? (
-                <div className="w-9 h-9 rounded-full flex items-center justify-center border-2 bg-indigo-50/60 border-indigo-200/60">
-                  <svg className="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                    <polyline points="16 2 12 6 8 2" />
-                  </svg>
-                </div>
-              ) : (
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 text-base ${
-                  entry.type === "internal_note"
-                    ? "bg-amber-50/60 border-amber-200/60"
-                    : entry.type === "outbound"
-                    ? "bg-blue-50/60 border-blue-200/60"
-                    : "bg-emerald-50/60 border-emerald-200/60"
-                }`}>
-                  {entry.type === "internal_note" ? "📝" :
-                   entry.method ? METHOD_ICONS[entry.method] ?? "💬" : "💬"}
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0 pt-1">
-              {entry.kind === "milestone" ? (
-                <div className="glass-card px-4 py-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className={`text-xs font-semibold mb-1 ${
-                        entry.isNotRequired ? "text-slate-900/40" :
-                        entry.confirmedByClient ? "text-emerald-600" : "text-blue-600"
-                      }`}>
-                        {entry.isNotRequired
-                          ? "Marked not required"
-                          : entry.confirmedByClient
-                          ? "Confirmed by client"
-                          : "Milestone confirmed"}
-                      </p>
-                      {entry.summaryText ? (
-                        <p className="text-sm text-slate-900/80 leading-snug">{entry.summaryText}</p>
-                      ) : (
-                        <p className="text-sm text-slate-900/70">{entry.milestoneName}</p>
-                      )}
-                    </div>
-                    {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
-                      <a
-                        href={mosDocUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors whitespace-nowrap"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        View Memo
-                      </a>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-900/40 mt-2">
-                    {entry.confirmedByClient && entry.confirmerName
-                      ? `${entry.confirmerName} via portal · ${formatDate(entry.at)}`
-                      : entry.confirmedByClient
-                      ? `Client via portal · ${formatDate(entry.at)}`
-                      : `${entry.completedByName?.split(" ")[0] ?? "System"} · ${formatDate(entry.at)}`}
-                  </p>
-                </div>
-              ) : (
-                <div className="glass-card px-4 py-3 group">
-                  {/* Badges */}
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    {entry.isAutomated ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-100/80 text-indigo-700 inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                          <polyline points="22,6 12,13 2,6" />
-                          <polyline points="16 2 12 6 8 2" />
-                        </svg>
-                        System email
-                      </span>
-                    ) : (
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        entry.type === "internal_note" ? "bg-amber-100/80 text-amber-700" :
-                        entry.type === "outbound" ? "bg-blue-100/80 text-blue-700" :
-                        "bg-emerald-100/80 text-emerald-700"
-                      }`}>
-                        {entry.type === "internal_note" ? "Internal" :
-                         entry.type === "outbound" ? "→ Outbound" : "← Inbound"}
-                      </span>
-                    )}
-                    {entry.method && !entry.isAutomated && (
-                      <span className="text-xs text-slate-900/50 font-medium">
-                        {METHOD_ICONS[entry.method]} {METHOD_LABELS[entry.method]}
-                      </span>
-                    )}
-                    {entry.contactNames.map((name) => (
-                      <span key={name} className="text-xs bg-white/30 text-slate-900/60 px-2 py-0.5 rounded-full">
-                        {name.split(" ")[0]}
-                      </span>
-                    ))}
-                    <button
-                      onClick={() => deleteComm(entry.id)}
-                      disabled={deletingId === entry.id || isPending}
-                      className="ml-auto text-xs text-slate-900/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      {deletingId === entry.id ? "…" : "Delete"}
-                    </button>
-                  </div>
-                  {/* Content */}
-                  <p className="text-sm text-slate-900/80 leading-relaxed whitespace-pre-line">
-                    {entry.content}
-                  </p>
-                  <p className="text-xs text-slate-900/40 mt-2">
-                    {entry.createdByName?.split(" ")[0] ?? "System"} · {formatDate(entry.at)}
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {hasMore && (
-        <div className="pl-[52px] mt-1">
-          <button
-            onClick={() => setShowAll(!showAll)}
-            className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
-          >
-            {showAll ? "Show less" : `Show ${filtered.length - 10} earlier updates…`}
-          </button>
+          {hasMore && (
+            <div className="pl-[54px] mt-1">
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+              >
+                {showAll ? "Show less" : `Show ${filtered.length - 10} earlier updates…`}
+              </button>
+            </div>
+          )}
         </div>
       )}
-    </div>
-    )}
     </div>
   );
 }

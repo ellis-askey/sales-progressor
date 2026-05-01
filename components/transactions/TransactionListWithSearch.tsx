@@ -5,6 +5,7 @@ import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 import { calculateRiskScore } from "@/lib/services/risk";
 import type { RiskLevel } from "@/lib/services/risk";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 // ── Chip sub-components ────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function AssignedToChip({ users, selected, onChange }: {
   useClickOutside(ref, () => setOpen(false));
 
   const selectedUser = selected ? users.find((u) => u.id === selected) : null;
-  const firstName = selectedUser?.name.split(" ")[0] ?? null;
+  const firstName = selectedUser ? extractFirstName(selectedUser.name) : null;
   const isActive = selected !== null;
 
   return (

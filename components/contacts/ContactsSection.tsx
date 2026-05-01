@@ -17,6 +17,7 @@ function whatsappHref(phone: string): string {
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { ContactRole } from "@prisma/client";
 import { EnvelopeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { ContactAvatar } from "@/components/ui/Avatar";
 
 type Contact = {
   id: string;
@@ -210,7 +211,6 @@ export function ContactsSection({
         <div className="glass-card mb-4">
           {contacts.map((contact, i) => {
             const role = contact.roleType as ContactRole;
-            const initials = contact.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
             const isEditing = editingId === contact.id;
             return (
               <div
@@ -258,8 +258,8 @@ export function ContactsSection({
                 ) : (
                   <div className="flex gap-3.5">
                     {/* Avatar */}
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5 ${ROLE_AVATAR[role] ?? "bg-white/20 text-slate-900/50"}`}>
-                      {initials}
+                    <div className="mt-0.5">
+                      <ContactAvatar contact={{ name: contact.name, roleType: contact.roleType }} size={36} />
                     </div>
                     {/* Info + actions */}
                     <div className="flex-1 min-w-0">

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { buildGreeting } from "@/lib/portal-copy";
 
 function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -51,7 +52,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         : "";
 
       const text = [
-        `Hi ${contact.name.split(" ")[0]},`,
+        buildGreeting(contact.name),
         ``,
         `We wanted to check in and let you know that your ${roleLabel} at ${tx.propertyAddress} is actively being progressed.`,
         ``,
@@ -69,7 +70,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
 
       const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 4px;color:#6b7280;font-size:13px">${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</p>
-<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Hi ${contact.name.split(" ")[0]},</h1>
+<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">${buildGreeting(contact.name)}</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">We wanted to check in and let you know that your <strong>${roleLabel}</strong> at <strong>${tx.propertyAddress}</strong> is actively being progressed.</p>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">No news at this stage is genuinely good news — it means there are no unexpected problems holding things up. Our team is working in the background, chasing solicitors, monitoring the process, and making sure everything keeps moving.${exchangeStr ? `</p><p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6"><strong>Exchange target:</strong> ${fmtDate(tx.expectedExchangeDate!)}` : ""}</p>
 <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">If anything needs your attention, we will be in touch straight away. If you have any questions in the meantime, just reply to this email.</p>

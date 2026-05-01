@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { buildGreeting } from "@/lib/portal-copy";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export async function sendCompletionSurveys(transactionId: string): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
@@ -25,7 +27,7 @@ export async function sendCompletionSurveys(transactionId: string): Promise<void
     const surveyUrl = `${base}/feedback/${contact.portalToken}/survey`;
 
     const text = [
-      `Hi ${contact.name.split(" ")[0]},`,
+      buildGreeting(contact.name),
       ``,
       `Congratulations on completing your ${roleLabel} at ${tx.propertyAddress}!`,
       ``,
@@ -40,7 +42,7 @@ export async function sendCompletionSurveys(transactionId: string): Promise<void
     ].join("\n");
 
     const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Congratulations, ${contact.name.split(" ")[0]}!</h1>
+<h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Congratulations, ${extractFirstName(contact.name)}!</h1>
 <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your ${roleLabel} at <strong>${tx.propertyAddress}</strong> is now complete. We hope the process was as smooth as possible.</p>
 <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6">We'd love to hear about your experience — it only takes a minute and helps us improve for everyone.</p>
 <p style="margin:0 0 24px"><a href="${surveyUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Rate your experience →</a></p>

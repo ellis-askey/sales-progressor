@@ -3,6 +3,7 @@ import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export type PortalMilestone = {
   id: string;
@@ -297,14 +298,14 @@ export async function logPortalMilestoneConfirm(
       to: tx.assignedUser.email,
       subject: `Client confirmed: "${milestoneLabel}" — ${tx.propertyAddress}`,
       text: [
-        `Hi ${tx.assignedUser.name.split(" ")[0]},`,
+        `Hi ${extractFirstName(tx.assignedUser.name)},`,
         "",
         `${contactName} has just confirmed "${milestoneLabel}" on ${tx.propertyAddress} via their portal.`,
         "",
         `View file: ${dashUrl}`,
       ].join("\n"),
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
-<p style="margin:0 0 20px;font-size:15px">Hi ${tx.assignedUser.name.split(" ")[0]},</p>
+<p style="margin:0 0 20px;font-size:15px">Hi ${extractFirstName(tx.assignedUser.name)},</p>
 <div style="margin:0 0 24px;padding:16px 20px;background:#F8F9FB;border-radius:12px">
   <p style="margin:0 0 4px;font-size:13px;color:#8b91a3">${tx.propertyAddress}</p>
   <p style="margin:0;font-size:15px;font-weight:600;color:#1a1d29">${contactName} confirmed "${milestoneLabel}"</p>
@@ -351,7 +352,7 @@ export async function logPortalMilestoneConfirm(
       const portalUrl = `${base}/portal/${confirmingContact.portalToken}`;
       const confirmSubject = `Step confirmed — ${address}`;
       const confirmText = [
-        `Hi ${confirmingContact.name.split(" ")[0]},`,
+        buildGreeting(confirmingContact.name),
         ``,
         `Thanks for confirming the following step on your ${confirmingRole === "vendor" ? "sale" : "purchase"} at ${address}:`,
         ``,
@@ -366,7 +367,7 @@ export async function logPortalMilestoneConfirm(
         subject: confirmSubject,
         text: confirmText,
         html: portalStepConfirmedHtml({
-          firstName: confirmingContact.name.split(" ")[0],
+          firstName: extractFirstName(confirmingContact.name),
           address,
           saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
           stepLabel: portalLabel,
@@ -384,7 +385,7 @@ export async function logPortalMilestoneConfirm(
     for (const other of otherContacts) {
       const portalUrl = `${base}/portal/${other.portalToken!}`;
       const otherText = [
-        `Hi ${other.name.split(" ")[0]},`,
+        buildGreeting(other.name),
         ``,
         `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at ${address}. Log in to see the latest.`,
         ``,
@@ -395,7 +396,7 @@ export async function logPortalMilestoneConfirm(
         subject: `Progress update — ${address}`,
         text: otherText,
         html: portalEmailHtml({
-          greeting: `Hi ${other.name.split(" ")[0]},`,
+          greeting: buildGreeting(other.name),
           body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${address}</strong>. Log in to your portal to see the latest.`,
           ctaText: "View your portal",
           ctaUrl: portalUrl,
@@ -512,7 +513,7 @@ export async function sendAdminMilestoneNotificationToPortal(
     if (!c.email || !c.portalToken) continue;
 
     const saleWord = c.roleType === "vendor" ? "sale" : "purchase";
-    const firstName = c.name.split(" ")[0];
+    const firstName = extractFirstName(c.name);
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
     let subject: string;
