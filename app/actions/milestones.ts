@@ -21,6 +21,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
+import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -166,6 +167,11 @@ export async function confirmMilestoneAction(input: {
       code,
       input.eventDate ?? null
     ).catch(() => {});
+
+    // Retention email: fire first-exchange celebration for the agent who owns the file
+    if (code === "VM19" || code === "PM26") {
+      maybeFireFirstExchangeEmail(session.user.id, input.transactionId).catch(() => {});
+    }
   }
 
   // Build intent-based notification status (check email addresses without blocking on send)

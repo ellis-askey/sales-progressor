@@ -53,6 +53,8 @@ model User {
   communications       CommunicationRecord[] @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
 
+  retentionEmailOptOut    Boolean   @default(false)
+
   emailVerified        DateTime?
   image                String?
   accounts             Account[]
@@ -64,6 +66,7 @@ model User {
   verifiedEmails       UserVerifiedEmail[]
   feedbackSubmissions  FeedbackSubmission[]
   agentPushSubscriptions AgentPushSubscription[]
+  retentionEmailLogs   RetentionEmailLog[]
 }
 
 model AgentPushSubscription {
@@ -714,4 +717,20 @@ model FeedbackSubmission {
   @@index([status])
   @@index([userId])
   @@index([createdAt(sort: Desc)])
+}
+
+// ─── RetentionEmailLog ────────────────────────────────────────────────────────
+// TODO: surface in admin dashboard — see future-admin-page ticket
+
+model RetentionEmailLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailKey  String
+  sentAt    DateTime @default(now())
+  agencyId  String
+
+  @@index([userId, emailKey])
+  @@index([agencyId, sentAt])
+  @@index([emailKey, sentAt])  // TODO: surface in admin dashboard — see future-admin-page ticket
 }

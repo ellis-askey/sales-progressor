@@ -91,3 +91,39 @@
 - Different milestone gate (VM19/PM26 not complete, vs no gate)
 
 **Why REVERSIBLE:** If the product decision changes to source `exchangingThisWeek` from milestone readiness instead (VM18/PM25 complete, VM19/PM26 not), the service query changes to a milestone filter rather than a date-window filter. The UI copy and link destination would also change. All three touch points are isolated to `lib/services/hub.ts` and `app/agent/hub/page.tsx`.
+
+---
+
+## OQ-8 — `serviceMode` field does not exist; mapped to `serviceType` [IRREVERSIBLE]
+
+**Question (from retention email Phase 3 spec):** The `send_to_us_drop_21d` trigger condition references `serviceMode === "send_to_us"`. No such field exists on `PropertyTransaction`.
+
+**Finding:** The schema has `serviceType ServiceType @default(self_managed)` with enum `{ self_managed | outsourced }`. The `outsourced` value corresponds to "send to us" (agency has contracted Sales Progressor to progress the file).
+
+**Choice made:** Map `send_to_us_drop_21d` trigger to `serviceType === "outsourced"`. The field exists, the semantic is equivalent, and no schema change is required.
+
+**Why IRREVERSIBLE:** If a future `serviceMode` field is added to the schema with a different name/enum, the trigger query in `lib/services/retention.ts` would need updating. Since we own that code, it is straightforward to migrate.
+
+**Impact:** `send_to_us_drop_21d` email IS implemented — the data is available. No steps skipped.
+
+---
+
+## OQ-9 — `User.lastLoginAt` does not exist [REVERSIBLE]
+
+**Question:** The retention sweep may logically want to use "last login" as a trigger for quiet/lapsed users. `User.lastLoginAt` does not exist.
+
+**Choice made:** Use `PropertyTransaction.createdAt` (most recent transaction created by the user via `agentUserId`) as the proxy for "last meaningful activity." This is the most reliable indicator of user engagement for an estate agent platform — users who add files are active users.
+
+**Why REVERSIBLE:** If `lastLoginAt` is added to the User model later, the trigger conditions can be updated to incorporate it. The current implementation is conservative (only triggers on file activity, not logins).
+
+---
+
+## OQ-10 — `stuck_day_3` uses transaction-level completions, not user-confirmed completions [REVERSIBLE]
+
+**Question:** The spec says "zero MilestoneCompletion rows exist on ANY of the user's transactions." This could mean:
+1. Zero completions at all (state = complete), regardless of who confirmed
+2. Zero completions confirmed by this user (`completedById = userId`)
+
+**Choice made:** Option 1 — zero `MilestoneCompletion` rows where `state = "complete"` on any of the agent's transactions. This is the simpler and more correct trigger: if the file has any confirmed milestones (even auto-confirmed or confirmed by a progressor), the file is "in use" and the user should not receive the stuck email.
+
+**Why REVERSIBLE:** If the intent is "user hasn't personally confirmed any milestones," switch the query to filter `completedById = userId`. Both options use the existing `completedById` field.
