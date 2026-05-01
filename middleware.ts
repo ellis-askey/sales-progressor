@@ -5,8 +5,33 @@ const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export default withAuth(
   function middleware(req) {
-    const { pathname } = req.nextUrl;
+    const { pathname, searchParams } = req.nextUrl;
     const role = req.nextauth.token?.role;
+
+    // Pass-through response (may carry UTM attribution cookie)
+    const res = NextResponse.next();
+
+    // Capture UTM params in a 30-day cookie for signup attribution.
+    // Read at agency creation time to populate Agency.signup* fields.
+    const utmSource   = searchParams.get("utm_source");
+    const utmMedium   = searchParams.get("utm_medium");
+    const utmCampaign = searchParams.get("utm_campaign");
+    if (utmSource || utmMedium || utmCampaign) {
+      res.cookies.set("utm_attr", JSON.stringify({
+        source:      utmSource   ?? undefined,
+        medium:      utmMedium   ?? undefined,
+        campaign:    utmCampaign ?? undefined,
+        referrer:    req.headers.get("referer") ?? undefined,
+        landingPage: pathname,
+        capturedAt:  new Date().toISOString(),
+      }), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/",
+      });
+    }
 
     // Viewers are read-only — block all mutation API calls
     if (
@@ -39,7 +64,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    return NextResponse.next();
+    return res;
   },
   {
     callbacks: {
