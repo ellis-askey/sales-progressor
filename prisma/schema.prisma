@@ -51,6 +51,8 @@ model User {
   name            String
   email           String     @unique
   password        String?
+  totpSecret      String?
+  totpActivatedAt DateTime?
   role            UserRole   @default(viewer)
   agencyId        String?
   firmName        String?
