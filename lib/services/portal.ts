@@ -411,9 +411,9 @@ export async function logPortalMilestoneConfirm(
 
   // Push notifications — build milestone-specific messages
   const short = tx.propertyAddress.split(",")[0];
-  const isExchange   = milestoneCode === "VM12" || milestoneCode === "PM16";
-  const isCompletion = milestoneCode === "VM13" || milestoneCode === "PM17";
-  const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
+  const isExchange   = milestoneCode === "VM19" || milestoneCode === "PM26";
+  const isCompletion = milestoneCode === "VM20" || milestoneCode === "PM27";
+  const isReadyToExchange = milestoneCode === "VM18" || milestoneCode === "PM25";
 
   let confirmTitle = "Step confirmed";
   let confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} is progressing — a step has been recorded.`;
@@ -471,7 +471,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   eventDate?: string | null
 ): Promise<void> {
   // Exchange gets the rich "what happens next" pack — delegate entirely
-  if (milestoneCode === "VM12" || milestoneCode === "PM16") {
+  if (milestoneCode === "VM19" || milestoneCode === "PM26") {
     return sendExchangeCompletionPack(transactionId);
   }
 
@@ -498,8 +498,8 @@ export async function sendAdminMilestoneNotificationToPortal(
   const base = process.env.NEXTAUTH_URL ?? "";
   const address = tx.propertyAddress;
   const portalLabel = milestoneCopy.label;
-  const isCompletion = milestoneCode === "VM13" || milestoneCode === "PM17";
-  const isReadyToExchange = milestoneCode === "VM20" || milestoneCode === "PM27";
+  const isCompletion = milestoneCode === "VM20" || milestoneCode === "PM27";
+  const isReadyToExchange = milestoneCode === "VM18" || milestoneCode === "PM25";
 
   const dateStr = eventDate
     ? new Date(eventDate).toLocaleDateString("en-GB", {
@@ -816,10 +816,10 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
       <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
       <li>Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.</li>
       <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
-      <li>Make sure your buildings insurance is active from today — you are now legally the owner.</li>
+      <li>Risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building.</li>
       <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
     </ul>`;
-  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- Make sure your buildings insurance is active from today — you are now legally the owner.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- Risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
   const vendorIds: string[] = [];
   for (const c of vendors) {
@@ -827,9 +827,9 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
     await sendEmail({
       to: c.email!,
       subject: `Contracts exchanged — what happens next for your sale`,
-      text: `Hi ${c.name},\n\n${vendorBodyPlain}\n\nView your portal: ${portalUrl}`,
+      text: `${buildGreeting(c.name)}\n\n${vendorBodyPlain}\n\nView your portal: ${portalUrl}`,
       html: portalEmailHtml({
-        greeting: `Hi ${c.name},`,
+        greeting: buildGreeting(c.name),
         body: vendorBodyHtml,
         ctaText: "View your portal",
         ctaUrl: portalUrl,
@@ -847,9 +847,9 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
     await sendEmail({
       to: c.email!,
       subject: `Contracts exchanged — what happens next for your purchase`,
-      text: `Hi ${c.name},\n\n${purchaserBodyPlain}\n\nView your portal: ${portalUrl}`,
+      text: `${buildGreeting(c.name)}\n\n${purchaserBodyPlain}\n\nView your portal: ${portalUrl}`,
       html: portalEmailHtml({
-        greeting: `Hi ${c.name},`,
+        greeting: buildGreeting(c.name),
         body: purchaserBodyHtml,
         ctaText: "View your portal",
         ctaUrl: portalUrl,
