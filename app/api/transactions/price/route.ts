@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       // Also log as a system communication for the activity timeline
       const oldFormatted = tx.purchasePrice ? `£${(tx.purchasePrice / 100).toLocaleString("en-GB")}` : "not set";
       const newFormatted = `£${(purchasePrice / 100).toLocaleString("en-GB")}`;
-      await prisma.communicationRecord.create({
+      await prisma.outboundMessage.create({
         data: {
           transactionId,
           type: "internal_note",

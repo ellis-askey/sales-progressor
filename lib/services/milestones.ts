@@ -256,7 +256,7 @@ export async function maybeUnlockExchangeGate(
   });
 
   const sideLabel = side === "vendor" ? "Vendor" : "Purchaser";
-  await db.communicationRecord.create({
+  await db.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -652,7 +652,7 @@ export async function reverseMilestone(
     data: { state: "available", completedAt: null, completedById: null, summaryText: null },
   });
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -692,7 +692,7 @@ export async function bulkReverseMilestones(
 
   await Promise.all(
     milestoneDefinitionIds.map((defId) =>
-      prisma.communicationRecord.create({
+      prisma.outboundMessage.create({
         data: {
           transactionId,
           type: "internal_note",
@@ -747,7 +747,7 @@ export async function markNotRequired(
     await maybeUnlockExchangeGate(transactionId, def.side, completedById);
   }
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -1130,7 +1130,7 @@ export async function executeUndoMilestone(input: {
       const defName = defId === milestoneDefinitionId
         ? targetDef.name
         : (partnerDef?.name ?? "milestone");
-      await ptx.communicationRecord.create({
+      await ptx.outboundMessage.create({
         data: {
           transactionId,
           type: "internal_note",
@@ -1144,7 +1144,7 @@ export async function executeUndoMilestone(input: {
     // Communication records — cascade milestones
     if (mode === "cascade") {
       for (const item of cascadeItems) {
-        await ptx.communicationRecord.create({
+        await ptx.outboundMessage.create({
           data: {
             transactionId,
             type: "internal_note",

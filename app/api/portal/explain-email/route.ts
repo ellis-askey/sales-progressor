@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   // Rate limit: max 3 explain-email uses per contact per hour
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS);
-  const recentUses = await prisma.communicationRecord.count({
+  const recentUses = await prisma.outboundMessage.count({
     where: {
       transactionId: contact.propertyTransactionId,
       type: "internal_note",
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Log metadata (NOT the email content)
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId: contact.propertyTransactionId,
       type: "internal_note",

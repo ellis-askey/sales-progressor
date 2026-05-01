@@ -62,7 +62,7 @@ export async function getActivityTimeline(
         completedBy: { select: { name: true } },
       },
     }),
-    prisma.communicationRecord.findMany({
+    prisma.outboundMessage.findMany({
       where: { transactionId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -136,7 +136,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const record = await prisma.communicationRecord.create({
+  const record = await prisma.outboundMessage.create({
     data: {
       transactionId: input.transactionId,
       chaseTaskId: input.chaseTaskId ?? null,
@@ -197,7 +197,7 @@ export type GlobalCommEntry = {
 };
 
 export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<GlobalCommEntry[]> {
-  const records = await prisma.communicationRecord.findMany({
+  const records = await prisma.outboundMessage.findMany({
     where: { transaction: { agencyId } },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -209,8 +209,8 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
 
   return records.map((r) => ({
     id: r.id,
-    transactionId: r.transactionId,
-    propertyAddress: r.transaction.propertyAddress,
+    transactionId: r.transactionId!,
+    propertyAddress: r.transaction!.propertyAddress,
     type: r.type,
     method: r.method,
     content: r.content,
@@ -221,12 +221,12 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
 }
 
 export async function deleteCommunicationRecord(id: string, agencyId: string) {
-  const comm = await prisma.communicationRecord.findFirst({
+  const comm = await prisma.outboundMessage.findFirst({
     where: { id, transaction: { agencyId } },
     select: { id: true },
   });
   if (!comm) throw new Error("Not found");
-  return prisma.communicationRecord.delete({ where: { id } });
+  return prisma.outboundMessage.delete({ where: { id } });
 }
 
 async function emailVisibleUpdateToClients(transactionId: string, content: string): Promise<void> {

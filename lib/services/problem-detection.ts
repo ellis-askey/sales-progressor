@@ -205,7 +205,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
 
   for (const tx of transactions) {
     // Enrich with inbound count for portal activity check
-    const inboundCount = await prisma.communicationRecord.count({
+    const inboundCount = await prisma.outboundMessage.count({
       where: { transactionId: tx.id, type: "inbound" },
     });
     const enriched: TxData = {

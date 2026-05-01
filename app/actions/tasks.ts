@@ -41,7 +41,7 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
     where: { id: taskId },
     data: { chaseCount: task.chaseCount + 1 },
   });
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId: task.transactionId,
       chaseTaskId: taskId,

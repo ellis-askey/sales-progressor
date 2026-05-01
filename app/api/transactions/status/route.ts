@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     data: { status, lastActivityAt: new Date() },
   });
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",

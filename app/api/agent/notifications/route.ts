@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       : { agencyId: session.user.agencyId, agentUserId: { not: null } }
     : { agencyId: session.user.agencyId, agentUserId: session.user.id };
 
-  const count = await prisma.communicationRecord.count({
+  const count = await prisma.outboundMessage.count({
     where: {
       type: "internal_note",
       createdAt: { gt: since },

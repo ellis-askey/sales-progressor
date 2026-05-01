@@ -427,7 +427,7 @@ function formatEngineDate(date: Date): string {
 
 async function writeEngineAudit(transactionId: string, content: string, createdById: string) {
   if (!createdById) return;
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: { transactionId, type: "internal_note", contactIds: [], content, createdById },
   });
 }

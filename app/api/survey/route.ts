@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     ? `Survey response ${stars} (${rating}/5): ${comment.trim()}`
     : `Survey response ${stars} (${rating}/5 — no comment)`;
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId: contact.propertyTransactionId,
       type: "inbound",

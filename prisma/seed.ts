@@ -21,7 +21,7 @@ async function main() {
   await prisma.portalMessage.deleteMany();
   await prisma.transactionDocument.deleteMany();
   await prisma.transactionFlag.deleteMany();
-  await prisma.communicationRecord.deleteMany();
+  await prisma.outboundMessage.deleteMany();
   await prisma.chaseTask.deleteMany();
   await prisma.reminderLog.deleteMany();
   await prisma.reminderRule.deleteMany();

@@ -13,7 +13,7 @@ export async function logActivity(
   actorId: string
 ): Promise<void> {
   await Promise.all([
-    prisma.communicationRecord.create({
+    prisma.outboundMessage.create({
       data: {
         transactionId,
         type: "internal_note",

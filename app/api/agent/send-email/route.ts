@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   // Log as a communication record if transactionId provided
   if (transactionId) {
-    await prisma.communicationRecord.create({
+    await prisma.outboundMessage.create({
       data: {
         transactionId,
         type: "outbound",

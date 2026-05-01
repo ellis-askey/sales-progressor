@@ -192,7 +192,7 @@ export async function changeStatusAction(
     ? ` Reason: ${fallThroughReason}.`
     : "";
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -223,7 +223,7 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
     });
     const oldFmt = tx.purchasePrice ? `£${(tx.purchasePrice / 100).toLocaleString("en-GB")}` : "not set";
     const newFmt = `£${(purchasePrice / 100).toLocaleString("en-GB")}`;
-    await prisma.communicationRecord.create({
+    await prisma.outboundMessage.create({
       data: {
         transactionId, type: "internal_note", contactIds: [],
         content: `Purchase price updated from ${oldFmt} to ${newFmt}`,
@@ -770,7 +770,7 @@ export async function confirmSaleDetailsAction(input: {
       const changeDesc = CASH_NR_CODES.has(code)
         ? `purchase type changed from ${TYPE_LABEL_COMMS[tx.purchaseType ?? ""] ?? tx.purchaseType} to ${TYPE_LABEL_COMMS[input.newPurchaseType]}`
         : `tenure changed from ${TENURE_LABEL_COMMS[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL_COMMS[input.newTenure]}`;
-      await ptx.communicationRecord.create({
+      await ptx.outboundMessage.create({
         data: {
           transactionId: input.transactionId,
           type: "internal_note",

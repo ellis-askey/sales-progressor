@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
   const after = req.nextUrl.searchParams.get("after");
   const since = after ? new Date(after) : new Date(0);
 
-  const count = await prisma.communicationRecord.count({
+  const count = await prisma.outboundMessage.count({
     where: {
       type: "internal_note",
       createdAt: { gt: since },

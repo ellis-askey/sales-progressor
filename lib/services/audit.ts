@@ -34,7 +34,7 @@ export async function getAuditLog(
   const FETCH_LIMIT = 3000;
 
   const [comms, completions] = await Promise.all([
-    prisma.communicationRecord.findMany({
+    prisma.outboundMessage.findMany({
       where: {
         transactionId: { in: allTxIds },
         ...(userId ? { createdById: userId } : {}),
@@ -73,13 +73,13 @@ export async function getAuditLog(
   const entries: AuditEntry[] = [];
 
   for (const c of comms) {
-    const address = txMap.get(c.transactionId) ?? c.transactionId;
+    const address = txMap.get(c.transactionId!) ?? c.transactionId!;
     const isStatusChange = c.content.includes("changed status from");
     entries.push({
       id: `comm-${c.id}`,
       at: c.createdAt,
       actorName: c.createdBy?.name ?? "System",
-      transactionId: c.transactionId,
+      transactionId: c.transactionId!,
       address,
       kind: isStatusChange ? "status" : c.type === "internal_note" ? "note" : "comm",
       detail: c.content,

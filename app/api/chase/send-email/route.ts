@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendEmail({ to: toEmail, subject: fullSubject, text: body });
 
-    await prisma.communicationRecord.create({
+    await prisma.outboundMessage.create({
       data: {
         transactionId,
         type: "outbound",

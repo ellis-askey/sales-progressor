@@ -485,7 +485,7 @@ export async function getHubRecentActivity(
   const txFilter = { ...txWhere, status: { not: "draft" as never } };
 
   const [recentComm, recentMilestone] = await Promise.all([
-    prisma.communicationRecord.findFirst({
+    prisma.outboundMessage.findFirst({
       where: { transaction: txFilter, type: { in: ["outbound", "inbound"] } },
       orderBy: { createdAt: "desc" },
       select: {
@@ -517,8 +517,8 @@ export async function getHubRecentActivity(
     return {
       kind: "comm",
       description: commDescription(recentComm.type, recentComm.method, recentComm.content),
-      context: recentComm.transaction.propertyAddress,
-      transactionId: recentComm.transaction.id,
+      context: recentComm.transaction!.propertyAddress,
+      transactionId: recentComm.transaction!.id,
       at: recentComm.createdAt,
     };
   }

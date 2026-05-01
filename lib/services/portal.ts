@@ -34,7 +34,7 @@ async function logAutomatedEmail(
   subject: string,
   bodyPlain: string,
 ): Promise<void> {
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "outbound",
@@ -173,7 +173,7 @@ export async function logPortalView(token: string): Promise<void> {
   const userId = tx.assignedUser?.id;
   if (!userId) return;
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId: contact.propertyTransactionId,
       type: "internal_note",
@@ -281,7 +281,7 @@ export async function logPortalMilestoneConfirm(
 
   const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
 
-  await prisma.communicationRecord.create({
+  await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -899,7 +899,7 @@ export async function getPortalTimeline(
         },
         orderBy: { completedAt: "desc" },
       }),
-      prisma.communicationRecord.findMany({
+      prisma.outboundMessage.findMany({
         where: { transactionId, visibleToClient: true },
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, method: true, createdAt: true },
@@ -988,7 +988,7 @@ export async function portalMarkNotRequired(input: {
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {
-  const records = await prisma.communicationRecord.findMany({
+  const records = await prisma.outboundMessage.findMany({
     where: {
       transactionId,
       type: "internal_note",
@@ -1008,7 +1008,7 @@ export async function getPortalViewDates(transactionId: string): Promise<Record<
 }
 
 export async function getPortalUpdates(transactionId: string): Promise<PortalUpdate[]> {
-  return withRetry(() => prisma.communicationRecord.findMany({
+  return withRetry(() => prisma.outboundMessage.findMany({
     where: { transactionId, visibleToClient: true },
     orderBy: { createdAt: "desc" },
     select: { id: true, content: true, method: true, createdAt: true },
