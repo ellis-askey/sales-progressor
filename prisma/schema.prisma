@@ -1071,6 +1071,61 @@ model Deployment {
   @@index([environment, deployedAt])
 }
 
+// ─── Command Centre: Content drafter ─────────────────────────────────────────
+// DraftPost — every generation session. Variant1/2 are the raw Claude outputs.
+// editedText is the user's final version; chosenVariant records which was kept.
+// VoiceSample — founder voice corpus used in generation prompts.
+
+enum DraftChannel {
+  linkedin
+  tiktok_script
+  instagram_caption
+}
+
+model DraftPost {
+  id              String       @id @default(cuid())
+  createdAt       DateTime     @default(now())
+
+  channel         DraftChannel
+  tone            String?
+  topicSeed       String
+  sourceType      String       // "manual" | "activity-derived"
+
+  prompt          String
+  aiModel         String
+  aiPromptVersion String
+
+  variant1        String
+  variant2        String
+  editedText      String?
+  chosenVariant   Int?         // 1 or 2 — which variant the user started from
+
+  posted            Boolean @default(false)
+  postedAt          DateTime?
+  regenerationCount Int     @default(0)
+
+  aiTokensInput   Int?
+  aiTokensOutput  Int?
+
+  @@index([createdAt])
+  @@index([channel, createdAt])
+  @@index([posted])
+}
+
+model VoiceSample {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+
+  sampleType  String        // "manual_paste" | "qa_response" | "draft_edit_diff"
+  questionKey String?       // e.g. "q1_near_miss" — set for sampleType = qa_response
+  channel     DraftChannel?
+  content     String
+  notes       String?
+
+  @@index([sampleType, createdAt])
+  @@index([channel, createdAt])
+}
+
 // ─── Command Centre: Admin audit log ─────────────────────────────────────────
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 
