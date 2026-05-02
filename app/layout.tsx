@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/layout/SessionProvider";
+import { PostHogProvider } from "@/components/analytics/PostHogProvider";
+import { CookieConsentBanner } from "@/components/analytics/CookieConsentBanner";
 import { getSession } from "@/lib/session";
 
 const geistSans = Geist({
@@ -33,7 +35,10 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
-          {children}
+          <PostHogProvider>
+            <CookieConsentBanner />
+            {children}
+          </PostHogProvider>
         </SessionProvider>
       </body>
     </html>
