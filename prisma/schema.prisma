@@ -974,6 +974,102 @@ model JobRun {
   @@index([jobName, startedAt])
 }
 
+// ─── Command Centre: Signal detection ────────────────────────────────────────
+// Written by signal detectors in lib/command/insights/signals/.
+// Append-only in practice; acknowledged flag is the only mutable field.
+
+enum SignalSeverity {
+  info
+  opportunity
+  leak
+  critical
+}
+
+model Signal {
+  id             String        @id @default(cuid())
+  detectedAt     DateTime      @default(now())
+  detectorName   String
+  payload        Json
+  confidence     Float
+  severity       SignalSeverity
+  acknowledged   Boolean       @default(false)
+  acknowledgedAt DateTime?
+  windowStart    DateTime
+  windowEnd      DateTime
+
+  @@index([detectedAt])
+  @@index([severity, detectedAt])
+  @@index([acknowledged, detectedAt])
+}
+
+// ─── Command Centre: Experiment Lab ──────────────────────────────────────────
+// Lifecycle: proposed → active → concluded | abandoned.
+// No UI in Phase 3 — mutated via /api/experiments/* routes only.
+
+enum ExperimentStatus {
+  proposed
+  active
+  concluded
+  abandoned
+}
+
+enum ExperimentOutcome {
+  win
+  loss
+  inconclusive
+  mixed
+}
+
+model Experiment {
+  id             String             @id @default(cuid())
+  name           String
+  hypothesis     String
+
+  status         ExperimentStatus   @default(proposed)
+  outcome        ExperimentOutcome?
+
+  sourceSignalId String?
+  sourceType     String?            // 'signal' | 'intuition' | 'customer_feedback' | 'other'
+
+  primaryMetric    String
+  guardrailMetrics String[]
+
+  proposedAt   DateTime  @default(now())
+  startedAt    DateTime?
+  concludedAt  DateTime?
+
+  // Frozen metric snapshots — set at start/conclude respectively
+  baselineSnapshot   Json?
+  resultSnapshot     Json?
+  baselineWindowDays Int   @default(7)
+  resultWindowDays   Int   @default(7)
+
+  notes          String?
+  conclusionNote String?
+
+  createdByUserId String
+
+  @@index([status, startedAt])
+  @@index([sourceSignalId])
+}
+
+// ─── Command Centre: Deployment log ──────────────────────────────────────────
+// Populated by POST /api/webhooks/vercel-deploy (HMAC-verified).
+// Enables "what changed?" annotations on metric deltas (ADMIN_07 §6, ADMIN_08 §6).
+
+model Deployment {
+  id           String   @id @default(cuid())
+  deployedAt   DateTime @default(now())
+  version      String
+  environment  String   // 'production' | 'staging'
+  releaseNotes String?
+  triggerType  String   // 'manual' | 'auto' | 'rollback'
+  triggeredBy  String?
+
+  @@index([deployedAt])
+  @@index([environment, deployedAt])
+}
+
 // ─── Command Centre: Admin audit log ─────────────────────────────────────────
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 

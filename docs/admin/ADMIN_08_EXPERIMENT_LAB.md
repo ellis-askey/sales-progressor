@@ -226,7 +226,7 @@ The system makes these easier; it doesn't prevent them. Worth being aware:
 
 ## 10. Decisions required from you
 
-- [ ] **Default window lengths** — baseline 14d, result 14d. Adjust if your iteration cycle is faster.
+- [x] **Default window lengths** — baseline **7d**, result **7d** (set for fast pre-launch iteration). Both are configurable per experiment at create time — set `baselineWindowDays` / `resultWindowDays` on the `Experiment` row if a specific experiment needs a longer window (e.g. 14d for slower-moving retention metrics).
 - [ ] **Required experiment fields** — currently name + hypothesis + primary metric required. Anything else you want forced?
 - [ ] **Guardrails default** — should every new experiment automatically include a default set (e.g. retention + activation + revenue per user) as guardrails, or always blank for you to choose?
 - [ ] **Backfill** — do you want to log retroactive experiments for changes you've already shipped? If yes, set aside an hour to do it once.
