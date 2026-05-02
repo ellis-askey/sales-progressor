@@ -26,6 +26,7 @@ function BrandMark() {
 export default async function LoginPage() {
   const session = await getSession();
   if (session?.user) {
+    if (session.user.role === "superadmin") redirect("/command/overview");
     if (session.user.role === "negotiator" || session.user.role === "director") redirect("/agent/hub");
     redirect("/dashboard");
   }
