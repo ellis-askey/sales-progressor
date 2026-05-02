@@ -5,15 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { commandDb } from "@/lib/command/prisma";
 import { recordAdminAction } from "@/lib/command/audit/write";
 import { verifySession, COOKIE_NAME } from "@/lib/command/session";
-import {
-  STEP_UP_MAX_AGE_MS,
-  SESSION_HARD_MAX_MS,
-} from "@/lib/command/config";
+import { STEP_UP_MAX_AGE_MS, SESSION_HARD_MAX_MS } from "@/lib/command/config";
 import { cookies, headers } from "next/headers";
-import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { CommandTabNav } from "@/components/command/TabNav";
-import { CommandFilters } from "@/components/command/CommandFilters";
+import { CommandSidebar } from "@/components/command/CommandSidebar";
 import type { Session } from "next-auth";
 import type { CommandMode, CommandPreferences } from "@/lib/command/scope";
 
@@ -35,10 +29,10 @@ export default async function CommandProtectedLayout({
     redirect("/dashboard");
   }
 
-  const user = await prisma.user.findUnique({
+  const user = (await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { id: true, totpActivatedAt: true, commandPreferences: true },
-  }) as UserWithTotp | null;
+  })) as UserWithTotp | null;
 
   if (!user) redirect("/dashboard");
   if (!user.totpActivatedAt) redirect("/command/setup-2fa");
@@ -57,11 +51,11 @@ export default async function CommandProtectedLayout({
   await recordAdminAction({
     adminUserId: user.id,
     action: "command.page_view",
-    ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
+    ipAddress:
+      headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
     userAgent: headerStore.get("user-agent") ?? undefined,
   }).catch(() => {});
 
-  // Fetch agencies for the filter dropdown
   const agencies = await commandDb.agency.findMany({
     select: { id: true, name: true, modeProfile: true },
     orderBy: { name: "asc" },
@@ -72,17 +66,24 @@ export default async function CommandProtectedLayout({
   const savedAgencyIds: string[] = prefs?.agencyIds ?? [];
 
   return (
-    <AppShell session={session as Session} activePath="/command" todoCount={0}>
-      <PageHeader title="Command Centre" subtitle="Platform intelligence" />
-      <CommandFilters
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: "#0a0a0a" }}
+    >
+      <CommandSidebar
         agencies={agencies}
         savedMode={savedMode}
         savedAgencyIds={savedAgencyIds}
+        adminEmail={(session as Session).user?.email ?? ""}
       />
-      <CommandTabNav />
-      <div className="px-8 py-7 max-w-6xl">
-        {children}
-      </div>
-    </AppShell>
+      <main
+        className="flex-1 overflow-y-auto"
+        style={{ background: "#0a0a0a" }}
+      >
+        <div className="cmd-content p-8 max-w-6xl">
+          {children}
+        </div>
+      </main>
+    </div>
   );
 }
