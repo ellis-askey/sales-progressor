@@ -54,14 +54,18 @@ export default withAuth(
         }
       }
 
-      // Step-up / enrollment pages are exempt from the step-up cookie check
+      // Step-up / enrollment pages are exempt from the step-up cookie check.
+      // Server action POSTs (Next-Action header) are also exempt — they carry
+      // their own assertSuperadmin() guard and the middleware's 307 redirect
+      // would be forwarded as a POST by the browser, breaking the action.
       const isStepUpPath =
         pathname.startsWith("/command/auth/step-up") ||
         pathname.startsWith("/command/setup-2fa") ||
         pathname.startsWith("/api/command/auth/step-up") ||
         pathname.startsWith("/api/command/setup-2fa");
+      const isServerAction = req.headers.has("next-action");
 
-      if (!isStepUpPath) {
+      if (!isStepUpPath && !isServerAction) {
         // 3. Cookie presence
         const cookie = req.cookies.get(COMMAND_COOKIE)?.value ?? "";
         const dot = cookie.lastIndexOf(".");
