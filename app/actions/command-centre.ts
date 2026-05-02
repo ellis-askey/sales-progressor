@@ -44,3 +44,40 @@ export async function concludeExperimentAction(
   await concludeExperiment(experimentId, outcome, conclusionNote);
   revalidatePath("/command/experiments");
 }
+
+const METRIC_FROM_DETECTOR: Record<string, string> = {
+  signup_rate_drop:               "signups",
+  activation_stall:               "signups",
+  milestone_progression_slowdown: "milestonesConfirmed",
+  chase_effectiveness_decline:    "chasesSent",
+  cost_drift:                     "aiCostCents",
+  ai_draft_adoption_drop:         "aiDraftsGenerated",
+  retention_risk:                 "uniqueActiveUsers",
+};
+
+export async function promoteSignalToExperimentAction(signalId: string): Promise<{ experimentId: string }> {
+  const session = await requireSuperAdmin();
+
+  const signal = await commandDb.signal.findUniqueOrThrow({ where: { id: signalId } });
+
+  const humanName = signal.detectorName.replace(/_/g, " ");
+  const dateStr = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const primaryMetric = METRIC_FROM_DETECTOR[signal.detectorName] ?? "milestonesConfirmed";
+
+  const experiment = await commandDb.experiment.create({
+    data: {
+      name:            `${humanName} — ${dateStr}`,
+      hypothesis:      "Promoted from signal. Add hypothesis here.",
+      primaryMetric,
+      guardrailMetrics: [],
+      sourceSignalId:  signalId,
+      sourceType:      "signal",
+      createdByUserId: session.user.id,
+    },
+  });
+
+  revalidatePath("/command/experiments");
+  revalidatePath("/command/insights");
+
+  return { experimentId: experiment.id };
+}

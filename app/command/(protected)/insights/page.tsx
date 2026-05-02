@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import { AcknowledgeButton } from "@/components/command/AcknowledgeButton";
+import { PromoteButton } from "@/components/command/PromoteButton";
 import type { SignalSeverity } from "@prisma/client";
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -15,6 +16,13 @@ const CONF_COLOR = (c: number): string =>
 function fmtDate(d: Date): string {
   return new Date(d).toLocaleString("en-GB", {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
+
+function fmtDateShort(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
     timeZone: "Europe/London",
   });
 }
@@ -43,6 +51,41 @@ function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
   );
 }
 
+function BriefCard({
+  title,
+  subject,
+  content,
+  sentAt,
+  empty,
+}: {
+  title: string;
+  subject?: string | null;
+  content?: string | null;
+  sentAt?: Date | null;
+  empty: string;
+}) {
+  return (
+    <div className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2 min-h-[160px]">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">{title}</p>
+        {sentAt && (
+          <p className="text-[10px] text-white/30">{fmtDateShort(sentAt)}</p>
+        )}
+      </div>
+      {subject && (
+        <p className="text-xs font-medium text-white/70">{subject}</p>
+      )}
+      {content ? (
+        <p className="text-xs text-white/55 leading-relaxed line-clamp-8 whitespace-pre-line flex-1">
+          {content}
+        </p>
+      ) : (
+        <p className="text-xs text-white/25 italic flex-1">{empty}</p>
+      )}
+    </div>
+  );
+}
+
 export default async function InsightsPage({
   searchParams,
 }: {
@@ -52,7 +95,15 @@ export default async function InsightsPage({
   const sevFilter = sp.sev as SignalSeverity | undefined;
   const showAcked = sp.ack === "1";
 
-  const [unacknowledged, acknowledged] = await Promise.all([
+  const [latestBrief, latestReview, unacknowledged, acknowledged] = await Promise.all([
+    commandDb.outboundMessage.findFirst({
+      where: { purpose: "digest", aiModel: { contains: "haiku" } },
+      orderBy: { createdAt: "desc" },
+    }),
+    commandDb.outboundMessage.findFirst({
+      where: { purpose: "digest", aiModel: { contains: "opus" } },
+      orderBy: { createdAt: "desc" },
+    }),
     commandDb.signal.findMany({
       where: {
         acknowledged: false,
@@ -96,87 +147,118 @@ export default async function InsightsPage({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-semibold text-white/40 uppercase tracking-wide">Severity</span>
-        {sevOptions.map((o) => (
-          <a
-            key={o.value}
-            href={sevLink(o.value)}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              (sevFilter ?? "") === o.value
-                ? "bg-white/20 text-white"
-                : "bg-white/8 text-white/50 hover:text-white/80 hover:bg-white/12"
-            }`}
-          >
-            {o.label}
-          </a>
-        ))}
-        <span className="ml-auto">
-          <a href={ackToggle()} className="text-xs text-white/40 hover:text-white/70 transition-colors">
-            {showAcked ? "Hide acknowledged" : "Show acknowledged"}
-          </a>
-        </span>
-      </div>
+    <div className="space-y-8">
 
-      {/* Unacknowledged */}
+      {/* AI Briefs */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">
-          Unacknowledged · {unacknowledged.length}
-        </h2>
-        {unacknowledged.length === 0 ? (
-          <p className="text-sm text-white/30">All signals acknowledged.</p>
-        ) : (
-          <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/8">
-            {unacknowledged.map((s) => (
-              <div key={s.id} className="px-4 py-3.5 flex items-start gap-3">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
-                  {s.severity}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-sm font-medium text-white/80">{s.detectorName.replace(/_/g, " ")}</p>
-                    <span className={`text-xs tabular-nums ${CONF_COLOR(s.confidence)}`}>
-                      {Math.round(s.confidence * 100)}%
-                    </span>
-                    <span className="text-xs text-white/30">
-                      {fmtWindow(s.windowStart, s.windowEnd)}
-                    </span>
+        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">AI Briefs</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <BriefCard
+            title="Latest daily brief"
+            subject={latestBrief?.subject}
+            content={latestBrief?.content}
+            sentAt={latestBrief?.createdAt ?? null}
+            empty="No daily brief sent yet. Runs at 06:00 UTC."
+          />
+          <BriefCard
+            title="Latest weekly review"
+            subject={latestReview?.subject}
+            content={latestReview?.content}
+            sentAt={latestReview?.createdAt ?? null}
+            empty="No weekly review sent yet. Runs Monday at 07:00 UTC."
+          />
+        </div>
+      </section>
+
+      {/* Signal feed */}
+      <section>
+        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Signal feed</h2>
+
+        {/* Filters */}
+        <div className="flex items-center gap-3 flex-wrap mb-5">
+          <span className="text-xs font-semibold text-white/40 uppercase tracking-wide">Severity</span>
+          {sevOptions.map((o) => (
+            <a
+              key={o.value}
+              href={sevLink(o.value)}
+              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                (sevFilter ?? "") === o.value
+                  ? "bg-white/20 text-white"
+                  : "bg-white/8 text-white/50 hover:text-white/80 hover:bg-white/12"
+              }`}
+            >
+              {o.label}
+            </a>
+          ))}
+          <span className="ml-auto">
+            <a href={ackToggle()} className="text-xs text-white/40 hover:text-white/70 transition-colors">
+              {showAcked ? "Hide acknowledged" : "Show acknowledged"}
+            </a>
+          </span>
+        </div>
+
+        {/* Unacknowledged */}
+        <div className="mb-3">
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">
+            Unacknowledged · {unacknowledged.length}
+          </p>
+          {unacknowledged.length === 0 ? (
+            <p className="text-sm text-white/30">All signals acknowledged.</p>
+          ) : (
+            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/8">
+              {unacknowledged.map((s) => (
+                <div key={s.id} className="px-4 py-3.5 flex items-start gap-3">
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
+                    {s.severity}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-sm font-medium text-white/80">{s.detectorName.replace(/_/g, " ")}</p>
+                      <span className={`text-xs tabular-nums ${CONF_COLOR(s.confidence)}`}>
+                        {Math.round(s.confidence * 100)}%
+                      </span>
+                      <span className="text-xs text-white/30">
+                        {fmtWindow(s.windowStart, s.windowEnd)}
+                      </span>
+                    </div>
+                    <PayloadSummary payload={s.payload as Record<string, unknown>} />
+                    <p className="text-[10px] text-white/25 mt-1">{fmtDate(s.detectedAt)}</p>
                   </div>
-                  <PayloadSummary payload={s.payload as Record<string, unknown>} />
-                  <p className="text-[10px] text-white/25 mt-1">{fmtDate(s.detectedAt)}</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <PromoteButton signalId={s.id} />
+                    <AcknowledgeButton signalId={s.id} />
+                  </div>
                 </div>
-                <AcknowledgeButton signalId={s.id} />
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Acknowledged */}
+        {showAcked && acknowledged.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-white/30 uppercase tracking-wide mb-3">
+              Acknowledged · {acknowledged.length}
+            </p>
+            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/5 opacity-60">
+              {acknowledged.map((s) => (
+                <div key={s.id} className="px-4 py-3 flex items-start gap-3">
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
+                    {s.severity}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-white/60">{s.detectorName.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-white/30">
+                      {Math.round(s.confidence * 100)}% · {fmtWindow(s.windowStart, s.windowEnd)} · acked {fmtDate(s.acknowledgedAt!)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </section>
 
-      {/* Acknowledged */}
-      {showAcked && acknowledged.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold text-white/30 uppercase tracking-wide mb-3">
-            Acknowledged · {acknowledged.length}
-          </h2>
-          <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/5 opacity-60">
-            {acknowledged.map((s) => (
-              <div key={s.id} className="px-4 py-3 flex items-start gap-3">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
-                  {s.severity}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-white/60">{s.detectorName.replace(/_/g, " ")}</p>
-                  <p className="text-[10px] text-white/30">
-                    {Math.round(s.confidence * 100)}% · {fmtWindow(s.windowStart, s.windowEnd)} · acked {fmtDate(s.acknowledgedAt!)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
