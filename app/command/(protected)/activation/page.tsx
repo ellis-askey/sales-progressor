@@ -1,4 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
+import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 
 function fmtDay(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", {
@@ -17,41 +18,65 @@ function pctColor(curr: number, prev: number): string {
   return curr > prev ? "text-emerald-400" : "text-red-400";
 }
 
-export default async function ActivationPage() {
+export default async function ActivationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string; agency?: string }>;
+}) {
+  const sp = await searchParams;
+  const mode = parseMode(sp.mode);
+  const agencyIds = parseAgencies(sp.agency);
+  const txScope   = serviceTypeScope(mode, agencyIds);
+  const userScope = modeProfileScope(mode, agencyIds);
+
   const now = new Date();
   const since30 = new Date(now);
   since30.setUTCDate(since30.getUTCDate() - 30);
   const since60 = new Date(now);
   since60.setUTCDate(since60.getUTCDate() - 60);
 
-  const [rows30, rows60] = await Promise.all([
+  const [txRows30, txRows60, userRows30, userRows60] = await Promise.all([
     commandDb.dailyMetric.findMany({
-      where: { date: { gte: since30, lte: now }, agencyId: null, serviceType: null, modeProfile: null },
+      where: { date: { gte: since30, lte: now }, ...txScope },
       orderBy: { date: "desc" },
     }),
     commandDb.dailyMetric.findMany({
-      where: { date: { gte: since60, lt: since30 }, agencyId: null, serviceType: null, modeProfile: null },
+      where: { date: { gte: since60, lt: since30 }, ...txScope },
+      orderBy: { date: "desc" },
+    }),
+    commandDb.dailyMetric.findMany({
+      where: { date: { gte: since30, lte: now }, ...userScope },
+      orderBy: { date: "desc" },
+    }),
+    commandDb.dailyMetric.findMany({
+      where: { date: { gte: since60, lt: since30 }, ...userScope },
       orderBy: { date: "desc" },
     }),
   ]);
 
-  // Aggregate totals for comparison
-  const sum = (rows: typeof rows30, field: keyof typeof rows30[0]) =>
+  // Merge rows for the day-by-day table (join by date)
+  const rows30 = txRows30.map((r) => {
+    const ur = userRows30.find((u) => u.date.getTime() === r.date.getTime());
+    return { ...r, signups: ur?.signups ?? r.signups, logins: ur?.logins ?? r.logins, uniqueActiveUsers: ur?.uniqueActiveUsers ?? r.uniqueActiveUsers };
+  });
+
+  type DRow = typeof txRows30[0];
+  const sumField = (rows: DRow[], field: keyof DRow) =>
     rows.reduce((acc, r) => acc + (Number(r[field]) || 0), 0);
 
   const curr = {
-    signups:           sum(rows30, "signups"),
-    logins:            sum(rows30, "logins"),
-    uniqueActiveUsers: sum(rows30, "uniqueActiveUsers"),
-    txnsCreated:       sum(rows30, "transactionsCreated"),
-    milestones:        sum(rows30, "milestonesConfirmed"),
+    signups:           sumField(userRows30, "signups"),
+    logins:            sumField(userRows30, "logins"),
+    uniqueActiveUsers: sumField(userRows30, "uniqueActiveUsers"),
+    txnsCreated:       sumField(txRows30, "transactionsCreated"),
+    milestones:        sumField(txRows30, "milestonesConfirmed"),
   };
   const prev = {
-    signups:           sum(rows60, "signups"),
-    logins:            sum(rows60, "logins"),
-    uniqueActiveUsers: sum(rows60, "uniqueActiveUsers"),
-    txnsCreated:       sum(rows60, "transactionsCreated"),
-    milestones:        sum(rows60, "milestonesConfirmed"),
+    signups:           sumField(userRows60, "signups"),
+    logins:            sumField(userRows60, "logins"),
+    uniqueActiveUsers: sumField(userRows60, "uniqueActiveUsers"),
+    txnsCreated:       sumField(txRows60, "transactionsCreated"),
+    milestones:        sumField(txRows60, "milestonesConfirmed"),
   };
 
   // Funnel rates (signup as base)

@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import Link from "next/link";
+import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 
 function fmtDelta(v: number): string {
   return v >= 0 ? `+${v}%` : `${v}%`;
@@ -26,29 +27,47 @@ const SEVERITY_BADGE: Record<string, string> = {
   info:        "bg-white/10 text-white/50",
 };
 
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string; agency?: string }>;
+}) {
+  const sp = await searchParams;
+  const mode = parseMode(sp.mode);
+  const agencyIds = parseAgencies(sp.agency);
+
   const now = new Date();
   const weekAgo = new Date(now);
   weekAgo.setUTCDate(weekAgo.getUTCDate() - 7);
   const twoWeeksAgo = new Date(now);
   twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
 
+  // Scopes — transaction-derived and user/agency-derived may differ
+  const txScope   = serviceTypeScope(mode, agencyIds);
+  const userScope = modeProfileScope(mode, agencyIds);
+
   const [
-    currentMetrics,
-    previousMetrics,
-    signalCounts,
-    unacknowledgedSignals,
-    activeExperimentsCount,
-    proposedExperimentsCount,
+    currentTx, previousTx,
+    currentUser, previousUser,
+    signalCounts, unacknowledgedSignals,
+    activeExperimentsCount, proposedExperimentsCount,
     lastDeployment,
   ] = await Promise.all([
     commandDb.dailyMetric.aggregate({
-      where: { date: { gte: weekAgo, lte: now }, agencyId: null, serviceType: null, modeProfile: null },
-      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
+      where: { date: { gte: weekAgo, lte: now }, ...txScope },
+      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
     }),
     commandDb.dailyMetric.aggregate({
-      where: { date: { gte: twoWeeksAgo, lt: weekAgo }, agencyId: null, serviceType: null, modeProfile: null },
-      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
+      where: { date: { gte: twoWeeksAgo, lt: weekAgo }, ...txScope },
+      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
+    }),
+    commandDb.dailyMetric.aggregate({
+      where: { date: { gte: weekAgo, lte: now }, ...userScope },
+      _sum: { signups: true },
+    }),
+    commandDb.dailyMetric.aggregate({
+      where: { date: { gte: twoWeeksAgo, lt: weekAgo }, ...userScope },
+      _sum: { signups: true },
     }),
     commandDb.signal.groupBy({
       by: ["severity"],
@@ -70,25 +89,26 @@ export default async function OverviewPage() {
     return Math.round(((curr - prev) / prev) * 100);
   }
 
-  const cs = currentMetrics._sum;
-  const ps = previousMetrics._sum;
-
   const statRows = [
-    { label: "New signups",          curr: cs.signups ?? 0,             prev: ps.signups ?? 0,             good: true },
-    { label: "Transactions created", curr: cs.transactionsCreated ?? 0, prev: ps.transactionsCreated ?? 0, good: true },
-    { label: "Milestones confirmed", curr: cs.milestonesConfirmed ?? 0, prev: ps.milestonesConfirmed ?? 0, good: true },
-    { label: "Chases sent",          curr: cs.chasesSent ?? 0,          prev: ps.chasesSent ?? 0,          good: true },
-    { label: "AI drafts generated",  curr: cs.aiDraftsGenerated ?? 0,   prev: ps.aiDraftsGenerated ?? 0,   good: true },
+    { label: "New signups",          curr: currentUser._sum.signups ?? 0,              prev: previousUser._sum.signups ?? 0,              good: true },
+    { label: "Transactions created", curr: currentTx._sum.transactionsCreated ?? 0,   prev: previousTx._sum.transactionsCreated ?? 0,    good: true },
+    { label: "Milestones confirmed", curr: currentTx._sum.milestonesConfirmed ?? 0,   prev: previousTx._sum.milestonesConfirmed ?? 0,    good: true },
+    { label: "Chases sent",          curr: currentTx._sum.chasesSent ?? 0,            prev: previousTx._sum.chasesSent ?? 0,             good: true },
+    { label: "AI drafts generated",  curr: currentTx._sum.aiDraftsGenerated ?? 0,     prev: previousTx._sum.aiDraftsGenerated ?? 0,      good: true },
   ];
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
+
+  const modeLabel = mode === "sp" ? " · SP" : mode === "pm" ? " · PM" : "";
 
   return (
     <div className="space-y-8">
 
       {/* 7-day metric summary */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Platform — last 7 days vs prior 7 days</h2>
+        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+          Platform{modeLabel} — last 7 days vs prior 7 days
+        </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {statRows.map((s) => {
             const d = pct(s.curr, s.prev);

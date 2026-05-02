@@ -1,4 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
+import { parseMode, parseAgencies, eventScope } from "@/lib/command/scope";
 
 function fmtTs(d: Date): string {
   return new Date(d).toLocaleString("en-GB", {
@@ -25,35 +26,53 @@ function typeBadge(type: string): string {
 export default async function ActivityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ internal?: string }>;
+  searchParams: Promise<{ mode?: string; agency?: string; internal?: string }>;
 }) {
   const sp = await searchParams;
+  const mode = parseMode(sp.mode);
+  const agencyIds = parseAgencies(sp.agency);
   const internalOnly = sp.internal === "1";
 
   const since7 = new Date();
   since7.setUTCDate(since7.getUTCDate() - 7);
 
+  // Resolve mode → agencyIds for event filtering
+  let resolvedAgencyIds = agencyIds;
+  if (agencyIds.length === 0 && mode !== "combined") {
+    const modeProfile = mode === "sp" ? "self_progressed" : "progressor_managed";
+    const modeAgencies = await commandDb.agency.findMany({
+      where: { modeProfile },
+      select: { id: true },
+    });
+    resolvedAgencyIds = modeAgencies.map((a) => a.id);
+  }
+
+  const agencyFilter = eventScope(resolvedAgencyIds);
+  const baseWhere = {
+    occurredAt: { gte: since7 },
+    ...agencyFilter,
+    ...(internalOnly ? { isInternalUser: true } : {}),
+  };
+
   const [breakdown, recentEvents] = await Promise.all([
     commandDb.event.groupBy({
       by: ["type"],
-      where: {
-        occurredAt: { gte: since7 },
-        ...(internalOnly ? { isInternalUser: true } : {}),
-      },
+      where: baseWhere,
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
     }),
     commandDb.event.findMany({
-      where: {
-        occurredAt: { gte: since7 },
-        ...(internalOnly ? { isInternalUser: true } : {}),
-      },
+      where: baseWhere,
       orderBy: { occurredAt: "desc" },
       take: 200,
     }),
   ]);
 
-  const toggleHref = internalOnly ? "/command/activity" : "/command/activity?internal=1";
+  const baseParams = new URLSearchParams();
+  if (mode !== "combined") baseParams.set("mode", mode);
+  if (agencyIds.length > 0) baseParams.set("agency", agencyIds.join(","));
+  if (!internalOnly) baseParams.set("internal", "1");
+  const toggleHref = `/command/activity${baseParams.toString() ? `?${baseParams}` : ""}`;
 
   return (
     <div className="space-y-8">

@@ -1,4 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
+import { parseMode, parseAgencies, cohortModeFilter } from "@/lib/command/scope";
 
 function fmtWeek(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", {
@@ -19,10 +20,21 @@ function pctColor(n: number, base: number): string {
   return "text-red-400";
 }
 
-export default async function RetentionPage() {
+export default async function RetentionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string; agency?: string }>;
+}) {
+  const sp = await searchParams;
+  const mode = parseMode(sp.mode);
+  parseAgencies(sp.agency); // agency filter not applicable to WeeklyCohort
+
+  const cohortFilter = cohortModeFilter(mode);
+
   const cohorts = await commandDb.weeklyCohort.findMany({
+    where: cohortFilter,
     orderBy: { signupWeek: "desc" },
-    take: 24, // last 24 weeks
+    take: 24,
   });
 
   // Group by modeProfile for summary

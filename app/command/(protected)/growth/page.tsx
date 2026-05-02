@@ -1,4 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
+import { parseMode, parseAgencies, serviceTypeScope } from "@/lib/command/scope";
 
 function weekLabel(d: Date): string {
   // ISO week: group by Monday of that week
@@ -16,7 +17,16 @@ function sumField(rows: DailyRow[], field: keyof DailyRow): number {
   return rows.reduce((acc, r) => acc + (Number(r[field]) || 0), 0);
 }
 
-export default async function GrowthPage() {
+export default async function GrowthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string; agency?: string }>;
+}) {
+  const sp = await searchParams;
+  const mode = parseMode(sp.mode);
+  const agencyIds = parseAgencies(sp.agency);
+  const txScope = serviceTypeScope(mode, agencyIds);
+
   const now = new Date();
   const since90 = new Date(now);
   since90.setUTCDate(since90.getUTCDate() - 90);
@@ -24,9 +34,9 @@ export default async function GrowthPage() {
   since30.setUTCDate(since30.getUTCDate() - 30);
 
   const [globalRows, byServiceType, byModeProfile] = await Promise.all([
-    // Global (no agency/service/mode scope)
+    // Weekly trend — use mode-scoped rows for tx metrics
     commandDb.dailyMetric.findMany({
-      where: { date: { gte: since90 }, agencyId: null, serviceType: null, modeProfile: null },
+      where: { date: { gte: since90 }, ...txScope },
       orderBy: { date: "asc" },
     }),
     // By service type

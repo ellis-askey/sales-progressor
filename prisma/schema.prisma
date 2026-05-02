@@ -89,6 +89,7 @@ model User {
   feedbackSubmissions  FeedbackSubmission[]
   agentPushSubscriptions AgentPushSubscription[]
   retentionEmailLogs   RetentionEmailLog[]
+  commandPreferences   Json?
 }
 
 model AgentPushSubscription {
