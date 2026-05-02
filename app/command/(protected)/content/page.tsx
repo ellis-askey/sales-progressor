@@ -13,11 +13,16 @@ export default async function ContentPage({
 }) {
   const sp = await searchParams;
 
-  const [qaSampleCount, recentDrafts] = await Promise.all([
+  const [qaSampleCount, recentDrafts, pendingTopics] = await Promise.all([
     commandDb.voiceSample.count({ where: { sampleType: "qa_response" } }),
     commandDb.draftPost.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,
+    }),
+    commandDb.contentTopic.findMany({
+      where: { status: "pending" },
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      take: 10,
     }),
   ]);
 
@@ -34,15 +39,23 @@ export default async function ContentPage({
     <div className="space-y-10">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-100">Content</h1>
-        <Link
-          href="/command/content/voice"
-          className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
-        >
-          Manage voice samples →
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/command/content/topics"
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            Topic queue →
+          </Link>
+          <Link
+            href="/command/content/voice"
+            className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+          >
+            Voice samples →
+          </Link>
+        </div>
       </div>
 
-      <DraftComposer channels={CHANNELS} tones={TONES} />
+      <DraftComposer channels={CHANNELS} tones={TONES} pendingTopics={pendingTopics} />
 
       <DraftHistory drafts={recentDrafts} />
     </div>

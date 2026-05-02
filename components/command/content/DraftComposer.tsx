@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useRef } from "react";
 import type { Channel } from "@/lib/command/content/channels";
 import type { Tone } from "@/lib/command/content/tones";
@@ -11,15 +12,27 @@ interface GeneratedDraft {
   variant2: string;
 }
 
+interface PendingTopic {
+  id: string;
+  text: string;
+  source: string;
+  priority: number;
+}
+
 interface Props {
   channels: Channel[];
   tones: Tone[];
+  pendingTopics: PendingTopic[];
 }
 
-export function DraftComposer({ channels, tones }: Props) {
+type TopicMode = "manual" | "queue";
+
+export function DraftComposer({ channels, tones, pendingTopics }: Props) {
   const [channelId, setChannelId] = useState(channels[0].id);
   const [toneId, setToneId] = useState(tones[0].id);
   const [topic, setTopic] = useState("");
+  const [topicMode, setTopicMode] = useState<TopicMode>("manual");
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<GeneratedDraft | null>(null);
@@ -27,9 +40,18 @@ export function DraftComposer({ channels, tones }: Props) {
 
   const selectedChannel = channels.find((c) => c.id === channelId) ?? channels[0];
 
+  const effectiveTopic =
+    topicMode === "queue"
+      ? (pendingTopics.find((t) => t.id === selectedTopicId)?.text ?? "")
+      : topic;
+
   async function generate(regenerate = false) {
-    if (!topic.trim()) {
-      setError("Enter a topic before generating.");
+    if (!effectiveTopic.trim()) {
+      setError(
+        topicMode === "queue"
+          ? "Select a topic from the queue first."
+          : "Enter a topic before generating."
+      );
       return;
     }
     setError(null);
@@ -42,7 +64,7 @@ export function DraftComposer({ channels, tones }: Props) {
         body: JSON.stringify({
           channel: channelId,
           toneId,
-          topic: topic.trim(),
+          topic: effectiveTopic.trim(),
           regenerateDraftId: regenerate && draft ? draft.draftId : undefined,
         }),
       });
@@ -55,8 +77,10 @@ export function DraftComposer({ channels, tones }: Props) {
       const data = (await res.json()) as GeneratedDraft;
       setDraft(data);
 
-      // Scroll to draft
-      setTimeout(() => draftRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      setTimeout(
+        () => draftRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        100
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generation failed");
     } finally {
@@ -67,13 +91,16 @@ export function DraftComposer({ channels, tones }: Props) {
   function onPostedOrDiscarded() {
     setDraft(null);
     setTopic("");
+    setSelectedTopicId(null);
   }
 
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Channel picker */}
       <div>
-        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-2">Channel</p>
+        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-2">
+          Channel
+        </p>
         <div className="flex flex-wrap gap-2">
           {channels.map((c) => (
             <button
@@ -94,7 +121,9 @@ export function DraftComposer({ channels, tones }: Props) {
 
       {/* Tone picker */}
       <div>
-        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-2">Tone</p>
+        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-2">
+          Tone
+        </p>
         <div className="flex flex-wrap gap-2">
           {tones.map((t) => (
             <button
@@ -116,19 +145,86 @@ export function DraftComposer({ channels, tones }: Props) {
         </p>
       </div>
 
-      {/* Topic input */}
+      {/* Topic — manual or queue */}
       <div>
-        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-2">Topic</p>
-        <textarea
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          rows={3}
-          placeholder="What's this post about? Be specific — the more concrete the seed, the sharper the draft."
-          className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 resize-none leading-relaxed"
-        />
-        <p className="text-[11px] text-neutral-600 mt-1">
-          Auto-suggested topics from your activity data ship in the next release.
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider">
+            Topic
+          </p>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setTopicMode("manual")}
+              className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
+                topicMode === "manual"
+                  ? "bg-neutral-700 text-neutral-200"
+                  : "text-neutral-600 hover:text-neutral-400"
+              }`}
+            >
+              Type
+            </button>
+            <button
+              type="button"
+              onClick={() => setTopicMode("queue")}
+              className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
+                topicMode === "queue"
+                  ? "bg-neutral-700 text-neutral-200"
+                  : "text-neutral-600 hover:text-neutral-400"
+              }`}
+            >
+              From queue {pendingTopics.length > 0 && `(${pendingTopics.length})`}
+            </button>
+          </div>
+        </div>
+
+        {topicMode === "manual" ? (
+          <textarea
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            rows={3}
+            placeholder="What's this post about? Be specific — the more concrete the seed, the sharper the draft."
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 resize-none leading-relaxed"
+          />
+        ) : pendingTopics.length === 0 ? (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
+            <p className="text-xs text-neutral-500">
+              No topics in queue yet.{" "}
+              <Link
+                href="/command/content/topics"
+                className="text-neutral-400 underline underline-offset-2 hover:text-neutral-200"
+              >
+                Add one manually
+              </Link>{" "}
+              or wait for the overnight activity scan.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pendingTopics.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelectedTopicId(t.id === selectedTopicId ? null : t.id)}
+                className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors ${
+                  selectedTopicId === t.id
+                    ? "bg-neutral-700 border-neutral-600 text-neutral-100"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200"
+                }`}
+              >
+                <span className="leading-snug">{t.text}</span>
+                {t.source === "activity_derived" && (
+                  <span className="ml-2 text-[10px] text-neutral-600">from activity</span>
+                )}
+              </button>
+            ))}
+            <Link
+              href="/command/content/topics"
+              className="block text-[11px] text-neutral-600 hover:text-neutral-400 transition-colors pt-1"
+            >
+              Manage queue →
+            </Link>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

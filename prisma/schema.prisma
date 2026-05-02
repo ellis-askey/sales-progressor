@@ -1128,6 +1128,23 @@ model VoiceSample {
   @@index([channel, createdAt])
 }
 
+// ─── Command Centre: Content topic queue ─────────────────────────────────────
+
+model ContentTopic {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+
+  text        String
+  source      String        // "manual" | "activity_derived"
+  channelHint DraftChannel?
+  priority    Int           @default(0)  // higher = shown first
+  status      String        @default("pending") // "pending" | "used" | "skipped"
+  usedAt      DateTime?
+  draftPostId String?
+
+  @@index([status, priority, createdAt])
+}
+
 // ─── Command Centre: Admin audit log ─────────────────────────────────────────
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 
