@@ -10,7 +10,7 @@ const TABS = [
   { href: "/command/activation",    label: "Activation"   },
   { href: "/command/retention",     label: "Retention"    },
   { href: "/command/activity",      label: "Activity"     },
-  { href: "/command/outbound",      label: "Outbound",     soon: true },
+  { href: "/command/outbound",      label: "Outbound"     },
   { href: "/command/content",       label: "Content"      },
   { href: "/command/experiments",   label: "Experiments"  },
   { href: "/command/automations",   label: "Automations"  },
