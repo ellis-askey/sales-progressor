@@ -36,11 +36,7 @@
       "path": "/api/cron/rollup-metrics",
       "schedule": "0 2 * * *"
     },
-    {
-      "path": "/api/cron/metrics-5min",
-      "schedule": "*/5 * * * *"
-    },
-    {
+{
       "path": "/api/cron/signals",
       "schedule": "0 3 * * *"
     },
