@@ -1078,8 +1078,10 @@ model Deployment {
 
 enum DraftChannel {
   linkedin
+  twitter
   tiktok_script
   instagram_caption
+  instagram_reel_script
 }
 
 model DraftPost {
