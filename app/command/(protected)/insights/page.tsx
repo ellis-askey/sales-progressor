@@ -4,14 +4,14 @@ import { PromoteButton } from "@/components/command/PromoteButton";
 import type { SignalSeverity } from "@prisma/client";
 
 const SEVERITY_BADGE: Record<string, string> = {
-  critical:    "bg-red-500/20 text-red-300 border-red-500/30",
-  leak:        "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  opportunity: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  info:        "bg-white/10 text-white/50 border-white/10",
+  critical:    "bg-red-950 text-red-400 border border-red-900",
+  leak:        "bg-amber-950 text-amber-400 border border-amber-900",
+  opportunity: "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  info:        "bg-neutral-800 text-neutral-400",
 };
 
 const CONF_COLOR = (c: number): string =>
-  c >= 0.8 ? "text-white" : c >= 0.5 ? "text-white/70" : "text-white/40";
+  c >= 0.8 ? "text-neutral-100" : c >= 0.5 ? "text-neutral-200" : "text-neutral-500";
 
 function fmtDate(d: Date): string {
   return new Date(d).toLocaleString("en-GB", {
@@ -41,8 +41,8 @@ function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
     <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1.5">
       {lines.map(([k, v]) => (
         <div key={k} className="flex items-baseline gap-1 min-w-0">
-          <dt className="text-[10px] text-white/30 shrink-0">{k}</dt>
-          <dd className="text-[10px] text-white/60 truncate">
+          <dt className="text-[10px] text-neutral-600 shrink-0">{k}</dt>
+          <dd className="text-[10px] text-neutral-400 truncate">
             {typeof v === "object" ? JSON.stringify(v) : String(v)}
           </dd>
         </div>
@@ -65,22 +65,22 @@ function BriefCard({
   empty: string;
 }) {
   return (
-    <div className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2 min-h-[160px]">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 flex flex-col gap-2 min-h-[160px]">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">{title}</p>
+        <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">{title}</p>
         {sentAt && (
-          <p className="text-[10px] text-white/30">{fmtDateShort(sentAt)}</p>
+          <p className="text-[10px] text-neutral-600">{fmtDateShort(sentAt)}</p>
         )}
       </div>
       {subject && (
-        <p className="text-xs font-medium text-white/70">{subject}</p>
+        <p className="text-xs font-medium text-neutral-200">{subject}</p>
       )}
       {content ? (
-        <p className="text-xs text-white/55 leading-relaxed line-clamp-8 whitespace-pre-line flex-1">
+        <p className="text-xs text-neutral-400 leading-relaxed line-clamp-8 whitespace-pre-line flex-1">
           {content}
         </p>
       ) : (
-        <p className="text-xs text-white/25 italic flex-1">{empty}</p>
+        <p className="text-xs text-neutral-600 italic flex-1">{empty}</p>
       )}
     </div>
   );
@@ -148,10 +148,11 @@ export default async function InsightsPage({
 
   return (
     <div className="space-y-8">
+      <h1 className="text-2xl font-semibold text-neutral-100">Insights</h1>
 
       {/* AI Briefs */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">AI Briefs</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">AI Briefs</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <BriefCard
             title="Latest daily brief"
@@ -172,26 +173,26 @@ export default async function InsightsPage({
 
       {/* Signal feed */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Signal feed</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal feed</h2>
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap mb-5">
-          <span className="text-xs font-semibold text-white/40 uppercase tracking-wide">Severity</span>
+          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Severity</span>
           {sevOptions.map((o) => (
             <a
               key={o.value}
               href={sevLink(o.value)}
               className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
                 (sevFilter ?? "") === o.value
-                  ? "bg-white/20 text-white"
-                  : "bg-white/8 text-white/50 hover:text-white/80 hover:bg-white/12"
+                  ? "bg-neutral-700 text-white"
+                  : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700"
               }`}
             >
               {o.label}
             </a>
           ))}
           <span className="ml-auto">
-            <a href={ackToggle()} className="text-xs text-white/40 hover:text-white/70 transition-colors">
+            <a href={ackToggle()} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
               {showAcked ? "Hide acknowledged" : "Show acknowledged"}
             </a>
           </span>
@@ -199,13 +200,13 @@ export default async function InsightsPage({
 
         {/* Unacknowledged */}
         <div className="mb-3">
-          <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">
+          <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
             Unacknowledged · {unacknowledged.length}
           </p>
           {unacknowledged.length === 0 ? (
-            <p className="text-sm text-white/30">All signals acknowledged.</p>
+            <p className="text-sm text-neutral-600">All signals acknowledged.</p>
           ) : (
-            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/8">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800">
               {unacknowledged.map((s) => (
                 <div key={s.id} className="px-4 py-3.5 flex items-start gap-3">
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
@@ -213,16 +214,16 @@ export default async function InsightsPage({
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <p className="text-sm font-medium text-white/80">{s.detectorName.replace(/_/g, " ")}</p>
+                      <p className="text-sm font-medium text-neutral-200">{s.detectorName.replace(/_/g, " ")}</p>
                       <span className={`text-xs tabular-nums ${CONF_COLOR(s.confidence)}`}>
                         {Math.round(s.confidence * 100)}%
                       </span>
-                      <span className="text-xs text-white/30">
+                      <span className="text-xs text-neutral-600">
                         {fmtWindow(s.windowStart, s.windowEnd)}
                       </span>
                     </div>
                     <PayloadSummary payload={s.payload as Record<string, unknown>} />
-                    <p className="text-[10px] text-white/25 mt-1">{fmtDate(s.detectedAt)}</p>
+                    <p className="text-[10px] text-neutral-600 mt-1">{fmtDate(s.detectedAt)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <PromoteButton signalId={s.id} />
@@ -237,18 +238,18 @@ export default async function InsightsPage({
         {/* Acknowledged */}
         {showAcked && acknowledged.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-white/30 uppercase tracking-wide mb-3">
+            <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-3">
               Acknowledged · {acknowledged.length}
             </p>
-            <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/5 opacity-60">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800 opacity-60">
               {acknowledged.map((s) => (
                 <div key={s.id} className="px-4 py-3 flex items-start gap-3">
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
                     {s.severity}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white/60">{s.detectorName.replace(/_/g, " ")}</p>
-                    <p className="text-[10px] text-white/30">
+                    <p className="text-xs font-medium text-neutral-300">{s.detectorName.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-neutral-600">
                       {Math.round(s.confidence * 100)}% · {fmtWindow(s.windowStart, s.windowEnd)} · acked {fmtDate(s.acknowledgedAt!)}
                     </p>
                   </div>

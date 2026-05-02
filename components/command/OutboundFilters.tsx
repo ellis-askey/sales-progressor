@@ -61,11 +61,11 @@ export function OutboundFilters() {
   ].filter(Boolean).length;
 
   return (
-    <div className="px-6 pb-4 space-y-3">
+    <div className="px-1 pb-2 space-y-3">
       <div className="flex items-start gap-6 flex-wrap">
         {/* Channel */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">Channel</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">Channel</p>
           <div className="flex items-center gap-1 flex-wrap">
             {CHANNELS.map((ch) => (
               <button
@@ -73,8 +73,8 @@ export function OutboundFilters() {
                 onClick={() => toggleList("ch", channels, ch)}
                 className={`text-[11px] px-2 py-0.5 rounded font-mono transition-colors ${
                   channels.includes(ch)
-                    ? "bg-white/20 text-white"
-                    : "bg-white/5 text-white/40 hover:bg-white/10"
+                    ? "bg-neutral-600 text-white"
+                    : "bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300"
                 }`}
               >
                 {ch}
@@ -85,7 +85,7 @@ export function OutboundFilters() {
 
         {/* Status */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">Status</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">Status</p>
           <div className="flex items-center gap-1 flex-wrap">
             {STATUSES.map((st) => (
               <button
@@ -93,8 +93,8 @@ export function OutboundFilters() {
                 onClick={() => toggleList("st", statuses, st)}
                 className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
                   statuses.includes(st)
-                    ? "bg-white/20 text-white"
-                    : "bg-white/5 text-white/40 hover:bg-white/10"
+                    ? "bg-neutral-600 text-white"
+                    : "bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300"
                 }`}
               >
                 {st}
@@ -105,7 +105,7 @@ export function OutboundFilters() {
 
         {/* AI tri-state */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">AI</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">AI</p>
           <div className="flex items-center gap-1">
             {(["all", "yes", "no"] as const).map((val) => (
               <button
@@ -113,8 +113,8 @@ export function OutboundFilters() {
                 onClick={() => push({ ai: val === "all" ? "" : val })}
                 className={`text-[11px] px-2.5 py-0.5 rounded transition-colors ${
                   ai === val
-                    ? "bg-purple-500/25 text-purple-300"
-                    : "bg-white/5 text-white/40 hover:bg-white/10"
+                    ? "bg-purple-900 text-purple-300 border border-purple-800"
+                    : "bg-neutral-800 text-neutral-500 hover:bg-neutral-700 hover:text-neutral-300"
                 }`}
               >
                 {val === "all" ? "All" : val === "yes" ? "AI only" : "No AI"}
@@ -125,27 +125,27 @@ export function OutboundFilters() {
 
         {/* Date range */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">Date</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">Date</p>
           <div className="flex items-center gap-1.5">
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => push({ from: e.target.value })}
-              className="text-[11px] bg-white/5 border border-white/10 rounded px-2 py-0.5 text-white/60 focus:outline-none focus:border-white/30"
+              className="text-[11px] bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300 focus:outline-none focus:border-neutral-500"
             />
-            <span className="text-white/20 text-xs">–</span>
+            <span className="text-neutral-600 text-xs">–</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => push({ to: e.target.value })}
-              className="text-[11px] bg-white/5 border border-white/10 rounded px-2 py-0.5 text-white/60 focus:outline-none focus:border-white/30"
+              className="text-[11px] bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300 focus:outline-none focus:border-neutral-500"
             />
           </div>
         </div>
 
         {/* Recipient */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">Recipient</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">Recipient</p>
           <input
             type="text"
             value={recVal}
@@ -153,13 +153,13 @@ export function OutboundFilters() {
             onBlur={() => commitText("rec", recVal)}
             onKeyDown={(e) => e.key === "Enter" && commitText("rec", recVal)}
             placeholder="Name or email…"
-            className="text-[11px] bg-white/5 border border-white/10 rounded px-2 py-0.5 text-white/60 placeholder:text-white/20 focus:outline-none focus:border-white/30 w-36"
+            className="text-[11px] bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 w-36"
           />
         </div>
 
         {/* Body full-text search */}
         <div>
-          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-1.5">Body search</p>
+          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">Body search</p>
           <input
             type="text"
             value={qVal}
@@ -167,14 +167,14 @@ export function OutboundFilters() {
             onBlur={() => commitText("q", qVal)}
             onKeyDown={(e) => e.key === "Enter" && commitText("q", qVal)}
             placeholder="Full-text… (Enter)"
-            className="text-[11px] bg-white/5 border border-white/10 rounded px-2 py-0.5 text-white/60 placeholder:text-white/20 focus:outline-none focus:border-white/30 w-44"
+            className="text-[11px] bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 w-44"
           />
         </div>
       </div>
 
       {activeCount > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/30">
+          <span className="text-[10px] text-neutral-600">
             {activeCount} filter{activeCount !== 1 ? "s" : ""} active
           </span>
           <button
@@ -185,7 +185,7 @@ export function OutboundFilters() {
               );
               router.push(`${pathname}?${p.toString()}`);
             }}
-            className="text-[10px] text-white/30 hover:text-white/60 transition-colors underline underline-offset-2"
+            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors underline underline-offset-2"
           >
             Reset filters
           </button>

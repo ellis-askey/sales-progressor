@@ -312,10 +312,10 @@ export function CommandSidebar({
 
       {/* Footer */}
       <div className="px-3 py-3 border-t border-[#1f1f1f] flex-shrink-0">
-        <p className="text-[10px] text-[#404040] truncate mb-1.5">{adminEmail}</p>
+        <p className="text-[10px] text-[#404040] truncate mb-1.5" title={adminEmail}>{adminEmail}</p>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-[11px] text-[#525252] hover:text-[#a3a3a3] transition-colors"
+          className="text-[11px] text-[#2e2e2e] hover:text-[#525252] transition-colors"
         >
           Sign out
         </button>

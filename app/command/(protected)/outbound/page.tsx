@@ -31,7 +31,6 @@ export default async function OutboundPage({
   const pending = sp.pending === "1";
   const cursor = sp.cursor ?? null;
 
-  // Build where clause
   const where: Prisma.OutboundMessageWhereInput = {};
   if (agencyIds.length > 0) where.agencyId = { in: agencyIds };
   if (channels.length > 0) where.channel = { in: channels as Prisma.EnumOutboundChannelFilter["in"] };
@@ -58,7 +57,6 @@ export default async function OutboundPage({
     where.status = { in: statuses as Prisma.EnumOutboundStatusFilter["in"] };
   }
 
-  // Body full-text search via tsvector generated column
   if (bodySearch) {
     const bodyIds = await commandDb.$queryRaw<{ id: string }[]>`
       SELECT id FROM "OutboundMessage"
@@ -69,7 +67,6 @@ export default async function OutboundPage({
     where.id = bodyIds.length > 0 ? { in: bodyIds.map((r) => r.id) } : { in: [] as string[] };
   }
 
-  // Summary counts
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
   const h24ago = new Date(Date.now() - 86_400_000);
@@ -85,7 +82,6 @@ export default async function OutboundPage({
     commandDb.outboundMessage.count({ where: { status: "failed", failedAt: { gte: h24ago } } }),
   ]);
 
-  // Message list (keyset pagination on id, secondary sort on createdAt)
   const rows = await commandDb.outboundMessage.findMany({
     where,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -117,56 +113,33 @@ export default async function OutboundPage({
   }
 
   const SUMMARY = [
-    {
-      label: "Today",
-      value: totalToday,
-      href: `/command/outbound?from=${todayStr}&to=${todayStr}`,
-      warn: false,
-    },
-    {
-      label: "Sent today",
-      value: sentToday,
-      href: `/command/outbound?st=sent%2Cdelivered%2Copened%2Cclicked&from=${todayStr}&to=${todayStr}`,
-      warn: false,
-    },
-    {
-      label: "AI today",
-      value: aiToday,
-      href: `/command/outbound?ai=yes&from=${todayStr}&to=${todayStr}`,
-      warn: false,
-    },
-    {
-      label: "Awaiting approval",
-      value: awaitingApproval,
-      href: "/command/outbound?pending=1",
-      warn: awaitingApproval > 0,
-    },
-    {
-      label: "Failed 24h",
-      value: failed24h,
-      href: "/command/outbound?st=failed",
-      warn: failed24h > 0,
-    },
+    { label: "Today",             value: totalToday,        href: `/command/outbound?from=${todayStr}&to=${todayStr}`,                                                          warn: false },
+    { label: "Sent today",        value: sentToday,         href: `/command/outbound?st=sent%2Cdelivered%2Copened%2Cclicked&from=${todayStr}&to=${todayStr}`,                   warn: false },
+    { label: "AI today",          value: aiToday,           href: `/command/outbound?ai=yes&from=${todayStr}&to=${todayStr}`,                                                   warn: false },
+    { label: "Awaiting approval", value: awaitingApproval,  href: "/command/outbound?pending=1",                                                                               warn: awaitingApproval > 0 },
+    { label: "Failed 24h",        value: failed24h,         href: "/command/outbound?st=failed",                                                                               warn: failed24h > 0 },
   ] as const;
 
   return (
     <div className="space-y-4">
+      <h1 className="text-2xl font-semibold text-neutral-100">Outbound</h1>
+
       {/* Summary counts */}
-      <div className="flex items-center gap-2 px-6 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
         {SUMMARY.map(({ label, value, href, warn }) => (
           <Link
             key={label}
             href={href}
-            className="flex items-baseline gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/8 transition-colors"
+            className="flex items-baseline gap-2 px-3.5 py-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 transition-colors"
           >
             <span
               className={`text-xl font-semibold tabular-nums leading-none ${
-                warn ? "text-amber-300" : "text-white"
+                warn ? "text-amber-400" : "text-white"
               }`}
             >
               {value.toLocaleString()}
             </span>
-            <span className="text-[11px] text-white/40">{label}</span>
+            <span className="text-[11px] text-neutral-500">{label}</span>
           </Link>
         ))}
       </div>
@@ -175,21 +148,21 @@ export default async function OutboundPage({
       <OutboundFilters />
 
       {/* Message list */}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
         {messages.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-white/30">No messages match these filters.</p>
+            <p className="text-sm text-neutral-600">No messages match these filters.</p>
           </div>
         ) : (
           <>
-            <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
-              <p className="text-[10px] text-white/30">
+            <div className="px-4 py-2 border-b border-neutral-800 flex items-center justify-between">
+              <p className="text-[10px] text-neutral-600">
                 {messages.length}{hasMore ? "+" : ""} message{messages.length !== 1 ? "s" : ""}
               </p>
               {cursor && (
                 <Link
                   href={buildUrl({ cursor: undefined })}
-                  className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                  className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors"
                 >
                   ← First page
                 </Link>
@@ -201,10 +174,10 @@ export default async function OutboundPage({
             ))}
 
             {hasMore && nextCursor && (
-              <div className="px-4 py-3 border-t border-white/5">
+              <div className="px-4 py-3 border-t border-neutral-800">
                 <Link
                   href={buildUrl({ cursor: nextCursor })}
-                  className="text-xs text-white/40 hover:text-white/70 transition-colors"
+                  className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                   Load next {PAGE_SIZE} →
                 </Link>

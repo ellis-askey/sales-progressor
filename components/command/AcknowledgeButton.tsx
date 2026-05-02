@@ -10,7 +10,7 @@ export function AcknowledgeButton({ signalId }: { signalId: string }) {
     <button
       disabled={pending}
       onClick={() => startTransition(() => acknowledgeSignalAction(signalId))}
-      className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-colors disabled:opacity-40"
+      className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200 transition-colors disabled:opacity-40"
     >
       {pending ? "…" : "Ack"}
     </button>

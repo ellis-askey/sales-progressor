@@ -14,7 +14,7 @@ function pctChange(curr: number, prev: number): string {
 }
 
 function pctColor(curr: number, prev: number): string {
-  if (prev === 0 || curr === prev) return "text-white/30";
+  if (prev === 0 || curr === prev) return "text-neutral-600";
   return curr > prev ? "text-emerald-400" : "text-red-400";
 }
 
@@ -54,7 +54,6 @@ export default async function ActivationPage({
     }),
   ]);
 
-  // Merge rows for the day-by-day table (join by date)
   const rows30 = txRows30.map((r) => {
     const ur = userRows30.find((u) => u.date.getTime() === r.date.getTime());
     return { ...r, signups: ur?.signups ?? r.signups, logins: ur?.logins ?? r.logins, uniqueActiveUsers: ur?.uniqueActiveUsers ?? r.uniqueActiveUsers };
@@ -79,7 +78,6 @@ export default async function ActivationPage({
     milestones:        sumField(txRows60, "milestonesConfirmed"),
   };
 
-  // Funnel rates (signup as base)
   const funnelRate = (n: number) =>
     curr.signups === 0 ? "—" : `${Math.round((n / curr.signups) * 100)}%`;
 
@@ -93,16 +91,17 @@ export default async function ActivationPage({
 
   return (
     <div className="space-y-8">
+      <h1 className="text-2xl font-semibold text-neutral-100">Activation</h1>
 
       {/* 30-day summary vs prior 30 */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Last 30 days vs prior 30 days
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {summaryCards.map((c) => (
-            <div key={c.label} className="glass-card rounded-2xl px-4 py-4">
-              <p className="text-xs text-white/50 mb-1">{c.label}</p>
+            <div key={c.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
+              <p className="text-xs text-neutral-400 mb-1">{c.label}</p>
               <p className="text-2xl font-bold text-white tabular-nums">{c.curr.toLocaleString()}</p>
               <p className={`text-xs tabular-nums mt-0.5 ${pctColor(c.curr, c.prev)}`}>
                 {pctChange(c.curr, c.prev)} vs prev 30d
@@ -114,19 +113,19 @@ export default async function ActivationPage({
 
       {/* Activation funnel */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Activation funnel — last 30 days (base: signups)
         </h2>
-        <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="text-left px-5 py-3 text-xs font-medium text-white/40">Stage</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-white/40">Count</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-white/40">% of signups</th>
+              <tr className="border-b border-neutral-800 bg-neutral-800/50">
+                <th className="text-left px-5 py-3 text-xs font-medium text-neutral-500">Stage</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">Count</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-neutral-500">% of signups</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/8">
+            <tbody className="divide-y divide-neutral-800">
               {[
                 { label: "Signups",              n: curr.signups           },
                 { label: "Logins (any)",         n: curr.logins            },
@@ -135,11 +134,11 @@ export default async function ActivationPage({
                 { label: "Confirmed a milestone",n: curr.milestones        },
               ].map((row) => (
                 <tr key={row.label}>
-                  <td className="px-5 py-3 text-white/70 text-xs">{row.label}</td>
+                  <td className="px-5 py-3 text-neutral-300 text-xs">{row.label}</td>
                   <td className="px-5 py-3 text-right text-white tabular-nums text-xs font-medium">
                     {row.n.toLocaleString()}
                   </td>
-                  <td className="px-5 py-3 text-right text-white/50 tabular-nums text-xs">
+                  <td className="px-5 py-3 text-right text-neutral-400 tabular-nums text-xs">
                     {funnelRate(row.n)}
                   </td>
                 </tr>
@@ -151,34 +150,34 @@ export default async function ActivationPage({
 
       {/* Day-by-day table */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Day-by-day — last 30 days
         </h2>
         {rows30.length === 0 ? (
-          <p className="text-sm text-white/30">No rollup data yet. Cron runs nightly.</p>
+          <p className="text-sm text-neutral-600">No rollup data yet. Cron runs nightly.</p>
         ) : (
-          <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    <th className="text-left px-4 py-3 text-xs font-medium text-white/40 whitespace-nowrap">Date</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-white/40">Signups</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-white/40">Logins</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-white/40">Actives</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-white/40">Txns</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-white/40">Milestones</th>
+                  <tr className="border-b border-neutral-800 bg-neutral-800/50">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500 whitespace-nowrap">Date</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Signups</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Logins</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Actives</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Txns</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Milestones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-neutral-800">
                   {rows30.map((r) => (
-                    <tr key={r.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-2.5 text-xs text-white/60 whitespace-nowrap">{fmtDay(r.date)}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white/80">{r.signups}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white/60">{r.logins}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white/60">{r.uniqueActiveUsers}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white/60">{r.transactionsCreated}</td>
-                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-white/60">{r.milestonesConfirmed}</td>
+                    <tr key={r.id} className="hover:bg-neutral-800/50 transition-colors">
+                      <td className="px-4 py-2.5 text-xs text-neutral-400 whitespace-nowrap">{fmtDay(r.date)}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-200">{r.signups}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-300">{r.logins}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-300">{r.uniqueActiveUsers}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-300">{r.transactionsCreated}</td>
+                      <td className="px-4 py-2.5 text-right text-xs tabular-nums text-neutral-300">{r.milestonesConfirmed}</td>
                     </tr>
                   ))}
                 </tbody>

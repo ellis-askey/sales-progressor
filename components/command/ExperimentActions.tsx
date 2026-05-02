@@ -24,7 +24,7 @@ export function ExperimentActions({
       <button
         disabled={pending}
         onClick={() => startTransition(() => startExperimentAction(experimentId))}
-        className="text-xs px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-40"
+        className="text-xs px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 transition-colors disabled:opacity-40"
       >
         {pending ? "…" : "Start"}
       </button>
@@ -38,28 +38,28 @@ export function ExperimentActions({
           <select
             value={outcome}
             onChange={(e) => setOutcome(e.target.value as Outcome)}
-            className="text-xs bg-white/10 text-white border border-white/20 rounded px-2 py-1"
+            className="text-xs bg-neutral-800 text-neutral-200 border border-neutral-700 rounded px-2 py-1 focus:outline-none focus:border-neutral-500"
           >
             {OUTCOMES.map((o) => (
-              <option key={o} value={o} className="bg-slate-800">{o}</option>
+              <option key={o} value={o} className="bg-neutral-900">{o}</option>
             ))}
           </select>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Conclusion note…"
-            className="text-xs bg-white/10 text-white border border-white/20 rounded px-2 py-1 w-48 placeholder:text-white/30"
+            className="text-xs bg-neutral-800 text-neutral-200 border border-neutral-700 rounded px-2 py-1 w-48 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500"
           />
           <button
             disabled={pending || !note.trim()}
             onClick={() => startTransition(() => concludeExperimentAction(experimentId, outcome, note.trim()))}
-            className="text-xs px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors disabled:opacity-40"
+            className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-400 border border-blue-900 hover:bg-blue-900 transition-colors disabled:opacity-40"
           >
             {pending ? "…" : "Confirm"}
           </button>
           <button
             onClick={() => setConcluding(false)}
-            className="text-xs px-2 py-1 text-white/40 hover:text-white/70 transition-colors"
+            className="text-xs px-2 py-1 text-neutral-500 hover:text-neutral-300 transition-colors"
           >
             Cancel
           </button>
@@ -71,7 +71,7 @@ export function ExperimentActions({
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => setConcluding(true)}
-          className="text-xs px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors"
+          className="text-xs px-2.5 py-1 rounded-md bg-blue-950 text-blue-400 border border-blue-900 hover:bg-blue-900 transition-colors"
         >
           Conclude
         </button>
@@ -83,7 +83,7 @@ export function ExperimentActions({
               startTransition(() => abandonExperimentAction(experimentId, reason.trim()));
             }
           }}
-          className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/50 hover:bg-white/20 transition-colors disabled:opacity-40"
+          className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-neutral-400 hover:bg-neutral-700 transition-colors disabled:opacity-40"
         >
           Abandon
         </button>

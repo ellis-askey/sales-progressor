@@ -7,7 +7,7 @@ function fmtDelta(v: number): string {
 }
 
 function deltaColor(v: number, positiveIsGood = true): string {
-  if (v === 0) return "text-white/40";
+  if (v === 0) return "text-neutral-600";
   const isGood = positiveIsGood ? v > 0 : v < 0;
   return isGood ? "text-emerald-400" : "text-red-400";
 }
@@ -21,10 +21,10 @@ function fmtDate(d: Date | null): string {
 }
 
 const SEVERITY_BADGE: Record<string, string> = {
-  critical:    "bg-red-500/20 text-red-300",
-  leak:        "bg-amber-500/20 text-amber-300",
-  opportunity: "bg-emerald-500/20 text-emerald-300",
-  info:        "bg-white/10 text-white/50",
+  critical:    "bg-red-950 text-red-400 border border-red-900",
+  leak:        "bg-amber-950 text-amber-400 border border-amber-900",
+  opportunity: "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  info:        "bg-neutral-800 text-neutral-400",
 };
 
 export default async function OverviewPage({
@@ -42,7 +42,6 @@ export default async function OverviewPage({
   const twoWeeksAgo = new Date(now);
   twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
 
-  // Scopes — transaction-derived and user/agency-derived may differ
   const txScope   = serviceTypeScope(mode, agencyIds);
   const userScope = modeProfileScope(mode, agencyIds);
 
@@ -98,23 +97,23 @@ export default async function OverviewPage({
   ];
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
-
   const modeLabel = mode === "sp" ? " · SP" : mode === "pm" ? " · PM" : "";
 
   return (
     <div className="space-y-8">
+      <h1 className="text-2xl font-semibold text-neutral-100">Overview</h1>
 
       {/* 7-day metric summary */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
           Platform{modeLabel} — last 7 days vs prior 7 days
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {statRows.map((s) => {
             const d = pct(s.curr, s.prev);
             return (
-              <div key={s.label} className="glass-card rounded-2xl px-4 py-4">
-                <p className="text-xs text-white/50 mb-1">{s.label}</p>
+              <div key={s.label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-4">
+                <p className="text-xs text-neutral-400 mb-1">{s.label}</p>
                 <p className="text-2xl font-bold text-white tabular-nums">{s.curr.toLocaleString()}</p>
                 <p className={`text-xs tabular-nums mt-0.5 ${deltaColor(d, s.good)}`}>
                   {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
@@ -127,7 +126,7 @@ export default async function OverviewPage({
 
       {/* Signal health */}
       <section>
-        <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Signal health — last 7 days</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal health — last 7 days</h2>
         <div className="flex items-center gap-3 flex-wrap mb-5">
           {(["critical", "leak", "opportunity", "info"] as const).map((sev) => (
             <div key={sev} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium ${SEVERITY_BADGE[sev]}`}>
@@ -138,14 +137,14 @@ export default async function OverviewPage({
         </div>
 
         {unacknowledgedSignals.length > 0 ? (
-          <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-              <p className="text-xs font-semibold text-white/60">Unacknowledged signals</p>
-              <Link href="/command/insights" className="text-xs text-white/40 hover:text-white/70 transition-colors">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+              <p className="text-xs font-semibold text-neutral-300">Unacknowledged signals</p>
+              <Link href="/command/insights" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
                 View all →
               </Link>
             </div>
-            <div className="divide-y divide-white/8">
+            <div className="divide-y divide-neutral-800">
               {unacknowledgedSignals.map((s) => {
                 const payload = s.payload as Record<string, unknown>;
                 return (
@@ -154,8 +153,8 @@ export default async function OverviewPage({
                       {s.severity}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white/80">{s.detectorName.replace(/_/g, " ")}</p>
-                      <p className="text-xs text-white/40 truncate">
+                      <p className="text-xs font-medium text-neutral-200">{s.detectorName.replace(/_/g, " ")}</p>
+                      <p className="text-xs text-neutral-500 truncate">
                         {Math.round(s.confidence * 100)}% conf · {fmtDate(s.detectedAt)}
                         {payload.indicator ? ` · ${payload.indicator}` : ""}
                       </p>
@@ -166,47 +165,47 @@ export default async function OverviewPage({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-white/30">All signals acknowledged.</p>
+          <p className="text-sm text-neutral-600">All signals acknowledged.</p>
         )}
       </section>
 
       {/* Experiments + last deployment */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section>
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Experiments</h2>
-          <div className="glass-card rounded-2xl px-5 py-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Active</span>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Experiments</h2>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2">
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-sm text-neutral-300">Active</span>
               <span className="text-lg font-bold text-white">{activeExperimentsCount}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Proposed</span>
+            <div className="flex items-center justify-between py-0.5">
+              <span className="text-sm text-neutral-300">Proposed</span>
               <span className="text-lg font-bold text-white">{proposedExperimentsCount}</span>
             </div>
-            <Link href="/command/experiments" className="block mt-3 text-xs text-white/40 hover:text-white/70 transition-colors">
+            <Link href="/command/experiments" className="block pt-2 text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
               Manage experiments →
             </Link>
           </div>
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">Last deployment</h2>
-          <div className="glass-card rounded-2xl px-5 py-4">
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Last deployment</h2>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
             {lastDeployment ? (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/60 font-mono">
+                  <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono">
                     {lastDeployment.environment}
                   </span>
-                  <span className="text-xs text-white/40">{fmtDate(lastDeployment.deployedAt)}</span>
+                  <span className="text-xs text-neutral-500">{fmtDate(lastDeployment.deployedAt)}</span>
                 </div>
-                <p className="text-xs font-mono text-white/60 truncate">{lastDeployment.version}</p>
+                <p className="text-xs font-mono text-neutral-300 truncate">{lastDeployment.version}</p>
                 {lastDeployment.releaseNotes && (
-                  <p className="text-xs text-white/40 line-clamp-2">{lastDeployment.releaseNotes}</p>
+                  <p className="text-xs text-neutral-500 line-clamp-2">{lastDeployment.releaseNotes}</p>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-white/30">No deployments yet. Configure the Vercel webhook to start tracking.</p>
+              <p className="text-sm text-neutral-600">No deployments yet. Configure the Vercel webhook to start tracking.</p>
             )}
           </div>
         </section>

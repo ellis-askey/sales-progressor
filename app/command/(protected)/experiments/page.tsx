@@ -3,17 +3,17 @@ import { ExperimentActions } from "@/components/command/ExperimentActions";
 import type { ExperimentStatus, ExperimentOutcome } from "@prisma/client";
 
 const STATUS_BADGE: Record<ExperimentStatus, string> = {
-  proposed:   "bg-white/10 text-white/60",
-  active:     "bg-emerald-500/20 text-emerald-300",
-  concluded:  "bg-blue-500/20 text-blue-300",
-  abandoned:  "bg-white/8 text-white/30",
+  proposed:   "bg-neutral-800 text-neutral-400",
+  active:     "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  concluded:  "bg-blue-950 text-blue-400 border border-blue-900",
+  abandoned:  "bg-neutral-800 text-neutral-500",
 };
 
 const OUTCOME_BADGE: Record<ExperimentOutcome, string> = {
-  win:          "bg-emerald-500/20 text-emerald-300",
-  loss:         "bg-red-500/20 text-red-300",
-  inconclusive: "bg-amber-500/20 text-amber-300",
-  mixed:        "bg-blue-500/20 text-blue-300",
+  win:          "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  loss:         "bg-red-950 text-red-400 border border-red-900",
+  inconclusive: "bg-amber-950 text-amber-400 border border-amber-900",
+  mixed:        "bg-blue-950 text-blue-400 border border-blue-900",
 };
 
 function fmtDate(d: Date | null): string {
@@ -30,8 +30,8 @@ function MetricSnapshot({ data }: { data: unknown }) {
     <dl className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1">
       {entries.map(([k, v]) => (
         <div key={k} className="flex items-baseline gap-1">
-          <dt className="text-[10px] text-white/30 shrink-0">{k}</dt>
-          <dd className="text-[10px] text-white/60">{String(Math.round(Number(v) * 10) / 10)}</dd>
+          <dt className="text-[10px] text-neutral-600 shrink-0">{k}</dt>
+          <dd className="text-[10px] text-neutral-400">{String(Math.round(Number(v) * 10) / 10)}</dd>
         </div>
       ))}
     </dl>
@@ -56,14 +56,20 @@ export default async function ExperimentsPage() {
 
   return (
     <div className="space-y-8">
+      <h1 className="text-2xl font-semibold text-neutral-100">Experiments</h1>
+
+      {experiments.length === 0 && (
+        <p className="text-sm text-neutral-600">No experiments yet. Create one via the API to track a hypothesis.</p>
+      )}
+
       {groups.filter((g) => g.items.length > 0).map((group) => (
         <section key={group.label}>
-          <h2 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-4">
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
             {group.label} · {group.items.length}
           </h2>
           <div className="space-y-3">
             {group.items.map((exp) => (
-              <div key={exp.id} className="glass-card rounded-2xl px-5 py-4 space-y-2">
+              <div key={exp.id} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -75,39 +81,39 @@ export default async function ExperimentsPage() {
                           {exp.outcome}
                         </span>
                       )}
-                      <h3 className="text-sm font-semibold text-white/90">{exp.name}</h3>
+                      <h3 className="text-sm font-semibold text-neutral-100">{exp.name}</h3>
                     </div>
-                    <p className="text-xs text-white/50 mt-1">{exp.hypothesis}</p>
+                    <p className="text-xs text-neutral-400 mt-1">{exp.hypothesis}</p>
                   </div>
                   <ExperimentActions experimentId={exp.id} status={exp.status} />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs text-white/50">
-                  <div><span className="text-white/30">Primary metric </span>{exp.primaryMetric}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-xs text-neutral-400">
+                  <div><span className="text-neutral-600">Primary metric </span>{exp.primaryMetric}</div>
                   {exp.guardrailMetrics.length > 0 && (
-                    <div><span className="text-white/30">Guardrails </span>{exp.guardrailMetrics.join(", ")}</div>
+                    <div><span className="text-neutral-600">Guardrails </span>{exp.guardrailMetrics.join(", ")}</div>
                   )}
-                  <div><span className="text-white/30">Proposed </span>{fmtDate(exp.proposedAt)}</div>
-                  {exp.startedAt && <div><span className="text-white/30">Started </span>{fmtDate(exp.startedAt)}</div>}
-                  {exp.concludedAt && <div><span className="text-white/30">Concluded </span>{fmtDate(exp.concludedAt)}</div>}
-                  <div><span className="text-white/30">Windows </span>{exp.baselineWindowDays}d / {exp.resultWindowDays}d</div>
+                  <div><span className="text-neutral-600">Proposed </span>{fmtDate(exp.proposedAt)}</div>
+                  {exp.startedAt && <div><span className="text-neutral-600">Started </span>{fmtDate(exp.startedAt)}</div>}
+                  {exp.concludedAt && <div><span className="text-neutral-600">Concluded </span>{fmtDate(exp.concludedAt)}</div>}
+                  <div><span className="text-neutral-600">Windows </span>{exp.baselineWindowDays}d / {exp.resultWindowDays}d</div>
                 </div>
 
                 {exp.conclusionNote && (
-                  <p className="text-xs text-white/40 italic">{exp.conclusionNote}</p>
+                  <p className="text-xs text-neutral-500 italic">{exp.conclusionNote}</p>
                 )}
 
                 {(exp.baselineSnapshot || exp.resultSnapshot) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 border-t border-white/8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 border-t border-neutral-800">
                     {exp.baselineSnapshot && (
                       <div>
-                        <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-0.5">Baseline snapshot</p>
+                        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-0.5">Baseline snapshot</p>
                         <MetricSnapshot data={exp.baselineSnapshot} />
                       </div>
                     )}
                     {exp.resultSnapshot && (
                       <div>
-                        <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wide mb-0.5">Result snapshot</p>
+                        <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-0.5">Result snapshot</p>
                         <MetricSnapshot data={exp.resultSnapshot} />
                       </div>
                     )}
@@ -118,10 +124,6 @@ export default async function ExperimentsPage() {
           </div>
         </section>
       ))}
-
-      {experiments.length === 0 && (
-        <p className="text-sm text-white/30">No experiments yet. Create one via the API to track a hypothesis.</p>
-      )}
     </div>
   );
 }
