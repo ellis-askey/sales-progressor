@@ -9,6 +9,10 @@ import {
   SESSION_HARD_MAX_MS,
 } from "@/lib/command/config";
 import { cookies, headers } from "next/headers";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { CommandTabNav } from "@/components/command/TabNav";
+import type { Session } from "next-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +46,6 @@ export default async function CommandProtectedLayout({
   if (now - payload.issuedAt > SESSION_HARD_MAX_MS) redirect("/login");
   if (now - payload.stepUpAt > STEP_UP_MAX_AGE_MS) redirect("/command/auth/step-up");
 
-  // lastSeenAt refresh is handled by the step-up API route on re-auth;
-  // cookieStore.set() is not permitted in Server Component layouts in Next.js 16.
-
   const headerStore = await headers();
   await recordAdminAction({
     adminUserId: user.id,
@@ -53,5 +54,13 @@ export default async function CommandProtectedLayout({
     userAgent: headerStore.get("user-agent") ?? undefined,
   }).catch(() => {});
 
-  return <>{children}</>;
+  return (
+    <AppShell session={session as Session} activePath="/command" todoCount={0}>
+      <PageHeader title="Command Centre" subtitle="Platform intelligence" />
+      <CommandTabNav />
+      <div className="px-8 py-7 max-w-6xl">
+        {children}
+      </div>
+    </AppShell>
+  );
 }

@@ -9,6 +9,7 @@ import type { Session } from "next-auth";
 import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, GearSix, House,
+  Gauge,
 } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
@@ -30,6 +31,7 @@ export function AppShell({
   completingCount?: number;
 }) {
   const isAdmin = session.user.role === "admin";
+  const isSuperAdmin = session.user.role === "superadmin";
 
   const navItems = [
     { href: "/dashboard",        label: "Dashboard",        icon: DashboardIcon,   badge: null },
@@ -43,6 +45,7 @@ export function AppShell({
     ...(session.user.role !== "sales_progressor" ? [{ href: "/not-our-files", label: "Not Our Files", icon: NotOurFilesIcon, badge: null }] : []),
     { href: "/transactions/new", label: "New Transaction",  icon: PlusIcon,        badge: null },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: AdminIcon, badge: null }] : []),
+    ...(isSuperAdmin ? [{ href: "/command/overview", label: "Command", icon: CommandIcon, badge: null }] : []),
   ];
 
   return (
@@ -155,4 +158,7 @@ function AdminIcon({ className }: { className?: string }) {
 }
 function NotOurFilesIcon({ className }: { className?: string }) {
   return <EyeSlash className={className} weight="regular" />;
+}
+function CommandIcon({ className }: { className?: string }) {
+  return <Gauge className={className} weight="regular" />;
 }

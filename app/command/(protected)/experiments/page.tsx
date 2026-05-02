@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { ExperimentActions } from "@/components/admin/command-centre/ExperimentActions";
+import { commandDb } from "@/lib/command/prisma";
+import { ExperimentActions } from "@/components/command/ExperimentActions";
 import type { ExperimentStatus, ExperimentOutcome } from "@prisma/client";
 
 const STATUS_BADGE: Record<ExperimentStatus, string> = {
@@ -39,13 +39,13 @@ function MetricSnapshot({ data }: { data: unknown }) {
 }
 
 export default async function ExperimentsPage() {
-  const experiments = await prisma.experiment.findMany({
+  const experiments = await commandDb.experiment.findMany({
     orderBy: [{ status: "asc" }, { proposedAt: "desc" }],
   });
 
   const groups: Array<{ label: string; statuses: ExperimentStatus[]; items: typeof experiments }> = [
-    { label: "Active",    statuses: ["active"],              items: [] },
-    { label: "Proposed",  statuses: ["proposed"],            items: [] },
+    { label: "Active",    statuses: ["active"],                 items: [] },
+    { label: "Proposed",  statuses: ["proposed"],               items: [] },
     { label: "Concluded", statuses: ["concluded", "abandoned"], items: [] },
   ];
 

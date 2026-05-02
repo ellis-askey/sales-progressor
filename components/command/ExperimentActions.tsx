@@ -41,9 +41,7 @@ export function ExperimentActions({
             className="text-xs bg-white/10 text-white border border-white/20 rounded px-2 py-1"
           >
             {OUTCOMES.map((o) => (
-              <option key={o} value={o} className="bg-slate-800">
-                {o}
-              </option>
+              <option key={o} value={o} className="bg-slate-800">{o}</option>
             ))}
           </select>
           <input
@@ -54,11 +52,7 @@ export function ExperimentActions({
           />
           <button
             disabled={pending || !note.trim()}
-            onClick={() =>
-              startTransition(() =>
-                concludeExperimentAction(experimentId, outcome, note.trim())
-              )
-            }
+            onClick={() => startTransition(() => concludeExperimentAction(experimentId, outcome, note.trim()))}
             className="text-xs px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors disabled:opacity-40"
           >
             {pending ? "…" : "Confirm"}

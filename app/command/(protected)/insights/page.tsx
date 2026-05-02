@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { AcknowledgeButton } from "@/components/admin/command-centre/AcknowledgeButton";
+import { commandDb } from "@/lib/command/prisma";
+import { AcknowledgeButton } from "@/components/command/AcknowledgeButton";
 import type { SignalSeverity } from "@prisma/client";
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -43,7 +43,7 @@ function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
   );
 }
 
-export default async function SignalsPage({
+export default async function InsightsPage({
   searchParams,
 }: {
   searchParams: Promise<{ sev?: string; ack?: string }>;
@@ -53,7 +53,7 @@ export default async function SignalsPage({
   const showAcked = sp.ack === "1";
 
   const [unacknowledged, acknowledged] = await Promise.all([
-    prisma.signal.findMany({
+    commandDb.signal.findMany({
       where: {
         acknowledged: false,
         ...(sevFilter ? { severity: sevFilter } : {}),
@@ -62,7 +62,7 @@ export default async function SignalsPage({
       take: 100,
     }),
     showAcked
-      ? prisma.signal.findMany({
+      ? commandDb.signal.findMany({
           where: {
             acknowledged: true,
             ...(sevFilter ? { severity: sevFilter } : {}),
@@ -85,14 +85,14 @@ export default async function SignalsPage({
     const p = new URLSearchParams();
     if (sev) p.set("sev", sev);
     if (showAcked) p.set("ack", "1");
-    return `/admin/command-centre/signals${p.toString() ? `?${p}` : ""}`;
+    return `/command/insights${p.toString() ? `?${p}` : ""}`;
   }
 
   function ackToggle(): string {
     const p = new URLSearchParams();
     if (sevFilter) p.set("sev", sevFilter);
     if (!showAcked) p.set("ack", "1");
-    return `/admin/command-centre/signals${p.toString() ? `?${p}` : ""}`;
+    return `/command/insights${p.toString() ? `?${p}` : ""}`;
   }
 
   return (

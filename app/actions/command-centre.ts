@@ -1,38 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireSession } from "@/lib/session";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { startExperiment, abandonExperiment } from "@/lib/services/experiments/lifecycle";
+import { commandDb } from "@/lib/command/prisma";
+import { startExperiment, abandonExperiment, concludeExperiment } from "@/lib/services/experiments/lifecycle";
 
-const FOUNDER_EMAIL = process.env.FOUNDER_EMAIL ?? "ellisaskey@googlemail.com";
-
-async function requireFounder() {
-  const session = await requireSession();
-  if (session.user.email !== FOUNDER_EMAIL) redirect("/admin");
+async function requireSuperAdmin() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || session.user.role !== "superadmin") redirect("/dashboard");
   return session;
 }
 
 export async function acknowledgeSignalAction(signalId: string) {
-  await requireFounder();
-  await prisma.signal.update({
+  await requireSuperAdmin();
+  await commandDb.signal.update({
     where: { id: signalId },
     data: { acknowledged: true, acknowledgedAt: new Date() },
   });
-  revalidatePath("/admin/command-centre/signals");
+  revalidatePath("/command/insights");
+  revalidatePath("/command/overview");
 }
 
 export async function startExperimentAction(experimentId: string) {
-  await requireFounder();
+  await requireSuperAdmin();
   await startExperiment(experimentId);
-  revalidatePath("/admin/command-centre/experiments");
+  revalidatePath("/command/experiments");
 }
 
 export async function abandonExperimentAction(experimentId: string, reason: string) {
-  await requireFounder();
+  await requireSuperAdmin();
   await abandonExperiment(experimentId, reason);
-  revalidatePath("/admin/command-centre/experiments");
+  revalidatePath("/command/experiments");
 }
 
 export async function concludeExperimentAction(
@@ -40,8 +40,7 @@ export async function concludeExperimentAction(
   outcome: "win" | "loss" | "inconclusive" | "mixed",
   conclusionNote: string
 ) {
-  await requireFounder();
-  const { concludeExperiment } = await import("@/lib/services/experiments/lifecycle");
+  await requireSuperAdmin();
   await concludeExperiment(experimentId, outcome, conclusionNote);
-  revalidatePath("/admin/command-centre/experiments");
+  revalidatePath("/command/experiments");
 }
