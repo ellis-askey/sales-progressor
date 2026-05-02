@@ -68,9 +68,16 @@ export default async function AdminPage() {
         title="Admin"
         subtitle="Agency settings and configuration"
         action={
-          <Link href="/admin/audit" className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors font-medium">
-            View audit trail →
-          </Link>
+          <div className="flex items-center gap-2">
+            {session.user.email === (process.env.FOUNDER_EMAIL ?? "ellisaskey@googlemail.com") && (
+              <Link href="/admin/command-centre" className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors font-medium">
+                Command Centre →
+              </Link>
+            )}
+            <Link href="/admin/audit" className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-colors font-medium">
+              View audit trail →
+            </Link>
+          </div>
         }
       />
       <div className="px-8 py-7 space-y-10 max-w-5xl">
