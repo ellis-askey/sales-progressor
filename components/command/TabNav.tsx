@@ -11,9 +11,12 @@ const TABS = [
   { href: "/command/retention",     label: "Retention"    },
   { href: "/command/activity",      label: "Activity"     },
   { href: "/command/outbound",      label: "Outbound",     soon: true },
+  { href: "/command/content",       label: "Content"      },
   { href: "/command/experiments",   label: "Experiments"  },
+  { href: "/command/automations",   label: "Automations"  },
   { href: "/command/friction",      label: "Friction"     },
   { href: "/command/health",        label: "Health"       },
+  { href: "/command/revenue",       label: "Revenue"      },
   { href: "/command/audit",         label: "Audit",        soon: true },
 ];
 
