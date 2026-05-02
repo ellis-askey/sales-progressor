@@ -12,8 +12,8 @@ const TABS = [
   { href: "/command/activity",      label: "Activity"     },
   { href: "/command/outbound",      label: "Outbound",     soon: true },
   { href: "/command/experiments",   label: "Experiments"  },
-  { href: "/command/friction",      label: "Friction",     soon: true },
-  { href: "/command/health",        label: "Health",       soon: true },
+  { href: "/command/friction",      label: "Friction"     },
+  { href: "/command/health",        label: "Health"       },
   { href: "/command/audit",         label: "Audit",        soon: true },
 ];
 
