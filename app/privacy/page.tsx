@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         </div>
 
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-sm text-slate-500 mb-10">Last updated: April 2026</p>
+        <p className="text-sm text-slate-500 mb-10">Last updated: May 2026</p>
 
         <div className="prose prose-slate max-w-none space-y-8">
 
@@ -44,12 +44,14 @@ export default function PrivacyPage() {
               <li><strong>Vercel</strong> — application hosting</li>
               <li><strong>SendGrid (Twilio)</strong> — email delivery for progress updates and portal invites</li>
               <li><strong>Anthropic</strong> — AI message generation (chase message drafts only; no personal data is included in AI prompts beyond role descriptions and milestone names)</li>
+              <li><strong>Upstash Redis</strong> — rate limiting counters only; no personal data is stored. Counters are keyed by IP address or an anonymised token identifier and expire automatically.</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">5. Data retention</h2>
-            <p className="text-slate-600 leading-relaxed">Transaction data is retained for 7 years after completion or cancellation to support compliance with estate agency record-keeping requirements. Account data for agency staff is retained while the account is active and for 12 months after deactivation. Portal access links expire after the transaction is marked complete.</p>
+            <p className="text-slate-600 leading-relaxed">Transaction data is retained for 7 years after completion or cancellation to support compliance with estate agency record-keeping requirements. Account data for agency staff is retained while the account is active. Accounts that have been inactive for 3 or more years with no open transactions are automatically anonymised — all personal identifiers (name, email, phone number) are replaced with placeholder values. Portal access links expire after the transaction is marked complete.</p>
+            <p className="text-slate-600 leading-relaxed mt-3">To request early deletion of your data, email <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a>.</p>
           </section>
 
           <section>

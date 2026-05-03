@@ -15,7 +15,7 @@ export default function CookiePolicyPage() {
         <Link href="/" style={{ color: "#888", textDecoration: "none" }}>Sales Progressor</Link>
       </p>
       <h1 style={{ fontSize: "26px", fontWeight: "700", marginBottom: "6px" }}>Cookie Policy</h1>
-      <p style={{ color: "#888", fontSize: "14px", marginTop: "0" }}>Last updated: May 2025</p>
+      <p style={{ color: "#888", fontSize: "14px", marginTop: "0" }}>Last updated: May 2026</p>
 
       <p>
         Sales Progressor (&ldquo;we&rdquo;, &ldquo;us&rdquo;) uses cookies and similar storage
@@ -60,6 +60,11 @@ export default function CookiePolicyPage() {
               name: "cookie-consent",
               purpose: "Remembers whether you have accepted or declined optional analytics cookies, so we do not ask again on every visit.",
               duration: "1 year",
+            },
+            {
+              name: "command_session",
+              purpose: "Command Centre only. Confirms that an authorised administrator has passed two-factor authentication (TOTP step-up) to access the admin console. Not set for regular agency users.",
+              duration: "24 hours",
             },
           ].map((row) => (
             <tr key={row.name} style={{ borderBottom: "1px solid #f0f0f0" }}>
