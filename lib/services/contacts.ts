@@ -20,10 +20,11 @@ export type CreateContactInput = {
  * agencyId is used to verify the transaction belongs to the user's agency
  * before writing — never skip this check.
  */
-export async function createContact(input: CreateContactInput, agencyId: string) {
-  // Verify the transaction exists and belongs to this agency
+export async function createContact(input: CreateContactInput, agencyId: string | null) {
   const transaction = await prisma.propertyTransaction.findFirst({
-    where: { id: input.propertyTransactionId, agencyId },
+    where: agencyId
+      ? { id: input.propertyTransactionId, agencyId }
+      : { id: input.propertyTransactionId },
     select: { id: true },
   });
 
@@ -44,12 +45,11 @@ export async function createContact(input: CreateContactInput, agencyId: string)
 }
 
 /** Delete a contact (agency-scoped via transaction join) */
-export async function deleteContact(contactId: string, agencyId: string) {
+export async function deleteContact(contactId: string, agencyId: string | null) {
   const contact = await prisma.contact.findFirst({
-    where: {
-      id: contactId,
-      transaction: { agencyId },
-    },
+    where: agencyId
+      ? { id: contactId, transaction: { agencyId } }
+      : { id: contactId },
     select: { id: true },
   });
 

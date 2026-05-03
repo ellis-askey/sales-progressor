@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
@@ -142,8 +143,9 @@ const STATUS_LABELS: Record<TransactionStatus, string> = {
 
 export async function saveCompletionDateAction(transactionId: string, completionDate: string | null) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -173,8 +175,9 @@ export async function changeStatusAction(
   fallThroughReason?: string | null
 ) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true, status: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -211,8 +214,9 @@ export async function changeStatusAction(
 
 export async function savePriceAction(transactionId: string, purchasePrice: number) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true, purchasePrice: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -238,8 +242,9 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
 
 export async function saveOverrideDateAction(transactionId: string, overridePredictedDate: string | null) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -270,8 +275,9 @@ export async function saveAgentFeeAction(input: {
   agentFeeIsVatInclusive: boolean;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -296,19 +302,22 @@ export async function saveAgentFeeAction(input: {
 
 export async function assignUserAction(transactionId: string, assignedUserId: string | null) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  if (scope.kind !== "all") throw new Error("Forbidden: only admin can assign a progressor");
+
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: { id: transactionId },
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { assignedUserId: assignedUserId || null },
+    data: { assignedUserId: assignedUserId || null, assignedAt: assignedUserId ? new Date() : null },
   });
 
   const assignee = assignedUserId
-    ? await prisma.user.findFirst({ where: { id: assignedUserId, agencyId: session.user.agencyId }, select: { name: true } })
+    ? await prisma.user.findFirst({ where: { id: assignedUserId }, select: { name: true } })
     : null;
   await logActivity(
     transactionId,
@@ -330,8 +339,9 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   referralFee?: number | null;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -352,8 +362,9 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
 
 export async function savePurchaseTypeAction(transactionId: string, purchaseType: PurchaseType) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -375,8 +386,9 @@ export async function saveReferralAction(
   data: { referredFirmId: string | null; referralFee: number | null; referralFeeReceived: boolean }
 ) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -417,7 +429,7 @@ export async function saveDraftAction(data: {
 
   if (data.draftId) {
     const existing = await prisma.propertyTransaction.findFirst({
-      where: { id: data.draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+      where: { ...scopeOwnershipWhere(getAccessScope(session), data.draftId), status: DRAFT_STATUS },
       select: { id: true },
     });
     if (!existing) throw new Error("Draft not found");
@@ -590,9 +602,10 @@ export async function getSaleDetailsDelta(input: {
   newTenure: Tenure;
 }): Promise<SaleDetailsDelta> {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true, purchaseType: true, tenure: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -671,9 +684,10 @@ export async function confirmSaleDetailsAction(input: {
   newTenure: Tenure;
 }): Promise<void> {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true, purchaseType: true, tenure: true },
   });
   if (!tx) throw new Error("Transaction not found");

@@ -470,9 +470,9 @@ async function deactivateLog(
 
 // ─── Task actions ─────────────────────────────────────────────────────────────
 
-export async function advanceChaseTask(taskId: string, agencyId: string) {
+export async function advanceChaseTask(taskId: string, agencyId: string | null) {
   const task = await prisma.chaseTask.findFirst({
-    where: { id: taskId, transaction: { agencyId } },
+    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
     select: {
       id: true,
       chaseCount: true,
@@ -507,9 +507,9 @@ export async function advanceChaseTask(taskId: string, agencyId: string) {
   ]);
 }
 
-export async function completeChaseTask(taskId: string, agencyId: string) {
+export async function completeChaseTask(taskId: string, agencyId: string | null) {
   const task = await prisma.chaseTask.findFirst({
-    where: { id: taskId, transaction: { agencyId } },
+    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
     select: { id: true, reminderLogId: true },
   });
   if (!task) throw new Error("Task not found");
@@ -538,9 +538,9 @@ export async function cancelChaseTask(taskId: string, agencyId: string) {
   });
 }
 
-export async function snoozeReminderLog(taskId: string, snoozeHours: number, agencyId: string) {
+export async function snoozeReminderLog(taskId: string, snoozeHours: number, agencyId: string | null) {
   const task = await prisma.chaseTask.findFirst({
-    where: { id: taskId, transaction: { agencyId } },
+    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
     select: { id: true, reminderLogId: true },
   });
   if (!task) throw new Error("Task not found");
@@ -558,9 +558,9 @@ export async function snoozeReminderLog(taskId: string, snoozeHours: number, age
   });
 }
 
-export async function wakeUpReminderLog(logId: string, agencyId: string) {
+export async function wakeUpReminderLog(logId: string, agencyId: string | null) {
   const log = await prisma.reminderLog.findFirst({
-    where: { id: logId, transaction: { agencyId } },
+    where: agencyId ? { id: logId, transaction: { agencyId } } : { id: logId },
     select: { id: true },
   });
   if (!log) throw new Error("Reminder log not found");

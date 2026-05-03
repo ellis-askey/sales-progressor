@@ -2,38 +2,40 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
 import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 
 export async function completeTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
-  await completeChaseTask(taskId, session.user.agencyId);
+  await completeChaseTask(taskId, session.user.agencyId || null);
   revalidatePath(pathname, "page");
 }
 
 export async function snoozeTaskAction(taskId: string, snoozeHours: number, pathname: string) {
   const session = await requireSession();
-  await snoozeReminderLog(taskId, snoozeHours, session.user.agencyId);
+  await snoozeReminderLog(taskId, snoozeHours, session.user.agencyId || null);
   revalidatePath(pathname, "page");
 }
 
 export async function wakeupReminderAction(logId: string, pathname: string) {
   const session = await requireSession();
-  await wakeUpReminderLog(logId, session.user.agencyId);
+  await wakeUpReminderLog(logId, session.user.agencyId || null);
   revalidatePath(pathname, "page");
 }
 
 export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
-  await advanceChaseTask(taskId, session.user.agencyId);
+  await advanceChaseTask(taskId, session.user.agencyId || null);
   revalidatePath(pathname, "page");
 }
 
 export async function recordManualChaseAction(taskId: string, pathname: string) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const task = await prisma.chaseTask.findFirst({
-    where: { id: taskId, transaction: { agencyId: session.user.agencyId } },
+    where: scopeChaseTaskWhere(scope, taskId),
     select: { id: true, chaseCount: true, transactionId: true },
   });
   if (!task) throw new Error("Task not found");
@@ -57,8 +59,9 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
 
 export async function escalateTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const task = await prisma.chaseTask.findFirst({
-    where: { id: taskId, transaction: { agencyId: session.user.agencyId } },
+    where: scopeChaseTaskWhere(scope, taskId),
     select: { id: true },
   });
   if (!task) throw new Error("Task not found");
@@ -68,13 +71,17 @@ export async function escalateTaskAction(taskId: string, pathname: string) {
 
 export async function runReminderEngineAction(pathname: string) {
   const session = await requireSession();
-  await runReminderEngine(session.user.agencyId);
+  await runReminderEngine(session.user.agencyId || undefined);
   revalidatePath(pathname, "page");
 }
 
 export async function getTransactionReminderCountAction(transactionId: string): Promise<number> {
   const session = await requireSession();
-  return prisma.reminderLog.count({
-    where: { transactionId, transaction: { agencyId: session.user.agencyId } },
-  });
+  const scope = getAccessScope(session);
+  const where = scope.kind === "all"
+    ? { transactionId }
+    : scope.kind === "assigned"
+    ? { transactionId, transaction: { assignedUserId: scope.userId } }
+    : { transactionId, transaction: { agencyId: scope.agencyIds[0] } };
+  return prisma.reminderLog.count({ where });
 }

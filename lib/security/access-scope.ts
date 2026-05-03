@@ -74,6 +74,31 @@ export function scopeOwnershipWhere(
 }
 
 /**
+ * Prisma where clause for a ChaseTask, verifying the related transaction is in scope.
+ * Use in findFirst() before mutating a chase task in a server action.
+ */
+export function scopeChaseTaskWhere(
+  scope: AccessScope,
+  taskId: string
+): Prisma.ChaseTaskWhereInput {
+  if (scope.kind === "all")      return { id: taskId };
+  if (scope.kind === "assigned") return { id: taskId, transaction: { assignedUserId: scope.userId } };
+  return { id: taskId, transaction: { agencyId: scope.agencyIds[0] } };
+}
+
+/**
+ * Prisma where clause for a ReminderLog, verifying the related transaction is in scope.
+ */
+export function scopeReminderLogWhere(
+  scope: AccessScope,
+  logId: string
+): Prisma.ReminderLogWhereInput {
+  if (scope.kind === "all")      return { id: logId };
+  if (scope.kind === "assigned") return { id: logId, transaction: { assignedUserId: scope.userId } };
+  return { id: logId, transaction: { agencyId: scope.agencyIds[0] } };
+}
+
+/**
  * Boolean check — does this scope allow reading this transaction?
  * Use for in-memory checks where the transaction is already loaded.
  */

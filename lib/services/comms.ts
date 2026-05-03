@@ -126,12 +126,14 @@ export type CreateCommInput = {
   isAutomated?: boolean;
   visibleToClient?: boolean;
   createdById: string;
-  agencyId: string;
+  agencyId: string | null;
 };
 
 export async function createCommunicationRecord(input: CreateCommInput) {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: input.agencyId },
+    where: input.agencyId
+      ? { id: input.transactionId, agencyId: input.agencyId }
+      : { id: input.transactionId },
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -220,9 +222,9 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
   }));
 }
 
-export async function deleteCommunicationRecord(id: string, agencyId: string) {
+export async function deleteCommunicationRecord(id: string, agencyId: string | null) {
   const comm = await prisma.outboundMessage.findFirst({
-    where: { id, transaction: { agencyId } },
+    where: agencyId ? { id, transaction: { agencyId } } : { id },
     select: { id: true },
   });
   if (!comm) throw new Error("Not found");

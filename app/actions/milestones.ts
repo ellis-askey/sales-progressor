@@ -7,6 +7,7 @@ function revalidateTx(id: string) {
   revalidatePath(`/agent/transactions/${id}`, "page");
 }
 import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import type { PurchaseType } from "@prisma/client";
 import {
@@ -45,9 +46,10 @@ export async function confirmMilestoneAction(input: {
   eventDate?: string | null;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -240,9 +242,10 @@ export async function markNotRequiredAction(input: {
   purchaseType?: PurchaseType;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -269,9 +272,10 @@ export async function reverseMilestoneAction(input: {
   newPurchaseType?: PurchaseType;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -296,8 +300,9 @@ export async function getUndoImpactAction(input: {
   milestoneDefinitionId: string;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -310,8 +315,9 @@ export async function executeUndoMilestoneAction(input: {
   mode: "target_only" | "cascade";
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -343,9 +349,10 @@ export async function getExchangeReconciliationList(input: {
   skipModal: boolean;
 }> {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -399,9 +406,10 @@ export async function confirmExchangeReconciliationAction(input: {
   completionDate?: string;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");

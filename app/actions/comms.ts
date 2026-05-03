@@ -18,14 +18,14 @@ export async function addNoteAction(transactionId: string, content: string) {
     contactIds: [],
     content,
     createdById: session.user.id,
-    agencyId: session.user.agencyId,
+    agencyId: session.user.agencyId || null,
   });
   revalidateTx(transactionId);
 }
 
 export async function deleteCommAction(id: string, transactionId: string) {
   const session = await requireSession();
-  await deleteCommunicationRecord(id, session.user.agencyId);
+  await deleteCommunicationRecord(id, session.user.agencyId || null);
   revalidateTx(transactionId);
 }
 
@@ -46,7 +46,7 @@ export async function logCommAction(input: {
     content: input.content,
     visibleToClient: input.visibleToClient,
     createdById: session.user.id,
-    agencyId: session.user.agencyId,
+    agencyId: session.user.agencyId || null,
   });
   revalidateTx(input.transactionId);
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { portalCompleteMilestone, portalMarkNotRequired } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
@@ -47,10 +48,10 @@ export async function replyPortalMessageAction(input: {
 }) {
   const session = await requireSession();
   if (!input.content.trim()) throw new Error("Reply cannot be empty");
+  const scope = getAccessScope(session);
 
-  // Verify the transaction belongs to this agency
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: input.transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, input.transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");

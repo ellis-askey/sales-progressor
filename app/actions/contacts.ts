@@ -8,6 +8,7 @@ function revalidateTx(id: string) {
   revalidatePath(`/agent/transactions/${id}`, "page");
 }
 import { requireSession } from "@/lib/session";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/services/activity";
@@ -21,7 +22,7 @@ export async function createContactAction(input: {
   roleType: ContactRole;
 }) {
   const session = await requireSession();
-  const contact = await createContact(input, session.user.agencyId);
+  const contact = await createContact(input, session.user.agencyId || null);
   await logActivity(
     input.propertyTransactionId,
     `${session.user.name} added contact: ${input.name} (${input.roleType.replace(/_/g, " ")})`,
@@ -39,8 +40,10 @@ export async function updateContactAction(input: {
   email: string | null;
 }) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  const txWhere = scopeOwnershipWhere(scope, input.transactionId);
   const existing = await prisma.contact.findFirst({
-    where: { id: input.id, transaction: { agencyId: session.user.agencyId } },
+    where: { id: input.id, transaction: txWhere },
     select: { id: true },
   });
   if (!existing) throw new Error("Contact not found");
@@ -59,11 +62,13 @@ export async function updateContactAction(input: {
 
 export async function deleteContactAction(contactId: string, transactionId: string) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  const txWhere = scopeOwnershipWhere(scope, transactionId);
   const contact = await prisma.contact.findFirst({
-    where: { id: contactId, transaction: { agencyId: session.user.agencyId } },
+    where: { id: contactId, transaction: txWhere },
     select: { name: true },
   });
-  await deleteContact(contactId, session.user.agencyId);
+  await deleteContact(contactId, session.user.agencyId || null);
   if (contact) {
     await logActivity(transactionId, `${session.user.name} removed contact: ${contact.name}`, session.user.id);
   }
@@ -72,8 +77,10 @@ export async function deleteContactAction(contactId: string, transactionId: stri
 
 export async function generatePortalTokenAction(contactId: string, transactionId: string) {
   const session = await requireSession();
+  const scope = getAccessScope(session);
+  const txWhere = scopeOwnershipWhere(scope, transactionId);
   const existing = await prisma.contact.findFirst({
-    where: { id: contactId, transaction: { agencyId: session.user.agencyId } },
+    where: { id: contactId, transaction: txWhere },
     select: { id: true, portalToken: true },
   });
   if (!existing) throw new Error("Contact not found");
