@@ -30,12 +30,12 @@ function BrandMark({ dark }: { dark: boolean }) {
 }
 
 const DARK_BACKGROUNDS = [
-  // Solid near-black with coral glow
-  { bg: "#0a0a0a", glow: "radial-gradient(ellipse 60% 50% at 15% 80%, rgba(255,107,74,0.18) 0%, transparent 70%)" },
-  // Deep charcoal
-  { bg: "#111111", glow: "radial-gradient(ellipse 50% 40% at 85% 20%, rgba(255,138,101,0.12) 0%, transparent 65%)" },
-  // Near-black with subtle warm tint
-  { bg: "#0f0d0b", glow: "radial-gradient(ellipse 70% 60% at 50% 100%, rgba(255,107,74,0.10) 0%, transparent 60%)" },
+  // Dark navy — matches marketing site primary (dark navy + coral)
+  { bg: "#0a0e1a", glow: "radial-gradient(ellipse 60% 50% at 15% 80%, rgba(255,107,74,0.22) 0%, transparent 70%)" },
+  // Deeper navy-blue
+  { bg: "#0d1117", glow: "radial-gradient(ellipse 50% 40% at 85% 20%, rgba(255,138,101,0.15) 0%, transparent 65%)" },
+  // Rich navy with subtle coral warmth
+  { bg: "#0a0f1e", glow: "radial-gradient(ellipse 70% 60% at 50% 100%, rgba(255,107,74,0.12) 0%, transparent 60%)" },
 ];
 
 const LIGHT_BACKGROUNDS = [

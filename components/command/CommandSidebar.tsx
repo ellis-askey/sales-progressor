@@ -55,7 +55,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Phase 5",
     items: [
-      { href: "/command/content", label: "Content", Icon: Pencil, soon: true },
+      { href: "/command/content", label: "Content", Icon: Pencil },
       { href: "/command/automations", label: "Automations", Icon: Workflow, soon: true },
     ],
   },

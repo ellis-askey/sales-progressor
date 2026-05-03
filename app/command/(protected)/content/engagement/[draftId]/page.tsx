@@ -1,15 +1,44 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { commandDb } from "@/lib/command/prisma";
-import { logEngagementAction } from "@/app/actions/content-engagement";
+import { EngagementForm } from "@/components/command/content/EngagementForm";
 import { CHANNELS } from "@/lib/command/content/channels";
 
-const CHANNEL_METRICS: Record<string, string[]> = {
-  linkedin: ["Impressions", "Likes", "Comments", "Shares", "Clicks"],
-  twitter: ["Impressions", "Likes", "Replies", "Reposts", "Clicks"],
-  tiktok_script: ["Views", "Likes", "Comments", "Shares"],
-  instagram_caption: ["Impressions", "Likes", "Comments", "Shares", "Saves"],
-  instagram_reel_script: ["Views", "Likes", "Comments", "Shares", "Saves"],
+const CHANNEL_METRIC_LABELS: Record<string, { label: string; name: string }[]> = {
+  linkedin: [
+    { label: "Impressions", name: "impressions" },
+    { label: "Likes / Reactions", name: "likes" },
+    { label: "Comments", name: "comments" },
+    { label: "Shares / Reposts", name: "shares" },
+    { label: "Clicks", name: "clicks" },
+  ],
+  twitter: [
+    { label: "Impressions", name: "impressions" },
+    { label: "Likes", name: "likes" },
+    { label: "Replies", name: "comments" },
+    { label: "Retweets / Reposts", name: "shares" },
+    { label: "Link clicks", name: "clicks" },
+  ],
+  tiktok_script: [
+    { label: "Views", name: "impressions" },
+    { label: "Likes", name: "likes" },
+    { label: "Comments", name: "comments" },
+    { label: "Shares", name: "shares" },
+  ],
+  instagram_caption: [
+    { label: "Reach", name: "impressions" },
+    { label: "Likes", name: "likes" },
+    { label: "Comments", name: "comments" },
+    { label: "Shares / Sends", name: "shares" },
+    { label: "Saves", name: "clicks" },
+  ],
+  instagram_reel_script: [
+    { label: "Views", name: "impressions" },
+    { label: "Likes", name: "likes" },
+    { label: "Comments", name: "comments" },
+    { label: "Shares", name: "shares" },
+    { label: "Saves", name: "clicks" },
+  ],
 };
 
 export default async function EngagementPage({
@@ -37,18 +66,13 @@ export default async function EngagementPage({
       })
     : "unknown date";
 
-  const metricNames = CHANNEL_METRICS[draft.channel] ?? ["Impressions", "Likes", "Comments", "Shares"];
-
-  // Map metric names to form field names
-  function fieldFor(metric: string): string {
-    const m = metric.toLowerCase();
-    if (m === "likes") return "likes";
-    if (m === "comments" || m === "replies") return "comments";
-    if (m === "shares" || m === "reposts") return "shares";
-    if (m === "impressions" || m === "views") return "impressions";
-    if (m === "clicks" || m === "saves") return "clicks";
-    return "likes";
-  }
+  const metricFields =
+    CHANNEL_METRIC_LABELS[draft.channel] ?? [
+      { label: "Impressions", name: "impressions" },
+      { label: "Likes", name: "likes" },
+      { label: "Comments", name: "comments" },
+      { label: "Shares", name: "shares" },
+    ];
 
   return (
     <div className="space-y-8 max-w-xl">
@@ -62,6 +86,19 @@ export default async function EngagementPage({
         <h1 className="text-2xl font-semibold text-neutral-100 mt-3">Log engagement</h1>
         <p className="text-xs text-neutral-500 mt-1">
           {channelLabel} · posted {postedDate}
+          {draft.postedUrl && (
+            <>
+              {" · "}
+              <a
+                href={draft.postedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-neutral-400 hover:text-neutral-200 underline underline-offset-2"
+              >
+                View post →
+              </a>
+            </>
+          )}
         </p>
       </div>
 
@@ -86,65 +123,19 @@ export default async function EngagementPage({
         </div>
       )}
 
-      {/* Engagement form */}
-      <form action={logEngagementAction} className="space-y-5">
-        <input type="hidden" name="draftPostId" value={draftId} />
-
-        <div>
-          <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-wider mb-3">
-            Metrics
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {metricNames.map((metric) => {
-              const field = fieldFor(metric);
-              const defaultVal =
-                field === "likes"
-                  ? existing?.likes
-                  : field === "comments"
-                  ? existing?.comments
-                  : field === "shares"
-                  ? existing?.shares
-                  : field === "impressions"
-                  ? existing?.impressions
-                  : field === "clicks"
-                  ? existing?.clicks
-                  : undefined;
-
-              return (
-                <div key={metric}>
-                  <label className="block text-xs text-neutral-500 mb-1">{metric}</label>
-                  <input
-                    type="number"
-                    name={field}
-                    min="0"
-                    defaultValue={defaultVal ?? ""}
-                    placeholder="0"
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-700 focus:outline-none focus:border-neutral-600 tabular-nums"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs text-neutral-500 mb-1">Notes (optional)</label>
-          <textarea
-            name="notes"
-            rows={3}
-            defaultValue={existing?.notes ?? ""}
-            placeholder="e.g. boosted post, reshared by a partner, unusual topic…"
-            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 resize-none"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="text-sm px-5 py-2 bg-neutral-200 text-neutral-900 rounded-lg font-medium hover:bg-white transition-colors"
-        >
-          {existing ? "Update engagement" : "Save engagement"}
-        </button>
-      </form>
+      <EngagementForm
+        draftPostId={draftId}
+        metricFields={metricFields}
+        defaults={{
+          likes: existing?.likes,
+          comments: existing?.comments,
+          shares: existing?.shares,
+          impressions: existing?.impressions,
+          clicks: existing?.clicks,
+          notes: existing?.notes,
+        }}
+        isUpdate={!!existing}
+      />
     </div>
   );
 }

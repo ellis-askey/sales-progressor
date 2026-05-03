@@ -165,9 +165,14 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Portal routes are token-authenticated (no admin session needed)
+      // Machine-to-machine routes authenticate via Bearer token inside the handler —
+      // they must bypass the NextAuth session gate so Vercel Crons can reach them.
       authorized: ({ req, token }) => {
-        if (req.nextUrl.pathname.startsWith("/portal")) return true;
+        const { pathname } = req.nextUrl;
+        if (pathname.startsWith("/portal")) return true;
+        if (pathname.startsWith("/api/cron/")) return true;
+        if (pathname.startsWith("/api/reminders/")) return true;
+        if (pathname.startsWith("/api/webhooks/")) return true;
         return !!token;
       },
     },

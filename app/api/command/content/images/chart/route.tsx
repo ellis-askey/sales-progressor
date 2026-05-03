@@ -10,7 +10,7 @@ const H = 628;
 const CORAL = "#FF6B4A";
 const CORAL_LIGHT = "#FFAA7A";
 
-const DARK_BG = "#111111";
+const DARK_BG = "#0a0e1a";
 const LIGHT_BG = "#FFF8F5";
 
 function weekLabel(offsetWeeks: number): string {

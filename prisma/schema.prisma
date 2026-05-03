@@ -1113,6 +1113,7 @@ model DraftPost {
   batchId         String?      // ContentBatch.id — set when batch email is sent
 
   approvedForBatch Boolean @default(false) // user flagged this variant for the morning batch
+  postedUrl        String?                  // URL of the live post (filled when marking as posted)
 
   @@index([createdAt])
   @@index([channel, createdAt])

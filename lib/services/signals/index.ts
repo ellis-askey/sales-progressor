@@ -15,6 +15,7 @@ import { costDrift } from "./detectors/cost-drift";
 import { posthogRageClick } from "./detectors/posthog-rage-click";
 import { posthogFunnelAbandonment } from "./detectors/posthog-funnel-abandonment";
 import { posthogSessionFriction } from "./detectors/posthog-session-friction";
+import { contentPerformance } from "./detectors/content-performance";
 
 const DETECTORS = [
   metricDelta,
@@ -28,6 +29,7 @@ const DETECTORS = [
   posthogRageClick,
   posthogFunnelAbandonment,
   posthogSessionFriction,
+  contentPerformance,
 ];
 
 /** Build a standard 7d/7d window anchored at `now` */

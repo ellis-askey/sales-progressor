@@ -20,6 +20,7 @@ export async function markAsPostedAction(formData: FormData): Promise<void> {
   const draftId = formData.get("draftId") as string;
   const editedText = (formData.get("editedText") as string ?? "").trim();
   const chosenVariant = Number(formData.get("chosenVariant") ?? 1);
+  const postedUrl = (formData.get("postedUrl") as string ?? "").trim() || null;
 
   if (!draftId) return;
 
@@ -36,6 +37,7 @@ export async function markAsPostedAction(formData: FormData): Promise<void> {
       postedAt: new Date(),
       editedText: finalText,
       chosenVariant,
+      postedUrl,
     },
   });
 

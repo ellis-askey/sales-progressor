@@ -111,14 +111,20 @@ export function DraftVariantPanel({ draftId, variantNum, text, charLimit, onActi
         )}
 
         {/* Mark as posted */}
-        <form action={handleMarkPosted}>
+        <form action={handleMarkPosted} className="flex items-center gap-2">
           <input type="hidden" name="draftId" value={draftId} />
           <input type="hidden" name="editedText" value={editedText} />
           <input type="hidden" name="chosenVariant" value={variantNum} />
+          <input
+            type="url"
+            name="postedUrl"
+            placeholder="Post URL (optional)"
+            className="text-xs px-2.5 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-neutral-300 placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500 w-52"
+          />
           <button
             type="submit"
             disabled={isPending || overLimit}
-            className="text-xs px-3 py-1.5 bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="text-xs px-3 py-1.5 bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isPending ? "Saving…" : "Mark as posted"}
           </button>
