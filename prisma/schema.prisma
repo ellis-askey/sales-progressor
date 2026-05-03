@@ -133,6 +133,7 @@ model PropertyTransaction {
   status                       TransactionStatus @default(active)
   agencyId                     String
   assignedUserId               String?
+  assignedAt                   DateTime?
   agentUserId                  String?
   progressedBy                 ProgressedBy      @default(progressor)
   serviceType                  ServiceType       @default(self_managed)
@@ -180,6 +181,7 @@ model PropertyTransaction {
   portalMessages             PortalMessage[]
   documents                  TransactionDocument[]
   flags                      TransactionFlag[]
+  outsourcedAssignmentNotification OutsourcedAssignmentNotification?
 
   @@index([serviceType, createdAt])
 }
@@ -1232,4 +1234,20 @@ model AdminAuditLog {
   @@index([adminUserId, occurredAt])
   @@index([action, occurredAt])
   @@index([targetType, targetId])
+}
+
+// ─── OutsourcedAssignmentNotification ────────────────────────────────────────
+// Package D: idempotency record for the "new outsourced file" admin email.
+// One row per transaction, ever. If a row exists the notification has fired.
+
+model OutsourcedAssignmentNotification {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  transactionId  String   @unique
+  sentAt         DateTime
+  recipientEmail String
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([sentAt])
 }
