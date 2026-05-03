@@ -40,3 +40,9 @@ Current enforcement model: application-layer agencyId checks (hardened by PR 52)
 **Estimated effort:** 2–3 days dev + 1 day testing.
 **Timing:** Pre-Series-A / pre-first-enterprise-customer. No action until then.
 **Reference:** docs/MANUAL_TASKS.md (bypass policy SQL + strict policy SQL kept for reference).
+
+---
+
+## Ownership enforcement helper — deferred to Package D
+
+Package D will introduce `lib/security/access-scope.ts` as the standard ownership-enforcement helper. Until then, inline `findFirst({ where: { id, agencyId } })` patterns are the live mechanism. Do NOT build `lib/security/assertOwnership.ts` — Package D's helper replaces it with a more complete model that handles internal staff and outsourced file access correctly. Reference: see PACKAGE_D_SCOPE §3 (Root cause and fix shape).
