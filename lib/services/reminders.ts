@@ -400,13 +400,19 @@ export async function runReminderEngine(agencyId?: string) {
   let processed = 0;
   let errors = 0;
 
-  for (const tx of transactions) {
-    try {
-      await evaluateTransactionReminders(tx.id);
-      processed++;
-    } catch (err) {
-      console.error(`Error evaluating transaction ${tx.id}:`, err);
-      errors++;
+  // Process in parallel batches of 8 — reduces total time ~8× vs sequential
+  const BATCH = 8;
+  for (let i = 0; i < transactions.length; i += BATCH) {
+    const batch = transactions.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map((tx) => evaluateTransactionReminders(tx.id))
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") processed++;
+      else {
+        errors++;
+        console.error("Reminder engine error:", r.reason);
+      }
     }
   }
 
