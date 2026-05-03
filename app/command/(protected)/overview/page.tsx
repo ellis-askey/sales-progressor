@@ -1,6 +1,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
+import WhatChanged from "@/components/command/shared/WhatChanged";
 
 function fmtDelta(v: number): string {
   return v >= 0 ? `+${v}%` : `${v}%`;
@@ -89,11 +90,11 @@ export default async function OverviewPage({
   }
 
   const statRows = [
-    { label: "New signups",          curr: currentUser._sum.signups ?? 0,              prev: previousUser._sum.signups ?? 0,              good: true },
-    { label: "Transactions created", curr: currentTx._sum.transactionsCreated ?? 0,   prev: previousTx._sum.transactionsCreated ?? 0,    good: true },
-    { label: "Milestones confirmed", curr: currentTx._sum.milestonesConfirmed ?? 0,   prev: previousTx._sum.milestonesConfirmed ?? 0,    good: true },
-    { label: "Chases sent",          curr: currentTx._sum.chasesSent ?? 0,            prev: previousTx._sum.chasesSent ?? 0,             good: true },
-    { label: "AI drafts generated",  curr: currentTx._sum.aiDraftsGenerated ?? 0,     prev: previousTx._sum.aiDraftsGenerated ?? 0,      good: true },
+    { label: "New signups",          metric: "signups",      curr: currentUser._sum.signups ?? 0,              prev: previousUser._sum.signups ?? 0,              good: true },
+    { label: "Transactions created", metric: "transactions", curr: currentTx._sum.transactionsCreated ?? 0,   prev: previousTx._sum.transactionsCreated ?? 0,    good: true },
+    { label: "Milestones confirmed", metric: "milestones",   curr: currentTx._sum.milestonesConfirmed ?? 0,   prev: previousTx._sum.milestonesConfirmed ?? 0,    good: true },
+    { label: "Chases sent",          metric: "chases",       curr: currentTx._sum.chasesSent ?? 0,            prev: previousTx._sum.chasesSent ?? 0,             good: true },
+    { label: "AI drafts generated",  metric: "ai_drafts",    curr: currentTx._sum.aiDraftsGenerated ?? 0,     prev: previousTx._sum.aiDraftsGenerated ?? 0,      good: true },
   ];
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
@@ -118,6 +119,7 @@ export default async function OverviewPage({
                 <p className={`text-xs tabular-nums mt-0.5 ${deltaColor(d, s.good)}`}>
                   {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
                 </p>
+                <WhatChanged windowStart={weekAgo} windowEnd={now} metric={s.metric} />
               </div>
             );
           })}

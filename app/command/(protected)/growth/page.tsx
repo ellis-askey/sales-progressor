@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import { parseMode, parseAgencies, serviceTypeScope } from "@/lib/command/scope";
+import WhatChanged from "@/components/command/shared/WhatChanged";
 
 function weekLabel(d: Date): string {
   const day = new Date(d);
@@ -27,6 +28,8 @@ export default async function GrowthPage({
   const txScope = serviceTypeScope(mode, agencyIds);
 
   const now = new Date();
+  const since7 = new Date(now);
+  since7.setUTCDate(since7.getUTCDate() - 7);
   const since90 = new Date(now);
   since90.setUTCDate(since90.getUTCDate() - 90);
   const since30 = new Date(now);
@@ -82,9 +85,12 @@ export default async function GrowthPage({
 
       {/* Weekly growth trend */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Weekly trend — last 90 days (w/c Monday)
-        </h2>
+        <div className="flex items-baseline gap-3 mb-4">
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+            Weekly trend — last 90 days (w/c Monday)
+          </h2>
+          <WhatChanged windowStart={since7} windowEnd={now} />
+        </div>
         {weeklyRows.length === 0 ? (
           <p className="text-sm text-neutral-600">No rollup data yet. Cron runs nightly.</p>
         ) : (

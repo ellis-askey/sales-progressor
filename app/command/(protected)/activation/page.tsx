@@ -1,5 +1,6 @@
 import { commandDb } from "@/lib/command/prisma";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
+import WhatChanged from "@/components/command/shared/WhatChanged";
 
 function fmtDay(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", {
@@ -82,11 +83,11 @@ export default async function ActivationPage({
     curr.signups === 0 ? "—" : `${Math.round((n / curr.signups) * 100)}%`;
 
   const summaryCards = [
-    { label: "Signups",          curr: curr.signups,           prev: prev.signups },
-    { label: "Logins",           curr: curr.logins,            prev: prev.logins },
-    { label: "Unique actives",   curr: curr.uniqueActiveUsers, prev: prev.uniqueActiveUsers },
-    { label: "Txns created",     curr: curr.txnsCreated,       prev: prev.txnsCreated },
-    { label: "Milestones conf.", curr: curr.milestones,        prev: prev.milestones },
+    { label: "Signups",          metric: "signups",      curr: curr.signups,           prev: prev.signups },
+    { label: "Logins",           metric: "logins",       curr: curr.logins,            prev: prev.logins },
+    { label: "Unique actives",   metric: "active_users", curr: curr.uniqueActiveUsers, prev: prev.uniqueActiveUsers },
+    { label: "Txns created",     metric: "transactions", curr: curr.txnsCreated,       prev: prev.txnsCreated },
+    { label: "Milestones conf.", metric: "milestones",   curr: curr.milestones,        prev: prev.milestones },
   ];
 
   return (
@@ -106,6 +107,7 @@ export default async function ActivationPage({
               <p className={`text-xs tabular-nums mt-0.5 ${pctColor(c.curr, c.prev)}`}>
                 {pctChange(c.curr, c.prev)} vs prev 30d
               </p>
+              <WhatChanged windowStart={since30} windowEnd={now} metric={c.metric} />
             </div>
           ))}
         </div>
