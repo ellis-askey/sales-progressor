@@ -80,12 +80,129 @@ vars and redeploy, or simply remove the variable (missing = disabled).
 
 ## Row-Level Security (PR 51) — Staging Only
 
-See Checkpoint B output for:
-- Tables with RLS enabled
-- Policy SQL
-- Test query results confirming cross-agency isolation
+### Tables with RLS enabled
 
-Production RLS deploy is a **separate action** after staging walk-through passes.
+| Table | agencyId field | Policy name (bypass) |
+|-------|---------------|---------------------|
+| `PropertyTransaction` | `agencyId String` (required) | `rls_pt_staging_bypass` |
+| `User` | `agencyId String?` (nullable for superadmin) | `rls_user_staging_bypass` |
+| `Contact` | indirect (via `propertyTransactionId`) | `rls_contact_staging_bypass` |
+| `ManualTask` | `agencyId String` (required) | `rls_mt_staging_bypass` |
+| `SolicitorFirm` | `agencyId String` (required) | `rls_sf_staging_bypass` |
+
+All five tables have `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY`.
+Current staging state: a PERMISSIVE `USING (true)` bypass policy is active on
+each table — the app works identically to before. RLS infrastructure is in
+place; enforcement is off.
+
+### Current staging policy SQL (bypass — in migration file)
+
+```sql
+ALTER TABLE "PropertyTransaction" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "PropertyTransaction" FORCE ROW LEVEL SECURITY;
+CREATE POLICY rls_pt_staging_bypass ON "PropertyTransaction"
+  AS PERMISSIVE FOR ALL USING (true);
+
+-- (same pattern for User, Contact, ManualTask, SolicitorFirm)
+```
+
+### Strict activation policy SQL (NOT YET RUN — production activation)
+
+```sql
+-- PropertyTransaction
+DROP POLICY rls_pt_staging_bypass ON "PropertyTransaction";
+CREATE POLICY rls_pt_agency ON "PropertyTransaction"
+  AS RESTRICTIVE FOR ALL
+  USING ("agencyId" = current_setting('app.current_agency_id', true));
+
+-- User (superadmin agencyId IS NULL — allowed through)
+DROP POLICY rls_user_staging_bypass ON "User";
+CREATE POLICY rls_user_agency ON "User"
+  AS RESTRICTIVE FOR ALL
+  USING (
+    "agencyId" = current_setting('app.current_agency_id', true)
+    OR "agencyId" IS NULL
+  );
+
+-- Contact (joined via PropertyTransaction — inherits context)
+DROP POLICY rls_contact_staging_bypass ON "Contact";
+CREATE POLICY rls_contact_agency ON "Contact"
+  AS RESTRICTIVE FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM "PropertyTransaction" pt
+      WHERE pt.id = "Contact"."propertyTransactionId"
+        AND pt."agencyId" = current_setting('app.current_agency_id', true)
+    )
+  );
+
+-- ManualTask
+DROP POLICY rls_mt_staging_bypass ON "ManualTask";
+CREATE POLICY rls_mt_agency ON "ManualTask"
+  AS RESTRICTIVE FOR ALL
+  USING ("agencyId" = current_setting('app.current_agency_id', true));
+
+-- SolicitorFirm
+DROP POLICY rls_sf_staging_bypass ON "SolicitorFirm";
+CREATE POLICY rls_sf_agency ON "SolicitorFirm"
+  AS RESTRICTIVE FOR ALL
+  USING ("agencyId" = current_setting('app.current_agency_id', true));
+```
+
+### withAgencyRls wrapper (lib/prisma-rls.ts)
+
+Every query that needs to be agency-scoped at the DB level must go through
+`withAgencyRls(agencyId, (tx) => tx.model.operation(...))`. This:
+1. Opens a Prisma `$transaction`
+2. Runs `SELECT set_config('app.current_agency_id', agencyId, TRUE)` to scope
+   the session variable for the duration of that transaction
+3. Runs the caller's query inside the same transaction connection
+
+### Test queries (run on staging with bypass policies active)
+
+```bash
+# Prerequisite: you need two agencies and their IDs. Get them:
+# Agency A: AGENCY_A_ID
+# Agency B: AGENCY_B_ID
+
+# Test 1 — without RLS context (bypass active): both agencies visible
+curl -s "https://staging.yourdomain.com/api/command/rls-test\
+?agencyId=AGENCY_A_ID&probe=AGENCY_B_ID" \
+  -H "Cookie: next-auth.session-token=<superadmin-session>"
+# Expected (bypass active):
+#   rlsEnforcing: false
+#   countWithContext == countWithoutContext
+
+# Test 2 — after activating strict policies (drop bypass, add strict):
+# Run the strict SQL above in psql, then:
+curl -s "https://staging.yourdomain.com/api/command/rls-test\
+?agencyId=AGENCY_A_ID&probe=AGENCY_B_ID" \
+  -H "Cookie: next-auth.session-token=<superadmin-session>"
+# Expected (strict active):
+#   rlsEnforcing: true
+#   countWithContext: 0      ← agency B has 0 rows visible with agency A context
+#   countWithoutContext: N   ← N is agency B's actual transaction count
+
+# Test 3 — correct context matches probe:
+curl -s "https://staging.yourdomain.com/api/command/rls-test\
+?agencyId=AGENCY_B_ID&probe=AGENCY_B_ID" \
+  -H "Cookie: next-auth.session-token=<superadmin-session>"
+# Expected (strict active):
+#   rlsEnforcing: false
+#   countWithContext == countWithoutContext  ← same agency, all rows visible
+```
+
+### Production activation steps
+
+1. Walk through the staging tests above and confirm Test 2 returns `rlsEnforcing: true`
+2. Create a new Prisma migration that runs the strict SQL (DROP bypass + CREATE strict)
+3. Deploy to production with the new migration
+4. Re-run the rls-test endpoint on production with known agency pair
+5. Monitor error logs for 30 minutes — any missing `withAgencyRls` wrapper will
+   surface as empty result sets (not crashes)
+6. Progressively wrap remaining high-risk read paths in `withAgencyRls`
+
+Production RLS deploy is a **separate action** after your staging walk-through passes.
 
 ---
 
