@@ -1136,6 +1136,27 @@ model ContentBatch {
   @@index([date])
 }
 
+// ─── Command Centre: Content engagement ──────────────────────────────────────
+// Manually logged ~14 days after posting. One record per DraftPost.
+// Used to score topic performance and feed back into the topic queue.
+
+model ContentEngagement {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  draftPostId String   @unique
+  channel     String
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  shares      Int      @default(0)
+  impressions Int?
+  clicks      Int?
+  notes       String?
+
+  @@index([draftPostId])
+  @@index([createdAt])
+}
+
 model VoiceSample {
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())

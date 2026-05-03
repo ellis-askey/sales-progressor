@@ -15,7 +15,7 @@ export default async function ContentPage({
 }) {
   const sp = await searchParams;
 
-  const [qaSampleCount, recentDrafts, pendingTopics, batchItems] = await Promise.all([
+  const [qaSampleCount, recentDrafts, pendingTopics, batchItems, engagementRecords] = await Promise.all([
     commandDb.voiceSample.count({ where: { sampleType: "qa_response" } }),
     commandDb.draftPost.findMany({
       orderBy: { createdAt: "desc" },
@@ -39,7 +39,12 @@ export default async function ContentPage({
         createdAt: true,
       },
     }),
+    commandDb.contentEngagement.findMany({
+      select: { draftPostId: true },
+    }),
   ]);
+
+  const engagedDraftIds = new Set(engagementRecords.map((e) => e.draftPostId));
 
   if (qaSampleCount === 0) {
     return (
@@ -74,7 +79,7 @@ export default async function ContentPage({
 
       <DraftComposer channels={CHANNELS} tones={TONES} pendingTopics={pendingTopics} />
 
-      <DraftHistory drafts={recentDrafts} />
+      <DraftHistory drafts={recentDrafts} engagedDraftIds={engagedDraftIds} />
 
       <div className="border-t border-neutral-800 pt-10 space-y-5">
         <div>
