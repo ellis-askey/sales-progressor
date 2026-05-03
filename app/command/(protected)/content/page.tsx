@@ -5,6 +5,7 @@ import { TONES } from "@/lib/command/content/tones";
 import { DraftComposer } from "@/components/command/content/DraftComposer";
 import { DraftHistory } from "@/components/command/content/DraftHistory";
 import { VoiceIntakePanel } from "@/components/command/content/VoiceIntakePanel";
+import { ImageGenerator } from "@/components/command/content/ImageGenerator";
 
 export default async function ContentPage({
   searchParams,
@@ -58,6 +59,16 @@ export default async function ContentPage({
       <DraftComposer channels={CHANNELS} tones={TONES} pendingTopics={pendingTopics} />
 
       <DraftHistory drafts={recentDrafts} />
+
+      <div className="border-t border-neutral-800 pt-10 space-y-5">
+        <div>
+          <h2 className="text-base font-semibold text-neutral-200">Images</h2>
+          <p className="text-xs text-neutral-600 mt-1">
+            Branded cards for social posts — text cards, live chart snapshots, or AI-generated photography.
+          </p>
+        </div>
+        <ImageGenerator />
+      </div>
     </div>
   );
 }

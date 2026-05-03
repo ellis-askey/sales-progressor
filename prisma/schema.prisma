@@ -1149,6 +1149,26 @@ model ContentTopic {
   @@index([status, priority, createdAt])
 }
 
+// ─── Command Centre: Generated images ────────────────────────────────────────
+
+model GeneratedImage {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  imageType   String   // "text_card" | "chart" | "ai_generated"
+  variant     String?  // "dark" | "light" for text/chart cards
+  prompt      String?  // for ai_generated
+  url         String   // Replicate URL for AI; parametric route URL for OG
+  width       Int      @default(1200)
+  height      Int      @default(628)
+  aiModel     String?
+  aiCostCents Int      @default(0)
+  draftPostId String?
+
+  @@index([createdAt])
+  @@index([imageType, createdAt])
+}
+
 // ─── Command Centre: Admin audit log ─────────────────────────────────────────
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 
