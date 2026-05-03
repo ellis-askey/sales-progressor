@@ -11,3 +11,12 @@ export async function listAgencyUsers(agencyId: string) {
     select: { id: true, name: true, email: true, role: true },
   });
 }
+
+/** List all internal sales_progressor users across the platform (admin use only — no agencyId filter). */
+export async function listProgressorUsers() {
+  return prisma.user.findMany({
+    where: { role: "sales_progressor" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}

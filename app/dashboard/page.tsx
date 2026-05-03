@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { listTransactionsByScope, countTransactionsByScope, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { listProgressorUsers } from "@/lib/services/users";
 import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { getWorkQueueCounts } from "@/lib/services/tasks";
@@ -17,11 +18,13 @@ import type { TransactionStatus } from "@prisma/client";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; service?: string; progressor?: string }>;
 }) {
   const session = await requireSession();
-  const { filter } = await searchParams;
+  const { filter, service, progressor } = await searchParams;
   const activeFilter = (filter as TransactionStatus | "all") ?? "all";
+  const activeService = (service ?? "all") as "all" | "outsourced" | "self_managed";
+  const activeProgressor = progressor ?? "all";
   const scope = getAccessScope(session);
 
   const [transactions, counts, taskCounts, forecastMonths, postExchangeGroups, todoCount, attentionFlags] = await Promise.all([
@@ -34,9 +37,29 @@ export default async function DashboardPage({
     getActiveFlags(session.user.agencyId).catch(() => []),
   ]);
 
+  const progressors = scope.kind === "all" ? await listProgressorUsers() : [];
+
+  // Admin service + progressor filters (in-memory; scope already handles tenancy)
+  const serviceProgressorFiltered = scope.kind === "all"
+    ? transactions.filter((t) => {
+        if (activeService !== "all" && t.serviceType !== activeService) return false;
+        if (activeProgressor === "unassigned" && t.assignedUserId !== null) return false;
+        if (activeProgressor !== "all" && activeProgressor !== "unassigned" && t.assignedUserId !== activeProgressor) return false;
+        return true;
+      })
+    : transactions;
+
   const filtered = activeFilter === "all"
-    ? transactions
-    : transactions.filter((t) => t.status === activeFilter);
+    ? serviceProgressorFiltered
+    : serviceProgressorFiltered.filter((t) => t.status === activeFilter);
+
+  // Status tab counts reflect the service+progressor filter selection
+  const tabCounts = {
+    active:    serviceProgressorFiltered.filter((t) => t.status === "active").length,
+    on_hold:   serviceProgressorFiltered.filter((t) => t.status === "on_hold").length,
+    completed: serviceProgressorFiltered.filter((t) => t.status === "completed").length,
+    withdrawn: serviceProgressorFiltered.filter((t) => t.status === "withdrawn").length,
+  };
 
   const unassignedFiles = transactions.filter(
     (t) => t.serviceType === "outsourced" && t.assignedUser === null && t.status === "active"
@@ -138,21 +161,31 @@ export default async function DashboardPage({
           <AttentionNeeded flags={attentionFlags} />
         )}
 
+        {/* ── Admin filters (service type + progressor) ─────────────── */}
+        {scope.kind === "all" && (
+          <AdminFilterBar
+            progressors={progressors}
+            activeService={activeService}
+            activeProgressor={activeProgressor}
+            activeFilter={activeFilter}
+          />
+        )}
+
         {/* ── Filter tabs ───────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-fit">
             {([
-              { value: "all",       label: "All",       count: transactions.length },
-              { value: "active",    label: "Active",    count: counts.active },
-              { value: "on_hold",   label: "On Hold",   count: counts.on_hold },
-              { value: "completed", label: "Completed", count: counts.completed },
-              { value: "withdrawn", label: "Withdrawn", count: counts.withdrawn },
+              { value: "all",       label: "All",       count: serviceProgressorFiltered.length },
+              { value: "active",    label: "Active",    count: tabCounts.active },
+              { value: "on_hold",   label: "On Hold",   count: tabCounts.on_hold },
+              { value: "completed", label: "Completed", count: tabCounts.completed },
+              { value: "withdrawn", label: "Withdrawn", count: tabCounts.withdrawn },
             ] as { value: string; label: string; count: number }[]).map(({ value, label, count }) => {
               const isActive = activeFilter === value;
               return (
                 <Link
                   key={value}
-                  href={value === "all" ? "/dashboard" : `/dashboard?filter=${value}`}
+                  href={buildFilterHref({ filter: value, service: activeService, progressor: activeProgressor })}
                   scroll={false}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
@@ -198,6 +231,81 @@ export default async function DashboardPage({
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function buildFilterHref(params: { filter?: string; service?: string; progressor?: string }) {
+  const parts: string[] = [];
+  if (params.filter && params.filter !== "all") parts.push(`filter=${encodeURIComponent(params.filter)}`);
+  if (params.service && params.service !== "all") parts.push(`service=${encodeURIComponent(params.service)}`);
+  if (params.progressor && params.progressor !== "all") parts.push(`progressor=${encodeURIComponent(params.progressor)}`);
+  return parts.length ? `/dashboard?${parts.join("&")}` : "/dashboard";
+}
+
+function AdminFilterBar({
+  progressors,
+  activeService,
+  activeProgressor,
+  activeFilter,
+}: {
+  progressors: { id: string; name: string }[];
+  activeService: string;
+  activeProgressor: string;
+  activeFilter: string;
+}) {
+  const serviceOptions = [
+    { value: "all",          label: "All types" },
+    { value: "self_managed", label: "Self-managed" },
+    { value: "outsourced",   label: "Outsourced" },
+  ];
+
+  const progressorOptions = [
+    { value: "all",        label: "All" },
+    { value: "unassigned", label: "Unassigned" },
+    ...progressors.map((p) => ({ value: p.id, label: p.name })),
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-slate-900/40">Service</span>
+        <div className="flex items-center gap-1 glass-subtle p-1">
+          {serviceOptions.map(({ value, label }) => (
+            <Link
+              key={value}
+              href={buildFilterHref({ filter: activeFilter, service: value, progressor: activeProgressor })}
+              scroll={false}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeService === value
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-slate-900/50 hover:text-slate-900/70 hover:bg-white/40"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-slate-900/40">Assigned to</span>
+        <div className="flex items-center gap-1 glass-subtle p-1 flex-wrap">
+          {progressorOptions.map(({ value, label }) => (
+            <Link
+              key={value}
+              href={buildFilterHref({ filter: activeFilter, service: activeService, progressor: value })}
+              scroll={false}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeProgressor === value
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "text-slate-900/50 hover:text-slate-900/70 hover:bg-white/40"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
