@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
+import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 
 export async function listTransactions(
   agencyId: string,
@@ -129,6 +130,107 @@ export async function countTransactionsByStatus(
   } else {
     whereClause = { agencyId, progressedBy: "progressor" };
   }
+  const counts = await prisma.propertyTransaction.groupBy({
+    by: ["status"],
+    where: whereClause,
+    _count: true,
+  });
+
+  const result = { active: 0, on_hold: 0, completed: 0, withdrawn: 0 };
+  counts.forEach((c) => {
+    result[c.status as keyof typeof result] = c._count;
+  });
+  return result;
+}
+
+export async function listTransactionsByScope(scope: AccessScope) {
+  const now = new Date();
+  const base = scopeTransactionWhere(scope);
+  const whereClause: Record<string, unknown> =
+    scope.kind === "agency" ? { ...base, progressedBy: "progressor" } : { ...base };
+
+  const transactions = await prisma.propertyTransaction.findMany({
+    where: whereClause,
+    orderBy: { createdAt: "desc" },
+    include: {
+      assignedUser: { select: { id: true, name: true } },
+      agentUser: { select: { id: true, name: true, role: true } },
+      contacts: { select: { id: true, name: true, roleType: true } },
+      milestoneCompletions: {
+        where: { state: "complete" },
+        orderBy: { completedAt: "desc" },
+        take: 1,
+        select: { completedAt: true },
+      },
+      _count: {
+        select: {
+          milestoneCompletions: { where: { state: "complete" } },
+        },
+      },
+      chaseTasks: {
+        where: { status: "pending" },
+        select: {
+          id: true,
+          dueDate: true,
+          priority: true,
+          reminderLog: { select: { reminderRule: { select: { name: true, targetMilestoneCode: true } } } },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 5,
+      },
+    },
+  });
+
+  return transactions.map((tx) => {
+    const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
+    const escalatedTasks = overdueTasks.filter((t) => t.priority === "escalated");
+    const nextTask = tx.chaseTasks[0];
+    const lastMilestoneAt = tx.milestoneCompletions[0]?.completedAt ?? null;
+
+    const nextActionLabel = nextTask
+      ? nextTask.reminderLog.reminderRule.name
+      : null;
+
+    const daysStuckOnMilestone = lastMilestoneAt
+      ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
+      : null;
+
+    const completedCount = tx._count.milestoneCompletions;
+    const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
+    const weeksElapsed = daysElapsed / 7;
+    const actualPercent = Math.min(100, (completedCount / 47) * 100);
+    const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
+    const diff = actualPercent - expectedPercent;
+    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
+      completedCount === 0 ? "unknown" :
+      diff >= -10 ? "on_track" :
+      diff >= -25 ? "at_risk" :
+      "off_track";
+
+    const { chaseTasks: _c, _count: _cnt, agentFeeAmount, agentFeePercent, referralFee, ...rest } = tx;
+    return {
+      ...rest,
+      agentFeeAmount: agentFeeAmount != null ? Number(agentFeeAmount) : null,
+      agentFeePercent: agentFeePercent != null ? Number(agentFeePercent) : null,
+      referralFee: referralFee != null ? Number(referralFee) : null,
+      health: {
+        pendingOverdueTasks: overdueTasks.length,
+        escalatedTasks: escalatedTasks.length,
+        lastActivityAt: tx.lastActivityAt,
+        nextActionLabel,
+        nextMilestoneLabel: null as string | null,
+        daysStuckOnMilestone,
+        onTrack,
+      },
+    };
+  });
+}
+
+export async function countTransactionsByScope(scope: AccessScope) {
+  const base = scopeTransactionWhere(scope);
+  const whereClause: Record<string, unknown> =
+    scope.kind === "agency" ? { ...base, progressedBy: "progressor" } : { ...base };
+
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
     where: whereClause,

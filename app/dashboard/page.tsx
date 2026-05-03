@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { listTransactions, countTransactionsByStatus, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
+import { listTransactionsByScope, countTransactionsByScope, getExchangeForecast, getExchangedNotCompleting } from "@/lib/services/transactions";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { getWorkQueueCounts } from "@/lib/services/tasks";
@@ -21,10 +22,11 @@ export default async function DashboardPage({
   const session = await requireSession();
   const { filter } = await searchParams;
   const activeFilter = (filter as TransactionStatus | "all") ?? "all";
+  const scope = getAccessScope(session);
 
   const [transactions, counts, taskCounts, forecastMonths, postExchangeGroups, todoCount, attentionFlags] = await Promise.all([
-    listTransactions(session.user.agencyId),
-    countTransactionsByStatus(session.user.agencyId),
+    listTransactionsByScope(scope),
+    countTransactionsByScope(scope),
     getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
     getExchangeForecast(session.user.agencyId).catch(() => []),
     getExchangedNotCompleting(session.user.agencyId).catch(() => []),
