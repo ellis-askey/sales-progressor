@@ -1109,9 +1109,13 @@ model DraftPost {
   aiTokensInput   Int?
   aiTokensOutput  Int?
 
+  topicId         String?      // ContentTopic this draft was generated from
+  batchId         String?      // ContentBatch — populated in PR 41
+
   @@index([createdAt])
   @@index([channel, createdAt])
   @@index([posted])
+  @@index([topicId])
 }
 
 model VoiceSample {

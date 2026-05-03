@@ -65,6 +65,7 @@ export function DraftComposer({ channels, tones, pendingTopics }: Props) {
           channel: channelId,
           toneId,
           topic: effectiveTopic.trim(),
+          topicId: topicMode === "queue" && selectedTopicId && !regenerate ? selectedTopicId : undefined,
           regenerateDraftId: regenerate && draft ? draft.draftId : undefined,
         }),
       });

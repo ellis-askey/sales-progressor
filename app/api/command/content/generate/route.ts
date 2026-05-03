@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { channel: channelId, toneId, topic, regenerateDraftId } = body as {
+  const { channel: channelId, toneId, topic, topicId, regenerateDraftId } = body as {
     channel: string;
     toneId: string;
     topic: string;
+    topicId?: string;
     regenerateDraftId?: string;
   };
 
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
   const tokensIn = msg.usage.input_tokens;
   const tokensOut = msg.usage.output_tokens;
 
+  const sourceType = topicId ? "activity_derived" : "manual";
+
   let draft;
   if (regenerateDraftId) {
     draft = await commandDb.draftPost.update({
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
         channel: channelId as never,
         tone: toneId,
         topicSeed: topic.trim(),
-        sourceType: "manual",
+        sourceType,
         prompt: userMessage,
         aiModel: MODEL,
         aiPromptVersion: PROMPT_VERSION,
@@ -90,8 +93,17 @@ export async function POST(req: NextRequest) {
         variant2,
         aiTokensInput: tokensIn,
         aiTokensOutput: tokensOut,
+        topicId: topicId ?? null,
       },
     });
+
+    // Mark source topic as used
+    if (topicId) {
+      await commandDb.contentTopic.update({
+        where: { id: topicId },
+        data: { status: "used", usedAt: new Date(), draftPostId: draft.id },
+      }).catch(() => {});
+    }
   }
 
   return NextResponse.json({ draftId: draft.id, variant1, variant2 });
