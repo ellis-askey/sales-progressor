@@ -26,7 +26,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
 
   useEffect(() => {
     fetch(`/api/chains?transactionId=${transactionId}`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("not ok"); return r.json(); })
       .then((d) => setChain(d.chain))
       .catch(() => {})
       .finally(() => setLoading(false));

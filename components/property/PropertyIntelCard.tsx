@@ -41,7 +41,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
 
   useEffect(() => {
     fetch(`/api/property-intel?transactionId=${transactionId}`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("not ok"); return r.json(); })
       .then(setData)
       .catch(() => setError(true))
       .finally(() => setLoading(false));

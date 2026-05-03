@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import {
   extractPostcode,
   extractPaon,
@@ -18,8 +19,9 @@ export async function GET(req: NextRequest) {
   const transactionId = req.nextUrl.searchParams.get("transactionId");
   if (!transactionId) return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
 
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { propertyAddress: true },
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });

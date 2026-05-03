@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getChainForTransaction, createChain, upsertChainLink } from "@/lib/services/chains";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -11,8 +12,9 @@ export async function GET(req: NextRequest) {
   const transactionId = req.nextUrl.searchParams.get("transactionId");
   if (!transactionId) return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
 
-  const txn = await prisma.propertyTransaction.findUnique({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+  const scope = getAccessScope(session);
+  const txn = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
