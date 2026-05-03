@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { markAsPostedAction, discardDraftAction } from "@/app/actions/draft-posts";
+import { markAsPostedAction, discardDraftAction, approveForBatchAction, removeFromBatchAction } from "@/app/actions/draft-posts";
 
 interface Props {
   draftId: string;
@@ -14,6 +14,7 @@ interface Props {
 export function DraftVariantPanel({ draftId, variantNum, text, charLimit, onAction }: Props) {
   const [editedText, setEditedText] = useState(text);
   const [copied, setCopied] = useState(false);
+  const [inBatch, setInBatch] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const charCount = editedText.length;
@@ -37,6 +38,26 @@ export function DraftVariantPanel({ draftId, variantNum, text, charLimit, onActi
     startTransition(async () => {
       await discardDraftAction(formData);
       onAction();
+    });
+  }
+
+  function handleAddToBatch() {
+    const fd = new FormData();
+    fd.set("draftId", draftId);
+    fd.set("variantNum", String(variantNum));
+    fd.set("editedText", editedText);
+    startTransition(async () => {
+      await approveForBatchAction(fd);
+      setInBatch(true);
+    });
+  }
+
+  function handleRemoveFromBatch() {
+    const fd = new FormData();
+    fd.set("draftId", draftId);
+    startTransition(async () => {
+      await removeFromBatchAction(fd);
+      setInBatch(false);
     });
   }
 
@@ -67,6 +88,27 @@ export function DraftVariantPanel({ draftId, variantNum, text, charLimit, onActi
         >
           {copied ? "Copied!" : "Copy"}
         </button>
+
+        {/* Add to batch / Remove from batch */}
+        {inBatch ? (
+          <button
+            type="button"
+            onClick={handleRemoveFromBatch}
+            disabled={isPending}
+            className="text-xs px-3 py-1.5 bg-orange-950 text-orange-400 border border-orange-900 hover:bg-orange-900 rounded-lg transition-colors disabled:opacity-40"
+          >
+            {isPending ? "Removing…" : "In batch ✓ — Remove"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleAddToBatch}
+            disabled={isPending || overLimit}
+            className="text-xs px-3 py-1.5 bg-neutral-800 text-neutral-300 border border-neutral-700 hover:border-neutral-500 hover:text-neutral-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isPending ? "Saving…" : "Add to batch"}
+          </button>
+        )}
 
         {/* Mark as posted */}
         <form action={handleMarkPosted}>

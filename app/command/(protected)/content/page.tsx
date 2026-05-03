@@ -6,6 +6,7 @@ import { DraftComposer } from "@/components/command/content/DraftComposer";
 import { DraftHistory } from "@/components/command/content/DraftHistory";
 import { VoiceIntakePanel } from "@/components/command/content/VoiceIntakePanel";
 import { ImageGenerator } from "@/components/command/content/ImageGenerator";
+import { BatchQueue } from "@/components/command/content/BatchQueue";
 
 export default async function ContentPage({
   searchParams,
@@ -14,7 +15,7 @@ export default async function ContentPage({
 }) {
   const sp = await searchParams;
 
-  const [qaSampleCount, recentDrafts, pendingTopics] = await Promise.all([
+  const [qaSampleCount, recentDrafts, pendingTopics, batchItems] = await Promise.all([
     commandDb.voiceSample.count({ where: { sampleType: "qa_response" } }),
     commandDb.draftPost.findMany({
       orderBy: { createdAt: "desc" },
@@ -24,6 +25,19 @@ export default async function ContentPage({
       where: { status: "pending" },
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
       take: 10,
+    }),
+    commandDb.draftPost.findMany({
+      where: { approvedForBatch: true, posted: false },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        channel: true,
+        topicSeed: true,
+        editedText: true,
+        variant1: true,
+        chosenVariant: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -55,6 +69,8 @@ export default async function ContentPage({
           </Link>
         </div>
       </div>
+
+      <BatchQueue items={batchItems} />
 
       <DraftComposer channels={CHANNELS} tones={TONES} pendingTopics={pendingTopics} />
 

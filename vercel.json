@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/content-topics",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/content-batch",
+      "schedule": "30 6 * * *"
     }
   ]
 }

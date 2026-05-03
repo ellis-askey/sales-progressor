@@ -63,6 +63,46 @@ export async function markAsPostedAction(formData: FormData): Promise<void> {
   revalidatePath("/command/content");
 }
 
+export async function approveForBatchAction(formData: FormData): Promise<void> {
+  await assertSuperadmin();
+
+  const draftId = formData.get("draftId") as string;
+  const variantNum = Number(formData.get("variantNum") ?? 1);
+  const editedText = (formData.get("editedText") as string ?? "").trim();
+
+  if (!draftId) return;
+
+  const draft = await commandDb.draftPost.findUnique({ where: { id: draftId } });
+  if (!draft || draft.posted) return;
+
+  const finalText = editedText || (variantNum === 2 ? draft.variant2 : draft.variant1);
+
+  await commandDb.draftPost.update({
+    where: { id: draftId },
+    data: {
+      approvedForBatch: true,
+      editedText: finalText,
+      chosenVariant: variantNum,
+    },
+  });
+
+  revalidatePath("/command/content");
+}
+
+export async function removeFromBatchAction(formData: FormData): Promise<void> {
+  await assertSuperadmin();
+
+  const draftId = formData.get("draftId") as string;
+  if (!draftId) return;
+
+  await commandDb.draftPost.update({
+    where: { id: draftId },
+    data: { approvedForBatch: false },
+  });
+
+  revalidatePath("/command/content");
+}
+
 export async function discardDraftAction(formData: FormData): Promise<void> {
   await assertSuperadmin();
 

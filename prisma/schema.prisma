@@ -1110,12 +1110,30 @@ model DraftPost {
   aiTokensOutput  Int?
 
   topicId         String?      // ContentTopic this draft was generated from
-  batchId         String?      // ContentBatch — populated in PR 41
+  batchId         String?      // ContentBatch.id — set when batch email is sent
+
+  approvedForBatch Boolean @default(false) // user flagged this variant for the morning batch
 
   @@index([createdAt])
   @@index([channel, createdAt])
   @@index([posted])
   @@index([topicId])
+  @@index([approvedForBatch])
+}
+
+// ─── Command Centre: Content batch ───────────────────────────────────────────
+// One record per calendar day an email digest is dispatched.
+
+model ContentBatch {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  date      String    // "2026-05-03"
+  status    String    @default("pending") // "pending" | "sent"
+  sentAt    DateTime?
+  itemCount Int       @default(0)
+
+  @@unique([date])
+  @@index([date])
 }
 
 model VoiceSample {
