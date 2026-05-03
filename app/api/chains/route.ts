@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getChainForTransaction, createChain, upsertChainLink } from "@/lib/services/chains";
 
 export async function GET(req: NextRequest) {
@@ -9,6 +10,12 @@ export async function GET(req: NextRequest) {
 
   const transactionId = req.nextUrl.searchParams.get("transactionId");
   if (!transactionId) return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
+
+  const txn = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId, agencyId: session.user.agencyId },
+    select: { id: true },
+  });
+  if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const chain = await getChainForTransaction(transactionId);
   return NextResponse.json({ chain });

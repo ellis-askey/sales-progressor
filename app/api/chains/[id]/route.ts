@@ -9,6 +9,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+
+  const chain = await prisma.propertyChain.findUnique({ where: { id }, select: { agencyId: true } });
+  if (!chain || chain.agencyId !== session.user.agencyId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = await req.json();
 
   if (body.links) {
@@ -44,6 +50,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+
+  const chain = await prisma.propertyChain.findUnique({ where: { id }, select: { agencyId: true } });
+  if (!chain || chain.agencyId !== session.user.agencyId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await deleteChain(id);
   return NextResponse.json({ ok: true });
 }
