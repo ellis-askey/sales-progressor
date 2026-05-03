@@ -1,4 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 import WhatChanged from "@/components/command/shared/WhatChanged";
@@ -21,6 +22,10 @@ function fmtDate(d: Date | null): string {
   });
 }
 
+function fmtDay(d: Date): string {
+  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+}
+
 const SEVERITY_BADGE: Record<string, string> = {
   critical:    "bg-red-950 text-red-400 border border-red-900",
   leak:        "bg-amber-950 text-amber-400 border border-amber-900",
@@ -38,10 +43,13 @@ export default async function OverviewPage({
   const agencyIds = parseAgencies(sp.agency);
 
   const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const weekAgo = new Date(now);
   weekAgo.setUTCDate(weekAgo.getUTCDate() - 7);
   const twoWeeksAgo = new Date(now);
   twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
 
   const txScope   = serviceTypeScope(mode, agencyIds);
   const userScope = modeProfileScope(mode, agencyIds);
@@ -52,6 +60,9 @@ export default async function OverviewPage({
     signalCounts, unacknowledgedSignals,
     activeExperimentsCount, proposedExperimentsCount,
     lastDeployment,
+    dailyRows,
+    spWeek, pmWeek,
+    stuckCount,
   ] = await Promise.all([
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: weekAgo, lte: now }, ...txScope },
@@ -82,6 +93,28 @@ export default async function OverviewPage({
     commandDb.experiment.count({ where: { status: "active" } }),
     commandDb.experiment.count({ where: { status: "proposed" } }),
     commandDb.deployment.findFirst({ orderBy: { deployedAt: "desc" } }),
+    // Per-day breakdown for pulse strip + today vs avg
+    commandDb.dailyMetric.findMany({
+      where: { date: { gte: weekAgo, lte: now }, agencyId: null, serviceType: null, modeProfile: null },
+      orderBy: { date: "asc" },
+      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, signups: true, chasesSent: true },
+    }),
+    // SP vs PM weekly split (global roll-ups only)
+    commandDb.dailyMetric.aggregate({
+      where: { date: { gte: weekAgo, lte: now }, agencyId: null, serviceType: null, modeProfile: "self_progressed" },
+      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true },
+    }),
+    commandDb.dailyMetric.aggregate({
+      where: { date: { gte: weekAgo, lte: now }, agencyId: null, serviceType: null, modeProfile: "progressor_managed" },
+      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true },
+    }),
+    // Stuck transactions in main DB: active/on_hold with no milestone in last 14 days
+    prisma.propertyTransaction.count({
+      where: {
+        status: { in: ["active", "on_hold"] },
+        milestoneCompletions: { none: { completedAt: { gte: fourteenDaysAgo } } },
+      },
+    }),
   ]);
 
   function pct(curr: number | null, prev: number | null): number {
@@ -97,8 +130,24 @@ export default async function OverviewPage({
     { label: "AI drafts generated",  metric: "ai_drafts",    curr: currentTx._sum.aiDraftsGenerated ?? 0,     prev: previousTx._sum.aiDraftsGenerated ?? 0,      good: true },
   ];
 
+  // Pulse strip — milestones per day, scaled to max
+  const maxMilestones = Math.max(1, ...dailyRows.map((r) => r.milestonesConfirmed));
+  const maxTxns       = Math.max(1, ...dailyRows.map((r) => r.transactionsCreated));
+
+  // Today vs 7d average
+  const todayRow = dailyRows.find((r) => r.date.getTime() === todayUtc.getTime());
+  const days = dailyRows.length || 1;
+  const avgMilestones = Math.round(dailyRows.reduce((a, r) => a + r.milestonesConfirmed, 0) / days);
+  const avgTxns       = Math.round(dailyRows.reduce((a, r) => a + r.transactionsCreated, 0) / days);
+  const avgSignups    = Math.round(dailyRows.reduce((a, r) => a + r.signups, 0) / days);
+
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
   const modeLabel = mode === "sp" ? " · SP" : mode === "pm" ? " · PM" : "";
+
+  const spSums = spWeek._sum;
+  const pmSums = pmWeek._sum;
+  const hasModeSplit = (spSums.signups ?? 0) + (pmSums.signups ?? 0) +
+    (spSums.milestonesConfirmed ?? 0) + (pmSums.milestonesConfirmed ?? 0) > 0;
 
   return (
     <div className="space-y-8">
@@ -125,6 +174,139 @@ export default async function OverviewPage({
           })}
         </div>
       </section>
+
+      {/* Activity pulse + today vs avg + stuck */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
+          Activity pulse — last 7 days
+        </h2>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+          {dailyRows.length === 0 ? (
+            <p className="text-xs text-neutral-600">No rollup data yet. Cron runs nightly.</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Heat strip — milestones */}
+              <div>
+                <p className="text-[11px] text-neutral-500 mb-2">Milestones confirmed / day</p>
+                <div className="flex items-end gap-1 h-10">
+                  {dailyRows.map((r) => {
+                    const h = Math.max(4, Math.round((r.milestonesConfirmed / maxMilestones) * 40));
+                    return (
+                      <div key={r.date.toISOString()} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          style={{ height: `${h}px` }}
+                          className="w-full rounded-sm bg-[#FF6B4A]/50 hover:bg-[#FF6B4A]/80 transition-colors"
+                          title={`${fmtDay(r.date)}: ${r.milestonesConfirmed}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-1 mt-1">
+                  {dailyRows.map((r) => (
+                    <div key={r.date.toISOString()} className="flex-1 text-center">
+                      <span className="text-[9px] text-neutral-600">{fmtDay(r.date)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Heat strip — transactions */}
+              <div>
+                <p className="text-[11px] text-neutral-500 mb-2">Transactions created / day</p>
+                <div className="flex items-end gap-1 h-6">
+                  {dailyRows.map((r) => {
+                    const h = Math.max(2, Math.round((r.transactionsCreated / maxTxns) * 24));
+                    return (
+                      <div
+                        key={r.date.toISOString()}
+                        style={{ height: `${h}px` }}
+                        className="flex-1 rounded-sm bg-blue-500/30 hover:bg-blue-500/60 transition-colors"
+                        title={`${fmtDay(r.date)}: ${r.transactionsCreated}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Today vs avg + stuck transactions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Today vs 7-day average</h2>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
+            {[
+              { label: "Milestones", today: todayRow?.milestonesConfirmed ?? 0, avg: avgMilestones },
+              { label: "Txns created", today: todayRow?.transactionsCreated ?? 0, avg: avgTxns },
+              { label: "Signups", today: todayRow?.signups ?? 0, avg: avgSignups },
+            ].map((row) => {
+              const diff = row.today - row.avg;
+              return (
+                <div key={row.label} className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-400">{row.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white tabular-nums">{row.today}</span>
+                    <span className={`text-[11px] tabular-nums ${diff > 0 ? "text-emerald-400" : diff < 0 ? "text-red-400" : "text-neutral-600"}`}>
+                      {diff > 0 ? `+${diff}` : diff < 0 ? String(diff) : "="} vs avg {row.avg}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {!todayRow && (
+              <p className="text-[11px] text-neutral-600">Today&apos;s rollup not yet available (runs nightly).</p>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Stuck transactions</h2>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 flex items-center gap-4">
+            <span className={`text-4xl font-bold tabular-nums ${stuckCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+              {stuckCount}
+            </span>
+            <div>
+              <p className="text-xs text-neutral-300 font-medium">
+                {stuckCount === 1 ? "transaction" : "transactions"} with no movement
+              </p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">active/on-hold, 14+ days without a milestone</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* SP vs PM split */}
+      {hasModeSplit && (
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
+            SP vs PM — last 7 days
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: "Self-Progressed (SP)", sums: spSums, color: "text-blue-400" },
+              { label: "Progressor-Managed (PM)", sums: pmSums, color: "text-violet-400" },
+            ].map(({ label, sums, color }) => (
+              <div key={label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2.5">
+                <p className={`text-xs font-semibold ${color}`}>{label}</p>
+                {[
+                  { k: "Signups",    v: sums.signups ?? 0 },
+                  { k: "Txns",       v: sums.transactionsCreated ?? 0 },
+                  { k: "Milestones", v: sums.milestonesConfirmed ?? 0 },
+                  { k: "Chases",     v: sums.chasesSent ?? 0 },
+                ].map(({ k, v }) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span className="text-xs text-neutral-400">{k}</span>
+                    <span className="text-sm font-bold text-white tabular-nums">{v.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Signal health */}
       <section>
