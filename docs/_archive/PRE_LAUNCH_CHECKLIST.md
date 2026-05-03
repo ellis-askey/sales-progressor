@@ -1,3 +1,7 @@
+<!-- ARCHIVED 2026-05-03
+     Reason: Point-in-time pre-launch checklist; accounts and gaps are outdated
+     Superseded by: docs/test-accounts.md (for current seed accounts) -->
+
 # Pre-Launch Checklist
 
 ## Auth & Access

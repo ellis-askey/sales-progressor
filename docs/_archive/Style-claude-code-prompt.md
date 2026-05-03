@@ -1,3 +1,7 @@
+<!-- ARCHIVED 2026-05-03
+     Reason: Glass design system rollout prompt — rollout is complete
+     Superseded by: N/A (task complete; Style/glass-tokens.css and app/globals.css are the artefacts) -->
+
 # Claude Code prompt — Glass design system rollout
 
 ## Phase 1: Property page only

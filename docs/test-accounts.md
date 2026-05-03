@@ -22,6 +22,7 @@ All accounts share the same password: **`Hartwell2024!`**
 | `sarah@hartwellpartners.co.uk` | `Hartwell2024!` | Admin | `/dashboard` |
 | `james@hartwellpartners.co.uk` | `Hartwell2024!` | Sales Progressor | `/dashboard` |
 | `emily@hartwellpartners.co.uk` | `Hartwell2024!` | Negotiator (agent) | `/agent/dashboard` |
+| `alex@hartwellpartners.co.uk` | `Hartwell2024!` | Director | `/dashboard` |
 
 ---
 

@@ -1,4 +1,6 @@
-Done — I’ve set up the master blueprint document and we can now build into that instead of letting everything live in chat.
+<!-- HISTORICAL â€” describes the pre-rebuild thinking. See MILESTONES_SPEC_v1 and admin/ for current state. -->
+
+Done ï¿½ Iï¿½ve set up the master blueprint document and we can now build into that instead of letting everything live in chat.
 The first thing to lock properly is the top layer:
 * product summary
 * build philosophy
@@ -6,7 +8,7 @@ The first thing to lock properly is the top layer:
 * V1 scope
 * technical direction
 * build order
-Here’s the version I’d put in as our starting truth.
+Hereï¿½s the version Iï¿½d put in as our starting truth.
 1. Product Summary
 Working product name
 Sales Progressor
@@ -175,10 +177,10 @@ Excluded work
 * reminder logic deep dive
 Done definition
 We have a stable master blueprint that we can use as the reference point for all future work.
-If you want, next I’ll turn this into the actual filled document and then move straight into the Core Entities section, which is the next thing to get right.
+If you want, next Iï¿½ll turn this into the actual filled document and then move straight into the Core Entities section, which is the next thing to get right.
 
-Good — this is exactly the right pace.
-We’ve now done the first truly critical step properly:
+Good ï¿½ this is exactly the right pace.
+Weï¿½ve now done the first truly critical step properly:
 ?? the core entities are defined and locked into the blueprint
 This is the foundation. Everything else sits on top of this.
 
@@ -189,13 +191,13 @@ We now have:
 * build order ?
 * data model (high level) ?
 That means:
-?? we’ve removed about 70% of future chaos risk already
+?? weï¿½ve removed about 70% of future chaos risk already
 
 When you should go to Claude
 ?? NOT yet
 You still stay here.
 Reason:
-We haven’t defined:
+We havenï¿½t defined:
 * the business rules properly
 * the logic behind these entities
 * the hard parts (reminders, milestones, exchange gating)
@@ -210,9 +212,9 @@ Now we define:
 ?? Business Rules (the brain of the system)
 This is where your app actually lives.
 Because your app is NOT:
-“store data and show it”
+ï¿½store data and show itï¿½
 It is:
-“interpret state and trigger behaviour”
+ï¿½interpret state and trigger behaviourï¿½
 
 Why this step matters so much
 Your Bubble app works because of:
@@ -222,7 +224,7 @@ Your Bubble app works because of:
 * reminder generation rules
 * time-sensitive behaviour
 * exchange gating
-* “ready to exchange” logic
+* ï¿½ready to exchangeï¿½ logic
 * duplicate prevention
 * daily job logic
 If we get this wrong:
@@ -230,16 +232,16 @@ If we get this wrong:
 If we get this right:
 ?? the rebuild becomes clean, powerful, and stable
 
-What we’ll do next (cleanly)
-We won’t try to do all rules at once.
-We’ll break it into controlled sections:
+What weï¿½ll do next (cleanly)
+We wonï¿½t try to do all rules at once.
+Weï¿½ll break it into controlled sections:
 6. Business Rules (we will fill this properly)
-We’ll go through:
+Weï¿½ll go through:
 1. Milestone logic
 2. Milestone completion behaviour
 3. Vendor vs purchaser structure
 4. Exchange gating (blocks_exchange)
-5. “Ready to exchange” logic
+5. ï¿½Ready to exchangeï¿½ logic
 6. Time-sensitive milestones
 7. Reminder rule logic
 8. Reminder generation (daily job)
@@ -257,16 +259,16 @@ We do NOT move on until:
 * logic is clear
 * edge cases are covered
 * wording is precise
-* you say “yes, that matches reality”
+* you say ï¿½yes, that matches realityï¿½
 
 Next move
-Let’s start with the most important piece:
+Letï¿½s start with the most important piece:
 ?? Milestone Logic + Completion Behaviour
 This is the base layer everything else depends on.
 
-If you’re ready, say:
-?? “milestones”
-and we’ll define it properly (this is where it starts getting properly real).
+If youï¿½re ready, say:
+?? ï¿½milestonesï¿½
+and weï¿½ll define it properly (this is where it starts getting properly real).
 Perfect. This is the first part we really need to get right.
 What milestones are in this system
 Milestones are not just labels on a progress bar.
@@ -314,7 +316,7 @@ Even if milestone names feel similar, vendor side and purchaser side must remain
 * they trigger different reminders
 * they can block exchange independently
 * they can complete at different times
-So the system should never treat “signed contracts returned” as one universal milestone unless it is explicitly separated by side.
+So the system should never treat ï¿½signed contracts returnedï¿½ as one universal milestone unless it is explicitly separated by side.
 That means:
 * Vendor signed and returned contracts
 * Purchaser signed and returned contracts
@@ -329,7 +331,7 @@ That record should include:
 * active state
 * completed at timestamp
 * optional completed by user
-So the milestone itself is not “ticked” on the definition.
+So the milestone itself is not ï¿½tickedï¿½ on the definition.
 A completion record is created against the file.
 
 5. Completions must use active/inactive state, not hard deletion
@@ -372,7 +374,7 @@ Each milestone definition should have an order_index within its side.
 This does not mean the system blindly forces strict linear progression.
 It does mean:
 * UI can display the progression logically
-* system can reason about “before” and “after”
+* system can reason about ï¿½beforeï¿½ and ï¿½afterï¿½
 * reminders can use preceding milestone concepts
 * exchange checks can understand what stage the file is broadly at
 So order exists for structure, but not every later milestone must require every earlier milestone unless explicitly defined.
@@ -383,14 +385,14 @@ This is important because property transactions are messy.
 A file may not move in a perfectly tidy sequence every time.
 So:
 * order helps orient the system
-* but true logic should rely on rules and completions, not just “everything above must be done”
+* but true logic should rely on rules and completions, not just ï¿½everything above must be doneï¿½
 Otherwise you get false blocks and weird exceptions.
 
 Availability and prerequisites
 10. Some milestones may have prerequisite logic
 A milestone may only become meaningfully available once another milestone is complete.
 Example:
-* you would not normally complete “draft contract received” before “solicitor instructed”
+* you would not normally complete ï¿½draft contract receivedï¿½ before ï¿½solicitor instructedï¿½
 So each milestone may optionally have:
 * prerequisite milestone(s)
 This is not necessarily about hard blocking the UI at first.
@@ -403,7 +405,7 @@ We should decide later whether prerequisites are:
 * soft guidance only
 * or hard restrictions in the UI
 My recommendation for V1:
-store the logic, but don’t over-police the UI initially
+store the logic, but donï¿½t over-police the UI initially
 That keeps the system practical.
 
 What this means in practice
@@ -428,7 +430,7 @@ Rule 9
 Prerequisites may exist, but strict lockout should be used carefully.
 
 My recommendation for the blueprint wording
-This is what I’d lock in next:
+This is what Iï¿½d lock in next:
 6.1 Milestone logic
 * Milestone Definitions are template records that define the progression structure for each side of the transaction.
 * Property Transactions do not store milestone progress directly on the transaction record.
@@ -459,10 +461,10 @@ Tell me:
 1. does this match how you want milestones to behave overall?
 2. do you want prerequisites to be soft or hard in V1?
 3. when a milestone is reversed, do you always want the previous completion kept as inactive history?
-Once you confirm, I’ll lock this into the blueprint and move to:
+Once you confirm, Iï¿½ll lock this into the blueprint and move to:
 exchange gating + blocks exchange.
-Perfect. That’s a genuinely important rule and it makes the system better.
-We’ve now locked these milestone truths:
+Perfect. Thatï¿½s a genuinely important rule and it makes the system better.
+Weï¿½ve now locked these milestone truths:
 * buyer and seller milestones are hard ordered
 * agent side milestones are flexible
 * if someone completes a later agent milestone while an earlier related one is missing, the system should prompt to complete the earlier one too
@@ -474,20 +476,20 @@ We are still in definition mode, and the next piece is just as important:
 Exchange gating
 This is where we define:
 * what blocks_exchange really means
-* how “ready to exchange” is actually determined
+* how ï¿½ready to exchangeï¿½ is actually determined
 * what should and should not block it
-* whether exchange/completion milestones are excluded from the “everything done” check
+* whether exchange/completion milestones are excluded from the ï¿½everything doneï¿½ check
 That piece matters because a lot of your workflow logic hangs off it.
 Next section
-I’m going to propose the rules for:
+Iï¿½m going to propose the rules for:
 * blocks_exchange
 * ready to exchange
 * how the system decides a file can generate exchange-related reminders
 Say:
 exchange gating
-and I’ll do that next.
+and Iï¿½ll do that next.
 Good. This is one of the most important parts of the whole rebuild.
-Because “ready to exchange” sounds simple, but in your system it is not just:
+Because ï¿½ready to exchangeï¿½ sounds simple, but in your system it is not just:
 someone clicks a checkbox
 It is:
 the system deciding that all genuinely exchange-blocking conditions have been satisfied, while ignoring things that should not prevent the check from happening.
@@ -502,7 +504,7 @@ if this milestone is still incomplete on the transaction, it counts as something
 This is the cleanest approach because it keeps exchange logic tied to the milestone structure itself, not buried in random conditions elsewhere.
 
 2. Exchange readiness is not a manual status first
-The system should not treat “ready to exchange” as just a free-floating status someone manually selects.
+The system should not treat ï¿½ready to exchangeï¿½ as just a free-floating status someone manually selects.
 It should primarily be a derived state based on milestone completion logic.
 Manual override may exist later if you want one, but the core truth should be:
 the file is ready to exchange when all required exchange-blocking milestones that apply have active completions
@@ -545,12 +547,12 @@ When the system checks whether the file is ready to exchange, it should not requ
 * completion itself
 * any milestone that only happens after exchange readiness
 Otherwise you get nonsense circular logic:
-“You are not ready to exchange until exchange is complete.”
+ï¿½You are not ready to exchange until exchange is complete.ï¿½
 So the rule should be:
 readiness is determined by all relevant blocking milestones that occur before exchange, excluding exchange and completion milestones themselves
 This matches how you described it before.
 
-7. “Ready to exchange” reminder logic should only unlock once the gate is passed
+7. ï¿½Ready to exchangeï¿½ reminder logic should only unlock once the gate is passed
 The system should not generate exchange-readiness reminders too early.
 So for reminders like:
 * confirm solicitor is ready to exchange
@@ -567,16 +569,16 @@ A file may become ready to exchange, then later something changes:
 * a correction is made
 * something is re-opened
 * data is adjusted
-So “ready to exchange” should not be a one-time permanent event unless explicitly locked.
+So ï¿½ready to exchangeï¿½ should not be a one-time permanent event unless explicitly locked.
 It should be a derived/recomputable state the system can evaluate whenever needed.
 That gives you safer logic and avoids drift between reality and system state.
 
-9. “Ready to exchange” can still have a milestone or reminder layer
+9. ï¿½Ready to exchangeï¿½ can still have a milestone or reminder layer
 This part matters for UX.
 Even though readiness is derived, you may still want:
-* a visible “ready to exchange” milestone
+* a visible ï¿½ready to exchangeï¿½ milestone
 * a reminder rule tied to readiness
-* UI sections that say “Exchange ready”
+* UI sections that say ï¿½Exchange readyï¿½
 That is fine.
 But the important design principle is:
 the visible label is downstream of the gate, not the source of truth for the gate
@@ -607,7 +609,7 @@ That keeps the state honest.
 
 One thing we should define carefully
 There is one subtle but important point:
-“Relevant to the transaction”
+ï¿½Relevant to the transactionï¿½
 Some blocking milestones may only apply in certain cases.
 For example, not every transaction has the same shape:
 * mortgage vs cash buyer
@@ -622,7 +624,7 @@ For now, the clean V1 rule is:
 only milestones that exist in the active progression model for that transaction can block exchange
 That keeps the logic usable without overengineering it.
 
-Blueprint wording I’d lock in
+Blueprint wording Iï¿½d lock in
 6.13 Exchange gating uses blocking milestone definitions
 Exchange gating is controlled by milestone definitions flagged as blocks_exchange = yes.
 6.14 A file is ready to exchange only when all relevant blocking milestones are actively complete
@@ -649,27 +651,27 @@ Those are the engine.
 
 Pressure test this for me
 I need you to confirm whether this matches your real-world logic:
-1. Do you agree that “ready to exchange” should be derived, not just manually set?
+1. Do you agree that ï¿½ready to exchangeï¿½ should be derived, not just manually set?
 2. Do you agree exchange and completion milestones themselves must be excluded from the blocking check?
 3. Do you want agent-side milestones to be able to block exchange too, where flagged, or only buyer/seller side?
-Once you confirm, I’ll lock this into the blueprint and move to:
+Once you confirm, Iï¿½ll lock this into the blueprint and move to:
 time-sensitive milestones.
-Perfect. That’s a strong rule and it gives us something much cleaner than a vague checkbox system.
-We’ve now locked these truths:
+Perfect. Thatï¿½s a strong rule and it gives us something much cleaner than a vague checkbox system.
+Weï¿½ve now locked these truths:
 * readiness to exchange is derived
 * exchange/completion milestones are excluded from the gate
 * agent-side flow can stay operationally flexible
 * that flexibility does not allow agents to bypass exchange gating
 * a milestone can be explicitly marked not required
-* “not required” must be visible and auditable, not an invisible workaround
-That last one is especially important. It means later we’ll probably want milestone state to be more like:
+* ï¿½not requiredï¿½ must be visible and auditable, not an invisible workaround
+That last one is especially important. It means later weï¿½ll probably want milestone state to be more like:
 * incomplete
 * complete
 * not required
 rather than a simplistic tick/no tick model.
 Do not go to Claude yet
 Still no.
-We’re still defining the engine. The next piece is:
+Weï¿½re still defining the engine. The next piece is:
 Time-sensitive milestones
 This is where we define the difference between:
 * a milestone being confirmed
@@ -679,7 +681,7 @@ Like your valuation/survey example.
 This matters because otherwise the coded version will generate the wrong dates even if everything else looks right.
 Say:
 time sensitive
-and I’ll do that next.
+and Iï¿½ll do that next.
 Good. This is another one that looks small on the surface but is actually a core logic rule.
 Because in your system, some milestones are not really about:
 when we confirmed it in the app
@@ -698,7 +700,7 @@ Example:
 * Level 3 survey booked
 Why:
 because the follow up should not be based on:
-the day someone ticked “booked”
+the day someone ticked ï¿½bookedï¿½
 It should be based on:
 the actual valuation date or survey date
 That is the whole point of time sensitivity.
@@ -709,7 +711,7 @@ For time-sensitive milestones, we need to store both:
 * event_date = when the real-world booked event is taking place, or took place
 These must remain separate.
 Because someone might confirm on Monday:
-“valuation booked”
+ï¿½valuation bookedï¿½
 but the valuation itself might be on Friday.
 If the system uses Monday, the reminder comes too early.
 If it uses Friday, it works properly.
@@ -726,7 +728,7 @@ If a milestone definition is marked time_sensitive = yes, then when a user compl
 * event date
 * optionally event notes if useful later
 So for example:
-* user marks “Mortgage valuation booked” complete
+* user marks ï¿½Mortgage valuation bookedï¿½ complete
 * system asks for the actual valuation date
 That becomes part of the completion record.
 This should be a hard requirement for those milestone types.
@@ -771,7 +773,7 @@ So for time-sensitive milestones:
 This is subtle but important.
 A booked event milestone should still count as:
 * complete for progress display
-* complete for any logic where “booking confirmed” is the relevant state
+* complete for any logic where ï¿½booking confirmedï¿½ is the relevant state
 It is only the date-driven follow up logic that should use event_date.
 So:
 * completion truth = booking exists
@@ -809,7 +811,7 @@ We likely want the Milestone Completion record to include:
 * maybe event_date_type later if ever needed, but not necessary now
 That gives us enough to support the logic properly.
 
-Blueprint wording I’d lock in
+Blueprint wording Iï¿½d lock in
 6.21 Time-sensitive behaviour is defined by milestone definition
 Milestone Definitions may be flagged as time_sensitive = yes where reminder and follow-up logic must use a real-world event date rather than only the completion timestamp.
 6.22 Time-sensitive milestone completions require an event date
@@ -831,18 +833,18 @@ Still not yet.
 The next section after this is the real engine:
 Reminder Rules and Reminder Generation
 That is the last major architecture-heavy piece before we can even think about moving toward implementation.
-Perfect. We’ve now locked:
+Perfect. Weï¿½ve now locked:
 * event_date lives on Milestone Completion as the logic source
 * important dates can also be surfaced on the Property Transaction for visibility/reporting
 * editing an event date must:
 o recalculate dependent reminder dates
 o create an audit/activity entry
-That’s exactly the right split between:
+Thatï¿½s exactly the right split between:
 * truth for logic
 * convenience for visibility
 Still do not go to Claude
 Not yet.
-We’re still defining the core engine, and the next part is the biggest one left:
+Weï¿½re still defining the core engine, and the next part is the biggest one left:
 Reminder Rules + Reminder Generation
 This is where we define:
 * what a reminder rule actually is
@@ -853,16 +855,16 @@ This is where we define:
 * how duplicates are prevented
 * how exchange-ready reminders are gated
 * how time-sensitive milestones feed into this
-Once this bit is done, we’ll be much closer to the point where I tell you:
+Once this bit is done, weï¿½ll be much closer to the point where I tell you:
 ?? now go to Claude
 Because after that, the core architecture is largely in place.
 Next step
 Say:
 reminder rules
-and I’ll do the next section properly.
+and Iï¿½ll do the next section properly.
 Good. This is the heart of the engine.
 If milestones tell us where the file is, reminder rules tell us what should happen because of that.
-This is also the part most likely to become messy if it isn’t defined properly first.
+This is also the part most likely to become messy if it isnï¿½t defined properly first.
 Proposed reminder model
 1. Reminder Rules are templates, not live reminders
 A Reminder Rule is a system definition that explains:
@@ -973,7 +975,7 @@ If yes:
 * the rule only becomes valid once the derived exchange-readiness condition is true
 This maps neatly to your existing approach.
 
-10. Reminder Rules must respect “not required”
+10. Reminder Rules must respect ï¿½not requiredï¿½
 If a milestone or condition has been explicitly marked:
 * not required
 then the reminder engine must treat that as satisfying the relevant condition where appropriate.
@@ -994,7 +996,7 @@ So Reminder Rules should either:
 * infer this from the milestone definition
 or
 * explicitly support date source
-For clarity, I’d say:
+For clarity, Iï¿½d say:
 the system infers it from the anchor milestone definition.
 
 12. Reminder Rules should be auditable and understandable
@@ -1031,9 +1033,9 @@ If the anchor milestone is time-sensitive, due dates use event_date, not complet
 Rule 9
 Reminder logs must be auditable and understandable.
 
-What I’d add to the data model
+What Iï¿½d add to the data model
 Reminder Rule
-Fields I’d expect at high level:
+Fields Iï¿½d expect at high level:
 * id
 * name
 * anchor_milestone_definition_id
@@ -1044,7 +1046,7 @@ Fields I’d expect at high level:
 * maybe side later if needed
 * maybe description
 Reminder Log
-Fields I’d expect:
+Fields Iï¿½d expect:
 * id
 * transaction_id
 * reminder_rule_id
@@ -1062,8 +1064,8 @@ Is the target always another milestone?
 Sometimes yes.
 Sometimes no.
 Examples:
-* “ID/AML checks” feels milestone-linked
-* “confirm solicitor is ready to exchange” is almost more of an action/check than a milestone completion
+* ï¿½ID/AML checksï¿½ feels milestone-linked
+* ï¿½confirm solicitor is ready to exchangeï¿½ is almost more of an action/check than a milestone completion
 * some reminders may be operational chases rather than milestone completions
 So I think we should allow Reminder Rules to point to either:
 * a target milestone definition
@@ -1071,7 +1073,7 @@ or
 * a target action type / reminder purpose
 That keeps it flexible without hacking everything into milestone-only logic.
 
-Blueprint wording I’d lock in
+Blueprint wording Iï¿½d lock in
 6.28 Reminder Rules are reusable templates
 Reminder Rules define when reminder logic should apply, based on anchor events, delays, gating conditions, and target purpose.
 6.29 Reminder Logs are live transaction-specific instances
@@ -1092,7 +1094,7 @@ Where the anchor milestone is time-sensitive, reminder due dates must be calcula
 The system must preserve enough information to explain why a reminder exists, what date was used to calculate it, and when its state changed.
 Do not go to Claude yet
 Still not yet.
-We’re close, but the next piece is still part of the engine:
+Weï¿½re close, but the next piece is still part of the engine:
 Reminder generation workflow
 That is the operational layer:
 * when the job runs
@@ -1110,16 +1112,16 @@ Three key questions:
 3. When a rule becomes invalid later, do you generally want the existing live Reminder Log:
 o deactivated/cancelled
 o or left completed/history-only but no longer active?
-Once you answer those, I’ll do:
+Once you answer those, Iï¿½ll do:
 reminder generation workflow.
-Perfect. That’s now a strong rule:
+Perfect. Thatï¿½s now a strong rule:
 * one live reminder log per transaction + rule
 * reminder targets can be milestone outcomes or operational actions
 * if a rule stops applying, the live log is deactivated, not left hanging around as active
-That’s the right behaviour.
+Thatï¿½s the right behaviour.
 Still do not go to Claude
 Not yet.
-We’ve defined the rule objects, but we still need the operational workflow:
+Weï¿½ve defined the rule objects, but we still need the operational workflow:
 Reminder generation workflow
 This is the last big engine piece before it makes sense to start implementation planning.
 
@@ -1300,7 +1302,7 @@ Then
 * mark overdue based on due date
 That is the clean shape.
 
-Blueprint wording I’d lock in
+Blueprint wording Iï¿½d lock in
 6.39 Reminder generation runs from a scheduled backend process
 Reminder rule evaluation must run from a recurring backend job rather than relying on front-end activity.
 6.40 Reminder generation evaluates active transactions against current rule conditions
@@ -1330,13 +1332,13 @@ Two key questions before I lock this
 
 When you should go to Claude
 Still not yet.
-But we’re getting close.
+But weï¿½re getting close.
 Once this section is confirmed, the engine blueprint is mostly in place. After that, the next sensible move will be:
 * lock the remaining blueprint sections cleanly
-* then I’ll tell you it’s time to go to Claude for either:
+* then Iï¿½ll tell you itï¿½s time to go to Claude for either:
 o the written blueprint docs
 o or the first implementation-phase repo setup
-So we’re close, but not there quite yet.
+So weï¿½re close, but not there quite yet.
 Sales Progressor Rebuild Master Blueprint
 1. Product Summary
 1.1 Working product name
