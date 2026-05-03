@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { buildGreeting } from "@/lib/portal-copy";
+import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
   if (!token) return NextResponse.json({ error: "Missing token" }, { status: 400 });
+
+  // Rate limit by portal token — prevents invite email flooding
+  const rl = await checkPortalLimit(token).catch(() => ({ success: true, reset: 0, remaining: 999 }));
+  if (!rl.success) {
+    return NextResponse.json(rateLimitJson(rl), { status: 429 });
+  }
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },

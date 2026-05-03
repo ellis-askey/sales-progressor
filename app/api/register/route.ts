@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -8,6 +9,15 @@ function toTitleCase(str: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+    const rl = await checkSignupLimit(ip).catch(() => ({ success: true, reset: 0, remaining: 999 }));
+    if (!rl.success) {
+      return NextResponse.json(rateLimitJson(rl), { status: 429 });
+    }
+
     const { name, email, password, firmName, role } = await req.json();
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
