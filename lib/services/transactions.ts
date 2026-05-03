@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
-import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
+import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 
 export async function listTransactions(
   agencyId: string,
@@ -102,6 +102,22 @@ export async function listTransactions(
 export async function getTransaction(id: string, agencyId: string) {
   return prisma.propertyTransaction.findFirst({
     where: { id, agencyId },
+    include: {
+      agency: { select: { id: true, name: true } },
+      assignedUser: { select: { id: true, name: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, createdAt: true } },
+      vendorSolicitorFirm: { select: { id: true, name: true } },
+      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      purchaserSolicitorFirm: { select: { id: true, name: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      referredFirm: { select: { id: true, name: true } },
+    },
+  });
+}
+
+export async function getTransactionByScope(id: string, scope: AccessScope) {
+  return prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, id),
     include: {
       agency: { select: { id: true, name: true } },
       assignedUser: { select: { id: true, name: true } },

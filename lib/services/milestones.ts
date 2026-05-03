@@ -325,10 +325,10 @@ export async function maybeLockExchangeGate(
 
 export async function getMilestonesForTransaction(
   transactionId: string,
-  agencyId: string
+  agencyId: string | null
 ): Promise<MilestonesByTransaction> {
   const transaction = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId },
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: { id: true },
   });
   if (!transaction) throw new Error("Transaction not found");

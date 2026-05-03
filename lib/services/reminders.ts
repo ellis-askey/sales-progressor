@@ -42,10 +42,10 @@ export type ReminderLogWithRule = {
 
 export async function getReminderLogsForTransaction(
   transactionId: string,
-  agencyId: string
+  agencyId: string | null
 ): Promise<ReminderLogWithRule[]> {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId },
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");

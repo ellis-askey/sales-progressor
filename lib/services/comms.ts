@@ -43,10 +43,10 @@ export type ActivityEntry =
 
 export async function getActivityTimeline(
   transactionId: string,
-  agencyId: string
+  agencyId: string | null
 ): Promise<ActivityEntry[]> {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId },
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: { id: true, contacts: { select: { id: true, name: true } } },
   });
   if (!tx) throw new Error("Transaction not found");

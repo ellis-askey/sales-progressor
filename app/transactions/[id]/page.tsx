@@ -2,7 +2,8 @@
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getTransaction } from "@/lib/services/transactions";
+import { getTransactionByScope } from "@/lib/services/transactions";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
@@ -44,14 +45,15 @@ export default async function TransactionDetailPage({
 }) {
   const { id } = await params;
   const session = await requireSession();
+  const scope = getAccessScope(session);
 
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount] = await Promise.all([
-    getTransaction(id, session.user.agencyId),
-    getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
-    getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
-    getActivityTimeline(id, session.user.agencyId).catch(() => []),
+    getTransactionByScope(id, scope),
+    getMilestonesForTransaction(id, null).catch(() => null),
+    getReminderLogsForTransaction(id, null).catch(() => []),
+    getActivityTimeline(id, null).catch(() => []),
     getLastUpdate(id).catch(() => null),
-    listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
+    listManualTasksForTransaction(id, null).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
   ]);
 

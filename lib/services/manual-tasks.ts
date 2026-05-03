@@ -29,9 +29,9 @@ export async function listManualTasks(agencyId: string, status?: "open" | "done"
   }) as Promise<ManualTaskWithRelations[]>;
 }
 
-export async function listManualTasksForTransaction(transactionId: string, agencyId: string) {
+export async function listManualTasksForTransaction(transactionId: string, agencyId: string | null) {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId },
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
