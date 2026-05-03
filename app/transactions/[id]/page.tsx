@@ -47,6 +47,7 @@ export default async function TransactionDetailPage({
   const session = await requireSession();
   const scope = getAccessScope(session);
 
+  try {
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount] = await Promise.all([
     getTransactionByScope(id, scope),
     getMilestonesForTransaction(id, null).catch(() => null),
@@ -389,6 +390,14 @@ export default async function TransactionDetailPage({
       </div>
     </AppShell>
   );
+  } catch (err) {
+    // Next.js notFound() and redirect() throw special signals — let them pass through silently.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("NEXT_NOT_FOUND") && !msg.includes("NEXT_REDIRECT")) {
+      console.error("[TransactionDetailPage] Render failed txId=%s role=%s scope=%s:", id, session.user.role, scope.kind, err);
+    }
+    throw err;
+  }
 }
 
 function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
