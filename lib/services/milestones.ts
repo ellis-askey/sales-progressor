@@ -638,21 +638,24 @@ export async function reverseMilestone(
   milestoneDefinitionId: string,
   completedById: string,
   completedByName: string,
-  reason?: string
+  reason?: string,
+  tx?: Prisma.TransactionClient
 ) {
-  const def = await prisma.milestoneDefinition.findUnique({
+  const db = tx ?? prisma;
+
+  const def = await db.milestoneDefinition.findUnique({
     where: { id: milestoneDefinitionId },
     select: { name: true },
   });
 
-  await prisma.milestoneCompletion.update({
+  await db.milestoneCompletion.update({
     where: {
       transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId },
     },
     data: { state: "available", completedAt: null, completedById: null, summaryText: null },
   });
 
-  await prisma.outboundMessage.create({
+  await db.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
@@ -1173,7 +1176,7 @@ export async function reverseMilestoneWithCascade(input: {
 }) {
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
-    select: { code: true },
+    select: { code: true, side: true },
   });
 
   // Un-cascade any NR cascade that was triggered by this milestone
@@ -1217,11 +1220,20 @@ export async function reverseMilestoneWithCascade(input: {
     );
   }
 
-  return reverseMilestone(
-    input.transactionId,
-    input.milestoneDefinitionId,
-    input.completedById,
-    input.completedByName,
-    input.reason
-  );
+  // Reverse + gate re-lock in a single transaction so both writes are atomic.
+  // maybeLockExchangeGate is a no-op if the gate is already locked or if no
+  // blocker was affected; passing tx scopes it to the same connection.
+  await prisma.$transaction(async (tx) => {
+    await reverseMilestone(
+      input.transactionId,
+      input.milestoneDefinitionId,
+      input.completedById,
+      input.completedByName,
+      input.reason,
+      tx,
+    );
+    if (def?.side) {
+      await maybeLockExchangeGate(input.transactionId, def.side, tx);
+    }
+  });
 }
