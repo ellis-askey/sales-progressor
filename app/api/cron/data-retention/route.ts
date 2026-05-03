@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
  *
  *   Already-anonymised users (email ends in @deleted.invalid) are skipped.
  *
+ * Dry-run mode: add ?dryRun=true to return eligible users without writing anything.
+ *
  * Hard deletes are NOT performed automatically — use /api/gdpr/delete with
  * hardDelete+confirm flags for deliberate individual removal.
  */
@@ -24,6 +26,8 @@ export async function GET(req: NextRequest) {
   if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const dryRun = req.nextUrl.searchParams.get("dryRun") === "true";
 
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - USER_RETENTION_YEARS);
@@ -39,10 +43,10 @@ export async function GET(req: NextRequest) {
       id: true,
       email: true,
       name: true,
+      role: true,
       agencyId: true,
-      // Check for active sessions
+      updatedAt: true,
       sessions: { select: { id: true }, take: 1 },
-      // Check for active/on_hold transactions they're assigned to
       assignedTransactions: {
         where: { status: { in: ["active", "on_hold"] } },
         select: { id: true },
@@ -55,8 +59,28 @@ export async function GET(req: NextRequest) {
     (u) => u.sessions.length === 0 && u.assignedTransactions.length === 0
   );
 
+  const skippedCount = candidates.length - eligible.length;
+
+  if (dryRun) {
+    return NextResponse.json({
+      dryRun: true,
+      cutoffDate: cutoff.toISOString(),
+      candidatesFound: candidates.length,
+      eligibleForAnonymisation: eligible.length,
+      skipped: skippedCount,
+      wouldAnonymise: eligible.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        agencyId: u.agencyId,
+        updatedAt: u.updatedAt.toISOString(),
+      })),
+    });
+  }
+
   if (eligible.length === 0) {
-    return NextResponse.json({ ok: true, anonymised: 0, skipped: candidates.length });
+    return NextResponse.json({ ok: true, anonymised: 0, skipped: skippedCount });
   }
 
   let anonymised = 0;
@@ -90,7 +114,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     anonymised,
-    skipped: candidates.length - eligible.length,
+    skipped: skippedCount,
     errors: errors.length > 0 ? errors : undefined,
   });
 }

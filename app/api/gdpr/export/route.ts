@@ -7,7 +7,14 @@ import { STEP_UP_MAX_AGE_MS } from "@/lib/command/config";
 import { recordAdminAction } from "@/lib/command/audit/write";
 import { cookies, headers } from "next/headers";
 
+// TODO: For very large accounts, switch to a streaming/paginated export or
+// background job that emails a download link. Current buffered approach is
+// safe for typical user volumes but will hit serverless memory limits above
+// ~50k records.
+
 export const dynamic = "force-dynamic";
+
+const CAP = 1000;
 
 function stepUpValid(cookie: string): boolean {
   const payload = verifySession(cookie);
@@ -55,21 +62,22 @@ export async function GET(req: NextRequest) {
       communications: {
         select: { id: true, createdAt: true, channel: true, subject: true },
         orderBy: { createdAt: "desc" },
-        take: 200,
+        take: CAP,
       },
       sentPortalMessages: {
         select: { id: true, createdAt: true, content: true },
         orderBy: { createdAt: "desc" },
-        take: 200,
+        take: CAP,
       },
       assignedTransactions: {
         select: { id: true, propertyAddress: true, status: true, createdAt: true },
         orderBy: { createdAt: "desc" },
+        take: CAP,
       },
       createdManualTasks: {
         select: { id: true, title: true, createdAt: true },
         orderBy: { createdAt: "desc" },
-        take: 200,
+        take: CAP,
       },
     },
   });
@@ -87,9 +95,31 @@ export async function GET(req: NextRequest) {
     userAgent: ua,
   });
 
-  return NextResponse.json({
+  const truncatedFields: string[] = [];
+  if (user.communications.length === CAP) truncatedFields.push("communications");
+  if (user.sentPortalMessages.length === CAP) truncatedFields.push("sentPortalMessages");
+  if (user.assignedTransactions.length === CAP) truncatedFields.push("assignedTransactions");
+  if (user.createdManualTasks.length === CAP) truncatedFields.push("createdManualTasks");
+
+  const body = JSON.stringify({
     exportedAt: new Date().toISOString(),
     exportedBy: session.user.email,
+    cap: CAP,
     data: user,
   });
+
+  const res = new NextResponse(body, {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (truncatedFields.length > 0) {
+    res.headers.set("X-Export-Truncated", "true");
+    res.headers.set(
+      "X-Export-Truncation-Note",
+      `${truncatedFields.join(", ")} capped at ${CAP}`
+    );
+  }
+
+  return res;
 }

@@ -15,11 +15,13 @@ export default function PrivacyPage() {
 
         <div className="prose prose-slate max-w-none space-y-8">
 
+          {/* LEGAL REVIEW REQUIRED — confirm data controller vs data processor distinction; verify company name and registered details */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">1. Who we are</h2>
             <p className="text-slate-600 leading-relaxed">The Sales Progressor Ltd operates this platform ("The Sales Progressor"). This policy explains how we collect, use, and protect personal data in connection with the platform. We are the data controller for data held in the platform itself. Estate agencies using the platform are data controllers for their clients' data that they enter.</p>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — confirm data inventory is complete; verify no additional categories are collected (e.g. IP addresses, device data) */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">2. Data we collect</h2>
             <ul className="list-disc list-inside text-slate-600 leading-relaxed space-y-2">
@@ -31,11 +33,13 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — lawful basis for processing not stated; UK GDPR requires identifying the legal basis (contract, legitimate interest, consent, etc.) for each processing activity */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">3. How we use it</h2>
             <p className="text-slate-600 leading-relaxed">Data is used to provide the platform's core functions: tracking property transactions, sending progress updates, generating chase communications, and providing buyers and sellers with portal access to their transaction. We do not use personal data for marketing, profiling, or selling to third parties.</p>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — confirm data processing agreements (DPAs) exist with each listed sub-processor; verify region accuracy for each service */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">4. Third-party services</h2>
             <p className="text-slate-600 leading-relaxed">We use the following third-party services to operate the platform:</p>
@@ -48,22 +52,26 @@ export default function PrivacyPage() {
             </ul>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — confirm 7-year transaction retention period is correct for estate agency compliance; confirm 3-year inactivity threshold is defensible; check whether anonymisation constitutes erasure under UK GDPR */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">5. Data retention</h2>
             <p className="text-slate-600 leading-relaxed">Transaction data is retained for 7 years after completion or cancellation to support compliance with estate agency record-keeping requirements. Account data for agency staff is retained while the account is active. Accounts that have been inactive for 3 or more years with no open transactions are automatically anonymised — all personal identifiers (name, email, phone number) are replaced with placeholder values. Portal access links expire after the transaction is marked complete.</p>
             <p className="text-slate-600 leading-relaxed mt-3">To request early deletion of your data, email <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a>.</p>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — confirm all UK GDPR data subject rights are listed (access, rectification, erasure, restriction, portability, objection, automated decision-making); verify complaint escalation path is accurate */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">6. Your rights</h2>
             <p className="text-slate-600 leading-relaxed">Under UK GDPR you have the right to access, correct, or request deletion of your personal data. Buyers and sellers whose data has been entered by an agency should contact their estate agent in the first instance. Direct requests can be sent to: <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a></p>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — verify cookie disclosure matches the actual cookies set; confirm PECR compliance for any analytics cookies */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">7. Cookies</h2>
-            <p className="text-slate-600 leading-relaxed">The platform uses a session cookie to keep you logged in. No advertising or tracking cookies are used. Portal users may have a browser storage entry saved to remember home-screen install prompt preferences.</p>
+            <p className="text-slate-600 leading-relaxed">The platform uses a session cookie to keep you logged in. No advertising or tracking cookies are used. Portal users may have a browser storage entry saved to remember home-screen install prompt preferences. See our <Link href="/cookie-policy" className="text-blue-600 hover:text-blue-700">Cookie Policy</Link> for a full list.</p>
           </section>
 
+          {/* LEGAL REVIEW REQUIRED — confirm ICO registration is in place; verify contact details are current */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">8. Contact and complaints</h2>
             <p className="text-slate-600 leading-relaxed">Privacy questions: <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a></p>

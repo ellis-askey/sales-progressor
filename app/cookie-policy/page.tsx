@@ -23,6 +23,8 @@ export default function CookiePolicyPage() {
         cookies we set, why we set them, and how you can control them.
       </p>
 
+      {/* LEGAL REVIEW REQUIRED — confirm this policy satisfies PECR (Privacy and Electronic Communications Regulations) requirements for UK users; verify consent mechanism for analytics cookies is adequate */}
+
       <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>What is a cookie?</h2>
       <p>
         A cookie is a small text file stored on your device when you visit a website. Cookies
@@ -30,6 +32,7 @@ export default function CookiePolicyPage() {
         or what preferences you have set.
       </p>
 
+      {/* LEGAL REVIEW REQUIRED — confirm each cookie listed below matches what is actually set in production; verify the "strictly necessary" categorisation is defensible under ICO guidance */}
       <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>Cookies we use</h2>
 
       <h3 style={{ fontSize: "15px", fontWeight: "600", marginTop: "24px" }}>Strictly necessary</h3>
@@ -76,6 +79,7 @@ export default function CookiePolicyPage() {
         </tbody>
       </table>
 
+      {/* LEGAL REVIEW REQUIRED — confirm opt-in consent mechanism for analytics cookies meets PECR requirements; verify PostHog DPA is signed and EU data residency is confirmed in writing */}
       <h3 style={{ fontSize: "15px", fontWeight: "600", marginTop: "28px" }}>Analytics (optional)</h3>
       <p>
         These cookies are <strong>off by default</strong>. We only set them if you click
@@ -119,6 +123,7 @@ export default function CookiePolicyPage() {
         affect your ability to log in and use the platform.
       </p>
 
+      {/* LEGAL REVIEW REQUIRED — confirm DPA reference and data residency claim for PostHog are accurate and documented */}
       <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>Third-party processors</h2>
       <p>
         Analytics data is processed by <strong>PostHog, Inc.</strong> under a data processing

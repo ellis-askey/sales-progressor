@@ -78,7 +78,12 @@ vars and redeploy, or simply remove the variable (missing = disabled).
 
 ---
 
-## Row-Level Security (PR 51) — Staging Only
+## Row-Level Security (PR 51) — Staging Infrastructure Only
+
+> **Status:** Bypass policies are permanently active for now. Full strict-mode activation
+> is a future sprint item (pre-Series-A). See `docs/TODO.md` for scope and effort estimate.
+> Do not run the strict activation SQL below until the Prisma middleware and call-site
+> wiring described in TODO.md is complete.
 
 ### Tables with RLS enabled
 
@@ -192,17 +197,15 @@ curl -s "https://staging.yourdomain.com/api/command/rls-test\
 #   countWithContext == countWithoutContext  ← same agency, all rows visible
 ```
 
-### Production activation steps
+### Production activation — DEFERRED (see docs/TODO.md)
 
-1. Walk through the staging tests above and confirm Test 2 returns `rlsEnforcing: true`
-2. Create a new Prisma migration that runs the strict SQL (DROP bypass + CREATE strict)
-3. Deploy to production with the new migration
-4. Re-run the rls-test endpoint on production with known agency pair
-5. Monitor error logs for 30 minutes — any missing `withAgencyRls` wrapper will
-   surface as empty result sets (not crashes)
-6. Progressively wrap remaining high-risk read paths in `withAgencyRls`
+Strict RLS activation requires:
+1. Prisma middleware wiring `app.current_agency_id` on every request
+2. RLS policies on the 18 additional tables not covered by PR 51
+3. Full call-site audit before dropping bypass policies
 
-Production RLS deploy is a **separate action** after your staging walk-through passes.
+These are scheduled as a future sprint item. The strict activation SQL above is
+preserved for reference. Do not run it until the TODO.md prerequisites are met.
 
 ---
 
