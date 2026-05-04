@@ -175,12 +175,18 @@ export default async function AgentAnalyticsPage({
   const lockedFeePence = feeExchanged.reduce((a, b) => a + b, 0);
   const avgFeePence    = feesAll.length > 0 ? Math.round(totalFeePence / feesAll.length) : 0;
 
-  // ── Fee forecast ──────────────────────────────────────────────────────────
-  const activePeriodTx     = periodTx.filter(t => !t.hasExchanged && !t.hasCompleted);
-  const activeFees         = activePeriodTx.map(calcFeeIncVat).filter((f): f is number => f !== null);
-  const forecastPence      = activeFees.reduce((a, b) => a + b, 0);
-  const totalForecastPence = forecastPence + lockedFeePence;
-  const lockedPct          = totalForecastPence > 0 ? Math.round((lockedFeePence / totalForecastPence) * 100) : 0;
+  // ── Fee forecast — predicted for current calendar month ───────────────────
+  const thisMonthStart = new Date(pageNow.getFullYear(), pageNow.getMonth(), 1);
+  const thisMonthEnd   = new Date(pageNow.getFullYear(), pageNow.getMonth() + 1, 0, 23, 59, 59);
+  const thisMonthLabel = pageNow.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const thisMonthForecastTx = transactions.filter(t =>
+    !t.hasExchanged && !t.hasCompleted &&
+    t.expectedExchangeDate &&
+    new Date(t.expectedExchangeDate) >= thisMonthStart &&
+    new Date(t.expectedExchangeDate) <= thisMonthEnd
+  );
+  const thisMonthFees     = thisMonthForecastTx.map(calcFeeIncVat).filter((f): f is number => f !== null);
+  const thisMonthFeePence = thisMonthFees.reduce((a, b) => a + b, 0);
 
   // ── Referral income ───────────────────────────────────────────────────────
   const referredTxs        = periodTx.filter(t => t.referredFirmId);
@@ -550,41 +556,35 @@ export default async function AgentAnalyticsPage({
         {/* ── Fee forecast ─────────────────────────────────────────────────── */}
         <div className="agent-glass" style={{ padding: "18px 22px" }}>
           <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Fee forecast</p>
-          {activeFees.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-              <a href="#missing-fees" style={{ color: "var(--agent-coral-deep)", textDecoration: "none", fontWeight: 600 }}>Set fees on active files</a>
-              {" "}to see your forecast.
-            </p>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: totalForecastPence > 0 ? 14 : 0 }}>
-                <div>
-                  <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>If pipeline all exchanges</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Predicted for {thisMonthLabel}</p>
+              {thisMonthForecastTx.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>No exchanges predicted this month</p>
+              ) : thisMonthFees.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
+                  {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} predicted —{" "}
+                  <a href="#missing-fees" style={{ color: "var(--agent-coral-deep)", textDecoration: "none", fontWeight: 600 }}>set fees to see amount</a>
+                </p>
+              ) : (
+                <>
                   <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>
-                    {fmtGBP(totalForecastPence)}
+                    {fmtGBP(thisMonthFeePence)}
                   </p>
-                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>inc. VAT where set</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Locked in already</p>
-                  <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em" }}>
-                    {lockedFeePence > 0 ? fmtGBP(lockedFeePence) : "—"}
+                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                    {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} · inc. VAT where set
                   </p>
-                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>from exchanged files</p>
-                </div>
-              </div>
-              {totalForecastPence > 0 && (
-                <div>
-                  <div style={{ height: 5, borderRadius: 3, background: "rgba(0,0,0,0.07)", overflow: "hidden" }}>
-                    <div style={{ height: "100%", borderRadius: 3, background: "var(--agent-success)", width: `${lockedPct}%` }} />
-                  </div>
-                  <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                    {lockedPct}% secured · {100 - lockedPct}% in active pipeline
-                  </p>
-                </div>
+                </>
               )}
-            </>
-          )}
+            </div>
+            <div>
+              <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Locked in already</p>
+              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em" }}>
+                {lockedFeePence > 0 ? fmtGBP(lockedFeePence) : "—"}
+              </p>
+              <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>from exchanged files</p>
+            </div>
+          </div>
         </div>
 
         {/* ── Charts ───────────────────────────────────────────────────────── */}

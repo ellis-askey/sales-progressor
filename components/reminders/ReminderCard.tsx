@@ -381,7 +381,7 @@ export function ReminderCard({
     headerBg = "bg-amber-50/60 text-amber-600";
     headerLeft = "Due today";
   } else {
-    headerLeft = `Due ${formatDate(log.nextDueDate)}`;
+    headerLeft = `Active from ${formatDate(log.nextDueDate)}`;
   }
 
   const cardBody = (
