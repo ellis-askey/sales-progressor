@@ -268,35 +268,50 @@ export async function logPortalMilestoneConfirm(
     where: { id: transactionId },
     select: {
       propertyAddress: true,
+      serviceType: true,
       assignedUser: { select: { id: true, name: true, email: true } },
+      agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
         select: { id: true, name: true, email: true, roleType: true, portalToken: true },
       },
     },
   });
-  if (!tx?.assignedUser) return;
+  if (!tx) return;
 
   // Use client-facing portal copy label for all client communications
   const portalLabel = milestoneCode ? (getMilestoneCopy(milestoneCode).label ?? milestoneLabel) : milestoneLabel;
 
   const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
 
-  await prisma.outboundMessage.create({
-    data: {
-      transactionId,
-      type: "internal_note",
-      contactIds: [contactId],
-      content,
-      createdById: tx.assignedUser.id,
-    },
-  });
+  const createdById = tx.assignedUser?.id ?? tx.agentUser?.id;
+  if (createdById) {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId,
+        type: "internal_note",
+        contactIds: [contactId],
+        content,
+        createdById,
+      },
+    });
+  }
 
-  // Notify the assigned progressor — use the admin milestone label
-  if (tx.assignedUser.email) {
-    const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${transactionId}`;
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const address = tx.propertyAddress;
+  const serviceType     = tx.serviceType ?? undefined;
+  const progressorName  = tx.assignedUser?.name  ?? "Your sales progressor";
+  const progressorEmail = tx.assignedUser?.email ?? "";
+  const replyTo = serviceType === "self_managed"
+    ? (tx.agentUser?.email ?? undefined)
+    : (tx.assignedUser?.email ?? undefined);
+  const dashUrl = `${base}/transactions/${transactionId}`;
+
+  // Notify the assigned progressor (outsourced only — self-managed has no assignedUser)
+  if (tx.assignedUser?.email) {
     sendEmail({
       to: tx.assignedUser.email,
       subject: `Client confirmed: "${milestoneLabel}" — ${tx.propertyAddress}`,
+      replyTo,
       text: [
         `Hi ${extractFirstName(tx.assignedUser.name)},`,
         "",
@@ -315,10 +330,6 @@ export async function logPortalMilestoneConfirm(
     }).catch(() => {});
   }
 
-  const base = process.env.NEXTAUTH_URL ?? "";
-  const address = tx.propertyAddress;
-  const progressorName  = tx.assignedUser?.name  ?? "Your sales progressor";
-  const progressorEmail = tx.assignedUser?.email ?? "";
   const confirmingContact = tx.contacts.find((c) => c.id === contactId);
   const confirmingRole = confirmingContact?.roleType;
 
@@ -335,15 +346,25 @@ export async function logPortalMilestoneConfirm(
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
       const subject   = interpolate(copy.subject, { address });
       const text      = [greeting, "", interpolate(copy.opening, { address }), "", interpolate(copy.whatHappened, { address }), ...(copy.whatNext ? ["", interpolate(copy.whatNext, { address })] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
-      sendEmail({ to: c.email, subject, html, text }).catch(() => {});
+      sendEmail({ to: c.email, subject, html, text, replyTo }).catch(() => {});
       const existing = sideLog.get(recipientKey);
       if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
     }
     for (const { ids, subject, text } of sideLog.values()) {
       logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
+    }
+
+    // Agent notification for portal-confirmed milestones (no self-confirmation suppression for portal)
+    const agentCopy = richCopy.vendorAgentPortal ?? richCopy.vendorAgent;
+    if (tx.agentUser?.email && agentCopy) {
+      const greeting = buildGreeting(tx.agentUser.name);
+      const subject  = interpolate(agentCopy.subject, { address });
+      const text     = [greeting, "", interpolate(agentCopy.whatHappened, { address })].join("\n");
+      const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
+      sendEmail({ to: tx.agentUser.email, subject, html, text, replyTo }).catch(() => {});
     }
   } else {
     // Fallback for milestones without structured emailCopy: generic thank-you to confirming
@@ -366,6 +387,7 @@ export async function logPortalMilestoneConfirm(
         to: confirmingContact.email,
         subject: confirmSubject,
         text: confirmText,
+        replyTo,
         html: portalStepConfirmedHtml({
           firstName: extractFirstName(confirmingContact.name),
           address,
@@ -395,6 +417,7 @@ export async function logPortalMilestoneConfirm(
         to: other.email!,
         subject: `Progress update — ${address}`,
         text: otherText,
+        replyTo,
         html: portalEmailHtml({
           greeting: buildGreeting(other.name),
           body: `There's been a progress update on your ${otherSideRole === "vendor" ? "sale" : "purchase"} at <strong>${address}</strong>. Log in to your portal to see the latest.`,
@@ -468,7 +491,8 @@ export async function logPortalMilestoneConfirm(
 export async function sendAdminMilestoneNotificationToPortal(
   transactionId: string,
   milestoneCode: string,
-  eventDate?: string | null
+  eventDate?: string | null,
+  confirmerId?: string,
 ): Promise<void> {
   // Exchange gets the rich "what happens next" pack — delegate entirely
   if (milestoneCode === "VM19" || milestoneCode === "PM26") {
@@ -491,7 +515,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
   if (milestoneCopy.emailCopy) {
-    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy);
+    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId);
     return;
   }
 
@@ -649,6 +673,8 @@ function richMilestoneEmailHtml({
   progressorName,
   progressorEmail,
   isProgressor = false,
+  serviceType,
+  whatsappNumber,
 }: {
   greeting: string;
   copy: RecipientEmailCopy;
@@ -657,6 +683,8 @@ function richMilestoneEmailHtml({
   progressorName: string;
   progressorEmail: string;
   isProgressor?: boolean;
+  serviceType?: string;
+  whatsappNumber?: string;
 }): string {
   const vars = { address };
   const ctaBg   = isProgressor ? "#3B82F6" : "#FF6B4A";
@@ -668,11 +696,15 @@ function richMilestoneEmailHtml({
 
   const signatureBlock = isProgressor
     ? `<p style="margin:0;font-size:12px;color:#8b91a3">Sales Progressor system — ${address}</p>`
-    : `<p style="margin:0 0 12px;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>
-       <a href="https://wa.me/447508862929" style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px">
-         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-         Message me on WhatsApp
-       </a>`;
+    : serviceType === "self_managed"
+      ? `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Just reply to this email.</p>`
+      : whatsappNumber
+        ? `<p style="margin:0 0 12px;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>
+           <a href="https://wa.me/${whatsappNumber}" style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;padding:10px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+             Message me on WhatsApp
+           </a>`
+        : `<p style="margin:0;font-size:13px;color:#4a5162">Questions? Your progressor is <strong>${progressorName}</strong>.</p>`;
 
   return `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
 <div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
@@ -696,12 +728,14 @@ async function sendRichMilestoneEmails(
   transactionId: string,
   milestoneCode: string,
   emailCopy: MilestoneEmailCopy,
+  confirmerId?: string,
 ): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
       propertyAddress: true,
-      assignedUser: { select: { name: true, email: true } },
+      serviceType: true,
+      assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
         where: { roleType: { in: ["vendor", "purchaser"] } },
@@ -713,8 +747,12 @@ async function sendRichMilestoneEmails(
 
   const base             = process.env.NEXTAUTH_URL ?? "";
   const address          = tx.propertyAddress;
+  const serviceType      = tx.serviceType ?? undefined;
   const progressorName   = tx.assignedUser?.name  ?? "Your sales progressor";
   const progressorEmail  = tx.assignedUser?.email ?? "";
+  const replyTo          = serviceType === "self_managed"
+    ? (tx.agentUser?.email ?? undefined)
+    : (tx.assignedUser?.email ?? undefined);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
   // Vendor and purchaser contacts
@@ -730,11 +768,11 @@ async function sendRichMilestoneEmails(
     const vars     = { address };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
-    sendEmail({ to: c.email, subject, text, html }).catch(() => {});
+    sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
 
     const existing = sideLog.get(recipientKey);
     if (existing) {
@@ -748,26 +786,28 @@ async function sendRichMilestoneEmails(
     logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 
-  // Agent notification
-  if (tx.agentUser?.email && emailCopy.vendorAgent) {
+  // Agent notification — BUG2: suppress self-notification on self-managed when agent is the confirmer
+  const skipAgentEmail = serviceType === "self_managed" && tx.agentUser?.id === confirmerId;
+  if (tx.agentUser?.email && emailCopy.vendorAgent && !skipAgentEmail) {
     const copy    = emailCopy.vendorAgent;
     const vars    = { address };
     const greeting = buildGreeting(tx.agentUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
-    sendEmail({ to: tx.agentUser.email, subject, text, html }).catch(() => {});
+    sendEmail({ to: tx.agentUser.email, subject, text, html, replyTo }).catch(() => {});
   }
 
-  // Progressor notification
-  if (tx.assignedUser?.email && emailCopy.progressor) {
+  // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
+  const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
+  if (tx.assignedUser?.email && emailCopy.progressor && !skipProgressorEmail) {
     const copy    = emailCopy.progressor;
     const vars    = { address };
     const greeting = buildGreeting(tx.assignedUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
-    sendEmail({ to: tx.assignedUser.email, subject, text, html }).catch(() => {});
+    sendEmail({ to: tx.assignedUser.email, subject, text, html, replyTo }).catch(() => {});
   }
 
   return true;

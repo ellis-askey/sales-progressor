@@ -167,7 +167,8 @@ export async function confirmMilestoneAction(input: {
     sendAdminMilestoneNotificationToPortal(
       input.transactionId,
       code,
-      input.eventDate ?? null
+      input.eventDate ?? null,
+      session.user.id,
     ).catch(() => {});
 
     // Retention email: fire first-exchange celebration for the agent who owns the file
@@ -584,7 +585,8 @@ export async function confirmExchangeReconciliationAction(input: {
   sendAdminMilestoneNotificationToPortal(
     input.transactionId,
     code,
-    input.eventDate ?? null
+    input.eventDate ?? null,
+    session.user.id,
   ).catch(() => {});
 
   const isExchangeCode = def.code === "VM19" || def.code === "PM26";

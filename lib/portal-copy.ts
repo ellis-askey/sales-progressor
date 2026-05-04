@@ -14,6 +14,7 @@ export type MilestoneEmailCopy = {
   vendor?: RecipientEmailCopy;
   purchaser?: RecipientEmailCopy;
   vendorAgent?: RecipientEmailCopy;
+  vendorAgentPortal?: RecipientEmailCopy;
   progressor?: RecipientEmailCopy;
 };
 
@@ -127,6 +128,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Receive welcome pack from solicitor", labelOther: "Seller received welcome pack from solicitor", who: "you",
     description: "Your solicitor sends you a welcome pack containing their terms of business, a questionnaire, and ID requirements. Return it promptly — delays here slow down the whole transaction.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller is engaging with their solicitor — {address}",
+        heroLabel: "Seller received welcome pack",
+        opening: "Quick update on your purchase.",
+        whatHappened: "The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.",
+        whatNext: "Nothing for you to do right now. The seller will return the forms to their solicitor in due course.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Welcome pack received from your solicitor — {address}",
         heroLabel: "Welcome pack received",
@@ -150,6 +159,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Complete ID & AML checks", labelOther: "Seller completed ID & AML checks", who: "you",
     description: "Anti-money laundering law requires your solicitor to verify your identity. You'll need a passport or driving licence, plus a recent utility bill or bank statement. This is a legal requirement.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller's ID checks complete — {address}",
+        heroLabel: "Seller's ID & AML complete",
+        opening: "Good news on your purchase.",
+        whatHappened: "The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.",
+        whatNext: "Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "ID checks complete — {address}",
         heroLabel: "ID & AML checks done",
@@ -173,6 +190,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Receive property information forms", labelOther: "Seller received property information forms", who: "you",
     description: "Your solicitor will send you property information forms (TA6 and TA10) asking about the property — fixtures included in the sale, disputes, planning consents, and more. Complete these carefully and honestly.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller is gathering property information — {address}",
+        heroLabel: "Property forms in progress",
+        opening: "Quick update on your purchase.",
+        whatHappened: "The seller has been sent their property information forms (TA6 and TA10) by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history.",
+        whatNext: "Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Property information forms received — {address}",
         heroLabel: "Property forms to complete",
@@ -274,6 +299,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Management pack requested", who: "solicitor",
     description: "If the property is leasehold or share of freehold, your solicitor requests a management pack from the freeholder or managing agent. This contains details about service charges, ground rent, and building insurance.",
     emailCopy: {
+      purchaser: {
+        subject: "Leasehold information requested — {address}",
+        heroLabel: "Management pack requested",
+        opening: "Quick update on your purchase.",
+        whatHappened: "The seller's solicitor has requested the management pack from the freeholder or managing agent. This contains the leasehold information your solicitor will need — service charges, ground rent, building insurance, and any planned major works.",
+        whatNext: "Management packs sometimes take a few weeks to come back, but this is now in motion. Nothing for you to do right now.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Management pack requested from your freeholder — {address}",
         heroLabel: "Management pack requested",
@@ -336,6 +369,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial enquiries received", who: "solicitor",
     description: "The buyer's solicitor has raised questions about the property — these might cover planning history, building works, boundaries, or anything in the documents that needs clarification.",
     emailCopy: {
+      purchaser: {
+        subject: "Your solicitor's questions are with the seller's side — {address}",
+        heroLabel: "Enquiries received",
+        opening: "Quick update on your purchase.",
+        whatHappened: "Your solicitor's initial enquiries have been received by the seller's solicitor. They'll now work through the questions with the seller.",
+        whatNext: "Nothing for you to do right now — your solicitor will let you know when the replies come back.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Buyer's enquiries received — {address}",
         heroLabel: "Enquiries received",
@@ -359,6 +400,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Provide replies to enquiries", labelOther: "Seller provided replies to enquiries", who: "you",
     description: "Your solicitor needs your input to answer some of the buyer's questions. Respond as quickly as you can — delays in enquiries are one of the most common reasons transactions stall.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller has answered your solicitor's questions — {address}",
+        heroLabel: "Seller provided replies",
+        opening: "Progress on your purchase.",
+        whatHappened: "The seller has provided their solicitor with the information needed to reply to your solicitor's enquiries. The seller's solicitor will now formally send the replies across.",
+        whatNext: "Nothing for you to do right now — your solicitor will let you know once the replies are in their hands.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Action needed: your solicitor needs your help — {address}",
         heroLabel: "Your input needed",
@@ -421,6 +470,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Additional enquiries received", who: "solicitor",
     description: "A second round of questions has arrived from the buyer's solicitor. This is completely normal — most transactions have at least two rounds of enquiries.",
     emailCopy: {
+      purchaser: {
+        subject: "Your further questions are with the seller's side — {address}",
+        heroLabel: "Further enquiries received",
+        opening: "Quick update on your purchase.",
+        whatHappened: "The further enquiries your solicitor raised have been received by the seller's solicitor. They'll now work through the additional points with the seller.",
+        whatNext: "Nothing for you to do right now.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Additional enquiries from the buyer — {address}",
         heroLabel: "Further enquiries received",
@@ -444,6 +501,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Provide additional replies", labelOther: "Seller provided additional replies", who: "you",
     description: "Your solicitor needs your help with another set of questions from the buyer. Answer them as soon as possible to keep the transaction moving.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller has answered the further questions — {address}",
+        heroLabel: "Additional replies provided",
+        opening: "Progress on your purchase.",
+        whatHappened: "The seller has provided their solicitor with answers to the additional enquiries your solicitor raised. The seller's solicitor will now send these replies across.",
+        whatNext: "Nothing for you to do right now.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Action needed: further replies required from you — {address}",
         heroLabel: "Your input needed",
@@ -506,6 +571,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to seller", who: "you",
     description: "Your solicitor has sent you the final contract to review and sign. Read it carefully — check the price, completion date, and what's included in the sale.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller has received their contract — {address}",
+        heroLabel: "Seller's contract issued",
+        opening: "Good news on your purchase.",
+        whatHappened: "The seller has received their final contract documents from their solicitor for signing. Once they sign and return them, both sides will have signed contracts ready for exchange.",
+        whatNext: "Nothing for you to do right now — we'll let you know once the seller has signed.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Your contract is ready to sign — {address}",
         heroLabel: "Contract ready to sign",
@@ -529,6 +602,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Sign and return contract documents", labelOther: "Seller signed and returned contract", who: "you",
     description: "Sign the contract documents and return them to your solicitor. The contracts aren't exchanged yet — you're signing them ready for exchange, which is the legally binding moment.",
     emailCopy: {
+      purchaser: {
+        subject: "Seller has signed the contract — {address}",
+        heroLabel: "Seller signed contract",
+        opening: "A significant step on your purchase.",
+        whatHappened: "The seller has signed and returned their contract documents to their solicitor. Both sides need signed contracts in their solicitors' hands before exchange can happen.",
+        whatNext: "Once your contract is also signed and returned, exchange can be coordinated.",
+        action: "View your portal",
+      },
       vendor: {
         subject: "Signed contract received — ready for exchange — {address}",
         heroLabel: "Contract signed and returned",
@@ -710,6 +791,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Receive memorandum of sale", who: "solicitor",
     description: "The estate agent sends a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has the memorandum — {address}",
+        heroLabel: "Buyer's solicitor engaged",
+        opening: "Quick update on your sale.",
+        whatHappened: "The memorandum of sale has reached the buyer's solicitor. They now have formal confirmation to begin work on the purchase.",
+        whatNext: "Nothing for you to do right now — the buyer's side is now formally engaged.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Memorandum of sale issued — {address}",
         heroLabel: "Legal process underway",
@@ -733,6 +822,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Complete ID & AML checks", labelOther: "Buyer completed ID & AML checks", who: "you",
     description: "Anti-money laundering regulations require your solicitor to verify your identity before they can act for you. You'll need a photo ID and a recent proof of address.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's ID checks complete — {address}",
+        heroLabel: "Buyer's ID & AML complete",
+        opening: "Good news on your sale.",
+        whatHappened: "The buyer has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the purchase.",
+        whatNext: "Nothing for you to do right now — this is one of the early signals that things are moving properly on the buyer's side.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "ID checks complete — {address}",
         heroLabel: "ID & AML checks done",
@@ -756,6 +853,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Pay money on account to solicitor", labelOther: "Buyer paid money on account to solicitor", who: "you",
     description: "Your solicitor will ask for an initial payment to cover the cost of searches and disbursements. This is separate from the deposit and is typically a few hundred pounds.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer has put funds with their solicitor — {address}",
+        heroLabel: "Buyer funds in place",
+        opening: "Strong signal on your sale.",
+        whatHappened: "The buyer has transferred funds to their solicitor for searches and disbursements. This is one of the clearest signals that the buyer is committed in the early stages of a transaction.",
+        whatNext: "Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Payment on account received by your solicitor — {address}",
         heroLabel: "Payment on account received",
@@ -779,6 +884,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Submit mortgage application", labelOther: "Buyer submitted mortgage application", who: "you",
     description: "If you're buying with a mortgage, submit your full mortgage application to your lender. Your broker can do this on your behalf. Your agreement in principle needs to be converted into a full application.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's mortgage application is in — {address}",
+        heroLabel: "Mortgage application submitted",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer has submitted their mortgage application to their lender. The lender will now process the application — this typically includes a valuation visit to the property, which the buyer's agent will arrange directly.",
+        whatNext: "We'll let you know when the mortgage offer is issued.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Mortgage application submitted — {address}",
         heroLabel: "Mortgage application submitted",
@@ -786,6 +899,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your full mortgage application has been submitted to your lender. They'll now assess your application, arrange a valuation of the property, and work towards issuing a formal mortgage offer.",
         whatNext: "Your lender will book a valuation of the property — usually within a week or two. Once the valuation is done, the formal mortgage offer typically follows within 1–3 weeks. Your broker or lender will keep you updated.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's mortgage application submitted — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer has submitted their mortgage application. Lender will book a valuation in due course.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM5 complete: Buyer submitted mortgage application — {address}",
@@ -802,6 +923,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Lender valuation booked", who: "lender", typicalDuration: "usually 1–2 weeks after application",
     description: "Your mortgage lender has booked a valuation of the property to confirm it's worth what you're paying. This is not a structural survey — it's for the lender's benefit, not yours. Consider booking your own survey separately.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's lender valuation booked — {address}",
+        heroLabel: "Lender valuation booked",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's lender has booked the property valuation. A surveyor acting for the lender will visit the property to value it. The buyer or their agent will coordinate access with you directly.",
+        whatNext: "Nothing else for you to do right now.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Mortgage valuation booked — {address}",
         heroLabel: "Lender valuation booked",
@@ -809,6 +938,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your lender has arranged a valuation of the property. Their primary concern is that it's worth enough to secure their loan — it's not a structural survey and won't flag problems with the condition of the property.",
         whatNext: "If you haven't already booked your own survey, now is a good time — a RICS HomeBuyer Report will identify issues the lender's valuation won't cover. Once the valuation is done, your mortgage offer should follow within 1–3 weeks.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's lender valuation booked — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer's lender has booked property valuation. Coordinate access if needed.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM6 complete: Lender valuation booked — {address}",
@@ -864,6 +1001,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Searches ordered", who: "solicitor", typicalDuration: "results in 2–6 weeks",
     description: "Your solicitor has applied for searches — checks with the local council, water authority, and other bodies. These reveal planning permissions, flood risk, drainage, and other factors affecting the property.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has ordered searches — {address}",
+        heroLabel: "Searches ordered",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has submitted search applications to the local authority, water authority, and other relevant bodies. Searches check for planning permissions, flood risk, and drainage — they're a standard part of the buyer's due diligence.",
+        whatNext: "Nothing for you to do. We'll keep you updated as things progress.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Searches ordered on your purchase — {address}",
         heroLabel: "Searches ordered",
@@ -871,6 +1016,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your solicitor has submitted the search applications to the local authority, water authority, and other relevant bodies. Searches check for things like planning permissions, flood risk, drainage rights, and other factors that could affect the property.",
         whatNext: "Searches typically take 2–6 weeks to come back depending on the local authority — there's nothing for you to do while you wait. We'll let you know when they arrive.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's solicitor has ordered searches — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer's solicitor has confirmed searches ordered. Results typically take 2–6 weeks.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM8 complete: Searches ordered — {address}",
@@ -887,6 +1040,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Book your survey", labelOther: "Buyer booked their survey", who: "you",
     description: "Consider booking an independent structural survey. A RICS HomeBuyer Report (Level 2) costs around £400–700 and covers the condition of the property in detail — something the lender's valuation does not do. It's there for your peace of mind and protection.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer has booked their survey — {address}",
+        heroLabel: "Survey booked",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer has booked an independent survey of the property. A surveyor will visit to assess its condition.",
+        whatNext: "The buyer or their agent will be in touch to arrange access for the surveyor. We'll let you know when the survey report is received.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Survey booked — {address}",
         heroLabel: "Survey booked",
@@ -894,6 +1055,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your independent survey has been booked. The surveyor will inspect the property and produce a report covering its condition, any issues they find, and recommendations.",
         whatNext: "Most survey reports flag some issues — many are minor. When the report arrives, read it carefully and discuss any concerns with your solicitor. If anything significant is flagged, it may be worth seeking a specialist report or renegotiating the price.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer has booked their survey — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer has booked an independent survey. Coordinate access with the vendor.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM9 complete: Buyer booked survey — {address}",
@@ -910,6 +1079,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Survey report received", who: "you",
     description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues — many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's survey report has been received — {address}",
+        heroLabel: "Survey report received",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer has received their survey report. Surveys commonly flag some issues — this doesn't necessarily mean there's a problem, but the buyer may come back with queries or requests.",
+        whatNext: "We'll let you know if the buyer raises anything from the report.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your survey report has arrived — {address}",
         heroLabel: "Survey report received",
@@ -917,6 +1094,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your surveyor has delivered their report on the property. Most surveys flag some issues — it's rare to get a completely clean report, so don't be alarmed if yours highlights a few things.",
         whatNext: "Read the report carefully and note anything rated as a significant risk or requiring urgent attention. If you have concerns, speak to your solicitor — they can advise on whether to seek a specialist report or request further information from the seller.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's survey report received — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer has received their survey report. Be ready for potential queries or renegotiation.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM10 complete: Buyer received survey report — {address}",
@@ -972,6 +1157,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Management pack received", who: "solicitor",
     description: "If the property is leasehold, the management pack from the freeholder or managing agent has arrived. Your solicitor will review service charge accounts, ground rent, building insurance, and any planned major works.",
     emailCopy: {
+      vendor: {
+        subject: "Management pack received — {address}",
+        heroLabel: "Management pack received",
+        opening: "Quick update on your sale.",
+        whatHappened: "The management pack from the freeholder has been received by the buyer's solicitor. They'll now review service charges, ground rent, building insurance, and any planned major works.",
+        whatNext: "Nothing for you to do right now.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Management pack received — {address}",
         heroLabel: "Management pack received",
@@ -995,6 +1188,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Search results received", who: "solicitor", typicalDuration: "usually 2–6 weeks",
     description: "The search results have come back from the local authority and other bodies. Your solicitor will review them and flag anything that needs attention or further investigation.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's search results are back — {address}",
+        heroLabel: "Search results received",
+        opening: "Quick update on your sale.",
+        whatHappened: "The search results have been received by the buyer's solicitor. Searches cover planning, flood risk, drainage, and other local factors.",
+        whatNext: "Nothing for you to do. Most searches come back without issue — we'll let you know if anything needs attention.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Search results back — {address}",
         heroLabel: "Search results received",
@@ -1002,6 +1203,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "The search results have been received from the local authority and other bodies. Your solicitor will now review them carefully — they cover planning permissions, flood risk, drainage, and other factors affecting the property.",
         whatNext: "Most searches come back with nothing of concern. If your solicitor does identify something worth discussing, they'll be in touch. Otherwise, this keeps things moving towards exchange.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's search results received — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Quick update on {address}.",
+        whatHappened: "Buyer's solicitor has confirmed search results received. Conveyancing progressing.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM13 complete: Search results received — {address}",
@@ -1018,6 +1227,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial enquiries raised", who: "solicitor",
     description: "Your solicitor has sent questions to the seller's solicitor about the property. This is a normal part of the process — they're checking everything is in order before you exchange.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has raised enquiries — {address}",
+        heroLabel: "Enquiries raised",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has raised their initial round of enquiries with your solicitor. They're asking questions about the property, the title, and documents in the contract pack — a normal part of conveyancing.",
+        whatNext: "Your solicitor will work through the questions and reply. We'll let you know when replies have been sent.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your solicitor has raised enquiries — {address}",
         heroLabel: "Enquiries raised",
@@ -1041,6 +1258,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial replies received", who: "solicitor",
     description: "The seller's solicitor has replied to your solicitor's questions. Your solicitor will review the answers and decide whether further questions are needed.",
     emailCopy: {
+      vendor: {
+        subject: "Your solicitor has replied to the buyer's enquiries — {address}",
+        heroLabel: "Enquiry replies sent",
+        opening: "Quick update on your sale.",
+        whatHappened: "Your solicitor has replied to the buyer's solicitor's initial enquiries. The buyer's solicitor will now review the responses.",
+        whatNext: "There may be follow-up questions. We'll keep you updated.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Seller's solicitor has replied to your solicitor's enquiries — {address}",
         heroLabel: "Enquiry replies received",
@@ -1064,6 +1289,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed the replies to their enquiries. They may raise further questions, or they may be satisfied and move towards exchange.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has reviewed the enquiry replies — {address}",
+        heroLabel: "Replies reviewed",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has reviewed your solicitor's replies to their enquiries and is assessing whether all points have been answered satisfactorily.",
+        whatNext: "There may be a further round of questions — this is normal. We'll keep you updated.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your solicitor has reviewed the seller's replies — {address}",
         heroLabel: "Replies reviewed",
@@ -1087,6 +1320,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Additional enquiries raised", who: "solicitor",
     description: "Your solicitor has raised a second round of questions. This is completely normal — most transactions go through two or three rounds of enquiries before all points are resolved.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has raised further questions — {address}",
+        heroLabel: "Further enquiries raised",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has raised a further round of enquiries with your solicitor. Multiple rounds of questions are completely normal in conveyancing — this doesn't indicate a problem.",
+        whatNext: "Your solicitor will work through the additional questions and reply. We'll let you know when replies are sent.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your solicitor has raised further questions — {address}",
         heroLabel: "Further enquiries raised",
@@ -1110,6 +1351,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Additional replies received", who: "solicitor",
     description: "Replies to the additional enquiries have arrived from the seller's solicitor. Your solicitor will review them.",
     emailCopy: {
+      vendor: {
+        subject: "Your solicitor has replied to further buyer enquiries — {address}",
+        heroLabel: "Additional replies sent",
+        opening: "Quick update on your sale.",
+        whatHappened: "Your solicitor has replied to the buyer's solicitor's additional enquiries. The buyer's solicitor will now review the answers.",
+        whatNext: "We'll let you know when the buyer's solicitor has worked through the replies.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Further replies received from the seller's solicitor — {address}",
         heroLabel: "Additional replies received",
@@ -1133,6 +1382,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Additional replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed all outstanding replies. They should now have everything they need to report to you and move towards exchange.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's solicitor has reviewed all outstanding replies — {address}",
+        heroLabel: "All replies reviewed",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has reviewed all outstanding enquiry replies and is working through the remaining legal points.",
+        whatNext: "If satisfied, the buyer's solicitor will prepare their final report to the buyer, moving towards contract sign-off and exchange.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your solicitor has reviewed all replies — {address}",
         heroLabel: "All replies reviewed",
@@ -1156,6 +1413,14 @@ const copy: Record<string, PortalCopy> = {
     label: "All enquiries satisfied", who: "solicitor",
     description: "All legal questions about the property have been answered to your solicitor's satisfaction. This is a significant milestone — you're now in the final stretch before exchange.",
     emailCopy: {
+      vendor: {
+        subject: "All legal enquiries resolved — {address}",
+        heroLabel: "All enquiries satisfied",
+        opening: "Good news on your sale.",
+        whatHappened: "All of the buyer's solicitor's legal questions have been answered to their satisfaction. This is one of the final legal steps before exchange of contracts.",
+        whatNext: "The buyer's solicitor will now prepare their final report to the buyer. Once the buyer reviews and signs off, you'll be ready to exchange.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "All legal questions resolved — moving towards exchange — {address}",
         heroLabel: "All enquiries satisfied",
@@ -1163,6 +1428,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "All of the legal questions about the property have been answered to your solicitor's satisfaction. This is one of the last major legal steps before exchange of contracts.",
         whatNext: "Your solicitor will now prepare their final report to you, which summarises the property, the title, the search results, and any conditions on your mortgage. Once you've received and reviewed that, you'll be ready to sign the contract and exchange.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "All enquiries satisfied — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Good news on {address}.",
+        whatHappened: "Buyer's solicitor has confirmed all enquiries satisfied. Transaction is in the final stretch before exchange.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM20 complete: All enquiries satisfied — {address}",
@@ -1179,6 +1452,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Final report received from solicitor", who: "you",
     description: "Your solicitor has sent you their final report summarising everything about the property, the title, the searches, and any conditions on your mortgage offer. Read it and raise any questions before signing.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer is reviewing their solicitor's final report — {address}",
+        heroLabel: "Final report stage",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has sent their final report to the buyer — a comprehensive summary of the property, title, searches, and mortgage conditions. The buyer is now reviewing it before signing the contract.",
+        whatNext: "Once the buyer is satisfied and signs the contract, you'll be in the final stages before exchange.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your solicitor's final report is ready — {address}",
         heroLabel: "Final report received",
@@ -1202,6 +1483,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Contract documents issued to you", labelOther: "Contract documents issued to buyer", who: "you",
     description: "Your solicitor has sent you the contract to review and sign. Check the price, completion date, and included fixtures. Signing doesn't commit you yet — that happens at exchange.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer has been issued their contract — {address}",
+        heroLabel: "Contract issued to buyer",
+        opening: "Quick update on your sale.",
+        whatHappened: "The buyer's solicitor has issued the contract documents to the buyer for review and signature. Things are moving into the final stretch before exchange.",
+        whatNext: "Once the buyer signs and returns the contract, we're effectively ready to exchange.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Your contract is ready to sign — {address}",
         heroLabel: "Contract ready to sign",
@@ -1225,6 +1514,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Sign and return contract documents", labelOther: "Buyer signed and returned contract", who: "you",
     description: "Sign the contract and return it to your solicitor. They'll hold it ready for exchange. Make sure you're happy with the completion date before signing.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer has signed and returned their contract — {address}",
+        heroLabel: "Contract signed",
+        opening: "Good news on your sale.",
+        whatHappened: "The buyer has signed their contract documents and returned them to their solicitor. Both sides are now very close to being ready to exchange.",
+        whatNext: "Once the deposit is in place and both solicitors confirm readiness, exchange can happen. We'll keep you updated.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Signed contract received — ready for exchange — {address}",
         heroLabel: "Contract signed and returned",
@@ -1232,6 +1529,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your solicitor has received your signed contract documents and is holding them ready for exchange. They will have explained what signing means — the legally binding moment is exchange, not this step.",
         whatNext: "Make sure your deposit is on its way to your solicitor's client account if it isn't already — it needs to be there as cleared funds before exchange can happen.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer has signed and returned their contract — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Good news on {address}.",
+        whatHappened: "Buyer has signed and returned contract to their solicitor. Both sides are close to exchange readiness.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM23 complete: Buyer signed and returned contract — {address}",
@@ -1248,6 +1553,14 @@ const copy: Record<string, PortalCopy> = {
     label: "Transfer the deposit", labelOther: "Buyer transferred the deposit", who: "you",
     description: "Transfer your deposit — typically 10% of the purchase price — to your solicitor's client account. It must be cleared funds before exchange can happen. Allow a few days for bank transfers.",
     emailCopy: {
+      vendor: {
+        subject: "Buyer's deposit is in place — {address}",
+        heroLabel: "Deposit received",
+        opening: "Good news on your sale.",
+        whatHappened: "The buyer has transferred their deposit to their solicitor's client account as cleared funds. This is one of the final requirements before exchange can take place.",
+        whatNext: "Everything on the buyer's side is in place. Exchange is very close.",
+        action: "View your portal",
+      },
       purchaser: {
         subject: "Deposit received — ready for exchange — {address}",
         heroLabel: "Deposit received",
@@ -1255,6 +1568,14 @@ const copy: Record<string, PortalCopy> = {
         whatHappened: "Your solicitor has confirmed receipt of your deposit as cleared funds. This is one of the final requirements before exchange of contracts can take place.",
         whatNext: "Everything is now in place on your side. We're coordinating exchange with the seller's solicitor — you could be exchanging very soon.",
         action: "View your portal",
+      },
+      vendorAgent: {
+        subject: "Buyer's deposit is in place — {address}",
+        heroLabel: "Milestone complete",
+        opening: "Good news on {address}.",
+        whatHappened: "Buyer has transferred deposit to their solicitor's client account. Exchange can now happen.",
+        whatNext: null,
+        action: "View in dashboard",
       },
       progressor: {
         subject: "PM24 complete: Buyer transferred deposit — {address}",
