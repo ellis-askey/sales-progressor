@@ -29,6 +29,7 @@ type ReminderLog = {
     graceDays: number;
     repeatEveryDays: number;
     escalateAfterChases: number;
+    anchorMilestone: { name: string } | null;
   };
   chaseTasks: ChaseTask[];
 };
@@ -238,14 +239,13 @@ export function RemindersSection({
               .slice().sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())
               .map((log) => (
                 <div key={log.id} className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-                  <div className="px-4 py-1.5 text-xs font-medium bg-blue-50/60 text-blue-600 flex items-center justify-between">
-                    <span>Due {formatDate(log.nextDueDate)}</span>
-                    <span className="opacity-60">{log.reminderRule.graceDays}d grace</span>
+                  <div className="px-4 py-1.5 text-xs font-medium bg-blue-50/60 text-blue-600">
+                    Active from {formatDate(log.nextDueDate)}
                   </div>
                   <div className="px-5 py-3">
                     <p className="text-sm font-medium text-slate-900/90">{stripChase(log.reminderRule.name)}</p>
-                    {log.reminderRule.targetMilestoneCode && (
-                      <p className="text-xs text-slate-900/40 mt-0.5 font-mono">{log.reminderRule.targetMilestoneCode}</p>
+                    {log.reminderRule.anchorMilestone && (
+                      <p className="text-xs text-slate-900/35 mt-0.5">{log.reminderRule.anchorMilestone.name}</p>
                     )}
                   </div>
                 </div>

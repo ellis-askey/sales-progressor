@@ -69,7 +69,7 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
                       ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue`
                       : isToday
                       ? "Due today"
-                      : `Due ${formatDate(r.nextDueDate)}`}
+                      : `Active from ${formatDate(r.nextDueDate)}`}
                   </p>
                 </div>
                 {r.pendingChaseCount > 0 && (

@@ -27,6 +27,7 @@ export type ReminderLogWithRule = {
     graceDays: number;
     repeatEveryDays: number;
     escalateAfterChases: number;
+    anchorMilestone: { name: string } | null;
   };
   chaseTasks: {
     id: string;
@@ -55,7 +56,7 @@ export async function getReminderLogsForTransaction(
     orderBy: { nextDueDate: "asc" },
     include: {
       reminderRule: {
-        select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true },
+        select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, anchorMilestone: { select: { name: true } } },
       },
       chaseTasks: {
         select: {

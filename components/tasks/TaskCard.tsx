@@ -149,11 +149,6 @@ export function TaskCard({ task, onAction, onChased, loading }: Props) {
 
         {/* Meta */}
         <div className="flex items-center gap-3 mt-2">
-          {task.reminderLog.reminderRule.targetMilestoneCode && (
-            <span className="text-xs text-slate-900/40 font-mono bg-white/30 border border-white/30 px-1.5 py-0.5 rounded">
-              {task.reminderLog.reminderRule.targetMilestoneCode}
-            </span>
-          )}
           {task.assignedTo && (
             <span className="text-xs text-slate-900/40">{task.assignedTo.name}</span>
           )}
