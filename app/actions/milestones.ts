@@ -184,6 +184,7 @@ export async function confirmMilestoneAction(input: {
     const notifTx = await prisma.propertyTransaction.findUnique({
       where: { id: input.transactionId },
       select: {
+        serviceType:  true,
         assignedUser: { select: { id: true, name: true, email: true } },
         agentUser:    { select: { id: true, name: true, email: true } },
         contacts: {
@@ -203,7 +204,10 @@ export async function confirmMilestoneAction(input: {
           status: c.email ? "queued" : "skipped_no_email",
         });
       }
-      if (emailCopy.vendorAgent) {
+      // BUG2 mirror: skip agent notification display when agent is the confirmer (self-managed)
+      const skipAgentNotif = notifTx.serviceType === "self_managed"
+        && session.user.id === notifTx.agentUser?.id;
+      if (emailCopy.vendorAgent && !skipAgentNotif) {
         if (notifTx.agentUser) {
           notifications.push({
             role: "agent",
@@ -215,7 +219,10 @@ export async function confirmMilestoneAction(input: {
           notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
         }
       }
-      if (emailCopy.progressor) {
+      // BUG2 mirror: skip progressor notification display when SP is the confirmer (outsourced)
+      const skipProgressorNotif = notifTx.serviceType === "outsourced"
+        && session.user.id === notifTx.assignedUser?.id;
+      if (emailCopy.progressor && !skipProgressorNotif) {
         if (notifTx.assignedUser) {
           notifications.push({
             role: "progressor",
