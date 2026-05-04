@@ -385,18 +385,18 @@ async function main() {
   console.log(`✓ Reminder rules: ${rules.length}`);
 
   // ── Solicitor Firms ───────────────────────────────────────────────────────
-  const firmThornton = await prisma.solicitorFirm.create({ data: { agencyId: agency.id, name: "Thornton & Co Solicitors" } });
+  const firmThornton = await prisma.solicitorFirm.create({ data: { name: "Thornton & Co Solicitors" } });
   await prisma.solicitorContact.create({ data: { firmId: firmThornton.id, name: "Henry Thornton", email: "henry@thorntonco.co.uk", phone: "0117 922 3400" } });
   await prisma.solicitorContact.create({ data: { firmId: firmThornton.id, name: "Sarah Marsh", email: "s.marsh@thorntonco.co.uk", phone: "0117 922 3401" } });
 
-  const firmDevlin = await prisma.solicitorFirm.create({ data: { agencyId: agency.id, name: "Devlin Law LLP" } });
+  const firmDevlin = await prisma.solicitorFirm.create({ data: { name: "Devlin Law LLP" } });
   await prisma.solicitorContact.create({ data: { firmId: firmDevlin.id, name: "Mark Devlin", email: "mark@devlinlaw.co.uk", phone: "0117 900 1234" } });
   await prisma.solicitorContact.create({ data: { firmId: firmDevlin.id, name: "Priya Anand", email: "p.anand@devlinlaw.co.uk", phone: "0117 900 1235" } });
 
-  const firmAndersons = await prisma.solicitorFirm.create({ data: { agencyId: agency.id, name: "Andersons Property Law" } });
+  const firmAndersons = await prisma.solicitorFirm.create({ data: { name: "Andersons Property Law" } });
   await prisma.solicitorContact.create({ data: { firmId: firmAndersons.id, name: "Lucy Anderson", email: "l.anderson@aplaw.co.uk", phone: "0117 435 8800" } });
 
-  const firmWright = await prisma.solicitorFirm.create({ data: { agencyId: agency.id, name: "Wright & Hughes LLP" } });
+  const firmWright = await prisma.solicitorFirm.create({ data: { name: "Wright & Hughes LLP" } });
   await prisma.solicitorContact.create({ data: { firmId: firmWright.id, name: "Tom Wright", email: "t.wright@whlegal.co.uk", phone: "0117 332 9900" } });
 
   console.log("✓ Solicitor firms and contacts");

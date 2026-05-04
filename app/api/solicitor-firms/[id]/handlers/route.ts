@@ -12,9 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
 
-  const firm = await prisma.solicitorFirm.findFirst({
-    where: { id, agencyId: session.user.agencyId },
-  });
+  const firm = await prisma.solicitorFirm.findUnique({ where: { id } });
   if (!firm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const handlers = await prisma.solicitorContact.findMany({
@@ -35,9 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { name, phone, email } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
 
-  const firm = await prisma.solicitorFirm.findFirst({
-    where: { id, agencyId: session.user.agencyId },
-  });
+  const firm = await prisma.solicitorFirm.findUnique({ where: { id } });
   if (!firm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const handler = await prisma.solicitorContact.create({

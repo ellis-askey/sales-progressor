@@ -108,7 +108,6 @@ export async function getSolicitorDirectoryForAgent(vis: AgentVisibility): Promi
 
 export async function getSolicitorDirectory(agencyId: string): Promise<SolicitorFirmWithStats[]> {
   const firms = await prisma.solicitorFirm.findMany({
-    where: { agencyId },
     orderBy: { name: "asc" },
     include: {
       handlers: {

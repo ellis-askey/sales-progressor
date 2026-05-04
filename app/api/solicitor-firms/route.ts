@@ -16,10 +16,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const firms = await prisma.solicitorFirm.findMany({
-      where: {
-        agencyId: session.user.agencyId,
-        ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-      },
+      where: q ? { name: { contains: q, mode: "insensitive" } } : {},
       orderBy: { name: "asc" },
       take: 10,
       select: { id: true, name: true },
@@ -42,7 +39,6 @@ export async function POST(req: NextRequest) {
   try {
     const firm = await prisma.solicitorFirm.create({
       data: {
-        agencyId: session.user.agencyId,
         name: name.trim(),
         ...(handler?.name?.trim()
           ? {

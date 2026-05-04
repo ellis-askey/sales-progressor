@@ -29,7 +29,6 @@ model Agency {
 
   users                    User[]
   transactions             PropertyTransaction[]
-  solicitorFirms           SolicitorFirm[]
   manualTasks              ManualTask[]
   chains                   PropertyChain[]
   verifiedDomains          VerifiedDomain[]
@@ -276,12 +275,10 @@ model PortalMessage {
 
 model SolicitorFirm {
   id        String   @id @default(cuid())
-  agencyId  String
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  agency   Agency             @relation(fields: [agencyId], references: [id])
   handlers SolicitorContact[]
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorFirm")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorFirm")

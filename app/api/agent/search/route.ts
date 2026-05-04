@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       },
     }),
     prisma.solicitorFirm.findMany({
-      where: { agencyId: vis.agencyId, name: { contains: q, mode: "insensitive" } },
+      where: { name: { contains: q, mode: "insensitive" } },
       take: 4,
       select: {
         id: true, name: true,

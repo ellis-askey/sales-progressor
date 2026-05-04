@@ -46,7 +46,7 @@ export async function createAndRecommendSolicitorAction(name: string) {
   let firm = await prisma.solicitorFirm.findFirst({ where: { name: name.trim() } });
   if (!firm) {
     firm = await prisma.solicitorFirm.create({
-      data: { name: name.trim(), agencyId: session.user.agencyId },
+      data: { name: name.trim() },
     });
   }
 
@@ -78,7 +78,7 @@ export async function addRecommendedSolicitorWithContactAction(input: {
     let firm = await prisma.solicitorFirm.findFirst({ where: { name: firmName.trim() } });
     if (!firm) {
       firm = await prisma.solicitorFirm.create({
-        data: { name: firmName.trim(), agencyId: session.user.agencyId },
+        data: { name: firmName.trim() },
       });
     }
     firmId = firm.id;
