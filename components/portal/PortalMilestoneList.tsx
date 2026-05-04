@@ -302,7 +302,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             {showOtherSide && (
               <div>
                 {otherGroups.map((group) => {
-                  const groupMilestones = group.codes.map((c) => otherByCode.get(c)).filter((m): m is Milestone => !!m);
+                  const groupMilestones = group.codes.map((c) => otherByCode.get(c)).filter((m): m is Milestone => !!m && !m.isNotRequired);
                   if (groupMilestones.length === 0) return null;
                   if (group.label === "After Exchange" && !hasExchanged) return null;
 
