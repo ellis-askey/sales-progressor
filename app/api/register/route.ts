@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
     }
 
-    const agency = await prisma.agency.findFirst();
-    if (!agency) {
-      return NextResponse.json({ error: "System not configured — please contact support" }, { status: 500 });
-    }
+    const agencyName = firmName?.trim() ? toTitleCase(firmName) : toTitleCase(name);
+    const agency = await prisma.agency.create({
+      data: { name: agencyName, signupAt: new Date() },
+    });
 
     const hashedPassword = await hash(password, 12);
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         role: role === "director" ? "director" : "negotiator",
         agencyId: agency.id,
-        firmName: firmName?.trim() ? toTitleCase(firmName) : null,
+        firmName: agencyName,
       },
     });
 

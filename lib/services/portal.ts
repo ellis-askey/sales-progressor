@@ -99,7 +99,7 @@ export async function getPortalData(token: string) {
         purchaseType: tx.purchaseType,
         expectedExchangeDate: tx.expectedExchangeDate,
         completionDate: tx.completionDate,
-        agencyName: tx.agency.name,
+        agencyName: tx.agency?.name ?? "",
         postcode,
       },
     };

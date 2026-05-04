@@ -40,11 +40,13 @@ export default async function PortalHomePage({
   if (!data) notFound();
 
   const { contact, transaction } = data;
-  const side     = contact.roleType === "vendor" ? "vendor" : "purchaser";
-  const saleWord = side === "vendor" ? "sale" : "purchase";
+  const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const otherSide = side === "vendor" ? "purchaser" : "vendor";
+  const saleWord  = side === "vendor" ? "sale" : "purchase";
 
-  const [rawMilestones, timeline] = await Promise.all([
+  const [rawMilestones, rawOtherMilestones, timeline] = await Promise.all([
     getPortalMilestones(transaction.id, side),
+    getPortalMilestones(transaction.id, otherSide),
     getPortalTimeline(transaction.id, side, contact.id),
   ]);
 
@@ -59,7 +61,9 @@ export default async function PortalHomePage({
   const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
   const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
 
-  const preExchange = milestones.filter((m) => !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !m.isNotRequired);
+  // Overview % is the overall transaction progress (both sides combined)
+  const allRaw    = [...rawMilestones, ...rawOtherMilestones];
+  const preExchange = allRaw.filter((m) => !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
   const percent     = preExchange.length > 0 ? Math.round((completed.length / preExchange.length) * 100) : 0;
 
