@@ -47,21 +47,13 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
         style={{ background: "#FFFFFF", boxShadow: P.shadowSm }}
       >
         <div className="max-w-lg mx-auto px-5 py-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0 pr-3">
-              <p
-                className="text-[11px] font-bold uppercase tracking-[0.12em] mb-1"
-                style={{ color: P.primary }}
-              >
-                {agencyName}
-              </p>
-              <h1
-                className="text-[15px] font-semibold leading-snug truncate"
-                style={{ color: P.textPrimary }}
-              >
-                {propertyAddress}
-              </h1>
-            </div>
+          <div className="flex items-center justify-between">
+            <p
+              className="text-[11px] font-bold uppercase tracking-[0.12em]"
+              style={{ color: P.primary }}
+            >
+              {agencyName}
+            </p>
             <div
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold"
               style={{ background: P.primaryBg, color: P.primaryText }}
