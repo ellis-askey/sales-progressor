@@ -150,13 +150,14 @@ export default async function AgentCompletionsPage() {
 
         {/* Empty state */}
         {files.length === 0 && (
-          <div className="text-center py-16">
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-              <ClockCountdown size={40} weight="thin" style={{ color: "rgba(15,23,42,0.2)" }} />
-            </div>
-            <p className="text-base font-medium text-slate-900/50 mb-2">No files awaiting completion</p>
-            <p className="text-sm text-slate-900/40 mb-1">Once a file exchanges, it&apos;ll appear here as it heads toward completion.</p>
-            <p className="text-sm text-slate-900/30">We&apos;ll track target dates, days remaining, and surface anything that drifts past its date.</p>
+          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <ClockCountdown size={32} weight="regular" style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              No files awaiting completion
+            </p>
+            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+              Once a file exchanges, it&apos;ll appear here as it heads toward completion.
+            </p>
           </div>
         )}
 

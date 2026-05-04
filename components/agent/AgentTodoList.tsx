@@ -115,13 +115,13 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
     return (
       <div className="space-y-8">
         <AddManualTaskForm showOwnership onAdd={handleAdd} />
-        <div style={{ paddingTop: 48, textAlign: "center" }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(15,23,42,0.18)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block" }}>
+        <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          <p style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.35)" }}>Nothing here yet.</p>
-          <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.28)", maxWidth: 280, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
+          <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
             Jot down your next steps, or send a request to your progressor.
           </p>
         </div>

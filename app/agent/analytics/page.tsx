@@ -275,64 +275,41 @@ export default async function AgentAnalyticsPage({
   // ── Full empty state (zero files ever) ───────────────────────────────────
   if (transactions.length === 0) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <>
         <div className="agent-glass-strong" style={{ padding: "22px 32px 26px", borderBottom: "0.5px solid var(--agent-glass-border)", position: "relative", overflow: "hidden" }}>
           <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(255,138,101,0.11) 0%, transparent 70%)" }} />
           <div style={{ position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-              <div>
-                <h1 style={{ margin: 0, fontSize: "var(--agent-text-h2)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-                  Analytics
-                </h1>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
-                  Performance and revenue across your agency.
-                </p>
-              </div>
-              {isDirector && team.length > 0 && (
-                <AnalyticsFilterClient
-                  team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
-                  currentUserId={filterUserId ?? null}
-                  basePath="/agent/analytics"
-                />
-              )}
-            </div>
+            <h1 style={{ margin: 0, fontSize: "var(--agent-text-h2)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
+              Analytics
+            </h1>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
+              Performance and revenue across your agency.
+            </p>
           </div>
         </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 32px" }}>
-          <div style={{ textAlign: "center", maxWidth: 440 }}>
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ marginBottom: 20 }} aria-hidden="true">
-              <rect x="6"  y="30" width="10" height="12" rx="2" fill="var(--agent-coral)" opacity="0.35" />
-              <rect x="19" y="20" width="10" height="22" rx="2" fill="var(--agent-coral)" opacity="0.6" />
+        <div className="px-4 py-5 sm:px-8">
+          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }} aria-hidden="true">
+              <rect x="6"  y="30" width="10" height="12" rx="2" fill="var(--agent-coral)" />
+              <rect x="19" y="20" width="10" height="22" rx="2" fill="var(--agent-coral)" />
               <rect x="32" y="10" width="10" height="32" rx="2" fill="var(--agent-coral)" />
             </svg>
-            <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               Analytics will appear here as you submit sales.
-            </h2>
-            <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
-              Once your first file is submitted, you&apos;ll see:
             </p>
-            <ul style={{ textAlign: "left", margin: "0 auto 28px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, maxWidth: 300 }}>
-              {[
-                "Pipeline value and conversion rates",
-                "Fee tracking and forecast",
-                "Files exchanged and completed",
-                "Monthly performance trends",
-              ].map((item) => (
-                <li key={item} style={{ fontSize: 13, color: "var(--agent-text-secondary)", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ color: "var(--agent-coral)", flexShrink: 0, marginTop: 1 }}>·</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <p style={{ margin: "0 auto 20px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+              Once your first file is submitted, you&apos;ll see pipeline value, fee tracking, conversion rates, and monthly trends.
+            </p>
             <Link
               href="/agent/transactions/new"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", borderRadius: 999, background: "var(--agent-coral)", color: "white", fontWeight: 600, fontSize: 13, textDecoration: "none" }}
+              className="agent-btn agent-btn-primary"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
             >
               + Submit your first sale
             </Link>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 

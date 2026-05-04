@@ -153,9 +153,9 @@ export function MilestonePanel({
     });
   }
 
-  const totalAll = milestones.length;
-  const doneAll = milestones.filter((m) => m.isComplete || m.isNotRequired).length;
   const applicableMs = milestones.filter((m) => !m.isNotRequired);
+  const totalAll = applicableMs.length;
+  const doneAll = applicableMs.filter((m) => m.isComplete).length;
   const applicableWeight = applicableMs.reduce((s, m) => s + Number(m.weight), 0);
   const completedWeight = applicableMs.filter((m) => m.isComplete).reduce((s, m) => s + Number(m.weight), 0);
   const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
@@ -253,8 +253,9 @@ export function MilestonePanel({
       <div className="flex items-center gap-1 mb-4 glass-subtle p-1 w-fit">
         {(["vendor", "purchaser"] as const).map((side) => {
           const mils = side === "vendor" ? vendor : purchaser;
-          const done = mils.filter((m) => m.isComplete || m.isNotRequired).length;
-          const total = mils.length;
+          const applicable = mils.filter((m) => !m.isNotRequired);
+          const done = applicable.filter((m) => m.isComplete).length;
+          const total = applicable.length;
           const gateOk = side === "vendor" ? vendorGateReady : purchaserGateReady;
           return (
             <button

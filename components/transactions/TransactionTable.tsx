@@ -279,12 +279,9 @@ export function TransactionTable({
               <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
                 {/* Address + tag */}
                 <div>
-                  <div className="flex items-start gap-2 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900/90 leading-snug flex-1 min-w-0">
-                      {line}
-                    </p>
-                    {serviceTag}
-                  </div>
+                  <p className="text-sm font-semibold text-slate-900/90 leading-snug">
+                    {line}
+                  </p>
                   {location && <p className="text-xs text-slate-900/40 mt-0.5">{location}</p>}
                   <VendorBuyerLine contacts={tx.contacts} />
                 </div>
@@ -318,10 +315,13 @@ export function TransactionTable({
                 </div>
 
                 {/* Assigned */}
-                <p className={`text-xs ${assignedMuted ? "font-medium" : "text-slate-900/55"}`}
-                   style={assignedMuted ? { color: "rgba(180,87,9,0.65)" } : undefined}>
-                  Assigned: {assignedText}
-                </p>
+                <div>
+                  <p className={`text-xs ${assignedMuted ? "font-medium" : "text-slate-900/55"}`}
+                     style={assignedMuted ? { color: "rgba(180,87,9,0.65)" } : undefined}>
+                    Assigned: {assignedText}
+                  </p>
+                  {serviceTag && <div className="mt-1">{serviceTag}</div>}
+                </div>
 
                 {/* Owner — director only */}
                 {showOwner && tx.agentUser && (
@@ -344,12 +344,9 @@ export function TransactionTable({
 
               {/* Property + vendor/buyer names */}
               <div className="px-4 py-3.5 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug group-hover:text-blue-600 transition-colors flex-1 min-w-0">
-                    {line}
-                  </p>
-                  {serviceTag}
-                </div>
+                <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug group-hover:text-blue-600 transition-colors">
+                  {line}
+                </p>
                 {location && <p className="text-xs text-slate-900/40 mt-0.5 truncate">{location}</p>}
                 <VendorBuyerLine contacts={tx.contacts} />
                 {health?.nextActionLabel && (
@@ -375,6 +372,7 @@ export function TransactionTable({
                 ) : (
                   <span className="text-sm text-slate-900/30 italic">Unassigned</span>
                 )}
+                {serviceTag && <div className="mt-1">{serviceTag}</div>}
               </div>
 
               {/* Exchange target */}

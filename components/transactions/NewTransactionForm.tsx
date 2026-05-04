@@ -450,10 +450,18 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
 
   function handlePriceChange(val: number | null) {
     setField("purchasePrice", val);
+    // Clear the warning immediately when the value becomes valid or empty.
+    // The "seems low" warning is only set on blur so it doesn't fire mid-typing.
     if (val === null || val === 0) { setPriceWarning(""); return; }
-    if (val < 1_000_000) setPriceWarning("This seems low for a property — double-check the figure");
-    else if (val > 5_000_000_000) setPriceWarning("Price over £50m — please double-check");
-    else setPriceWarning("");
+    if (val > 5_000_000_000) setPriceWarning("Price over £50m — please double-check");
+    else if (val >= 1_000_000) setPriceWarning("");
+  }
+
+  function handlePriceBlur() {
+    const val = form.purchasePrice;
+    if (val && val > 0 && val < 1_000_000) {
+      setPriceWarning("This seems low for a property — double-check the figure");
+    }
   }
 
   async function autoFillSolicitor(
@@ -1063,6 +1071,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                 <PriceInput
                   value={form.purchasePrice}
                   onChange={handlePriceChange}
+                  onBlur={handlePriceBlur}
                   className="w-48"
                 />
                 <span className="text-xs text-slate-900/40">Optional</span>
@@ -1093,38 +1102,72 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                       % of sale price
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {agentFeeType === "amount" ? (
-                      <PriceInput
-                        value={agentFeeAmount}
-                        onChange={setAgentFeeAmount}
-                        className="w-40"
-                        placeholder="e.g. 3,000"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={agentFeePercentStr}
-                          onChange={(e) => setAgentFeePercentStr(e.target.value)}
-                          placeholder="e.g. 1.5"
-                          inputMode="decimal"
-                          step="0.01"
-                          min="0"
-                          max="10"
-                          className="glass-input w-28 px-3 py-2 text-sm"
+                  <div className="flex gap-2 items-start">
+                    {/* Left: input + VAT select */}
+                    <div className="flex-1 flex items-center gap-2">
+                      {agentFeeType === "amount" ? (
+                        <PriceInput
+                          value={agentFeeAmount}
+                          onChange={setAgentFeeAmount}
+                          className="w-40"
+                          placeholder="e.g. 3,000"
                         />
-                        <span className="text-sm text-slate-900/50">%</span>
-                      </div>
-                    )}
-                    <select
-                      value={agentFeeVat}
-                      onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
-                      className="glass-input px-2 py-2 text-sm"
-                    >
-                      <option value="exclusive">+ VAT</option>
-                      <option value="inclusive">Inc. VAT</option>
-                    </select>
+                      ) : (
+                        <>
+                          <input
+                            type="number"
+                            value={agentFeePercentStr}
+                            onChange={(e) => setAgentFeePercentStr(e.target.value)}
+                            placeholder="e.g. 1.5"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            max="10"
+                            className="glass-input w-20 px-3 py-2 text-sm"
+                          />
+                          <span className="text-sm text-slate-900/50">%</span>
+                        </>
+                      )}
+                      <select
+                        value={agentFeeVat}
+                        onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
+                        className="glass-input px-2 py-2 text-sm"
+                      >
+                        <option value="exclusive">+ VAT</option>
+                        <option value="inclusive">Inc. VAT</option>
+                      </select>
+                    </div>
+
+                    {/* Right: live £ figure — only when % mode */}
+                    {agentFeeType === "percent" && (() => {
+                      const pct = parseFloat(agentFeePercentStr);
+                      const price = form.purchasePrice;
+                      if (!isNaN(pct) && pct > 0 && price && price > 0) {
+                        const fmt = (p: number) => "£" + Math.round(p / 100).toLocaleString("en-GB");
+                        const base = price * pct / 100;
+                        const exVat = agentFeeVat === "exclusive" ? base : base / 1.2;
+                        const incVat = agentFeeVat === "exclusive" ? base * 1.2 : base;
+                        const primary = agentFeeVat === "exclusive"
+                          ? `${fmt(exVat)} ex. VAT`
+                          : `${fmt(incVat)} inc. VAT`;
+                        const secondary = agentFeeVat === "exclusive"
+                          ? `${fmt(incVat)} inc. VAT`
+                          : `${fmt(exVat)} ex. VAT`;
+                        return (
+                          <div className="flex-1 text-right pt-1">
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{primary}</p>
+                            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{secondary}</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex-1 text-right pt-1">
+                          <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                            Set a sale price<br />to see the amount
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

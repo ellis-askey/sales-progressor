@@ -5,6 +5,7 @@ import { NumericFormat } from "react-number-format";
 type Props = {
   value?: number | null;        // stored in pence
   onChange?: (pence: number | null) => void;
+  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   error?: string;
@@ -16,6 +17,7 @@ type Props = {
 export function PriceInput({
   value,
   onChange,
+  onBlur,
   placeholder = "e.g. 325,000",
   className = "",
   error,
@@ -46,6 +48,7 @@ export function PriceInput({
         placeholder={`£${placeholder}`}
         inputMode="decimal"
         disabled={disabled}
+        onBlur={onBlur}
         aria-invalid={!!error}
         className={inputClass}
       />
