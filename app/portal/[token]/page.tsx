@@ -4,6 +4,7 @@ import { getPortalData, getPortalMilestones, getPortalTimeline } from "@/lib/ser
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
+import { calculateProgress } from "@/lib/services/fees";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
@@ -61,11 +62,18 @@ export default async function PortalHomePage({
   const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
   const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
 
-  // Overview % is the overall transaction progress (both sides combined)
+  // Overview % — weighted combined ratio, same formula as agent transaction page
+  const vendorRaw    = side === "vendor" ? rawMilestones : rawOtherMilestones;
+  const purchaserRaw = side === "purchaser" ? rawMilestones : rawOtherMilestones;
+  const toWeight = (ms: typeof rawMilestones) =>
+    ms.map((m) => ({ weight: m.weight, isComplete: m.isComplete, isNotRequired: m.isNotRequired }));
+  const progress  = calculateProgress(toWeight(vendorRaw), toWeight(purchaserRaw), new Date(transaction.createdAt), transaction.overridePredictedDate ?? null);
+  const percent   = progress.percent;
+
+  // Stat pill counts (Done / Remaining) — simple count, both sides, pre-exchange
   const allRaw    = [...rawMilestones, ...rawOtherMilestones];
   const preExchange = allRaw.filter((m) => !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
-  const percent     = preExchange.length > 0 ? Math.round((completed.length / preExchange.length) * 100) : 0;
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);

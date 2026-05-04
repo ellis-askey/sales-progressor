@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPortalData, getPortalMilestones } from "@/lib/services/portal";
+import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { P } from "@/components/portal/portal-ui";
@@ -49,9 +50,17 @@ export default async function PortalProgressPage({
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
 
-  const preExchange = milestones.filter((m) => !POST_EXCHANGE_PORTAL.has(m.code) && !EXCHANGE_GATES_PORTAL.has(m.code) && !m.isNotRequired);
+  // Step count — exclude only post-exchange; exchange gate IS a confirmable step
+  const preExchange = milestones.filter((m) => !POST_EXCHANGE_PORTAL.has(m.code) && !m.isNotRequired);
   const completed   = preExchange.filter((m) => m.isComplete);
-  const percent     = preExchange.length > 0 ? Math.round((completed.length / preExchange.length) * 100) : 0;
+
+  // Weighted % — same formula as agent transaction page
+  const vendorMilestones    = side === "vendor" ? milestones : otherSideMilestones;
+  const purchaserMilestones = side === "purchaser" ? milestones : otherSideMilestones;
+  const toWeight = (ms: typeof milestones) =>
+    ms.map((m) => ({ weight: m.weight, isComplete: m.isComplete, isNotRequired: m.isNotRequired }));
+  const progress = calculateProgress(toWeight(vendorMilestones), toWeight(purchaserMilestones), new Date(transaction.createdAt), transaction.overridePredictedDate ?? null);
+  const percent  = side === "vendor" ? progress.vendorPercent : progress.purchaserPercent;
 
   const portalMilestones      = toPortalShape(milestones);
   const otherPortalMilestones = toPortalShape(otherSideMilestones);

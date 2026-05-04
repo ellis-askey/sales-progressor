@@ -15,6 +15,7 @@ export type PortalMilestone = {
   side: string;
   orderIndex: number;
   blocksExchange: boolean;
+  weight: number;
   isComplete: boolean;
   isNotRequired: boolean;
   isAvailable: boolean;
@@ -84,6 +85,8 @@ export async function getPortalData(token: string) {
         purchaseType: true,
         expectedExchangeDate: true,
         completionDate: true,
+        createdAt: true,
+        overridePredictedDate: true,
         agency: { select: { name: true } },
       },
     });
@@ -104,6 +107,8 @@ export async function getPortalData(token: string) {
         completionDate: tx.completionDate,
         agencyName: tx.agency?.name ?? "",
         postcode,
+        createdAt: tx.createdAt,
+        overridePredictedDate: tx.overridePredictedDate,
       },
     };
   });
@@ -139,6 +144,7 @@ export async function getPortalMilestones(
         side: def.side,
         orderIndex: def.orderIndex,
         blocksExchange: def.blocksExchange,
+        weight: Number(def.weight),
         isComplete,
         isNotRequired,
         isAvailable,
