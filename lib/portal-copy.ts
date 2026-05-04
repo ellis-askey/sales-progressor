@@ -919,8 +919,8 @@ const copy: Record<string, PortalCopy> = {
         subject: "Buyer's lender valuation — {address}",
         heroLabel: "Lender valuation booked",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer's lender has arranged a property valuation — {eventDateClause}. We'll be in touch to coordinate access.",
-        whatNext: "Nothing else for you to do right now.",
+        whatHappened: "The buyer's lender has booked the property valuation{eventDate}. A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now. Once the valuation is done, the buyer's mortgage offer typically follows within 1–3 weeks. We'll let you know when it's issued.",
+        whatNext: null,
         action: "View your portal",
       },
       purchaser: {
@@ -1036,8 +1036,8 @@ const copy: Record<string, PortalCopy> = {
         subject: "Buyer has booked their survey — {address}",
         heroLabel: "Survey booked",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer has booked an independent survey of the property{eventDate}. A surveyor will visit to assess its condition.",
-        whatNext: "We'll be in touch to arrange access. We'll let you know when the survey report is received.",
+        whatHappened: "The buyer has booked their property survey{eventDate}. A surveyor will visit the property — access has been arranged, so nothing else for you to do right now. The visit itself usually takes a few hours; the written report typically follows within one to two weeks. We'll let you know once the buyer has their report.",
+        whatNext: null,
         action: "View your portal",
       },
       purchaser: {

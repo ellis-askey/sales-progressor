@@ -370,7 +370,7 @@ export async function logPortalMilestoneConfirm(
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text, replyTo }).catch(() => {});
@@ -387,7 +387,7 @@ export async function logPortalMilestoneConfirm(
       const greeting = buildGreeting(tx.agentUser.name);
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
-      const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
+      const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause } });
       sendEmail({ to: tx.agentUser.email, subject, html, text, replyTo }).catch(() => {});
     }
   } else {
@@ -699,6 +699,7 @@ function richMilestoneEmailHtml({
   isProgressor = false,
   serviceType,
   whatsappNumber,
+  extraVars,
 }: {
   greeting: string;
   copy: RecipientEmailCopy;
@@ -709,8 +710,9 @@ function richMilestoneEmailHtml({
   isProgressor?: boolean;
   serviceType?: string;
   whatsappNumber?: string;
+  extraVars?: Record<string, string>;
 }): string {
-  const vars = { address };
+  const vars = { address, ...extraVars };
   const ctaBg   = isProgressor ? "#3B82F6" : "#FF6B4A";
   const ctaLabel = copy.action ?? "View portal";
 
@@ -804,7 +806,7 @@ async function sendRichMilestoneEmails(
     const vars     = { address, eventDate: eventDateVar, eventDateClause };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
@@ -828,7 +830,7 @@ async function sendRichMilestoneEmails(
     const copy    = emailCopy.vendorAgent;
     const vars    = { address, eventDate: eventDateVar, eventDateClause };
     const greeting = buildGreeting(tx.agentUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
     sendEmail({ to: tx.agentUser.email, subject, text, html, replyTo }).catch(() => {});
@@ -840,7 +842,7 @@ async function sendRichMilestoneEmails(
     const copy    = emailCopy.progressor;
     const vars    = { address, eventDate: eventDateVar, eventDateClause };
     const greeting = buildGreeting(tx.assignedUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
     sendEmail({ to: tx.assignedUser.email, subject, text, html, replyTo }).catch(() => {});
