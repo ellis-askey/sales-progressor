@@ -131,7 +131,7 @@ export default async function PortalHomePage({
                 className="inline-block text-[11px] font-bold uppercase tracking-[0.10em] mb-3 px-3 py-1 rounded-full"
                 style={{ background: "rgba(255,255,255,0.20)", color: "rgba(255,255,255,0.90)" }}
               >
-                {transaction.agencyName}
+                {side === "vendor" ? "Your sale of" : "Your purchase of"}
               </span>
               <h2 className="text-[22px] font-semibold text-white leading-snug">
                 {transaction.propertyAddress}
