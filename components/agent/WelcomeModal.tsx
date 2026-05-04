@@ -114,7 +114,7 @@ export function WelcomeModal({ name }: { name: string }) {
               </button>
 
               <p style={{ textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)", margin: "4px 0 0" }}>
-                You can always add real files any time from the dashboard.
+                You can always add files any time from the dashboard.
               </p>
             </div>
           </>
