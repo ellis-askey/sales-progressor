@@ -75,7 +75,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
       select: { purchasePrice: true },
     }),
     prisma.propertyTransaction.count({
-      where: { ...txWhere, createdAt: { gte: startOfMonth } },
+      where: { ...txWhere, createdAt: { gte: startOfMonth }, status: { not: "draft" } },
     }),
 
     // ── Coming up: exchanging this week ────────────────────────────────────────

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
@@ -318,9 +319,11 @@ function DraftFloatingPanel({
   onDiscard: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  if (drafts.length === 0) return null;
-  return (
-    <div style={{ position: "fixed", bottom: 24, left: 24, zIndex: 40 }}>
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || drafts.length === 0) return null;
+  return createPortal(
+    <div style={{ position: "fixed", bottom: 24, left: 24, zIndex: 9999 }}>
       {expanded ? (
         <div style={{ width: 320, background: "rgba(255,255,255,0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.7)", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", padding: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -358,7 +361,8 @@ function DraftFloatingPanel({
           <svg style={{ width: 13, height: 13, color: "rgba(15,23,42,0.3)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
