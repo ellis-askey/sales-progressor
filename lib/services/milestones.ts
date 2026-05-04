@@ -152,7 +152,7 @@ export async function initializeMilestoneCompletions(
 
 // ── Re-evaluate availability of direct dependents after a state change ─────────
 
-async function unlockDirectDependents(
+export async function unlockDirectDependents(
   transactionId: string,
   completedCode: string,
   tx?: Prisma.TransactionClient
@@ -209,7 +209,7 @@ async function unlockDirectDependents(
 export async function maybeUnlockExchangeGate(
   transactionId: string,
   side: MilestoneSide,
-  createdById: string,
+  createdById: string | null,
   tx?: Prisma.TransactionClient
 ): Promise<void> {
   const db = tx ?? prisma;

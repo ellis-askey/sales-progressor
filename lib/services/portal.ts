@@ -4,6 +4,9 @@ import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { unlockDirectDependents, maybeUnlockExchangeGate } from "@/lib/services/milestones";
+import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
+import type { MilestoneSide } from "@prisma/client";
 
 export type PortalMilestone = {
   id: string;
@@ -239,6 +242,11 @@ export async function portalCompleteMilestone(input: {
       confirmedByPortal: true,
     },
   });
+
+  // Unlock the next milestones in sequence, cancel reminders, check exchange gate
+  await unlockDirectDependents(contact.propertyTransactionId, def.code);
+  await autoCompleteRemindersForMilestone(contact.propertyTransactionId, def.code);
+  await maybeUnlockExchangeGate(contact.propertyTransactionId, side as MilestoneSide, null);
 
   logPortalMilestoneConfirm(
     contact.propertyTransactionId,
