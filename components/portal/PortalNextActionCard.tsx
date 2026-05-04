@@ -126,16 +126,14 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
             </span>
           </div>
 
-          {isYours && (
-            <button
-              onClick={openSheet}
-              disabled={loading}
-              className="w-full flex items-center justify-center py-3.5 rounded-xl text-[15px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-50"
-              style={{ background: P.primary, boxShadow: P.heroGlow, borderRadius: P.radiusMd }}
-            >
-              {loading ? "Saving…" : "Confirm this step"}
-            </button>
-          )}
+          <button
+            onClick={openSheet}
+            disabled={loading}
+            className="w-full flex items-center justify-center py-3.5 rounded-xl text-[15px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-50"
+            style={{ background: P.primary, boxShadow: P.heroGlow, borderRadius: P.radiusMd }}
+          >
+            {loading ? "Saving…" : "Confirm this step"}
+          </button>
 
           {nextAfterDescription && (
             <div
