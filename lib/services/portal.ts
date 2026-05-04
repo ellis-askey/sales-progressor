@@ -336,6 +336,16 @@ export async function logPortalMilestoneConfirm(
   const richCopy = milestoneCode ? getMilestoneCopy(milestoneCode).emailCopy : null;
 
   if (richCopy) {
+    // Compute event-date vars for portal-confirmed milestones (same logic as sendRichMilestoneEmails)
+    const formattedPortalEventDate = eventDate
+      ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : null;
+    const portalEventDateVar = formattedPortalEventDate ? `, booked for ${formattedPortalEventDate}` : "";
+    const portalEventDateClause = formattedPortalEventDate
+      ? `booked for ${formattedPortalEventDate}`
+      : milestoneCode === "PM6" ? "being conducted as a desktop valuation — no physical visit is required" : "";
+    const portalVars = { address, eventDate: portalEventDateVar, eventDateClause: portalEventDateClause };
+
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
     const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
@@ -347,8 +357,8 @@ export async function logPortalMilestoneConfirm(
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
       const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
-      const subject   = interpolate(copy.subject, { address });
-      const text      = [greeting, "", interpolate(copy.opening, { address }), "", interpolate(copy.whatHappened, { address }), ...(copy.whatNext ? ["", interpolate(copy.whatNext, { address })] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
+      const subject   = interpolate(copy.subject, portalVars);
+      const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text, replyTo }).catch(() => {});
       const existing = sideLog.get(recipientKey);
       if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
@@ -361,8 +371,8 @@ export async function logPortalMilestoneConfirm(
     const agentCopy = richCopy.vendorAgentPortal ?? richCopy.vendorAgent;
     if (tx.agentUser?.email && agentCopy) {
       const greeting = buildGreeting(tx.agentUser.name);
-      const subject  = interpolate(agentCopy.subject, { address });
-      const text     = [greeting, "", interpolate(agentCopy.whatHappened, { address })].join("\n");
+      const subject  = interpolate(agentCopy.subject, portalVars);
+      const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
       const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
       sendEmail({ to: tx.agentUser.email, subject, html, text, replyTo }).catch(() => {});
     }
@@ -515,7 +525,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
   if (milestoneCopy.emailCopy) {
-    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId);
+    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate);
     return;
   }
 
@@ -729,6 +739,7 @@ async function sendRichMilestoneEmails(
   milestoneCode: string,
   emailCopy: MilestoneEmailCopy,
   confirmerId?: string,
+  eventDate?: string | null,
 ): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -755,6 +766,17 @@ async function sendRichMilestoneEmails(
     : (tx.assignedUser?.email ?? undefined);
   const dashUrl          = `${base}/transactions/${transactionId}`;
 
+  // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
+  const formattedEventDate = eventDate
+    ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : null;
+  // {eventDate} — " on Monday, 7 May 2026" prefix or "" (used in PM9 opening/whatHappened)
+  const eventDateVar = formattedEventDate ? `, booked for ${formattedEventDate}` : "";
+  // {eventDateClause} — full descriptive clause for PM6 (physical vs desktop valuation)
+  const eventDateClause = formattedEventDate
+    ? `booked for ${formattedEventDate}`
+    : milestoneCode === "PM6" ? "being conducted as a desktop valuation — no physical visit is required" : "";
+
   // Vendor and purchaser contacts
   const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
 
@@ -765,7 +787,7 @@ async function sendRichMilestoneEmails(
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
-    const vars     = { address };
+    const vars     = { address, eventDate: eventDateVar, eventDateClause };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
     const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType });
@@ -790,7 +812,7 @@ async function sendRichMilestoneEmails(
   const skipAgentEmail = serviceType === "self_managed" && tx.agentUser?.id === confirmerId;
   if (tx.agentUser?.email && emailCopy.vendorAgent && !skipAgentEmail) {
     const copy    = emailCopy.vendorAgent;
-    const vars    = { address };
+    const vars    = { address, eventDate: eventDateVar, eventDateClause };
     const greeting = buildGreeting(tx.agentUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType });
     const subject = interpolate(copy.subject, vars);
@@ -802,7 +824,7 @@ async function sendRichMilestoneEmails(
   const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
   if (tx.assignedUser?.email && emailCopy.progressor && !skipProgressorEmail) {
     const copy    = emailCopy.progressor;
-    const vars    = { address };
+    const vars    = { address, eventDate: eventDateVar, eventDateClause };
     const greeting = buildGreeting(tx.assignedUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType });
     const subject = interpolate(copy.subject, vars);

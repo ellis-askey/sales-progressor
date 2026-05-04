@@ -764,8 +764,8 @@ const copy: Record<string, PortalCopy> = {
         subject: "The buyer has instructed their solicitor — {address}",
         heroLabel: "Buyer's solicitor instructed",
         opening: "Good news on your sale.",
-        whatHappened: "The buyer has formally instructed their solicitor to act on the purchase. The legal process is now underway on both sides of the transaction.",
-        whatNext: "Nothing for you to do right now. Both solicitors are now engaged and will work through the conveyancing process. We'll keep you updated.",
+        whatHappened: "The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.",
+        whatNext: "Nothing for you to do right now — we'll keep you updated as both sides progress.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -791,14 +791,6 @@ const copy: Record<string, PortalCopy> = {
     label: "Receive memorandum of sale", who: "solicitor",
     description: "The estate agent sends a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
     emailCopy: {
-      vendor: {
-        subject: "Buyer's solicitor has the memorandum — {address}",
-        heroLabel: "Buyer's solicitor engaged",
-        opening: "Quick update on your sale.",
-        whatHappened: "The memorandum of sale has reached the buyer's solicitor. They now have formal confirmation to begin work on the purchase.",
-        whatNext: "Nothing for you to do right now — the buyer's side is now formally engaged.",
-        action: "View your portal",
-      },
       purchaser: {
         subject: "Memorandum of sale issued — {address}",
         heroLabel: "Legal process underway",
@@ -864,7 +856,7 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Payment on account received by your solicitor — {address}",
         heroLabel: "Payment on account received",
-        opening: "Your solicitor has received your payment on account.",
+        opening: "Thank you — your solicitor has received your payment on account.",
         whatHappened: "Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.",
         whatNext: "Your solicitor can now order searches and proceed with the full conveyancing process. We'll update you as each stage progresses.",
         action: "View your portal",
@@ -888,7 +880,7 @@ const copy: Record<string, PortalCopy> = {
         subject: "Buyer's mortgage application is in — {address}",
         heroLabel: "Mortgage application submitted",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer has submitted their mortgage application to their lender. The lender will now process the application — this typically includes a valuation visit to the property, which the buyer's agent will arrange directly.",
+        whatHappened: "The buyer has submitted their mortgage application to their lender. The lender will now process the application — this typically includes a valuation visit to the property. We'll be in touch to coordinate access.",
         whatNext: "We'll let you know when the mortgage offer is issued.",
         action: "View your portal",
       },
@@ -924,19 +916,19 @@ const copy: Record<string, PortalCopy> = {
     description: "Your mortgage lender has booked a valuation of the property to confirm it's worth what you're paying. This is not a structural survey — it's for the lender's benefit, not yours. Consider booking your own survey separately.",
     emailCopy: {
       vendor: {
-        subject: "Buyer's lender valuation booked — {address}",
+        subject: "Buyer's lender valuation — {address}",
         heroLabel: "Lender valuation booked",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer's lender has booked the property valuation. A surveyor acting for the lender will visit the property to value it. The buyer or their agent will coordinate access with you directly.",
+        whatHappened: "The buyer's lender has arranged a property valuation — {eventDateClause}. We'll be in touch to coordinate access.",
         whatNext: "Nothing else for you to do right now.",
         action: "View your portal",
       },
       purchaser: {
-        subject: "Mortgage valuation booked — {address}",
+        subject: "Mortgage valuation — {address}",
         heroLabel: "Lender valuation booked",
-        opening: "Your mortgage lender has booked their valuation.",
-        whatHappened: "Your lender has arranged a valuation of the property. Their primary concern is that it's worth enough to secure their loan — it's not a structural survey and won't flag problems with the condition of the property.",
-        whatNext: "If you haven't already booked your own survey, now is a good time — a RICS HomeBuyer Report will identify issues the lender's valuation won't cover. Once the valuation is done, your mortgage offer should follow within 1–3 weeks.",
+        opening: "Your mortgage lender has arranged their valuation.",
+        whatHappened: "Your lender has arranged a valuation of the property — {eventDateClause}. Their primary concern is that it's worth enough to secure their loan — it's not a structural survey and won't flag problems with the condition of the property.",
+        whatNext: "If you haven't already booked your own survey, now is a good time — a RICS HomeBuyer Report will identify issues the lender's valuation won't cover. Once the valuation is complete, your mortgage offer should follow within 1–3 weeks.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -967,7 +959,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contract pack received",
         opening: "The legal documents are with your solicitor.",
         whatHappened: "Your solicitor has received the contract pack from the seller's solicitor. This is the bundle of documents that forms the legal foundation of the purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.",
-        whatNext: "Your solicitor will work through the contract pack and raise enquiries — questions about anything that needs clarification. In parallel, make sure your mortgage application and surveys are progressing.",
+        whatNext: "Your solicitor will work through the contract pack and raise enquiries. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so. In parallel, keep your mortgage application and survey progressing.",
         action: "View your portal",
       },
       vendor: {
@@ -975,7 +967,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contract pack received",
         opening: "Progress on your sale.",
         whatHappened: "The contract pack has been received by the buyer's solicitor. They'll now review everything carefully and will raise any questions they have about the property or the documents.",
-        whatNext: "The buyer's solicitor will raise enquiries in due course. Your solicitor will handle these, though they may need your input on some points — we'll be in touch if so.",
+        whatNext: "The buyer's solicitor will raise enquiries in due course and will also order searches around this time. Your solicitor will handle the enquiries — they may need your input on some points, and we'll be in touch if so.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -998,7 +990,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM8: {
-    label: "Searches ordered", who: "solicitor", typicalDuration: "results in 2–6 weeks",
+    label: "Searches ordered", who: "solicitor", typicalDuration: "results in 2–4 weeks",
     description: "Your solicitor has applied for searches — checks with the local council, water authority, and other bodies. These reveal planning permissions, flood risk, drainage, and other factors affecting the property.",
     emailCopy: {
       vendor: {
@@ -1014,14 +1006,14 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Searches ordered",
         opening: "Your solicitor has ordered the searches.",
         whatHappened: "Your solicitor has submitted the search applications to the local authority, water authority, and other relevant bodies. Searches check for things like planning permissions, flood risk, drainage rights, and other factors that could affect the property.",
-        whatNext: "Searches typically take 2–6 weeks to come back depending on the local authority — there's nothing for you to do while you wait. We'll let you know when they arrive.",
+        whatNext: "Searches typically take 2–4 weeks to come back depending on the local authority — there's nothing for you to do while you wait. We'll let you know when they arrive.",
         action: "View your portal",
       },
       vendorAgent: {
         subject: "Buyer's solicitor has ordered searches — {address}",
         heroLabel: "Milestone complete",
         opening: "Quick update on {address}.",
-        whatHappened: "Buyer's solicitor has confirmed searches ordered. Results typically take 2–6 weeks.",
+        whatHappened: "Buyer's solicitor has confirmed searches ordered. Results typically take 2–4 weeks.",
         whatNext: null,
         action: "View in dashboard",
       },
@@ -1044,16 +1036,16 @@ const copy: Record<string, PortalCopy> = {
         subject: "Buyer has booked their survey — {address}",
         heroLabel: "Survey booked",
         opening: "Quick update on your sale.",
-        whatHappened: "The buyer has booked an independent survey of the property. A surveyor will visit to assess its condition.",
-        whatNext: "The buyer or their agent will be in touch to arrange access for the surveyor. We'll let you know when the survey report is received.",
+        whatHappened: "The buyer has booked an independent survey of the property{eventDate}. A surveyor will visit to assess its condition.",
+        whatNext: "We'll be in touch to arrange access. We'll let you know when the survey report is received.",
         action: "View your portal",
       },
       purchaser: {
         subject: "Survey booked — {address}",
         heroLabel: "Survey booked",
-        opening: "Your survey is booked.",
-        whatHappened: "Your independent survey has been booked. The surveyor will inspect the property and produce a report covering its condition, any issues they find, and recommendations.",
-        whatNext: "Most survey reports flag some issues — many are minor. When the report arrives, read it carefully and discuss any concerns with your solicitor. If anything significant is flagged, it may be worth seeking a specialist report or renegotiating the price.",
+        opening: "Your survey is booked{eventDate}.",
+        whatHappened: "Your independent survey has been booked. The surveyor will inspect the property and produce a detailed report covering its condition and any issues they find.",
+        whatNext: "Most survey reports flag some issues — the report will highlight what your solicitor can formally request information on from the seller, though not all are legal requirements. If significant issues are found and you want to renegotiate, you'll need a specialist contractor to assess them and provide a quote — that quote is what any price reduction would be based on. Discuss your options with your solicitor when the report arrives.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -1121,9 +1113,9 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Your mortgage offer has arrived — {address}",
         heroLabel: "Mortgage offer received",
-        opening: "Your mortgage is confirmed.",
+        opening: "Congratulations — your mortgage is confirmed.",
         whatHappened: "Your lender has issued a formal mortgage offer. This confirms the amount they're willing to lend, the interest rate, the term, and any conditions attached. Your solicitor has received a copy and will check it against the property title.",
-        whatNext: "Check the offer carefully — confirm the loan amount, rate, and term match what you agreed with your broker or lender. If anything looks wrong, raise it immediately with your broker or lender. Your solicitor will review the conditions and let you know if anything needs addressing.",
+        whatNext: "Check the offer carefully — confirm the loan amount, rate, and term match what you agreed with your broker or lender. If anything looks wrong, raise it immediately. Your solicitor will review the conditions and let you know if anything needs addressing.",
         action: "View your portal",
       },
       vendor: {
