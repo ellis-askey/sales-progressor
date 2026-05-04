@@ -137,7 +137,10 @@ export default async function PortalHomePage({
                 {transaction.propertyAddress}
               </h2>
             </div>
-            <CircularProgress percent={percent} />
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <CircularProgress percent={percent} />
+              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.70)" }}>Overall</span>
+            </div>
           </div>
         </div>
       )}
