@@ -525,7 +525,8 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
       const h = newFirm.handlers?.[0] ?? null;
       setSolicitor({ firmId: newFirm.id, firmName: newFirm.name, contactId: h?.id ?? null, contactName: h?.name ?? null, phone: h?.phone ?? null, email: h?.email ?? null });
       return "new";
-    } catch {
+    } catch (err) {
+      console.error("[autoFillSolicitor]", firmName, err);
       return false;
     }
   }

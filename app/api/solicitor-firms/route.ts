@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/solicitor-firms  — create firm + optional first handler
+// POST /api/solicitor-firms  — find-or-create firm + optional first handler
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -37,6 +37,34 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: "Firm name required" }, { status: 400 });
 
   try {
+    // Check for existing firm (case-insensitive) before creating to avoid unique constraint errors
+    const existing = await prisma.solicitorFirm.findFirst({
+      where: { name: { equals: name.trim(), mode: "insensitive" } },
+      include: { handlers: true },
+    });
+
+    if (existing) {
+      // Firm already exists — create the handler if it's new
+      if (handler?.name?.trim()) {
+        const existingHandler = existing.handlers.find(
+          (h) => h.name.toLowerCase().trim() === handler.name.toLowerCase().trim()
+        );
+        if (!existingHandler) {
+          const newHandler = await prisma.solicitorContact.create({
+            data: {
+              firmId: existing.id,
+              name: handler.name.trim(),
+              phone: handler.phone?.trim() || null,
+              email: handler.email?.trim() || null,
+            },
+          });
+          return NextResponse.json({ ...existing, handlers: [...existing.handlers, newHandler] });
+        }
+      }
+      return NextResponse.json(existing);
+    }
+
+    // Firm doesn't exist — create it with optional handler
     const firm = await prisma.solicitorFirm.create({
       data: {
         name: name.trim(),
@@ -57,6 +85,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(firm, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create";
+    console.error("[solicitor-firms POST]", message, { name, handler });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
