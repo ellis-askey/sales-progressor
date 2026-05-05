@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
-import type { ChainLinkV2 } from "@/lib/services/chains";
+import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 
 type Props = {
   transactionId: string;
@@ -15,10 +15,10 @@ export function ViewChainButton({ transactionId, currentUserId }: Props) {
   const [addNode, setAddNode] = useState<{
     direction: "above" | "below";
     chainId: string;
-    editingLink?: ChainLinkV2;
+    editingLink?: EditingLinkData;
   } | null>(null);
 
-  function handleOpenAddNode(direction: "above" | "below", chainId: string, link?: ChainLinkV2) {
+  function handleOpenAddNode(direction: "above" | "below", chainId: string, link?: EditingLinkData) {
     setAddNode({ direction, chainId, editingLink: link });
   }
 

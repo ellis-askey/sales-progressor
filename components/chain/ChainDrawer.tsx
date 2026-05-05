@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
-import type { ChainV2, ChainLinkV2 } from "@/lib/services/chains";
+import type { ChainV2 } from "@/lib/services/chains";
+import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
 import { useToast } from "@/components/ui/ToastContext";
 
@@ -12,7 +13,7 @@ type ChainDrawerProps = {
   transactionId: string;
   currentUserId: string;
   onClose: () => void;
-  onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: ChainLinkV2) => void;
+  onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
 };
 
 function CloseIcon() {

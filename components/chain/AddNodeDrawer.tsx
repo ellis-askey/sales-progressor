@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import type { ChainLinkV2 } from "@/lib/services/chains";
 
-type StubFormData = {
+export type StubFormData = {
   stubPropertyAddress: string;
   stubAgencyName: string;
   stubAgentName: string;
@@ -13,12 +12,23 @@ type StubFormData = {
   stubNotes: string;
 };
 
+// Minimal editing contract — superset types like ChainLinkV2 are accepted via structural typing
+export type EditingLinkData = {
+  id: string;
+  stubPropertyAddress?: string | null;
+  stubAgencyName?: string | null;
+  stubAgentName?: string | null;
+  stubAgentEmail?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+};
+
 type Props = {
   // Existing-chain context: chainId present → API call on save
   chainId?: string;
   transactionId?: string;
   direction: "above" | "below";
-  editingLink?: ChainLinkV2;
+  editingLink?: EditingLinkData;
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;

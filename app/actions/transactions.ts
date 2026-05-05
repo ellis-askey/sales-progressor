@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
+import { createChainV2 } from "@/lib/services/chains";
+import { sendChainInvite } from "@/lib/chain/invite";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
@@ -14,6 +16,8 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
+
+const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function createTransactionAction(input: {
   propertyAddress: string;
@@ -37,6 +41,18 @@ export async function createTransactionAction(input: {
   mosFileSize?: number;
   mosMimeType?: string;
   mosFilename?: string;
+  chain?: {
+    stubs: Array<{
+      direction: "above" | "below";
+      stubPropertyAddress: string;
+      stubAgencyName: string;
+      stubAgentName: string;
+      stubAgentEmail: string;
+      stubAgentPhone: string;
+      stubNotes: string;
+    }>;
+    sendInvites: boolean;
+  };
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
@@ -121,11 +137,69 @@ export async function createTransactionAction(input: {
   // Full engine handles anchor-based and exchange-gated rules asynchronously
   void evaluateTransactionReminders(tx.id).catch(console.error);
 
+  // Chain creation — runs after transaction is fully committed; failure is non-fatal
+  let chainFailed = false;
+  if (input.chain && input.chain.stubs.length > 0) {
+    try {
+      const createdChain = await createChainV2({
+        transactionId: tx.id,
+        agencyId: session.user.agencyId ?? "",
+        userId: session.user.id,
+        stubs: input.chain.stubs.map((s) => ({
+          direction: s.direction,
+          stubPropertyAddress: s.stubPropertyAddress,
+          stubAgencyName: s.stubAgencyName,
+          stubAgentEmail: s.stubAgentEmail || null,
+          stubAgentName: s.stubAgentName || null,
+          stubAgentPhone: s.stubAgentPhone || null,
+          stubNotes: s.stubNotes || null,
+        })),
+      });
+
+      if (input.chain.sendInvites) {
+        const invitableLinks = createdChain.links.filter(
+          (l) =>
+            l.transactionId === null &&
+            l.stubAgentEmail &&
+            CHAIN_EMAIL_RE.test(l.stubAgentEmail),
+        );
+        for (const link of invitableLinks) {
+          await sendChainInvite({
+            link: {
+              id: link.id,
+              stubAgentEmail: link.stubAgentEmail,
+              stubAgentName: link.stubAgentName,
+              stubPropertyAddress: link.stubPropertyAddress,
+              stubAgencyName: link.stubAgencyName,
+              inviteStatus: link.inviteStatus,
+              chain: {
+                createdByUserId: createdChain.createdByUserId,
+                links: createdChain.links.map((l) => ({
+                  position: l.position,
+                  transactionId: l.transactionId,
+                  transaction: l.transaction
+                    ? { propertyAddress: l.transaction.propertyAddress }
+                    : null,
+                  stubPropertyAddress: l.stubPropertyAddress,
+                })),
+              },
+            },
+            sentByUserId: session.user.id,
+            sentByName: session.user.name ?? "",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Chain creation failed:", err);
+      chainFailed = true;
+    }
+  }
+
   revalidatePath("/transactions");
   revalidatePath("/agent/transactions");
   revalidatePath("/dashboard");
 
-  return { id: tx.id, mosAutoConfirmed };
+  return { id: tx.id, mosAutoConfirmed, chainFailed };
 }
 
 function revalidateTx(id: string) {

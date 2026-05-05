@@ -8,6 +8,8 @@ import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitor
 import { titleCase, normalizePhone } from "@/lib/utils";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
+import { ChainSection, type InMemoryStub } from "@/components/chain/ChainSection";
+import { useToast } from "@/components/ui/ToastContext";
 
 type ContactEntry = { name: string; phone: string; email: string };
 
@@ -424,6 +426,13 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
   const [mosFileSize, setMosFileSize] = useState<number | null>(null);
   const [mosMimeType, setMosMimeType] = useState<string | null>(null);
   const [mosFilename, setMosFilename] = useState<string | null>(null);
+
+  // Chain section state
+  const [chainExpanded, setChainExpanded] = useState(false);
+  const [chainStubs, setChainStubs] = useState<InMemoryStub[]>([]);
+  const [sendChainInvites, setSendChainInvites] = useState(true);
+
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (!vendorSolicitor || !resolvedFirmIds.includes(vendorSolicitor.firmId)) setVendorIsReferral(false);
@@ -843,7 +852,16 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         mosFileSize: mosFileSize ?? undefined,
         mosMimeType: mosMimeType ?? undefined,
         mosFilename: mosFilename ?? undefined,
+        chain: chainExpanded && chainStubs.length > 0
+          ? { stubs: chainStubs, sendInvites: sendChainInvites && chainInvitableCount > 0 }
+          : undefined,
       });
+      if (result.chainFailed) {
+        addToast(
+          "Transaction created, but we couldn't save the chain. Please try adding it from the transaction page.",
+          "error",
+        );
+      }
       const dest = result.mosAutoConfirmed
         ? `${redirectBase}/${result.id}?mosConfirmed=1`
         : `${redirectBase}/${result.id}?newFile=1`;
@@ -861,6 +879,11 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
   const canSubmit = !!form.streetAddress && !!form.tenure && !!form.purchaseType &&
     (!requiresContacts || (hasVendor && hasPurchaser)) &&
     contactMethodsValid;
+
+  const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const chainInvitableCount = chainStubs.filter(
+    (s) => s.stubAgentEmail && CHAIN_EMAIL_RE.test(s.stubAgentEmail),
+  ).length;
 
   const overlayAddress = [form.streetAddress, form.city].filter(Boolean).join(", ");
 
@@ -1189,6 +1212,26 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
               />
             </div>
 
+            {/* Chain section */}
+            <ChainSection
+              expanded={chainExpanded}
+              onExpand={() => setChainExpanded(true)}
+              onCollapse={() => { setChainExpanded(false); setChainStubs([]); }}
+              stubs={chainStubs}
+              onAddStub={(stub) => setChainStubs((prev) => [...prev, stub])}
+              onEditStub={(id, data) =>
+                setChainStubs((prev) =>
+                  prev.map((s) => (s.id === id ? { ...s, ...data } : s)),
+                )
+              }
+              onRemoveStub={(id) =>
+                setChainStubs((prev) => prev.filter((s) => s.id !== id))
+              }
+              originatorAddress={
+                [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ")
+              }
+            />
+
             {/* Who progresses? — agents only */}
             {isAgent && (
               <div>
@@ -1224,13 +1267,28 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
 
             {/* Submit */}
             <div className="pt-1">
-              <button
-                type="submit"
-                disabled={!canSubmit || isPending}
-                className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isPending ? "Creating…" : "Create transaction"}
-              </button>
+              <div className="flex items-center gap-3">
+                {chainExpanded && chainStubs.length > 0 && chainInvitableCount > 0 && (
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={sendChainInvites}
+                      onChange={(e) => setSendChainInvites(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-blue-500"
+                    />
+                    <span className="text-xs text-slate-900/60">
+                      Send chain invites now ({chainInvitableCount})
+                    </span>
+                  </label>
+                )}
+                <button
+                  type="submit"
+                  disabled={!canSubmit || isPending}
+                  className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isPending ? "Creating…" : "Create transaction"}
+                </button>
+              </div>
               {!canSubmit && (
                 <p className="text-xs text-slate-900/40 mt-2">
                   {requiresContacts && !hasVendor && !hasPurchaser
@@ -1244,6 +1302,13 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     : requiresContacts && !purchaserContactsValid
                     ? "Add a phone or email for each purchaser — we need a way to contact them"
                     : "Address, tenure and purchase type are required"}
+                </p>
+              )}
+              {chainExpanded && chainStubs.length > 0 && (
+                <p className="text-xs text-slate-900/40 mt-1">
+                  {sendChainInvites && chainInvitableCount > 0
+                    ? `${chainInvitableCount} chain invite${chainInvitableCount !== 1 ? "s" : ""} will be sent.`
+                    : "Chain will be saved without sending invites."}
                 </p>
               )}
               {hasData && (
