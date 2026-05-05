@@ -3,13 +3,45 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeChaseTaskWhere, scopeReminderLogWhere } from "@/lib/security/access-scope";
-import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine } from "@/lib/services/reminders";
+import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderLog, runReminderEngine, evaluateTransactionReminders } from "@/lib/services/reminders";
+import { completeMilestone } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 
 export async function completeTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
-  await completeChaseTask(taskId, session.user.agencyId || null);
+  const { transactionId, reminderLogId, targetMilestoneCode } = await completeChaseTask(
+    taskId,
+    session.user.agencyId || null,
+  );
+
+  if (targetMilestoneCode) {
+    const def = await prisma.milestoneDefinition.findUnique({
+      where: { code: targetMilestoneCode },
+      select: { id: true },
+    });
+    if (def) {
+      try {
+        await completeMilestone({
+          transactionId,
+          milestoneDefinitionId: def.id,
+          completedById: session.user.id,
+          completedByName: session.user.name ?? "",
+        });
+        // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
+      } catch (err) {
+        // Prerequisite not met or already complete — close reminder log directly as fallback
+        await prisma.reminderLog.update({
+          where: { id: reminderLogId },
+          data: { status: "completed", statusReason: "Chase task marked done" },
+        }).catch(() => {});
+        console.error("[completeTaskAction] completeMilestone failed:", err);
+      }
+    }
+  }
+
+  // Activate any downstream reminders whose anchor milestone just completed
+  void evaluateTransactionReminders(transactionId).catch(console.error);
   revalidatePath(pathname, "page");
 }
 

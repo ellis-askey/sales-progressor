@@ -508,10 +508,20 @@ export async function advanceChaseTask(taskId: string, agencyId: string | null) 
   ]);
 }
 
-export async function completeChaseTask(taskId: string, agencyId: string | null) {
+export async function completeChaseTask(
+  taskId: string,
+  agencyId: string | null,
+): Promise<{ transactionId: string; reminderLogId: string; targetMilestoneCode: string | null }> {
   const task = await prisma.chaseTask.findFirst({
     where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
-    select: { id: true, reminderLogId: true },
+    select: {
+      id: true,
+      reminderLogId: true,
+      transactionId: true,
+      reminderLog: {
+        select: { reminderRule: { select: { targetMilestoneCode: true } } },
+      },
+    },
   });
   if (!task) throw new Error("Task not found");
 
@@ -520,10 +530,18 @@ export async function completeChaseTask(taskId: string, agencyId: string | null)
     data: { status: "done" },
   });
 
-  await prisma.reminderLog.update({
-    where: { id: task.reminderLogId },
-    data: { status: "completed", statusReason: "Chase task marked done" },
-  });
+  const targetMilestoneCode = task.reminderLog.reminderRule.targetMilestoneCode;
+
+  // If there's no target milestone, close the reminder log now.
+  // If there is one, the caller will call completeMilestone which auto-closes it.
+  if (!targetMilestoneCode) {
+    await prisma.reminderLog.update({
+      where: { id: task.reminderLogId },
+      data: { status: "completed", statusReason: "Chase task marked done" },
+    });
+  }
+
+  return { transactionId: task.transactionId, reminderLogId: task.reminderLogId, targetMilestoneCode };
 }
 
 export async function cancelChaseTask(taskId: string, agencyId: string) {
