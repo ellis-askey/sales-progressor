@@ -1,6 +1,9 @@
 // lib/services/chains.ts
 
 import { prisma } from "@/lib/prisma";
+import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
+
+// ─── Legacy types (used by legacy widget in components/chain/_legacy/) ────────
 
 export type ChainLinkData = {
   id: string;
@@ -24,6 +27,56 @@ export type ChainData = {
   name: string | null;
   links: ChainLinkData[];
 };
+
+// ─── v2 types (new drawer, API routes) ───────────────────────────────────────
+
+export type ChainLinkV2 = {
+  id: string;
+  position: number;
+  createdByUserId: string | null;
+  claimedByUserId: string | null;
+  transactionId: string | null;
+  claimedAt: Date | null;
+  stubPropertyAddress: string | null;
+  stubAgencyName: string | null;
+  // Private fields — callers must gate on canViewStubDetails before exposing
+  stubAgentEmail: string | null;
+  stubAgentName: string | null;
+  stubAgentPhone: string | null;
+  stubNotes: string | null;
+  inviteStatus: string;
+  inviteSentAt: Date | null;
+  inviteBouncedAt: Date | null;
+  inviteDeclinedAt: Date | null;
+  inviteResendCount: number;
+  transaction: {
+    id: string;
+    propertyAddress: string;
+    status: string;
+    agencyId: string;
+  } | null;
+  claimedBy: {
+    id: string;
+    name: string;
+    firmName: string | null;
+  } | null;
+  createdBy: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+export type ChainV2 = {
+  id: string;
+  agencyId: string;
+  name: string | null;
+  createdByUserId: string | null;
+  status: string;
+  createdAt: Date;
+  links: ChainLinkV2[];
+};
+
+// ─── Legacy service functions ─────────────────────────────────────────────────
 
 export async function getChainForTransaction(transactionId: string): Promise<ChainData | null> {
   const link = await prisma.chainLink.findFirst({
@@ -78,6 +131,273 @@ export async function upsertChainLink(chainId: string, position: number, data: {
   return prisma.chainLink.create({ data: { chainId, position, ...data } });
 }
 
+// ─── v2 service functions ─────────────────────────────────────────────────────
+
+const LINK_V2_SELECT = {
+  id: true,
+  position: true,
+  createdByUserId: true,
+  claimedByUserId: true,
+  transactionId: true,
+  claimedAt: true,
+  stubPropertyAddress: true,
+  stubAgencyName: true,
+  stubAgentEmail: true,
+  stubAgentName: true,
+  stubAgentPhone: true,
+  stubNotes: true,
+  inviteStatus: true,
+  inviteSentAt: true,
+  inviteBouncedAt: true,
+  inviteDeclinedAt: true,
+  inviteResendCount: true,
+  transaction: {
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      agencyId: true,
+    },
+  },
+  claimedBy: {
+    select: { id: true, name: true, firmName: true },
+  },
+  createdBy: {
+    select: { id: true, name: true },
+  },
+} as const;
+
+export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
+  const chain = await prisma.propertyChain.findUnique({
+    where: { id: chainId },
+    select: {
+      id: true,
+      agencyId: true,
+      name: true,
+      createdByUserId: true,
+      status: true,
+      createdAt: true,
+      links: {
+        orderBy: { position: "asc" },
+        select: LINK_V2_SELECT,
+      },
+    },
+  });
+  return chain ?? null;
+}
+
+// Gets the chain for a given transaction via the canonical chainLinkId field.
+export async function getChainForTransactionV2(transactionId: string): Promise<ChainV2 | null> {
+  const txn = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      chainLink: {
+        select: {
+          chainId: true,
+        },
+      },
+    },
+  });
+  if (!txn?.chainLink) return null;
+  return getChainV2(txn.chainLink.chainId);
+}
+
+export type CreateChainInput = {
+  transactionId: string;
+  agencyId: string;
+  userId: string;
+  stubs?: Array<{
+    direction: "above" | "below";
+    stubPropertyAddress: string;
+    stubAgencyName: string;
+    stubAgentEmail?: string | null;
+    stubAgentName?: string | null;
+    stubAgentPhone?: string | null;
+    stubNotes?: string | null;
+  }>;
+};
+
+// Creates a new chain, sets the originating transaction as the first claimed link,
+// and optionally creates stub links above/below.
+export async function createChainV2(input: CreateChainInput): Promise<ChainV2> {
+  const { transactionId, agencyId, userId, stubs = [] } = input;
+
+  // Stubs above are at positions 0..n-1; originator at n; stubs below at n+1..
+  const aboveStubs = stubs.filter((s) => s.direction === "above");
+  const belowStubs = stubs.filter((s) => s.direction === "below");
+  const originatorPosition = aboveStubs.length;
+
+  const chain = await prisma.$transaction(async (tx) => {
+    const newChain = await tx.propertyChain.create({
+      data: { agencyId, createdByUserId: userId, status: "ACTIVE" },
+    });
+
+    // Create above stubs (positions 0 to aboveStubs.length - 1)
+    for (let i = 0; i < aboveStubs.length; i++) {
+      await tx.chainLink.create({
+        data: {
+          chainId: newChain.id,
+          position: i,
+          createdByUserId: userId,
+          ...stubFields(aboveStubs[i]),
+        },
+      });
+    }
+
+    // Create the originating transaction link
+    const originLink = await tx.chainLink.create({
+      data: {
+        chainId: newChain.id,
+        position: originatorPosition,
+        createdByUserId: userId,
+        transactionId,
+        claimedByUserId: userId,
+        claimedAt: new Date(),
+        inviteStatus: "CLAIMED",
+      },
+    });
+
+    // Point the transaction at its chain link
+    await tx.propertyTransaction.update({
+      where: { id: transactionId },
+      data: { chainLinkId: originLink.id },
+    });
+
+    // Create below stubs
+    for (let i = 0; i < belowStubs.length; i++) {
+      await tx.chainLink.create({
+        data: {
+          chainId: newChain.id,
+          position: originatorPosition + 1 + i,
+          createdByUserId: userId,
+          ...stubFields(belowStubs[i]),
+        },
+      });
+    }
+
+    return newChain.id;
+  });
+
+  return (await getChainV2(chain))!;
+}
+
+function stubFields(stub: {
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+}) {
+  return {
+    stubPropertyAddress: titleCase(stub.stubPropertyAddress),
+    stubAgencyName: titleCase(stub.stubAgencyName),
+    stubAgentEmail: stub.stubAgentEmail?.toLowerCase().trim() ?? null,
+    stubAgentName: stub.stubAgentName?.trim() ?? null,
+    stubAgentPhone: stub.stubAgentPhone?.trim() ?? null,
+    stubNotes: stub.stubNotes?.trim() ?? null,
+    inviteStatus: stub.stubAgentEmail ? "NOT_SENT" : "NOT_SENT",
+  } as const;
+}
+
+export type AddLinkInput = {
+  chainId: string;
+  userId: string;
+  direction: "above" | "below";
+  stubPropertyAddress: string;
+  stubAgencyName: string;
+  stubAgentEmail?: string | null;
+  stubAgentName?: string | null;
+  stubAgentPhone?: string | null;
+  stubNotes?: string | null;
+};
+
+export async function addChainLink(input: AddLinkInput): Promise<ChainV2> {
+  const { chainId, userId, direction, ...stub } = input;
+
+  await prisma.$transaction(async (tx) => {
+    const links = await tx.chainLink.findMany({
+      where: { chainId },
+      orderBy: { position: "asc" },
+    });
+
+    let newPosition: number;
+    if (direction === "above") {
+      // Shift all existing links down, new link gets position 0
+      for (const link of [...links].reverse()) {
+        await tx.chainLink.update({
+          where: { id: link.id },
+          data: { position: link.position + 1 },
+        });
+      }
+      newPosition = 0;
+    } else {
+      newPosition = links.length > 0
+        ? Math.max(...links.map((l) => l.position)) + 1
+        : 0;
+    }
+
+    await tx.chainLink.create({
+      data: {
+        chainId,
+        position: newPosition,
+        createdByUserId: userId,
+        ...stubFields(stub),
+      },
+    });
+  });
+
+  return (await getChainV2(chainId))!;
+}
+
+export async function updateChainLinkStub(
+  linkId: string,
+  data: {
+    stubPropertyAddress?: string;
+    stubAgencyName?: string;
+    stubAgentEmail?: string | null;
+    stubAgentName?: string | null;
+    stubAgentPhone?: string | null;
+    stubNotes?: string | null;
+  },
+) {
+  return prisma.chainLink.update({
+    where: { id: linkId },
+    data: {
+      stubPropertyAddress: data.stubPropertyAddress
+        ? titleCase(data.stubPropertyAddress)
+        : undefined,
+      stubAgencyName: data.stubAgencyName
+        ? titleCase(data.stubAgencyName)
+        : undefined,
+      stubAgentEmail: data.stubAgentEmail !== undefined
+        ? data.stubAgentEmail?.toLowerCase().trim() ?? null
+        : undefined,
+      stubAgentName: data.stubAgentName !== undefined
+        ? data.stubAgentName?.trim() ?? null
+        : undefined,
+      stubAgentPhone: data.stubAgentPhone !== undefined
+        ? data.stubAgentPhone?.trim() ?? null
+        : undefined,
+      stubNotes: data.stubNotes !== undefined
+        ? data.stubNotes?.trim() ?? null
+        : undefined,
+    },
+  });
+}
+
+export async function removeChainLink(linkId: string, chainId: string): Promise<void> {
+  await prisma.chainLink.delete({ where: { id: linkId } });
+  await repackPositions(chainId);
+}
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+function titleCase(str: string): string {
+  return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+// Legacy (kept for backward compat — used by legacy widget routes)
 export async function deleteChainLink(linkId: string) {
   return prisma.chainLink.delete({ where: { id: linkId } });
 }
