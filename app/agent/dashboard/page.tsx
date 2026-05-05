@@ -45,7 +45,7 @@ export default async function AgentDashboard({
         backdropFilter: "blur(28px) saturate(180%)",
         WebkitBackdropFilter: "blur(28px) saturate(180%)",
         borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
+        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
         position: "relative",
         overflow: "hidden",
       }}>
@@ -53,14 +53,14 @@ export default async function AgentDashboard({
         <div aria-hidden="true" style={{
           position: "absolute", top: -60, right: -40,
           width: 260, height: 260, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
           pointerEvents: "none",
         }} />
         {/* Subtle warm bloom — bottom left */}
         <div aria-hidden="true" style={{
           position: "absolute", bottom: -40, left: 60,
           width: 180, height: 180, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(255,220,100,0.10) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)",
           pointerEvents: "none",
         }} />
 

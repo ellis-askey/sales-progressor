@@ -43,6 +43,24 @@ Current enforcement model: application-layer agencyId checks (hardened by PR 52)
 
 ---
 
+## Prisma migration history drift — shadow DB reconciliation
+
+`prisma migrate dev` fails on the shadow database because migration `20250418000000_sprint2_milestones` references a table (`PropertyTransaction`) that doesn't exist when replaying from scratch. Additionally, the live DB contains a `bodySearch` column on `OutboundMessage` that is not in `schema.prisma`, causing `db push` to warn about data loss.
+
+**Root cause:** At some point, schema changes were applied to the live DB outside of Prisma migrations (raw SQL, Supabase console, or similar).
+
+**Impact:** New schema changes can't be delivered via `migrate dev`. Current workaround: add columns via `prisma db execute` with raw SQL + `prisma generate`.
+
+**To fix (when time permits):**
+1. Audit the live DB against `schema.prisma` to find all drifted columns (the `bodySearch` column on `OutboundMessage` is one known instance)
+2. Add the missing columns to `schema.prisma` (or mark them as ignored)
+3. Use `prisma migrate resolve --applied <migration_name>` to mark the broken migration as already applied, or squash the migration history
+4. Verify `prisma migrate dev` runs cleanly on a fresh shadow DB
+
+**Timing:** Not urgent, but must be resolved before launch when reliable migration deploys to production matter.
+
+---
+
 ## Ownership enforcement helper — deferred to Package D
 
 Package D will introduce `lib/security/access-scope.ts` as the standard ownership-enforcement helper. Until then, inline `findFirst({ where: { id, agencyId } })` patterns are the live mechanism. Do NOT build `lib/security/assertOwnership.ts` — Package D's helper replaces it with a more complete model that handles internal staff and outsourced file access correctly. Reference: see PACKAGE_D_SCOPE §3 (Root cause and fix shape).

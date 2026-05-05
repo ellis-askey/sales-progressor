@@ -283,7 +283,7 @@ export default async function AgentAnalyticsPage({
     return (
       <>
         <div className="agent-glass-strong" style={{ padding: "22px 32px 26px", borderBottom: "0.5px solid var(--agent-glass-border)", position: "relative", overflow: "hidden" }}>
-          <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(255,138,101,0.11) 0%, transparent 70%)" }} />
+          <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.11) 0%, transparent 70%)" }} />
           <div style={{ position: "relative" }}>
             <h1 style={{ margin: 0, fontSize: "var(--agent-text-h2)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
               Analytics
@@ -324,7 +324,7 @@ export default async function AgentAnalyticsPage({
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="agent-glass-strong px-4 pt-[18px] pb-[22px] sm:px-8 sm:pt-[22px] sm:pb-[26px]" style={{ borderBottom: "0.5px solid var(--agent-glass-border)", position: "relative", overflow: "hidden" }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(255,138,101,0.11) 0%, transparent 70%)" }} />
+        <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.11) 0%, transparent 70%)" }} />
         <div style={{ position: "relative" }}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div>
@@ -380,7 +380,7 @@ export default async function AgentAnalyticsPage({
                 fontSize: 12, fontWeight: 600, padding: "9px 14px", borderRadius: 999,
                 textDecoration: "none", transition: "all 0.15s",
                 ...(active
-                  ? { background: "rgba(255,138,101,0.15)", color: "var(--agent-coral-deep)", border: "1px solid rgba(255,138,101,0.30)" }
+                  ? { background: "rgba(var(--agent-coral-base-rgb),0.15)", color: "var(--agent-coral-deep)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.30)" }
                   : { background: "rgba(255,255,255,0.40)", color: "var(--agent-text-muted)", border: "1px solid rgba(180,130,90,0.18)" }
                 ),
               }}>
@@ -395,7 +395,7 @@ export default async function AgentAnalyticsPage({
 
         {/* ── Partial empty state banner ────────────────────────────────── */}
         {periodTx.length === 0 && period !== "all" && (
-          <div style={{ background: "rgba(255,138,101,0.06)", border: "1px solid rgba(255,138,101,0.20)", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ background: "rgba(var(--agent-coral-base-rgb),0.06)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
               No activity {period === "week" ? "this week" : period === "month" ? "this month" : "this year"}. Try changing the period.
             </p>
@@ -597,7 +597,7 @@ export default async function AgentAnalyticsPage({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <p className="agent-eyebrow">Monthly activity — last 12 months</p>
               <div style={{ display: "flex", gap: 12 }}>
-                {[{ label: "Created", color: "#FF8A65" }, { label: "Exchanged", color: "#C97D1A" }].map(({ label, color }) => (
+                {[{ label: "Created", color: "var(--agent-coral)" }, { label: "Exchanged", color: "var(--agent-warning)" }].map(({ label, color }) => (
                   <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)" }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: "inline-block" }} />
                     {label}

@@ -9,7 +9,7 @@ export default function DashboardLoading() {
           backdropFilter: "blur(28px) saturate(180%)",
           WebkitBackdropFilter: "blur(28px) saturate(180%)",
           borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-          boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
+          boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
         }}
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
