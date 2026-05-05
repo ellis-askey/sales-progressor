@@ -26,7 +26,7 @@ import { RemindersWidget } from "@/components/transaction/RemindersWidget";
 import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
 import { NextMilestoneWidget } from "@/components/transaction/NextMilestoneWidget";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
-import { ChainWidget } from "@/components/chain/ChainWidget";
+import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
@@ -324,7 +324,15 @@ export default async function AgentTransactionDetailPage({
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <RiskScoreWidget input={riskInput} />
-            <ChainWidget transactionId={transaction.id} />
+            <div className="glass-card px-5 py-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900/90">Property chain</p>
+                <ViewChainButton
+                  transactionId={transaction.id}
+                  currentUserId={session.user.id}
+                />
+              </div>
+            </div>
           </div>
 
           <PropertyIntelCard transactionId={transaction.id} />

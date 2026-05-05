@@ -54,6 +54,7 @@ export type ChainLinkV2 = {
     propertyAddress: string;
     status: string;
     agencyId: string;
+    _count: { milestoneCompletions: number };
   } | null;
   claimedBy: {
     id: string;
@@ -157,6 +158,11 @@ const LINK_V2_SELECT = {
       propertyAddress: true,
       status: true,
       agencyId: true,
+      _count: {
+        select: {
+          milestoneCompletions: { where: { state: "complete" } },
+        },
+      },
     },
   },
   claimedBy: {
