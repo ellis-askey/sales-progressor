@@ -126,7 +126,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
       </div>
 
       {/* ── Withdrawal reason modal ────────────────────────────── */}
-      {showModal && (
+      {showModal && createPortal(
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
@@ -197,7 +197,8 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
