@@ -12,17 +12,18 @@ type Props = {
 
 export function ViewChainButton({ transactionId, currentUserId }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [addNodeDirection, setAddNodeDirection] = useState<"above" | "below" | null>(null);
-  const [editingLink, setEditingLink] = useState<ChainLinkV2 | undefined>(undefined);
+  const [addNode, setAddNode] = useState<{
+    direction: "above" | "below";
+    chainId: string;
+    editingLink?: ChainLinkV2;
+  } | null>(null);
 
-  function handleOpenAddNode(direction: "above" | "below", link?: ChainLinkV2) {
-    setAddNodeDirection(direction);
-    setEditingLink(link);
+  function handleOpenAddNode(direction: "above" | "below", chainId: string, link?: ChainLinkV2) {
+    setAddNode({ direction, chainId, editingLink: link });
   }
 
   function handleCloseAddNode() {
-    setAddNodeDirection(null);
-    setEditingLink(undefined);
+    setAddNode(null);
   }
 
   return (
@@ -43,16 +44,14 @@ export function ViewChainButton({ transactionId, currentUserId }: Props) {
         />
       )}
 
-      {addNodeDirection && (
+      {addNode && (
         <AddNodeDrawer
+          chainId={addNode.chainId}
           transactionId={transactionId}
-          direction={addNodeDirection}
-          editingLink={editingLink}
+          direction={addNode.direction}
+          editingLink={addNode.editingLink}
           onClose={handleCloseAddNode}
-          onSaved={() => {
-            handleCloseAddNode();
-            // ChainDrawer will refetch on next open; nothing extra needed here
-          }}
+          onSaved={handleCloseAddNode}
         />
       )}
     </>

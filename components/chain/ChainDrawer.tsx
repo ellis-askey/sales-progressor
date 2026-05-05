@@ -12,7 +12,7 @@ type ChainDrawerProps = {
   transactionId: string;
   currentUserId: string;
   onClose: () => void;
-  onOpenAddNode?: (direction: "above" | "below", editingLink?: ChainLinkV2) => void;
+  onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: ChainLinkV2) => void;
 };
 
 function CloseIcon() {
@@ -237,7 +237,7 @@ export function ChainDrawer({
               {/* Add above button */}
               {showAddAbove && (
                 <button
-                  onClick={() => onOpenAddNode?.("above")}
+                  onClick={() => onOpenAddNode?.("above", chain.id)}
                   className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 mb-3 transition-colors"
                 >
                   + Add sale above
@@ -262,7 +262,7 @@ export function ChainDrawer({
                     }
                     onEditStub={
                       link.createdByUserId === currentUserId && link.transactionId === null
-                        ? (l) => { onOpenAddNode?.("above", l); }
+                        ? (l) => { onOpenAddNode?.("above", chain.id, l); }
                         : undefined
                     }
                     onDeleteStub={
@@ -278,7 +278,7 @@ export function ChainDrawer({
               {/* Add below button */}
               {showAddBelow && (
                 <button
-                  onClick={() => onOpenAddNode?.("below")}
+                  onClick={() => onOpenAddNode?.("below", chain.id)}
                   className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 mt-3 transition-colors"
                 >
                   + Add sale below
