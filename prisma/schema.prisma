@@ -87,8 +87,12 @@ model User {
   verifiedEmails       UserVerifiedEmail[]
   feedbackSubmissions  FeedbackSubmission[]
   agentPushSubscriptions AgentPushSubscription[]
-  retentionEmailLogs   RetentionEmailLog[]
-  commandPreferences   Json?
+  retentionEmailLogs    RetentionEmailLog[]
+  commandPreferences    Json?
+  createdChains         PropertyChain[]  @relation("ChainCreatedBy")
+  createdChainLinks     ChainLink[]      @relation("ChainLinkCreatedBy")
+  claimedChainLinks     ChainLink[]      @relation("ChainLinkClaimedBy")
+  lastInvitedChainLinks ChainLink[]      @relation("ChainLinkLastInviteSentBy")
 }
 
 model AgentPushSubscription {
@@ -176,7 +180,9 @@ model PropertyTransaction {
   priceHistory               PriceHistory[]
   transactionNotes           TransactionNote[]
   manualTasks                ManualTask[]
-  chainLinks                 ChainLink[]
+  chainLinkId                String?       @unique
+  chainLinks                 ChainLink[]   @relation("ChainLinkToTransaction")
+  chainLink                  ChainLink?    @relation("TransactionActiveLink", fields: [chainLinkId], references: [id])
   portalMessages             PortalMessage[]
   documents                  TransactionDocument[]
   flags                      TransactionFlag[]
@@ -644,31 +650,96 @@ enum ManualTaskStatus {
 
 // ─── Chain ───────────────────────────────────────────────────────────────────
 
-model PropertyChain {
-  id        String   @id @default(cuid())
-  agencyId  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum ChainStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
 
-  agency Agency      @relation(fields: [agencyId], references: [id])
-  links  ChainLink[]
+enum InviteStatus {
+  NOT_SENT
+  SENT
+  BOUNCED
+  CLAIMED
+  DECLINED
+}
+
+enum ChainHoldStatus {
+  ON_HOLD
+  INCOMPLETE
+}
+
+enum ChainWithdrawalStatus {
+  WITHDRAWN
+  REMARKETING
+  WAITING
+}
+
+model PropertyChain {
+  id              String           @id @default(cuid())
+  agencyId        String
+  name            String?
+  createdByUserId String?
+  status          ChainStatus      @default(ACTIVE)
+  holdStatus      ChainHoldStatus?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  agency    Agency      @relation(fields: [agencyId], references: [id])
+  createdBy User?       @relation("ChainCreatedBy", fields: [createdByUserId], references: [id])
+  links     ChainLink[]
 }
 
 model ChainLink {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   chainId         String
   position        Int
+  createdByUserId String?
+
+  // Claim state
   transactionId   String?
+  claimedByUserId String?
+  claimedAt       DateTime?
+
+  // Legacy fields (pre-v2 chain widget — do not use in new code)
   externalAddress String?
   externalStatus  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
-  chain       PropertyChain        @relation(fields: [chainId], references: [id], onDelete: Cascade)
-  transaction PropertyTransaction? @relation(fields: [transactionId], references: [id])
+  // Stub data (v2 — used while unclaimed)
+  stubPropertyAddress String?
+  stubAgencyName      String?
+  stubAgentEmail      String?
+  stubAgentName       String?
+  stubAgentPhone      String?
+  stubNotes           String?
 
-  @@index([chainId, position])
+  // Invite tracking
+  inviteStatus           InviteStatus @default(NOT_SENT)
+  inviteToken            String?      @unique
+  inviteSentAt           DateTime?
+  inviteBouncedAt        DateTime?
+  inviteDeclinedAt       DateTime?
+  inviteResendCount      Int          @default(0)
+  lastInviteSentByUserId String?
+
+  // Deferred (v1.1)
+  withdrawalStatus      ChainWithdrawalStatus?
+  withdrawalRespondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chain                PropertyChain        @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  transaction          PropertyTransaction? @relation("ChainLinkToTransaction", fields: [transactionId], references: [id])
+  activeForTransaction PropertyTransaction? @relation("TransactionActiveLink")
+  createdBy            User?                @relation("ChainLinkCreatedBy", fields: [createdByUserId], references: [id])
+  claimedBy            User?                @relation("ChainLinkClaimedBy", fields: [claimedByUserId], references: [id])
+  lastInviteSentBy     User?                @relation("ChainLinkLastInviteSentBy", fields: [lastInviteSentByUserId], references: [id])
+
+  @@unique([chainId, position])
+  @@index([transactionId])
+  @@index([claimedByUserId])
+  @@index([stubAgentEmail])
 }
 
 // ─── Verified Sending Addresses ───────────────────────────────────────────────
