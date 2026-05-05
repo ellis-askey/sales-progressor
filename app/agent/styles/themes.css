@@ -1,0 +1,140 @@
+/* ============================================================
+   Agent app theme tokens
+   ============================================================
+   All themes live in this file as [data-theme="..."] blocks.
+   Tokens are scoped to the .agent-shell-root div (and the
+   agent layout wrapper) via the data-theme attribute, so they
+   do not leak to non-agent routes.
+
+   Adding a new theme: copy the [data-theme="sunset"] block,
+   rename the selector, override the values you want different.
+   Token names must remain identical across all themes — only
+   values change.
+   ============================================================ */
+
+[data-theme="sunset"] {
+
+    /* ── Backgrounds ──────────────────────────────────────────────────────── */
+    --agent-bg-base:  #FFF5EC;
+    --agent-bg-mid:   #FFE8D4;
+    --agent-bg-warm:  #FFDABD;
+    --agent-bg-deep:  #FFCBA4;
+    --agent-bg-paper: #FFFBF5;
+
+    /* ── Text ─────────────────────────────────────────────────────────────── */
+    --agent-text-primary:    #2D1810;
+    --agent-text-secondary:  #5A3A28;
+    --agent-text-tertiary:   #7A4A2E;
+    --agent-text-muted:      rgba(45, 24, 16, 0.55);
+    --agent-text-disabled:   rgba(45, 24, 16, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #FFFBF5;
+
+    /* ── Coral / brand ────────────────────────────────────────────────────── */
+    --agent-coral:                #FF8A65;
+    --agent-coral-deep:           #FF6B4A;
+    --agent-coral-darker:         #E55B3D;
+    --agent-coral-light:          #FFB18F;
+    --agent-coral-pale:           #FFD4C2;
+    --agent-coral-bg-tint:        rgba(255, 138, 101, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(255, 138, 101, 0.14);
+
+    /* ── Semantic — success ───────────────────────────────────────────────── */
+    --agent-success:        #1F8A4A;
+    --agent-success-bg:     rgba(31, 138, 74, 0.10);
+    --agent-success-border: rgba(31, 138, 74, 0.30);
+
+    /* ── Semantic — warning ───────────────────────────────────────────────── */
+    --agent-warning:        #C97D1A;
+    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
+    --agent-warning-border: rgba(201, 125, 26, 0.30);
+
+    /* ── Semantic — danger ────────────────────────────────────────────────── */
+    --agent-danger:         #C73E3E;
+    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
+    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+
+    /* ── Semantic — info ──────────────────────────────────────────────────── */
+    --agent-info:           #3D7AB8;
+    --agent-info-bg:        rgba(61, 122, 184, 0.08);
+    --agent-info-border:    rgba(61, 122, 184, 0.30);
+
+    /* ── Glass surfaces ───────────────────────────────────────────────────── */
+    --agent-glass-bg:           rgba(255, 255, 255, 0.50);
+    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.70);
+    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.35);
+    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.60);
+    --agent-glass-border:       rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright:rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:        0 4px 20px rgba(255, 138, 101, 0.06),
+                                 0 1px  4px rgba(45,  24,  16,  0.04);
+    --agent-glass-shadow-lifted: 0 8px 32px rgba(255, 138, 101, 0.10),
+                                 0 2px  8px rgba(45,  24,  16,  0.06);
+
+    /* ── Borders ──────────────────────────────────────────────────────────── */
+    --agent-border-subtle:  rgba(45, 24, 16, 0.06);
+    --agent-border-default: rgba(45, 24, 16, 0.10);
+    --agent-border-strong:  rgba(45, 24, 16, 0.18);
+    --agent-border-focus:   rgba(255, 138, 101, 0.45);
+
+    /* ── Focus rings (keyboard navigation) ───────────────────────────────── */
+    --agent-focus-ring:       0 0 0 3px rgba(255, 138, 101, 0.22);
+    --agent-focus-ring-tight: 0 0 0 2px rgba(255, 138, 101, 0.32);
+
+    /* ── Radii ────────────────────────────────────────────────────────────── */
+    --agent-radius-sm:   6px;
+    --agent-radius-md:   8px;
+    --agent-radius-lg:  12px;
+    --agent-radius-xl:  16px;
+    --agent-radius-pill: 999px;
+
+    /* ── Spacing scale ────────────────────────────────────────────────────── */
+    --agent-space-1:   4px;
+    --agent-space-2:   8px;
+    --agent-space-3:  12px;
+    --agent-space-4:  16px;
+    --agent-space-5:  20px;
+    --agent-space-6:  24px;
+    --agent-space-8:  32px;
+    --agent-space-10: 40px;
+    --agent-space-12: 48px;
+
+    /* ── Transitions ──────────────────────────────────────────────────────── */
+    --agent-ease:            cubic-bezier(0.4, 0, 0.2, 1);
+    --agent-transition-fast: 150ms var(--agent-ease);
+    --agent-transition-base: 200ms var(--agent-ease);
+    --agent-transition-slow: 300ms var(--agent-ease);
+
+    /* ── Typography scale ─────────────────────────────────────────────────── */
+    --agent-text-display: 32px;
+    --agent-text-h1:      28px;
+    --agent-text-h2:      22px;
+    --agent-text-h3:      17px;
+    --agent-text-h4:      15px;
+    --agent-text-body:    14px;
+    --agent-text-body-sm: 13px;
+    --agent-text-caption: 12px;
+    --agent-text-micro:   11px;
+    --agent-text-eyebrow: 10px;
+
+    --agent-weight-regular:  400;
+    --agent-weight-medium:   500;
+    --agent-weight-semibold: 600;
+
+    --agent-line-tight:   1.25;
+    --agent-line-base:    1.50;
+    --agent-line-relaxed: 1.70;
+
+    --agent-tracking-tight:   -0.01em;
+    --agent-tracking-normal:   0em;
+    --agent-tracking-wide:     0.02em;
+    --agent-tracking-eyebrow:  0.05em;
+
+    /* ── Z-index ──────────────────────────────────────────────────────────── */
+    --agent-z-base:     0;
+    --agent-z-elevated: 10;
+    --agent-z-overlay:  100;
+    --agent-z-modal:    1000;
+    --agent-z-dropdown: 1500;
+    --agent-z-toast:    2000;
+}

@@ -53,7 +53,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
   }, [mobileOpen]);
 
   return (
-    <div className="agent-shell-root" style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme="sunset" style={{ display: "flex" }}>
 
       {/* Warm gradient background */}
       <div aria-hidden="true" style={{

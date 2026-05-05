@@ -89,6 +89,7 @@ model User {
   agentPushSubscriptions AgentPushSubscription[]
   retentionEmailLogs    RetentionEmailLog[]
   commandPreferences    Json?
+  agentPreferences      Json?
   createdChains         PropertyChain[]  @relation("ChainCreatedBy")
   createdChainLinks     ChainLink[]      @relation("ChainLinkCreatedBy")
   claimedChainLinks     ChainLink[]      @relation("ChainLinkClaimedBy")

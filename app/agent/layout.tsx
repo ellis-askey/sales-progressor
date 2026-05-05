@@ -5,6 +5,7 @@ import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
+import "./styles/themes.css";
 import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
@@ -21,10 +22,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const showWelcome = !userRecord?.hasSeenAgentWelcome;
 
   return (
-    <AgentToaster>
-      <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
-      <FeedbackWidget checklistAware />
-      <AgentInstallPrompt />
-    </AgentToaster>
+    <div data-theme="sunset" style={{ display: "contents" }}>
+      <AgentToaster>
+        <AgentShell session={session} showWelcome={showWelcome}>{children}</AgentShell>
+        <FeedbackWidget checklistAware />
+        <AgentInstallPrompt />
+      </AgentToaster>
+    </div>
   );
 }
