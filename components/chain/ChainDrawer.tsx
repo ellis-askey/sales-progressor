@@ -164,7 +164,7 @@ export function ChainDrawer({
     (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"

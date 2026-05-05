@@ -127,6 +127,7 @@
     --agent-z-elevated: 10;
     --agent-z-overlay:  100;
     --agent-z-modal:    1000;
+    --agent-z-dropdown: 1500;
     --agent-z-toast:    2000;
 }
 

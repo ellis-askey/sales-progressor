@@ -86,6 +86,7 @@ export function PropertyHero({
         borderBottom: "0.5px solid rgba(255,255,255,0.72)",
         boxShadow: "0 6px 36px rgba(255,138,101,0.09), 0 1px 0 rgba(255,255,255,0.85) inset",
         position: "relative",
+        zIndex: 0,
         overflow: "hidden",
       }}>
         {/* Coral bloom — top right */}

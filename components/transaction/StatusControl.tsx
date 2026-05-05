@@ -98,10 +98,10 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
 
         {open && dropdownPos && createPortal(
           <>
-            <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0" style={{ zIndex: 1499 }} onClick={() => setOpen(false)} />
             <div
-              className="fixed z-[101] bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
-              style={{ top: dropdownPos.top, left: dropdownPos.left }}
+              className="fixed bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
+              style={{ zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left }}
             >
               {STATUSES.map(({ value, label }) => (
                 <button
@@ -127,7 +127,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
 
       {/* ── Withdrawal reason modal ────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
