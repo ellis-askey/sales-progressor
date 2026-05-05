@@ -27,7 +27,9 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -40,9 +42,10 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
   useEffect(() => {
     if (!open || isMobile) return;
     function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        handleClose();
-      }
+      const target = e.target as Node;
+      const inButton = buttonRef.current?.contains(target);
+      const inPanel = panelRef.current?.contains(target);
+      if (!inButton && !inPanel) handleClose();
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -57,6 +60,10 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
   }
 
   function handleOpen() {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPopoverPos({ top: rect.top, right: window.innerWidth - rect.right });
+    }
     reset();
     setOpen(true);
   }
@@ -174,25 +181,34 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
       {/* Actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
         {/* Set fee — popover anchor */}
-        <div className="relative" ref={popoverRef}>
+        <div>
           <button
+            ref={buttonRef}
             onClick={handleOpen}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: "6px 0", minHeight: 36, display: "flex", alignItems: "center" }}
           >
             Set fee →
           </button>
 
-          {/* Desktop popover — opens upward so it's never clipped at page bottom */}
-          {mounted && open && !isMobile && (
-            <div style={{
-              position: "absolute", right: 0, bottom: "calc(100% + 6px)", zIndex: 1000,
-              background: "white", borderRadius: 12,
-              boxShadow: "0 8px 30px rgba(0,0,0,0.13)", border: "1px solid rgba(0,0,0,0.07)",
-              padding: 14, width: 230,
-            }}>
+          {/* Desktop popover — portaled to body to escape stacking contexts */}
+          {mounted && open && !isMobile && popoverPos && createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                position: "fixed",
+                top: popoverPos.top - 8,
+                right: popoverPos.right,
+                transform: "translateY(-100%)",
+                zIndex: 1500,
+                background: "white", borderRadius: 12,
+                boxShadow: "0 8px 30px rgba(0,0,0,0.13)", border: "1px solid rgba(0,0,0,0.07)",
+                padding: 14, width: 230,
+              }}
+            >
               <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>Set agent fee</p>
               {feeForm}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
