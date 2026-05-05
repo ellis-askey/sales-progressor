@@ -93,20 +93,20 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
         label="Overdue chases"
         sublabel="Pending chase tasks past their due date"
         count={data.overdueChases.count}
-        href="/agent/hub"
+        href="/agent/work-queue"
         first
       />
       <RiskRow
         label="Stalled files"
         sublabel="No milestone activity in the last 14 days"
         count={data.stalled.count}
-        href="/agent/hub"
+        href="/agent/work-queue"
       />
       <RiskRow
         label="Missing event dates"
         sublabel="Completed milestones without a required date"
         count={data.missingEventDate.count}
-        href="/agent/hub"
+        href="/agent/dashboard"
       />
     </div>
   );

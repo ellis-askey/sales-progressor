@@ -706,9 +706,8 @@ export default async function HubPreviewPage() {
                   All files have recent activity
                 </div>
               ) : (
-                /* TODO: implement stalled filter on /agent/transactions */
                 <Link
-                  href="/agent/transactions?filter=stalled"
+                  href="/agent/work-queue"
                   style={{
                     display: "flex",
                     alignItems: "center",
