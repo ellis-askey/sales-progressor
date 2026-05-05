@@ -539,6 +539,8 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
   const now = new Date();
   const fourteenDaysAgo = new Date(now);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const exchangeDefs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM19", "PM26"] } },
@@ -556,11 +558,12 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
       },
       select: { transactionId: true },
     }),
-    // Active, not yet exchanged, no milestone completed in the last 14 days
+    // Active, not yet exchanged, no milestone completed in the last 14 days, and file is at least 7 days old
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
+        createdAt: { lte: sevenDaysAgo },
         milestoneCompletions: {
           none: { state: "complete", completedAt: { gte: fourteenDaysAgo } },
         },
