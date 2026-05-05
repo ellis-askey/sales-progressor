@@ -151,7 +151,7 @@ export default withAuth(
     }
 
     // Agent users can only access the agent area, APIs, and portal — nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal"];
+    const agentAllowed = ["/agent", "/api", "/portal", "/claim"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
@@ -170,9 +170,11 @@ export default withAuth(
       authorized: ({ req, token }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith("/portal")) return true;
+        if (pathname.startsWith("/claim")) return true;
         if (pathname.startsWith("/api/cron/")) return true;
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;
+        if (pathname.startsWith("/api/claim")) return true;
         return !!token;
       },
     },
