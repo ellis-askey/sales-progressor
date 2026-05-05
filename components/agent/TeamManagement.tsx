@@ -192,7 +192,8 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-blue-300/60 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
+          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
         >
           <UserPlus className="w-4 h-4" />
           Add a negotiator

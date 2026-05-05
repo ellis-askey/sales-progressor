@@ -12,7 +12,7 @@ function TooltipShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       background: "rgba(255,255,255,0.97)",
-      border: "1px solid rgba(255,138,101,0.25)",
+      border: "1px solid rgba(var(--agent-coral-base-rgb),0.25)",
       borderRadius: 8, padding: "5px 10px", fontSize: 12,
       color: "var(--agent-text-primary)",
       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
@@ -59,7 +59,7 @@ export function VolumeBarChart({ data }: { data: VolumeEntry[] }) {
         />
         <Tooltip
           content={<VolumeTooltip />}
-          cursor={{ fill: "rgba(255,138,101,0.07)", radius: 4 }}
+          cursor={{ fill: "rgba(var(--agent-coral-base-rgb),0.07)", radius: 4 }}
         />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
           {data.map((entry, i) => (
@@ -115,10 +115,10 @@ export function MonthlyMixChart({ data }: { data: MonthlyActivityBucket[] }) {
         />
         <Tooltip
           content={<MixTooltip />}
-          cursor={{ fill: "rgba(255,138,101,0.07)", radius: 4 }}
+          cursor={{ fill: "rgba(var(--agent-coral-base-rgb),0.07)", radius: 4 }}
         />
-        <Bar dataKey="created"  name="Created"   fill="#FF8A65" fillOpacity={0.80} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="exchanged" name="Exchanged" fill="#C97D1A" fillOpacity={0.90} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="created"  name="Created"   fill="var(--agent-coral)"   fillOpacity={0.80} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="exchanged" name="Exchanged" fill="var(--agent-warning)" fillOpacity={0.90} radius={[2, 2, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

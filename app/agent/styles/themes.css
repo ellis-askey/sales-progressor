@@ -148,6 +148,12 @@
     --agent-bloom-gold-rgb:  255, 220, 100;  /* warm gold — bottom bloom */
     --agent-danger-rgb:      199, 62, 62;    /* danger tints */
     --agent-warning-rgb:     201, 125, 26;   /* warning tints */
+    --agent-bg-base-rgb:     255, 245, 236;  /* bg-base — sticky surface backdrops */
+
+    /* ── User avatar (team member initials chip) ─────────────────────────── */
+    --agent-avatar-user-start: #FAEEDA;
+    --agent-avatar-user-end:   #FAC775;
+    --agent-avatar-user-text:  #633806;
 }
 
 /* ============================================================
@@ -292,4 +298,10 @@
     --agent-bloom-gold-rgb:  230, 200, 145;  /* sand/champagne — bottom bloom */
     --agent-danger-rgb:      199, 62, 62;    /* SAME as sunset — semantic, locked */
     --agent-warning-rgb:     201, 125, 26;   /* SAME as sunset — semantic, locked */
+    --agent-bg-base-rgb:     219, 234, 240;  /* bg-base — sticky surface backdrops */
+
+    /* ── User avatar (team member initials chip) ─────────────────────────── */
+    --agent-avatar-user-start: #D0EAF0;
+    --agent-avatar-user-end:   #84C2D6;
+    --agent-avatar-user-text:  #0F3844;
 }

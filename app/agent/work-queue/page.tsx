@@ -55,7 +55,7 @@ export default async function WorkQueuePage() {
 
   const statSegments: { label: string; anchor: string; color: string }[] = [];
   if (overdueCount > 0)  statSegments.push({ label: `${overdueCount} overdue`,   anchor: "#section-overdue",  color: "var(--agent-danger)"   });
-  if (dueTodayCount > 0) statSegments.push({ label: `${dueTodayCount} due today`, anchor: "#section-due_today", color: "#d97706"               });
+  if (dueTodayCount > 0) statSegments.push({ label: `${dueTodayCount} due today`, anchor: "#section-due_today", color: "var(--agent-warning)"  });
   if (comingUpCount > 0) statSegments.push({ label: `${comingUpCount} coming up`, anchor: "#section-upcoming",  color: "var(--agent-text-muted)" });
 
   return (

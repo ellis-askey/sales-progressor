@@ -13,11 +13,14 @@ export function WelcomeModal({ name }: { name: string }) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [showTour, setShowTour] = useState(false);
+  const [theme, setTheme] = useState("sunset");
   const firstName = getFirstName(name) || "there";
 
   useEffect(() => {
     setMounted(true);
     markWelcomeSeenAction().catch(() => {});
+    const el = document.querySelector("[data-theme]");
+    if (el) setTheme(el.getAttribute("data-theme") ?? "sunset");
   }, []);
 
   function close() {
@@ -33,6 +36,7 @@ export function WelcomeModal({ name }: { name: string }) {
 
   return createPortal(
     <div
+      data-theme={theme}
       className="agent-backdrop"
       style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={close}

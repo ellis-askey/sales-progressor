@@ -228,7 +228,8 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {(step.type === "list" || step.type === "success") && (
         <button
           onClick={() => { setStep({ type: "add-email" }); setError(null); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-blue-300/60 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
+          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
         >
           <Plus className="w-4 h-4" />
           Add a sending address
