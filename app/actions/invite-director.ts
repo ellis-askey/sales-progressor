@@ -116,3 +116,53 @@ export async function inviteDirector(formData: FormData): Promise<InviteDirector
   console.log(`[AUDIT] director_invitation_sent invitationId=${invitation.id} agencyId=${session.user.agencyId} invitedBy=${session.user.id}`);
   return { ok: true, invitationId: invitation.id };
 }
+
+export async function resendInvitation(invitationId: string): Promise<InviteDirectorResult> {
+  const session = await requireSession();
+
+  const invitation = await prisma.directorInvitation.findUnique({
+    where: { id: invitationId },
+    include: { agency: { select: { name: true } } },
+  });
+
+  if (!invitation) {
+    return { ok: false, error: "Invitation not found" };
+  }
+
+  if (invitation.invitedByUserId !== session.user.id) {
+    return { ok: false, error: "You can only resend your own invitations" };
+  }
+
+  if (invitation.acceptedAt) {
+    return { ok: false, error: "This invitation has already been accepted" };
+  }
+
+  // If expired, extend by 7 days; if still active, just resend
+  if (invitation.expiresAt < new Date()) {
+    const newExpiresAt = new Date();
+    newExpiresAt.setDate(newExpiresAt.getDate() + 7);
+    await prisma.directorInvitation.update({
+      where: { id: invitationId },
+      data: { expiresAt: newExpiresAt },
+    });
+  }
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const acceptUrl = `${baseUrl}/invite/${invitation.token}`;
+
+  try {
+    await sendDirectorInvitationEmail({
+      directorName: invitation.directorName,
+      directorEmail: invitation.directorEmail,
+      invitedByName: session.user.name,
+      agencyName: invitation.agency.name,
+      acceptUrl,
+    });
+  } catch (emailError) {
+    console.error("Failed to resend director invitation email:", emailError);
+    return { ok: false, error: "Couldn't send the email. Please try again." };
+  }
+
+  console.log(`[AUDIT] director_invitation_resent invitationId=${invitation.id} invitedBy=${session.user.id}`);
+  return { ok: true, invitationId: invitation.id };
+}
