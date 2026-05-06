@@ -17,6 +17,7 @@ declare module "next-auth" {
       role: UserRole;
       agencyId: string;
       firmName: string | null;
+      needsSignupCompletion: boolean;
     };
   }
   interface User {
@@ -35,6 +36,7 @@ declare module "next-auth/jwt" {
     role: UserRole;
     agencyId: string;
     firmName: string | null;
+    needsSignupCompletion: boolean;
   }
 }
 
@@ -120,10 +122,7 @@ export const authOptions: NextAuthOptions = {
 
       // OAuth: allow through. If a matching email/password account exists it will
       // be linked via allowDangerousEmailAccountLinking. If this is a net-new OAuth
-      // user, the PrismaAdapter creates a User row but with no role/agencyId — that
-      // broken state is handled in Phase A4 (onboarding gate). Allowing through here
-      // keeps A2 simple and unblocks round-trip smoke testing.
-      // TODO (Phase A4): redirect net-new OAuth users to complete their signup.
+      // user, they land on /signup/complete (handled by needsSignupCompletion flag).
       return true;
     },
 
@@ -136,9 +135,9 @@ export const authOptions: NextAuthOptions = {
           token.role = (user as { role: UserRole }).role;
           token.agencyId = (user as { agencyId: string | null }).agencyId ?? "";
           token.firmName = (user as { firmName: string | null }).firmName;
+          token.needsSignupCompletion = false;
         } else if (account) {
-          // OAuth: the user object only has id/name/email/image from the provider.
-          // Fetch role/agencyId/firmName from the database.
+          // OAuth: fetch role/agencyId/firmName from DB.
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
             select: { role: true, agencyId: true, firmName: true },
@@ -146,8 +145,28 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser?.role ?? "viewer";
           token.agencyId = dbUser?.agencyId ?? "";
           token.firmName = dbUser?.firmName ?? null;
+          // viewer + no agencyId = net-new OAuth user who hasn't completed signup
+          token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
         }
       }
+
+      // On every request: if signup is still incomplete, re-check the DB.
+      // This picks up the completion (agencyId now set) without requiring a
+      // new sign-in. The updated token is written back into the JWT cookie,
+      // so middleware sees the correct role on the next request.
+      if (token.needsSignupCompletion && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true, agencyId: true, firmName: true },
+        });
+        if (dbUser?.agencyId) {
+          token.role = dbUser.role;
+          token.agencyId = dbUser.agencyId;
+          token.firmName = dbUser.firmName ?? null;
+          token.needsSignupCompletion = false;
+        }
+      }
+
       return token;
     },
 
@@ -156,6 +175,7 @@ export const authOptions: NextAuthOptions = {
       session.user.role = token.role;
       session.user.agencyId = token.agencyId;
       session.user.firmName = token.firmName;
+      session.user.needsSignupCompletion = token.needsSignupCompletion ?? false;
       return session;
     },
   },

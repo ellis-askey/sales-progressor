@@ -10,6 +10,10 @@ import { redirect } from "next/navigation";
 export async function requireSession() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
+  // OAuth user who hasn't completed the signup form yet — must finish before
+  // accessing any part of the app. Redirect instead of throwing so the user
+  // gets a clear path forward rather than a dead end.
+  if (session.user.needsSignupCompletion) redirect("/signup/complete");
   return session;
 }
 

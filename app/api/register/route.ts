@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
+import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -34,25 +35,18 @@ export async function POST(req: NextRequest) {
     }
 
     const agencyName = firmName?.trim() ? toTitleCase(firmName) : toTitleCase(name);
-    const agency = await prisma.agency.create({
-      data: { name: agencyName, signupAt: new Date() },
-    });
-
     const hashedPassword = await hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        name: toTitleCase(name),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: role === "director" ? "director" : "negotiator",
-        agencyId: agency.id,
-        firmName: agencyName,
-      },
+    const { userId } = await createDirectorWithAgency({
+      name: toTitleCase(name),
+      email,
+      password: hashedPassword,
+      role: role === "director" ? "director" : "negotiator",
+      agencyName,
     });
 
-    console.log(`[AUDIT] user_created createdUserId=${user.id} role=${user.role} agencyId=${user.agencyId}`);
-    return NextResponse.json({ ok: true, id: user.id }, { status: 201 });
+    console.log(`[AUDIT] user_registered userId=${userId}`);
+    return NextResponse.json({ ok: true, id: userId }, { status: 201 });
   } catch (e) {
     console.error("Register error:", e);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
