@@ -38,3 +38,10 @@ npm-debug.log*
 playwright-report/
 test-results/
 e2e/.auth/
+
+# Claude Code working directories and session scratch files
+# Root-anchored so legitimate docs/ copies remain tracked
+.claude/worktrees/
+/CC_PROMPT_*.md
+/PACKAGE_D_SCOPE.md
+/ELLIS_MANUAL_TODO.md
