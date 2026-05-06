@@ -35,7 +35,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
         {!editing && (
           <button
             onClick={() => setEditing(true)}
-            className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors"
+            className="text-xs text-slate-900/30 agent-hover-link transition-colors"
           >
             {savedNotes ? "Edit" : "+ Add"}
           </button>
@@ -56,7 +56,7 @@ export function NotesEditor({ transactionId, initialNotes }: Props) {
               <button
                 onClick={save}
                 disabled={saving}
-                className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+                className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-50 transition-colors"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

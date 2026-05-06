@@ -150,7 +150,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
             <button
               type="submit"
               disabled={!firmName.trim() || loading}
-              className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex-1 py-2.5 agent-btn-color-primary text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
             >
               {loading ? "Saving…" : "Save firm"}
             </button>

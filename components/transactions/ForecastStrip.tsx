@@ -62,7 +62,7 @@ export function ForecastStrip({ months, basePath = "/transactions" }: Props) {
                       className="flex items-center justify-between group gap-3"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900/75 group-hover:text-blue-600 transition-colors leading-snug">
+                        <p className="text-sm font-medium text-slate-900/75 agent-group-link transition-colors leading-snug">
                           {line}
                         </p>
                         {location && (

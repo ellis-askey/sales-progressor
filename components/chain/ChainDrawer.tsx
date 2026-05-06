@@ -217,7 +217,7 @@ export function ChainDrawer({
               action={
                 <button
                   onClick={handleCreateChain}
-                  className="px-4 py-2 text-sm font-medium rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-sm font-medium rounded-xl agent-btn-color-primary transition-colors"
                 >
                   + Create chain
                 </button>
@@ -239,7 +239,7 @@ export function ChainDrawer({
               {showAddAbove && (
                 <button
                   onClick={() => onOpenAddNode?.("above", chain.id)}
-                  className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 mb-3 transition-colors"
+                  className="w-full text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 mb-3 transition-colors"
                 >
                   + Add sale above
                 </button>
@@ -280,7 +280,7 @@ export function ChainDrawer({
               {showAddBelow && (
                 <button
                   onClick={() => onOpenAddNode?.("below", chain.id)}
-                  className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 mt-3 transition-colors"
+                  className="w-full text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 mt-3 transition-colors"
                 >
                   + Add sale below
                 </button>
@@ -298,7 +298,7 @@ export function ChainDrawer({
             <button
               onClick={() => { void handleBulkInvite(); }}
               disabled={sendingInvites !== null}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg agent-btn-color-primary disabled:opacity-50 transition-colors"
             >
               {sendingInvites === "bulk" ? "Sending…" : "Send invites"}
             </button>

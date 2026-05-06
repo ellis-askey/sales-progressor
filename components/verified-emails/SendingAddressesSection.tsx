@@ -174,7 +174,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
             <button
               onClick={startAddEmail}
               disabled={loading || !newEmail.includes("@")}
-              className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
+              className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium disabled:opacity-40 transition-colors"
             >
               {loading ? "Checking…" : "Continue"}
             </button>

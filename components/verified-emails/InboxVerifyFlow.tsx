@@ -98,7 +98,7 @@ export function InboxVerifyFlow({ email, onVerified, onCancel }: Props) {
         <button
           onClick={submit}
           disabled={code.length !== 6 || loading}
-          className="flex-1 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-sm font-semibold transition-colors"
+          className="flex-1 py-3 rounded-xl agent-btn-color-primary text-white text-sm font-semibold transition-colors disabled:opacity-40"
         >
           {loading ? "Verifying…" : "Verify"}
         </button>

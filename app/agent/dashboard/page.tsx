@@ -148,7 +148,7 @@ export default async function AgentDashboard({
                 <EmptyState
                   title={`No ${activeFilter.replace("_", " ")} files`}
                   description="Try a different filter."
-                  action={<Link href="/agent/dashboard" className="text-sm text-blue-500 hover:text-blue-600">View all</Link>}
+                  action={<Link href="/agent/dashboard" className="text-sm agent-link-primary">View all</Link>}
                 />
               </div>
             ) : (

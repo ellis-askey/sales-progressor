@@ -226,7 +226,7 @@ export function RecommendedSolicitorsSettings({
             <button
               onClick={confirmAdd}
               disabled={adding}
-              className="px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+              className="px-4 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
             >
               {adding ? "Adding…" : "Confirm add"}
             </button>
@@ -259,7 +259,7 @@ export function RecommendedSolicitorsSettings({
                 <button
                   key={f.id}
                   onMouseDown={() => openContactForm({ id: f.id, name: f.name })}
-                  className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-blue-50/60 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 agent-hover-row transition-colors"
                 >
                   {f.name}
                 </button>
@@ -267,7 +267,7 @@ export function RecommendedSolicitorsSettings({
               {query.trim() && !allFirms.some((f) => f.name.toLowerCase() === query.trim().toLowerCase()) && (
                 <button
                   onMouseDown={() => openContactForm({ name: query.trim() })}
-                  className="w-full text-left px-4 py-2.5 text-sm text-blue-600 font-medium hover:bg-blue-50/60 transition-colors border-t border-white/30"
+                  className="w-full text-left px-4 py-2.5 text-sm font-medium agent-link-primary agent-hover-row transition-colors border-t border-white/30"
                 >
                   + Add &ldquo;{query.trim()}&rdquo; as a new firm
                 </button>

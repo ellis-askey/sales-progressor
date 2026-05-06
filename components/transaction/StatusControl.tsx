@@ -157,7 +157,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
                     reason === r
                       ? "border-red-300 bg-red-50 text-red-700 font-medium"
-                      : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
                   }`}
                 >
                   {r}
@@ -184,7 +184,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg agent-hover-row transition-colors"
               >
                 Cancel
               </button>

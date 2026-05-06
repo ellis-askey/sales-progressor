@@ -55,7 +55,7 @@ function StubCard({
           <button
             type="button"
             onClick={onEdit}
-            className="text-xs text-slate-900/40 hover:text-blue-500 transition-colors"
+            className="text-xs text-slate-900/40 agent-hover-link transition-colors"
           >
             Edit
           </button>
@@ -172,7 +172,7 @@ export function ChainSection({
           <button
             type="button"
             onClick={onExpand}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
+            className="text-xs font-medium agent-link-primary transition-colors"
           >
             + Add chain
           </button>
@@ -258,7 +258,7 @@ export function ChainSection({
           <button
             type="button"
             onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
-            className="flex-1 text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 transition-colors"
+            className="flex-1 text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 transition-colors"
           >
             + Add sale above
           </button>
@@ -267,7 +267,7 @@ export function ChainSection({
           <button
             type="button"
             onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
-            className="flex-1 text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-xl py-2 transition-colors"
+            className="flex-1 text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 transition-colors"
           >
             + Add sale below
           </button>

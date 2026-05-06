@@ -154,7 +154,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
         <button
           onClick={send}
           disabled={sending || !to.trim() || !subject.trim() || !body.trim()}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium disabled:opacity-40 transition-colors"
         >
           <PaperPlaneTilt className="w-4 h-4" />
           {sending ? "Sending…" : "Send"}

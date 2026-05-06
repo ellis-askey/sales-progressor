@@ -7,7 +7,6 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
-
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   if (session.user.role !== "negotiator" && session.user.role !== "director") {

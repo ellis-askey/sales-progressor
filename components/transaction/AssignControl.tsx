@@ -53,7 +53,7 @@ export function AssignControl({ transactionId, currentAssigneeId, currentAssigne
           ))}
         </select>
         <button onClick={save} disabled={saving || isPending}
-          className="text-xs text-blue-500 hover:text-blue-700 font-medium">
+          className="text-xs agent-link-primary font-medium">
           {saving ? "…" : "Save"}
         </button>
         <button onClick={() => setEditing(false)}

@@ -59,7 +59,7 @@ function ReplyForm({ transactionId, contactId }: { transactionId: string; contac
       <button
         onClick={send}
         disabled={isPending || !content.trim()}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-40 transition-colors"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold agent-btn-color-primary disabled:opacity-40 transition-colors"
       >
         {isPending ? "Sending…" : "Reply"}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -363,7 +363,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <button
                   onClick={() => doComplete()}
                   disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                  className="mt-5 px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
+                  className="mt-5 px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40"
                 >
                   Confirm
                 </button>
@@ -410,7 +410,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             <>
               {effectivelyAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading || isPending}
-                  className="px-3 py-1.5 text-xs font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-400 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
+                  className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
                   {loading ? (
                     <>
                       <svg className="animate-spin w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24">
@@ -452,7 +452,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             </div>
             <div className="px-5 py-4 space-y-2">
               <button onClick={() => doNotRequired()}
-                className="w-full py-2.5 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors">
+                className="w-full py-2.5 text-sm font-semibold agent-btn-color-primary rounded-xl transition-colors">
                 Yes, mark as not required
               </button>
               <button onClick={() => setShowSurveyNrConfirm(false)}
@@ -577,13 +577,13 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     reconcileCompletionDate || undefined
                   );
                 }}
-                className="flex-1 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-sm font-medium text-white transition-colors"
+                className="flex-1 py-2.5 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors"
               >
                 {isExchangeMilestone ? "Confirm exchange" : "Confirm completion"}
               </button>
               <button
                 onClick={() => setShowReconciliationModal(false)}
-                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 agent-hover-row transition-colors"
               >
                 Cancel
               </button>
@@ -603,7 +603,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <h3 className="text-base font-semibold text-slate-900">Undo milestone</h3>
                 <button
                   onClick={() => setShowUndoModal(false)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 agent-hover-row transition-colors"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -753,7 +753,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               <button
                 onClick={() => setShowUndoModal(false)}
                 disabled={isPending}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 agent-hover-row transition-colors"
               >
                 Cancel
               </button>

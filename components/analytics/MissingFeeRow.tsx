@@ -150,7 +150,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
         <button
           onClick={handleSave}
           disabled={isPending || !canSave}
-          className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors"
+          className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40"
         >
           {isPending ? "…" : "Save"}
         </button>

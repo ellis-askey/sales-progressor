@@ -58,7 +58,7 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
                       className="flex items-center justify-between group"
                     >
                       <div className="min-w-0">
-                        <span className="text-sm text-slate-900/70 group-hover:text-blue-600 transition-colors truncate block">
+                        <span className="text-sm text-slate-900/70 agent-group-link transition-colors truncate block">
                           {tx.propertyAddress}
                         </span>
                         {tx.purchasers.length > 0 && (

@@ -52,7 +52,7 @@ export function ReferralSection({ transactionId, firms, referredFirmId, referral
           <button
             onClick={save}
             disabled={saving}
-            className="text-xs text-blue-500 hover:text-blue-600 font-medium disabled:opacity-50"
+            className="text-xs agent-link-primary font-medium disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}
           </button>

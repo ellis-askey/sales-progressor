@@ -687,7 +687,7 @@
   .work-queue-row:hover { background: rgba(255,255,255,0.65) !important; }
 
   /* ── Solicitor file chip hover ──────────────────────────────────────────── */
-  .solicitor-file-chip:hover { background: rgba(99,102,241,0.08) !important; color: #6366f1 !important; }
+  .solicitor-file-chip:hover { background: var(--agent-hover-tint) !important; color: var(--agent-coral-deep) !important; }
 
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
   .coming-up-link { text-underline-offset: 2px; }
@@ -695,7 +695,42 @@
 
   /* ── Pipeline Health: Stalled row hover ─────────────────────────────────── */
   .stalled-row-link { display: flex; }
-  .stalled-row-link:hover { background: rgba(201,125,26,0.06) !important; }
+  .stalled-row-link:hover { background: var(--agent-hover-tint-warning) !important; }
+
+  /* ── Theme-adaptive hover utility classes ────────────────────────────────── */
+  /* Generic row/item hover — use instead of hover:bg-slate-50 / hover:bg-amber-50 */
+  .agent-hover-row { transition: background-color 150ms ease; }
+  .agent-hover-row:hover { background-color: var(--agent-hover-tint); }
+
+  /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */
+  .agent-hover-row-warning { transition: background-color 150ms ease; }
+  .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }
+
+  /* Link-style text hover — replaces hover:text-blue-600 on inline action links */
+  .agent-hover-link { transition: color 150ms ease; }
+  .agent-hover-link:hover { color: var(--agent-coral-deep); }
+
+  /* Brand text link — replaces text-blue-500 hover:text-blue-600 (both states) */
+  .agent-link-primary { color: var(--agent-coral-deep); transition: color 150ms ease; text-decoration: none; }
+  .agent-link-primary:hover { color: var(--agent-coral-darker); }
+
+  /* Group-hover brand text — replaces group-hover:text-blue-600 */
+  .group:hover .agent-group-link { color: var(--agent-coral-deep); }
+
+  /* Color-only primary button — swaps blue Tailwind colour utils without changing layout */
+  .agent-btn-color-primary { background: var(--agent-coral-deep) !important; color: var(--agent-text-on-coral) !important; }
+  .agent-btn-color-primary:hover:not(:disabled) { background: var(--agent-coral-darker) !important; }
+  .agent-btn-color-primary:disabled,
+  .agent-btn-color-primary[disabled] { background: rgba(var(--agent-coral-rgb), 0.40) !important; }
+
+  /* Brand-tinted badge/pill — replaces bg-blue-50 text-blue-600 hover:bg-blue-100 secondary actions */
+  .agent-badge-brand { background: var(--agent-coral-bg-tint); color: var(--agent-coral-deep); transition: background 150ms ease, color 150ms ease; }
+  .agent-badge-brand:hover:not(:disabled) { background: var(--agent-coral-bg-tint-hover); color: var(--agent-coral-darker); }
+
+  /* File upload dropzone — replaces hardcoded violet border/bg on AI upload zones */
+  .agent-dropzone { border-color: var(--agent-coral-pale); background: var(--agent-coral-bg-tint); transition: border-color 150ms ease, background 150ms ease; }
+  .agent-dropzone:hover { border-color: var(--agent-coral-light); background: var(--agent-coral-bg-tint-hover); }
+  .agent-dropzone-active { border-color: var(--agent-coral); background: var(--agent-coral-bg-tint-hover); }
 
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 

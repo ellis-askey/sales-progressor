@@ -66,7 +66,7 @@ function AssignedToChip({ users, selected, onChange }: {
         <div className="absolute top-full left-0 mt-1 z-30 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[160px]">
           <button
             onClick={() => { onChange(null); setOpen(false); }}
-            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${!selected ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+            className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row ${!selected ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
           >
             All owners
           </button>
@@ -74,7 +74,7 @@ function AssignedToChip({ users, selected, onChange }: {
             <button
               key={u.id}
               onClick={() => { onChange(u.id); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center justify-between gap-2 ${selected === u.id ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+              className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center justify-between gap-2 ${selected === u.id ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
             >
               {u.name}
               {selected === u.id && <span className="text-orange-500 flex-shrink-0">✓</span>}
@@ -119,7 +119,7 @@ function RiskChip({ selected, onToggle }: {
               <button
                 key={level}
                 onClick={() => onToggle(level)}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
+                className="w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center gap-2"
               >
                 <span className={`w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center ${checked ? "bg-blue-500 border-blue-500" : "border-slate-300"}`}>
                   {checked && (
@@ -183,7 +183,7 @@ function ManagedByChip({ value, onChange }: {
             <button
               key={opt.value}
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center justify-between gap-2 ${value === opt.value ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+              className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center justify-between gap-2 ${value === opt.value ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
             >
               {opt.label}
               {value === opt.value && <span className="text-orange-500 flex-shrink-0">✓</span>}
@@ -352,7 +352,7 @@ export function TransactionListWithSearch({
           {anyFilterActive && (
             <button
               onClick={clearAllFilters}
-              className="text-xs text-blue-500 hover:text-blue-600"
+              className="text-xs agent-link-primary"
             >
               Clear filters
             </button>

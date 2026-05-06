@@ -34,4 +34,7 @@ npm-debug.log*
 # Vercel
 .vercel
 
-.vercel
+# Playwright
+playwright-report/
+test-results/
+e2e/.auth/
