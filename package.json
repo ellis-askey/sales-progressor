@@ -18,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.0",
     "@auth/prisma-adapter": "^2.4.1",
+    "@next-auth/prisma-adapter": "^1.0.7",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^5.22.0",
     "@sendgrid/client": "^8.1.6",
