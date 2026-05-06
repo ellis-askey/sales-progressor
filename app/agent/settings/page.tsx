@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { TeamManagement } from "@/components/agent/TeamManagement";
 import { ProfileForm } from "@/components/agent/ProfileForm";
+import { ThemePicker } from "@/components/agent/ThemePicker";
+import { getAgentTheme } from "@/lib/agent/themes";
 
 export default async function AgentSettingsPage({
   searchParams,
@@ -15,8 +17,10 @@ export default async function AgentSettingsPage({
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phone: true },
+    select: { phone: true, agentPreferences: true },
   });
+
+  const currentTheme = getAgentTheme(userRecord?.agentPreferences);
 
   return (
     <>
@@ -67,6 +71,9 @@ export default async function AgentSettingsPage({
           </div>
 
         </div>
+
+        {/* Branch theme */}
+        <ThemePicker currentTheme={currentTheme} />
 
         {/* Team — directors only */}
         {isDirector && (

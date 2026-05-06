@@ -2,7 +2,17 @@
 
 import { useTransition } from "react";
 import { updateAgentTheme } from "@/app/actions/agent-preferences";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { AgentTheme } from "@/lib/agent/themes";
+
+const THEME_NAMES: Record<AgentTheme, string> = {
+  sunset:   "Sunset",
+  coastal:  "Coastal",
+  heritage: "Heritage",
+  slate:    "Slate",
+  emerald:  "Emerald",
+  claret:   "Claret",
+};
 
 /**
  * Hook that returns a function to switch themes.
@@ -13,7 +23,8 @@ import type { AgentTheme } from "@/lib/agent/themes";
  * intent) but the next page load will revert to the saved theme.
  */
 export function useAgentTheme() {
-  const [isPending, startTransitionInternal] = useTransition();
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
 
   function setTheme(theme: AgentTheme) {
     // Update DOM immediately for instant feedback
@@ -23,10 +34,18 @@ export function useAgentTheme() {
     if (shell) shell.setAttribute("data-theme", theme);
 
     // Persist in background
-    startTransitionInternal(() => {
-      updateAgentTheme(theme).catch((err) => {
-        console.error("Failed to persist theme:", err);
-      });
+    startTransition(() => {
+      updateAgentTheme(theme)
+        .then((result) => {
+          if (result.ok) {
+            toast.success(`Theme changed to ${THEME_NAMES[theme]}`);
+          } else {
+            toast.error("Couldn't save theme. Try again.");
+          }
+        })
+        .catch(() => {
+          toast.error("Couldn't save theme. Try again.");
+        });
     });
   }
 

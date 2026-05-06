@@ -745,3 +745,23 @@
     .agent-bloom-1,
     .agent-bloom-2                { animation: none; }
 }
+
+/* ── Theme picker grid ───────────────────────────────────────────────────── */
+
+.agent-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .agent-theme-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .agent-theme-grid {
+    grid-template-columns: 1fr;
+  }
+}
