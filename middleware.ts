@@ -171,6 +171,7 @@ export default withAuth(
         const { pathname } = req.nextUrl;
         if (pathname.startsWith("/portal")) return true;
         if (pathname.startsWith("/claim")) return true;
+        if (pathname.startsWith("/invite-negotiator")) return true;
         if (pathname.startsWith("/api/cron/")) return true;
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;
