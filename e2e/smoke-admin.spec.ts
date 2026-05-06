@@ -1,55 +1,57 @@
-import { test } from "@playwright/test"
+import { test, type Page } from "@playwright/test"
 import { login, expectPageOk, USERS } from "./helpers"
 
-// Logs in once as admin and smoke-tests every internal-dashboard page.
+let adminPage: Page
+
 test.describe.serial("Admin/dashboard smoke tests", () => {
   test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    await login(page, USERS.admin)
-    await page.waitForURL(/\/dashboard/, { timeout: 20000 })
-    await page.context().storageState({ path: "e2e/.auth/admin.json" })
-    await page.close()
+    const context = await browser.newContext()
+    adminPage = await context.newPage()
+    await login(adminPage, USERS.admin)
+    await adminPage.waitForURL(/\/dashboard/, { timeout: 20000 })
   })
 
-  test.use({ storageState: "e2e/.auth/admin.json" })
-
-  test("dashboard loads", async ({ page }) => {
-    await expectPageOk(page, "/dashboard")
+  test.afterAll(async () => {
+    await adminPage.context().close()
   })
 
-  test("admin page loads", async ({ page }) => {
-    await expectPageOk(page, "/admin")
+  test("dashboard loads", async () => {
+    await expectPageOk(adminPage, "/dashboard")
   })
 
-  test("audit log loads", async ({ page }) => {
-    await expectPageOk(page, "/admin/audit")
+  test("admin page loads", async () => {
+    await expectPageOk(adminPage, "/admin")
   })
 
-  test("analytics loads", async ({ page }) => {
-    await expectPageOk(page, "/analytics")
+  test("audit log loads", async () => {
+    await expectPageOk(adminPage, "/admin/audit")
   })
 
-  test("reports loads", async ({ page }) => {
-    await expectPageOk(page, "/reports")
+  test("analytics loads", async () => {
+    await expectPageOk(adminPage, "/analytics")
   })
 
-  test("tasks loads", async ({ page }) => {
-    await expectPageOk(page, "/tasks")
+  test("reports loads", async () => {
+    await expectPageOk(adminPage, "/reports")
   })
 
-  test("todos loads", async ({ page }) => {
-    await expectPageOk(page, "/todos")
+  test("tasks loads", async () => {
+    await expectPageOk(adminPage, "/tasks")
   })
 
-  test("solicitors loads", async ({ page }) => {
-    await expectPageOk(page, "/solicitors")
+  test("todos loads", async () => {
+    await expectPageOk(adminPage, "/todos")
   })
 
-  test("comms loads", async ({ page }) => {
-    await expectPageOk(page, "/comms")
+  test("solicitors loads", async () => {
+    await expectPageOk(adminPage, "/solicitors")
   })
 
-  test("new transaction form loads", async ({ page }) => {
-    await expectPageOk(page, "/transactions/new")
+  test("comms loads", async () => {
+    await expectPageOk(adminPage, "/comms")
+  })
+
+  test("new transaction form loads", async () => {
+    await expectPageOk(adminPage, "/transactions/new")
   })
 })

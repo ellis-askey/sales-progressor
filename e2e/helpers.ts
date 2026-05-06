@@ -27,7 +27,7 @@ export async function login(page: Page, email: string) {
 
 // Asserts a page loaded without crashing — not on login, no error boundary.
 export async function expectPageOk(page: Page, url: string) {
-  await page.goto(url)
+  await page.goto(url, { waitUntil: "commit" })
   await page.waitForLoadState("domcontentloaded")
   await expect(page).not.toHaveURL(/\/login/, { timeout: 8000 })
   await expect(page.getByText("Something went wrong")).not.toBeVisible()

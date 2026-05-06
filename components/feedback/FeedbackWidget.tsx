@@ -216,7 +216,7 @@ function SubmitBtn({ label, disabled, submitting }: { label: string; disabled: b
 
 // ── Main widget ───────────────────────────────────────────────────────────────
 
-export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: string; checklistAware?: boolean }) {
+export function FeedbackWidget({ portalToken, checklistAware, userId }: { portalToken?: string; checklistAware?: boolean; userId?: string }) {
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -227,6 +227,8 @@ export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: 
   const [submitting, setSubmitting] = useState(false);
   const [capturedCtx, setCapturedCtx] = useState<{ url: string; browser: string; viewportSize: string; userAgent: string } | null>(null);
   const [triggerPosition, setTriggerPosition] = useState<"left" | "right">("right");
+  // Hidden while the onboarding checklist is active; starts hidden to avoid flash
+  const [checklistActive, setChecklistActive] = useState(!!checklistAware);
 
   const triggerRef    = useRef<HTMLButtonElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
@@ -269,30 +271,16 @@ export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
-  // Checklist-aware positioning: sit at left while onboarding checklist is active, animate to right on dismiss
+  // Hide while onboarding checklist is active; show when it's dismissed
   useEffect(() => {
-    if (!checklistAware) return;
-    const done = !!localStorage.getItem("sp_onboarding_dismissed");
-    if (!done) setTriggerPosition("left");
-
-    function handleDismiss() {
-      const el = triggerWrapRef.current;
-      if (!el) { setTriggerPosition("right"); return; }
-      const width = el.offsetWidth;
-      const translateX = window.innerWidth - 48 - width;
-      el.style.transition = "transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1)";
-      el.style.transform = `translateX(${translateX}px)`;
-      setTimeout(() => {
-        el.style.transition = "";
-        el.style.transform = "";
-        setTriggerPosition("right");
-      }, 510);
-    }
-
-    window.addEventListener("sp_checklist_dismissed", handleDismiss);
-    return () => window.removeEventListener("sp_checklist_dismissed", handleDismiss);
+    if (!checklistAware || !userId) return;
+    // Correct initial state from localStorage (key is user-specific)
+    setChecklistActive(!localStorage.getItem(`sp_onboarding_dismissed_${userId}`));
+    const handler = () => setChecklistActive(false);
+    window.addEventListener("sp_checklist_dismissed", handler);
+    return () => window.removeEventListener("sp_checklist_dismissed", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checklistAware]);
+  }, [checklistAware, userId]);
 
   function open() {
     setCapturedCtx({
@@ -481,8 +469,8 @@ export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: 
         {panelContent()}
       </div>
 
-      {/* Trigger button */}
-      <div
+      {/* Trigger button — hidden while onboarding checklist is active */}
+      {!(checklistAware && checklistActive) && <div
         ref={triggerWrapRef}
         className="feedback-trigger-wrap"
         style={{ zIndex: 40, ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}) }}
@@ -525,7 +513,7 @@ export function FeedbackWidget({ portalToken, checklistAware }: { portalToken?: 
             Feedback
           </span>
         </button>
-      </div>
+      </div>}
     </>
   );
 }

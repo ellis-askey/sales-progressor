@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { isAgentTheme } from "@/lib/agent/themes";
 
 export async function GET() {
   const session = await requireSession();
@@ -25,7 +26,7 @@ export async function GET() {
       prisma.userVerifiedEmail.count({
         where: { userId, status: "verified" },
       }),
-      prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { phone: true, agentPreferences: true, createdAt: true } }),
       prisma.propertyTransaction.findFirst({
         where: agentTxWhere,
         orderBy: { createdAt: "asc" },
@@ -33,13 +34,28 @@ export async function GET() {
       }),
     ]);
 
-  const steps = [
-    activeTxCount > 0,
-    contactWithDetails > 0,
-    contactWithEmail > 0,
-    verifiedEmail > 0,
-    user?.phone != null && user.phone.trim() !== "",
-  ];
+  // Explicit theme choice: agentPreferences.theme must exist and be a valid theme.
+  // agentPreferences: null means the user has never touched the picker.
+  // After 14 days we stop requiring it — they've had ample time; default Sunset is fine.
+  const THEME_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+  const accountAgeMs = Date.now() - (user?.createdAt?.getTime() ?? Date.now());
+  const prefs = user?.agentPreferences;
+  const hasThemeSet = accountAgeMs > THEME_GRACE_MS || !!(
+    prefs &&
+    typeof prefs === "object" &&
+    "theme" in prefs &&
+    isAgentTheme((prefs as Record<string, unknown>).theme)
+  );
 
-  return NextResponse.json({ steps, firstTxId: firstTx?.id ?? null });
+  return NextResponse.json({
+    progress: {
+      hasThemeSet,
+      hasSale:            activeTxCount > 0,
+      hasContactDetails:  contactWithDetails > 0,
+      hasContactEmail:    contactWithEmail > 0,
+      hasVerifiedEmail:   verifiedEmail > 0 || accountAgeMs > THEME_GRACE_MS,
+      hasPhone:           !!(user?.phone?.trim()),
+    },
+    firstTxId: firstTx?.id ?? null,
+  });
 }

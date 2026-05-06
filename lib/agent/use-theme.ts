@@ -39,6 +39,7 @@ export function useAgentTheme() {
         .then((result) => {
           if (result.ok) {
             toast.success(`Theme changed to ${THEME_NAMES[theme]}`);
+            window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasThemeSet: true } }));
           } else {
             toast.error("Couldn't save theme. Try again.");
           }

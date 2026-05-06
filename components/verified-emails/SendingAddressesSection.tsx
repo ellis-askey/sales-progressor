@@ -101,6 +101,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
   function onVerified(email: string) {
     setStep({ type: "success", email });
     loadEmails();
+    window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasVerifiedEmail: true } }));
   }
 
   const pendingDomains = emails

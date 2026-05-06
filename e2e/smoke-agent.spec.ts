@@ -1,71 +1,70 @@
-import { test, expect } from "@playwright/test"
+import { test, type Page } from "@playwright/test"
 import { login, expectPageOk, USERS } from "./helpers"
 
-// Logs in once as a negotiator and smoke-tests every agent-surface page.
+let agentPage: Page
+
 test.describe.serial("Agent app smoke tests (negotiator)", () => {
   test.beforeAll(async ({ browser }) => {
-    const page = await browser.newPage()
-    await login(page, USERS.negotiator)
-    await page.waitForURL(/\/agent/, { timeout: 20000 })
-    await page.context().storageState({ path: "e2e/.auth/agent.json" })
-    await page.close()
+    const context = await browser.newContext()
+    agentPage = await context.newPage()
+    await login(agentPage, USERS.negotiator)
+    await agentPage.waitForURL(/\/agent/, { timeout: 20000 })
   })
 
-  test.use({ storageState: "e2e/.auth/agent.json" })
-
-  test("hub loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/hub")
+  test.afterAll(async () => {
+    await agentPage.context().close()
   })
 
-  test("dashboard (transactions list) loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/dashboard")
+  test("hub loads", async () => {
+    await expectPageOk(agentPage, "/agent/hub")
   })
 
-  test("analytics loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/analytics")
+  test("dashboard (transactions list) loads", async () => {
+    await expectPageOk(agentPage, "/agent/dashboard")
   })
 
-  test("comms loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/comms")
+  test("analytics loads", async () => {
+    await expectPageOk(agentPage, "/agent/analytics")
   })
 
-  test("completions loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/completions")
+  test("comms loads", async () => {
+    await expectPageOk(agentPage, "/agent/comms")
   })
 
-  test("settings loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/settings")
+  test("completions loads", async () => {
+    await expectPageOk(agentPage, "/agent/completions")
   })
 
-  test("solicitors loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/solicitors")
+  test("settings loads", async () => {
+    await expectPageOk(agentPage, "/agent/settings")
   })
 
-  test("to-do loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/to-do")
+  test("solicitors loads", async () => {
+    await expectPageOk(agentPage, "/agent/solicitors")
   })
 
-  test("work queue loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/work-queue")
+  test("to-do loads", async () => {
+    await expectPageOk(agentPage, "/agent/to-do")
   })
 
-  test("quick-add loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/quick-add")
+  test("work queue loads", async () => {
+    await expectPageOk(agentPage, "/agent/work-queue")
   })
 
-  test("new transaction form loads", async ({ page }) => {
-    await expectPageOk(page, "/agent/transactions/new")
+  test("quick-add loads", async () => {
+    await expectPageOk(agentPage, "/agent/quick-add")
   })
 
-  test("transaction detail loads (first transaction in list)", async ({ page }) => {
-    await page.goto("/agent/dashboard")
-    await page.waitForLoadState("domcontentloaded")
+  test("new transaction form loads", async () => {
+    await expectPageOk(agentPage, "/agent/transactions/new")
+  })
 
-    // Find the first transaction link and navigate to it
-    const firstLink = page.locator('a[href^="/agent/transactions/"]').first()
-    const count = await firstLink.count()
+  test("transaction detail loads (first in list)", async () => {
+    await agentPage.goto("/agent/dashboard")
+    await agentPage.waitForLoadState("domcontentloaded")
 
-    if (count === 0) {
+    const firstLink = agentPage.locator('a[href^="/agent/transactions/"]').first()
+    if ((await firstLink.count()) === 0) {
       test.skip()
       return
     }
@@ -73,6 +72,6 @@ test.describe.serial("Agent app smoke tests (negotiator)", () => {
     const href = await firstLink.getAttribute("href")
     if (!href) { test.skip(); return }
 
-    await expectPageOk(page, href)
+    await expectPageOk(agentPage, href)
   })
 })

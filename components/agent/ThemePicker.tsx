@@ -25,7 +25,6 @@ export function ThemePicker({ currentTheme }: ThemePickerProps) {
   const [activeTheme, setActiveTheme] = useState<AgentTheme>(currentTheme);
 
   function handleSelect(theme: AgentTheme) {
-    if (theme === activeTheme) return;
     setActiveTheme(theme);
     setTheme(theme);
   }

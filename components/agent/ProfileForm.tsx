@@ -39,6 +39,9 @@ export function ProfileForm({
     try {
       await updateProfileAction({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       toast.success("Profile updated", emailChanged ? { description: "Sign out and back in for your new email to take effect." } : undefined);
+      if (phone.trim()) {
+        window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasPhone: true } }));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {

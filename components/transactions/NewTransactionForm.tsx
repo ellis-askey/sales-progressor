@@ -863,6 +863,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
           "error",
         );
       }
+      window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasSale: true } }));
       const dest = result.mosAutoConfirmed
         ? `${redirectBase}/${result.id}?mosConfirmed=1`
         : `${redirectBase}/${result.id}?newFile=1`;

@@ -4,38 +4,79 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
 
+const dismissedKey = (userId: string) => `sp_onboarding_dismissed_${userId}`;
 
-const DISMISSED_KEY = "sp_onboarding_dismissed";
+// Named keys prevent off-by-one errors when steps are reordered or added
+type ProgressData = {
+  hasThemeSet:        boolean;
+  hasSale:            boolean;
+  hasContactDetails:  boolean;
+  hasContactEmail:    boolean;
+  hasVerifiedEmail:   boolean;
+  hasPhone:           boolean;
+};
+
+const DEFAULT_PROGRESS: ProgressData = {
+  hasThemeSet:        false,
+  hasSale:            false,
+  hasContactDetails:  false,
+  hasContactEmail:    false,
+  hasVerifiedEmail:   false,
+  hasPhone:           false,
+};
 
 type Step = {
   label: string;
   href: string;
   hrefDynamic?: (firstTxId: string | null) => string;
+  progressKey: keyof ProgressData;
 };
 
 const STEPS: Step[] = [
-  { label: "Add your first sale",             href: "/agent/transactions/new" },
-  { label: "Add client contact details",       href: "/agent/dashboard", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/dashboard" },
-  { label: "Share the portal with a client",   href: "/agent/comms" },
-  { label: "Verify your email address",        href: "/agent/settings" },
-  { label: "Add your phone number",            href: "/agent/settings" },
+  { label: "Add your first sale",            href: "/agent/transactions/new", progressKey: "hasSale" },
+  { label: "Add client contact details",     href: "/agent/dashboard", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/dashboard", progressKey: "hasContactDetails" },
+  { label: "Share the portal with a client", href: "/agent/comms",            progressKey: "hasContactEmail" },
+  { label: "Add your phone number",          href: "/agent/settings",         progressKey: "hasPhone" },
+  { label: "Choose your branch theme",       href: "/agent/settings",         progressKey: "hasThemeSet" },
+  { label: "Verify your email address",      href: "/agent/settings",         progressKey: "hasVerifiedEmail" },
 ];
 
 export function OnboardingChecklist({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [steps, setSteps] = useState<boolean[]>([false, false, false, false, false]);
+  const [progress, setProgress] = useState<ProgressData>(DEFAULT_PROGRESS);
   const [firstTxId, setFirstTxId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (localStorage.getItem(DISMISSED_KEY)) {
+    if (localStorage.getItem(dismissedKey(userId))) {
       setDismissed(true);
       return;
     }
     if (window.innerWidth >= 768) setOpen(true);
     fetchProgress();
+
+    const interval = setInterval(fetchProgress, 15_000);
+
+    // Instant optimistic update when another component completes a step
+    const onStep = (e: Event) => {
+      const patch = (e as CustomEvent<Partial<ProgressData>>).detail;
+      setProgress((prev) => {
+        const next = { ...prev, ...patch };
+        if (Object.values(next).every(Boolean)) {
+          localStorage.setItem(dismissedKey(userId), "1");
+          setDismissed(true);
+        }
+        return next;
+      });
+    };
+    window.addEventListener("sp_onboarding_step", onStep);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("sp_onboarding_step", onStep);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
@@ -43,12 +84,12 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/agent/onboarding-progress");
       if (!res.ok) return;
-      const data = await res.json() as { steps: boolean[]; firstTxId: string | null };
-      setSteps(data.steps);
+      const data = await res.json() as { progress: ProgressData; firstTxId: string | null };
+      setProgress(data.progress);
       setFirstTxId(data.firstTxId);
       // If already done, silently dismiss — no flash, no animation
-      if (data.steps.every(Boolean)) {
-        localStorage.setItem(DISMISSED_KEY, "1");
+      if (Object.values(data.progress).every(Boolean)) {
+        localStorage.setItem(dismissedKey(userId), "1");
         setDismissed(true);
       }
     } catch {
@@ -57,21 +98,33 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
   }
 
   function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, "1");
+    localStorage.setItem(dismissedKey(userId), "1");
     window.dispatchEvent(new Event("sp_checklist_dismissed"));
     setDismissed(true);
   }
 
   if (!mounted || dismissed) return null;
 
-  const completedCount = steps.filter(Boolean).length;
+  const completedCount = Object.values(progress).filter(Boolean).length;
+  const totalCount = STEPS.length;
+
+  const counterBadge = (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: "1px 6px",
+      borderRadius: 99,
+      background: "rgba(var(--agent-coral-rgb), 0.12)",
+      color: "var(--agent-coral-deep)",
+    }}>
+      {completedCount}/{totalCount}
+    </span>
+  );
 
   return (
     <div style={{
       position: "fixed",
       bottom: 24,
       right: 24,
-      zIndex: 40,
+      zIndex: 50,
       width: open ? 300 : "auto",
       transition: "width 200ms ease",
     }}>
@@ -80,7 +133,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
         <div className="glass-card" style={{
           padding: 0,
           overflow: "hidden",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+          background: "var(--agent-surface-elevated)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)",
           animation: "agent-toast-in 250ms var(--agent-ease) both",
         }}>
           {/* Header */}
@@ -97,12 +151,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
               <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>
                 Getting started
               </p>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: "1px 6px",
-                borderRadius: 99, background: "rgba(37,99,235,0.12)", color: "#1d4ed8",
-              }}>
-                {completedCount}/{STEPS.length}
-              </span>
+              {counterBadge}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
@@ -124,8 +173,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
 
           {/* Step list */}
           <div style={{ padding: "8px 0" }}>
-            {STEPS.map((step, i) => {
-              const done = steps[i] ?? false;
+            {STEPS.map((step) => {
+              const done = progress[step.progressKey];
               const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
               return (
                 <Link
@@ -181,12 +230,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
         >
           <ListChecks size={16} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Getting started</span>
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: "1px 6px",
-            borderRadius: 99, background: "rgba(37,99,235,0.12)", color: "#1d4ed8",
-          }}>
-            {completedCount}/{STEPS.length}
-          </span>
+          {counterBadge}
           <CaretUp size={12} style={{ color: "var(--agent-text-muted)" }} />
         </button>
       )}
