@@ -47,7 +47,14 @@ export async function POST(req: NextRequest) {
 
     console.log(`[AUDIT] user_registered userId=${userId}`);
     return NextResponse.json({ ok: true, id: userId }, { status: 201 });
-  } catch (e) {
+  } catch (e: unknown) {
+    // Prisma unique constraint on email — race between two simultaneous signups
+    if (
+      typeof e === "object" && e !== null &&
+      "code" in e && (e as { code: string }).code === "P2002"
+    ) {
+      return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+    }
     console.error("Register error:", e);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }

@@ -120,9 +120,12 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      // OAuth: allow through. If a matching email/password account exists it will
-      // be linked via allowDangerousEmailAccountLinking. If this is a net-new OAuth
-      // user, they land on /signup/complete (handled by needsSignupCompletion flag).
+      // OAuth: always allow the sign-in to complete. We do NOT gate incomplete
+      // users here because returning false from signIn would show NextAuth's
+      // generic error page with no clear path forward. Instead we set
+      // needsSignupCompletion: true in the jwt callback, and requireSession()
+      // redirects those users to /signup/complete — a branded page they can
+      // actually act on. This is intentional; don't add role/agencyId checks here.
       return true;
     },
 

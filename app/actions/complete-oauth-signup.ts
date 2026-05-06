@@ -21,6 +21,17 @@ export async function completeOAuthSignup(formData: FormData): Promise<
     return { ok: false, error: "Signup already complete" };
   }
 
+  // Live DB check — the JWT flag may be stale in a second browser tab.
+  // Without this, a double-submit could create a second Agency row.
+  const { prisma } = await import("@/lib/prisma");
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agencyId: true },
+  });
+  if (dbUser?.agencyId) {
+    return { ok: false, error: "Signup already complete" };
+  }
+
   const rawName = (formData.get("name") as string | null)?.trim() ?? "";
   const rawRole = formData.get("role") as string | null;
   const rawAgencyName = (formData.get("agencyName") as string | null)?.trim() ?? "";
