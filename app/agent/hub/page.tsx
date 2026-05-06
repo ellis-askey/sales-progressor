@@ -140,6 +140,7 @@ export default async function HubPreviewPage() {
             padding: "22px 32px 26px",
             borderBottom: "0.5px solid var(--agent-glass-border)",
             position: "relative", overflow: "hidden",
+            borderTopLeftRadius: 0, borderTopRightRadius: 0,
           }}
         >
           <div aria-hidden="true" style={{
@@ -310,6 +311,7 @@ export default async function HubPreviewPage() {
           padding: "22px 32px 26px",
           borderBottom: "0.5px solid var(--agent-glass-border)",
           position: "relative", overflow: "hidden",
+          borderTopLeftRadius: 0, borderTopRightRadius: 0,
         }}
       >
         {/* Ambient coral bloom */}
@@ -714,6 +716,8 @@ export default async function HubPreviewPage() {
                     justifyContent: "space-between",
                     paddingTop: 10,
                     paddingBottom: 2,
+                    paddingLeft: 8,
+                    paddingRight: 8,
                     textDecoration: "none",
                     cursor: "pointer",
                     borderRadius: 6,
