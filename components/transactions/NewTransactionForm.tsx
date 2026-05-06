@@ -377,6 +377,17 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
   const isAgent = userRole === "negotiator" || userRole === "director";
   const [showOverlay, setShowOverlay] = useState(false);
   const [progressedBy, setProgressedBy] = useState<"progressor" | "agent">("agent");
+  const [duplicateModal, setDuplicateModal] = useState<{
+    id: string;
+    assignedTo: string | null;
+    address: string;
+    contacts: { name: string; phone: string; email: string; roleType: "vendor" | "purchaser" }[];
+    feeAmount: number | null;
+    feePercent: number | null;
+    feeVatInclusive: boolean | null;
+    referredFirmId: string | null;
+    referralFee: number | null;
+  } | null>(null);
 
   const [form, setForm] = useState({
     streetAddress: "",
@@ -829,45 +840,73 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
       ? (recommendedFirms.find((f) => f.id === referredFirmId)?.defaultReferralFeePence ?? null)
       : null;
 
+    submitForm(address, contacts, feeAmount, feePercent, feeVatInclusive, referredFirmId, referralFee, false);
+  }
+
+  function submitForm(
+    address: string,
+    contacts: { name: string; phone: string; email: string; roleType: "vendor" | "purchaser" }[],
+    feeAmount: number | null,
+    feePercent: number | null,
+    feeVatInclusive: boolean | null,
+    referredFirmId: string | null,
+    referralFee: number | null,
+    force: boolean,
+  ) {
     setShowOverlay(true);
+    const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const chainInvitableCount = chainStubs.filter(
+      (s) => s.stubAgentEmail && CHAIN_EMAIL_RE.test(s.stubAgentEmail),
+    ).length;
     startTransition(async () => {
-      const result = await createTransactionAction({
-        propertyAddress: address,
-        purchasePrice: form.purchasePrice ?? null,
-        tenure: (form.tenure as Tenure) || null,
-        purchaseType: (form.purchaseType as PurchaseType) || null,
-        notes: form.notes.trim() || null,
-        progressedBy: isAgent ? progressedBy : "progressor",
-        contacts,
-        vendorSolicitorFirmId: vendorSolicitor?.firmId ?? null,
-        vendorSolicitorContactId: vendorSolicitor?.contactId ?? null,
-        purchaserSolicitorFirmId: purchaserSolicitor?.firmId ?? null,
-        purchaserSolicitorContactId: purchaserSolicitor?.contactId ?? null,
-        agentFeeAmount: feeAmount,
-        agentFeePercent: feePercent,
-        agentFeeIsVatInclusive: feeVatInclusive,
-        referredFirmId,
-        referralFee,
-        mosUploaded: memoStatus === "done",
-        mosStoragePath: mosStoragePath ?? undefined,
-        mosFileSize: mosFileSize ?? undefined,
-        mosMimeType: mosMimeType ?? undefined,
-        mosFilename: mosFilename ?? undefined,
-        chain: chainExpanded && chainStubs.length > 0
-          ? { stubs: chainStubs, sendInvites: sendChainInvites && chainInvitableCount > 0 }
-          : undefined,
-      });
-      if (result.chainFailed) {
-        addToast(
-          "Transaction created, but we couldn't save the chain. Please try adding it from the transaction page.",
-          "error",
-        );
+      try {
+        const result = await createTransactionAction({
+          propertyAddress: address,
+          purchasePrice: form.purchasePrice ?? null,
+          tenure: (form.tenure as Tenure) || null,
+          purchaseType: (form.purchaseType as PurchaseType) || null,
+          notes: form.notes.trim() || null,
+          progressedBy: isAgent ? progressedBy : "progressor",
+          contacts,
+          vendorSolicitorFirmId: vendorSolicitor?.firmId ?? null,
+          vendorSolicitorContactId: vendorSolicitor?.contactId ?? null,
+          purchaserSolicitorFirmId: purchaserSolicitor?.firmId ?? null,
+          purchaserSolicitorContactId: purchaserSolicitor?.contactId ?? null,
+          agentFeeAmount: feeAmount,
+          agentFeePercent: feePercent,
+          agentFeeIsVatInclusive: feeVatInclusive,
+          referredFirmId,
+          referralFee,
+          mosUploaded: memoStatus === "done",
+          mosStoragePath: mosStoragePath ?? undefined,
+          mosFileSize: mosFileSize ?? undefined,
+          mosMimeType: mosMimeType ?? undefined,
+          mosFilename: mosFilename ?? undefined,
+          forceCreate: force,
+          chain: chainExpanded && chainStubs.length > 0
+            ? { stubs: chainStubs, sendInvites: sendChainInvites && chainInvitableCount > 0 }
+            : undefined,
+        });
+        if (result.chainFailed) {
+          addToast(
+            "Transaction created, but we couldn't save the chain. Please try adding it from the transaction page.",
+            "error",
+          );
+        }
+        window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasSale: true } }));
+        const dest = result.mosAutoConfirmed
+          ? `${redirectBase}/${result.id}?mosConfirmed=1`
+          : `${redirectBase}/${result.id}?newFile=1`;
+        router.push(dest);
+      } catch (err: unknown) {
+        setShowOverlay(false);
+        const e = err as { message?: string; duplicateId?: string; assignedTo?: string | null };
+        if (e?.message === "DUPLICATE_ADDRESS") {
+          setDuplicateModal({ id: e.duplicateId ?? "", assignedTo: e.assignedTo ?? null, address, contacts, feeAmount, feePercent, feeVatInclusive, referredFirmId, referralFee });
+        } else {
+          addToast("Failed to create transaction — please try again", "error");
+        }
       }
-      window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasSale: true } }));
-      const dest = result.mosAutoConfirmed
-        ? `${redirectBase}/${result.id}?mosConfirmed=1`
-        : `${redirectBase}/${result.id}?newFile=1`;
-      router.push(dest);
     });
   }
 
@@ -959,6 +998,58 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
               </button>
               <button type="button" onClick={handleNavStay} style={{ padding: "8px 16px", background: "transparent", color: "rgba(15,23,42,0.3)", fontSize: 13, border: "none", cursor: "pointer" }}>
                 Stay on this page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateModal && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,23,42,0.6)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "overlayFadeIn 0.18s ease-out both" }}
+          onClick={() => setDuplicateModal(null)}
+        >
+          <div
+            style={{ background: "rgba(255,255,255,0.98)", borderRadius: 24, padding: "32px 28px", maxWidth: 400, width: "100%", margin: "0 16px", boxShadow: "0 24px 64px rgba(0,0,0,0.28)", animation: "cardSlideUp 0.28s cubic-bezier(0.34,1.56,0.64,1) both", textAlign: "center" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: 52, height: 52, background: "linear-gradient(135deg, #f59e0b, #d97706)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg style={{ width: 24, height: 24 }} fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "rgba(15,23,42,0.85)", marginBottom: 8, marginTop: 0 }}>This address already exists</h2>
+            <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", marginBottom: 6, lineHeight: 1.5 }}>
+              <strong style={{ color: "rgba(15,23,42,0.75)", fontWeight: 600 }}>{duplicateModal.address}</strong>
+            </p>
+            {duplicateModal.assignedTo && (
+              <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", marginBottom: 20, lineHeight: 1.5 }}>
+                Assigned to <strong style={{ fontWeight: 600 }}>{duplicateModal.assignedTo}</strong>
+              </p>
+            )}
+            {!duplicateModal.assignedTo && <div style={{ marginBottom: 20 }} />}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a
+                href={`${redirectBase}/${duplicateModal.id}`}
+                style={{ display: "block", padding: "11px 16px", background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", borderRadius: 12, fontWeight: 600, fontSize: 14, textDecoration: "none" }}
+              >
+                View existing file
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  const m = duplicateModal;
+                  setDuplicateModal(null);
+                  submitForm(m.address, m.contacts, m.feeAmount, m.feePercent, m.feeVatInclusive, m.referredFirmId, m.referralFee, true);
+                }}
+                style={{ padding: "11px 16px", background: "transparent", color: "rgba(15,23,42,0.6)", borderRadius: 12, fontWeight: 500, fontSize: 14, border: "1px solid rgba(15,23,42,0.15)", cursor: "pointer" }}
+              >
+                Create anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => setDuplicateModal(null)}
+                style={{ padding: "8px 16px", background: "transparent", color: "rgba(15,23,42,0.3)", fontSize: 13, border: "none", cursor: "pointer" }}
+              >
+                Cancel
               </button>
             </div>
           </div>

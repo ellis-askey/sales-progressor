@@ -16,9 +16,20 @@ export async function PATCH(
 
   const existing = await prisma.propertyTransaction.findFirst({
     where: { id, agencyId: session.user.agencyId },
-    select: { id: true },
+    select: { id: true, agentUserId: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Negotiators without canViewAllFiles may only update their own files
+  if (session.user.role === "negotiator") {
+    const actor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { canViewAllFiles: true },
+    });
+    if (!actor?.canViewAllFiles && existing.agentUserId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   const body = await req.json();
   const {

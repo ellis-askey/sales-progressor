@@ -25,9 +25,20 @@ export async function POST(req: NextRequest) {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId: session.user.agencyId },
-    select: { id: true },
+    select: { id: true, agentUserId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+
+  // Negotiators without canViewAllFiles may only act on their own files
+  if (session.user.role === "negotiator") {
+    const actor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { canViewAllFiles: true },
+    });
+    if (!actor?.canViewAllFiles && tx.agentUserId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   try {
     if (action === "complete") {
