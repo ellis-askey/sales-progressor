@@ -77,6 +77,10 @@ model User {
 
   retentionEmailOptOut    Boolean   @default(false)
 
+  // In-app notification: negotiator sees this when their invited director accepts
+  directorJoinedNotificationName String?
+  directorJoinedNotificationAt   DateTime?
+
   emailVerified        DateTime?
   image                String?
   accounts             Account[]
