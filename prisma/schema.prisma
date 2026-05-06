@@ -34,6 +34,7 @@ model Agency {
   verifiedDomains          VerifiedDomain[]
   recommendedSolicitors    AgencyRecommendedSolicitor[]
   feedbackSubmissions      FeedbackSubmission[]
+  directorInvitations      DirectorInvitation[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -94,6 +95,8 @@ model User {
   createdChainLinks     ChainLink[]      @relation("ChainLinkCreatedBy")
   claimedChainLinks     ChainLink[]      @relation("ChainLinkClaimedBy")
   lastInvitedChainLinks ChainLink[]      @relation("ChainLinkLastInviteSentBy")
+  invitationsSent       DirectorInvitation[] @relation("InvitationsSent")
+  invitationsAccepted   DirectorInvitation[] @relation("InvitationsAccepted")
 }
 
 model AgentPushSubscription {
@@ -741,6 +744,30 @@ model ChainLink {
   @@index([transactionId])
   @@index([claimedByUserId])
   @@index([stubAgentEmail])
+}
+
+// ─── DirectorInvitation ───────────────────────────────────────────────────────
+
+model DirectorInvitation {
+  id               String    @id @default(cuid())
+  agencyId         String
+  invitedByUserId  String
+  directorName     String
+  directorEmail    String
+  token            String    @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  acceptedByUserId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  agency     Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invitedBy  User   @relation("InvitationsSent", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  acceptedBy User?  @relation("InvitationsAccepted", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId])
+  @@index([token])
+  @@index([directorEmail])
 }
 
 // ─── Verified Sending Addresses ───────────────────────────────────────────────
