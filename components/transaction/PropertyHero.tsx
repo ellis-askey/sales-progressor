@@ -84,17 +84,17 @@ export function PropertyHero({
         backdropFilter: "blur(32px) saturate(180%)",
         WebkitBackdropFilter: "blur(32px) saturate(180%)",
         borderBottom: "0.5px solid rgba(255,255,255,0.72)",
-        boxShadow: "0 6px 36px rgba(255,138,101,0.09), 0 1px 0 rgba(255,255,255,0.85) inset",
+        boxShadow: "0 6px 36px rgba(var(--agent-coral-base-rgb),0.09), 0 1px 0 rgba(255,255,255,0.85) inset",
         position: "relative",
         zIndex: 0,
         overflow: "hidden",
       }}>
         {/* Coral bloom — top right */}
-        <div aria-hidden="true" style={{ position: "absolute", top: -90, right: -60, width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.20) 0%, transparent 70%)", pointerEvents: "none" }} />
-        {/* Warm yellow — bottom left */}
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -60, left: -20, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,210,80,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        {/* Lavender centre accent */}
-        <div aria-hidden="true" style={{ position: "absolute", top: "20%", left: "35%", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,150,210,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div aria-hidden="true" style={{ position: "absolute", top: -90, right: -60, width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.20) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Warm accent — bottom left */}
+        <div aria-hidden="true" style={{ position: "absolute", bottom: -60, left: -20, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Secondary bloom — centre */}
+        <div aria-hidden="true" style={{ position: "absolute", top: "20%", left: "35%", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
 
         <div className="relative px-4 pt-5 pb-6 md:px-8 md:pb-7">
           {/* Breadcrumb + status */}
@@ -140,12 +140,12 @@ export function PropertyHero({
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 {tenure && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(180,130,90,0.20)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.15)" }}>
                     {formatTenure(tenure)}
                   </span>
                 )}
                 {purchaseType && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(180,130,90,0.20)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.15)" }}>
                     {formatPurchaseType(purchaseType)}
                   </span>
                 )}
@@ -177,7 +177,7 @@ export function PropertyHero({
                   <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Progress</p>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{percent}%</p>
                 </div>
-                <div style={{ height: 8, background: "rgba(180,130,90,0.15)", borderRadius: 999, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)" }}>
+                <div style={{ height: 8, background: "rgba(var(--agent-coral-base-rgb),0.12)", borderRadius: 999, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)" }}>
                   <div
                     className={barColor}
                     style={{ height: "100%", borderRadius: 999, transition: "width 0.65s cubic-bezier(0.34,1.3,0.64,1)", width: `${Math.max(percent, 2)}%`, position: "relative", overflow: "hidden" }}
