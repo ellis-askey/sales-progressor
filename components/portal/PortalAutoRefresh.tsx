@@ -8,16 +8,16 @@ export function PortalAutoRefresh() {
 
   useEffect(() => {
     function refresh() { router.refresh(); }
+    function handleVisibility() { if (document.visibilityState === "visible") refresh(); }
 
     // Refresh when the tab/app regains visibility — catches the common case
     // where a client receives a push notification, switches to the portal,
     // and expects to see the latest data without manually reloading.
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") refresh();
-    });
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", refresh);
 
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", refresh);
     };
   }, [router]);

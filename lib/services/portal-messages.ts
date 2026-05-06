@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { pushToContact } from "@/lib/services/push";
+import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 export type PortalMessageShape = {
@@ -71,6 +71,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
         select: {
           id: true,
           propertyAddress: true,
+          agentUserId: true,
           assignedUser: { select: { id: true, name: true, email: true } },
         },
       },
@@ -88,6 +89,18 @@ export async function sendClientPortalMessage(token: string, content: string): P
   });
 
   const tx = contact.transaction;
+
+  // Push notification to the assigned agent (fire-and-forget)
+  const agentUserId = tx.assignedUser?.id ?? tx.agentUserId;
+  if (agentUserId) {
+    const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
+    pushToUser(agentUserId, {
+      title: `Message from ${contact.name}`,
+      body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
+      url:   dashUrl,
+    }).catch(() => {});
+  }
+
   if (!tx.assignedUser?.email) return;
 
   const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
