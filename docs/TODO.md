@@ -64,3 +64,76 @@ Current enforcement model: application-layer agencyId checks (hardened by PR 52)
 ## Ownership enforcement helper — deferred to Package D
 
 Package D will introduce `lib/security/access-scope.ts` as the standard ownership-enforcement helper. Until then, inline `findFirst({ where: { id, agencyId } })` patterns are the live mechanism. Do NOT build `lib/security/assertOwnership.ts` — Package D's helper replaces it with a more complete model that handles internal staff and outsourced file access correctly. Reference: see PACKAGE_D_SCOPE §3 (Root cause and fix shape).
+
+---
+
+## Deferred from May 2026 audit
+
+These items came out of the end-to-end audit (docs/audit-2026-05.md)
+but were deliberately deferred. Listed here in rough priority order.
+
+### High priority (should be picked up within the next quarter)
+
+1. **C3 — Billing event recording.** No BillingEvent / Invoice model exists.
+   Exchange milestones (VM19/PM26) trigger no billing record. Fee
+   calculation exists in lib/services/fees.ts but is never persisted.
+   Once we have ~10 paying customers, this becomes urgent — manual fee
+   reconciliation will not scale. Estimated: 2-3 days for proper
+   BillingEvent model + Stripe integration scaffolding.
+
+2. **C2 — Audit Event table never written to.** Schema defines 20+
+   EventType values; only 1 write call exists in lib/command/events/
+   write.ts. Everything else uses console.log("[AUDIT]...") which goes
+   to Vercel logs only. Need to wire EventType writes for: login,
+   transaction_created, milestone_confirmed, status_changed, etc.
+   This is the proper home for the audit trail; PostHog is for product
+   analytics. Estimated: 1 day to wire ~10 event types.
+
+3. **G4 — 2FA for agent users.** User.totpSecret + totpActivatedAt
+   already in schema. /api/command/setup-2fa exists for superadmin.
+   Need equivalent flow for agents. Trust signal for enterprise
+   prospects. Estimated: half a day.
+
+### Medium priority (nice to have, no fire)
+
+4. **I3 — TransactionStatus has no `exchanged` state.** Files go from
+   active to completed. No filter for "files where contracts have
+   exchanged but legal completion is pending." Genuine product-design
+   question, not just a fix. Estimated: 2-3 hours UI + DB migration.
+
+5. **I4 — Audit log O(n) fetch + in-memory sort.** Will degrade for
+   busy agencies. Not a problem today (small data), but lib/services/
+   audit.ts:30-35 needs proper pagination + DB-side sort before agencies
+   reach ~1000 transactions. Estimated: half a day.
+
+6. **I6 — canViewAllFiles flag has no UI.** Directors can't toggle
+   negotiator-level "see all agency files" without DB edit. Add to
+   Team management UI in Settings. Estimated: 2 hours.
+
+### Low priority (papercuts)
+
+7. **U1 — Dead `draft` value in TransactionStatus enum.** Never used
+   by any UI. Either remove or implement draft transactions properly.
+
+8. **U2 — Hub "exchanging soon" requires expectedExchangeDate or
+   overridePredictedDate.** Files with neither are never counted.
+   Should likely fall back to a heuristic for files with no date set.
+
+9. **U3 — purchasePrice stored in pence (Int).** Field name doesn't
+   indicate units. Add a comment or rename to purchasePricePence.
+
+10. **U4 — agentFeeIsVatInclusive nullable creates three-value
+    logic.** Refactor to non-null with explicit default, or make
+    enum-typed (yes/no/unknown).
+
+11. **U5 — TransactionDocument.source is `String @default("portal")`
+    with no enum validation.** Typos possible. Convert to enum.
+
+### Already noted in earlier TODO sections
+
+- **bodySearch column on OutboundMessage** — exists in production DB
+  with 261 non-null rows but not in prisma/schema.prisma. Investigate
+  and reconcile (keep or drop) during next migration history pass.
+- **Prisma migration history shadow DB drift** — `migrate dev` fails;
+  workaround using `prisma db execute` with targeted SQL. Reconcile
+  before launch.
