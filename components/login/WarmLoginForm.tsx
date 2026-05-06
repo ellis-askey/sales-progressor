@@ -31,8 +31,8 @@ export function WarmLoginForm() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    background: "rgba(255,255,255,0.50)",
-    border: "0.5px solid rgba(255,255,255,0.70)",
+    background: "rgba(255,255,255,0.65)",
+    border: "1px solid rgba(220,100,70,0.45)",
     borderRadius: "8px",
     padding: "10px 14px",
     color: "#3D1F0E",
@@ -62,11 +62,11 @@ export function WarmLoginForm() {
   return (
     <>
       <style>{`
-        .wi::placeholder { color: rgba(61,31,14,0.42); }
+        .wi::placeholder { color: rgba(110,60,30,0.50); }
         .wi:focus {
-          background: rgba(255,255,255,0.62) !important;
-          border-color: rgba(255,255,255,0.95) !important;
-          box-shadow: 0 0 0 3px rgba(255,138,101,0.16);
+          background: rgba(255,255,255,0.78) !important;
+          border-color: rgba(220,100,70,0.65) !important;
+          box-shadow: 0 0 0 3px rgba(220,100,70,0.12);
         }
         .wi-pw { padding-right: 42px !important; }
         .wbtn:hover:not(:disabled) {
