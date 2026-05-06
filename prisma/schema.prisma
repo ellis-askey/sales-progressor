@@ -824,10 +824,8 @@ model TransactionFlag {
 // ─── NextAuth ─────────────────────────────────────────────────────────────────
 
 // NOTE: Account and Session are part of NextAuth's standard adapter scaffolding.
-// We use the Credentials provider with JWT strategy, which does NOT write to
-// either table. Both are expected to remain empty in production.
-// Do not delete — keeping the schema standard simplifies any future migration
-// to a database session strategy or addition of OAuth providers.
+// Account rows are written when a user signs in via OAuth (Google, Azure AD).
+// Session table is unused — we use JWT session strategy.
 
 model Account {
   id                String  @id @default(cuid())
@@ -842,6 +840,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
+  ext_expires_in    Int?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
