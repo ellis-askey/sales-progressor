@@ -14,23 +14,102 @@ const POSTHOG_HOST = "https://eu.i.posthog.com";
 
 // Allow-list of event names. Calls with names outside this set are silently dropped.
 export const ALLOWED_EVENT_NAMES = new Set([
+  // Legacy funnel / friction events
   "funnel.add_solicitor.started",
   "funnel.add_solicitor.completed",
   "funnel.add_solicitor.abandoned",
   "friction.field_corrected_3x",
   "friction.scroll_thrash",
+
+  // R2 — auth & onboarding
+  "user_signed_up",
+  "user_signed_in",
+  "user_signed_out",
+  "onboarding_step_completed",
+
+  // R2 — theme
+  "theme_changed",
+
+  // R2 — transactions
+  "transaction_created",
+  "transaction_deleted",
+  "transaction_status_changed",
+  "transaction_viewed",
+
+  // R2 — milestones
+  "milestone_confirmed",
+  "milestone_unconfirmed",
+
+  // R2 — notes
+  "note_added",
+
+  // R2 — portal
+  "portal_link_sent",
+  "portal_visited",
+  "portal_message_sent_by_agent",
+  "portal_message_sent_by_contact",
+
+  // R2 — invitations
+  "director_invitation_sent",
+  "director_invitation_accepted",
+  "director_invitation_resent",
+  "negotiator_invitation_sent",
+  "negotiator_invitation_accepted",
+
+  // R2 — page views
+  "page_view_hub",
+  "page_view_analytics",
+  "page_view_work_queue",
+  "page_view_settings",
+
+  // R2 — analytics interactions
+  "analytics_period_changed",
+  "analytics_filter_changed",
 ]);
 
 // Allow-list of property names. Any property not here is stripped before capture.
 const ALLOWED_PROPS = new Set([
+  // Identity
   "agencyId",
+  "agencyName",
+  "userRole",
+  "email",
+
+  // Transactions
   "transactionId",
   "serviceType",
-  "modeProfile",
-  "userRole",
-  "signupSource",
+  "oldStatus",
+  "newStatus",
+
+  // Milestones
+  "milestoneId",
+  "milestoneName",
+  "milestoneCode",
+  "milestoneSide",
+
+  // Portal / contacts
+  "contactId",
+  "roleType",
+
+  // Invitations / auth
+  "provider",
+  "invitationType",
+  "step",
+
+  // Analytics interactions
+  "period",
+  "filterType",
+
+  // Page context
   "pagePath",
+  "activeCount",
+  "attentionCount",
+
+  // Legacy / misc
+  "modeProfile",
+  "signupSource",
   "fieldName",
+  "theme",
 ]);
 
 // Module-level init flag — the single source of truth for "has consent been given."

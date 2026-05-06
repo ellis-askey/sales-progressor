@@ -36,6 +36,7 @@
     "next-auth": "^4.24.10",
     "playwright": "^1.59.1",
     "posthog-js": "^1.372.6",
+    "posthog-node": "^5.33.3",
     "qrcode": "^1.5.4",
     "react": "^18",
     "react-dom": "^18",
