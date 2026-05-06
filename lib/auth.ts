@@ -114,13 +114,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
-      console.log("[OAUTH_SIGNIN_ATTEMPT]", JSON.stringify({
-        provider: account?.provider,
-        userId: user?.id,
-        email: user?.email,
-        hasProfile: !!profile,
-      }));
+    async signIn({ user, account }) {
       // Credentials: always allow — authorize() already validated email+password.
       if (account?.provider === "credentials") {
         return true;
@@ -136,12 +130,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, account }) {
-      if (account) {
-        console.log("[OAUTH_JWT_NEW_LOGIN]", JSON.stringify({
-          provider: account.provider,
-          userId: user?.id,
-        }));
-      }
       if (user) {
         token.id = user.id;
 
@@ -205,9 +193,6 @@ export const authOptions: NextAuthOptions = {
     },
     warn(code) {
       console.warn("[NEXTAUTH_WARN]", code);
-    },
-    debug(code, ...message) {
-      console.log("[NEXTAUTH_DEBUG]", code, JSON.stringify(message));
     },
   },
 };
