@@ -30,7 +30,7 @@ export function ViewChainButton({ transactionId, currentUserId }: Props) {
     <>
       <button
         onClick={() => setDrawerOpen(true)}
-        className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+        className="text-xs agent-link-primary font-medium transition-colors"
       >
         View Chain
       </button>

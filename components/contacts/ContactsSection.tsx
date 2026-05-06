@@ -114,6 +114,7 @@ export function ContactsSection({
         toast.success(`Invite sent to ${contactName}`, { description: "They'll receive an email shortly" });
         setInviteSent(contactId);
         setTimeout(() => setInviteSent(null), 3000);
+        window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactEmail: true } }));
       }
     } finally {
       setInviting(null);
@@ -165,6 +166,9 @@ export function ContactsSection({
     startTransition(async () => {
       try {
         await updateContactAction(snap);
+        if (snap.phone || snap.email) {
+          window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactDetails: true } }));
+        }
       } catch {
         setEditingId(contactId);
       } finally {

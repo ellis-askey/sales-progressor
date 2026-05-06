@@ -252,7 +252,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                   className="glass-input px-2 py-1 text-sm"
                 />
                 <button onClick={saveOverride} disabled={saving || isPending}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
+                  className="text-xs agent-link-primary font-medium">Save</button>
                 <button onClick={() => setEditingOverride(false)}
                   className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
               </div>
@@ -286,7 +286,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                     className="glass-input px-2 py-1 text-sm"
                   />
                   <button onClick={saveCompletion} disabled={saving || isPending}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium">Save</button>
+                    className="text-xs agent-link-primary font-medium">Save</button>
                   <button onClick={() => setEditingCompletion(false)}
                     className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
                 </div>
@@ -369,7 +369,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                   className="w-32"
                 />
                 <button onClick={savePrice} disabled={saving || isPending || pricePence == null}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold disabled:opacity-40">Save</button>
+                  className="text-xs agent-link-primary font-semibold disabled:opacity-40">Save</button>
                 <button onClick={() => setEditingPrice(false)}
                   className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
               </div>
@@ -486,7 +486,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                 </select>
                 <div className="flex gap-2">
                   <button onClick={saveAgentFee} disabled={saving || (agentFeeType === "amount" ? agentFeeAmountPence == null : !agentFeePercentStr)}
-                    className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors">
+                    className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40">
                     {saving ? "…" : "Save"}
                   </button>
                   <button onClick={() => { setEditingAgentFee(false); setAgentFeeAmountPence(null); setAgentFeePercentStr(""); }}
@@ -550,7 +550,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                   <PriceInput value={editFeePence} onChange={setEditFeePence} size="sm" className="w-32" />
                   <div className="flex gap-2">
                     <button onClick={saveReferral} disabled={saving || isPending || !editFirmId}
-                      className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl transition-colors">
+                      className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40">
                       {saving ? "…" : "Save"}
                     </button>
                     <button onClick={() => setEditingReferral(false)}

@@ -90,7 +90,7 @@ export function AddressCard({ record, onRevoke, onContinueVerify }: Props) {
               onClick={sendTest}
               disabled={testing}
               title="Send test email"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium agent-badge-brand rounded-lg transition-colors disabled:opacity-50"
             >
               <PaperPlaneTilt className="w-3.5 h-3.5" />
               {tested ? "Sent!" : testing ? "…" : "Test"}

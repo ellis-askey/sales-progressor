@@ -23,20 +23,20 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
       {/* Header */}
       <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <svg className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-3.5 h-3.5" style={{ color: "var(--agent-coral)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
           </svg>
           <h3 className="text-xs font-semibold text-slate-900/70">Reminders</h3>
           {totalActive > 0 && (
             <span className="text-xs font-semibold rounded-full px-2 py-0.5 tabular-nums"
-                  style={{ background: "rgba(249,115,22,0.12)", color: "#ea580c" }}>
+                  style={{ background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }}>
               {totalActive}
             </span>
           )}
         </div>
         <button
           onClick={() => setActiveTab("reminders")}
-          className="text-xs text-slate-900/40 hover:text-blue-600 transition-colors font-semibold"
+          className="text-xs text-slate-900/40 agent-hover-link transition-colors font-semibold"
         >
           View all →
         </button>
@@ -55,16 +55,18 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
             const isToday = days === 0;
             return (
               <div key={r.id} className={`px-4 py-3 flex items-center gap-3 ${isOverdue ? "bg-red-50/60" : ""}`}>
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  isOverdue ? "bg-red-500" : isToday ? "bg-orange-500" : "bg-slate-900/20"
-                }`} />
+                <div
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${isOverdue ? "bg-red-500" : !isToday ? "bg-slate-900/20" : ""}`}
+                  style={isToday && !isOverdue ? { background: "var(--agent-coral)" } : undefined}
+                />
                 <div className="flex-1 min-w-0">
                   <p className={`text-xs font-semibold truncate ${isOverdue ? "text-slate-900/90" : "text-slate-900/80"}`}>
                     {r.ruleName}
                   </p>
-                  <p className={`text-xs mt-0.5 font-medium ${
-                    isOverdue ? "text-red-600" : isToday ? "text-orange-600" : "text-slate-900/40"
-                  }`}>
+                  <p
+                    className={`text-xs mt-0.5 font-medium ${isOverdue ? "text-red-600" : !isToday ? "text-slate-900/40" : ""}`}
+                    style={isToday && !isOverdue ? { color: "var(--agent-coral-deep)" } : undefined}
+                  >
                     {isOverdue
                       ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue`
                       : isToday
@@ -74,7 +76,7 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
                 </div>
                 {r.pendingChaseCount > 0 && (
                   <span className="text-xs font-semibold rounded-full px-2 py-0.5 flex-shrink-0 tabular-nums"
-                        style={{ background: "rgba(249,115,22,0.12)", color: "#ea580c", border: "1px solid rgba(249,115,22,0.20)" }}>
+                        style={{ background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)" }}>
                     {r.pendingChaseCount} chase{r.pendingChaseCount !== 1 ? "s" : ""}
                   </span>
                 )}

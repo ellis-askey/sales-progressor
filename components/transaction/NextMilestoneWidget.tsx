@@ -57,7 +57,7 @@ function MilestoneQuickComplete({
         </div>
         <button
           onClick={() => setActiveTab("milestones")}
-          className="text-xs text-blue-500 hover:text-blue-600 font-medium flex-shrink-0 transition-colors"
+          className="text-xs agent-link-primary font-medium flex-shrink-0 transition-colors"
         >
           Complete →
         </button>
@@ -91,7 +91,7 @@ function MilestoneQuickComplete({
       <button
         onClick={handleClick}
         disabled={loading}
-        className="text-xs bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
+        className="text-xs agent-btn-color-primary font-medium px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors disabled:opacity-40"
       >
         {loading ? "…" : "Complete"}
       </button>

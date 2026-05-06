@@ -39,6 +39,9 @@ export function ProfileForm({
     try {
       await updateProfileAction({ name: name.trim(), email: email.trim(), phone: phone.trim() });
       toast.success("Profile updated", emailChanged ? { description: "Sign out and back in for your new email to take effect." } : undefined);
+      if (phone.trim()) {
+        window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasPhone: true } }));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -87,7 +90,7 @@ export function ProfileForm({
           onClick={handleSave}
           disabled={saving || !dirty || !name.trim() || !email.trim()}
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-          style={{ background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)", boxShadow: "0 4px 12px rgba(37,99,235,0.30)" }}
+          style={{ background: "linear-gradient(135deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)", boxShadow: "0 4px 12px rgba(var(--agent-coral-rgb),0.30)" }}
         >
           {saving ? "Saving…" : "Save changes"}
         </button>

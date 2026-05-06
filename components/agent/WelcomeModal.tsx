@@ -13,11 +13,14 @@ export function WelcomeModal({ name }: { name: string }) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [showTour, setShowTour] = useState(false);
+  const [theme, setTheme] = useState("sunset");
   const firstName = getFirstName(name) || "there";
 
   useEffect(() => {
     setMounted(true);
     markWelcomeSeenAction().catch(() => {});
+    const el = document.querySelector("[data-theme]");
+    if (el) setTheme(el.getAttribute("data-theme") ?? "sunset");
   }, []);
 
   function close() {
@@ -33,15 +36,31 @@ export function WelcomeModal({ name }: { name: string }) {
 
   return createPortal(
     <div
+      data-theme={theme}
       className="agent-backdrop"
       style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={close}
     >
       <div
         className="agent-modal"
-        style={{ maxWidth: showTour ? 540 : 460, width: "calc(100vw - 48px)" }}
+        style={{ maxWidth: showTour ? 540 : 460, width: "calc(100vw - 48px)", position: "relative" }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          onClick={close}
+          aria-label="Close"
+          style={{
+            position: "absolute", top: 16, right: 16, zIndex: 1,
+            width: 28, height: 28, borderRadius: 8,
+            border: "none", background: "rgba(0,0,0,0.06)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "var(--agent-text-muted)",
+            transition: "background 150ms",
+          }}
+          className="hover:bg-black/10"
+        >
+          <X size={14} weight="bold" />
+        </button>
         {showTour ? (
           <TourSlides
             onClose={close}
@@ -59,23 +78,7 @@ export function WelcomeModal({ name }: { name: string }) {
               background: "linear-gradient(135deg, rgba(255,138,101,0.18) 0%, rgba(255,183,77,0.12) 100%)",
               borderBottom: "0.5px solid rgba(255,255,255,0.50)",
               borderRadius: "var(--agent-radius-xl) var(--agent-radius-xl) 0 0",
-              position: "relative",
             }}>
-              <button
-                onClick={close}
-                aria-label="Close"
-                style={{
-                  position: "absolute", top: 16, right: 16,
-                  width: 28, height: 28, borderRadius: 8,
-                  border: "none", background: "rgba(0,0,0,0.06)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", color: "var(--agent-text-muted)",
-                  transition: "background 150ms",
-                }}
-                className="hover:bg-black/10"
-              >
-                <X size={14} weight="bold" />
-              </button>
               <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", opacity: 0.7 }}>
                 Welcome
               </p>

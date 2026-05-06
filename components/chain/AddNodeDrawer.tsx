@@ -369,7 +369,7 @@ export function AddNodeDrawer({
             <button
               onClick={() => { void handleSave(); }}
               disabled={!requiredFilled || saving}
-              className="flex-1 px-4 py-2 text-xs font-medium rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-4 py-2 text-xs font-medium rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? "Saving…" : submitLabel}
             </button>

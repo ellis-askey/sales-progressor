@@ -17,8 +17,8 @@ const SIDE_STYLES = {
     color: "#085041",
   },
   internal: {
-    bg: "linear-gradient(135deg, #FAEEDA 0%, #FAC775 100%)",
-    color: "#633806",
+    bg: "linear-gradient(135deg, var(--agent-avatar-user-start, #FAEEDA) 0%, var(--agent-avatar-user-end, #FAC775) 100%)",
+    color: "var(--agent-avatar-user-text, #633806)",
   },
   fallback: {
     bg: "linear-gradient(135deg, #F1EFE8 0%, #D3D1C7 100%)",

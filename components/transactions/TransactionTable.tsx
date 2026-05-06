@@ -344,7 +344,7 @@ export function TransactionTable({
 
               {/* Property + vendor/buyer names */}
               <div className="px-4 py-3.5 min-w-0">
-                <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug group-hover:text-blue-600 transition-colors">
+                <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug agent-group-link transition-colors">
                   {line}
                 </p>
                 {location && <p className="text-xs text-slate-900/40 mt-0.5 truncate">{location}</p>}

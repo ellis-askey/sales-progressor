@@ -1,9 +1,9 @@
 import type { SubmissionFunnelData } from "@/lib/services/analytics";
 
 const STAGE_COLORS = {
-  submitted: { bar: "#FF8A65", dot: "#FF8A65", text: "var(--agent-coral)" },
-  exchanged:  { bar: "#C97D1A", dot: "#C97D1A", text: "var(--agent-warning)" },
-  completed:  { bar: "#16A34A", dot: "#16A34A", text: "var(--agent-success)" },
+  submitted: { bar: "var(--agent-coral)",   dot: "var(--agent-coral)",   text: "var(--agent-coral)" },
+  exchanged:  { bar: "var(--agent-warning)", dot: "var(--agent-warning)", text: "var(--agent-warning)" },
+  completed:  { bar: "#16A34A",              dot: "#16A34A",              text: "var(--agent-success)" },
 } as const;
 
 export function SubmissionFunnel({ data }: { data: SubmissionFunnelData }) {

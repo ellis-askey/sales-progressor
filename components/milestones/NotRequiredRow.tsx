@@ -85,7 +85,7 @@ export function NotRequiredRow({ def, transactionId }: Props) {
             <div className="px-5 py-4 space-y-2">
               <button
                 onClick={() => doReinstate("mortgage")}
-                className="w-full py-2.5 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors"
+                className="w-full py-2.5 text-sm font-semibold agent-btn-color-primary rounded-xl transition-colors"
               >
                 Yes — mortgage buyer
               </button>

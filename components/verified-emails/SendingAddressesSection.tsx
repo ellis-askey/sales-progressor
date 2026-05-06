@@ -101,6 +101,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
   function onVerified(email: string) {
     setStep({ type: "success", email });
     loadEmails();
+    window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasVerifiedEmail: true } }));
   }
 
   const pendingDomains = emails
@@ -174,7 +175,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
             <button
               onClick={startAddEmail}
               disabled={loading || !newEmail.includes("@")}
-              className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
+              className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium disabled:opacity-40 transition-colors"
             >
               {loading ? "Checking…" : "Continue"}
             </button>
@@ -228,7 +229,8 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {(step.type === "list" || step.type === "success") && (
         <button
           onClick={() => { setStep({ type: "add-email" }); setError(null); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-blue-300/60 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
+          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
         >
           <Plus className="w-4 h-4" />
           Add a sending address

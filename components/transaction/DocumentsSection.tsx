@@ -68,7 +68,7 @@ export async function DocumentsSection({ transactionId }: Props) {
                 href={doc.signedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                className="flex-shrink-0 text-xs font-semibold agent-link-primary transition-colors"
               >
                 Download
               </a>

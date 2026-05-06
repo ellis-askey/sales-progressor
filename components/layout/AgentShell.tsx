@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
+import type { AgentTheme } from "@/lib/agent/themes";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -34,7 +35,7 @@ function buildNavGroups(role: UserRole) {
   };
 }
 
-export function AgentShell({ children, session, showWelcome }: { children: React.ReactNode; session: Session; showWelcome?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme }) {
   const pathname    = usePathname();
   const role        = session.user.role as UserRole;
   const isDirector  = role === "director";
@@ -53,12 +54,12 @@ export function AgentShell({ children, session, showWelcome }: { children: React
   }, [mobileOpen]);
 
   return (
-    <div className="agent-shell-root" style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} style={{ display: "flex" }}>
 
       {/* Warm gradient background */}
       <div aria-hidden="true" style={{
         position: "fixed", inset: 0, zIndex: -1,
-        background: "linear-gradient(135deg, #FFF5EC 0%, #FFE8D4 40%, #FFDABD 70%, #FFCBA4 100%)",
+        background: "linear-gradient(135deg, var(--agent-bg-base) 0%, var(--agent-bg-mid) 40%, var(--agent-bg-warm) 70%, var(--agent-bg-deep) 100%)",
       }}>
         {/* Ambient bloom — top right */}
         <div style={{
@@ -90,10 +91,10 @@ export function AgentShell({ children, session, showWelcome }: { children: React
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{
             width: 26, height: 26, borderRadius: 8,
-            background: "linear-gradient(135deg, #FF8A65 0%, #FF6B4A 100%)",
+            background: "linear-gradient(135deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            <FolderOpen weight="fill" style={{ width: 13, height: 13, color: "#fff" }} />
+            <FolderOpen weight="fill" style={{ width: 13, height: 13, color: "var(--agent-text-on-coral)" }} />
           </div>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
             Sales Progressor
@@ -123,11 +124,11 @@ export function AgentShell({ children, session, showWelcome }: { children: React
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-              background: "linear-gradient(135deg, #FF8A65 0%, #FF6B4A 100%)",
-              boxShadow: "0 2px 8px rgba(255,107,74,0.35)",
+              background: "linear-gradient(135deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)",
+              boxShadow: "0 2px 8px rgba(var(--agent-coral-rgb), 0.35)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <FolderOpen weight="fill" style={{ width: 16, height: 16, color: "#fff" }} />
+              <FolderOpen weight="fill" style={{ width: 16, height: 16, color: "var(--agent-text-on-coral)" }} />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
@@ -170,7 +171,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
               display: "flex", alignItems: "center", gap: 10,
               padding: "10px 12px", borderRadius: "var(--agent-radius-md)",
               background: "var(--agent-coral-deep)",
-              boxShadow: "0 2px 10px rgba(255,107,74,0.28)",
+              boxShadow: "0 2px 10px rgba(var(--agent-coral-rgb),0.28)",
               color: "var(--agent-text-on-coral)", textDecoration: "none",
               fontWeight: 600, fontSize: 13, marginBottom: 2,
             }}

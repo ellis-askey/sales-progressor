@@ -105,7 +105,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
                     </div>
                     <button
                       onClick={() => copyText(r.host, `host-${i}`)}
-                      className="flex-shrink-0 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                      className="flex-shrink-0 px-2.5 py-1.5 text-xs font-medium agent-badge-brand rounded-lg transition-colors"
                     >
                       {copied === `host-${i}` ? "✓" : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -117,7 +117,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
                     </div>
                     <button
                       onClick={() => copyText(r.data, `data-${i}`)}
-                      className="flex-shrink-0 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                      className="flex-shrink-0 px-2.5 py-1.5 text-xs font-medium agent-badge-brand rounded-lg transition-colors"
                     >
                       {copied === `data-${i}` ? "✓" : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -172,7 +172,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
                 <button
                   onClick={sendInstructions}
                   disabled={sendingInstructions || !instructionsEmail.trim()}
-                  className="px-3 py-2 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                  className="px-3 py-2 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40 transition-colors"
                 >
                   {sendingInstructions ? "Sending…" : "Send"}
                 </button>
@@ -190,7 +190,7 @@ export function DomainAuthFlow({ domain, onVerified }: Props) {
             <button
               onClick={checkDns}
               disabled={checking}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-sm font-semibold transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl agent-btn-color-primary text-sm font-semibold disabled:opacity-40 transition-colors"
             >
               <ArrowClockwise className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
               {checking ? "Checking DNS…" : "I've added the records — check now"}

@@ -80,13 +80,13 @@ function timeAgo(date: Date): string {
 const URGENCY_STYLE = {
   escalated: {
     border: "var(--agent-danger)",
-    bg:     "rgba(199,62,62,0.05)",
+    bg:     "rgba(var(--agent-danger-rgb),0.05)",
     color:  "var(--agent-danger)",
     label:  "Escalated",
   },
   overdue: {
     border: "var(--agent-warning)",
-    bg:     "rgba(201,125,26,0.05)",
+    bg:     "rgba(var(--agent-warning-rgb),0.05)",
     color:  "var(--agent-warning)",
     label:  "Overdue",
   },
@@ -145,7 +145,7 @@ export default async function HubPreviewPage() {
           <div aria-hidden="true" style={{
             position: "absolute", top: -70, right: -50,
             width: 280, height: 280, borderRadius: "50%", pointerEvents: "none",
-            background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
           }} />
           <div style={{ position: "relative" }}>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
@@ -316,7 +316,7 @@ export default async function HubPreviewPage() {
         <div aria-hidden="true" style={{
           position: "absolute", top: -70, right: -50,
           width: 280, height: 280, borderRadius: "50%", pointerEvents: "none",
-          background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
         }} />
 
         <div style={{ position: "relative" }}>
@@ -879,8 +879,8 @@ export default async function HubPreviewPage() {
                 {(() => {
                   const total = serviceSplit.selfManaged + serviceSplit.outsourced;
                   return [
-                    { label: "Self-managed",    count: serviceSplit.selfManaged, color: "#FF8A65" },
-                    { label: "With progressor", count: serviceSplit.outsourced,  color: "#C97D1A" },
+                    { label: "Self-managed",    count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
+                    { label: "With progressor", count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
                   ].map(({ label, count, color }) => {
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
@@ -964,7 +964,7 @@ export default async function HubPreviewPage() {
                 background: "var(--agent-coral)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Plus size={12} weight="bold" color="#fff" />
+                <Plus size={12} weight="bold" color="var(--agent-text-on-coral)" />
               </div>
               <div style={{ minWidth: 0 }}>
                 <p style={{

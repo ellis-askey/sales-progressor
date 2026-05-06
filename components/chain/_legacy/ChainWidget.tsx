@@ -97,7 +97,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
             <>
               <button
                 onClick={() => setAdding(true)}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium"
+                className="text-xs agent-link-primary font-medium"
               >
                 Edit
               </button>
@@ -113,7 +113,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
           {!chain && !adding && (
             <button
               onClick={() => setAdding(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-blue-50/60 text-blue-600 hover:bg-blue-100/60 font-medium transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg agent-badge-brand font-medium transition-colors"
             >
               + Add chain
             </button>
@@ -184,7 +184,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
             <button
               type="button"
               onClick={addLink}
-              className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-lg py-2.5 transition-colors"
+              className="w-full text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-lg py-2.5 transition-colors"
             >
               + Add link
             </button>
@@ -194,7 +194,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
                 type="button"
                 onClick={saveChain}
                 disabled={saving}
-                className="text-xs px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="text-xs px-4 py-2 rounded-lg agent-btn-color-primary font-medium disabled:opacity-50 transition-colors"
               >
                 {saving ? "Saving…" : "Save chain"}
               </button>

@@ -82,7 +82,7 @@ export function TransactionNotes({ transactionId, initialNotes }: Props) {
             <button
               type="submit"
               disabled={saving || isPending || !draft.trim()}
-              className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-200 text-white rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
             >
               {saving ? "Saving…" : "Add note"}
             </button>

@@ -79,9 +79,13 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
                 >
                   {tab.label}
                   {badgeCount > 0 && (
-                    <span className={`text-xs rounded-full px-1.5 py-0.5 font-medium leading-none ${
-                      isActive ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-600"
-                    }`}>
+                    <span
+                      className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
+                      style={isActive
+                        ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral)" }
+                        : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }
+                      }
+                    >
                       {badgeCount}
                     </span>
                   )}

@@ -56,7 +56,7 @@ export function MomentumRing({ percent }: { percent: number | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
       <svg width={80} height={80} viewBox="0 0 80 80" aria-hidden="true">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,138,101,0.18)" strokeWidth={7} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(var(--agent-coral-base-rgb),0.18)" strokeWidth={7} />
         <circle
           cx={cx} cy={cy} r={r}
           fill="none"
@@ -110,7 +110,7 @@ export function ExchangeForecastChart({ data }: { data: WeekBucket[] }) {
       <BarChart data={data} barSize={14} margin={{ top: 2, right: 4, left: 4, bottom: 0 }}>
         <Tooltip
           content={<ForecastTooltip />}
-          cursor={{ fill: "rgba(255,138,101,0.07)", radius: 4 }}
+          cursor={{ fill: "rgba(var(--agent-coral-base-rgb),0.07)", radius: 4 }}
         />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
           {data.map((entry, i) => (
@@ -143,10 +143,10 @@ export function ServiceSplitDonut({
 
   const chartData = hasData
     ? [
-        { name: "Self-progressed", value: selfManaged,  color: "#FF8A65" },
-        { name: "With us",         value: outsourced,   color: "#C97D1A" },
+        { name: "Self-progressed", value: selfManaged,  color: "var(--agent-coral)"   },
+        { name: "With us",         value: outsourced,   color: "var(--agent-warning)" },
       ].filter((d) => d.value > 0)
-    : [{ name: "Empty", value: 1, color: "rgba(45,24,16,0.09)" }];
+    : [{ name: "Empty", value: 1, color: "rgba(var(--agent-shadow-rgb),0.09)" }];
 
   return (
     <PieChart width={92} height={92}>

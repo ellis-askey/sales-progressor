@@ -7,11 +7,11 @@ export default function CompletionsLoading() {
         backdropFilter: "blur(28px) saturate(180%)",
         WebkitBackdropFilter: "blur(28px) saturate(180%)",
         borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(255,138,101,0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
+        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
         position: "relative",
         overflow: "hidden",
       }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="relative px-4 pt-6 pb-4 md:px-8">
           <div className="agent-skeleton" style={{ height: 28, width: 140, borderRadius: 8, marginBottom: 8 }} />
           <div className="agent-skeleton" style={{ height: 13, width: 300, borderRadius: 6, marginBottom: 14 }} />

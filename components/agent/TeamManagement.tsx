@@ -119,7 +119,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
               title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                 m.canViewAllFiles
-                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  ? "agent-badge-brand"
                   : "bg-white/30 text-slate-900/50 hover:bg-white/60"
               }`}
             >
@@ -177,7 +177,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             <button
               onClick={addMember}
               disabled={adding || !name.trim() || !email.trim() || !password}
-              className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors"
+              className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
             >
               {adding ? "Creating…" : "Create account"}
             </button>
@@ -192,7 +192,8 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-blue-300/60 text-sm font-medium text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
+          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
         >
           <UserPlus className="w-4 h-4" />
           Add a negotiator

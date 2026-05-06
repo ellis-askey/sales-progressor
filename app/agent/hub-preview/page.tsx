@@ -173,7 +173,7 @@ export default async function HubPreviewPage() {
         <div aria-hidden="true" style={{
           position: "absolute", top: -70, right: -50,
           width: 280, height: 280, borderRadius: "50%", pointerEvents: "none",
-          background: "radial-gradient(circle, rgba(255,138,101,0.13) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
         }} />
 
         <div style={{ position: "relative" }}>
@@ -491,8 +491,8 @@ export default async function HubPreviewPage() {
                 {(() => {
                   const total = serviceSplit.selfManaged + serviceSplit.outsourced;
                   return [
-                    { label: "Self-progressed", count: serviceSplit.selfManaged, color: "#FF8A65" },
-                    { label: "With us",         count: serviceSplit.outsourced,  color: "#C97D1A" },
+                    { label: "Self-progressed", count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
+                    { label: "With us",         count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
                   ].map(({ label, count, color }) => {
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
@@ -572,7 +572,7 @@ export default async function HubPreviewPage() {
                 background: "var(--agent-coral)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <Plus size={12} weight="bold" color="#fff" />
+                <Plus size={12} weight="bold" color="var(--agent-text-on-coral)" />
               </div>
               <div>
                 <p style={{

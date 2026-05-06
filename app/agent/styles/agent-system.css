@@ -1,135 +1,10 @@
 /* ─── Agent Design System ────────────────────────────────────────────────────
  * Warm light system for all agent-facing pages.
- * Imported in app/agent/layout.tsx — tokens cascade from :root.
- * All tokens prefixed --agent- to avoid collision with the existing glass system.
+ * Imported in app/agent/layout.tsx after themes.css.
+ * All tokens are defined in themes.css under [data-theme="sunset"] (and future
+ * theme blocks). All tokens prefixed --agent- to avoid collision with the
+ * existing glass system.
  * ─────────────────────────────────────────────────────────────────────────── */
-
-:root {
-
-    /* ── Backgrounds ──────────────────────────────────────────────────────── */
-    --agent-bg-base:  #FFF5EC;
-    --agent-bg-mid:   #FFE8D4;
-    --agent-bg-warm:  #FFDABD;
-    --agent-bg-deep:  #FFCBA4;
-    --agent-bg-paper: #FFFBF5;
-
-    /* ── Text ─────────────────────────────────────────────────────────────── */
-    --agent-text-primary:    #2D1810;
-    --agent-text-secondary:  #5A3A28;
-    --agent-text-tertiary:   #7A4A2E;
-    --agent-text-muted:      rgba(45, 24, 16, 0.55);
-    --agent-text-disabled:   rgba(45, 24, 16, 0.35);
-    --agent-text-on-coral:   #FFFFFF;
-    --agent-text-on-dark:    #FFFBF5;
-
-    /* ── Coral / brand ────────────────────────────────────────────────────── */
-    --agent-coral:                #FF8A65;
-    --agent-coral-deep:           #FF6B4A;
-    --agent-coral-darker:         #E55B3D;
-    --agent-coral-light:          #FFB18F;
-    --agent-coral-pale:           #FFD4C2;
-    --agent-coral-bg-tint:        rgba(255, 138, 101, 0.08);
-    --agent-coral-bg-tint-hover:  rgba(255, 138, 101, 0.14);
-
-    /* ── Semantic — success ───────────────────────────────────────────────── */
-    --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
-
-    /* ── Semantic — warning ───────────────────────────────────────────────── */
-    --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
-
-    /* ── Semantic — danger ────────────────────────────────────────────────── */
-    --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
-
-    /* ── Semantic — info ──────────────────────────────────────────────────── */
-    --agent-info:           #3D7AB8;
-    --agent-info-bg:        rgba(61, 122, 184, 0.08);
-    --agent-info-border:    rgba(61, 122, 184, 0.30);
-
-    /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:           rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.60);
-    --agent-glass-border:       rgba(255, 255, 255, 0.70);
-    --agent-glass-border-bright:rgba(255, 255, 255, 0.88);
-    --agent-glass-shadow:        0 4px 20px rgba(255, 138, 101, 0.06),
-                                 0 1px  4px rgba(45,  24,  16,  0.04);
-    --agent-glass-shadow-lifted: 0 8px 32px rgba(255, 138, 101, 0.10),
-                                 0 2px  8px rgba(45,  24,  16,  0.06);
-
-    /* ── Borders ──────────────────────────────────────────────────────────── */
-    --agent-border-subtle:  rgba(45, 24, 16, 0.06);
-    --agent-border-default: rgba(45, 24, 16, 0.10);
-    --agent-border-strong:  rgba(45, 24, 16, 0.18);
-    --agent-border-focus:   rgba(255, 138, 101, 0.45);
-
-    /* ── Focus rings (keyboard navigation) ───────────────────────────────── */
-    --agent-focus-ring:       0 0 0 3px rgba(255, 138, 101, 0.22);
-    --agent-focus-ring-tight: 0 0 0 2px rgba(255, 138, 101, 0.32);
-
-    /* ── Radii ────────────────────────────────────────────────────────────── */
-    --agent-radius-sm:   6px;
-    --agent-radius-md:   8px;
-    --agent-radius-lg:  12px;
-    --agent-radius-xl:  16px;
-    --agent-radius-pill: 999px;
-
-    /* ── Spacing scale ────────────────────────────────────────────────────── */
-    --agent-space-1:   4px;
-    --agent-space-2:   8px;
-    --agent-space-3:  12px;
-    --agent-space-4:  16px;
-    --agent-space-5:  20px;
-    --agent-space-6:  24px;
-    --agent-space-8:  32px;
-    --agent-space-10: 40px;
-    --agent-space-12: 48px;
-
-    /* ── Transitions ──────────────────────────────────────────────────────── */
-    --agent-ease:            cubic-bezier(0.4, 0, 0.2, 1);
-    --agent-transition-fast: 150ms var(--agent-ease);
-    --agent-transition-base: 200ms var(--agent-ease);
-    --agent-transition-slow: 300ms var(--agent-ease);
-
-    /* ── Typography scale ─────────────────────────────────────────────────── */
-    --agent-text-display: 32px;
-    --agent-text-h1:      28px;
-    --agent-text-h2:      22px;
-    --agent-text-h3:      17px;
-    --agent-text-h4:      15px;
-    --agent-text-body:    14px;
-    --agent-text-body-sm: 13px;
-    --agent-text-caption: 12px;
-    --agent-text-micro:   11px;
-    --agent-text-eyebrow: 10px;
-
-    --agent-weight-regular:  400;
-    --agent-weight-medium:   500;
-    --agent-weight-semibold: 600;
-
-    --agent-line-tight:   1.25;
-    --agent-line-base:    1.50;
-    --agent-line-relaxed: 1.70;
-
-    --agent-tracking-tight:   -0.01em;
-    --agent-tracking-normal:   0em;
-    --agent-tracking-wide:     0.02em;
-    --agent-tracking-eyebrow:  0.05em;
-
-    /* ── Z-index ──────────────────────────────────────────────────────────── */
-    --agent-z-base:     0;
-    --agent-z-elevated: 10;
-    --agent-z-overlay:  100;
-    --agent-z-modal:    1000;
-    --agent-z-dropdown: 1500;
-    --agent-z-toast:    2000;
-}
 
 /* ─── Keyframes ──────────────────────────────────────────────────────────────
  * Named with agent- prefix so they don't clash with existing globals.css
@@ -240,14 +115,14 @@
     background: var(--agent-bg-paper);
     border: 0.5px solid var(--agent-border-default);
     border-radius: var(--agent-radius-lg);
-    box-shadow: 0 1px 3px rgba(45, 24, 16, 0.04);
+    box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.04);
   }
 
   .agent-surface-elevated {
-    background: #FFFFFF;
+    background: var(--agent-surface-elevated);
     border: 0.5px solid var(--agent-border-default);
     border-radius: var(--agent-radius-lg);
-    box-shadow: 0 12px 40px rgba(45, 24, 16, 0.12), 0 2px 8px rgba(45, 24, 16, 0.06);
+    box-shadow: 0 12px 40px rgba(var(--agent-shadow-rgb), 0.12), 0 2px 8px rgba(var(--agent-shadow-rgb), 0.06);
   }
 
   /* ── Eyebrow label ───────────────────────────────────────────────────────── */
@@ -303,15 +178,15 @@
   .agent-btn-primary {
     background: var(--agent-coral-deep);
     color: var(--agent-text-on-coral);
-    box-shadow: 0 2px 12px rgba(255, 107, 74, 0.28);
+    box-shadow: 0 2px 12px rgba(var(--agent-coral-rgb), 0.28);
   }
   .agent-btn-primary:hover:not(:disabled) {
     background: var(--agent-coral-darker);
-    box-shadow: 0 4px 20px rgba(255, 107, 74, 0.38);
+    box-shadow: 0 4px 20px rgba(var(--agent-coral-rgb), 0.38);
     transform: translateY(-1px);
   }
   .agent-btn-primary:disabled {
-    background: rgba(255, 107, 74, 0.40);
+    background: rgba(var(--agent-coral-rgb), 0.40);
     box-shadow: none;
   }
 
@@ -327,7 +202,7 @@
   .agent-btn-secondary:hover:not(:disabled) {
     background: var(--agent-glass-bg-hover);
     box-shadow: var(--agent-glass-shadow-lifted),
-                inset 0 0 0 1px rgba(255, 138, 101, 0.12);
+                inset 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.12);
   }
   .agent-btn-secondary:disabled {
     opacity: 0.45;
@@ -558,10 +433,10 @@
     color: var(--agent-text-primary);
   }
   .agent-tab[aria-selected="true"] {
-    background: #FFFFFF;
+    background: var(--agent-surface-elevated);
     color: var(--agent-text-primary);
     font-weight: var(--agent-weight-medium);
-    box-shadow: 0 1px 4px rgba(45, 24, 16, 0.08), 0 0 0 0.5px rgba(45, 24, 16, 0.06);
+    box-shadow: 0 1px 4px rgba(var(--agent-shadow-rgb), 0.08), 0 0 0 0.5px rgba(var(--agent-shadow-rgb), 0.06);
   }
   .agent-tab:focus-visible {
     outline: none;
@@ -621,7 +496,7 @@
   .agent-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(45, 24, 16, 0.40);
+    background: rgba(var(--agent-shadow-rgb), 0.40);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: var(--agent-z-modal);
@@ -629,10 +504,10 @@
   }
 
   .agent-modal {
-    background: #FFFFFF;
+    background: var(--agent-surface-elevated);
     border: 0.5px solid var(--agent-border-default);
     border-radius: var(--agent-radius-xl);
-    box-shadow: 0 24px 64px rgba(45, 24, 16, 0.14), 0 4px 16px rgba(45, 24, 16, 0.06);
+    box-shadow: 0 24px 64px rgba(var(--agent-shadow-rgb), 0.14), 0 4px 16px rgba(var(--agent-shadow-rgb), 0.06);
     padding: 24px;
     width: 100%;
     max-width: 480px;
@@ -654,7 +529,7 @@
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 0.5px solid var(--agent-glass-border);
     border-top-color: var(--agent-glass-border-bright);
-    box-shadow: 0 8px 32px rgba(45, 24, 16, 0.10),
+    box-shadow: 0 8px 32px rgba(var(--agent-shadow-rgb), 0.10),
                 0 0 0 0.5px rgba(255, 255, 255, 0.40) inset;
     width: 360px;
     max-width: 360px;
@@ -705,7 +580,7 @@
   .agent-nav-item-active {
     background: var(--agent-coral-deep);
     color: var(--agent-text-on-coral);
-    box-shadow: 0 2px 10px rgba(255, 107, 74, 0.28);
+    box-shadow: 0 2px 10px rgba(var(--agent-coral-rgb), 0.28);
   }
   .agent-nav-item:focus-visible {
     outline: none;
@@ -812,7 +687,7 @@
   .work-queue-row:hover { background: rgba(255,255,255,0.65) !important; }
 
   /* ── Solicitor file chip hover ──────────────────────────────────────────── */
-  .solicitor-file-chip:hover { background: rgba(99,102,241,0.08) !important; color: #6366f1 !important; }
+  .solicitor-file-chip:hover { background: var(--agent-hover-tint) !important; color: var(--agent-coral-deep) !important; }
 
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
   .coming-up-link { text-underline-offset: 2px; }
@@ -820,7 +695,42 @@
 
   /* ── Pipeline Health: Stalled row hover ─────────────────────────────────── */
   .stalled-row-link { display: flex; }
-  .stalled-row-link:hover { background: rgba(201,125,26,0.06) !important; }
+  .stalled-row-link:hover { background: var(--agent-hover-tint-warning) !important; }
+
+  /* ── Theme-adaptive hover utility classes ────────────────────────────────── */
+  /* Generic row/item hover — use instead of hover:bg-slate-50 / hover:bg-amber-50 */
+  .agent-hover-row { transition: background-color 150ms ease; }
+  .agent-hover-row:hover { background-color: var(--agent-hover-tint); }
+
+  /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */
+  .agent-hover-row-warning { transition: background-color 150ms ease; }
+  .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }
+
+  /* Link-style text hover — replaces hover:text-blue-600 on inline action links */
+  .agent-hover-link { transition: color 150ms ease; }
+  .agent-hover-link:hover { color: var(--agent-coral-deep); }
+
+  /* Brand text link — replaces text-blue-500 hover:text-blue-600 (both states) */
+  .agent-link-primary { color: var(--agent-coral-deep); transition: color 150ms ease; text-decoration: none; }
+  .agent-link-primary:hover { color: var(--agent-coral-darker); }
+
+  /* Group-hover brand text — replaces group-hover:text-blue-600 */
+  .group:hover .agent-group-link { color: var(--agent-coral-deep); }
+
+  /* Color-only primary button — swaps blue Tailwind colour utils without changing layout */
+  .agent-btn-color-primary { background: var(--agent-coral-deep) !important; color: var(--agent-text-on-coral) !important; }
+  .agent-btn-color-primary:hover:not(:disabled) { background: var(--agent-coral-darker) !important; }
+  .agent-btn-color-primary:disabled,
+  .agent-btn-color-primary[disabled] { background: rgba(var(--agent-coral-rgb), 0.40) !important; }
+
+  /* Brand-tinted badge/pill — replaces bg-blue-50 text-blue-600 hover:bg-blue-100 secondary actions */
+  .agent-badge-brand { background: var(--agent-coral-bg-tint); color: var(--agent-coral-deep); transition: background 150ms ease, color 150ms ease; }
+  .agent-badge-brand:hover:not(:disabled) { background: var(--agent-coral-bg-tint-hover); color: var(--agent-coral-darker); }
+
+  /* File upload dropzone — replaces hardcoded violet border/bg on AI upload zones */
+  .agent-dropzone { border-color: var(--agent-coral-pale); background: var(--agent-coral-bg-tint); transition: border-color 150ms ease, background 150ms ease; }
+  .agent-dropzone:hover { border-color: var(--agent-coral-light); background: var(--agent-coral-bg-tint-hover); }
+  .agent-dropzone-active { border-color: var(--agent-coral); background: var(--agent-coral-bg-tint-hover); }
 
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
@@ -834,4 +744,24 @@
     .agent-backdrop               { animation: none; }
     .agent-bloom-1,
     .agent-bloom-2                { animation: none; }
+}
+
+/* ── Theme picker grid ───────────────────────────────────────────────────── */
+
+.agent-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .agent-theme-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .agent-theme-grid {
+    grid-template-columns: 1fr;
+  }
 }

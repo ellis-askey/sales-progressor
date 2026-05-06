@@ -157,7 +157,7 @@ export function LinkCard({
         {isYourFile && link.transaction && (
           <Link
             href={`/agent/transactions/${link.transaction.id}`}
-            className="text-xs text-[#FF6B4A] hover:text-[#e55a3a] font-medium transition-colors"
+            className="text-xs agent-link-primary font-medium transition-colors"
           >
             Open file →
           </Link>
@@ -169,7 +169,7 @@ export function LinkCard({
             {status.kind === "unclaimed_no_email" && onEditStub && (
               <button
                 onClick={() => onEditStub(link)}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                className="text-xs agent-link-primary font-medium transition-colors"
               >
                 Add email &amp; invite
               </button>
@@ -177,7 +177,7 @@ export function LinkCard({
             {status.kind === "unclaimed_unsent" && onResendInvite && (
               <button
                 onClick={() => onResendInvite(link.id)}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                className="text-xs agent-link-primary font-medium transition-colors"
               >
                 Send invite
               </button>
@@ -201,7 +201,7 @@ export function LinkCard({
             {status.kind === "declined" && onResendInvite && (
               <button
                 onClick={() => onResendInvite(link.id)}
-                className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                className="text-xs agent-link-primary font-medium transition-colors"
               >
                 Resend
               </button>
