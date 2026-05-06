@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
+import type { AgentTheme } from "@/lib/agent/themes";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -34,7 +35,7 @@ function buildNavGroups(role: UserRole) {
   };
 }
 
-export function AgentShell({ children, session, showWelcome }: { children: React.ReactNode; session: Session; showWelcome?: boolean }) {
+export function AgentShell({ children, session, showWelcome, theme }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme }) {
   const pathname    = usePathname();
   const role        = session.user.role as UserRole;
   const isDirector  = role === "director";
@@ -53,7 +54,7 @@ export function AgentShell({ children, session, showWelcome }: { children: React
   }, [mobileOpen]);
 
   return (
-    <div className="agent-shell-root" data-theme="sunset" style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} style={{ display: "flex" }}>
 
       {/* Warm gradient background */}
       <div aria-hidden="true" style={{
