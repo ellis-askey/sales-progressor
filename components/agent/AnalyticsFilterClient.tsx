@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import * as analytics from "@/lib/analytics/posthog";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 type TeamMember = { id: string; name: string; role: string };
 
@@ -18,6 +20,7 @@ export function AnalyticsFilterClient({
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value;
+    analytics.track(ANALYTICS_EVENTS.ANALYTICS_FILTER_CHANGED, { filterType: val ? "user" : "all" });
     const p = searchParams.get("period");
     const params = new URLSearchParams();
     if (val) params.set("user", val);

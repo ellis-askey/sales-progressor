@@ -4,6 +4,8 @@ import { useTransition } from "react";
 import { updateAgentTheme } from "@/app/actions/agent-preferences";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { AgentTheme } from "@/lib/agent/themes";
+import * as analytics from "@/lib/analytics/posthog";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 const THEME_NAMES: Record<AgentTheme, string> = {
   sunset:   "Sunset",
@@ -32,6 +34,7 @@ export function useAgentTheme() {
     const shell = document.querySelector(".agent-shell-root");
     if (wrapper) wrapper.setAttribute("data-theme", theme);
     if (shell) shell.setAttribute("data-theme", theme);
+    analytics.track(ANALYTICS_EVENTS.THEME_CHANGED, { theme });
 
     // Persist in background
     startTransition(() => {

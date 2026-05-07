@@ -19,6 +19,7 @@ import {
   ExchangeForecastChart, ServiceSplitDonut,
   MomentumRing, RefreshButton,
 } from "@/components/hub/HubCharts";
+import { HubViewTracker } from "@/components/agent/HubViewTracker";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AlertCircle, ChevronRight } from "lucide-react";
@@ -132,6 +133,7 @@ export default async function HubPreviewPage() {
   if (isEmpty) {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <HubViewTracker activeCount={pipelineStats.activeFiles} attentionCount={attentionItems.length} />
 
         {/* Header — same as full hub */}
         <div
@@ -303,6 +305,7 @@ export default async function HubPreviewPage() {
   // ── Full hub ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <HubViewTracker activeCount={pipelineStats.activeFiles} attentionCount={attentionItems.length} />
 
       {/* ── 1. Header ─────────────────────────────────────────────────────────── */}
       <div
