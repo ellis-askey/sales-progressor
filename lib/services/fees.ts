@@ -84,12 +84,9 @@ export function calculateProgress(
   const vendorRaw     = calcSideRaw(vendor);
   const purchaserRaw  = calcSideRaw(purchaser);
 
-  // Combined ratio across both sides — higher-weighted late milestones
-  // accelerate the % correctly as exchange approaches.
-  const allApplicable       = [...vendor, ...purchaser].filter((m) => !m.isNotRequired);
-  const allApplicableWeight = allApplicable.reduce((s, m) => s + m.weight, 0);
-  const allCompletedWeight  = allApplicable.filter((m) => m.isComplete).reduce((s, m) => s + m.weight, 0);
-  const overallRaw          = allApplicableWeight > 0 ? (allCompletedWeight / allApplicableWeight) * 100 : 100;
+  // 50/50 blend per spec: each side contributes equally regardless of milestone count.
+  // Pooling all milestones would skew the overall % when NR reduces one side heavily.
+  const overallRaw = (vendorRaw + purchaserRaw) / 2;
 
   const percent          = Math.round(overallRaw);
   const vendorPercent    = Math.round(vendorRaw);
