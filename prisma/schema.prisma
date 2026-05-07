@@ -34,6 +34,7 @@ model Agency {
   verifiedDomains          VerifiedDomain[]
   recommendedSolicitors    AgencyRecommendedSolicitor[]
   feedbackSubmissions      FeedbackSubmission[]
+  negotiatorInvitations    NegotiatorInvitation[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -94,6 +95,9 @@ model User {
   createdChainLinks     ChainLink[]      @relation("ChainLinkCreatedBy")
   claimedChainLinks     ChainLink[]      @relation("ChainLinkClaimedBy")
   lastInvitedChainLinks ChainLink[]      @relation("ChainLinkLastInviteSentBy")
+
+  negotiatorInvitationsSent       NegotiatorInvitation[] @relation("NegotiatorInvitationsSent")
+  negotiatorInvitationsAccepted   NegotiatorInvitation[] @relation("NegotiatorInvitationsAccepted")
 }
 
 model AgentPushSubscription {
@@ -842,6 +846,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
+  ext_expires_in    Int?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1319,4 +1324,31 @@ model OutsourcedAssignmentNotification {
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([sentAt])
+}
+
+// ─── NegotiatorInvitation ─────────────────────────────────────────────────────
+// Director invites a negotiator to join their agency. Token-based; 7-day expiry.
+// cancelledAt is unique to this model (no equivalent on DirectorInvitation).
+
+model NegotiatorInvitation {
+  id                 String    @id @default(cuid())
+  agencyId           String
+  invitedByUserId    String
+  negotiatorName     String
+  negotiatorEmail    String
+  token              String    @unique
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  acceptedByUserId   String?
+  cancelledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  agency     Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invitedBy  User   @relation("NegotiatorInvitationsSent",     fields: [invitedByUserId],   references: [id], onDelete: Cascade)
+  acceptedBy User?  @relation("NegotiatorInvitationsAccepted", fields: [acceptedByUserId],  references: [id], onDelete: SetNull)
+
+  @@index([agencyId])
+  @@index([token])
+  @@index([negotiatorEmail])
 }

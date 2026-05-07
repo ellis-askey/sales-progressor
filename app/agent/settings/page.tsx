@@ -15,10 +15,19 @@ export default async function AgentSettingsPage({
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
 
-  const userRecord = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { phone: true, agentPreferences: true },
-  });
+  const [userRecord, pendingInvitations] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { phone: true, agentPreferences: true },
+    }),
+    isDirector
+      ? prisma.negotiatorInvitation.findMany({
+          where: { agencyId: session.user.agencyId, cancelledAt: null, acceptedAt: null },
+          select: { id: true, negotiatorName: true, negotiatorEmail: true, expiresAt: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
 
@@ -84,7 +93,14 @@ export default async function AgentSettingsPage({
                 Manage your negotiators. Create accounts, control file visibility, and remove access.
               </p>
             </div>
-            <TeamManagement currentUserId={session.user.id} />
+            <TeamManagement
+              currentUserId={session.user.id}
+              pendingInvitations={pendingInvitations.map((inv) => ({
+                ...inv,
+                expiresAt: inv.expiresAt.toISOString(),
+                createdAt: inv.createdAt.toISOString(),
+              }))}
+            />
           </div>
         )}
 

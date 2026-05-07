@@ -16,6 +16,33 @@ Last updated: 2026-05-03
 
 ---
 
+## Negotiator invitation flow — run before deploying (2026-05-07)
+
+**New migrations to apply in Supabase SQL editor (staging first, then production).**
+
+- [ ] **Run migration SQL — two blocks, same session**
+
+  Open Supabase SQL editor (`gmkfustgwipgihpmpjpr` for production, `etidawkbqctarmsdjoxp` for staging).
+  Run the contents of `prisma/migrations/20260507000001_negotiator_invitation/migration.sql` verbatim.
+  It contains: (1) `ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "ext_expires_in" INTEGER;` and (2) the full `NegotiatorInvitation` table creation with indexes and foreign keys.
+  Both are idempotent (`IF NOT EXISTS`). Apply to staging first; verify no errors; then apply to production.
+
+- [ ] **Add Google OAuth credentials to Vercel production environment**
+  - Go to [console.cloud.google.com](https://console.cloud.google.com) → create OAuth 2.0 client ID (Web application)
+  - Authorised redirect URI: `https://portal.thesalesprogressor.co.uk/api/auth/callback/google`
+  - Copy `Client ID` and `Client Secret`
+  - Add to Vercel production env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - Add same values to staging env (use a separate OAuth client or the same one with staging redirect added)
+
+- [ ] **Add Microsoft/Azure AD OAuth credentials to Vercel production environment**
+  - Go to [portal.azure.com](https://portal.azure.com) → Azure Active Directory → App registrations → New registration
+  - Redirect URI: `https://portal.thesalesprogressor.co.uk/api/auth/callback/azure-ad`
+  - After creating: Certificates & secrets → New client secret
+  - Copy Application (client) ID, client secret value, and Directory (tenant) ID (or use `common` for multi-tenant)
+  - Add to Vercel production env: `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`
+
+---
+
 ## Account signups + DPAs (~30 minutes total)
 
 - [ ] **PostHog (EU instance)**

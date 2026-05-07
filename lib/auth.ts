@@ -1,5 +1,8 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import AzureADProvider from "next-auth/providers/azure-ad";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkAuthLimit } from "@/lib/ratelimit";
@@ -14,6 +17,7 @@ declare module "next-auth" {
       role: UserRole;
       agencyId: string;
       firmName: string | null;
+      needsSignupCompletion: boolean;
     };
   }
   interface User {
@@ -32,10 +36,14 @@ declare module "next-auth/jwt" {
     role: UserRole;
     agencyId: string;
     firmName: string | null;
+    needsSignupCompletion: boolean;
   }
 }
 
 export const authOptions: NextAuthOptions = {
+  // PrismaAdapter writes OAuth account links to the Account table.
+  // With JWT session strategy it does NOT write sessions — sessions stay stateless.
+  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
 
   providers: [
@@ -87,16 +95,81 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // Google verifies email ownership before issuing tokens, so linking to an
+      // existing email/password account is safe.
+      allowDangerousEmailAccountLinking: true,
+    }),
+
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID!,
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      tenantId: process.env.AZURE_AD_TENANT_ID,
+      // Microsoft verifies email ownership before issuing tokens.
+      allowDangerousEmailAccountLinking: true,
+    }),
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ account }) {
+      // Credentials: always allow — authorize() already validated email+password.
+      if (account?.provider === "credentials") {
+        return true;
+      }
+
+      // OAuth: always allow the sign-in to complete. We do NOT gate incomplete
+      // users here because returning false from signIn would show NextAuth's
+      // generic error page with no clear path forward. Instead we set
+      // needsSignupCompletion: true in the jwt callback, and requireSession()
+      // redirects those users to /signup/complete — a branded page they can
+      // actually act on. This is intentional; don't add role/agencyId checks here.
+      return true;
+    },
+
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role: UserRole }).role;
-        token.agencyId = (user as { agencyId: string | null }).agencyId ?? "";
-        token.firmName = (user as { firmName: string | null }).firmName;
+
+        if (account?.provider === "credentials") {
+          // Credentials: authorize() already fetched role/agencyId/firmName.
+          token.role = (user as { role: UserRole }).role;
+          token.agencyId = (user as { agencyId: string | null }).agencyId ?? "";
+          token.firmName = (user as { firmName: string | null }).firmName;
+          token.needsSignupCompletion = false;
+        } else if (account) {
+          // OAuth: fetch role/agencyId/firmName from DB.
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { role: true, agencyId: true, firmName: true },
+          });
+          token.role = dbUser?.role ?? "viewer";
+          token.agencyId = dbUser?.agencyId ?? "";
+          token.firmName = dbUser?.firmName ?? null;
+          // viewer + no agencyId = net-new OAuth user who hasn't completed signup
+          token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
+        }
       }
+
+      // On every request: if signup is still incomplete, re-check the DB.
+      // This picks up the completion (agencyId now set) without requiring a
+      // new sign-in. The updated token is written back into the JWT cookie,
+      // so middleware sees the correct role on the next request.
+      if (token.needsSignupCompletion && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { role: true, agencyId: true, firmName: true },
+        });
+        if (dbUser?.agencyId) {
+          token.role = dbUser.role;
+          token.agencyId = dbUser.agencyId;
+          token.firmName = dbUser.firmName ?? null;
+          token.needsSignupCompletion = false;
+        }
+      }
+
       return token;
     },
 
@@ -105,6 +178,7 @@ export const authOptions: NextAuthOptions = {
       session.user.role = token.role;
       session.user.agencyId = token.agencyId;
       session.user.firmName = token.firmName;
+      session.user.needsSignupCompletion = token.needsSignupCompletion ?? false;
       return session;
     },
   },

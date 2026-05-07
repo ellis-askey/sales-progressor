@@ -195,6 +195,78 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
   };
 }
 
+// ── Hub filter helpers (used by /agent/transactions?filter=...) ──────────────
+
+export type HubFilter = "exchanging-this-week" | "completing-this-week" | "closing-this-month";
+
+/**
+ * Returns IDs of transactions matching a Hub "Coming up" filter.
+ * Mirrors the exact where-clauses in getHubPipelineStats so the count
+ * on the destination page equals the Hub strip count.
+ */
+export async function getHubFilteredIds(
+  vis: AgentVisibility,
+  filter: HubFilter
+): Promise<string[]> {
+  const now = new Date();
+  const in7Days = new Date(now.getTime() + 7 * 86400000);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const txWhere = buildTxWhere(vis);
+
+  let where: Prisma.PropertyTransactionWhereInput;
+
+  if (filter === "exchanging-this-week") {
+    // Mirrors hub.ts:83–98
+    where = {
+      ...txWhere,
+      status: "active",
+      expectedExchangeDate: { gte: now, lte: in7Days },
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          },
+        },
+      },
+    };
+  } else if (filter === "completing-this-week") {
+    // Mirrors hub.ts:101–117
+    where = {
+      ...txWhere,
+      status: "active",
+      completionDate: { gte: now, lte: in7Days },
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
+          },
+        },
+      },
+    };
+  } else {
+    // closing-this-month — mirrors hub.ts:119–136
+    where = {
+      ...txWhere,
+      status: "active",
+      expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
+      NOT: {
+        milestoneCompletions: {
+          some: {
+            state: "complete",
+            milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          },
+        },
+      },
+    };
+  }
+
+  const results = await prisma.propertyTransaction.findMany({ where, select: { id: true } });
+  return results.map((r) => r.id);
+}
+
 // ── Flags with severity ───────────────────────────────────────────────────────
 
 export type HubFlag = {

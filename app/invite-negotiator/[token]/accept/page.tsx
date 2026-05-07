@@ -1,0 +1,63 @@
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { validateNegotiatorInvitationToken } from "@/lib/auth/validate-negotiator-invitation-token";
+import { prisma } from "@/lib/prisma";
+import { notifyDirectorOfAcceptance } from "@/lib/notifications/negotiator-accepted";
+
+interface AcceptPageProps {
+  params: Promise<{ token: string }>;
+}
+
+// OAuth callbackUrl target. By the time the user lands here, NextAuth/PrismaAdapter
+// has already created (or found) their User record. We validate the invitation,
+// check email match, and atomically assign role + agencyId.
+export default async function NegotiatorInviteAcceptPage({ params }: AcceptPageProps) {
+  const { token } = await params;
+
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    redirect(`/invite-negotiator/${token}`);
+  }
+
+  const result = await validateNegotiatorInvitationToken(token);
+
+  if (!result.valid) {
+    if (session.user.agencyId) {
+      redirect("/agent/hub");
+    }
+    redirect(`/invite-negotiator/${token}`);
+  }
+
+  const emailMatch =
+    session.user.email.toLowerCase() === result.invitation.negotiatorEmail.toLowerCase();
+
+  if (!emailMatch) {
+    redirect(`/invite-negotiator/${token}?mismatch=1`);
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agencyId: true },
+  });
+
+  if (!dbUser?.agencyId) {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { role: "negotiator", agencyId: result.invitation.agencyId },
+      });
+      await tx.negotiatorInvitation.update({
+        where: { id: result.invitation.id },
+        data: { acceptedAt: new Date(), acceptedByUserId: session.user.id },
+      });
+    });
+
+    notifyDirectorOfAcceptance(result.invitation.id).catch(console.error);
+
+    console.log(`[AUDIT] negotiator_invitation_accepted invitationId=${result.invitation.id} userId=${session.user.id}`);
+  }
+
+  redirect("/");
+}
