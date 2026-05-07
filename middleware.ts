@@ -1,9 +1,9 @@
-import { withAuth } from "next-auth/middleware";
+﻿import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-// Command centre timing constants (ms) — kept inline to avoid Node.js module
+// Command centre timing constants (ms) â€” kept inline to avoid Node.js module
 // imports that are unavailable in the Edge Runtime.
 const STEP_UP_MAX_AGE_MS  = 30 * 60 * 1000;
 const IDLE_MAX_AGE_MS     =  8 * 60 * 60 * 1000;
@@ -34,7 +34,7 @@ export default withAuth(
     const { pathname, searchParams } = req.nextUrl;
     const role = req.nextauth.token?.role;
 
-    // ── Command centre gate ───────────────────────────────────────────────────
+    // â”€â”€ Command centre gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (pathname.startsWith("/command")) {
       // 1. Superadmin role required
       if (role !== "superadmin") {
@@ -55,7 +55,7 @@ export default withAuth(
       }
 
       // Step-up / enrollment pages are exempt from the step-up cookie check.
-      // Server action POSTs (Next-Action header) are also exempt — they carry
+      // Server action POSTs (Next-Action header) are also exempt â€” they carry
       // their own assertSuperadmin() guard and the middleware's 307 redirect
       // would be forwarded as a POST by the browser, breaking the action.
       const isStepUpPath =
@@ -103,7 +103,7 @@ export default withAuth(
         }
       }
     }
-    // ── End command centre gate ───────────────────────────────────────────────
+    // â”€â”€ End command centre gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // Pass-through response (may carry UTM attribution cookie)
     const res = NextResponse.next();
@@ -130,7 +130,7 @@ export default withAuth(
       });
     }
 
-    // Viewers are read-only — block all mutation API calls
+    // Viewers are read-only â€” block all mutation API calls
     if (
       role === "viewer" &&
       pathname.startsWith("/api/") &&
@@ -150,13 +150,13 @@ export default withAuth(
       return NextResponse.redirect(new URL(`/agent/transactions/${id}`, req.url));
     }
 
-    // Agent users can only access the agent area, APIs, and portal — nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/claim", "/invite"];
+    // Agent users can only access the agent area, APIs, and portal â€” nowhere else
+    const agentAllowed = ["/agent", "/api", "/portal", "/claim", "/invite", "/invite-negotiator"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
 
-    // Non-agent, non-admin users trying to access the agent area → send to SP dashboard
+    // Non-agent, non-admin users trying to access the agent area â†’ send to SP dashboard
     if (!isAgentUser && role !== "admin" && pathname.startsWith("/agent")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -165,13 +165,14 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Machine-to-machine routes authenticate via Bearer token inside the handler —
+      // Machine-to-machine routes authenticate via Bearer token inside the handler â€”
       // they must bypass the NextAuth session gate so Vercel Crons can reach them.
       authorized: ({ req, token }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith("/portal")) return true;
         if (pathname.startsWith("/claim")) return true;
         if (pathname.startsWith("/invite")) return true;
+        if (pathname.startsWith("/invite-negotiator")) return true;
         if (pathname.startsWith("/api/cron/")) return true;
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { UserPlus, Trash, Eye, EyeSlash, Crown, Clock, ArrowClockwise } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { TeamListView, type PendingNegotiatorInvitation } from "@/components/agent/TeamListView";
+import { inviteNegotiator, resendNegotiatorInvitation, cancelNegotiatorInvitation } from "@/app/actions/invite-negotiator";
 
 type TeamMember = {
   id: string;
@@ -11,22 +11,32 @@ type TeamMember = {
   email: string;
   role: string;
   canViewAllFiles: boolean;
-  invitationPending?: boolean;
 };
 
-export function TeamManagement({ currentUserId }: { currentUserId: string }) {
+export function TeamManagement({
+  currentUserId,
+  pendingInvitations: initialPending = [],
+}: {
+  currentUserId: string;
+  pendingInvitations?: PendingNegotiatorInvitation[];
+}) {
   const { toast } = useAgentToast();
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [pending, setPending] = useState<PendingNegotiatorInvitation[]>(initialPending);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [resending, setResending] = useState<string | null>(null);
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
     if (res.ok) setTeam(await res.json());
+  }, []);
+
+  const refreshPending = useCallback(async () => {
+    const res = await fetch("/api/agent/team/pending");
+    if (res.ok) setPending(await res.json());
   }, []);
 
   useEffect(() => { loadTeam(); }, [loadTeam]);
@@ -53,130 +63,67 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
     }
   }
 
-  async function resendInvite(member: TeamMember) {
-    setResending(member.id);
-    const res = await fetch("/api/agent/team/resend-invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: member.id }),
-    });
-    setResending(null);
-    if (res.ok) {
-      toast.success("Invitation resent", { description: member.email });
-    } else {
-      const data = await res.json().catch(() => ({}));
-      toast.error(data.error ?? "Failed to resend invitation");
-    }
-  }
-
-  async function addMember() {
+  async function sendInvite() {
     if (!name.trim() || !email.trim()) return;
     setAdding(true);
     setAddError(null);
-    const res = await fetch("/api/agent/team", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), email: email.trim() }),
-    });
-    const data = await res.json();
+
+    const fd = new FormData();
+    fd.set("name", name.trim());
+    fd.set("email", email.trim());
+
+    const result = await inviteNegotiator(fd);
     setAdding(false);
-    if (!res.ok) {
-      setAddError(data.error ?? "Failed to send invitation");
+
+    if (!result.ok) {
+      setAddError(result.error);
     } else {
-      setTeam((prev) => [...prev, data]);
       setShowAdd(false);
       setName(""); setEmail("");
-      toast.success("Invitation sent", { description: `${name.trim()} will receive an email to set their password` });
+      toast.success("Invitation sent", { description: name.trim() });
+      await refreshPending();
+    }
+  }
+
+  async function handleResend(id: string) {
+    const result = await resendNegotiatorInvitation(id);
+    if (result.ok) {
+      toast.success("Invitation resent");
+      await refreshPending();
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  async function handleCancel(id: string, memberName: string) {
+    if (!confirm(`Cancel the invitation for ${memberName}? The link will stop working.`)) return;
+    const result = await cancelNegotiatorInvitation(id);
+    if (result.ok) {
+      setPending((prev) => prev.filter((inv) => inv.id !== id));
+      toast.info(`Invitation for ${memberName} cancelled`);
+    } else {
+      toast.error(result.error);
     }
   }
 
   const negotiators = team.filter((m) => m.role === "negotiator");
-  const directors = team.filter((m) => m.role === "director");
+  const directors   = team.filter((m) => m.role === "director");
 
   return (
     <div className="space-y-4">
-      {/* Director row */}
-      {directors.map((m) => (
-        <div key={m.id} className="glass-card px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-               style={{ background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" }}>
-            <Crown className="w-4 h-4 text-white" weight="fill" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
-            <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
-          </div>
-          <span className="flex-shrink-0 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            Director
-          </span>
-        </div>
-      ))}
+      <TeamListView
+        directors={directors}
+        negotiators={negotiators}
+        currentUserId={currentUserId}
+        onToggleViewAll={toggleViewAll}
+        onRemove={removeMember}
+        onAddClick={() => setShowAdd(true)}
+        pendingInvitations={pending}
+        onResendInvitation={handleResend}
+        onCancelInvitation={handleCancel}
+      />
 
-      {/* Negotiators */}
-      {negotiators.length === 0 && !showAdd && (
-        <div className="glass-card px-5 py-8 text-center">
-          <p className="text-sm text-slate-900/50">No negotiators yet.</p>
-          <p className="text-xs text-slate-900/35 mt-1">Add a negotiator below to invite them to the portal.</p>
-        </div>
-      )}
-
-      {negotiators.map((m) => (
-        <div key={m.id} className="glass-card px-4 py-3 flex items-center gap-3">
-          <UserAvatar user={{ name: m.name }} size={32} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
-            <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
-            {m.invitationPending && (
-              <p className="text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Invitation pending
-              </p>
-            )}
-          </div>
-
-          <div className="flex-shrink-0 flex items-center gap-1.5">
-            {m.invitationPending ? (
-              <button
-                onClick={() => resendInvite(m)}
-                disabled={resending === m.id}
-                title="Resend invitation email"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/30 text-slate-900/50 hover:bg-white/60 transition-colors disabled:opacity-40"
-              >
-                <ArrowClockwise className={`w-3.5 h-3.5 ${resending === m.id ? "animate-spin" : ""}`} />
-                Resend
-              </button>
-            ) : (
-              <button
-                onClick={() => toggleViewAll(m)}
-                title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  m.canViewAllFiles
-                    ? "agent-badge-brand"
-                    : "bg-white/30 text-slate-900/50 hover:bg-white/60"
-                }`}
-              >
-                {m.canViewAllFiles
-                  ? <><Eye className="w-3.5 h-3.5" /> All files</>
-                  : <><EyeSlash className="w-3.5 h-3.5" /> Own files</>
-                }
-              </button>
-            )}
-
-            {m.id !== currentUserId && (
-              <button
-                onClick={() => removeMember(m.id, m.name)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-900/30 hover:text-red-500 hover:bg-red-50 transition-colors"
-                title="Remove from team"
-              >
-                <Trash className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-
-      {/* Add form */}
-      {showAdd ? (
+      {showAdd && (
         <div className="glass-card p-5 space-y-3">
           <p className="text-sm font-semibold text-slate-900/80">Invite a negotiator</p>
           <input
@@ -193,15 +140,15 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             className="glass-input w-full px-3 py-2 text-sm"
-            onKeyDown={(e) => e.key === "Enter" && addMember()}
+            onKeyDown={(e) => e.key === "Enter" && sendInvite()}
           />
           <p className="text-[11px] text-slate-900/40">
-            They will receive an email to set their own password.
+            They&apos;ll receive an email with a link to set up their own account.
           </p>
           {addError && <p className="text-xs text-red-500">{addError}</p>}
           <div className="flex gap-2">
             <button
-              onClick={addMember}
+              onClick={sendInvite}
               disabled={adding || !name.trim() || !email.trim()}
               className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
             >
@@ -215,15 +162,6 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             </button>
           </div>
         </div>
-      ) : (
-        <button
-          onClick={() => setShowAdd(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-medium hover:bg-black/[0.03] transition-colors"
-          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
-        >
-          <UserPlus className="w-4 h-4" />
-          Add a negotiator
-        </button>
       )}
 
       <div className="pt-2 border-t border-white/20">

@@ -344,7 +344,7 @@ enum ContactRole {
   other
 }
 
-// ─── MilestoneDefinition ──────────────────────────────────────────────────────
+// â”€â”€â”€ MilestoneDefinition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model MilestoneDefinition {
   id              String        @id @default(cuid())
@@ -393,7 +393,7 @@ model MilestoneCompletion {
   @@index([transactionId, completedAt])
 }
 
-// ─── ReminderRule ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ ReminderRule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ReminderRule {
   id                    String   @id @default(cuid())
@@ -485,14 +485,14 @@ model OutboundMessage {
   purpose         OutboundPurpose @default(chase)
   status          OutboundStatus  @default(sent)
 
-  // Routing — transactionId is nullable (non-transaction messages: LinkedIn, digest, etc.)
+  // Routing â€” transactionId is nullable (non-transaction messages: LinkedIn, digest, etc.)
   transactionId   String?
   chaseTaskId     String?
   recipientName   String?
   recipientEmail  String?
   recipientHandle String?
 
-  // Content — legacy fields kept for backward compat
+  // Content â€” legacy fields kept for backward compat
   type            CommType
   method          CommMethod?
   contactIds      String[]
@@ -610,7 +610,7 @@ model TransactionNote {
   @@index([transactionId, createdAt])
 }
 
-// ─── TransactionDocument ─────────────────────────────────────────────────────
+// â”€â”€â”€ TransactionDocument â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model TransactionDocument {
   id            String   @id @default(cuid())
@@ -629,7 +629,7 @@ model TransactionDocument {
   @@index([transactionId, createdAt])
 }
 
-// ─── ManualTask ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ ManualTask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ManualTask {
   id             String           @id @default(cuid())
@@ -661,7 +661,7 @@ enum ManualTaskStatus {
   done
 }
 
-// ─── Chain ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Chain â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 enum ChainStatus {
   ACTIVE
@@ -714,11 +714,11 @@ model ChainLink {
   claimedByUserId String?
   claimedAt       DateTime?
 
-  // Legacy fields (pre-v2 chain widget — do not use in new code)
+  // Legacy fields (pre-v2 chain widget â€” do not use in new code)
   externalAddress String?
   externalStatus  String?
 
-  // Stub data (v2 — used while unclaimed)
+  // Stub data (v2 â€” used while unclaimed)
   stubPropertyAddress String?
   stubAgencyName      String?
   stubAgentEmail      String?
@@ -755,7 +755,7 @@ model ChainLink {
   @@index([stubAgentEmail])
 }
 
-// ─── DirectorInvitation ───────────────────────────────────────────────────────
+// â”€â”€â”€ DirectorInvitation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model DirectorInvitation {
   id               String    @id @default(cuid())
@@ -767,6 +767,7 @@ model DirectorInvitation {
   expiresAt        DateTime
   acceptedAt       DateTime?
   acceptedByUserId String?
+  cancelledAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -779,7 +780,7 @@ model DirectorInvitation {
   @@index([directorEmail])
 }
 
-// ─── Verified Sending Addresses ───────────────────────────────────────────────
+// â”€â”€â”€ Verified Sending Addresses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model VerifiedDomain {
   id               String       @id @default(cuid())
@@ -838,7 +839,7 @@ enum EmailVerificationStatus {
   revoked
 }
 
-// ─── TransactionFlag ─────────────────────────────────────────────────────────
+// â”€â”€â”€ TransactionFlag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model TransactionFlag {
   id            String    @id @default(cuid())
@@ -857,11 +858,11 @@ model TransactionFlag {
   @@index([agencyId, resolvedAt])
 }
 
-// ─── NextAuth ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ NextAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // NOTE: Account and Session are part of NextAuth's standard adapter scaffolding.
 // Account rows are written when a user signs in via OAuth (Google, Azure AD).
-// Session table is unused — we use JWT session strategy.
+// Session table is unused â€” we use JWT session strategy.
 
 model Account {
   id                String  @id @default(cuid())
@@ -900,7 +901,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ─── FeedbackSubmission ───────────────────────────────────────────────────────
+// â”€â”€â”€ FeedbackSubmission â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model FeedbackSubmission {
   id                 String    @id @default(cuid())
@@ -930,8 +931,8 @@ model FeedbackSubmission {
   @@index([createdAt(sort: Desc)])
 }
 
-// ─── RetentionEmailLog ────────────────────────────────────────────────────────
-// TODO: surface in admin dashboard — see future-admin-page ticket
+// â”€â”€â”€ RetentionEmailLog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// TODO: surface in admin dashboard â€” see future-admin-page ticket
 
 model RetentionEmailLog {
   id        String   @id @default(cuid())
@@ -946,7 +947,7 @@ model RetentionEmailLog {
   @@index([emailKey, sentAt])
 }
 
-// ─── Command Centre: Event ────────────────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Event â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Unified activity log. Append-only. Written via lib/command/events/write.ts.
 // Instrumentation calls added per-service in separate PRs (never in this migration).
 
@@ -1011,7 +1012,7 @@ model Event {
   @@index([userId, occurredAt])
 }
 
-// ─── Command Centre: Rollup tables ───────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Rollup tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Pre-computed analytics rows. Written nightly by /api/cron/rollup-metrics.
 // Idempotent writes keyed on the @@unique constraints below.
 
@@ -1019,7 +1020,7 @@ model DailyMetric {
   id          String            @id @default(cuid())
   date        DateTime          @db.Date
 
-  // Scope keys — exactly one pattern is set per row
+  // Scope keys â€” exactly one pattern is set per row
   agencyId    String?
   serviceType ServiceType?
   modeProfile AgencyModeProfile?
@@ -1081,7 +1082,7 @@ model JobRun {
   @@index([jobName, startedAt])
 }
 
-// ─── Command Centre: Signal detection ────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Signal detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Written by signal detectors in lib/command/insights/signals/.
 // Append-only in practice; acknowledged flag is the only mutable field.
 
@@ -1109,9 +1110,9 @@ model Signal {
   @@index([acknowledged, detectedAt])
 }
 
-// ─── Command Centre: Experiment Lab ──────────────────────────────────────────
-// Lifecycle: proposed → active → concluded | abandoned.
-// No UI in Phase 3 — mutated via /api/experiments/* routes only.
+// â”€â”€â”€ Command Centre: Experiment Lab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Lifecycle: proposed â†’ active â†’ concluded | abandoned.
+// No UI in Phase 3 â€” mutated via /api/experiments/* routes only.
 
 enum ExperimentStatus {
   proposed
@@ -1145,7 +1146,7 @@ model Experiment {
   startedAt    DateTime?
   concludedAt  DateTime?
 
-  // Frozen metric snapshots — set at start/conclude respectively
+  // Frozen metric snapshots â€” set at start/conclude respectively
   baselineSnapshot   Json?
   resultSnapshot     Json?
   baselineWindowDays Int   @default(7)
@@ -1160,9 +1161,9 @@ model Experiment {
   @@index([sourceSignalId])
 }
 
-// ─── Command Centre: Deployment log ──────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Deployment log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Populated by POST /api/webhooks/vercel-deploy (HMAC-verified).
-// Enables "what changed?" annotations on metric deltas (ADMIN_07 §6, ADMIN_08 §6).
+// Enables "what changed?" annotations on metric deltas (ADMIN_07 Â§6, ADMIN_08 Â§6).
 
 model Deployment {
   id           String   @id @default(cuid())
@@ -1177,10 +1178,10 @@ model Deployment {
   @@index([environment, deployedAt])
 }
 
-// ─── Command Centre: Content drafter ─────────────────────────────────────────
-// DraftPost — every generation session. Variant1/2 are the raw Claude outputs.
+// â”€â”€â”€ Command Centre: Content drafter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// DraftPost â€” every generation session. Variant1/2 are the raw Claude outputs.
 // editedText is the user's final version; chosenVariant records which was kept.
-// VoiceSample — founder voice corpus used in generation prompts.
+// VoiceSample â€” founder voice corpus used in generation prompts.
 
 enum DraftChannel {
   linkedin
@@ -1206,7 +1207,7 @@ model DraftPost {
   variant1        String
   variant2        String
   editedText      String?
-  chosenVariant   Int?         // 1 or 2 — which variant the user started from
+  chosenVariant   Int?         // 1 or 2 â€” which variant the user started from
 
   posted            Boolean @default(false)
   postedAt          DateTime?
@@ -1216,7 +1217,7 @@ model DraftPost {
   aiTokensOutput  Int?
 
   topicId         String?      // ContentTopic this draft was generated from
-  batchId         String?      // ContentBatch.id — set when batch email is sent
+  batchId         String?      // ContentBatch.id â€” set when batch email is sent
 
   approvedForBatch Boolean @default(false) // user flagged this variant for the morning batch
   postedUrl        String?                  // URL of the live post (filled when marking as posted)
@@ -1228,7 +1229,7 @@ model DraftPost {
   @@index([approvedForBatch])
 }
 
-// ─── Command Centre: Content batch ───────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Content batch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // One record per calendar day an email digest is dispatched.
 
 model ContentBatch {
@@ -1243,7 +1244,7 @@ model ContentBatch {
   @@index([date])
 }
 
-// ─── Command Centre: Content engagement ──────────────────────────────────────
+// â”€â”€â”€ Command Centre: Content engagement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Manually logged ~14 days after posting. One record per DraftPost.
 // Used to score topic performance and feed back into the topic queue.
 
@@ -1269,7 +1270,7 @@ model VoiceSample {
   createdAt   DateTime      @default(now())
 
   sampleType  String        // "manual_paste" | "qa_response" | "draft_edit_diff"
-  questionKey String?       // e.g. "q1_near_miss" — set for sampleType = qa_response
+  questionKey String?       // e.g. "q1_near_miss" â€” set for sampleType = qa_response
   channel     DraftChannel?
   content     String
   notes       String?
@@ -1278,7 +1279,7 @@ model VoiceSample {
   @@index([channel, createdAt])
 }
 
-// ─── Command Centre: Content topic queue ─────────────────────────────────────
+// â”€â”€â”€ Command Centre: Content topic queue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ContentTopic {
   id          String        @id @default(cuid())
@@ -1295,7 +1296,7 @@ model ContentTopic {
   @@index([status, priority, createdAt])
 }
 
-// ─── Command Centre: Generated images ────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Generated images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model GeneratedImage {
   id          String   @id @default(cuid())
@@ -1315,7 +1316,7 @@ model GeneratedImage {
   @@index([imageType, createdAt])
 }
 
-// ─── Command Centre: Admin audit log ─────────────────────────────────────────
+// â”€â”€â”€ Command Centre: Admin audit log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 
 model AdminAuditLog {
@@ -1340,7 +1341,7 @@ model AdminAuditLog {
   @@index([targetType, targetId])
 }
 
-// ─── OutsourcedAssignmentNotification ────────────────────────────────────────
+// â”€â”€â”€ OutsourcedAssignmentNotification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Package D: idempotency record for the "new outsourced file" admin email.
 // One row per transaction, ever. If a row exists the notification has fired.
 
@@ -1356,7 +1357,7 @@ model OutsourcedAssignmentNotification {
   @@index([sentAt])
 }
 
-// ─── NegotiatorInvitation ─────────────────────────────────────────────────────
+// â”€â”€â”€ NegotiatorInvitation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Created when a director adds a negotiator. The negotiator receives an email
 // with a link to set their own password. The User row is created immediately
 // (password: null) so the negotiator appears in the team list as "pending".
@@ -1371,6 +1372,7 @@ model NegotiatorInvitation {
   expiresAt        DateTime
   acceptedAt       DateTime?
   acceptedByUserId String?
+  cancelledAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

@@ -1,11 +1,11 @@
 import { sendEmail } from "@/lib/email";
 
-interface SendNegotiatorInvitationEmailInput {
+interface SendNegotiatorAcceptedEmailInput {
   to: string;
+  directorName: string;
   negotiatorName: string;
-  invitedByName: string;
   agencyName: string;
-  acceptUrl: string;
+  teamUrl: string;
 }
 
 function escapeHtml(str: string): string {
@@ -17,26 +17,21 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export async function sendNegotiatorInvitationEmail(
-  input: SendNegotiatorInvitationEmailInput
+export async function sendNegotiatorAcceptedEmail(
+  input: SendNegotiatorAcceptedEmailInput
 ): Promise<void> {
-  const { to, negotiatorName, invitedByName, agencyName, acceptUrl } = input;
+  const { to, directorName, negotiatorName, agencyName, teamUrl } = input;
 
-  const subject = `${invitedByName} wants you to join ${agencyName} on Sales Progressor`;
+  const subject = `${negotiatorName} has joined ${agencyName} on Sales Progressor`;
 
   const text = [
-    `Hi ${negotiatorName},`,
+    `Hi ${directorName},`,
     ``,
-    `${invitedByName} has invited you to join ${agencyName} as a negotiator on Sales Progressor.`,
+    `Great news — ${negotiatorName} has accepted your invitation and set up their account at ${agencyName}.`,
     ``,
-    `Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal.`,
+    `They can now log in and start managing files.`,
     ``,
-    `Set up your account here:`,
-    acceptUrl,
-    ``,
-    `This link expires in 7 days.`,
-    ``,
-    `If you weren't expecting this invitation, you can safely ignore this email.`,
+    `View your team: ${teamUrl}`,
     ``,
     `— The Sales Progressor team`,
   ].join("\n");
@@ -54,31 +49,25 @@ export async function sendNegotiatorInvitationEmail(
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
           <tr>
             <td>
-              <h1 style="font-size: 22px; color: #2D1810; margin: 0 0 16px;">${escapeHtml(invitedByName)} wants you to join Sales Progressor</h1>
+              <h1 style="font-size: 22px; color: #2D1810; margin: 0 0 16px;">Your team just grew</h1>
               <p style="font-size: 15px; color: #4A3329; line-height: 1.5; margin: 0 0 16px;">
-                Hi ${escapeHtml(negotiatorName)},
+                Hi ${escapeHtml(directorName)},
               </p>
               <p style="font-size: 15px; color: #4A3329; line-height: 1.5; margin: 0 0 20px;">
-                <strong>${escapeHtml(invitedByName)}</strong> has invited you to join <strong>${escapeHtml(agencyName)}</strong> as a negotiator on Sales Progressor.
+                Great news — <strong>${escapeHtml(negotiatorName)}</strong> has accepted your invitation and set up their account at <strong>${escapeHtml(agencyName)}</strong>.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
-                Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal.
+                They can now log in and start managing files alongside your team.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td style="border-radius: 8px; background: #E86A4B;">
-                    <a href="${acceptUrl}" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
-                      Set up your account
+                    <a href="${teamUrl}" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
+                      View your team
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 28px 0 0;">
-                This invitation expires in 7 days.
-              </p>
-              <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 12px 0 0;">
-                If you weren't expecting this invitation, you can safely ignore this email.
-              </p>
             </td>
           </tr>
         </table>

@@ -8,9 +8,7 @@ export const metadata: Metadata = {
 };
 
 import { requireSession } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { DirectorJoinedBanner } from "@/components/agent/DirectorJoinedBanner";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
@@ -21,7 +19,7 @@ import {
   ExchangeForecastChart, ServiceSplitDonut,
   MomentumRing, RefreshButton,
 } from "@/components/hub/HubCharts";
-import { HubViewTracker } from "@/components/agent/HubViewTracker";
+import { AttentionListView } from "@/components/hub/AttentionListView";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AlertCircle, ChevronRight } from "lucide-react";
@@ -80,26 +78,6 @@ function timeAgo(date: Date): string {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const URGENCY_STYLE = {
-  escalated: {
-    border: "var(--agent-danger)",
-    bg:     "rgba(var(--agent-danger-rgb),0.05)",
-    color:  "var(--agent-danger)",
-    label:  "Escalated",
-  },
-  overdue: {
-    border: "var(--agent-warning)",
-    bg:     "rgba(var(--agent-warning-rgb),0.05)",
-    color:  "var(--agent-warning)",
-    label:  "Overdue",
-  },
-  due_today: {
-    border: "var(--agent-coral)",
-    bg:     "var(--agent-coral-bg-tint)",
-    color:  "var(--agent-coral-deep)",
-    label:  "Due today",
-  },
-} as const;
 
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -108,7 +86,7 @@ export default async function HubPreviewPage() {
   const session = await requireSession();
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, userNotification] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -117,15 +95,7 @@ export default async function HubPreviewPage() {
       getHubServiceSplit(vis),
       getHubRecentActivity(vis),
       getHubDiary(vis),
-      session.user.role === "negotiator"
-        ? prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: { directorJoinedNotificationName: true },
-          })
-        : null,
     ]);
-
-  const directorJoinedName = userNotification?.directorJoinedNotificationName ?? null;
 
   // Derived values
   const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
@@ -143,7 +113,6 @@ export default async function HubPreviewPage() {
   if (isEmpty) {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <HubViewTracker activeCount={pipelineStats.activeFiles} attentionCount={attentionItems.length} />
 
         {/* Header — same as full hub */}
         <div
@@ -152,7 +121,6 @@ export default async function HubPreviewPage() {
             padding: "22px 32px 26px",
             borderBottom: "0.5px solid var(--agent-glass-border)",
             position: "relative", overflow: "hidden",
-            borderTopLeftRadius: 0, borderTopRightRadius: 0,
           }}
         >
           <div aria-hidden="true" style={{
@@ -197,13 +165,6 @@ export default async function HubPreviewPage() {
 
         {/* Content: welcome card + ghost cards */}
         <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
-
-          {directorJoinedName && (
-            <DirectorJoinedBanner
-              directorName={directorJoinedName}
-              agencyName={session.user.firmName ?? "your agency"}
-            />
-          )}
 
           {/* Welcome CTA */}
           <div className="agent-glass" style={{
@@ -322,7 +283,6 @@ export default async function HubPreviewPage() {
   // ── Full hub ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <HubViewTracker activeCount={pipelineStats.activeFiles} attentionCount={attentionItems.length} />
 
       {/* ── 1. Header ─────────────────────────────────────────────────────────── */}
       <div
@@ -331,7 +291,6 @@ export default async function HubPreviewPage() {
           padding: "22px 32px 26px",
           borderBottom: "0.5px solid var(--agent-glass-border)",
           position: "relative", overflow: "hidden",
-          borderTopLeftRadius: 0, borderTopRightRadius: 0,
         }}
       >
         {/* Ambient coral bloom */}
@@ -385,13 +344,6 @@ export default async function HubPreviewPage() {
 
       {/* ── Content ────────────────────────────────────────────────────────────── */}
       <div className="hub-content-pad" style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
-
-        {directorJoinedName && (
-          <DirectorJoinedBanner
-            directorName={directorJoinedName}
-            agencyName={session.user.firmName ?? "your agency"}
-          />
-        )}
 
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}
         {diaryItems.length > 0 && (
@@ -451,101 +403,7 @@ export default async function HubPreviewPage() {
         )}
 
         {/* ── 3. Needs your attention ───────────────────────────────────────────── */}
-        <div
-          className="agent-glass-strong"
-          style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
-        >
-          {/* Section header */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "14px 20px",
-            borderBottom: "0.5px solid var(--agent-border-subtle)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-              <Clock size={15} color="var(--agent-text-muted)" />
-              <div>
-                <p style={{
-                  margin: 0, fontSize: 13, fontWeight: 500,
-                  color: "var(--agent-text-primary)",
-                }}>
-                  Needs your attention
-                </p>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
-                  Files where something&apos;s stuck or due
-                </p>
-              </div>
-            </div>
-            {attentionItems.length > 0 && (
-              <Link
-                href="/agent/work-queue"
-                style={{
-                  fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)",
-                  textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
-                }}
-              >
-                Reminders
-                <ArrowRight size={12} />
-              </Link>
-            )}
-          </div>
-
-          {/* Attention rows */}
-          {attentionItems.length === 0 ? (
-            <div style={{
-              padding: "24px 20px", display: "flex", alignItems: "center", gap: 10,
-            }}>
-              <div style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: "var(--agent-success)", flexShrink: 0,
-              }} />
-              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                No reminders due right now. All clear.
-              </p>
-            </div>
-          ) : (
-            attentionItems.slice(0, 3).map((item, i) => {
-              const s = URGENCY_STYLE[item.urgency];
-              return (
-                <Link
-                  key={item.id}
-                  href={`/agent/transactions/${item.transaction.id}?tab=reminders`}
-                  style={{
-                    display: "flex", alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "13px 20px 13px 17px",
-                    borderLeft: `3px solid ${s.border}`,
-                    background: s.bg,
-                    borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                    textDecoration: "none", transition: "filter 120ms", gap: 12,
-                  }}
-                  className="hover:brightness-[0.97]"
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <p style={{
-                      margin: 0, fontSize: 12, fontWeight: 500,
-                      color: "var(--agent-text-primary)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {item.transaction.propertyAddress}
-                    </p>
-                    <p style={{
-                      margin: "2px 0 0", fontSize: 11,
-                      color: "var(--agent-text-secondary)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {item.reminderName}
-                    </p>
-                  </div>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600, color: s.color, flexShrink: 0,
-                  }}>
-                    {s.label}
-                  </span>
-                </Link>
-              );
-            })
-          )}
-        </div>
+        <AttentionListView items={attentionItems} />
 
         {/* ── 3. Pipeline health + Momentum ─────────────────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
@@ -665,7 +523,6 @@ export default async function HubPreviewPage() {
               </span>
 
               {/* Exchanging this week */}
-              {/* TODO: implement filter on /agent/transactions */}
               <Link
                 href="/agent/transactions?filter=exchanging-this-week"
                 style={{
@@ -684,7 +541,6 @@ export default async function HubPreviewPage() {
               <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
 
               {/* Completing this week */}
-              {/* TODO: implement filter on /agent/transactions */}
               <Link
                 href="/agent/transactions?filter=completing-this-week"
                 style={{
@@ -703,7 +559,6 @@ export default async function HubPreviewPage() {
               <span style={{ color: "var(--agent-border-subtle)", fontSize: 13, userSelect: "none" }}>·</span>
 
               {/* Closing this month (currency) */}
-              {/* TODO: implement filter on /agent/transactions */}
               <Link
                 href="/agent/transactions?filter=closing-this-month"
                 style={{
@@ -743,8 +598,6 @@ export default async function HubPreviewPage() {
                     justifyContent: "space-between",
                     paddingTop: 10,
                     paddingBottom: 2,
-                    paddingLeft: 8,
-                    paddingRight: 8,
                     textDecoration: "none",
                     cursor: "pointer",
                     borderRadius: 6,
