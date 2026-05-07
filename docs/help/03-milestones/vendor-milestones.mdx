@@ -1,0 +1,186 @@
+# Vendor Milestones
+
+Vendor milestones track the seller's solicitor process from instruction through to completion. There are 20 in total.
+
+For leasehold properties, VM8 and VM9 are active. For freehold properties, they are marked Not Required automatically.
+
+---
+
+## VM1 — Seller instructed solicitor
+
+The seller has chosen their solicitor and formally instructed them to act on the sale.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="2 days" repeat="every 3 days" escalation="after 3 chases" />
+
+VM3 and VM4 both unlock when VM1 is marked complete.
+
+---
+
+## VM2 — Seller memorandum of sale received
+
+The seller's solicitor has received the memorandum of sale from the agent.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="1 day" repeat="every 2 days" escalation="after 2 chases" />
+
+---
+
+## VM3 — Seller welcome pack received
+
+The seller's solicitor has sent the client a welcome pack including ID requirements and property information forms.
+
+<MilestoneMetaBlockExample predecessor="VM1" grace="3 days after VM1" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM4 — Seller ID and AML completed
+
+The seller has completed identity verification and anti-money-laundering checks with their solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM1" grace="3 days after VM1" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM5 — Seller property information forms received
+
+The seller has received the TA6 and TA10 forms (property information and fittings and contents) from their solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM3" grace="5 days after VM3" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## VM6 — Seller property information forms returned
+
+The seller has completed and returned the property information forms to their solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM5" grace="5 days after VM5" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## VM7 — Draft contract pack issued
+
+The seller's solicitor has prepared and issued the draft contract pack to the buyer's solicitor. Once VM7 is complete, PM7 (draft contract pack received by buyer's solicitor) becomes available.
+
+<MilestoneMetaBlockExample predecessor="VM6" grace="5 days after VM6" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## VM8 — Management pack requested *(leasehold only)*
+
+The seller's solicitor has requested the management pack from the freeholder or managing agent.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately (leasehold files only)" grace="3 days" repeat="every 5 days" escalation="after 3 chases" />
+
+Not Required automatically for freehold properties.
+
+---
+
+## VM9 — Management pack received *(leasehold only)*
+
+The management pack has been received by the seller's solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM8" grace="21 days after VM8" repeat="every 7 days" escalation="after 2 chases" />
+
+Not Required automatically for freehold properties. Once VM9 is complete, PM12 (management pack received — buyer) becomes available.
+
+---
+
+## VM10 — Initial enquiries received by seller's solicitor
+
+The buyer's solicitor has raised their initial enquiries and the seller's solicitor has received them.
+
+<MilestoneMetaBlockExample predecessor="PM14" grace="3 days after PM14" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM11 — Seller initial replies provided to solicitor
+
+The seller has provided their responses to the initial enquiries to their solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM10" grace="5 days after VM10" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM12 — Initial replies issued by seller's solicitor
+
+The seller's solicitor has formally issued the initial replies to the buyer's solicitor. Once VM12 is complete, PM15 (initial replies received by buyer's solicitor) becomes available.
+
+<MilestoneMetaBlockExample predecessor="VM11" grace="2 days after VM11" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## VM13 — Further enquiries received by seller's solicitor
+
+The buyer's solicitor has raised further enquiries after reviewing the initial replies.
+
+<MilestoneMetaBlockExample predecessor="PM17" grace="3 days after PM17" repeat="every 5 days" escalation="after 3 chases" />
+
+Not all sales have further enquiries. If none are raised, VM13 can be marked Not Required.
+
+---
+
+## VM14 — Seller further replies provided to solicitor
+
+The seller has provided their responses to the further enquiries.
+
+<MilestoneMetaBlockExample predecessor="VM13" grace="5 days after VM13" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM15 — Further replies issued by seller's solicitor
+
+The seller's solicitor has issued the further replies to the buyer's solicitor. Once VM15 is complete, PM18 (further replies received by buyer's solicitor) becomes available.
+
+<MilestoneMetaBlockExample predecessor="VM14" grace="2 days after VM14" repeat="every 2 days" escalation="after 3 chases" />
+
+---
+
+## VM16 — Contract documents issued to seller
+
+The seller's solicitor has sent the final contract documents to the seller for signing.
+
+<MilestoneMetaBlockExample predecessor="VM7" grace="3 days after VM7" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM17 — Signed contracts returned by seller
+
+The seller has signed the contract documents and returned them to their solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM16" grace="5 days after VM16" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## VM18 — Seller's solicitor ready to exchange ⭐ Exchange gate
+
+The seller's solicitor has confirmed they are in a position to exchange contracts — all enquiries satisfied, seller has signed contracts, funds in order.
+
+<MilestoneMetaBlockExample predecessor="VM17" grace="2 days after VM17" repeat="every 2 days" escalation="after 2 chases" />
+
+Both VM18 and PM25 must be Complete before exchange can happen. See [Exchange gates](exchange-gates).
+
+---
+
+## VM19 — Contracts exchanged (seller)
+
+Contracts have been formally exchanged. The completion date is now legally binding.
+
+<MilestoneMetaBlockExample predecessor="VM18" grace="1 day after VM18" repeat="every 2 days" escalation="after 1 chase" />
+
+---
+
+## VM20 — Sale completed (seller)
+
+The sale has completed — the seller's solicitor has transferred the title and the proceeds of sale. Keys have been handed over.
+
+<MilestoneMetaBlockExample predecessor="VM19" grace="1 day after VM19" repeat="every 1 day" escalation="after 2 chases" />
+
+Marking VM20 complete triggers the file status to change to Completed.
+
+---
+
+## Related articles
+
+- [Purchaser milestones](purchaser-milestones)
+- [Exchange gates — VM18 and PM25](exchange-gates)
+- [Not-required milestones](not-required)
+- [How milestones work](how-milestones-work)

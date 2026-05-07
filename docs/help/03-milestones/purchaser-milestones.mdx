@@ -1,0 +1,248 @@
+# Purchaser Milestones
+
+Purchaser milestones track the buyer's solicitor process from instruction through to completion. There are 27 in total.
+
+For cash buyers, PM5, PM6, and PM11 are marked Not Required automatically. For freehold properties, PM12 is also Not Required automatically.
+
+---
+
+## PM1 — Buyer instructed solicitor
+
+The buyer has chosen their solicitor and formally instructed them to act on the purchase.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="2 days" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM2 — Buyer memorandum of sale received
+
+The buyer's solicitor has received the memorandum of sale from the agent.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="1 day" repeat="every 2 days" escalation="after 2 chases" />
+
+---
+
+## PM3 — Buyer ID and AML completed
+
+The buyer has completed identity verification and anti-money-laundering checks with their solicitor.
+
+<MilestoneMetaBlockExample predecessor="PM1" grace="3 days after PM1" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## PM4 — Buyer money paid on account
+
+The buyer has paid monies on account to their solicitor, typically to cover search fees and other upfront disbursements.
+
+<MilestoneMetaBlockExample predecessor="PM1" grace="5 days after PM1" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## PM5 — Buyer mortgage application submitted *(mortgage buyers only)*
+
+The buyer has submitted their mortgage application to a lender.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="3 days" repeat="every 5 days" escalation="after 3 chases" />
+
+Not Required automatically for cash buyers.
+
+---
+
+## PM6 — Lender valuation booked *(mortgage buyers only)*
+
+The lender has booked a valuation survey of the property.
+
+<MilestoneMetaBlockExample predecessor="PM5" grace="7 days after PM5" repeat="every 7 days" escalation="after 2 chases" />
+
+Not Required automatically for cash buyers.
+
+---
+
+## PM7 — Draft contract pack received by buyer's solicitor
+
+The buyer's solicitor has received the draft contract pack from the seller's solicitor. This is a cross-side predecessor — the buyer cannot receive the pack until VM7 (draft contract pack issued) is complete.
+
+<MilestoneMetaBlockExample predecessor="VM7" grace="2 days after VM7" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM8 — Searches ordered
+
+The buyer's solicitor has ordered the local authority, drainage, and environmental searches.
+
+<MilestoneMetaBlockExample predecessor="PM7" grace="3 days after PM7" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM9 — Survey booked
+
+The buyer has booked a structural survey or homebuyer's report on the property.
+
+<MilestoneMetaBlockExample predecessor="None — available immediately" grace="7 days" repeat="every 5 days" escalation="after 3 chases" />
+
+**Can be marked Not Required manually** if the buyer has decided not to commission a survey. Marking PM9 Not Required automatically sets PM10 to Not Required too.
+
+---
+
+## PM10 — Survey report received
+
+The buyer has received the survey report.
+
+<MilestoneMetaBlockExample predecessor="PM9" grace="7 days after the survey booking date" repeat="every 5 days" escalation="after 3 chases" />
+
+The reminder uses the actual survey date entered when marking PM9 complete, not a relative offset from file creation.
+
+---
+
+## PM11 — Mortgage offer received *(mortgage buyers only)*
+
+The buyer has received a formal mortgage offer from their lender.
+
+<MilestoneMetaBlockExample predecessor="PM6" grace="14 days after PM6" repeat="every 5 days" escalation="after 3 chases" />
+
+Not Required automatically for cash buyers. The reminder uses the valuation date.
+
+---
+
+## PM12 — Management pack received (buyer) *(leasehold only)*
+
+The buyer's solicitor has received the management pack from the seller's side (via VM9).
+
+<MilestoneMetaBlockExample predecessor="VM9" grace="3 days after VM9" repeat="every 10 days" escalation="after 3 chases" />
+
+Not Required automatically for freehold properties.
+
+---
+
+## PM13 — Search results received
+
+The buyer's solicitor has received the results of all searches ordered in PM8.
+
+<MilestoneMetaBlockExample predecessor="PM8" grace="21 days after PM8" repeat="every 7 days" escalation="after 3 chases" />
+
+Searches typically take three weeks — the 21-day grace period reflects this.
+
+---
+
+## PM14 — Initial enquiries raised by buyer's solicitor
+
+The buyer's solicitor has raised their initial enquiries on the contract pack and property information. Once PM14 is complete, VM10 (initial enquiries received by seller's solicitor) becomes available.
+
+<MilestoneMetaBlockExample predecessor="PM7" grace="5 days after PM7" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## PM15 — Initial replies received by buyer's solicitor
+
+The buyer's solicitor has received the initial replies from the seller's solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM12" grace="14 days after VM12" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM16 — Initial replies reviewed by buyer's solicitor
+
+The buyer's solicitor has reviewed and acknowledged the initial replies.
+
+<MilestoneMetaBlockExample predecessor="PM15" grace="3 days after PM15" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM17 — Further enquiries raised by buyer's solicitor
+
+The buyer's solicitor has raised additional enquiries, typically after reviewing the initial replies and search results. Once PM17 is complete, VM13 (further enquiries received by seller's solicitor) becomes available.
+
+<MilestoneMetaBlockExample predecessor="PM16" grace="3 days after PM16" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM18 — Further replies received by buyer's solicitor
+
+The buyer's solicitor has received the further replies from the seller's solicitor.
+
+<MilestoneMetaBlockExample predecessor="VM15" grace="14 days after VM15" repeat="every 7 days" escalation="after 3 chases" />
+
+---
+
+## PM19 — Further replies reviewed by buyer's solicitor
+
+The buyer's solicitor has reviewed the further replies and confirmed they are satisfied.
+
+<MilestoneMetaBlockExample predecessor="PM18" grace="3 days after PM18" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM20 — All enquiries satisfied
+
+The buyer's solicitor has confirmed that all enquiries are resolved and legal due diligence is complete.
+
+<MilestoneMetaBlockExample predecessor="PM19" grace="3 days after PM19" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM21 — Final report received by buyer
+
+The buyer's solicitor has sent the buyer a final report on title — the legal summary of the property and the terms of the purchase.
+
+<MilestoneMetaBlockExample predecessor="PM20" grace="3 days after PM20" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM22 — Contract documents received by buyer
+
+The buyer has received the contract documents from their solicitor for signing.
+
+<MilestoneMetaBlockExample predecessor="PM21" grace="3 days after PM21" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM23 — Signed contracts returned by buyer
+
+The buyer has signed and returned the contract documents to their solicitor.
+
+<MilestoneMetaBlockExample predecessor="PM22" grace="5 days after PM22" repeat="every 5 days" escalation="after 3 chases" />
+
+---
+
+## PM24 — Deposit transferred by buyer
+
+The buyer has transferred the exchange deposit (typically 10% of the purchase price) to their solicitor.
+
+<MilestoneMetaBlockExample predecessor="PM23" grace="3 days after PM23" repeat="every 3 days" escalation="after 3 chases" />
+
+---
+
+## PM25 — Buyer's solicitor ready to exchange ⭐ Exchange gate
+
+The buyer's solicitor has confirmed they are in a position to exchange contracts — all enquiries satisfied, buyer has signed contracts, deposit held, mortgage offer in place.
+
+<MilestoneMetaBlockExample predecessor="PM24" grace="2 days after PM24" repeat="every 2 days" escalation="after 3 chases" />
+
+Both PM25 and VM18 must be Complete before exchange can happen. See [Exchange gates](exchange-gates).
+
+---
+
+## PM26 — Contracts exchanged (buyer)
+
+Contracts have been formally exchanged. The completion date is now legally binding.
+
+<MilestoneMetaBlockExample predecessor="PM25" grace="1 day after PM25" repeat="every 2 days" escalation="after 1 chase" />
+
+---
+
+## PM27 — Purchase completed
+
+The purchase has completed — the buyer's solicitor has transferred funds and the title has been registered. The buyer now owns the property.
+
+<MilestoneMetaBlockExample predecessor="PM26" grace="1 day after PM26" repeat="every 1 day" escalation="after 2 chases" />
+
+Marking PM27 complete triggers the file status to change to Completed.
+
+---
+
+## Related articles
+
+- [Vendor milestones](vendor-milestones)
+- [Exchange gates — VM18 and PM25](exchange-gates)
+- [Not-required milestones](not-required)
+- [How milestones work](how-milestones-work)

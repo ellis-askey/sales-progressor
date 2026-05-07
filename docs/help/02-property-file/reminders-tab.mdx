@@ -1,0 +1,45 @@
+# Reminders Tab
+
+The Reminders tab shows every active reminder for this file — chases that are due, overdue, or escalated, along with those still within their grace period. It also shows the history of chases already sent.
+
+<div className="example-wrapper">
+  <ReminderTimelineExample />
+</div>
+
+## What is a reminder?
+
+Each milestone has an associated reminder rule. When a milestone becomes Available, its reminder clock starts. After the grace period passes, the reminder becomes active — it appears in the Reminders page and signals that a chase is due.
+
+See [How the reminder system works](../04-reminders-and-chasing/how-reminders-work) for the full explanation.
+
+## Reminder states
+
+| State | Meaning |
+|---|---|
+| **Within grace period** | The milestone just became available — no chase needed yet |
+| **Due today** | Today is the chase date |
+| **Overdue** | The chase date has passed and the milestone is still incomplete |
+| **Escalated** | The chase has repeated multiple times and crossed the escalation threshold |
+| **Snoozed** | Deferred to a later date |
+| **Resolved** | The milestone was marked complete |
+
+## Actions on a reminder
+
+**Generate a chase email** — click Chase to open the chase drawer. Choose a channel (email or WhatsApp) and a tone, generate a draft, review it, and send.
+
+**Mark the milestone complete** — if you have confirmation from a call, mark the milestone complete directly from this tab. This resolves the reminder immediately.
+
+**Snooze** — if the party is waiting on something with a known date, snooze the reminder. The chase is suppressed until the snooze date.
+
+**Add a note** — record what was said or agreed. Notes appear in the Activity tab and are visible to your team only.
+
+## Chase history
+
+Below the active reminders, the Reminders tab shows all chases sent for this file: date, recipient, milestone, and channel.
+
+## Related articles
+
+- [How the reminder system works](../04-reminders-and-chasing/how-reminders-work)
+- [Grace periods, repeats and escalation](../04-reminders-and-chasing/grace-repeats-escalation)
+- [Generating chase emails](../04-reminders-and-chasing/chase-emails)
+- [Reminders](../01-running-your-pipeline/work-queue)

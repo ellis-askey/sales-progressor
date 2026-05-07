@@ -1,0 +1,64 @@
+# The Hub
+
+The Hub is the first page you see after logging in. It shows the current state of your pipeline at a glance: where files stand, what needs attention, and what is coming up.
+
+<div className="example-wrapper">
+  <HubStatCardExample />
+</div>
+
+## Pipeline health
+
+The pipeline health card shows four numbers:
+
+| Stat | What it means |
+|---|---|
+| **Active files** | Sales currently in progression — not yet exchanged or withdrawn |
+| **Exchanging soon** | Files where both exchange-gate milestones (VM18 and PM25) are complete |
+| **Need attention** | Files with at least one reminder that is overdue, escalated, or due today |
+| **Pipeline value** | Sum of agreed sale prices across all active files |
+
+Below those numbers, a Coming up strip shows how many files are exchanging this week, how many are completing this week, and the total value closing this month.
+
+If any files have had no activity for 14 or more days, a stalled files warning appears. Clicking it takes you to the Reminders page.
+
+## Needs your attention
+
+This section lists files where action is required — a chase is overdue, escalated, or due today. Up to three items appear; click "Reminders" to see the full list.
+
+Each item is colour-coded:
+- **Escalated** (red) — the chase has been sent multiple times and hit the escalation threshold
+- **Overdue** (amber) — the grace period and repeat interval have passed without the milestone being completed
+- **Due today** (coral) — a chase is due today
+
+Clicking an item opens the Reminders tab of that file.
+
+## Today's diary
+
+Files with an exchange or completion date set to today appear in a Today's diary strip at the top of the Hub. Exchange dates are shown in coral; completion dates in green.
+
+## Momentum
+
+The Momentum card shows how many exchanges you have achieved this month compared to last month. The ring fills proportionally.
+
+## Exchange forecast
+
+The Exchange forecast chart shows how many files are expected to exchange over the next four to five weeks, based on the expected exchange dates set in each file.
+
+## Service split
+
+The Service split donut shows the proportion of active files that are self-managed versus being progressed by Sales Progressor's team. If outsourced files are present, the card estimates the agent hours saved.
+
+## Recent activity ribbon
+
+A ribbon at the bottom of the Hub shows the most recent piece of activity across your pipeline — a milestone marked, a note added, a chase sent — with a link to that file.
+
+## Refreshing the data
+
+The Hub shows a timestamp and a refresh button. Click it to reload the data without a full page refresh.
+
+## Related articles
+
+- [Reminders](work-queue)
+- [All Files](all-files)
+- [How the reminder system works](../04-reminders-and-chasing/how-reminders-work)
+- [Exchange gates — VM18 and PM25](../03-milestones/exchange-gates)
