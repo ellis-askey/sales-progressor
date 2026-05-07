@@ -694,11 +694,14 @@ export async function bulkReverseMilestones(
   milestoneDefinitionIds: string[],
   transactionId: string,
   completedById: string,
-  completedByName: string
+  completedByName: string,
+  tx?: Prisma.TransactionClient
 ) {
   if (milestoneDefinitionIds.length === 0) return;
 
-  const defs = await prisma.milestoneDefinition.findMany({
+  const db = tx ?? prisma;
+
+  const defs = await db.milestoneDefinition.findMany({
     where: { id: { in: milestoneDefinitionIds } },
     select: { id: true, name: true },
   });
@@ -706,7 +709,7 @@ export async function bulkReverseMilestones(
 
   await Promise.all(
     milestoneDefinitionIds.map((defId) =>
-      prisma.milestoneCompletion.update({
+      db.milestoneCompletion.update({
         where: {
           transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
         },
@@ -717,7 +720,7 @@ export async function bulkReverseMilestones(
 
   await Promise.all(
     milestoneDefinitionIds.map((defId) =>
-      prisma.outboundMessage.create({
+      db.outboundMessage.create({
         data: {
           transactionId,
           type: "internal_note",
@@ -1196,12 +1199,13 @@ export async function reverseMilestoneWithCascade(input: {
   downstreamIds?: string[];
   newPurchaseType?: PurchaseType;
 }) {
+  // ── Reads (before transaction to avoid holding the connection open) ─────────
   const def = await prisma.milestoneDefinition.findUnique({
     where: { id: input.milestoneDefinitionId },
     select: { code: true, side: true },
   });
 
-  // Un-cascade any NR cascade that was triggered by this milestone
+  let nrCascadedIds: string[] = [];
   if (def?.code && NR_CASCADE[def.code]) {
     const cascadeCodes = NR_CASCADE[def.code];
     const cascadeDefs = await prisma.milestoneDefinition.findMany({
@@ -1216,44 +1220,28 @@ export async function reverseMilestoneWithCascade(input: {
       },
       select: { milestoneDefinitionId: true },
     });
-    if (nrCascaded.length > 0) {
-      await bulkReverseMilestones(
-        nrCascaded.map((c) => c.milestoneDefinitionId),
-        input.transactionId,
-        input.completedById,
-        input.completedByName
-      );
-    }
+    nrCascadedIds = nrCascaded.map((c) => c.milestoneDefinitionId);
   }
 
-  if (input.newPurchaseType) {
-    await prisma.propertyTransaction.update({
-      where: { id: input.transactionId },
-      data: { purchaseType: input.newPurchaseType },
-    });
-  }
-
-  if (input.downstreamIds && input.downstreamIds.length > 0) {
-    await bulkReverseMilestones(
-      input.downstreamIds,
-      input.transactionId,
-      input.completedById,
-      input.completedByName
-    );
-  }
-
-  // Reverse + gate re-lock in a single transaction so both writes are atomic.
-  // maybeLockExchangeGate is a no-op if the gate is already locked or if no
-  // blocker was affected; passing tx scopes it to the same connection.
+  // ── All writes in a single atomic transaction ─────────────────────────────
   await prisma.$transaction(async (tx) => {
-    await reverseMilestone(
-      input.transactionId,
-      input.milestoneDefinitionId,
-      input.completedById,
-      input.completedByName,
-      input.reason,
-      tx,
-    );
+    if (nrCascadedIds.length > 0) {
+      await bulkReverseMilestones(nrCascadedIds, input.transactionId, input.completedById, input.completedByName, tx);
+    }
+
+    if (input.newPurchaseType) {
+      await tx.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { purchaseType: input.newPurchaseType },
+      });
+    }
+
+    if (input.downstreamIds && input.downstreamIds.length > 0) {
+      await bulkReverseMilestones(input.downstreamIds, input.transactionId, input.completedById, input.completedByName, tx);
+    }
+
+    await reverseMilestone(input.transactionId, input.milestoneDefinitionId, input.completedById, input.completedByName, input.reason, tx);
+
     if (def?.side) {
       await maybeLockExchangeGate(input.transactionId, def.side, tx);
     }
