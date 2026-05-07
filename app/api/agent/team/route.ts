@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { checkInviteLimit, rateLimitJson } from "@/lib/ratelimit";
 
 // Only directors can manage the team
 async function requireDirector() {
@@ -34,6 +35,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { session, error } = await requireDirector();
   if (error) return error;
+
+  const rl = await checkInviteLimit(session!.user.id).catch(() => ({ success: true, reset: 0, remaining: 999 }));
+  if (!rl.success) {
+    return NextResponse.json(rateLimitJson(rl), { status: 429 });
+  }
 
   const { name, email, password } = await req.json();
   if (!name || !email || !password) {

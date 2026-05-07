@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { sendEmail } from "@/lib/email";
+import { checkInviteLimit, rateLimitJson } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
+
+  const rl = await checkInviteLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 999 }));
+  if (!rl.success) {
+    return NextResponse.json(rateLimitJson(rl), { status: 429 });
+  }
+
   const { to, domain, records } = await req.json();
 
   if (!to || !domain || !records) {
