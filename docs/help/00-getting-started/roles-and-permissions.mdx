@@ -1,0 +1,135 @@
+# Roles and permissions
+
+Sales Progressor uses two roles for agency users: **director** and **negotiator**. Both use the same interface, but directors have additional management capabilities.
+
+The role determines which files you see and which actions you can take. A flag called **Can view all files** can extend a negotiator's visibility — covered below.
+
+| Capability | Director | Negotiator |
+|---|:---:|:---:|
+| See all agency files | ✓ | Only with **Can view all files** |
+| Add team members | ✓ | — |
+| Remove team members | ✓ | — |
+| Manage agency settings | ✓ | — |
+| Create property files | ✓ | ✓ |
+| Edit own files | ✓ | ✓ |
+| Confirm milestones | ✓ | ✓ |
+| Send portal links | ✓ | ✓ |
+| Generate chase emails | ✓ | ✓ |
+| Invite a director | — | Only when no director yet |
+
+## Director
+
+Directors are the account owners for an agency. An agency can have more than one director, and all directors have equal authority — there is no senior or primary director.
+
+A director can also be assigned to property files as the responsible negotiator and run their own pipeline alongside their oversight role.
+
+Directors can:
+
+- View and edit every file in the agency
+- Add negotiators to the team
+- Remove negotiators from the team
+- Toggle whether individual negotiators can view all agency files
+- Manage verified sending email addresses
+- Change agency-wide settings
+
+### Limitations
+
+- Remove other directors
+- Remove themselves from the agency
+
+To remove a director from an agency, contact Sales Progressor support. Self-service director removal is not currently available.
+
+## Negotiator
+
+Negotiators handle day-to-day progression work. By default, a negotiator only sees files they are assigned to — files they created or that a director has assigned to them.
+
+A negotiator can also create their own agency directly when signing up. In that case, they have temporary account ownership until they invite a director. Once the director joins, the standard director/negotiator structure applies.
+
+Negotiators can:
+
+- Create new property files
+- View and edit files they are assigned to
+- Mark milestones complete or not required
+- Generate and send chase emails
+- Add notes and manual tasks
+- Send portal links to clients
+- Update their own profile
+- Invite their director to join the agency (only if the agency does not yet have a director)
+
+### Limitations
+
+- View files assigned to other negotiators (unless granted full visibility — see below)
+- Add or remove other team members
+- Change agency-wide settings
+- Promote themselves to director
+
+## Granting full file visibility
+
+A director can give an individual negotiator visibility of every file in the agency. This is useful for senior negotiators who act as deputies. The setting is **Can view all files**, found on each team member in **Settings → Team**.
+
+To enable full file visibility for a negotiator:
+
+1. Go to **Settings → Team**
+2. Find the negotiator in the team list
+3. Toggle **Can view all files** on
+
+The change takes effect on the negotiator's next page load. They do not need to sign out and back in.
+
+Granting full file visibility does not give a negotiator any team management or settings access. It only changes which files they can see and edit.
+
+## Inviting a director
+
+If your agency was created by a negotiator and does not yet have a director, the negotiator can invite one from **Settings → Invite your director**.
+
+To invite a director:
+
+1. Go to **Settings → Invite your director**
+2. Enter the director's name and email address
+3. Click **Send invitation**
+
+The director receives an email with a link to join. They can sign in with Google, Microsoft, or set a password. Once they accept, the **Invite your director** section disappears from Settings — only one director invitation is needed per agency.
+
+## Adding a negotiator
+
+Directors add negotiators from **Settings → Team**.
+
+To add a negotiator:
+
+1. Go to **Settings → Team**
+2. Click **Add a negotiator**
+3. Enter their name, email address, and a temporary password
+4. Click **Create account**
+
+Share the temporary password with the negotiator directly — by text, in person, or however you normally communicate. The system does not send it for them. They can change it from **Settings → My profile** once they have signed in.
+
+<HelpSplit>
+<HelpSplitText>
+
+The team list shows every member of your agency. Directors appear at the top. Each negotiator has a toggle showing whether they can see all agency files or only their own — click it to switch between the two.
+
+</HelpSplitText>
+<HelpSplitVisual><TeamListHelpExample />
+</HelpSplitVisual>
+<p className="caption">Settings → Team: Tom Hartwell (director) and Olivia Chen (negotiator, own files only).</p>
+</HelpSplit>
+
+The negotiator can sign in immediately with the credentials you set.
+
+## Checking your role
+
+Your role is shown on **Settings → My profile**, alongside your name and email address.
+
+A simpler check: if you have access to **Settings → Team**, you are a director. Negotiators do not see this section.
+
+## Constraints
+
+- An agency must have at least one director or one negotiator
+- Negotiators cannot promote themselves to director
+- Roles cannot be changed for users with pending invitations — they must accept the invitation first
+- Directors cannot remove other directors or themselves; contact Sales Progressor support to remove a director
+
+## Related articles
+
+- [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx)
+- [Your first day](../00-getting-started/your-first-day.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
