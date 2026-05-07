@@ -4,6 +4,7 @@ import { SendingAddressesSection } from "@/components/verified-emails/SendingAdd
 import { TeamManagement } from "@/components/agent/TeamManagement";
 import { ProfileForm } from "@/components/agent/ProfileForm";
 import { ThemePicker } from "@/components/agent/ThemePicker";
+import { AccountDangerZone } from "@/components/agent/AccountDangerZone";
 import { getAgentTheme } from "@/lib/agent/themes";
 
 export default async function AgentSettingsPage({
@@ -87,6 +88,9 @@ export default async function AgentSettingsPage({
             <TeamManagement currentUserId={session.user.id} />
           </div>
         )}
+
+        {/* Account / danger zone */}
+        <AccountDangerZone userEmail={session.user.email ?? ""} />
 
       </div>
     </>
