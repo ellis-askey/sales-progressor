@@ -107,6 +107,21 @@ export async function checkPortalLimit(token: string): Promise<RateLimitResult> 
   return { success, reset, remaining };
 }
 
+/**
+ * Invitation send: 5 per hour — keyed by user ID.
+ * Applied to team member creation and any email sends initiated by a user.
+ */
+export async function checkInviteLimit(userId: string): Promise<RateLimitResult> {
+  if (!isEnabled()) return PASS;
+  const rl = new Ratelimit({
+    redis: getRedis(),
+    limiter: Ratelimit.slidingWindow(5, "60 m"),
+    prefix: "rl:invite",
+  });
+  const { success, reset, remaining } = await rl.limit(userId);
+  return { success, reset, remaining };
+}
+
 // ── Response helper ───────────────────────────────────────────────────────────
 
 export function rateLimitJson(result: RateLimitResult): {
