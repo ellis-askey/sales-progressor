@@ -7,6 +7,8 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { checkAuthLimit } from "@/lib/ratelimit";
 import type { UserRole } from "@prisma/client";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 declare module "next-auth" {
   interface Session {
@@ -85,6 +87,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         console.log(`[AUDIT] login_success userId=${user.id} agencyId=${user.agencyId} ip=${ip}`);
+        void trackServerEvent(user.id, ANALYTICS_EVENTS.USER_SIGNED_IN, {
+          provider: "credentials",
+          agencyId: user.agencyId ?? undefined,
+        });
         return {
           id: user.id,
           name: user.name,

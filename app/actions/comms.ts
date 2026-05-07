@@ -9,6 +9,8 @@ function revalidateTx(id: string) {
 import { requireSession } from "@/lib/session";
 import { createCommunicationRecord, deleteCommunicationRecord } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 export async function addNoteAction(transactionId: string, content: string) {
   const session = await requireSession();
@@ -19,6 +21,10 @@ export async function addNoteAction(transactionId: string, content: string) {
     content,
     createdById: session.user.id,
     agencyId: session.user.agencyId || null,
+  });
+  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.NOTE_ADDED, {
+    transactionId,
+    agencyId: session.user.agencyId || undefined,
   });
   revalidateTx(transactionId);
 }

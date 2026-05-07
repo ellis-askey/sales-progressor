@@ -20,6 +20,8 @@ import {
 export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
@@ -113,6 +115,12 @@ export async function confirmMilestoneAction(input: {
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
+  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
+    transactionId: input.transactionId,
+    milestoneId:   input.milestoneDefinitionId,
+    milestoneCode: def?.code ?? undefined,
+    agencyId:      session.user.agencyId || undefined,
+  });
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
@@ -296,6 +304,11 @@ export async function reverseMilestoneAction(input: {
     reason: input.reason,
     downstreamIds: input.downstreamIds,
     newPurchaseType: input.newPurchaseType,
+  });
+  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
+    transactionId: input.transactionId,
+    milestoneId:   input.milestoneDefinitionId,
+    agencyId:      session.user.agencyId || undefined,
   });
 
   revalidateTx(input.transactionId);

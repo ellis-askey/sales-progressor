@@ -9,6 +9,8 @@ import { evaluateTransactionReminders } from "@/lib/services/reminders";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType, ContactRole } from "@prisma/client";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
 
@@ -84,6 +86,11 @@ export async function POST(req: NextRequest) {
     });
 
     console.log(`[AUDIT] transaction_created transactionId=${tx.id} agencyId=${session.user.agencyId} createdByUserId=${session.user.id}`);
+    void trackServerEvent(session.user.id, ANALYTICS_EVENTS.TRANSACTION_CREATED, {
+      transactionId: tx.id,
+      agencyId:      session.user.agencyId || undefined,
+      serviceType:   tx.serviceType,
+    });
     return NextResponse.json(tx, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create";
