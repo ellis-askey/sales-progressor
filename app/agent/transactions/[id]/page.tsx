@@ -288,7 +288,15 @@ export default async function AgentTransactionDetailPage({
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} />
+            <ContactsSection
+              transactionId={transaction.id}
+              contacts={transaction.contacts}
+              portalViewDates={Object.fromEntries(
+                transaction.contacts
+                  .filter((c) => c.lastVisitedPortalAt)
+                  .map((c) => [c.id, c.lastVisitedPortalAt as Date])
+              )}
+            />
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{
