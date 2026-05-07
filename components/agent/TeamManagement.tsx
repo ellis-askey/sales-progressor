@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { UserPlus, Trash, Eye, EyeSlash, Crown } from "@phosphor-icons/react";
+import { UserPlus, Trash, Eye, EyeSlash, Crown, Clock, ArrowClockwise } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { UserAvatar } from "@/components/ui/Avatar";
 
@@ -11,6 +11,7 @@ type TeamMember = {
   email: string;
   role: string;
   canViewAllFiles: boolean;
+  invitationPending?: boolean;
 };
 
 export function TeamManagement({ currentUserId }: { currentUserId: string }) {
@@ -19,9 +20,9 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [resending, setResending] = useState<string | null>(null);
 
   const loadTeam = useCallback(async () => {
     const res = await fetch("/api/agent/team");
@@ -43,33 +44,49 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
     }
   }
 
-  async function removeMember(id: string, name: string) {
-    if (!confirm(`Remove ${name} from the team? They will no longer be able to log in.`)) return;
+  async function removeMember(id: string, memberName: string) {
+    if (!confirm(`Remove ${memberName} from the team? They will no longer be able to log in.`)) return;
     const res = await fetch(`/api/agent/team/${id}`, { method: "DELETE" });
     if (res.ok) {
       setTeam((prev) => prev.filter((m) => m.id !== id));
-      toast.info(`${name} removed from team`);
+      toast.info(`${memberName} removed from team`);
+    }
+  }
+
+  async function resendInvite(member: TeamMember) {
+    setResending(member.id);
+    const res = await fetch("/api/agent/team/resend-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: member.id }),
+    });
+    setResending(null);
+    if (res.ok) {
+      toast.success("Invitation resent", { description: member.email });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Failed to resend invitation");
     }
   }
 
   async function addMember() {
-    if (!name.trim() || !email.trim() || !password) return;
+    if (!name.trim() || !email.trim()) return;
     setAdding(true);
     setAddError(null);
     const res = await fetch("/api/agent/team", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+      body: JSON.stringify({ name: name.trim(), email: email.trim() }),
     });
     const data = await res.json();
     setAdding(false);
     if (!res.ok) {
-      setAddError(data.error ?? "Failed to create account");
+      setAddError(data.error ?? "Failed to send invitation");
     } else {
       setTeam((prev) => [...prev, data]);
       setShowAdd(false);
-      setName(""); setEmail(""); setPassword("");
-      toast.success("Negotiator account created", { description: name.trim() });
+      setName(""); setEmail("");
+      toast.success("Invitation sent", { description: `${name.trim()} will receive an email to set their password` });
     }
   }
 
@@ -99,7 +116,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
       {negotiators.length === 0 && !showAdd && (
         <div className="glass-card px-5 py-8 text-center">
           <p className="text-sm text-slate-900/50">No negotiators yet.</p>
-          <p className="text-xs text-slate-900/35 mt-1">Add a negotiator below to give them access to the portal.</p>
+          <p className="text-xs text-slate-900/35 mt-1">Add a negotiator below to invite them to the portal.</p>
         </div>
       )}
 
@@ -109,25 +126,41 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-900/90 truncate">{m.name}</p>
             <p className="text-xs text-slate-900/40 truncate">{m.email}</p>
+            {m.invitationPending && (
+              <p className="text-xs text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Invitation pending
+              </p>
+            )}
           </div>
 
-          {/* Actions — flex-shrink-0 keeps them from collapsing into text */}
           <div className="flex-shrink-0 flex items-center gap-1.5">
-            {/* See all files toggle */}
-            <button
-              onClick={() => toggleViewAll(m)}
-              title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                m.canViewAllFiles
-                  ? "agent-badge-brand"
-                  : "bg-white/30 text-slate-900/50 hover:bg-white/60"
-              }`}
-            >
-              {m.canViewAllFiles
-                ? <><Eye className="w-3.5 h-3.5" /> All files</>
-                : <><EyeSlash className="w-3.5 h-3.5" /> Own files</>
-              }
-            </button>
+            {m.invitationPending ? (
+              <button
+                onClick={() => resendInvite(m)}
+                disabled={resending === m.id}
+                title="Resend invitation email"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/30 text-slate-900/50 hover:bg-white/60 transition-colors disabled:opacity-40"
+              >
+                <ArrowClockwise className={`w-3.5 h-3.5 ${resending === m.id ? "animate-spin" : ""}`} />
+                Resend
+              </button>
+            ) : (
+              <button
+                onClick={() => toggleViewAll(m)}
+                title={m.canViewAllFiles ? "Can see all agency files — click to restrict" : "Can only see own files — click to allow all"}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  m.canViewAllFiles
+                    ? "agent-badge-brand"
+                    : "bg-white/30 text-slate-900/50 hover:bg-white/60"
+                }`}
+              >
+                {m.canViewAllFiles
+                  ? <><Eye className="w-3.5 h-3.5" /> All files</>
+                  : <><EyeSlash className="w-3.5 h-3.5" /> Own files</>
+                }
+              </button>
+            )}
 
             {m.id !== currentUserId && (
               <button
@@ -145,7 +178,7 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
       {/* Add form */}
       {showAdd ? (
         <div className="glass-card p-5 space-y-3">
-          <p className="text-sm font-semibold text-slate-900/80">Add a negotiator</p>
+          <p className="text-sm font-semibold text-slate-900/80">Invite a negotiator</p>
           <input
             type="text"
             value={name}
@@ -160,29 +193,22 @@ export function TeamManagement({ currentUserId }: { currentUserId: string }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             className="glass-input w-full px-3 py-2 text-sm"
+            onKeyDown={(e) => e.key === "Enter" && addMember()}
           />
-          <div className="space-y-1">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Temporary password"
-              className="glass-input w-full px-3 py-2 text-sm"
-              onKeyDown={(e) => e.key === "Enter" && addMember()}
-            />
-            <p className="text-[11px] text-slate-900/40">Share this with them — they can change it after logging in.</p>
-          </div>
+          <p className="text-[11px] text-slate-900/40">
+            They will receive an email to set their own password.
+          </p>
           {addError && <p className="text-xs text-red-500">{addError}</p>}
           <div className="flex gap-2">
             <button
               onClick={addMember}
-              disabled={adding || !name.trim() || !email.trim() || !password}
+              disabled={adding || !name.trim() || !email.trim()}
               className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
             >
-              {adding ? "Creating…" : "Create account"}
+              {adding ? "Sending…" : "Send invitation"}
             </button>
             <button
-              onClick={() => { setShowAdd(false); setAddError(null); setName(""); setEmail(""); setPassword(""); }}
+              onClick={() => { setShowAdd(false); setAddError(null); setName(""); setEmail(""); }}
               className="px-4 py-2 rounded-lg text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 transition-colors"
             >
               Cancel

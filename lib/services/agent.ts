@@ -62,13 +62,14 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
         where: { state: "complete" },
-        select: { milestoneDefinitionId: true },
+        select: { milestoneDefinitionId: true, completedAt: true },
       },
     },
   });
 
   return transactions.map((tx) => {
     const completedIds = new Set(tx.milestoneCompletions.map((c) => c.milestoneDefinitionId));
+    const exchangeCompletion = tx.milestoneCompletions.find((c) => exchangeIds.has(c.milestoneDefinitionId));
     const blockingDone = [...blockingDefIds].filter((id) => completedIds.has(id)).length;
     const milestonePercent = blockingDefIds.size > 0
       ? Math.round((blockingDone / blockingDefIds.size) * 100)
@@ -100,6 +101,7 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       referredFirmId: tx.referredFirmId,
       referralFee: tx.referralFee,
       referralFeeReceived: tx.referralFeeReceived,
+      exchangedAt: exchangeCompletion?.completedAt ?? null,
     };
   });
 }

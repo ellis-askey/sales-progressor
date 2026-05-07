@@ -41,6 +41,7 @@ export async function createTransactionAction(input: {
   mosFileSize?: number;
   mosMimeType?: string;
   mosFilename?: string;
+  forceCreate?: boolean;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -57,6 +58,27 @@ export async function createTransactionAction(input: {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
   const resolvedProgressedBy = isAgent ? input.progressedBy : "progressor";
+
+  // Duplicate address guard: normalise and check within agency for active files
+  if (session.user.agencyId) {
+    const normAddress = input.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim();
+    const allActive = await prisma.propertyTransaction.findMany({
+      where: { agencyId: session.user.agencyId, status: { in: ["active", "on_hold"] } },
+      select: { id: true, propertyAddress: true, agentUser: { select: { name: true } } },
+    });
+    const duplicate = allActive.find(
+      (t) => t.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim() === normAddress
+    );
+    if (duplicate && !input.forceCreate) {
+      throw Object.assign(
+        new Error("DUPLICATE_ADDRESS"),
+        {
+          duplicateId: duplicate.id,
+          assignedTo: duplicate.agentUser?.name ?? null,
+        }
+      );
+    }
+  }
 
   const tx = await createTransaction({
     propertyAddress: input.propertyAddress,
@@ -256,6 +278,31 @@ export async function changeStatusAction(
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.status === status) return;
+
+  // Gate: completing a transaction requires exchange + legal completion milestones confirmed
+  if (status === "completed") {
+    const exchangeCodes = ["VM19", "PM26"];
+    const completionCodes = ["VM20", "PM27"];
+    const gateDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: [...exchangeCodes, ...completionCodes] } },
+      select: { id: true, code: true },
+    });
+    const gateDefIds = gateDefs.map((d) => d.id);
+    const gateCompletions = await prisma.milestoneCompletion.findMany({
+      where: { transactionId, milestoneDefinitionId: { in: gateDefIds }, state: "complete" },
+      select: { milestoneDefinitionId: true },
+    });
+    const completedDefIds = new Set(gateCompletions.map((c) => c.milestoneDefinitionId));
+    const hasExchanged = gateDefs.some((d) => exchangeCodes.includes(d.code) && completedDefIds.has(d.id));
+    const hasLegalCompletion = gateDefs.some((d) => completionCodes.includes(d.code) && completedDefIds.has(d.id));
+
+    if (!hasExchanged || !hasLegalCompletion) {
+      throw new Error(
+        "Cannot mark as completed before confirming exchange and legal completion milestones. " +
+        "Please confirm those milestones on the file first."
+      );
+    }
+  }
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },

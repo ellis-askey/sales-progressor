@@ -1,19 +1,10 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
-import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, buildSubmissionFunnel, getAvgDaysToExchange } from "@/lib/services/analytics";
+import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
-import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
-import { DeltaPill } from "@/components/analytics/DeltaPill";
-import { KpiSparkline } from "@/components/analytics/KpiSparkline";
-import { SubmissionFunnel } from "@/components/analytics/SubmissionFunnel";
-import { FilesAtRiskPanel } from "@/components/analytics/FilesAtRiskPanel";
+import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
-import { ValueHeatTiles } from "@/components/analytics/ValueHeatTiles";
-import { SpeedGauge } from "@/components/analytics/SpeedGauge";
-import { MissingFeesList } from "@/components/analytics/MissingFeesList";
-import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
-import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,22 +25,13 @@ function fmtOwnerLine(t: { serviceType: string | null; agentUser: { name: string
     if (!t.agentUser) return { line: "", awaiting: false };
     return { line: `${fmtNameShort(t.agentUser.name)} · ${ROLE_LABEL[t.agentUser.role] ?? t.agentUser.role}`, awaiting: false };
   }
-  // outsourced
   if (t.assignedUser) {
     return { line: `${fmtNameShort(t.assignedUser.name)} · ${ROLE_LABEL[t.assignedUser.role] ?? t.assignedUser.role}`, awaiting: false };
   }
   return { line: "Awaiting assignment", awaiting: true };
 }
 
-function fmtGBP(pence: number) {
-  const p = pence / 100;
-  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(2)}m`;
-  return `£${Math.round(p).toLocaleString("en-GB")}`;
-}
-
-type AgentTx = Awaited<ReturnType<typeof getAgentTransactions>>[number];
-
-function calcFeeIncVat(t: AgentTx): number | null {
+function calcFeeIncVat(t: { agentFeeAmount: number | null; agentFeePercent: unknown; agentFeeIsVatInclusive: boolean | null; purchasePrice: number | null }): number | null {
   let feeEx: number | null = null;
   if (t.agentFeeAmount != null) {
     feeEx = t.agentFeeAmount;
@@ -58,59 +40,6 @@ function calcFeeIncVat(t: AgentTx): number | null {
   }
   if (feeEx == null) return null;
   return t.agentFeeIsVatInclusive ? feeEx : Math.round(feeEx * 1.2);
-}
-
-const PERIODS = [
-  { key: "week",  label: "This week" },
-  { key: "month", label: "This month" },
-  { key: "year",  label: "This year" },
-  { key: "all",   label: "All time" },
-] as const;
-
-function getPeriodStart(p: string): Date | null {
-  const now = new Date();
-  if (p === "week")  { const d = new Date(now); d.setDate(d.getDate() - 7); return d; }
-  if (p === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (p === "year")  return new Date(now.getFullYear(), 0, 1);
-  return null;
-}
-
-function getPrevPeriodBounds(p: string): { start: Date; end: Date } | null {
-  const now = new Date();
-  if (p === "week") {
-    const end   = new Date(now); end.setDate(end.getDate() - 7); end.setHours(0, 0, 0, 0);
-    const start = new Date(end); start.setDate(start.getDate() - 7);
-    return { start, end };
-  }
-  if (p === "month") {
-    const end   = new Date(now.getFullYear(), now.getMonth(), 1);
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return { start, end };
-  }
-  if (p === "year") {
-    const end   = new Date(now.getFullYear(), 0, 1);
-    const start = new Date(now.getFullYear() - 1, 0, 1);
-    return { start, end };
-  }
-  return null;
-}
-
-
-function periodHref(p: string, userId?: string) {
-  const params = new URLSearchParams();
-  if (p !== "month") params.set("period", p);
-  if (userId) params.set("user", userId);
-  const qs = params.toString();
-  return `/agent/analytics${qs ? `?${qs}` : ""}`;
-}
-
-const DAYS_FAST = 70;
-const DAYS_SLOW = 100;
-
-function speedBadge(days: number) {
-  if (days <= DAYS_FAST) return { label: "Fast", color: "var(--agent-success)", bg: "var(--agent-success-bg)", border: "var(--agent-success-border)" };
-  if (days <= DAYS_SLOW) return { label: "Typical", color: "var(--agent-warning)", bg: "var(--agent-warning-bg)", border: "var(--agent-warning-border)" };
-  return { label: "Slow", color: "var(--agent-danger)", bg: "var(--agent-danger-bg)", border: "var(--agent-danger-border)" };
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -134,149 +63,25 @@ export default async function AgentAnalyticsPage({
     : vis;
 
   const pageNow = new Date();
-  const since   = getPeriodStart(period);
-  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk, speedToExchange] = await Promise.all([
+  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk] = await Promise.all([
     getAgentTransactions(effectiveVis),
     isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
     getSolicitorExchangeStats(effectiveVis),
     getMonthlyActivity(effectiveVis),
     getKpiTrendsForAgency(effectiveVis, { start: new Date(0), end: pageNow }),
     getFilesAtRisk(effectiveVis),
-    getAvgDaysToExchange(effectiveVis, { start: since ?? new Date(0), end: pageNow }),
   ]);
-
-  // ── Period slice ──────────────────────────────────────────────────────────
-  const periodTx = since ? transactions.filter(t => new Date(t.createdAt) >= since) : transactions;
-
-  // ── Counts ────────────────────────────────────────────────────────────────
-  const exchanged  = periodTx.filter((t) => t.hasExchanged);
-  const completed  = periodTx.filter((t) => t.hasCompleted);
-
-  // ── Previous period (for deltas) ──────────────────────────────────────────
-  const prevBounds   = getPrevPeriodBounds(period);
-  const prevPeriodTx = prevBounds
-    ? transactions.filter(t => { const c = new Date(t.createdAt); return c >= prevBounds.start && c < prevBounds.end; })
-    : [];
-  const prevExchanged = prevPeriodTx.filter(t => t.hasExchanged);
-  const prevCompleted = prevPeriodTx.filter(t => t.hasCompleted);
-  const prevExchangedValuePence = prevExchanged.reduce((s, t) => s + (t.purchasePrice ?? 0), 0);
-  // Only show deltas when the agency had transactions before the current period started
-  const hasHistory   = !!since && transactions.some(t => new Date(t.createdAt) < since);
-  const showDelta    = period !== "all" && hasHistory;
-
-  // ── Values ────────────────────────────────────────────────────────────────
-  const pipelineValuePence  = periodTx.reduce((s, t) => s + (t.purchasePrice ?? 0), 0);
-  const exchangedValuePence = exchanged.reduce((s, t) => s + (t.purchasePrice ?? 0), 0);
-
-  // ── Fees ──────────────────────────────────────────────────────────────────
-  const feesAll        = periodTx.map(calcFeeIncVat).filter((f): f is number => f !== null);
-  const feeExchanged   = exchanged.map(calcFeeIncVat).filter((f): f is number => f !== null);
-  const totalFeePence  = feesAll.reduce((a, b) => a + b, 0);
-  const lockedFeePence = feeExchanged.reduce((a, b) => a + b, 0);
-  const avgFeePence    = feesAll.length > 0 ? Math.round(totalFeePence / feesAll.length) : 0;
-
-  // ── Fee forecast — predicted for current calendar month ───────────────────
-  const thisMonthStart = new Date(pageNow.getFullYear(), pageNow.getMonth(), 1);
-  const thisMonthEnd   = new Date(pageNow.getFullYear(), pageNow.getMonth() + 1, 0, 23, 59, 59);
-  const thisMonthLabel = pageNow.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const thisMonthForecastTx = transactions.filter(t =>
-    !t.hasExchanged && !t.hasCompleted &&
-    t.expectedExchangeDate &&
-    new Date(t.expectedExchangeDate) >= thisMonthStart &&
-    new Date(t.expectedExchangeDate) <= thisMonthEnd
-  );
-  const thisMonthFees     = thisMonthForecastTx.map(calcFeeIncVat).filter((f): f is number => f !== null);
-  const thisMonthFeePence = thisMonthFees.reduce((a, b) => a + b, 0);
-
-  // ── Referral income ───────────────────────────────────────────────────────
-  const referredTxs        = periodTx.filter(t => t.referredFirmId);
-  const inPipelineTxs      = referredTxs.filter(t => !t.hasExchanged && !t.hasCompleted);
-  const dueTxs             = referredTxs.filter(t => t.hasExchanged || t.hasCompleted);
-  const inPipelinePence    = inPipelineTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
-  const duePence           = dueTxs.reduce((s, t) => s + (t.referralFee ?? 0), 0);
-  const noFeeReferralCount = referredTxs.filter(t => !t.referralFee).length;
-
-  // ── Files missing a fee ───────────────────────────────────────────────────
-  const noFeeTransactions = transactions.filter((t) => calcFeeIncVat(t) === null && t.status === "active");
-  const noFeeFiles = noFeeTransactions.map((t) => {
-    const { line, awaiting } = fmtOwnerLine(t);
-    return { id: t.id, propertyAddress: t.propertyAddress, ownerLine: line || null, awaitingAssignment: awaiting };
-  });
-
-  // ── Volume bar chart data ─────────────────────────────────────────────────
-  const today = new Date();
-  const barEntries: VolumeEntry[] = [];
-
-  if (period === "week") {
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d); next.setDate(d.getDate() + 1);
-      const label = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
-      const count = transactions.filter(t => { const c = new Date(t.createdAt); return c >= d && c < next; }).length;
-      barEntries.push({ label, count });
-    }
-  } else {
-    const months = period === "month" ? 6 : 12;
-    for (let i = months - 1; i >= 0; i--) {
-      const d   = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-      const label = d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
-      const count = transactions.filter(t => { const c = new Date(t.createdAt); return c >= d && c < end; }).length;
-      barEntries.push({ label, count });
-    }
-  }
-
-  const chartTitle =
-    period === "week"  ? "Files submitted — last 7 days" :
-    period === "month" ? "Files submitted — last 6 months" :
-    period === "year"  ? "Files submitted — last 12 months" :
-                         "Files submitted — all time (last 12 months)";
 
   const selectedName = filterUserId
     ? (team.find((m) => m.id === filterUserId)?.name ?? "Unknown")
     : "All team";
 
-  const periodLabel    = PERIODS.find(p2 => p2.key === period)?.label ?? "Month";
-  const periodWord     = period === "week" ? "week" : period === "month" ? "month" : "year";
-  const exchangeRate   = periodTx.length > 0 ? Math.round((exchanged.length / periodTx.length) * 100) : null;
-  const completionRate = exchanged.length  > 0 ? Math.round((completed.length / exchanged.length) * 100) : null;
-  const funnelData = buildSubmissionFunnel(periodTx.length, exchanged.length, completed.length);
-
-  // ── Team leaderboard ──────────────────────────────────────────────────────
-  const showLeaderboard = isDirector && !filterUserId && team.length > 1;
-
-  const leaderboardRows: LeaderboardRow[] = (() => {
-    if (!showLeaderboard) return [];
-    const byUser = new Map<string, AgentTx[]>();
-    for (const t of periodTx) {
-      const uid = t.agentUser?.id;
-      if (uid) {
-        if (!byUser.has(uid)) byUser.set(uid, []);
-        byUser.get(uid)!.push(t);
-      }
-    }
-    return team.map((member) => {
-      const userTxs      = byUser.get(member.id) ?? [];
-      const userExchanged = userTxs.filter(t => t.hasExchanged);
-      const userFees      = userTxs.map(calcFeeIncVat).filter((f): f is number => f !== null);
-      const userFeeEx     = userExchanged.map(calcFeeIncVat).filter((f): f is number => f !== null);
-      const submitted     = userTxs.length;
-      const exc           = userExchanged.length;
-      return {
-        id:            member.id,
-        name:          member.name,
-        role:          member.role,
-        submitted,
-        exchanged:     exc,
-        conversion:    submitted > 0 ? Math.round((exc / submitted) * 100) : null,
-        pipelineValue: userTxs.filter(t => !t.hasExchanged && !t.hasCompleted).reduce((s, t) => s + (t.purchasePrice ?? 0), 0),
-        avgFee:        userFees.length > 0 ? Math.round(userFees.reduce((a, b) => a + b, 0) / userFees.length) : null,
-        lockedFees:    userFeeEx.length  > 0 ? userFeeEx.reduce((a, b) => a + b, 0) : null,
-      };
-    });
-  })();
+  // noFeeFiles computed server-side (doesn't change with period)
+  const noFeeTransactions = transactions.filter((t) => calcFeeIncVat(t) === null && t.status === "active");
+  const noFeeFiles = noFeeTransactions.map((t) => {
+    const { line, awaiting } = fmtOwnerLine(t);
+    return { id: t.id, propertyAddress: t.propertyAddress, ownerLine: line || null, awaitingAssignment: awaiting };
+  });
 
   // ── Full empty state (zero files ever) ───────────────────────────────────
   if (transactions.length === 0) {
@@ -337,15 +142,15 @@ export default async function AgentAnalyticsPage({
                   : "Performance and revenue across your agency."}
               </p>
             </div>
-            {isDirector && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {team.length > 0 && (
-                  <AnalyticsFilterClient
-                    team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
-                    currentUserId={filterUserId ?? null}
-                    basePath="/agent/analytics"
-                  />
-                )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {isDirector && team.length > 0 && (
+                <AnalyticsFilterClient
+                  team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+                  currentUserId={filterUserId ?? null}
+                  basePath="/agent/analytics"
+                />
+              )}
+              {isDirector && (
                 <a
                   href={`/api/agent/analytics-export?period=${period}${filterUserId ? `&user=${filterUserId}` : ""}`}
                   style={{
@@ -362,333 +167,31 @@ export default async function AgentAnalyticsPage({
                   </svg>
                   Export CSV
                 </a>
+              )}
+              <div className="hidden md:block">
+                <AnalyticsNotifCta />
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-5 sm:px-8 flex flex-col gap-[18px]">
+      {/* ── Client shell — manages period state, all stats ────────────────── */}
+      <AnalyticsClientShell
+        transactions={transactions.map(t => ({ ...t, agentFeePercent: t.agentFeePercent != null ? Number(t.agentFeePercent) : null }))}
+        team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+        solicitorStats={solicitorStats}
+        monthlyActivity={monthlyActivity}
+        kpiSparklines={kpiSparklines}
+        filesAtRisk={filesAtRisk}
+        noFeeFiles={noFeeFiles}
+        isDirector={isDirector}
+        currentUserId={session.user.id}
+        filterUserId={filterUserId ?? null}
+        selectedName={selectedName}
+        initialPeriod={period}
+      />
 
-        {/* ── Period tabs ───────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>
-          {PERIODS.map(({ key, label }) => {
-            const active = key === period;
-            return (
-              <Link key={key} href={periodHref(key, filterUserId)} style={{
-                flexShrink: 0,
-                fontSize: 12, fontWeight: 600, padding: "9px 14px", borderRadius: 999,
-                textDecoration: "none", transition: "all 0.15s",
-                ...(active
-                  ? { background: "rgba(var(--agent-coral-base-rgb),0.15)", color: "var(--agent-coral-deep)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.30)" }
-                  : { background: "rgba(255,255,255,0.40)", color: "var(--agent-text-muted)", border: "1px solid rgba(180,130,90,0.18)" }
-                ),
-              }}>
-                {label}
-              </Link>
-            );
-          })}
-          <div className="md:hidden" style={{ marginLeft: "auto", flexShrink: 0 }}>
-            <AnalyticsNotifCta />
-          </div>
-        </div>
-
-        {/* ── Partial empty state banner ────────────────────────────────── */}
-        {periodTx.length === 0 && period !== "all" && (
-          <div style={{ background: "rgba(var(--agent-coral-base-rgb),0.06)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-              No activity {period === "week" ? "this week" : period === "month" ? "this month" : "this year"}. Try changing the period.
-            </p>
-            <Link href={periodHref("all", filterUserId)} style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none", flexShrink: 0 }}>
-              All time →
-            </Link>
-          </div>
-        )}
-
-        {/* ── Counts — single compact card ──────────────────────────────────── */}
-        <div className="agent-glass" style={{ padding: "16px 20px" }}>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Submitted</p>
-              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                {periodTx.length}
-              </p>
-              <KpiSparkline data={kpiSparklines.submitted} labels={kpiSparklines.labels} color="var(--agent-coral)" />
-              {showDelta && (
-                <DeltaPill current={periodTx.length} previous={prevPeriodTx.length} periodWord={periodWord} />
-              )}
-            </div>
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Exchanged</p>
-              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-success)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                {exchanged.length}
-              </p>
-              {exchangeRate !== null && (
-                <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{exchangeRate}% of submitted</p>
-              )}
-              <KpiSparkline data={kpiSparklines.exchanged} labels={kpiSparklines.labels} color="var(--agent-success)" />
-              {showDelta && (
-                <DeltaPill current={exchanged.length} previous={prevExchanged.length} periodWord={periodWord} />
-              )}
-            </div>
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Completed</p>
-              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                {completed.length}
-              </p>
-              {completionRate !== null && (
-                <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>{completionRate}% of exchanged</p>
-              )}
-              <KpiSparkline data={kpiSparklines.completed} labels={kpiSparklines.labels} color="var(--agent-text-secondary)" />
-              {showDelta && (
-                <DeltaPill current={completed.length} previous={prevCompleted.length} periodWord={periodWord} />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Submission funnel + Speed to exchange ─────────────────────────── */}
-        {periodTx.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Funnel */}
-            <div className="agent-glass" style={{ padding: "16px 20px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel — {periodLabel.toLowerCase()}</p>
-              <SubmissionFunnel data={funnelData} />
-            </div>
-            {/* Speed to exchange */}
-            <div className="agent-glass" style={{ padding: "16px 20px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Speed to exchange</p>
-              {speedToExchange.avgDays !== null ? (() => {
-                const badge = speedBadge(speedToExchange.avgDays);
-                return (
-                  <>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                      {speedToExchange.avgDays} days
-                    </p>
-                    <p style={{ margin: "4px 0 8px", fontSize: 10, color: "var(--agent-text-muted)" }}>
-                      avg from instruction · {speedToExchange.count} file{speedToExchange.count !== 1 ? "s" : ""} exchanged
-                    </p>
-                    <span style={{
-                      display: "inline-block",
-                      fontSize: 11, fontWeight: 600,
-                      padding: "3px 10px", borderRadius: 99,
-                      color: badge.color,
-                      background: badge.bg,
-                      border: `1px solid ${badge.border}`,
-                    }}>
-                      {badge.label}
-                    </span>
-                    <SpeedGauge avgDays={speedToExchange.avgDays} />
-                  </>
-                );
-              })() : (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-                  No exchanges {periodLabel.toLowerCase()}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Values — compact 2-col card ───────────────────────────────────── */}
-        <div className="agent-glass" style={{ padding: "16px 20px" }}>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Pipeline value</p>
-              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {fmtGBP(pipelineValuePence)}
-              </p>
-              <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Purchase prices</p>
-              <ValueHeatTiles data={kpiSparklines.submittedValue} labels={kpiSparklines.labels} />
-            </div>
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Value exchanged</p>
-              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {fmtGBP(exchangedValuePence)}
-              </p>
-              <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
-              {showDelta && (() => {
-                const diff = exchangedValuePence - prevExchangedValuePence;
-                const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "·";
-                const color = diff > 0 ? "var(--agent-success)" : diff < 0 ? "var(--agent-warning)" : "var(--agent-text-muted)";
-                return (
-                  <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 700, color }}>
-                    {arrow} {diff !== 0 ? `${fmtGBP(Math.abs(diff))} vs last ${periodWord}` : "no change"}
-                  </p>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Fees — compact 3-col card ─────────────────────────────────────── */}
-        <div className="agent-glass" style={{ padding: "16px 20px" }}>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Fee pipeline</p>
-              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT where set</p>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {feesAll.length > 0 ? fmtGBP(totalFeePence) : "—"}
-              </p>
-              {noFeeTransactions.length > 0 && (
-                <a href="#missing-fees" style={{ display: "inline-block", marginTop: 4, fontSize: 10, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none" }}>
-                  {noFeeTransactions.length} need fee →
-                </a>
-              )}
-            </div>
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Locked in</p>
-              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {feeExchanged.length > 0 ? fmtGBP(lockedFeePence) : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Average fee</p>
-              <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT per file</p>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                {feesAll.length > 0 ? fmtGBP(avgFeePence) : "—"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Fee forecast ─────────────────────────────────────────────────── */}
-        <div className="agent-glass" style={{ padding: "18px 22px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Fee forecast</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Predicted for {thisMonthLabel}</p>
-              {thisMonthForecastTx.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>No exchanges predicted this month</p>
-              ) : thisMonthFees.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-                  {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} predicted —{" "}
-                  <a href="#missing-fees" style={{ color: "var(--agent-coral-deep)", textDecoration: "none", fontWeight: 600 }}>set fees to see amount</a>
-                </p>
-              ) : (
-                <>
-                  <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>
-                    {fmtGBP(thisMonthFeePence)}
-                  </p>
-                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                    {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} · inc. VAT where set
-                  </p>
-                </>
-              )}
-            </div>
-            <div>
-              <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Locked in already</p>
-              <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em" }}>
-                {lockedFeePence > 0 ? fmtGBP(lockedFeePence) : "—"}
-              </p>
-              <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>from exchanged files</p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Charts ───────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="agent-glass" style={{ padding: "18px 22px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 14 }}>{chartTitle}</p>
-            <VolumeBarChart data={barEntries} />
-          </div>
-          <div className="agent-glass" style={{ padding: "18px 22px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <p className="agent-eyebrow">Monthly activity — last 12 months</p>
-              <div style={{ display: "flex", gap: 12 }}>
-                {[{ label: "Created", color: "var(--agent-coral)" }, { label: "Exchanged", color: "var(--agent-warning)" }].map(({ label, color }) => (
-                  <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: "inline-block" }} />
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <MonthlyMixChart data={monthlyActivity} />
-          </div>
-        </div>
-
-        {/* ── Solicitor exchange performance ────────────────────────────────── */}
-        {solicitorStats.length > 0 && (
-          <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-            <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Solicitor exchange performance</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Average days from instruction to exchange · fastest first</p>
-            </div>
-            {solicitorStats.map((s, i) => {
-              const badge = speedBadge(s.avgDaysToExchange);
-              return (
-                <div
-                  key={s.firmId}
-                  className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
-                  style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
-                >
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{s.firmName}</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                    <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{s.exchangeCount} {s.exchangeCount === 1 ? "exchange" : "exchanges"}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>{badge.label}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Referral income ───────────────────────────────────────────────── */}
-        {referredTxs.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <p className="agent-eyebrow" style={{ paddingLeft: 2 }}>Referral income — {periodLabel.toLowerCase()}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="agent-glass" style={{ padding: "18px 22px" }}>
-                <p className="agent-eyebrow" style={{ marginBottom: 2 }}>In pipeline</p>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Active, pre-exchange</p>
-                <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>{inPipelinePence > 0 ? fmtGBP(inPipelinePence) : "—"}</p>
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{inPipelineTxs.length} file{inPipelineTxs.length !== 1 ? "s" : ""}{noFeeReferralCount > 0 && ` · ${noFeeReferralCount} without a fee recorded`}</p>
-              </div>
-              <div className="agent-glass" style={{ padding: "18px 22px" }}>
-                <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchanged — due</p>
-                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Payable on/after completion</p>
-                <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-warning)", letterSpacing: "-0.02em" }}>{duePence > 0 ? fmtGBP(duePence) : "—"}</p>
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{dueTxs.length} file{dueTxs.length !== 1 ? "s" : ""}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Files missing a fee ───────────────────────────────────────────── */}
-        <div id="missing-fees" className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-          <div style={{ padding: "14px 20px", borderBottom: noFeeTransactions.length > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Files missing a fee</p>
-            {noFeeTransactions.length > 0 && (
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Set the agent fee to include these files in your pipeline total.</p>
-            )}
-          </div>
-          <MissingFeesList files={noFeeFiles} txBasePath="/agent/transactions" />
-        </div>
-
-        {/* ── Files at risk ─────────────────────────────────────────────────── */}
-        <FilesAtRiskPanel data={filesAtRisk} />
-
-        {/* ── Team leaderboard ──────────────────────────────────────────────── */}
-        {showLeaderboard && (
-          <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-            <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Team leaderboard</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                Performance by team member · {periodLabel.toLowerCase()}
-              </p>
-            </div>
-            <LeaderboardTable
-              rows={leaderboardRows}
-              currentUserId={session.user.id}
-              period={period}
-            />
-          </div>
-        )}
-
-      </div>
     </div>
   );
 }

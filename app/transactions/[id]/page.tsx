@@ -332,7 +332,7 @@ export default async function TransactionDetailPage({
           <PropertyIntelCard transactionId={transaction.id} />
 
           {/* Notes */}
-          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} />
+          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={session.user.name ?? ""} />
 
           {/* Documents uploaded via portal */}
           <DocumentsSection transactionId={transaction.id} />

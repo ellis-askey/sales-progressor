@@ -1,10 +1,11 @@
 "use client";
 // components/transaction/StatusControl.tsx
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useOptimistic, useRef } from "react";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { changeStatusAction } from "@/app/actions/transactions";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { TransactionStatus } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
@@ -34,11 +35,17 @@ type Props = {
 
 export function StatusControl({ transactionId, currentStatus }: Props) {
   const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
   const [open, setOpen]             = useState(false);
   const [saving, setSaving]         = useState(false);
   const [showModal, setShowModal]   = useState(false);
   const [reason, setReason]         = useState("");
   const [customReason, setCustomReason] = useState("");
+
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+    currentStatus,
+    (_current: TransactionStatus, next: TransactionStatus) => next
+  );
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -66,8 +73,11 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
   function applyStatus(status: TransactionStatus, fallThroughReason: string | null) {
     setSaving(true);
     startTransition(async () => {
+      setOptimisticStatus(status);
       try {
         await changeStatusAction(transactionId, status, fallThroughReason);
+      } catch {
+        toast.error("Couldn't update status — please try again");
       } finally {
         setSaving(false);
       }
@@ -90,7 +100,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           className="flex items-center gap-1.5 group"
           title="Change status"
         >
-          <StatusBadge status={currentStatus} />
+          <StatusBadge status={optimisticStatus} />
           <svg className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
@@ -108,15 +118,15 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
                   key={value}
                   onClick={() => selectStatus(value)}
                   className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/40 transition-colors flex items-center gap-2 ${
-                    value === currentStatus ? "font-medium text-slate-900/90" : "text-slate-900/70"
+                    value === optimisticStatus ? "font-medium text-slate-900/90" : "text-slate-900/70"
                   }`}
                 >
-                  {value === currentStatus && (
+                  {value === optimisticStatus && (
                     <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
-                  <span className={value === currentStatus ? "" : "pl-5"}>{label}</span>
+                  <span className={value === optimisticStatus ? "" : "pl-5"}>{label}</span>
                 </button>
               ))}
             </div>

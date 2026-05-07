@@ -348,7 +348,7 @@ export default async function AgentTransactionDetailPage({
           </div>
 
           <PropertyIntelCard transactionId={transaction.id} />
-          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} />
+          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={session.user.name ?? ""} />
         </div>
 
         {/* ── Tab 1: Milestones ────────────────────────────────────────── */}
