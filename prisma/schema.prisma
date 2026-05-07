@@ -244,6 +244,7 @@ model Contact {
   email                 String?
   roleType              ContactRole
   portalToken           String?     @unique
+  lastVisitedPortalAt   DateTime?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 

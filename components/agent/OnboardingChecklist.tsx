@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
+import * as analytics from "@/lib/analytics/posthog";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 const dismissedKey = (userId: string) => `sp_onboarding_dismissed_${userId}`;
 
@@ -62,6 +64,9 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
     // Instant optimistic update when another component completes a step
     const onStep = (e: Event) => {
       const patch = (e as CustomEvent<Partial<ProgressData>>).detail;
+      for (const [key, val] of Object.entries(patch)) {
+        if (val) analytics.track(ANALYTICS_EVENTS.ONBOARDING_STEP_COMPLETED, { step: key });
+      }
       setProgress((prev) => {
         const next = { ...prev, ...patch };
         if (Object.values(next).every(Boolean)) {

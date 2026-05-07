@@ -6,6 +6,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 const VALID_STATUSES: TransactionStatus[] = ["active", "on_hold", "completed", "withdrawn"];
 
@@ -58,5 +60,11 @@ export async function POST(req: NextRequest) {
   });
 
   console.log(`[AUDIT] transaction_status_changed transactionId=${transactionId} oldStatus=${tx.status} newStatus=${status} changedByUserId=${session.user.id} agencyId=${session.user.agencyId}`);
+  void trackServerEvent(session.user.id, ANALYTICS_EVENTS.TRANSACTION_STATUS_CHANGED, {
+    transactionId,
+    agencyId:  session.user.agencyId || undefined,
+    oldStatus: tx.status,
+    newStatus: status,
+  });
   return NextResponse.json({ success: true });
 }

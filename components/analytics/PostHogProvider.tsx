@@ -33,12 +33,16 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     if (!session?.user) return;
     const user = session.user as {
       id: string;
+      email?: string;
       role?: string;
       agencyId?: string;
+      firmName?: string | null;
     };
     analytics.identify(user.id, {
-      userRole: user.role,
-      agencyId: user.agencyId,
+      email:      user.email,
+      userRole:   user.role,
+      agencyId:   user.agencyId,
+      agencyName: user.firmName ?? undefined,
     });
   }, [session?.user]);
 

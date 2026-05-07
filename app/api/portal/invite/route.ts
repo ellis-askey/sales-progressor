@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { buildGreeting } from "@/lib/portal-copy";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
@@ -81,5 +83,9 @@ export async function POST(req: NextRequest) {
 </body></html>`,
   });
 
+  void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_LINK_SENT, {
+    contactId: contact.id,
+    roleType:  contact.roleType,
+  });
   return NextResponse.json({ ok: true });
 }

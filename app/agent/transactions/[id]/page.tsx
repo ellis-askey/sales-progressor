@@ -32,6 +32,7 @@ import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ChainClaimedNotice } from "@/components/transaction/ChainClaimedNotice";
+import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 
@@ -236,6 +237,7 @@ export default async function AgentTransactionDetailPage({
 
   return (
     <div className="glass-page agent-page">
+      <TransactionViewTracker transactionId={id} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ChainClaimedNotice /></Suspense>
@@ -286,7 +288,15 @@ export default async function AgentTransactionDetailPage({
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} />
+            <ContactsSection
+              transactionId={transaction.id}
+              contacts={transaction.contacts}
+              portalViewDates={Object.fromEntries(
+                transaction.contacts
+                  .filter((c) => c.lastVisitedPortalAt)
+                  .map((c) => [c.id, c.lastVisitedPortalAt as Date])
+              )}
+            />
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{

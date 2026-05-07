@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { pushToContact } from "@/lib/services/push";
+import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 export type PortalMessageShape = {
   id: string;
@@ -86,6 +88,10 @@ export async function sendClientPortalMessage(token: string, content: string): P
       fromClient:    true,
     },
   });
+  void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_MESSAGE_SENT_BY_CONTACT, {
+    contactId:     contact.id,
+    transactionId: contact.propertyTransactionId,
+  });
 
   const tx = contact.transaction;
   if (!tx.assignedUser?.email) return;
@@ -144,6 +150,10 @@ export async function sendProgressorPortalReply(
       fromClient: false,
       sentById:   progressorId,
     },
+  });
+  void trackServerEvent(progressorId, ANALYTICS_EVENTS.PORTAL_MESSAGE_SENT_BY_AGENT, {
+    contactId,
+    transactionId,
   });
 
   const base    = process.env.NEXTAUTH_URL ?? "";
