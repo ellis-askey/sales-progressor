@@ -10,6 +10,7 @@ export async function listTransactions(
   opts?: { allAgentFiles?: boolean; firmName?: string | null }
 ) {
   const now = new Date();
+  const totalMilestones = await prisma.milestoneDefinition.count();
   let whereClause: Record<string, unknown>;
   if (opts?.allAgentFiles) {
     whereClause = opts.firmName
@@ -66,12 +67,10 @@ export async function listTransactions(
       ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
       : null;
 
-    // Confidence score: completed milestones vs 12-week benchmark
-    // Mirrors the formula in calculateProgress (fees.ts) using a seeded total of 47 milestones.
     const completedCount = tx._count.milestoneCompletions;
     const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
     const weeksElapsed = daysElapsed / 7;
-    const actualPercent = Math.min(100, (completedCount / 47) * 100);
+    const actualPercent = Math.min(100, (completedCount / totalMilestones) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
     const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
@@ -161,6 +160,7 @@ export async function countTransactionsByStatus(
 
 export async function listTransactionsByScope(scope: AccessScope) {
   const now = new Date();
+  const totalMilestones = await prisma.milestoneDefinition.count();
   const base = scopeTransactionWhere(scope);
   const whereClause: Record<string, unknown> =
     scope.kind === "agency" ? { ...base, progressedBy: "progressor" } : { ...base };
@@ -214,7 +214,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
     const completedCount = tx._count.milestoneCompletions;
     const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
     const weeksElapsed = daysElapsed / 7;
-    const actualPercent = Math.min(100, (completedCount / 47) * 100);
+    const actualPercent = Math.min(100, (completedCount / totalMilestones) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
     const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
