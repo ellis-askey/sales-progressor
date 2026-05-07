@@ -5,7 +5,9 @@ import { TeamManagement } from "@/components/agent/TeamManagement";
 import { ProfileForm } from "@/components/agent/ProfileForm";
 import { ThemePicker } from "@/components/agent/ThemePicker";
 import { AccountDangerZone } from "@/components/agent/AccountDangerZone";
+import { InviteDirector } from "@/components/agent/InviteDirector";
 import { getAgentTheme } from "@/lib/agent/themes";
+import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 
 export default async function AgentSettingsPage({
   searchParams,
@@ -22,6 +24,43 @@ export default async function AgentSettingsPage({
   });
 
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
+
+  const directorStatus = session.user.agencyId
+    ? await getAgencyDirectorStatus(session.user.agencyId)
+    : { hasDirector: true, director: null };
+
+  const showInviteDirector =
+    session.user.role === "negotiator" && !directorStatus.hasDirector;
+
+  const rawLatestInvitation = showInviteDirector
+    ? await prisma.directorInvitation.findFirst({
+        where: {
+          agencyId: session.user.agencyId,
+          invitedByUserId: session.user.id,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          directorName: true,
+          directorEmail: true,
+          expiresAt: true,
+          acceptedAt: true,
+          createdAt: true,
+        },
+      })
+    : null;
+
+  // Serialise Dates to ISO strings before passing to the Client Component.
+  const latestInvitation = rawLatestInvitation
+    ? {
+        id: rawLatestInvitation.id,
+        directorName: rawLatestInvitation.directorName,
+        directorEmail: rawLatestInvitation.directorEmail,
+        expiresAt: rawLatestInvitation.expiresAt.toISOString(),
+        acceptedAt: rawLatestInvitation.acceptedAt?.toISOString() ?? null,
+        createdAt: rawLatestInvitation.createdAt.toISOString(),
+      }
+    : null;
 
   return (
     <>
@@ -72,6 +111,11 @@ export default async function AgentSettingsPage({
           </div>
 
         </div>
+
+        {/* Invite director — negotiators only, when agency has no director */}
+        {showInviteDirector && (
+          <InviteDirector latestInvitation={latestInvitation} />
+        )}
 
         {/* Branch theme */}
         <ThemePicker currentTheme={currentTheme} />

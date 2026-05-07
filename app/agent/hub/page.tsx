@@ -8,7 +8,9 @@ export const metadata: Metadata = {
 };
 
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { resolveAgentVisibility } from "@/lib/services/agent";
+import { DirectorJoinedBanner } from "@/components/agent/DirectorJoinedBanner";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
@@ -106,7 +108,7 @@ export default async function HubPreviewPage() {
   const session = await requireSession();
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, userNotification] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -115,7 +117,15 @@ export default async function HubPreviewPage() {
       getHubServiceSplit(vis),
       getHubRecentActivity(vis),
       getHubDiary(vis),
+      session.user.role === "negotiator"
+        ? prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { directorJoinedNotificationName: true },
+          })
+        : null,
     ]);
+
+  const directorJoinedName = userNotification?.directorJoinedNotificationName ?? null;
 
   // Derived values
   const escalatedCount    = attentionItems.filter((i) => i.urgency === "escalated").length;
@@ -187,6 +197,13 @@ export default async function HubPreviewPage() {
 
         {/* Content: welcome card + ghost cards */}
         <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {directorJoinedName && (
+            <DirectorJoinedBanner
+              directorName={directorJoinedName}
+              agencyName={session.user.firmName ?? "your agency"}
+            />
+          )}
 
           {/* Welcome CTA */}
           <div className="agent-glass" style={{
@@ -368,6 +385,13 @@ export default async function HubPreviewPage() {
 
       {/* ── Content ────────────────────────────────────────────────────────────── */}
       <div className="hub-content-pad" style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {directorJoinedName && (
+          <DirectorJoinedBanner
+            directorName={directorJoinedName}
+            agencyName={session.user.firmName ?? "your agency"}
+          />
+        )}
 
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}
         {diaryItems.length > 0 && (
