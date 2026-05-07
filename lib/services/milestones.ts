@@ -575,6 +575,28 @@ export async function bulkCompleteMilestones(
   });
   const defMap = new Map(defs.map((d) => [d.id, d]));
 
+  // Prerequisite guard: each milestone's direct prereqs must be complete/NR in the
+  // DB or also present in this batch (batch items satisfy each other).
+  const batchCodes = new Set(defs.map((d) => d.code));
+  for (const def of defs) {
+    const prereqCodes = (DIRECT_PREREQUISITES[def.code] ?? []).filter((c) => !batchCodes.has(c));
+    if (prereqCodes.length === 0) continue;
+    const prereqDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: prereqCodes } },
+      select: { id: true },
+    });
+    const satisfied = await prisma.milestoneCompletion.count({
+      where: {
+        transactionId,
+        milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
+        state: { in: ["complete", "not_required"] },
+      },
+    });
+    if (satisfied < prereqDefs.length) {
+      throw new Error(`Prerequisites not complete for milestone ${def.code} — confirm earlier milestones first`);
+    }
+  }
+
   const needsSummary = defs.some((d) => d.summaryTemplate);
   const tokens = needsSummary ? await resolveTemplateTokens(transactionId, completedByName) : null;
 
