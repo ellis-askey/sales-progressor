@@ -1,0 +1,56 @@
+# Milestones Tab
+
+The Milestones tab is the core of each property file. It shows all 20 vendor milestones (VM1–VM20) and up to 27 purchaser milestones (PM1–PM27), grouped by side, and lets you mark them complete as events happen.
+
+<div className="example-wrapper">
+  <MilestoneProgressStripExample />
+</div>
+
+## Layout
+
+Milestones are shown in two columns: Vendor on the left, Purchaser on the right. Within each column, milestones appear in order — VM1 through VM20, and PM1 through PM27.
+
+Each milestone shows:
+- Milestone code and name
+- Current state: Locked, Available, Complete, or Not Required
+- Completion date (if marked complete)
+- A note or date field where relevant (for example, the survey date for PM10)
+
+## Milestone states
+
+| State | Meaning |
+|---|---|
+| **Locked** | A predecessor milestone must be completed first |
+| **Available** | Ready to be marked complete |
+| **Complete** | Done — the completion date is recorded |
+| **Not Required** | Does not apply to this transaction |
+
+See [How milestones work](../03-milestones/how-milestones-work) for the full explanation of predecessor rules and state transitions.
+
+## Marking a milestone complete
+
+Click a milestone in the Available state. A confirmation panel opens. Review the details and click **Mark complete**. The milestone is stamped with today's date, and any milestones that were locked waiting for it become Available immediately.
+
+Some milestones prompt for a date — for example, the survey date for PM10 or the mortgage offer date for PM11. Enter the date when prompted; the reminder engine uses it to set correct chase timing.
+
+## Marking a milestone Not Required
+
+Only PM9 (Survey booked) can be set to Not Required manually — if the buyer has decided not to commission a survey. Marking PM9 Not Required automatically cascades PM10 (Survey report received) to Not Required too.
+
+All other Not Required assignments happen automatically at file creation based on property type and purchase method. See [Not-required milestones](../03-milestones/not-required).
+
+## Undoing a completion
+
+Click a completed milestone to open the panel and select **Unmark**. This reverts the milestone to Available and re-locks any downstream milestones that depended on it. Their completion dates are cleared.
+
+## Progress percentage
+
+The progress percentage in the file header is the sum of complete milestone weights divided by the sum of all applicable (non-Not-Required) milestone weights.
+
+## Related articles
+
+- [How milestones work](../03-milestones/how-milestones-work)
+- [Vendor milestones — VM1 to VM20](../03-milestones/vendor-milestones)
+- [Purchaser milestones — PM1 to PM27](../03-milestones/purchaser-milestones)
+- [Exchange gates — VM18 and PM25](../03-milestones/exchange-gates)
+- [Not-required milestones](../03-milestones/not-required)

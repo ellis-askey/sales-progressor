@@ -1,0 +1,48 @@
+# Not-Required Milestones
+
+Some milestones do not apply to every transaction. When a milestone is Not Required, it is excluded from the progress calculation, no reminder is generated for it, and it does not appear as a blocker in the milestone sequence.
+
+## Automatically set at file creation
+
+The following milestones are set to Not Required automatically based on the answers given when creating the file:
+
+### For freehold properties
+
+| Milestone | Why |
+|---|---|
+| VM8 — Management pack requested | No managing agent or freeholder on a freehold property |
+| VM9 — Management pack received (seller) | Depends on VM8 |
+| PM12 — Management pack received (buyer) | No management pack to receive |
+
+### For cash buyers (no mortgage)
+
+| Milestone | Why |
+|---|---|
+| PM5 — Mortgage application submitted | No mortgage needed |
+| PM6 — Lender valuation booked | No lender, no valuation |
+| PM11 — Mortgage offer received | No mortgage offer to receive |
+
+If a property is both freehold and the buyer is purchasing with cash, all six milestones above are Not Required from the start.
+
+## Manually set by the agent
+
+Only one milestone can be set to Not Required manually:
+
+### PM9 — Survey booked
+
+If the buyer has decided not to commission a survey, mark PM9 Not Required from the Milestones tab. Doing so automatically sets PM10 (Survey report received) to Not Required too, because there is no report if no survey was commissioned.
+
+## What happens to milestones that depended on a Not Required milestone
+
+When a milestone is set to Not Required, any milestones that were locked waiting for it as a predecessor are also set to Not Required — because they are waiting on something that will never happen. This cascade continues through as many levels as needed.
+
+## Reversing a Not Required assignment
+
+If circumstances change — for example, a buyer switches from cash to mortgage mid-transaction — you can remove the Not Required assignment from the Milestones tab. The milestone reverts to Locked or Available depending on whether its predecessor has been completed.
+
+## Related articles
+
+- [How milestones work](how-milestones-work)
+- [Vendor milestones — VM1 to VM20](vendor-milestones)
+- [Purchaser milestones — PM1 to PM27](purchaser-milestones)
+- [Creating a new sale](../02-property-file/creating-a-sale)
