@@ -97,6 +97,7 @@ export default async function HelpDrawerPage({
           flex: 1,
           overflowY: "auto",
           padding: "40px 48px 80px",
+          background: "#FFFFFF",
         }}>
           <div style={{ maxWidth: 700 }}>
             {selected && (
@@ -114,7 +115,8 @@ export default async function HelpDrawerPage({
             flexShrink: 0,
             overflowY: "auto",
             padding: "48px 24px 40px 0",
-            borderLeft: "0.5px solid rgba(45,24,16,0.08)",
+            background: "#FFFFFF",
+            borderLeft: "0.5px solid rgba(45,24,16,0.10)",
           }}>
             <p style={{ margin: "0 0 12px", fontSize: 10, fontWeight: 700, color: "rgba(45,24,16,0.35)", letterSpacing: "0.07em", textTransform: "uppercase", paddingLeft: 16 }}>
               On this page

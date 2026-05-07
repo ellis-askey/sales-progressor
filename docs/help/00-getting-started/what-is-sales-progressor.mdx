@@ -4,35 +4,115 @@ Sales Progressor is a sales-progression system for UK residential estate agencie
 
 It's built for directors and negotiators who progress sales after they've been agreed.
 
-## What you will find
+## What you'll find
 
-- **Hub** — daily dashboard: pipeline health, attention items, exchange forecast
-- **Property files** — individual transaction pages with milestones, reminders, to-do items, and an activity log
-- **Client portal** — a private link for each buyer or seller to track their own progress
-- **Reminders** — all active chases across your pipeline in one view
-- **Completions** — files that have exchanged and are heading to completion
-- **Analytics** — pipeline trends, fee tracking, and conversion rates
+Sales Progressor is organised around a small set of pages, each with a clear purpose.
 
-## The two sides of a sale
+| Page | What it's for |
+|---|---|
+| **Hub** | Your daily dashboard — pipeline health, attention items, exchange forecast |
+| **Reminders** | Every active chase across your pipeline, in one list |
+| **Completions** | Files that have exchanged and are heading to completion |
+| **All Files** / **My Files** | Every transaction you have access to |
+| **Analytics** | Pipeline trends, fee tracking, conversion rates |
+| **Solicitors** | Your saved solicitor contacts |
+| **Settings** | Your profile, team, sending addresses, theme |
 
-Every residential sale has two legal threads running in parallel.
+Each property sale opens as its own **property file** — the central place where milestones, reminders, contacts, notes, and the client portal all live for that transaction.
 
-**Vendor side** — the seller's solicitor prepares the contract pack, handles ID checks, answers enquiries, and signs contracts to exchange.
+## How a sale moves through the system
 
-**Purchaser side** — the buyer's solicitor orders searches, raises enquiries, receives the mortgage offer (if applicable), and signs contracts to exchange.
+Every residential sale has two legal threads running in parallel. Sales Progressor tracks both.
 
-The estate agency sits between the two sides — chasing solicitors for updates, keeping buyers and sellers informed, and pushing to keep both sides on track.
+### Vendor side
 
-Both sides must reach readiness before exchange can happen. Sales Progressor tracks the vendor side and the purchaser side as parallel sequences of milestones — about 20 on the vendor side, 27 on the purchaser side.
+The seller's solicitor prepares the contract pack, handles ID checks, answers enquiries, and signs contracts at exchange. Sales Progressor tracks 20 milestones on this side.
 
-## Two service tiers
+### Purchaser side
 
-**Self-managed** — your agency uses Sales Progressor directly. Your negotiators sign in, mark milestones, generate chase emails, and send portal links to buyers and sellers.
+The buyer's solicitor orders searches, raises enquiries, receives the mortgage offer (if applicable), and signs contracts at exchange. Sales Progressor tracks up to 27 milestones on this side, depending on the property and the buyer's funding.
 
-**Outsourced** — Sales Progressor's own team progresses files on your behalf. You add the sale; the progression work is handled for you.
+Both sides must reach readiness before contracts can exchange. The estate agency sits between the two sides — chasing solicitors for updates, keeping clients informed, and pushing to keep both sides on track.
+
+## Service modes
+
+When you create a new property file, you choose how it will be progressed.
+
+### Self-managed
+
+Your team progresses the sale directly. Negotiators sign in, mark milestones, generate chase emails, and send portal links to buyers and sellers. The agency is in full control.
+
+### Outsourced (with progressor)
+
+The Sales Progressor team handles progression on your behalf. You add the sale, and a progressor takes it through to completion. You keep visibility — the file appears in your hub the same as any other file — but the day-to-day work is done for you.
+
+The choice is per-file, not per-agency. The same agency can run some files self-managed and some outsourced — useful for handling overflow during busy months, or trying out the outsourced service on a single sale before scaling up.
+
+## Property types and milestones
+
+The milestones that apply to a sale depend on the type of property and how the purchase is being funded.
+
+| Setting | Effect |
+|---|---|
+| **Freehold property** | Standard milestone set applies |
+| **Leasehold property** | Adds leasehold-specific milestones — management pack, ground rent, service charges |
+| **Cash purchase** | Mortgage-related purchaser milestones are automatically marked not required |
+| **Mortgage purchase** | Full purchaser milestone set, including mortgage offer and final mortgage report |
+
+You set these when creating the file. They cannot be changed later — if you discover the property is leasehold after creating the file as freehold, you'll need to mark the new milestones as required manually.
+
+## The client portal
+
+Every buyer and seller can be given a private link to their own portal — a live progress page showing where their sale stands.
+
+<HelpSplit>
+<HelpSplitText>
+
+- The current stage of the sale, in plain language
+- A list of milestones, marked complete or pending
+- An estimated date for the next milestone, where one is set
+- A two-way message thread with the agent
+- A document upload area for searches and other paperwork
+
+The client doesn't need an account or a password — the link itself is enough. Portals update automatically as milestones are confirmed.
+
+The portal shows each client their progress at a glance — overall percentage complete, milestones done and remaining, and exactly which step is next.
+
+Updates happen automatically when milestones are confirmed. Clients don't need to chase for an update.
+
+</HelpSplitText>
+<HelpSplitVisual><PortalHomeHelpExample />
+</HelpSplitVisual>
+<p className="caption">What a buyer sees when they open their portal link — live progress, milestones, and the next action.</p>
+</HelpSplit>
+
+## Joining an existing agency
+
+If someone at your agency already uses Sales Progressor, **do not sign up directly from the public signup form**. Doing so creates a separate agency for you, even if your colleagues are already on the platform.
+
+Instead, ask your director (or whichever colleague is already on the platform) to invite you. They can add you from **Settings → Team**. You'll receive an email with a link to set your password, and you'll be added to the existing agency rather than creating a new one.
+
+### Limitations
+
+- There is no way to merge two agencies once both exist
+- A new agency cannot be linked to an existing one through signup
+- An invitation is the only way to join an existing agency
+
+## What Sales Progressor does not do
+
+The product is deliberately scoped to sales progression. The following are out of scope.
+
+- Listing creation, viewings, and offer negotiation (pre-acceptance work)
+- Lettings or tenancy management
+- Post-completion legal work (key release happens outside the system)
+- Mortgage broking
+- CRM features for lead generation
+- Payroll, accounting, or commission tracking
+
+Sales Progressor focuses on the period between offer accepted and legal completion. Other tools handle the stages before and after.
 
 ## Related articles
 
-- [Roles and permissions](roles)
-- [Your first day](your-first-day)
-- [The Hub](../01-running-your-pipeline/hub)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)
+- [Your first day](../00-getting-started/your-first-day.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)

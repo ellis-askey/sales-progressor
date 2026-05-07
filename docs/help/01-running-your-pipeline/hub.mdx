@@ -1,64 +1,168 @@
 # The Hub
 
-The Hub is the first page you see after logging in. It shows the current state of your pipeline at a glance: where files stand, what needs attention, and what is coming up.
+The Hub is your working dashboard in Sales Progressor. It loads each time you sign in and is organised around what needs attention today — not a comprehensive list of files, but the activity, alerts, and forecasts that are most relevant right now.
 
-<div className="example-wrapper">
-  <HubStatCardExample />
-</div>
+The page answers two questions: what needs action today, and how is the pipeline performing? Every section answers one of those.
 
-## Pipeline health
+## What you see at a glance
 
-The pipeline health card shows four numbers:
+<HelpSplit>
+<HelpSplitText>
+The Hub is arranged from top to bottom: the page header, today's diary (when there are events scheduled), the attention section, pipeline health alongside the momentum ring, the exchange forecast alongside the service split donut, and a recent activity ribbon at the bottom.
 
-| Stat | What it means |
-|---|---|
-| **Active files** | Sales currently in progression — not yet exchanged or withdrawn |
-| **Exchanging soon** | Files where both exchange-gate milestones (VM18 and PM25) are complete |
-| **Need attention** | Files with at least one reminder that is overdue, escalated, or due today |
-| **Pipeline value** | Sum of agreed sale prices across all active files |
+On your first day, before any files have been added, the pipeline cards appear greyed out in the background. They become live as soon as your first file is created. The **Your pipeline starts here** card is the only fully active element — click **Add a sale** to get started, or use the **New sale** button in the page header.
+</HelpSplitText>
+<HelpSplitVisual>
+<HubEmptyWelcomeCardHelpExample />
+</HelpSplitVisual>
+<p className="caption">The Hub in its empty state. Greyed-out cards preview the populated layout — they activate once your first file is created.</p>
+</HelpSplit>
 
-Below those numbers, a Coming up strip shows how many files are exchanging this week, how many are completing this week, and the total value closing this month.
+## What changes by role
 
-If any files have had no activity for 14 or more days, a stalled files warning appears. Clicking it takes you to the Reminders page.
+Directors and negotiators see the same Hub layout. What changes is the scope of the data.
 
-## Needs your attention
+Directors — and negotiators who have been granted **Can view all files** — see agency-wide figures: all active files, all attention items across the team, the combined pipeline value. Negotiators without that permission see only their own assigned files.
 
-This section lists files where action is required — a chase is overdue, escalated, or due today. Up to three items appear; click "Reminders" to see the full list.
-
-Each item is colour-coded:
-- **Escalated** (red) — the chase has been sent multiple times and hit the escalation threshold
-- **Overdue** (amber) — the grace period and repeat interval have passed without the milestone being completed
-- **Due today** (coral) — a chase is due today
-
-Clicking an item opens the Reminders tab of that file.
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured and what each role can do.
 
 ## Today's diary
 
-Files with an exchange or completion date set to today appear in a Today's diary strip at the top of the Hub. Exchange dates are shown in coral; completion dates in green.
+The diary appears at the top of the Hub on any day where something is scheduled. It shows exchanges and completions due today, drawn from the expected exchange dates and completion dates set on your active files.
+
+Each row shows the property address and a type badge — green for a completion, coral for an exchange. Completions appear first. Each row links directly to the file.
+
+The diary does not appear on days with nothing scheduled. It is not shown in the empty state.
+
+## Needs your attention
+
+<HelpSplit>
+<HelpSplitText>
+The attention section shows reminders that are due or overdue on your active files. Three urgency levels:
+
+- **Escalated** — a chase task on this file has been flagged as escalated
+- **Overdue** — the reminder's due date has passed
+- **Due today** — the reminder is due today
+
+Items appear with escalated at the top, then overdue, then due today. Up to three rows show on the Hub. The full list of all active reminders lives in the Work Queue — click **Reminders** in the section header to go there.
+
+When nothing is due, the section shows a green dot and "No reminders due right now. All clear."
+</HelpSplitText>
+<HelpSplitVisual>
+<AttentionListHelpExample />
+</HelpSplitVisual>
+<p className="caption">Three urgency tiers — escalated, overdue, and due today. Each row links to the Reminders tab on the file.</p>
+</HelpSplit>
+
+## Pipeline health
+
+The pipeline health card shows four figures from your active files, a summary of what's coming up shortly, and a flag for stalled files.
+
+### Active files
+
+The total number of files with an active status — offers accepted and in progress, not yet exchanged. A "+ N this month" badge appears when new files have been added since the start of the calendar month. Clicking the stat takes you to All Files.
+
+### Exchanging soon
+
+Files where the expected exchange date falls within the next 30 days. Clicking the stat takes you to the Completions page.
+
+### Need attention
+
+The count of distinct files that have at least one overdue or escalated reminder. This counts files, not individual reminders — a file with three overdue reminders counts as one here. The stat colours red when any escalated items exist, amber when there are overdue items, and default text otherwise. Clicking the stat takes you to the Work Queue.
+
+### Pipeline value
+
+The sum of purchase prices on your active files, formatted as £k, £m, or £bn. Files without a price entered contribute zero — so the figure reflects the total for files where prices have been set.
+
+### Coming up
+
+Three quick-glance figures sit below the four stats:
+
+- **N exchanging this week** — active files with an exchange date in the next seven days, not yet exchanged
+- **N completing this week** — active files with a completion date in the next seven days, not yet completed
+- **£X closing this month** — the combined purchase price of files expected to exchange this calendar month
+
+Each figure links to the All Files page filtered to the matching subset.
+
+### Stalled files
+
+A file is considered stalled when no milestone has been confirmed on it in the last 14 days and it has not yet exchanged. The count appears below the coming up strip. Clicking through opens the Work Queue.
+
+When all files have recent activity, the row shows "All files have recent activity" in muted text.
 
 ## Momentum
 
-The Momentum card shows how many exchanges you have achieved this month compared to last month. The ring fills proportionally.
+<HelpSplit>
+<HelpSplitText>
+The momentum ring compares this calendar month's exchanges to last month's. The ring fills proportionally to the percentage — full means you are at least on pace with last month. The percentage is printed at the centre.
+
+- **Ahead of last month** — ring fills fully, shown in green
+- **Below last month** — ring fills partially, shown in amber
+
+The momentum figure uses calendar-month boundaries, not rolling 30 days. On the first of a new month, the count resets to zero regardless of recent exchange activity.
+
+When there is no previous month to compare against — during your first month of activity — the ring shows a placeholder: "No comparison yet."
+</HelpSplitText>
+<HelpSplitVisual>
+<MomentumRingHelpExample />
+</HelpSplitVisual>
+<p className="caption">130% momentum — 13 exchanges this month versus 10 last month. The ring fills fully and turns green when at or above 100%.</p>
+</HelpSplit>
 
 ## Exchange forecast
 
-The Exchange forecast chart shows how many files are expected to exchange over the next four to five weeks, based on the expected exchange dates set in each file.
+<HelpSplit>
+<HelpSplitText>
+The exchange forecast shows the next five weeks of expected exchanges, starting from the current week. Each bar represents active files with an exchange date in that week. Files that have already exchanged are excluded.
+
+The current week's bar renders at full opacity. Future bars fade progressively — dates further ahead are more likely to shift.
+
+When no exchange dates are set across all five weeks, the card prompts you to add expected dates to your active files.
+
+Below the chart: the count for this week and for the next 30 days. When the current week has at least one exchange due, a prompt appears to make sure those files are ready.
+</HelpSplitText>
+<HelpSplitVisual>
+<ExchangeForecastHelpExample />
+</HelpSplitVisual>
+<p className="caption">Five weeks of expected exchanges. This week at full opacity, future weeks fading. Summary counts shown below the chart.</p>
+</HelpSplit>
 
 ## Service split
 
-The Service split donut shows the proportion of active files that are self-managed versus being progressed by Sales Progressor's team. If outsourced files are present, the card estimates the agent hours saved.
+<HelpSplit>
+<HelpSplitText>
+The service split donut shows how your active files are divided between self-managed and outsourced.
 
-## Recent activity ribbon
+- **Self-managed** (coral) — your team is progressing these files directly
+- **With progressor** (amber) — the Sales Progressor team is handling these on your behalf
 
-A ribbon at the bottom of the Hub shows the most recent piece of activity across your pipeline — a milestone marked, a note added, a chase sent — with a link to that file.
+When outsourced files are present, the card shows an estimate of the agent hours the outsourced service is saving your team that week. This is an approximate figure based on a fixed assumption per file, not a measurement.
+</HelpSplitText>
+<HelpSplitVisual>
+<ServiceSplitHelpExample />
+</HelpSplitVisual>
+<p className="caption">8 self-managed files and 4 outsourced. The donut and legend update as your file mix changes.</p>
+</HelpSplit>
 
-## Refreshing the data
+## Recent activity
 
-The Hub shows a timestamp and a refresh button. Click it to reload the data without a full page refresh.
+The activity ribbon at the bottom of the Hub shows the single most recent event across your files — either the latest communication (email sent, call logged, update received) or the latest milestone confirmed, whichever happened more recently. Clicking the ribbon opens the file.
+
+The ribbon only appears when there is activity to show. It does not appear in the empty state.
+
+## Refreshing the Hub
+
+The "As of HH:MM" timestamp in the page header shows when the Hub last loaded. The Hub does not update automatically while you have it open — click the refresh icon next to the timestamp to reload everything. All seven data fetches run again and the page reflects the current state of your pipeline.
+
+## What to do next
+
+- Add expected exchange dates to your active files so the forecast and coming up strip show useful figures
+- Open the Work Queue to see the full list of reminders — the Hub shows only the top three
+- Read [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) if you need to adjust what a negotiator sees on their Hub
+- Read [Your first day](../00-getting-started/your-first-day.mdx) if you haven't yet set up your profile, sending address, or first file
 
 ## Related articles
 
-- [Reminders](work-queue)
-- [All Files](all-files)
-- [How the reminder system works](../04-reminders-and-chasing/how-reminders-work)
-- [Exchange gates — VM18 and PM25](../03-milestones/exchange-gates)
+- [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)
+- [Your first day](../00-getting-started/your-first-day.mdx)

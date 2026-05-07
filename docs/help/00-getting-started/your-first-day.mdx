@@ -1,45 +1,146 @@
 # Your first day
 
+This article walks you through everything from signing in for the first time to having a sale running and a client with a portal link.
+
 ## Signing in
 
-Go to the login page and sign in with your email and password. If your agency uses Microsoft 365, use **Continue with Microsoft**. For a forgotten password, use **Forgot password?** — a reset link will be emailed to you.
+Go to the login page and sign in with your email address and password, or use Google or Microsoft — whichever you prefer. Once signed in, you land on the Hub.
 
-If you arrived via an invitation email from a director (or from someone you invited), the link in that email will take you through signup before you reach the hub.
+If you joined via an invitation link (sent by a director or a colleague), the link takes you through a different path: you set your password or connect your Google or Microsoft account, and the system attaches you to your agency automatically. The end result is the same — you land on the Hub.
 
-## What you'll see first
+If you signed up directly (not via an invitation), you created your agency during registration. If you left the agency name blank, the system used your full name as the agency name. You can update this in **Settings → My profile**.
 
-After signing in you land on the Hub — your daily dashboard. If no files have been added yet, the Hub will be mostly empty and prompts you to add your first sale.
+## What you see first
 
-<HubStatCardExample variant="empty" />
+<HelpSplit>
+<HelpSplitText>
+The Hub is your working dashboard. On your first day, before you have added any files, the greyed-out cards in the background are not errors — they are a preview of the populated dashboard. They become live as soon as your first file is created.
 
-The charts and pipeline stats populate as you add active files.
+The only fully interactive element is the **Your pipeline starts here** card. Click **Add a sale** to open the new sale form, or use the **New sale** button in the page header.
+</HelpSplitText>
+<HelpSplitVisual>
+<HubEmptyWelcomeCardHelpExample />
+</HelpSplitVisual>
+<p className="caption">The first card you see on the Hub — click Add a sale to get started.</p>
+</HelpSplit>
 
-See [The Hub](../01-running-your-pipeline/hub) for a full description of what appears there.
+### The welcome message
 
-## First actions
+The first time you sign in, a welcome message appears over the Hub. It shows once and cannot be reopened. If you closed it before reading it, nothing is lost — the new sale form is always available from the Hub header.
 
-### 1. Check your profile
+## Adding your first sale
 
-Go to **Settings** (the cog icon in the sidebar). Confirm your name and email are correct and add your phone number if it is not already there.
+The new sale form opens from **Hub → New sale**, or directly at `/agent/transactions/new`.
 
-### 2. Verify a sending address (directors only)
+Three fields are required before you can submit:
 
-To have chase emails sent from your own work address (e.g. `olivia@hartwellestates.co.uk`), verify it in **Settings → Sending addresses**. You'll receive a confirmation email at that address.
+| Field | What to enter |
+|---|---|
+| **Street address** | The property address — number and street |
+| **Tenure** | Freehold or Leasehold |
+| **Purchase type** | Mortgage, Cash, or Cash from Proceeds |
 
-See [Verified sending addresses](../07-notifications/verified-sending-addresses) for the full steps.
+Everything else — city, postcode, purchase price, agent fee, contacts, solicitors — is optional at creation. You can fill in those details from the property file after it has been created.
 
-### 3. Add your first sale
+### Uploading a memo of sale
 
-Click **New sale** in the top right of the Hub. Enter the property address, buyer and seller contact details, whether the property is freehold or leasehold, and whether the buyer is purchasing with cash or a mortgage. These answers set which milestones apply to the file automatically.
+If you have a memo of sale, drop it into the upload area at the top of the form. The system reads the document and fills in the address, contacts, solicitors, and purchase price automatically. Fields that were auto-filled are marked with a small badge. You can edit any of them before submitting.
 
-<PropertyFileHeaderExample />
+Uploading a memo also marks the "Memorandum of sale received" milestone as complete on both sides when the file is created.
 
-### 4. Send portal links to your clients
+### Leasehold and cash purchases
 
-Once a file is created, go to the **Overview tab**. The Contacts card shows a portal link for each buyer and seller. Send the link early — once contacts have it, they can check progress without contacting you.
+Selecting **Leasehold** adds leasehold-specific milestones to the file (management pack, ground rent, service charges). Selecting **Cash** or **Cash from Proceeds** marks the mortgage-related purchaser milestones as not required. These settings cannot be changed after the file is created — if you discover the property is leasehold after creating it as freehold, you will need to mark those milestones as required manually from the Milestones tab.
 
-## What to do next
+### After you submit
 
-- [The Hub](../01-running-your-pipeline/hub) — your daily starting point, explained
-- [How milestones work](../03-milestones/how-milestones-work) — the spine of every sale
-- [Sending a portal link](../05-portal/sending-a-portal-link) — keeping clients informed without phone calls
+You land on the property file at the Overview tab. The milestones for both sides are already set up — switch to the Milestones tab to see them.
+
+## Sending a portal link
+
+Once a sale is created and a contact has an email address, you can send them their portal link.
+
+On the property file, go to the **Contacts** section in the Overview tab. Each vendor and purchaser contact with an email address will show a **Send invite** button. Click it — a branded email goes to the client containing a link to their personal portal page.
+
+The portal shows the client the current stage of their sale, the milestones completed so far, and a message thread with you. It updates automatically as milestones are confirmed.
+
+If a contact was added after the sale was created, you may see a **Set up portal** button instead of **Send invite**. Click that first to generate the portal link, then send the invite.
+
+## The Getting started checklist
+
+<HelpSplit>
+<HelpSplitText>
+A **Getting started** panel appears on the Hub when you first sign in. It tracks six steps that cover the main features of the platform.
+
+1. **Add your first sale** — create any property file
+2. **Add client contact details** — add a phone number or email to any contact on one of your files
+3. **Share the portal with a client** — send a portal invite to any contact with an email address
+4. **Add your phone number** — enter your number in **Settings → My profile**
+5. **Choose your branch theme** — pick a colour theme in **Settings → Branch theme**
+6. **Verify your email address** — add and verify a sending address in **Settings → Sending addresses**
+
+Steps 5 and 6 are not required to start progressing sales — you can skip them for now and return later. The checklist disappears once all six steps are complete, or when you dismiss it using the **×** button.
+</HelpSplitText>
+<HelpSplitVisual>
+<OnboardingChecklistHelpExample />
+</HelpSplitVisual>
+<p className="caption">The Getting started checklist. Each step links to the relevant part of the app.</p>
+</HelpSplit>
+
+The dismissed state is stored in your browser — it may reappear if you clear your browser storage or switch devices.
+
+## Settings to configure
+
+A few things in **Settings** are worth visiting on your first day.
+
+### My profile
+
+**Settings → My profile** shows your name, email, phone number, and role. Add your phone number here — it is used across the system when generating contact information.
+
+If you registered without entering your agency name, your agency is currently named after you. The agency name appears in portal emails sent to your clients, so it is worth updating it to your firm name if needed.
+
+### Sending addresses
+
+**Settings → Sending addresses** lets you verify a work email address for use when sending client-facing emails from the dashboard. Without a verified address, emails to clients go out from the system sender (`updates@thesalesprogressor.co.uk`).
+
+Verification has two stages: first the domain (requires adding DNS records with your email provider), then the inbox (a code sent to the address). This takes a few minutes if your DNS is already set up, or longer if your IT team needs to add the records.
+
+You do not need a verified sending address to send portal invites or team invitations — those always use the system sender.
+
+### Branch theme
+
+**Settings → Branch theme** offers six colour themes for the agent portal. The default is **Sunset**. The choice is cosmetic — it changes the accent colours across the app. Pick whichever suits your preference.
+
+## Inviting your team
+
+*This section applies to directors only. Negotiators do not see **Settings → Team**.*
+
+To add a negotiator to your agency:
+
+1. Go to **Settings → Team**
+2. Use the **Add team member** form
+3. Enter the negotiator's name and email address
+4. Click **Add**
+
+The negotiator receives an email with a link to set their password. They appear in the team list as **Invitation pending** until they accept. Pending invitations expire after seven days — use the **Resend** button if needed.
+
+By default, negotiators only see files they are assigned to. To give a negotiator visibility of all agency files, toggle **Can view all files** on their row in the team list.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for more on what each role can do.
+
+## What's next
+
+With your first file created, the next steps are:
+
+- Open the **Milestones** tab and confirm any milestones that have already happened
+- Add your solicitor contacts if you have not already
+- Send the portal link to your client
+
+From there, the **Hub** and the **Reminders** page take over — they surface what needs chasing and when.
+
+## Related articles
+
+- [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [The client portal](../05-portal/what-clients-see.mdx)
