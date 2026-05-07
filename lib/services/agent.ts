@@ -30,7 +30,7 @@ function txWhere(vis: AgentVisibility) {
     if (vis.firmName) {
       return { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } };
     }
-    return { agentUserId: vis.userId };
+    return { agencyId: vis.agencyId };
   }
   return { agentUserId: vis.userId };
 }

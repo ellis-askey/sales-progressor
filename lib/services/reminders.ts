@@ -96,7 +96,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   const txWhere = vis.seeAll
     ? vis.firmName
       ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }
-      : { ...baseTxWhere, agentUserId: vis.userId }
+      : baseTxWhere
     : { ...baseTxWhere, agentUserId: vis.userId };
 
   const logs = await prisma.reminderLog.findMany({
