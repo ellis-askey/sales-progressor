@@ -1,64 +1,213 @@
 # Analytics
 
-The Analytics page shows pipeline performance across your agency. Use the period tabs at the top to switch between This week, This month, This year, and All time.
+Analytics shows how your pipeline is performing — not which file needs attention today, but how the agency is doing over time. It covers volume, fees, conversion, speed to exchange, and operational health across all your files.
 
-Directors can also filter by team member using the user selector, and export data to CSV.
+The page answers: how many sales have we submitted, exchanged, and completed? What are the fees worth? How fast are we moving from instruction to exchange?
 
-## KPI counts
+## How Analytics relates to the rest of the app
 
-The counts card shows three figures for the selected period:
+Analytics is reached from the sidebar. It is the only page that aggregates across your entire visible file set into trend metrics. The Hub answers "what needs my attention today?" — Analytics answers "how is the agency performing?"
 
-| Metric | What it measures |
+See [The Hub](../01-running-your-pipeline/hub.mdx) for the daily pipeline view.
+
+## Choosing a time period
+
+<HelpSplit>
+<HelpSplitText>
+Four period tabs run across the top of the page:
+
+- **This week** — the rolling last 7 days (not Monday to Sunday)
+- **This month** — from the first of the current calendar month to today
+- **This year** — from 1 January to today
+- **All time** — every file in your visible scope
+
+The default is **This month**. Changing the period recalculates most of the dashboard instantly — no page reload.
+
+A few sections stay fixed regardless of which period tab is active: the 8-week sparklines, the 12-month monthly activity chart, the fee forecast (always the current calendar month), the missing-fees list, the files-at-risk panel, and the solicitor exchange performance table. These are noted in the relevant sections below.
+</HelpSplitText>
+<HelpSplitVisual>
+<VolumeBarChartHelpExample />
+</HelpSplitVisual>
+<p className="caption">The volume bar chart adapts to the selected period — here showing 6 months of submitted files.</p>
+</HelpSplit>
+
+## What the dashboard shows
+
+### Submitted, Exchanged, and Completed
+
+Three counts at the top of the dashboard show how many files were submitted, exchanged, and completed within the selected period. Below each count: a small conversion note ("75% of submitted", "61% of exchanged") and an 8-week sparkline tracing the trend.
+
+The sparklines are not period-sensitive. They always show the trailing 8 weekly buckets regardless of the period tab — a fixed trend line, not a period summary.
+
+When you have history from before the selected period, a delta pill appears below each count comparing the current period to the same-length period before it: "↑ 3 vs last month" or "↓ 1 vs last month". The delta is absent when viewing All time, or when there is no prior history to compare against.
+
+Submitted, Exchanged, and Completed are point-in-time counts for the selected period — they do not track cohorts. A file submitted in March and exchanged in April contributes to whichever period was selected when you viewed each count.
+
+### Conversion funnel and speed to exchange
+
+<HelpSplit>
+<HelpSplitText>
+Below the counts, two cards sit side by side.
+
+The **conversion funnel** shows the three stages — Submitted, Exchanged, Completed — as proportional bars. Between stages, a percentage shows the conversion rate: how many files that were submitted in this period went on to exchange, and how many exchanges went on to complete. Green means 50% or above; amber means below.
+
+These are period ratios, not cohort-tracked figures. They reflect where the files from this period ended up — not a forward projection.
+</HelpSplitText>
+<HelpSplitVisual>
+<SubmissionFunnelHelpExample />
+</HelpSplitVisual>
+<p className="caption">24 submitted, 18 exchanged (75%), 11 completed (61% of exchanged).</p>
+</HelpSplit>
+
+<HelpSplit>
+<HelpSplitText>
+The **speed to exchange** card shows the average number of days from a file being submitted (the instruction date) to exchange being confirmed, for all files that exchanged within the selected period.
+
+Three bands:
+
+- **Fast** — 70 days or fewer (green)
+- **Typical** — 71 to 100 days (amber)
+- **Slow** — more than 100 days (red)
+
+The gauge track and badge colour update with the average. Below the badge, the bar shows where the average falls on a 0–130-day scale.
+
+If no files exchanged within the period, the card shows "No exchanges this [period]" and the gauge is absent.
+</HelpSplitText>
+<HelpSplitVisual>
+<SpeedGaugeHelpExample />
+</HelpSplitVisual>
+<p className="caption">82 days average — Typical band. 18 files exchanged contributed to this average.</p>
+</HelpSplit>
+
+### Pipeline value and value exchanged
+
+A card below the funnel shows two figures: the total purchase price across all files in the selected period, and the purchase price of files that exchanged. A heat-tile strip below the pipeline value visualises how that value was distributed week by week — taller tiles represent weeks with higher submitted value.
+
+When the period has a previous period to compare against, the value-exchanged figure shows a pound-sterling delta: "↑ £240k vs last month."
+
+Both figures include only files where a purchase price has been entered. Files without a price contribute zero to the totals.
+
+### Fees
+
+Three figures sit below the values.
+
+- **Fee pipeline** — the sum of agent fees (including VAT where set, or VAT added at 20% if not) for all files in the selected period
+- **Locked in** — fees from files that have already exchanged; these are contractually due
+- **Average fee** — mean fee per file, including VAT
+
+All three show "—" if no fees have been entered. The fee pipeline shows a link to the missing-fees section if any active files have no fee recorded.
+
+Fees are computed from the agent fee field on each file. If a fixed amount is set, that is used. If a percentage is set, it is applied against the purchase price. If the fee is recorded as excluding VAT, 20% is added.
+
+### Fee forecast
+
+The fee forecast always shows the **current calendar month**, regardless of which period tab is active.
+
+Two figures: the predicted fees from active files whose expected exchange date falls within this month (pre-exchange files that should exchange before the end of the month), and the fees already locked in from files that have exchanged this month. The question the forecast answers — "what fees am I expecting to lock in this month?" — is the same whichever period you are viewing.
+
+If active files are predicted to exchange this month but no fees are set on them, the card shows "N files predicted — set fees to see amount" and links to the missing-fees section.
+
+### Volume and trend charts
+
+Two charts sit side by side.
+
+The **left chart** shows files submitted and adapts to the period:
+
+- This week → 7 daily bars
+- This month → 6 monthly bars
+- This year or All time → 12 monthly bars
+
+Bars are coral-coloured when files were submitted; pale when none were.
+
+The **right chart** is the monthly activity chart — always 12 months, not period-sensitive. It shows two bar series side by side for each month: created files (coral) and exchanged files (amber). This gives a cross-sectional view of whether exchange volume is keeping pace with submission volume over the year.
+
+### Solicitor exchange performance
+
+When solicitor firms have been associated with your files, this table shows each firm's average days from instruction to exchange, sorted fastest first. The same Fast / Typical / Slow thresholds apply as the speed-to-exchange gauge.
+
+This is a different aggregation from the speed gauge. The speed gauge is the agency-wide average for the selected period. The solicitor table is per-firm, aggregated across all time regardless of the period tab, and groups each transaction under both its vendor solicitor and its purchaser solicitor. A solicitor firm appears once per transaction they were involved in.
+
+The section does not appear if no solicitor firms have been linked to any files.
+
+### Referral income
+
+If your agency has referred files to another firm — files where a referral fee has been recorded — a referral income section appears. Two figures: fees from referred files still in the pipeline (active and pre-exchange), and fees from referred files that have exchanged (due on or after completion). This section is period-sensitive and appears only when the selected period contains referred files.
+
+## Files needing attention
+
+Two panels below the main analytics deal with operational health rather than historical trends. Both are always present regardless of the period tab.
+
+### Files missing a fee
+
+Every active file without a computable agent fee is listed here. The first three files show by default; "Show all (N)" expands the full list.
+
+Each row shows the address, the responsible person, and a **Set fee →** button. Clicking it opens a small form — fixed amount or percentage, plus a VAT toggle — without leaving the page. Saving the fee updates the pipeline total immediately.
+
+Keeping this list empty ensures your fee pipeline and locked-in figures are accurate. A file with no fee does not contribute to any of the fee calculations on this page.
+
+### Files at risk
+
+Three operational signals are checked across your active files:
+
+| Signal | What it means |
 |---|---|
-| **Submitted** | Files created in the period |
-| **Exchanged** | Files that exchanged in the period — with exchange rate shown as a percentage of submitted |
-| **Completed** | Files that completed in the period — with completion rate shown as a percentage of exchanged |
+| **Overdue chases** | Pending chase tasks with a due date in the past |
+| **Stalled files** | No milestone confirmed in the last 14 days (file must be at least 7 days old) |
+| **Missing event dates** | A completed milestone required a date (exchange date, completion date) but none was recorded |
 
-Each figure includes a sparkline showing the trend across the previous 12 months, and a delta pill comparing it to the same period prior (for week, month, and year views).
+Each signal shows a count in red when issues exist, with a "View →" link. Green "✓ Clear" means no issues for that signal. See [Reminders](../01-running-your-pipeline/reminders.mdx) for how overdue chases are managed.
 
-## Conversion funnel and speed to exchange
+## Team leaderboard (directors only)
 
-The conversion funnel shows submitted → exchanged → completed as a visual drop-off chart for the selected period.
+Directors with a team of two or more see a leaderboard below the at-risk panel. It shows how each team member is performing for the selected period across six columns: Submitted, Exchanged, Conversion, Pipeline value, Average fee, and Locked in.
 
-The speed to exchange card shows average days from instruction to exchange for files in the period:
+Click any column header to sort by that metric. The top row for the current sort is highlighted with a coral border.
 
-| Rating | Average days |
-|---|---|
-| **Fast** | Under 70 days |
-| **Typical** | 70–100 days |
-| **Slow** | Over 100 days |
+Click any row to filter the entire Analytics page to that team member — the subtitle changes to "Performance and revenue for [name]" and all period-sensitive figures update. The leaderboard itself is hidden while a single team member is selected. Click a different name from the filter at the top of the page, or select "All team" to return to the full view.
 
-## Value and fees
+## Filtering to one team member (directors only)
 
-**Pipeline value and value exchanged** — total purchase prices for files submitted in the period, and the subset of those that have exchanged. A delta shows the change versus the prior period.
+The **Viewing:** dropdown at the top of the page lets directors switch between the full agency view and a single team member's analytics. When a member is selected, all period-sensitive figures reflect only their files.
 
-**Fee pipeline, locked in, and average fee** — total agent fees recorded (inclusive of VAT where set), fees from exchanged files only, and average fee per file. Files missing a fee entry are flagged and linked to the missing fees section below.
+The leaderboard is hidden while a filter is active. The Export CSV downloads data scoped to the filtered view.
 
-**Fee forecast** — estimated fees from files expected to exchange in the current calendar month, based on expected exchange dates set on each file.
+## Exporting to CSV (directors only)
 
-## Charts
+The **Export CSV** button downloads a summary of the current view. This is a summary report, not a row-per-file export. It contains an overview block (submitted, exchanged, completed, pipeline value, value exchanged), a fees block (total, locked in, average, missing-fee count), a list of active files missing a fee (address, owner, role), and a referral income block if applicable.
 
-Two charts appear side by side:
-- **Files submitted** — bar chart by day (week view) or by month (month, year, and all-time views)
-- **Monthly activity** — combined bar chart showing files created and files exchanged across the last 12 months
+The filename includes the agency name, the period, and the export date.
 
-## Solicitor exchange performance
+## Empty states
 
-If files have solicitor firms recorded, a table shows each firm's average days from instruction to exchange, ranked fastest first, with a Fast/Typical/Slow badge.
+**No files at all:** A bar-chart icon, "Analytics will appear here as you submit sales," and a "+ Submit your first sale" button. No analytics sections appear until the first file is created.
 
-## Files missing a fee
+**No activity in the selected period:** A coral banner explains "No activity this [week/month/year]" and offers an "All time →" shortcut. The sections below still render, most showing zeros or dashes.
 
-Active files with no agent fee recorded are listed here. Fee pipeline and forecast figures exclude these files until a fee is set.
+**Specific metrics with no data:** The fees section shows "—" if no fees are set. Speed to exchange shows "No exchanges [period]" if no files exchanged in the period. The solicitor table and referral income sections are omitted entirely when no relevant data exists.
 
-## Files at risk
+## What changes by role
 
-A panel flagging files that may need attention — files with no recent activity or where progress has stalled.
+All roles see the same dashboard layout. What changes is the scope of the data.
 
-## Team leaderboard
+Directors see all agency files. Negotiators without **Can view all files** see only their own files — the page heading and subtitle do not change, but the figures reflect a narrower scope. Negotiators with **Can view all files** see the full agency picture.
 
-Directors see a leaderboard when the team has more than one member and no user filter is applied. It shows each member's submitted count, exchanges, conversion rate, pipeline value, average fee, and locked-in fees for the selected period.
+The team filter dropdown, the team leaderboard, and the Export CSV button are only available to directors.
+
+Push notification opt-in — a small button near the period tabs on desktop — lets you enable browser alerts for your pipeline. This is optional and applies only to the browser and device where you enable it.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured and what each role can do.
+
+## What to do next
+
+- Use the fee pipeline total alongside the fee forecast to project income for the month ahead
+- Review the missing-fees panel weekly — every file without a fee is a gap in your pipeline figures
+- Check the team leaderboard at month-end to spot patterns in submission volume and conversion across the team
+- If the files-at-risk panel shows overdue chases, open [Reminders](../01-running-your-pipeline/reminders.mdx) to work through them
+- If the solicitor exchange performance table shows a consistent outlier, that is a conversation to have with your solicitor contact before the next file goes to them
 
 ## Related articles
 
-- [The Hub](hub)
-- [All Files](all-files)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [Reminders](../01-running-your-pipeline/reminders.mdx)
+- [All Files](../01-running-your-pipeline/all-files.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)

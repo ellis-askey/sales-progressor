@@ -6,7 +6,8 @@ import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phospho
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
-const dismissedKey = (userId: string) => `sp_onboarding_dismissed_${userId}`;
+const dismissedKey    = (userId: string) => `sp_onboarding_dismissed_${userId}`;
+const emailSkippedKey = (userId: string) => `sp_onboarding_email_skipped_${userId}`;
 
 // Named keys prevent off-by-one errors when steps are reordered or added
 type ProgressData = {
@@ -46,12 +47,14 @@ const STEPS: Step[] = [
 export function OnboardingChecklist({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [emailSkipped, setEmailSkipped] = useState(false);
   const [progress, setProgress] = useState<ProgressData>(DEFAULT_PROGRESS);
   const [firstTxId, setFirstTxId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    if (localStorage.getItem(emailSkippedKey(userId))) setEmailSkipped(true);
     if (localStorage.getItem(dismissedKey(userId))) {
       setDismissed(true);
       return;
@@ -108,10 +111,29 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
     setDismissed(true);
   }
 
+  function skipEmail(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    localStorage.setItem(emailSkippedKey(userId), "1");
+    setEmailSkipped(true);
+    // Treat as completion: if everything else is done, dismiss the checklist
+    const withSkip = { ...progress, hasVerifiedEmail: true };
+    if (Object.values(withSkip).every(Boolean)) {
+      localStorage.setItem(dismissedKey(userId), "1");
+      setDismissed(true);
+    }
+  }
+
   if (!mounted || dismissed) return null;
 
-  const completedCount = Object.values(progress).filter(Boolean).length;
+  const effectiveProgress: ProgressData = { ...progress, hasVerifiedEmail: progress.hasVerifiedEmail || emailSkipped };
+  const completedCount = Object.values(effectiveProgress).filter(Boolean).length;
   const totalCount = STEPS.length;
+
+  // Show skip on verify email only when it's the sole remaining step
+  const allOthersComplete = STEPS
+    .filter((s) => s.progressKey !== "hasVerifiedEmail")
+    .every((s) => effectiveProgress[s.progressKey]);
 
   const counterBadge = (
     <span style={{
@@ -179,8 +201,9 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
           {/* Step list */}
           <div style={{ padding: "8px 0" }}>
             {STEPS.map((step) => {
-              const done = progress[step.progressKey];
+              const done = effectiveProgress[step.progressKey];
               const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
+              const showSkip = step.progressKey === "hasVerifiedEmail" && !done && allOthersComplete;
               return (
                 <Link
                   key={step.label}
@@ -205,9 +228,26 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
                     fontWeight: done ? 400 : 500,
                     color: done ? "var(--agent-text-muted)" : "var(--agent-text-primary)",
                     textDecoration: done ? "line-through" : "none",
+                    flex: 1,
                   }}>
                     {step.label}
                   </span>
+                  {showSkip && (
+                    <button
+                      onClick={skipEmail}
+                      style={{
+                        fontSize: 11, fontWeight: 500,
+                        color: "var(--agent-text-muted)",
+                        padding: "2px 7px", borderRadius: 5,
+                        border: "0.5px solid rgba(15,23,42,0.12)",
+                        background: "rgba(255,255,255,0.55)",
+                        cursor: "pointer", flexShrink: 0,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Skip
+                    </button>
+                  )}
                 </Link>
               );
             })}

@@ -197,7 +197,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
 
 // ── Hub filter helpers (used by /agent/transactions?filter=...) ──────────────
 
-export type HubFilter = "exchanging-this-week" | "completing-this-week" | "closing-this-month";
+export type HubFilter = "exchanging-this-week" | "completing-this-week" | "closing-this-month" | "exchanging-next-30-days";
 
 /**
  * Returns IDs of transactions matching a Hub "Coming up" filter.
@@ -210,13 +210,24 @@ export async function getHubFilteredIds(
 ): Promise<string[]> {
   const now = new Date();
   const in7Days = new Date(now.getTime() + 7 * 86400000);
+  const in30Days = new Date(now.getTime() + 30 * 86400000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   const txWhere = buildTxWhere(vis);
 
   let where: Prisma.PropertyTransactionWhereInput;
 
-  if (filter === "exchanging-this-week") {
+  if (filter === "exchanging-next-30-days") {
+    // Mirrors hub.ts:63–72 — active files with expected/override exchange date in next 30 days
+    where = {
+      ...txWhere,
+      status: "active",
+      OR: [
+        { expectedExchangeDate: { gte: now, lte: in30Days } },
+        { overridePredictedDate: { gte: now, lte: in30Days } },
+      ],
+    };
+  } else if (filter === "exchanging-this-week") {
     // Mirrors hub.ts:83–98
     where = {
       ...txWhere,

@@ -436,7 +436,7 @@ export default async function HubPreviewPage() {
                     value: pipelineStats.exchangingSoon.toLocaleString(),
                     label: "Exchanging soon",
                     color: "var(--agent-success)",
-                    href: "/agent/completions",
+                    href: pipelineStats.exchangingSoon > 0 ? "/agent/transactions?filter=exchanging-next-30-days" : null,
                     delta: null,
                   },
                   {

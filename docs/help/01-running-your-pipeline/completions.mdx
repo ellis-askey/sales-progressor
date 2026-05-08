@@ -1,32 +1,83 @@
 # Completions
 
-The Completions page shows files that have exchanged and are heading to completion. Once a file exchanges, it moves here and stays until completion is recorded.
+Completions shows files that have already exchanged contracts and are now counting down to their legal completion date. It is the post-exchange pipeline — not a list of legally completed files, and not a view of files still heading toward exchange.
 
-The header shows the total count, total fees (where set), and total sale value across all files in view.
+The page answers one question: which files have exchanged, and when are they completing?
 
-## How files are grouped
+## How Completions relates to the Hub
 
-Files are grouped by completion date proximity:
+The Hub's **Exchanging soon** stat counts active files whose expected exchange date falls within the next 30 days — files that have not yet exchanged. Clicking it takes you to [All Files](../01-running-your-pipeline/all-files.mdx) pre-filtered to that group.
 
-| Group | Condition |
-|---|---|
-| **Overdue** | Completion date is in the past |
-| **Completing this week** | Completion date is within the next 7 days |
-| **Completing next week** | Completion date is 7–14 days away |
-| **Later** | Completion date is more than 14 days away |
-| **No completion date set** | No date has been entered on the file |
+Completions is a separate page, reached from the sidebar. It shows a different population: files that have already exchanged and are now waiting for their legal completion date. A file appears on Completions only after its exchange milestone has been confirmed.
 
-Setting the completion date when exchange happens keeps the groupings accurate.
+See [The Hub](../01-running-your-pipeline/hub.mdx) for detail on the pipeline health stats.
 
-## What to do once a file exchanges
+## The file groups
 
-1. Mark **VM19** (contracts exchanged — seller) and **PM26** (contracts exchanged — buyer) complete
-2. Enter the completion date on the file
-3. On the day of completion, mark **VM20** (sale completed) and **PM27** (purchase completed) complete
-4. Change the file status to Completed
+Files are divided into five urgency groups based on their completion date. All groups start collapsed — click a group header to expand it. Groups with no files are omitted.
+
+| Group | Condition | Colour |
+|---|---|---|
+| **Overdue** | Completion date has passed | Red |
+| **Completing this week** | Completion date within the next 7 days | Amber |
+| **Completing next week** | Completion date 7–14 days from now | Blue |
+| **Later** | Completion date 14+ days from now | Slate |
+| **No completion date set** | No date entered on the file | Muted |
+
+Within each group, files are sorted by completion date, earliest first. There are no search controls or filters on this page.
+
+The group header shows the group label, file count, and — when fee amounts are set — a total fee figure. When a group is collapsed, that total appears without qualification. Expand the group to see whether any files in it have no fee entered — the "(N files with no fee set)" note only appears when the group is open.
+
+## What each file shows
+
+<HelpSplit>
+<HelpSplitText>
+Each file card shows:
+
+- **Property address** — the full address as the main line
+- **Purchase price** and **fee** — shown when set on the file
+- **Purchaser** — first names of contacts with the purchaser role, if any
+- **Exchanged** — how long ago exchange was confirmed: "Exchanged today", "Exchanged yesterday", or "Exchanged 12 May · 10 days ago"
+- **Solicitors** — vendor and purchaser solicitor firms. Shows "No solicitors set" in amber if neither is entered; shows "not set" in italics for a single absent side
+- **Completion date** — the date formatted as "Mon, 13 January 2025", with a label below: "in 6 days", "tomorrow", "today", or "2 days overdue"
+
+For files in the **No completion date set** group, a "Set date →" marker appears in place of the date. The marker looks like an action but clicking it opens the full property file — there is no inline date picker on this page; the date is set from within the file.
+
+Click anywhere on a card to open the full property file.
+</HelpSplitText>
+<HelpSplitVisual>
+<CompletionFileCardHelpExample />
+</HelpSplitVisual>
+<p className="caption">A file in the Completing this week group — amber. Purchase price, fee, purchaser, exchange date, and both solicitor firms shown.</p>
+</HelpSplit>
+
+## The pipeline summary
+
+When files are present, a summary line appears above the groups showing total file count, total fees, and total purchase value. For a director, this is the at-a-glance answer to how much fee revenue is in flight and what the total value of the post-exchange pipeline is heading to completion. Only files where those figures have been entered contribute to the totals.
+
+The stat segments in the page header — coloured count links such as "2 overdue · 1 this week" — are anchor links. Clicking one scrolls directly to that group. Only groups containing files appear as stat segments.
+
+## What you see when there are no files
+
+**No post-exchange files:** A clock icon, "No files awaiting completion", and "Once a file exchanges, it'll appear here as it heads toward completion." There is no link to another page from this empty state.
+
+## What changes by role
+
+Directors and negotiators with **Can view all files** see every post-exchange file in the agency. Standard negotiators see only files where they are the assigned agent.
+
+Unlike All Files — which changes its heading to "My Files" for negotiators — Completions uses the same heading and subtitle for all roles. There is no visual indicator of how many files are hidden from a negotiator's view.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured and what each role can do.
+
+## What to do next
+
+- Click any group header to expand it and see the files inside
+- Click a file card to open it — completion date, solicitor details, and milestones are all inside the file; see the property file articles later in this guide for what's inside
+- Open any file in the **No completion date set** group and add a date — without one, the file cannot be sorted into the correct urgency group
+- Use the stat segments at the top to jump directly to the most urgent group
 
 ## Related articles
 
-- [Exchange gates — VM18 and PM25](../03-milestones/exchange-gates)
-- [Vendor milestones — VM1 to VM20](../03-milestones/vendor-milestones)
-- [Purchaser milestones — PM1 to PM27](../03-milestones/purchaser-milestones)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [All Files](../01-running-your-pipeline/all-files.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)

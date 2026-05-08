@@ -1,0 +1,178 @@
+# Creating a sale
+
+Every property file in Sales Progressor starts here. The new sale form is where you enter the details of a newly agreed sale — the address, the tenure, the purchase type, the contacts — and hand it to the system to track through to completion.
+
+The form takes two to five minutes to fill in. Once submitted, the file is active: milestones are set up for both sides, reminders are scheduled, and buyers and sellers can be invited to their portal.
+
+## Where to start a new sale
+
+The new sale form is available from any of the main pages. All entry points open the same form.
+
+- **Hub** — the **New sale** button in the page header, or **Add a sale** in the empty-state card
+- **All Files** — the **New sale** button in the page header, or the link in the empty-state message
+- **Analytics** — the **+ Submit your first sale** button, shown when no files exist yet
+
+## What the form looks like
+
+The form is arranged in two columns. The left column holds the property details — address, tenure, purchase type, price, fee, notes, chain, and the progressor toggle. The right column holds contacts and solicitors.
+
+A **Saved drafts** panel appears in the bottom-left of the screen throughout, showing any drafts you have previously saved.
+
+## Uploading a memo of sale
+
+If you have a memo of sale, uploading it is the fastest way to fill in the form. The upload area sits at the top of the left column.
+
+Accepted file types: PDF, JPEG, PNG, WEBP. Maximum file size: 10 MB.
+
+When you upload a file, the system reads it and fills in what it can: the street address, city, postcode, purchase price, vendor names and contact details, purchaser names and contact details, and the solicitor firms on both sides. Fields that were auto-filled are marked with a small purple badge labelled **auto-filled**. You can edit any of them before submitting.
+
+If a solicitor firm mentioned in the memo is already in your solicitor database, the picker fills in automatically. If it is not, a new firm is created and added to your database.
+
+The memo file is preserved on the property file after creation — it is attached as the MOS document under the file's Documents section.
+
+**If the upload does not work:**
+
+- "Please upload a PDF or image (JPG, PNG, WEBP)" — the file type is not supported
+- "File too large — please use a file under 10 MB" — the file needs to be compressed or converted
+- "Couldn't extract data from this document — try a clearer scan" — the document is too blurry or is an image the system cannot read
+
+When no memo is available, fill in the fields manually. The memo upload is optional.
+
+## Property details (required)
+
+Three fields are required before the form can be submitted.
+
+### Street address
+
+The property address. Entering a city and postcode is optional, but useful for any future duplicates check. If you submit a sale at an address that already has an active or on-hold file in your agency, a warning appears with the option to view the existing file or create the new one anyway.
+
+### Tenure
+
+**Freehold** or **Leasehold** (a third option, Share of freehold, may appear for certain property types).
+
+Tenure is not just a label — it determines which milestones are generated when the file is created. Leasehold adds milestones for the management pack and ground rent. Freehold skips those. For more on what milestones are set up at creation, see the Milestones articles.
+
+### Purchase type
+
+Six options: Mortgage, Cash, Cash from Proceeds, Shared Ownership, Help to Buy, First Home Scheme.
+
+Cash and Cash from Proceeds automatically mark the mortgage-related purchaser milestones as not required. All other types generate the full purchaser milestone set.
+
+Tenure and purchase type together determine the complete milestone picture for the file. They cannot be changed after creation without manually adjusting individual milestones.
+
+## Property details (optional)
+
+### Purchase price
+
+Enter the agreed sale price in pounds. The price is used to calculate agent fee amounts when the fee is set as a percentage, and it feeds into the pipeline values on Analytics.
+
+### Agent fee
+
+Two modes: **Fixed £** or **% of sale price**. In percentage mode, the form shows the implied pound amount alongside the percentage as you type, once a purchase price has been entered.
+
+A VAT toggle lets you record the fee as inclusive of VAT or exclusive (+ VAT). This affects how the fee appears in Analytics — the fee pipeline always includes VAT.
+
+The fee can be set or updated later on the property file if you do not have it at creation.
+
+### Notes
+
+A free-text field for any context that is useful to record at the start of the file — for example, a note about the buyer's timeline, a complication worth flagging early, or any background not captured elsewhere. Notes appear on the Overview tab of the property file.
+
+## Contacts
+
+The right column holds a contacts card with two sections: Vendors and Purchasers.
+
+Each section holds up to two contacts. Each contact has a name (required for the contact to be saved), a phone number, and an email address. Phone and email are optional at creation — you can add or update them later from the property file.
+
+When you submit the form, each contact is assigned a portal token automatically. This is the identifier behind the portal link for that client. To send the portal link to a client, open the property file after creation and use the **Send invite** button next to their contact row.
+
+**When "Send to progressor" is selected** (see below), at least one vendor and one purchaser are required, each with a phone number or email address. The form blocks submission until these are present.
+
+## Solicitors
+
+Below the contacts card, a solicitors card holds two pickers: one for the seller's solicitor and one for the buyer's solicitor.
+
+Both are optional. Each picker searches your solicitor database as you type. If the firm is not in your database, you can add it from the picker. The firm is saved and reused across future transactions.
+
+If a solicitor firm is one of your agency's recommended firms (configured by your director in Settings), a **Referred by us** checkbox appears when you select that firm. Tick this to record that the referral came from your agency. A referral fee field appears when the checkbox is ticked.
+
+## Chain (optional)
+
+The chain section sits below notes in the left column. It starts collapsed. Click **+ Add chain** to expand it.
+
+When expanded, you choose your sale's position in the chain: Top of chain, Bottom of chain, Middle of chain, or I don't know yet. Then you add nodes — the properties above or below yours in the chain. Each node captures the property address, the agency handling it, the agent's contact details, and any notes.
+
+If you enter a valid email address for a chain agent, an invitation can be sent to them when you submit the file. Tick the **Send chain invites now** checkbox in the submit area if you want this. Invites are sent for any node where a valid email is present.
+
+Chain is entirely optional. You can add or update it later from the property file if the chain situation is not clear at creation.
+
+## Self-progress vs Send to progressor
+
+Below the chain section, agents (directors and negotiators) see a toggle with two options.
+
+**Self-progress** — your agency manages the file directly. You mark milestones, generate chases, and keep both sides moving. This is the default.
+
+**Send to progressor** — the file is handed to the Sales Progressor team to manage on your behalf. A progressor takes responsibility for day-to-day progression. You retain full visibility — the file appears in your hub the same as any other file.
+
+The choice is per-file. The same agency can run some files self-managed and others with a progressor.
+
+See [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx) for more on the difference between the two service modes.
+
+## Saving as a draft
+
+If you start filling in the form but are not ready to submit, you can save the file as a draft. Drafts appear in the **Saved drafts** panel at the bottom-left of the screen.
+
+When you try to navigate away from a partially filled form, a prompt appears: **Save as draft**, **Leave without saving**, or **Stay on page**. Choosing Save as draft saves the form state and clears the form — you can come back to it later.
+
+Drafts preserve everything you have entered: the address, tenure, purchase type, price, notes, all contacts, both solicitors, the fee, the chain, and any memo of sale that was uploaded.
+
+To resume a draft, click **Edit** on its row in the drafts panel. All fields restore. To delete a draft without creating the file, click the **×** next to it.
+
+Drafts are associated with your user account within your agency. Other team members do not see your drafts.
+
+## Submitting the file
+
+The **Create transaction** button becomes active when the three required fields are present — address, tenure, and purchase type. When "Send to progressor" is selected, it also requires at least one vendor and one purchaser with a contact method.
+
+When you click **Create transaction**, the form shows a brief animated screen while the file is being set up. In the background:
+
+- The property file is created with status: Active
+- Milestones are initialised for both sides, based on the tenure and purchase type
+- If a memo of sale was uploaded, both "Memorandum of sale received" milestones are marked complete immediately
+- Initial reminders are scheduled for the file
+- Chain links are created and invitations sent if applicable
+
+You land on the new file's Overview tab. If a memo was uploaded, a confirmation banner confirms that the MOS milestones were auto-completed.
+
+One detail to note: the expected exchange date is set automatically to 12 weeks from the creation date. This is editable on the Overview tab — if the agreed timeline is different, update it there.
+
+If the file was created with an uploaded memo, the address, contacts, and solicitors are already filled in. Open the Milestones tab to see what else needs confirming and what is already set up.
+
+### Duplicate address check
+
+If an active or on-hold file already exists at the same address in your agency, the form alerts you before creating. You have three options: **View existing file**, **Create anyway**, or **Cancel**. This protects against accidentally creating two files for the same property.
+
+## What changes by role
+
+Directors and negotiators see and use the same form. The progressor toggle is available to both. The fee section is shown to agents only (not to internal Sales Progressor staff).
+
+The file created by the form is owned by whoever submits it. Directors creating a file own it in the same way negotiators do.
+
+For negotiators, post-creation visibility of the file depends on their **Can view all files** permission — but this does not affect the creation flow itself.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured.
+
+## What to do next
+
+- Open the **Milestones** tab on the new file and confirm any milestones that have already happened — for example, if the solicitors have already been instructed
+- Send the portal link to your contacts so they can track progress without chasing you for updates
+- Set the expected exchange date on the Overview tab if 12 weeks is not the right target
+- If the property is leasehold, check the leasehold milestones are in the right state from the start
+
+## Related articles
+
+- [Your first day](../00-getting-started/your-first-day.mdx)
+- [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [All Files](../01-running-your-pipeline/all-files.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)

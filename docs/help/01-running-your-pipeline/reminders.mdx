@@ -1,0 +1,125 @@
+# Reminders
+
+Reminders is the prioritised list of every active chase across your visible files. When a milestone is due and has not yet been confirmed, it appears here with an urgency label, the property and contact details, and the actions needed to move it forward.
+
+The page is sorted so the most urgent items are always at the top. Directors and negotiators open Reminders throughout the day — it answers not which files exist, but which ones need action now and in the days ahead.
+
+## How Reminders relates to the Hub
+
+The Hub's **Needs your attention** section is a preview. It shows up to three reminders that are overdue or due today. Clicking **Reminders** in that section header opens the full Reminders page.
+
+Reminders shows everything the Hub preview does, plus reminders that are coming up in the next few business days. The Hub answers "what needs my attention right now?" — Reminders answers "what needs chasing across all my files, now and soon?"
+
+See [The Hub](../01-running-your-pipeline/hub.mdx) for detail on the attention preview.
+
+## The four urgency tiers
+
+Reminders are grouped by urgency. Each tier has its own colour so the priority of any reminder is visible at a glance.
+
+| Tier | When it appears | Colour |
+|---|---|---|
+| **Escalated** | Manually escalated, or auto-escalated after multiple unanswered chases | Red |
+| **Overdue** | The due date has passed and the reminder has not been confirmed | Orange |
+| **Due today** | The reminder is due today | Amber |
+| **Coming up** | Due within the next few business days | Muted |
+
+Within each tier, reminders are sorted by due date — the most overdue at the top of the Overdue group, the soonest due at the top of Coming up. Due today reminders sort alphabetically by reminder name.
+
+Reminders move between tiers automatically as time passes. A reminder in Coming up becomes Due today on its due date, and Overdue the day after. Escalated reminders stay at the top of the list regardless of their due date until confirmed or the escalation clears.
+
+## Grouping by file
+
+The list is grouped by property file. A file with one active reminder shows as a single card. A file with reminders on both the seller and buyer sides shows as a split card — Seller on the left, Buyer on the right.
+
+## A single reminder
+
+<HelpSplit>
+<HelpSplitText>
+Each reminder card shows:
+
+- **The status bar** — the urgency label across the top strip, and a chase summary on the right if any chases have been sent ("2 chases sent · last 2d ago via email")
+- **The contact** — the person or solicitor the reminder is about
+- **The reminder name** — the milestone being chased
+- **A party pill** — "Waiting on Seller" or "Waiting on Buyer" where applicable
+
+Below the reminder name: **Confirm**, **Chase**, **Snooze**, and a ⋯ menu for additional options. **Show details** expands a panel showing the last contact on this file, how many times it has been chased, and the milestone the reminder is anchored to.
+</HelpSplitText>
+<HelpSplitVisual>
+<ReminderCardHelpExample />
+</HelpSplitVisual>
+<p className="caption">An overdue vendor-side reminder — Hawthorne & Co Solicitors, contract pack, chased twice. The orange strip and "Overdue" label indicate the urgency tier.</p>
+</HelpSplit>
+
+## Actions on a reminder
+
+### Confirm
+
+When the underlying issue has been resolved — the solicitor has responded, the document has arrived, the milestone has happened — click **Confirm**. The reminder is marked done and the card slides away. If the reminder was chasing a specific milestone, confirming it here also confirms that milestone on the property file. More on milestones in the property file articles later in this guide.
+
+### Chase
+
+**Chase** opens the chase drawer to compose a new message — email, WhatsApp, or another method. The chase count on the reminder increments when the message is sent. More on the chase drawer in Sending chase emails later in this guide.
+
+### Snooze
+
+**Snooze** moves the reminder out of the Active list until the chosen time: 24 hours, 48 hours, 72 hours, 7 days, or 14 days. The reminder reappears in Active when the snooze period ends.
+
+Use Snooze for "I'll handle this later" — not for "this doesn't apply," which would mean marking the milestone as not required on the property file itself.
+
+### Escalate
+
+**Escalate** is in the ⋯ menu on each reminder card. Marking a reminder escalated moves it to the Escalated group at the top of the list, shown in red. Use it when a reminder has been chased multiple times without a response and needs to stand out from the rest. The option is greyed out once a reminder is already escalated.
+
+### Manual chase
+
+Also in the ⋯ menu: **Chased manually**. If you have contacted someone by phone, met them in person, or reached them outside the system, recording it here keeps the chase count and contact history accurate. Nothing is sent — only the count and last-contact record update.
+
+### Wake (snoozed reminders only)
+
+From the Snoozed tab, each reminder has a **Wake now** button. Clicking it brings the reminder back to Active immediately, before its snooze period ends.
+
+## Active and Snoozed
+
+Reminders has two tabs: **Active** and **Snoozed**. Active contains every reminder currently due, overdue, or coming up. Snoozed contains reminders parked for later, sorted by when they will wake. Switching between tabs is a single click. Both tabs share the same filter bar.
+
+## Filters
+
+A sticky filter bar sits above the reminder list. Three controls apply simultaneously:
+
+- **Search** — type any part of a property address or reminder name to narrow the list
+- **Seller / Buyer** — show reminders on one side only, or show All
+- **Active / Snoozed** — switch between the two tabs
+
+Filters apply instantly without reloading the page. The filter bar stays visible even when no reminders match, so you can adjust or clear without navigating away.
+
+## What you see when there's nothing to chase
+
+**All caught up** — when you have active files but nothing is currently due, overdue, or coming up, the page shows a green tick and the message "All caught up. No reminders due right now. We'll surface them here as files progress."
+
+**No files yet** — when you have no active property files, a bell icon appears with the heading "Your reminders will appear here." Create a file from the Hub to get started.
+
+**Filters returning zero** — when a filter hides everything, a contextual message explains which filter is responsible: "No reminders for Seller right now," "No reminders match the current filter," or "No active reminders." The filter bar stays visible so you can adjust or clear it.
+
+If all your reminders are scheduled further ahead than the Coming up window, the filter bar is visible but the urgency sections are empty. Reminders will appear in the list as their dates approach.
+
+## What changes by role
+
+Directors and negotiators see the same Reminders page. What changes is which reminders are in the list.
+
+Directors — and negotiators who have been granted **Can view all files** — see all reminders across the agency. Negotiators without that permission see only reminders on files they are assigned to.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured and what each role can do.
+
+## What to do next
+
+- Open Reminders at the start and end of each day — the list is sorted by urgency, so the top is always where to start
+- Use Snooze for reminders you have decided to revisit later; leave things in Active if they still need action
+- Use Manual chase whenever you contact someone outside the system — it keeps your chase count and contact history accurate
+- Read How the reminder system works later in this guide to understand why each reminder appears when it does and how the repeat and escalation rules work
+- Read Sending chase emails later in this guide for how the chase drawer works in detail
+
+## Related articles
+
+- [What is Sales Progressor?](../00-getting-started/what-is-sales-progressor.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)

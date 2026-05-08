@@ -270,6 +270,10 @@ function CreatingOverlay({ address }: { address: string }) {
 
 // ── Draft support ─────────────────────────────────────────────────────────────
 
+type DraftContactEntry = { name: string; phone: string | null; email: string | null };
+type DraftSolicitorEntry = { firmId: string; firmName: string; contactId: string | null; contactName: string | null; phone: string | null; email: string | null };
+type DraftChainStub = { id: string; direction: "above" | "below"; stubPropertyAddress: string; stubAgencyName: string; stubAgentName: string; stubAgentEmail: string; stubAgentPhone: string; stubNotes: string };
+
 type DraftEntry = {
   id: string;
   propertyAddress: string;
@@ -277,12 +281,22 @@ type DraftEntry = {
   purchaseType: string | null;
   purchasePrice: number | null;
   createdAt: string;
-  vendorName: string | null;
-  vendorPhone: string | null;
-  vendorEmail: string | null;
-  purchaserName: string | null;
-  purchaserPhone: string | null;
-  purchaserEmail: string | null;
+  notes: string | null;
+  agentFeeAmount: number | null;
+  agentFeePercent: number | null;
+  agentFeeIsVatInclusive: boolean | null;
+  vendors: DraftContactEntry[];
+  purchasers: DraftContactEntry[];
+  vendorSolicitor: DraftSolicitorEntry | null;
+  purchaserSolicitor: DraftSolicitorEntry | null;
+  referredFirmId: string | null;
+  referralFee: number | null;
+  mosStoragePath: string | null;
+  mosFileSize: number | null;
+  mosMimeType: string | null;
+  mosFilename: string | null;
+  progressedBy: string | null;
+  chainStubs: DraftChainStub[];
 };
 
 function relativeTime(iso: string): string {
@@ -704,20 +718,55 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
     setDraftSaving(true);
     try {
       const address = [form.streetAddress, form.city, form.postcode].filter(Boolean).join(", ");
+      const feeAmount = isAgent && agentFeeType === "amount" ? agentFeeAmount : null;
+      const feePercent = isAgent && agentFeeType === "percent" && agentFeePercentStr ? parseFloat(agentFeePercentStr) : null;
+      const feeVatInclusive = isAgent && (feeAmount != null || feePercent != null) ? agentFeeVat === "inclusive" : null;
+      const referredFirmId = vendorIsReferral && vendorSolicitor
+        ? vendorSolicitor.firmId
+        : purchaserIsReferral && purchaserSolicitor
+        ? purchaserSolicitor.firmId
+        : null;
+      const referralFee = referredFirmId
+        ? (recommendedFirms.find((f) => f.id === referredFirmId)?.defaultReferralFeePence ?? null)
+        : null;
+      const activeChainStubs = chainExpanded
+        ? chainStubs.map((s) => ({
+            direction: s.direction,
+            stubPropertyAddress: s.stubPropertyAddress,
+            stubAgencyName: s.stubAgencyName,
+            stubAgentName: s.stubAgentName,
+            stubAgentEmail: s.stubAgentEmail,
+            stubAgentPhone: s.stubAgentPhone,
+            stubNotes: s.stubNotes,
+          }))
+        : [];
+
       const result = await saveDraftAction({
         draftId: currentDraftId ?? undefined,
         propertyAddress: address || "Untitled draft",
         tenure: (form.tenure as Tenure) || null,
         purchaseType: (form.purchaseType as PurchaseType) || null,
         purchasePrice: form.purchasePrice,
-        vendorName: vendors[0]?.name.trim() || undefined,
-        vendorPhone: vendors[0]?.phone.trim() || undefined,
-        vendorEmail: vendors[0]?.email.trim() || undefined,
-        purchaserName: purchasers[0]?.name.trim() || undefined,
-        purchaserPhone: purchasers[0]?.phone.trim() || undefined,
-        purchaserEmail: purchasers[0]?.email.trim() || undefined,
+        notes: form.notes.trim() || null,
+        agentFeeAmount: feeAmount,
+        agentFeePercent: feePercent,
+        agentFeeIsVatInclusive: feeVatInclusive,
+        vendors: vendors.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || null, email: v.email.trim() || null })),
+        purchasers: purchasers.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || null, email: p.email.trim() || null })),
+        vendorSolicitorFirmId: vendorSolicitor?.firmId ?? null,
+        vendorSolicitorContactId: vendorSolicitor?.contactId ?? null,
+        purchaserSolicitorFirmId: purchaserSolicitor?.firmId ?? null,
+        purchaserSolicitorContactId: purchaserSolicitor?.contactId ?? null,
+        referredFirmId,
+        referralFee,
+        mosStoragePath: mosStoragePath ?? null,
+        mosFileSize: mosFileSize ?? null,
+        mosMimeType: mosMimeType ?? null,
+        mosFilename: mosFilename ?? null,
         progressedBy,
+        chainStubs: activeChainStubs,
       });
+
       const savedDraft: DraftEntry = {
         id: result.id,
         propertyAddress: address || "Untitled draft",
@@ -725,13 +774,24 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
         purchaseType: form.purchaseType || null,
         purchasePrice: form.purchasePrice,
         createdAt: new Date().toISOString(),
-        vendorName: vendors[0]?.name.trim() || null,
-        vendorPhone: vendors[0]?.phone.trim() || null,
-        vendorEmail: vendors[0]?.email.trim() || null,
-        purchaserName: purchasers[0]?.name.trim() || null,
-        purchaserPhone: purchasers[0]?.phone.trim() || null,
-        purchaserEmail: purchasers[0]?.email.trim() || null,
+        notes: form.notes.trim() || null,
+        agentFeeAmount: feeAmount,
+        agentFeePercent: feePercent,
+        agentFeeIsVatInclusive: feeVatInclusive,
+        vendors: vendors.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || null, email: v.email.trim() || null })),
+        purchasers: purchasers.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || null, email: p.email.trim() || null })),
+        vendorSolicitor: vendorSolicitor,
+        purchaserSolicitor: purchaserSolicitor,
+        referredFirmId,
+        referralFee,
+        mosStoragePath: mosStoragePath ?? null,
+        mosFileSize: mosFileSize ?? null,
+        mosMimeType: mosMimeType ?? null,
+        mosFilename: mosFilename ?? null,
+        progressedBy,
+        chainStubs: activeChainStubs.map((s) => ({ ...s, id: Math.random().toString(36).slice(2) })),
       };
+
       if (currentDraftId) {
         setLocalDrafts((prev) => {
           const exists = prev.some((d) => d.id === currentDraftId);
@@ -763,12 +823,60 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
       purchasePrice: draft.purchasePrice ?? null,
       tenure: (draft.tenure as Tenure) ?? "",
       purchaseType: (draft.purchaseType as PurchaseType) ?? "",
-      notes: "",
+      notes: draft.notes ?? "",
     });
-    setVendors(draft.vendorName ? [{ name: draft.vendorName, phone: draft.vendorPhone ?? "", email: draft.vendorEmail ?? "" }] : [emptyContact()]);
-    setPurchasers(draft.purchaserName ? [{ name: draft.purchaserName, phone: draft.purchaserPhone ?? "", email: draft.purchaserEmail ?? "" }] : [emptyContact()]);
-    setVendorSolicitor(null);
-    setPurchaserSolicitor(null);
+
+    // Contacts
+    const draftVendors = draft.vendors?.length ? draft.vendors.map((v) => ({ name: v.name, phone: v.phone ?? "", email: v.email ?? "" })) : [emptyContact()];
+    const draftPurchasers = draft.purchasers?.length ? draft.purchasers.map((p) => ({ name: p.name, phone: p.phone ?? "", email: p.email ?? "" })) : [emptyContact()];
+    setVendors(draftVendors);
+    setPurchasers(draftPurchasers);
+
+    // Solicitors
+    setVendorSolicitor(draft.vendorSolicitor ?? null);
+    setPurchaserSolicitor(draft.purchaserSolicitor ?? null);
+    setVendorIsReferral(!!(draft.referredFirmId && draft.vendorSolicitor && draft.referredFirmId === draft.vendorSolicitor.firmId));
+    setPurchaserIsReferral(!!(draft.referredFirmId && draft.purchaserSolicitor && draft.referredFirmId === draft.purchaserSolicitor.firmId));
+
+    // Fee
+    if (draft.agentFeePercent != null) {
+      setAgentFeeType("percent");
+      setAgentFeePercentStr(String(draft.agentFeePercent));
+      setAgentFeeAmount(null);
+    } else {
+      setAgentFeeType("amount");
+      setAgentFeeAmount(draft.agentFeeAmount ?? null);
+      setAgentFeePercentStr("");
+    }
+    setAgentFeeVat(draft.agentFeeIsVatInclusive === true ? "inclusive" : "exclusive");
+
+    // MOS
+    if (draft.mosStoragePath) {
+      setMosStoragePath(draft.mosStoragePath);
+      setMosFileSize(draft.mosFileSize ?? null);
+      setMosMimeType(draft.mosMimeType ?? null);
+      setMosFilename(draft.mosFilename ?? null);
+      setMemoStatus("done");
+      setMemoResult({ filled: ["memo restored from draft"], missing: [], vendorSolicitorFirm: null, purchaserSolicitorFirm: null });
+      setMemoFields(new Set());
+    } else {
+      dismissMemo();
+    }
+
+    // Chain
+    if (draft.chainStubs?.length) {
+      setChainStubs(draft.chainStubs);
+      setChainExpanded(true);
+    } else {
+      setChainStubs([]);
+      setChainExpanded(false);
+    }
+
+    // Progressor
+    if (draft.progressedBy === "progressor" || draft.progressedBy === "agent") {
+      setProgressedBy(draft.progressedBy);
+    }
+
     setCurrentDraftId(draft.id);
     setLocalDrafts((prev) => prev.filter((d) => d.id !== draft.id));
     window.scrollTo({ top: 0, behavior: "smooth" });

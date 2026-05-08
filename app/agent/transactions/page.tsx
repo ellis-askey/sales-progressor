@@ -18,6 +18,7 @@ const HUB_FILTER_VALUES = [
   "exchanging-this-week",
   "completing-this-week",
   "closing-this-month",
+  "exchanging-next-30-days",
 ] as const;
 
 function isHubFilter(v: string | undefined): v is HubFilter {
@@ -28,6 +29,7 @@ const FILTER_LABELS: Record<HubFilter, string> = {
   "exchanging-this-week": "Exchanging this week",
   "completing-this-week": "Completing this week",
   "closing-this-month": "Closing this month",
+  "exchanging-next-30-days": "Exchanging in the next 30 days",
 };
 
 const FILTER_EMPTY: Record<HubFilter, { title: string; description: string }> = {
@@ -45,6 +47,11 @@ const FILTER_EMPTY: Record<HubFilter, { title: string; description: string }> = 
     title: "No files closing this month",
     description:
       "Files appear here when their expected exchange date falls within the current calendar month.",
+  },
+  "exchanging-next-30-days": {
+    title: "No files exchanging in the next 30 days",
+    description:
+      "Files appear here when their expected exchange date is within the next 30 days.",
   },
 };
 

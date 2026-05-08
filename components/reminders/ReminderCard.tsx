@@ -503,9 +503,9 @@ export function ReminderCard({
   return (
     <div
       style={{
-        overflow: "hidden",
         maxHeight: isExiting ? 0 : 600,
         opacity: isExiting ? 0 : 1,
+        overflow: isExiting ? "hidden" : "visible",
         transition: "max-height 280ms ease, opacity 220ms ease",
         marginBottom: isExiting ? -8 : 0,
       }}

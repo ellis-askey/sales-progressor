@@ -99,6 +99,20 @@ function IconWarning() {
     </svg>
   );
 }
+function IconHelp() {
+  return (
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+    </svg>
+  );
+}
+function IconBook() {
+  return (
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+    </svg>
+  );
+}
 
 // ── Screenshot upload ─────────────────────────────────────────────────────────
 
@@ -378,6 +392,21 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             </button>
           </div>
           <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => { window.open("/help", "_blank"); close(); }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(249,115,22,0.06)", border: "0.5px solid rgba(249,115,22,0.22)", borderRadius: 10, cursor: "pointer", textAlign: "left" }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#f97316" }}>
+                <IconBook />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>Browse Help</p>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>Articles and guides</p>
+              </div>
+              <span style={{ color: "#f97316", flexShrink: 0 }}><IconChevron /></span>
+            </button>
+            <div style={{ height: "0.5px", background: "#f3f4f6", margin: "2px 0" }} />
             <CategoryCard icon={<IconBug />}      title="Report an issue"        description="Something's not working" onClick={() => selectCategory("bug")} />
             <CategoryCard icon={<IconBulb />}     title="Suggest an improvement" description="Share your idea"         onClick={() => selectCategory("suggestion")} />
             <CategoryCard icon={<IconQuestion />} title="Ask a question"         description="Get help and advice"     onClick={() => selectCategory("question")} />
@@ -500,17 +529,17 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 12px 32px rgba(45,24,16,0.16), 0 1px 0 rgba(255,255,255,0.80) inset"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(45,24,16,0.10), 0 1px 0 rgba(255,255,255,0.80) inset"; (e.currentTarget as HTMLButtonElement).style.transform = ""; }}
         >
-          <IconChat />
+          <IconHelp />
           <span style={{
             fontSize: 13,
             fontWeight: 500,
             color: "#1f2937",
-            maxWidth: isCompact ? 0 : 80,
+            maxWidth: isCompact ? 0 : 60,
             opacity: isCompact ? 0 : 1,
             overflow: "hidden",
             transition: "max-width 250ms ease, opacity 200ms ease",
           }}>
-            Feedback
+            Help
           </span>
         </button>
       </div>}

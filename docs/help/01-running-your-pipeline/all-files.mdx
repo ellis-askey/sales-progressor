@@ -1,35 +1,132 @@
 # All Files
 
-All Files shows every transaction you have access to. By default it shows active files; use the filters to find anything else.
+All Files is the complete list of every property file in your visible scope. Where the Hub answers "what needs my attention today?" and Reminders answers "what needs chasing?", All Files answers "where is everything?" — it's the full library, useful for finding a specific file or filtering down to a subset.
 
-<div className="example-wrapper">
-  <StatusBadgeExample />
-</div>
+Use it to locate any transaction at a glance, check where a sale stands, or pull up a focused view — such as every file assigned to one negotiator, or every At risk file across the pipeline.
 
-## Filters
+## How All Files relates to the Hub
 
-| Filter | Options |
+The Hub surfaces what needs action now. All Files shows every file regardless of urgency. The two pages work together: the Hub's pipeline strip — Exchanging this week, Completing this week, Closing this month — links directly into All Files, pre-filtered to the matching subset. A coral pill at the top of the list indicates which Hub filter is active and how many files it contains.
+
+See [The Hub](../01-running-your-pipeline/hub.mdx) for detail on the pipeline strip and how those counts are calculated.
+
+## Status tabs
+
+Five tabs sit above the file list. The default is **Active**.
+
+| Tab | What it shows |
 |---|---|
-| **Status** | Active, exchanged, completed, withdrawn, fallen through |
-| **Service type** | Self-managed or with progressor |
-| **Assigned progressor** | If you use the outsourced service with multiple progressors |
+| **All** | Every file regardless of status |
+| **Active** | Files currently in progress |
+| **On Hold** | Files paused — neither progressing nor closed |
+| **Completed** | Files that have reached legal completion |
+| **Withdrawn** | Files where the sale fell through or was withdrawn |
 
-## What each row shows
+Each tab shows a count alongside the label. Clicking a tab filters the list instantly. The tabs are hidden when a Hub filter is active — the two views are mutually exclusive.
 
-- Property address
-- Buyer and seller names
-- Current progress percentage (weighted milestone completion)
-- Status
-- Days since last activity
+Read Changing file status for how and when to move a file between these states.
 
-Click any row to open that property file.
+## The file list
 
-## Sorting
+The list is shown sorted by **Exchange Target, earliest first**. Files without an expected exchange date sort to the bottom. Click any sortable column header — Property, Exchange Target, Status, Risk, Last active — to re-sort; click again to reverse direction. The sort persists for the session but does not carry over to the next visit. Assigned To and Owner are not sortable.
 
-Files can be sorted by address, progress, or last activity. The default is by last activity — most recently updated first.
+There is no pagination. All files in your visible scope load at once.
+
+## What each file shows
+
+<HelpSplit>
+<HelpSplitText>
+Each file row contains:
+
+- **Risk stripe** — a coloured 4px strip down the left edge. Red means At risk, amber means Watch, emerald means On track (or no health data yet). The stripe gives the risk level at a glance before opening the file.
+- **Property** — the address as the main line, with the town or area below. A vendor and buyer line follows: "Vendor: J.P. · Buyer: S.M." (first name, last initial). On larger screens, an orange next-action line shows the most pressing upcoming chase if one exists.
+- **Assigned to** — the negotiator responsible, with their initials in a coloured avatar. Outsourced files show "Awaiting assignment" until a progressor is assigned.
+- **Exchange target** — the expected exchange date.
+- **Status** — the current status badge.
+- **Risk** — the calculated risk level: On track, Watch, or At risk.
+- **Last active** — how recently the file was updated. After a week of inactivity the time turns amber; after two weeks, red; after a month, a **Stale** badge appears.
+- **Owner** — directors only. Shows which agency staff member owns the file.
+
+Click any row to open the full property file.
+</HelpSplitText>
+<HelpSplitVisual>
+<TransactionRowHelpExample />
+</HelpSplitVisual>
+<p className="caption">A Watch-risk file — amber stripe, "Vendor: J.P. · Buyer: S.M.", next chase showing in orange. Active status, last active 4 days ago.</p>
+</HelpSplit>
+
+## Search and filtering
+
+A search bar and filter chips sit above the file list. All filtering is instant and client-side — no page reload.
+
+### Search
+
+Search matches the **property address** only. Type any part of the address — road name, town, postcode — to narrow the list. Search does not match contact names, negotiator names, milestone names, or any other field. The placeholder confirms this: "Search by address…"
+
+### Risk
+
+Filter to one or more risk levels: **On track**, **Watch**, or **At risk**. Multi-select — you can show Watch and At risk together. The Risk chip is always visible.
+
+### Owner
+
+Filter the list to one agent's files. The Owner chip appears only when the visible list has files assigned to more than one agent — for directors viewing all files, that's typical. When the Owner chip has a selection active, the Owner column hides (it becomes redundant when the list is already filtered to one agent). Clearing the chip brings the column back.
+
+### Managed by
+
+Filter between self-managed and outsourced files: **Self-progressed** or **With progressor**. This chip appears only when both service types are present in the visible list.
+
+All chips work together — selecting multiple filters narrows to files that match all of them. A **Clear all** link appears alongside the chips when any filter is active.
+
+## The Hub filter
+
+When you open All Files from a Hub pipeline strip, the status tabs are replaced by a coral pill showing which filter is active:
+
+> Showing **exchanging this week** (3)
+
+The files shown match exactly what the Hub counted on that strip. Click **× Clear filter** in the pill to return to the standard view with status tabs. The search bar and chips still work while a Hub filter is active.
+
+The three Hub filters:
+
+| Filter | Files shown |
+|---|---|
+| **Exchanging this week** | Active files with an expected exchange date in the next 7 days, where exchange has not yet completed |
+| **Completing this week** | Active files with a completion date in the next 7 days, where completion has not yet completed |
+| **Closing this month** | Active files with an expected exchange date within the current calendar month, where exchange has not yet completed |
+
+## What you see when there are no files
+
+**No files at all** — a house icon, "Create your first sale", and the message "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." A **+ New sale** button links to the file creation form.
+
+**Status tab with no matches** — "No [status] files" and "Try a different filter.", with a **View all** link.
+
+**Hub filter with no matches** — a filter-specific message, for example: "No files exchanging this week. Files appear here when their expected exchange date is within the next 7 days." A **View all files** link returns to the standard view.
+
+**Search returning zero results** — "No files match '[query]'". No clear button appears for search alone.
+
+**Chip filter returning zero results** — "No files match the active filters.", with a **Clear filters** button.
+
+## What changes by role
+
+Directors and negotiators use the same page. What changes is the heading, which files are shown, and which columns are visible.
+
+The page heading is **"All Files"** for directors, **"My Files"** for negotiators — including those with **Can view all files**. The heading reflects role, not permission level.
+
+Directors see every file in the agency. Negotiators without **Can view all files** see only files assigned to them. Negotiators with **Can view all files** see the full agency pipeline.
+
+The Owner column appears for directors only. The Owner chip appears when the visible list has files assigned to more than one agent — for directors, that's the usual case; for negotiators with Can view all files, it will also appear once multiple agents' files are visible.
+
+See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured and what each role can do.
+
+## What to do next
+
+- Click any file row to open the property file — milestones, contacts, activity, and the client portal are all inside
+- Use the Risk chip to surface At risk files across your pipeline at a glance
+- Use the Owner chip to review one negotiator's workload (directors)
+- The Hub's pipeline strip will pre-filter this list when you click through — useful for pulling up the named subset without manual filtering
+- For a specific file, the search bar matches the address; for anything else, use the chips
 
 ## Related articles
 
-- [The Hub](hub)
-- [Creating a new sale](../02-property-file/creating-a-sale)
-- [Changing file status](../02-property-file/status-changes)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [Reminders](../01-running-your-pipeline/reminders.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)

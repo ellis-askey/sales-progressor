@@ -538,41 +538,110 @@ export async function saveDraftAction(data: {
   tenure?: Tenure | null;
   purchaseType?: PurchaseType | null;
   purchasePrice?: number | null;
-  vendorName?: string;
-  vendorPhone?: string;
-  vendorEmail?: string;
-  purchaserName?: string;
-  purchaserPhone?: string;
-  purchaserEmail?: string;
+  notes?: string | null;
+  agentFeeAmount?: number | null;
+  agentFeePercent?: number | null;
+  agentFeeIsVatInclusive?: boolean | null;
+  vendors?: Array<{ name: string; phone?: string | null; email?: string | null }>;
+  purchasers?: Array<{ name: string; phone?: string | null; email?: string | null }>;
+  vendorSolicitorFirmId?: string | null;
+  vendorSolicitorContactId?: string | null;
+  purchaserSolicitorFirmId?: string | null;
+  purchaserSolicitorContactId?: string | null;
+  referredFirmId?: string | null;
+  referralFee?: number | null;
+  mosStoragePath?: string | null;
+  mosFileSize?: number | null;
+  mosMimeType?: string | null;
+  mosFilename?: string | null;
   progressedBy?: "progressor" | "agent";
+  chainStubs?: Array<{
+    direction: "above" | "below";
+    stubPropertyAddress: string;
+    stubAgencyName: string;
+    stubAgentName: string;
+    stubAgentEmail: string;
+    stubAgentPhone: string;
+    stubNotes: string;
+  }>;
 }) {
   const session = await requireSession();
+
+  const vendorContacts = (data.vendors ?? [])
+    .filter((v) => v.name?.trim())
+    .map((v) => ({ name: v.name.trim(), phone: v.phone?.trim() || null, email: v.email?.trim() || null, roleType: "vendor" as ContactRole }));
+  const purchaserContacts = (data.purchasers ?? [])
+    .filter((p) => p.name?.trim())
+    .map((p) => ({ name: p.name.trim(), phone: p.phone?.trim() || null, email: p.email?.trim() || null, roleType: "purchaser" as ContactRole }));
+  const allContacts = [...vendorContacts, ...purchaserContacts];
+
+  const scalarData = {
+    propertyAddress: data.propertyAddress,
+    tenure: data.tenure ?? null,
+    purchaseType: data.purchaseType ?? null,
+    purchasePrice: data.purchasePrice ?? null,
+    notes: data.notes ?? null,
+    agentFeeAmount: data.agentFeeAmount ?? null,
+    agentFeePercent: data.agentFeePercent ?? null,
+    agentFeeIsVatInclusive: data.agentFeeIsVatInclusive ?? null,
+    vendorSolicitorFirmId: data.vendorSolicitorFirmId ?? null,
+    vendorSolicitorContactId: data.vendorSolicitorContactId ?? null,
+    purchaserSolicitorFirmId: data.purchaserSolicitorFirmId ?? null,
+    purchaserSolicitorContactId: data.purchaserSolicitorContactId ?? null,
+    referredFirmId: data.referredFirmId ?? null,
+    referralFee: data.referralFee ?? null,
+  };
+
+  async function saveMosDocument(transactionId: string) {
+    await prisma.transactionDocument.deleteMany({ where: { transactionId, source: "mos" } });
+    if (data.mosStoragePath && data.mosFileSize && data.mosMimeType) {
+      await prisma.transactionDocument.create({
+        data: {
+          transactionId,
+          filename: data.mosFilename ?? "Memorandum of Sale",
+          storagePath: data.mosStoragePath,
+          fileSize: data.mosFileSize,
+          mimeType: data.mosMimeType,
+          source: "mos",
+        },
+      }).catch(console.error);
+    }
+  }
+
+  async function saveChain(transactionId: string, existingChainLinkId: string | null) {
+    if (existingChainLinkId) {
+      const oldLink = await prisma.chainLink.findUnique({ where: { id: existingChainLinkId }, select: { chainId: true } });
+      if (oldLink) {
+        await prisma.propertyTransaction.update({ where: { id: transactionId }, data: { chainLinkId: null } });
+        await prisma.chainLink.deleteMany({ where: { chainId: oldLink.chainId } });
+        await prisma.propertyChain.delete({ where: { id: oldLink.chainId } }).catch(() => {});
+      }
+    }
+    if (data.chainStubs && data.chainStubs.length > 0) {
+      await createChainV2({
+        transactionId,
+        agencyId: session.user.agencyId ?? "",
+        userId: session.user.id,
+        stubs: data.chainStubs,
+      }).catch(console.error);
+    }
+  }
 
   if (data.draftId) {
     const existing = await prisma.propertyTransaction.findFirst({
       where: { ...scopeOwnershipWhere(getAccessScope(session), data.draftId), status: DRAFT_STATUS },
-      select: { id: true },
+      select: { id: true, chainLinkId: true },
     });
     if (!existing) throw new Error("Draft not found");
 
-    await prisma.propertyTransaction.update({
-      where: { id: data.draftId },
-      data: {
-        propertyAddress: data.propertyAddress,
-        tenure: data.tenure ?? null,
-        purchaseType: data.purchaseType ?? null,
-        purchasePrice: data.purchasePrice ?? null,
-      },
-    });
-
+    await prisma.propertyTransaction.update({ where: { id: data.draftId }, data: scalarData });
     await prisma.contact.deleteMany({ where: { propertyTransactionId: data.draftId } });
-    const updatedContacts = [
-      ...(data.vendorName?.trim() ? [{ propertyTransactionId: data.draftId, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: data.vendorEmail?.trim() || null, roleType: "vendor" as ContactRole }] : []),
-      ...(data.purchaserName?.trim() ? [{ propertyTransactionId: data.draftId, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: data.purchaserEmail?.trim() || null, roleType: "purchaser" as ContactRole }] : []),
-    ];
-    if (updatedContacts.length > 0) await prisma.contact.createMany({ data: updatedContacts });
+    if (allContacts.length > 0) {
+      await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: data.draftId! })) });
+    }
+    await saveMosDocument(data.draftId);
+    await saveChain(data.draftId, existing.chainLinkId);
 
-    revalidatePath("/agent/quick-add");
     revalidatePath("/agent/transactions/new");
     return { id: data.draftId };
   }
@@ -580,10 +649,7 @@ export async function saveDraftAction(data: {
   // Create new draft
   const tx = await prisma.propertyTransaction.create({
     data: {
-      propertyAddress: data.propertyAddress,
-      tenure: data.tenure ?? null,
-      purchaseType: data.purchaseType ?? null,
-      purchasePrice: data.purchasePrice ?? null,
+      ...scalarData,
       status: DRAFT_STATUS,
       agencyId: session.user.agencyId,
       agentUserId: session.user.id,
@@ -592,14 +658,11 @@ export async function saveDraftAction(data: {
     },
   });
 
-  // Save contacts if provided
-  const contactData = [
-    ...(data.vendorName?.trim() ? [{ propertyTransactionId: tx.id, name: data.vendorName.trim(), phone: data.vendorPhone?.trim() || null, email: data.vendorEmail?.trim() || null, roleType: "vendor" as ContactRole }] : []),
-    ...(data.purchaserName?.trim() ? [{ propertyTransactionId: tx.id, name: data.purchaserName.trim(), phone: data.purchaserPhone?.trim() || null, email: data.purchaserEmail?.trim() || null, roleType: "purchaser" as ContactRole }] : []),
-  ];
-  if (contactData.length > 0) {
-    await prisma.contact.createMany({ data: contactData });
+  if (allContacts.length > 0) {
+    await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: tx.id })) });
   }
+  await saveMosDocument(tx.id);
+  await saveChain(tx.id, null);
 
   revalidatePath("/agent/quick-add");
   revalidatePath("/agent/transactions/new");

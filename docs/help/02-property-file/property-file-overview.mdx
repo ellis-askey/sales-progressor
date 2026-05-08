@@ -1,0 +1,131 @@
+# The property file
+
+Every sale in Sales Progressor lives as a property file — a single workspace that follows the transaction from offer accepted through to legal completion. All the information about one sale is in one place: the people involved, the milestones to track, the reminders to send, the activity log, and the client portal access. You don't need to switch between tools or systems as the sale progresses.
+
+The property file has five tabs — Overview, Milestones, Reminders, To-Do, and Activity — each covered in its own article. This article covers the shell that wraps all of them: the page header, the tab bar, and the file-level actions you can take without going into any particular tab.
+
+## How you get to a property file
+
+Click any row on the [All Files](../01-running-your-pipeline/all-files.mdx) page to open the file. From the [Hub](../01-running-your-pipeline/hub.mdx), the reminders list and the files-at-risk list both link directly to individual files. If a notification or email contains a link to a specific file, that link opens the file directly.
+
+There is no separate search for property files — use the address search bar on All Files to locate one.
+
+## The page header
+
+<HelpSplit>
+<HelpSplitText>
+The page header shows the key facts about the file at a glance and stays visible regardless of which tab you are on.
+
+**Back link** — "← My Files" in the top-left takes you back to All Files. The agency name appears beside it on wider screens.
+
+**Status pill** — shows the file's current status. The pill is for reference only — it updates as the status changes, but it is not clickable. To change the status, use the Status control on the Overview tab.
+
+**Property address** — the page heading. The first line of the address is the main heading; the remainder appears below in smaller text.
+
+**Purchase price** — displayed below the address when set. Click through to the sidebar to edit it.
+
+**Tenure and purchase type pills** — shown when set. Leasehold or Freehold; Mortgage, Cash buyer, or similar.
+
+**Service type pill** — either "Self-managed" (green) or "Outsourced to us" (blue), depending on how the file was created.
+
+**Exchange countdown** — shows how many days until the expected exchange date. Turns amber when exchange is within 14 days; red when the date has passed.
+
+**Progress bar** — a weighted percentage across all milestones on the file, colour-coded by track state: green when on track, amber when at risk, red when significantly behind.
+</HelpSplitText>
+<HelpSplitVisual>
+<PropertyHeroHelpExample />
+</HelpSplitVisual>
+<p className="caption">22 Birchwood Lane — Active, Leasehold, Mortgage, 62% progress, 10 days to exchange (amber). Self-managed.</p>
+</HelpSplit>
+
+## The tab bar
+
+Five tabs sit below the header. They stay in place as you scroll through the page content.
+
+| Tab | What it's for |
+|---|---|
+| **Overview** | Summary of file health, contacts, solicitors, next milestones, and internal notes |
+| **Milestones** | The full list of vendor and purchaser milestones — confirm, adjust, and track |
+| **Reminders** | All active reminders for this file — due dates, chase history, and escalations |
+| **To-Do** | Manual tasks added by your team to track anything outside the milestone engine |
+| **Activity** | A log of all emails sent, notes added, milestone confirmations, and portal activity |
+
+The default tab when opening a file is **Overview**. Tab switching is client-side — the URL does not change when you switch between tabs. If a link in a notification or email includes a tab parameter (for example, `?tab=milestones`), the file opens directly on that tab. Bookmarking the page after switching tabs will not preserve the tab position.
+
+The **Reminders** and **To-Do** tabs show a count badge when items need attention — overdue or due reminders, and open tasks.
+
+Each tab has its own article in the help library.
+
+## What you can change file-wide
+
+Several things can be changed at the file level — either from the header area or from the sidebar that appears on the right of the page.
+
+### Status
+
+The Status control sits in a three-column row at the top of the Overview tab — underneath the header, not inside it. The current status is shown as a coloured dot and label. Click it to open a small dropdown with four options.
+
+**Active** — the file is in progress. This is the default when a file is created.
+
+**On Hold** — the file is paused. Reminders stop firing while a file is on hold. Use this when the sale is temporarily stalled — for example, while a buyer arranges a survey or waits on mortgage approval.
+
+**Completed** — the sale has reached legal completion. Marking a file as Completed is gated: both the exchange milestone (VM19 or PM26) and the legal completion milestone (VM20 or PM27) must be confirmed before the status can change. If they aren't confirmed, the system explains what's missing. Open the Milestones tab to confirm those milestones, then return to change the status.
+
+**Withdrawn** — the sale has fallen through. Selecting Withdrawn opens a short form: "Record why this transaction fell through." Choose from ten preset reasons — Buyer withdrew, Seller withdrew, Chain broke, Mortgage / finance issue, Survey issues, Gazundering, Gazumping, Solicitor delays, Personal circumstances changed, or Other. A free-text field appears for "Other". The reason is recorded on the file and in the activity log. The withdrawal cannot be confirmed until a reason is selected.
+
+### Sale details
+
+The sidebar on the right of the page (under "Price & Fees") shows the file's tenure and purchase type as pills with an **Edit** button beside them. Clicking **Edit** opens the Edit Sale Details modal.
+
+The modal is a two-step flow. First you choose the new values. Clicking **Preview changes** shows you exactly which milestones will become not required and which will be re-activated, along with the before-and-after progress percentage. Clicking **Update sale details** applies the changes.
+
+The modal only offers three purchase types — Mortgage, Cash buyer, and Cash from Proceeds. If a file was created with Shared Ownership, Help to Buy, or First Home Scheme selected, that purchase type cannot be changed from this modal.
+
+### Prices and dates
+
+The sidebar "Price & Fees" card also lets you edit the purchase price. The "Exchange Forecast" card lets you set or override the predicted exchange date. The completion date field appears in the same card, but only becomes editable once the exchange milestone is confirmed — until then it shows "Set once exchange is confirmed."
+
+### Fees
+
+The agent fee is editable by anyone who can open the file — set it as a fixed amount or as a percentage of the purchase price, with a VAT toggle (Inc VAT or + VAT).
+
+Directors also see the progressor fee row (what Sales Progressor charges the agency) and, if a recommended solicitor firm has been referred, a referral fee field and a total agency income figure. Negotiators do not see these rows.
+
+### Notes
+
+At the bottom of the Overview tab, an internal notes section lets any team member add a short note about the file. Notes are not visible to clients — they do not appear on the portal. Add and delete notes inline; added notes appear immediately.
+
+## What changes by role
+
+Both directors and negotiators see the same page layout. What changes is access and fee visibility.
+
+**Directors** can open any file in their agency. The sidebar shows the progressor fee, total agency income, and referral fee rows. The referral firm can be set and edited.
+
+**Negotiators** can only open files they own — files they created or that were assigned to them. Files owned by colleagues are not accessible. If a negotiator has been granted **Can view all files**, they can see those files on the All Files list — but opening a file they do not own returns a not-found page. See [Roles and permissions](../00-getting-started/roles-and-permissions.mdx) for how visibility is configured.
+
+**The "Assigned to" field** in the Overview tab's meta row is read-only for all users on the agent side. It shows which Sales Progressor team member has been assigned to the file (for outsourced files) or the file owner's name for self-managed files. Only Sales Progressor administrators can change the assignment.
+
+## Right after creating a file
+
+When you arrive on a property file immediately after creating it, one of three short toasts appears at the top of the screen:
+
+- **"Chase reminders are active"** — chase reminders have been generated and are ready in the Reminders tab. This appears after a brief pause while the system sets them up.
+- **"MOS confirmed for both sides"** — a memorandum of sale was uploaded when the file was created, and both parties' "Memorandum of sale received" milestones were auto-confirmed.
+- **"You've claimed your position in this chain"** — you arrived via a chain claim link rather than directly after creating the file.
+
+The toasts are transient. The URL is cleaned automatically so that refreshing the page does not repeat them.
+
+See [Creating a sale](../01-running-your-pipeline/creating-a-sale.mdx) for what happens in the background when a file is created.
+
+## What to do next
+
+- Open the **Milestones tab** to see the full set of vendor and purchaser milestones — confirm any that have already happened
+- Open the **Reminders tab** to see what chases are scheduled and when they're next due
+- Add internal notes on the Overview tab as the sale progresses — useful for context that doesn't fit anywhere else on the file
+- If this is a chain transaction, open the chain panel to see the other properties in the chain
+
+## Related articles
+
+- [Creating a sale](../01-running-your-pipeline/creating-a-sale.mdx)
+- [The Hub](../01-running-your-pipeline/hub.mdx)
+- [All Files](../01-running-your-pipeline/all-files.mdx)
+- [Roles and permissions](../00-getting-started/roles-and-permissions.mdx)

@@ -76,8 +76,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
       setOptimisticStatus(status);
       try {
         await changeStatusAction(transactionId, status, fallThroughReason);
-      } catch {
-        toast.error("Couldn't update status — please try again");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.startsWith("Cannot mark as completed")) {
+          toast.error(msg);
+        } else {
+          toast.error("Couldn't update status — please try again");
+        }
       } finally {
         setSaving(false);
       }

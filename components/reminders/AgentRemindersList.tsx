@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
+import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
@@ -75,13 +76,340 @@ const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
   snoozed:   "rgba(168,85,247,0.5)",
 };
 
-function GroupedFileCard({
+const SNOOZE_OPTIONS_SPLIT = [
+  { label: "24 h", hours: 24 },
+  { label: "48 h", hours: 48 },
+  { label: "72 h", hours: 72 },
+  { label: "7 days", hours: 168 },
+];
+
+function SideSnoozeMenu({ taskIds, onSnooze, disabled }: {
+  taskIds: string[];
+  onSnooze: (taskId: string, hours: number) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((p) => !p)}
+        disabled={disabled}
+        style={{
+          fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.50)",
+          padding: "5px 10px", borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.12)",
+          background: "rgba(255,255,255,0.55)", cursor: "pointer", whiteSpace: "nowrap",
+          display: "flex", alignItems: "center", gap: 4,
+        }}
+      >
+        <span style={{ fontSize: 10 }}>🕐</span> Snooze all
+      </button>
+      {open && (
+        <div
+          className="absolute bottom-full mb-1 left-0 z-30"
+          style={{
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 110,
+          }}
+        >
+          {SNOOZE_OPTIONS_SPLIT.map((opt) => (
+            <button
+              key={opt.hours}
+              onClick={() => {
+                taskIds.forEach((id) => onSnooze(id, opt.hours));
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RowSnoozeMenu({ taskId, onSnooze }: {
+  taskId: string;
+  onSnooze: (taskId: string, hours: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((p) => !p)}
+        title="Snooze this reminder"
+        style={{
+          fontSize: 10, color: "rgba(15,23,42,0.40)",
+          padding: "3px 7px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)",
+          background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0,
+          display: "flex", alignItems: "center",
+        }}
+      >
+        🕐
+      </button>
+      {open && (
+        <div
+          className="absolute bottom-full mb-1 right-0 z-30"
+          style={{
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 110,
+          }}
+        >
+          {SNOOZE_OPTIONS_SPLIT.map((opt) => (
+            <button
+              key={opt.hours}
+              onClick={() => {
+                onSnooze(taskId, opt.hours);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SideColumn({
+  logs,
+  side,
+  txId,
+  address,
+  contacts,
+  loading,
+  handleComplete,
+  handleSnooze,
+  handleChased,
+}: {
+  logs: AgentReminderLog[];
+  side: "seller" | "buyer";
+  txId: string;
+  address: string;
+  contacts: AgentReminderLog["transaction"]["contacts"];
+  loading: string | null;
+  handleComplete: (taskId: string) => void;
+  handleSnooze: (taskId: string, hours: number) => void;
+  handleChased: (taskId: string) => void;
+}) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const isSeller = side === "seller";
+  const dotColor = isSeller ? "#ea580c" : "#3b82f6";
+  const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
+  const labelColor = isSeller ? "#ea580c" : "#3b82f6";
+
+  const openTasks = logs.flatMap((log) => {
+    const task = log.chaseTasks.find((t) => t.status === "pending");
+    if (!task) return [];
+    return [{ log, task }];
+  });
+
+  const milestones = openTasks.map(({ log, task }) => ({
+    chaseTaskId: task.id,
+    name: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
+    chaseCount: task.chaseCount,
+  }));
+
+  const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
+  const allTaskIds = openTasks.map(({ task }) => task.id);
+  const chaseContacts = contacts.filter((c) =>
+    isSeller
+      ? ["vendor", "solicitor"].includes(c.roleType)
+      : ["purchaser", "broker", "solicitor"].includes(c.roleType)
+  );
+  const effectiveContacts = chaseContacts.length > 0 ? chaseContacts : contacts;
+
+  return (
+    <div
+      style={{
+        flex: 1, minWidth: 0, borderRadius: 14,
+        background: columnBg,
+        border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`,
+        display: "flex", flexDirection: "column",
+      }}
+    >
+      {/* Column header */}
+      <div style={{
+        padding: "8px 12px",
+        borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`,
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
+          {isSeller ? "Seller" : "Buyer"}
+        </span>
+        <span style={{ fontSize: 10, color: "rgba(15,23,42,0.35)", marginLeft: "auto" }}>
+          {logs.length} {logs.length === 1 ? "item" : "items"}
+        </span>
+      </div>
+
+      {/* Milestone rows */}
+      <div style={{ flex: 1, padding: "6px 0" }}>
+        {openTasks.map(({ log, task }, i) => {
+          const name = log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
+          const isOverdue = dueDate < today;
+          const isDueToday = dueDate.getTime() === today.getTime();
+          const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
+          const urgencyColor = task.priority === "escalated" ? "#dc2626"
+            : isOverdue ? "#ea580c"
+            : isDueToday ? "#d97706"
+            : "rgba(15,23,42,0.35)";
+          const urgencyLabel = task.priority === "escalated" ? "Escalated"
+            : isOverdue ? `${daysOverdue}d overdue`
+            : isDueToday ? "Due today"
+            : null;
+
+          return (
+            <div
+              key={log.id}
+              style={{
+                padding: "7px 12px",
+                borderTop: i > 0 ? `0.5px solid rgba(15,23,42,0.06)` : undefined,
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.80)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name}
+                </p>
+                {urgencyLabel && (
+                  <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
+                    {urgencyLabel}
+                  </p>
+                )}
+              </div>
+              <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+              <button
+                onClick={() => handleComplete(task.id)}
+                disabled={loading === task.id}
+                title="Confirm milestone done"
+                style={{
+                  fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.45)",
+                  padding: "3px 8px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)",
+                  background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
+                }}
+              >
+                ✓ Done
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Column footer: Chase + Snooze */}
+      {openTasks.length > 0 && (
+        <div style={{
+          padding: "8px 12px",
+          borderTop: `0.5px solid rgba(15,23,42,0.06)`,
+          display: "flex", gap: 6, alignItems: "center",
+        }}>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            style={{
+              flex: 1, fontSize: 11, fontWeight: 600, color: "white",
+              padding: "6px 10px", borderRadius: 8, border: "none",
+              background: isSeller ? "#ea580c" : "#3b82f6",
+              cursor: "pointer", whiteSpace: "nowrap",
+            }}
+          >
+            {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
+          </button>
+          <SideSnoozeMenu
+            taskIds={allTaskIds}
+            onSnooze={handleSnooze}
+            disabled={loading !== null}
+          />
+        </div>
+      )}
+
+      {/* Chase drawer */}
+      {drawerOpen && (
+        <ChaseDrawer
+          chaseTaskId={milestones[0]?.chaseTaskId ?? ""}
+          transactionId={txId}
+          propertyAddress={address}
+          milestoneName={milestones[0]?.name ?? ""}
+          chaseCount={maxChaseCount}
+          contacts={effectiveContacts}
+          milestones={milestones.length > 1 ? milestones : undefined}
+          onClose={() => setDrawerOpen(false)}
+          onSent={() => {
+            allTaskIds.forEach((id) => handleChased(id));
+            setDrawerOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
+  const isSeller = side === "seller";
+  const dotColor = isSeller ? "#ea580c" : "#3b82f6";
+  const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
+  const labelColor = isSeller ? "#ea580c" : "#3b82f6";
+
+  return (
+    <div
+      style={{
+        flex: 1, minWidth: 0, borderRadius: 14,
+        background: columnBg,
+        border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`,
+        display: "flex", flexDirection: "column",
+      }}
+    >
+      <div style={{
+        padding: "8px 12px",
+        borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`,
+        display: "flex", alignItems: "center", gap: 6,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
+          {isSeller ? "Seller" : "Buyer"}
+        </span>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
+        <span style={{ fontSize: 11, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>
+          {isSeller ? "Seller" : "Buyer"} is all up to date
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SplitFileCard({
   txId,
   address,
   logs,
   groupKey,
-  lastCommByTx,
-  activeCountByTx,
   loading,
   handleComplete,
   handleSnooze,
@@ -93,8 +421,6 @@ function GroupedFileCard({
   address: string;
   logs: AgentReminderLog[];
   groupKey: UrgencyGroup;
-  lastCommByTx: Map<string, LastComm>;
-  activeCountByTx: Map<string, number>;
   loading: string | null;
   handleComplete: (taskId: string) => void;
   handleSnooze: (taskId: string, hours: number) => void;
@@ -103,23 +429,32 @@ function GroupedFileCard({
   handleChased: (taskId: string) => void;
 }) {
   const leftBorder = GROUP_LEFT_BORDER[groupKey];
+
+  const sellerLogs = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("VM"));
+  const buyerLogs  = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("PM"));
+  const otherLogs  = logs.filter((l) => {
+    const code = l.reminderRule.targetMilestoneCode;
+    return !code?.startsWith("VM") && !code?.startsWith("PM");
+  });
+
+  // Any logs without a clear side go into seller column as a fallback
+  const effectiveSellerLogs = [...sellerLogs, ...otherLogs];
+
+  const contacts = logs[0]?.transaction.contacts ?? [];
+
   return (
     <div
-      className="glass-card overflow-hidden"
+      className="glass-card"
       style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
     >
-      {/* Shared address header */}
-      <div
-        style={{
-          padding: "10px 20px",
-          background: "rgba(255,255,255,0.28)",
-          borderBottom: "0.5px solid rgba(255,255,255,0.40)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
+      {/* Address header — top corners match card radius minus border-left width */}
+      <div style={{
+        padding: "10px 20px",
+        background: "rgba(255,255,255,0.28)",
+        borderBottom: "0.5px solid rgba(255,255,255,0.40)",
+        borderRadius: "16px 20px 0 0",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      }}>
         <Link
           href={`/agent/transactions/${txId}`}
           style={{
@@ -131,30 +466,19 @@ function GroupedFileCard({
           {address} →
         </Link>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
-          {logs.length} reminders
+          {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
         </span>
       </div>
-      {/* Individual reminder rows */}
-      {logs.map((log, i) => (
-        <div key={log.id} style={i > 0 ? { borderTop: "0.5px solid rgba(255,255,255,0.35)" } : {}}>
-          <ReminderCard
-            log={log}
-            transactionId={txId}
-            contacts={log.transaction.contacts}
-            propertyAddress={address}
-            showAddressLink={false}
-            isLoading={loading}
-            onComplete={handleComplete}
-            onSnooze={handleSnooze}
-            onEscalate={handleEscalate}
-            onManualChase={handleManualChase}
-            onChased={handleChased}
-            grouped={true}
-            lastComm={lastCommByTx.get(txId) ?? null}
-            totalActiveOnFile={activeCountByTx.get(txId) ?? 1}
-          />
-        </div>
-      ))}
+
+      {/* Two-column body — always both sides; empty side shows placeholder */}
+      <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
+        {effectiveSellerLogs.length > 0
+          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+          : <EmptyColumn side="seller" />}
+        {buyerLogs.length > 0
+          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+          : <EmptyColumn side="buyer" />}
+      </div>
     </div>
   );
 }
@@ -364,36 +688,13 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
             {!isCollapsed && (
               <div className="space-y-2">
                 {fileGroups.map(({ txId, address, logs: fileLogs }) => {
-                  if (fileLogs.length === 1) {
-                    const log = fileLogs[0];
-                    return (
-                      <ReminderCard
-                        key={log.id}
-                        log={log}
-                        transactionId={txId}
-                        contacts={log.transaction.contacts}
-                        propertyAddress={address}
-                        showAddressLink
-                        isLoading={loading}
-                        onComplete={handleComplete}
-                        onSnooze={handleSnooze}
-                        onEscalate={handleEscalate}
-                        onManualChase={handleManualChase}
-                        onChased={handleChased}
-                        lastComm={lastCommByTx.get(txId) ?? null}
-                        totalActiveOnFile={activeCountByTx.get(txId) ?? 1}
-                      />
-                    );
-                  }
                   return (
-                    <GroupedFileCard
+                    <SplitFileCard
                       key={txId}
                       txId={txId}
                       address={address}
                       logs={fileLogs}
                       groupKey={groupKey}
-                      lastCommByTx={lastCommByTx}
-                      activeCountByTx={activeCountByTx}
                       loading={loading}
                       handleComplete={handleComplete}
                       handleSnooze={handleSnooze}
