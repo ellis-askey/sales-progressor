@@ -37,11 +37,11 @@ const STATE_CONFIG = {
 
 type State = keyof typeof STATE_CONFIG;
 
-const EXAMPLES: Record<State, { code: string; name: string; date?: string }> = {
-  pending:        { code: "VM7", name: "Draft contract pack issued" },
-  complete:       { code: "VM1", name: "Seller instructed solicitor", date: "2 May 2026" },
-  "not-required": { code: "VM8", name: "Management pack requested" },
-  locked:         { code: "VM10", name: "Initial enquiries received" },
+const EXAMPLES: Record<State, { code: string; name: string; date?: string; sub?: string }> = {
+  locked:         { code: "VM10",  name: "Initial enquiries received",     sub: "Previous milestones must be completed first" },
+  pending:        { code: "VM7",   name: "Vendor searches applied for" },
+  complete:       { code: "VM1",   name: "Seller instructed solicitor",    date: "12 May 2026" },
+  "not-required": { code: "VM8",   name: "Management pack requested",      sub: "Tenure: Freehold" },
 };
 
 export function MilestoneRowExample({ state = "pending" }: { state?: State }) {
@@ -50,36 +50,80 @@ export function MilestoneRowExample({ state = "pending" }: { state?: State }) {
   return (
     <div style={{
       display: "flex",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       padding: "10px 14px",
       background: cfg.bg,
       border: `0.5px solid ${cfg.border}`,
       borderRadius: 10,
       gap: 12,
-      maxWidth: 360,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: 1, minWidth: 0 }}>
         <div style={{
-          width: 8, height: 8, borderRadius: "50%",
+          width: 18, height: 18, borderRadius: "50%",
           background: cfg.check ? cfg.dot : "transparent",
           border: `2px solid ${cfg.dot}`,
           flexShrink: 0,
+          marginTop: 1,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {cfg.check && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff" }} />}
+          {cfg.check && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+          {state === "locked" && (
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(45,24,16,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
         </div>
         <div style={{ minWidth: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(45,24,16,0.40)", letterSpacing: "0.03em" }}>{ex.code}</span>
-          <p style={{ margin: 0, fontSize: 13, color: state === "not-required" || state === "locked" ? "rgba(45,24,16,0.40)" : "#2D1810", lineHeight: 1.3, textDecoration: state === "not-required" ? "line-through" : "none" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: state === "not-required" || state === "locked" ? "rgba(45,24,16,0.40)" : "#2D1810", lineHeight: 1.3 }}>
             {ex.name}
           </p>
-          {ex.date && <p style={{ margin: 0, fontSize: 11, color: "rgba(45,24,16,0.45)" }}>{ex.date}</p>}
+          {ex.date && <p style={{ margin: 0, fontSize: 11, color: "rgba(45,24,16,0.45)", marginTop: 2 }}>Completed {ex.date}</p>}
+          {ex.sub && !ex.date && <p style={{ margin: 0, fontSize: 11, color: "rgba(45,24,16,0.40)", marginTop: 2, fontStyle: "italic" }}>{ex.sub}</p>}
         </div>
       </div>
-      <span style={{ fontSize: 10, fontWeight: 600, color: cfg.labelColor, flexShrink: 0, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-        {cfg.label}
-      </span>
+      {state === "pending" && (
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#FF6B4A", flexShrink: 0, background: "rgba(255,107,74,0.10)", padding: "3px 10px", borderRadius: 6 }}>
+          Confirm
+        </span>
+      )}
+      {state === "complete" && (
+        <span style={{ fontSize: 11, fontWeight: 400, color: "rgba(45,24,16,0.30)", flexShrink: 0 }}>
+          Undo
+        </span>
+      )}
+      {state === "locked" && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(45,24,16,0.25)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+          <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+const FOUR_STATES: State[] = ["locked", "pending", "complete", "not-required"];
+const STATE_LABELS: Record<State, string> = {
+  locked: "Locked — predecessor not yet confirmed",
+  pending: "Available — ready to confirm",
+  complete: "Complete — confirmed 12 May 2026",
+  "not-required": "Not required — auto-set at file creation",
+};
+
+export function MilestoneRowFourStatesHelpExample(_props: Record<string, string>) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {FOUR_STATES.map((state) => (
+        <div key={state}>
+          <p style={{ margin: "0 0 5px 0", fontSize: 10, fontWeight: 700, color: "rgba(45,24,16,0.40)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            {STATE_LABELS[state]}
+          </p>
+          <MilestoneRowExample state={state} />
+        </div>
+      ))}
     </div>
   );
 }

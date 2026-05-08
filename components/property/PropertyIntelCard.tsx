@@ -155,9 +155,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
               ) : data.epcConfigured ? (
                 <p className="text-xs text-slate-900/30 italic">No EPC found.</p>
               ) : (
-                <div>
-                  <p className="text-xs text-slate-900/40 leading-relaxed">Add <code className="bg-white/30 px-1 rounded">EPC_API_EMAIL</code> and <code className="bg-white/30 px-1 rounded">EPC_API_KEY</code> to .env.local to enable.</p>
-                </div>
+                <p className="text-xs text-slate-900/30 italic">EPC data is currently unavailable.</p>
               )}
             </div>
 

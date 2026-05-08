@@ -86,8 +86,8 @@ function AssignedToChip({ users, selected, onChange }: {
   );
 }
 
-const RISK_LABEL: Record<RiskLevel, string> = { low: "On track", medium: "Watch", high: "At risk" };
-const RISK_COLOR: Record<RiskLevel, string> = { low: "text-emerald-700", medium: "text-amber-700", high: "text-red-700" };
+const RISK_LABEL: Record<RiskLevel, string> = { low: "On track", medium: "Watch", high: "At risk", no_data: "No data" };
+const RISK_COLOR: Record<RiskLevel, string> = { low: "text-emerald-700", medium: "text-amber-700", high: "text-red-700", no_data: "text-slate-400" };
 
 function RiskChip({ selected, onToggle }: {
   selected: Set<RiskLevel>;
