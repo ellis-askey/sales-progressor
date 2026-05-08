@@ -14,10 +14,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
   }
 
-  const { chaseTaskId, transactionId, toEmail, toName, messageText } = await req.json();
+  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails } = await req.json();
   if (!transactionId || !toEmail || !messageText) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+  const validCcEmails: string[] = Array.isArray(ccEmails) ? ccEmails.filter(Boolean) : [];
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId: session.user.agencyId },
@@ -31,15 +32,16 @@ export async function POST(req: NextRequest) {
     : `${subject} — ${tx.propertyAddress}`;
 
   try {
-    await sendEmail({ to: toEmail, subject: fullSubject, text: body });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body });
 
+    const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     await prisma.outboundMessage.create({
       data: {
         transactionId,
         type: "outbound",
         method: "email",
         contactIds: [],
-        content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}: ${messageText}`,
+        content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}${ccSuffix}: ${messageText}`,
         createdById: session.user.id,
       },
     });

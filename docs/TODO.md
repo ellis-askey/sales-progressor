@@ -1,5 +1,41 @@
 # Technical TODOs
 
+---
+
+## Chase prompt calibration — follow-up items
+
+Filed 2026-05-08. Ship current glossary integration first; address these in a follow-up after a week of real-use observation.
+
+### CP1 — Urgent tone reads as Polite-Yet-Firm
+
+**Observed in:** §7.1 acceptance test (Deborah, WhatsApp, Urgent, VM2 — MOS receipt).
+
+**Symptom:** The generated Urgent message used only softeners ("just chasing in," "just wanted to check," "if there's anything unclear") without any of the urgency signals the tone modifier is supposed to require. The output was warm and correct but not meaningfully different from a Polite-Yet-Firm message. A deadline-at-risk message should feel different in register.
+
+**Required fix (to `PROMPT_SPEC.md §5.2` Urgent tone guidance):**
+- (a) Require a factual statement of the timeline outstanding ("X days since we sent the MOS"), not just naming the target date.
+- (b) Require a direct ask without softening modals on the key action — "could you confirm" is fine; "if there's anything unclear" as the primary ask is not.
+- (c) Require explicit ordering: shared deadline first, what specifically needs to happen next, then volunteer help. The current guidance says this but the model ignores the ordering under Urgent.
+
+**Reference:** Email 12 in `docs/chase-generation/VOICE_CORPUS.md` is the canonical Urgent example — use it to rewrite the guidance. Re-run §7.1 acceptance test after the fix and verify the output no longer reads as Polite-Yet-Firm.
+
+---
+
+### CP2 — Multi-item connective phrases need register filtering
+
+**Observed in:** §7.2 acceptance test (Marcus, email, Polite-Yet-Firm, two milestones).
+
+**Symptom:** The model bridged two administrative milestones (mortgage offer and buildings insurance) with "On a lighter note" — a tone-shifting connective that implies one item is more significant than the other. Both items were straightforward administrative tasks; the shift in register was wrong and slightly informal relative to the Polite-Yet-Firm tone.
+
+**Required fix (to `PROMPT_SPEC.md §4.7` multi-item message structure):**
+- (a) Explicitly exclude tone-shifting connectives: "On a lighter note," "On a more serious note," "More importantly," and similar phrases that imply relative weight between milestones.
+- (b) Add a rule: connective phrases must be register-neutral — they bridge paragraphs without implying that one milestone matters more than another or that the tone should shift.
+- (c) Replace the current connective example list with neutral-only options: "Also," "While we're here," "On a side note," "One other thing —," "Alongside that."
+
+Re-run §7.2 acceptance test after the fix and verify the bridging phrase is register-neutral.
+
+---
+
 ## reminders/run — scaling ceiling
 
 `/api/reminders/run` processes all active transactions in a single serverless function invocation,

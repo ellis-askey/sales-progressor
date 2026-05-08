@@ -6,6 +6,7 @@ const DEFAULT_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
 export async function sendEmail({
   to,
+  cc,
   subject,
   text,
   html,
@@ -13,6 +14,7 @@ export async function sendEmail({
   replyTo,
 }: {
   to: string;
+  cc?: string[];
   subject: string;
   text: string;
   html?: string;
@@ -21,6 +23,7 @@ export async function sendEmail({
 }) {
   return sgMail.send({
     to,
+    cc: cc && cc.length ? cc : undefined,
     from: from ?? DEFAULT_FROM,
     replyTo: replyTo,
     subject,
