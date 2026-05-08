@@ -1,4 +1,5 @@
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 
 interface DirectorInvitationEmailInput {
   directorName: string;
@@ -13,18 +14,14 @@ export async function sendDirectorInvitationEmail(input: DirectorInvitationEmail
 
   const text = `Hi ${input.directorName},
 
-${input.invitedByName} has been using Sales Progressor at ${input.agencyName} and wants you on as the director.
+${input.invitedByName} is using Sales Progressor at ${input.agencyName} and wants you set up as director.
 
-Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal. ${input.invitedByName} thinks it'll save your team time, and wants you to see it for yourself.
+It tracks every sale from offer accepted to completion, surfacing the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
 
 Set up your account here:
 ${input.acceptUrl}
 
-This link expires in 7 days.
-
-If you weren't expecting this invitation, you can safely ignore this email.
-
-— The Sales Progressor team`;
+This invitation expires in 7 days.`;
 
   const html = `<!DOCTYPE html>
 <html>
@@ -44,14 +41,14 @@ If you weren't expecting this invitation, you can safely ignore this email.
                 Hi ${escapeHtml(input.directorName)},
               </p>
               <p style="font-size: 15px; color: #4A3329; line-height: 1.5; margin: 0 0 20px;">
-                <strong>${escapeHtml(input.invitedByName)}</strong> has been using Sales Progressor at <strong>${escapeHtml(input.agencyName)}</strong> and wants you on as the director.
+                <strong>${escapeHtml(input.invitedByName)}</strong> is using Sales Progressor at <strong>${escapeHtml(input.agencyName)}</strong> and wants you set up as director.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
-                Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal. ${escapeHtml(input.invitedByName)} thinks it'll save your team time, and wants you to see it for yourself.
+                It tracks every sale from offer accepted to completion, surfacing the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="border-radius: 8px; background: #E86A4B;">
+                  <td style="border-radius: 8px; background: #FF6B4A;">
                     <a href="${input.acceptUrl}" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
                       Set up your account
                     </a>
@@ -61,14 +58,11 @@ If you weren't expecting this invitation, you can safely ignore this email.
               <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 28px 0 0;">
                 This invitation expires in 7 days.
               </p>
-              <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 12px 0 0;">
-                If you weren't expecting this invitation, you can safely ignore this email.
-              </p>
             </td>
           </tr>
         </table>
-        <p style="font-size: 12px; color: #8B7565; margin: 20px 0 0;">
-          Sales Progressor — sales progression for estate agents
+        <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center">
+          Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a>
         </p>
       </td>
     </tr>
@@ -81,6 +75,7 @@ If you weren't expecting this invitation, you can safely ignore this email.
     subject,
     text,
     html,
+    from: agencyFrom(input.agencyName),
   });
 }
 

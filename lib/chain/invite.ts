@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 import crypto from "crypto";
 
 type LinkForInvite = {
@@ -88,7 +89,7 @@ async function sendInviteEmail(input: {
 
   const stubAddress = link.stubPropertyAddress ?? "your sale";
   const positionDesc =
-    stubPosition < originatorPosition ? "above their sale" : "below their sale";
+    stubPosition < originatorPosition ? "sale above" : "sale below";
 
   const totalLinks = link.chain.links.length;
   const linkPosition = stubPosition + 1; // 1-indexed for display
@@ -125,7 +126,7 @@ async function sendInviteEmail(input: {
     declineUrl,
   });
 
-  await sendEmail({ to: link.stubAgentEmail, subject, html, text });
+  await sendEmail({ to: link.stubAgentEmail, subject, html, text, from: agencyFrom(originatorAgency) });
 }
 
 function buildInviteHtml(v: {
@@ -149,19 +150,20 @@ function buildInviteHtml(v: {
 </div>
 <div style="padding:28px 32px">
   <p style="margin:0 0 16px;font-size:15px">Hello ${v.recipientName},</p>
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain in The Sales Progressor.</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain on Sales Progressor.</p>
   <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">They're tracking the sale of <strong>${v.originatorAddress}</strong> and have linked your sale at <strong>${v.stubAddress}</strong> as the ${v.positionDesc}.</p>
   <div style="margin:0 0 24px;padding:16px 20px;background:#FFF8F6;border-left:3px solid #FF6B4A;border-radius:8px">
     <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#1a1d29">You're #${v.linkPosition} of ${v.totalLinks} in this chain</p>
     <p style="margin:0;font-size:12px;color:#8b91a3">${v.claimedCount} ${claimedSuffix} already tracking this chain together</p>
   </div>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Claim your position to get real-time milestone visibility across every sale in the chain — fewer chase calls, clearer picture, faster exchanges.</p>
+  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Claim your spot and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.</p>
   <p style="margin:0 0 28px">
-    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">Claim this sale</a>
+    <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Claim this sale</a>
   </p>
   <p style="margin:0 0 16px;font-size:12px;color:#8b91a3">If the button doesn't work, copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
   <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Not the right agent? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">This isn't mine →</a></p>
   <p style="margin:0;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
+  <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </div>
 </body></html>`;
 }
@@ -181,13 +183,13 @@ function buildInviteText(v: {
 }): string {
   return `Hello ${v.recipientName},
 
-${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain in The Sales Progressor.
+${v.originatorName} at ${v.originatorAgency} has added you to a live sales chain on Sales Progressor.
 
 They're tracking the sale of ${v.originatorAddress} and have linked your sale at ${v.stubAddress} as the ${v.positionDesc}.
 
 You're #${v.linkPosition} of ${v.totalLinks} in this chain. ${v.claimedCount} agent${v.claimedCount !== 1 ? "s are" : " is"} already tracking it together.
 
-Claim your position to get real-time visibility on every sale in the chain.
+Claim your spot and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.
 
 Claim this sale: ${v.claimUrl}
 
@@ -212,7 +214,7 @@ export async function handleBouncedInvite(email: string): Promise<void> {
       chain: {
         select: {
           createdByUserId: true,
-          createdBy: { select: { email: true, name: true } },
+          createdBy: { select: { email: true, name: true, firmName: true } },
         },
       },
     },
@@ -234,13 +236,15 @@ export async function handleBouncedInvite(email: string): Promise<void> {
     await sendEmail({
       to: originatorEmail,
       subject: `Chain invite to ${email} couldn't be delivered`,
-      text: `Hi ${originatorName},\n\nThe chain invite you sent to ${email} for ${address} bounced — the email couldn't be delivered.\n\nPlease open the chain on your transaction page to update the email address and try again.\n\nsupport@thesalesprogressor.co.uk`,
+      text: `Hi ${originatorName},\n\nThe chain invite you sent to ${email} for ${address} bounced — the email address couldn't be reached.\n\nMost often this is a typo. Open the chain drawer on your transaction page to update the address and resend.\n\nsupport@thesalesprogressor.co.uk`,
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 16px;font-size:15px">Hi ${originatorName},</p>
-<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${email}</strong> for <strong>${address}</strong> couldn't be delivered — the email bounced.</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Open the chain drawer on your transaction page to update the email address and resend.</p>
-<p style="margin:0;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${email}</strong> for <strong>${address}</strong> bounced — the email address couldn't be reached.</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Most often this is a typo. Open the chain drawer on your transaction page to update the address and resend.</p>
+<p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
+<p style="margin:0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`,
+      from: agencyFrom(link.chain.createdBy?.firmName ?? "Sales Progressor"),
     }).catch(console.error);
   }
 }

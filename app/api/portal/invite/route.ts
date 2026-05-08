@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
       transaction: {
         select: {
           propertyAddress: true,
+          serviceType: true,
+          agentUser: { select: { name: true } },
+          assignedUser: { select: { name: true } },
           agency: { select: { name: true } },
         },
       },
@@ -41,11 +45,19 @@ export async function POST(req: NextRequest) {
   const agencyName = contact.transaction.agency.name;
   const address = contact.transaction.propertyAddress;
 
+  const personName = contact.transaction.serviceType === "self_managed"
+    ? contact.transaction.agentUser?.name
+    : contact.transaction.assignedUser?.name;
+  const fromAddr = personName
+    ? personAgencyFrom(personName.split(" ")[0], agencyName)
+    : agencyFrom(agencyName);
+
   const greeting = buildGreeting(contact.name);
 
   await sendEmail({
     to: contact.email,
     subject: `Your ${saleWord} portal — ${address}`,
+    from: fromAddr,
     text: [
       greeting,
       "",
@@ -69,7 +81,7 @@ export async function POST(req: NextRequest) {
     You can now track the progress of your ${saleWord} online. Check in any time to see what's been completed, what's coming next, and get updates from your team.
   </p>
   <p style="margin:0 0 32px">
-    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:14px 32px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(255,107,74,0.35)">
+    <a href="${portalUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 16px rgba(255,107,74,0.35)">
       Open my portal
     </a>
   </p>

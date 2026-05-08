@@ -1,4 +1,5 @@
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 
 interface SendNegotiatorInvitationEmailInput {
   to: string;
@@ -29,16 +30,12 @@ export async function sendNegotiatorInvitationEmail(
     ``,
     `${invitedByName} has invited you to join ${agencyName} as a negotiator on Sales Progressor.`,
     ``,
-    `Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal.`,
+    `It tracks every sale from offer accepted to completion, so you spend less time chasing solicitors and more time selling.`,
     ``,
     `Set up your account here:`,
     acceptUrl,
     ``,
-    `This link expires in 7 days.`,
-    ``,
-    `If you weren't expecting this invitation, you can safely ignore this email.`,
-    ``,
-    `— The Sales Progressor team`,
+    `This invitation expires in 7 days.`,
   ].join("\n");
 
   const html = `<!DOCTYPE html>
@@ -62,11 +59,11 @@ export async function sendNegotiatorInvitationEmail(
                 <strong>${escapeHtml(invitedByName)}</strong> has invited you to join <strong>${escapeHtml(agencyName)}</strong> as a negotiator on Sales Progressor.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
-                Sales Progressor tracks every sale from offer accepted to completion, flagging stalls before they cost you the deal.
+                It tracks every sale from offer accepted to completion, so you spend less time chasing solicitors and more time selling.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="border-radius: 8px; background: #E86A4B;">
+                  <td style="border-radius: 8px; background: #FF6B4A;">
                     <a href="${acceptUrl}" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
                       Set up your account
                     </a>
@@ -76,14 +73,11 @@ export async function sendNegotiatorInvitationEmail(
               <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 28px 0 0;">
                 This invitation expires in 7 days.
               </p>
-              <p style="font-size: 13px; color: #8B7565; line-height: 1.5; margin: 12px 0 0;">
-                If you weren't expecting this invitation, you can safely ignore this email.
-              </p>
             </td>
           </tr>
         </table>
-        <p style="font-size: 12px; color: #8B7565; margin: 20px 0 0;">
-          Sales Progressor — sales progression for estate agents
+        <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center">
+          Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a>
         </p>
       </td>
     </tr>
@@ -91,5 +85,5 @@ export async function sendNegotiatorInvitationEmail(
 </body>
 </html>`;
 
-  await sendEmail({ to, subject, text, html });
+  await sendEmail({ to, subject, text, html, from: agencyFrom(agencyName) });
 }

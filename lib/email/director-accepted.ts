@@ -1,4 +1,5 @@
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 
 interface DirectorAcceptedEmailInput {
   negotiatorName: string;
@@ -43,8 +44,8 @@ They can now see all of your active sales and reach you directly through the pla
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="border-radius: 8px; background: #E86A4B;">
-                    <a href="https://portal.thesalesprogressor.co.uk/agent/hub" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
+                  <td style="border-radius: 8px; background: #FF6B4A;">
+                    <a href="${process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk"}/agent/hub" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
                       Go to your hub
                     </a>
                   </td>
@@ -53,8 +54,8 @@ They can now see all of your active sales and reach you directly through the pla
             </td>
           </tr>
         </table>
-        <p style="font-size: 12px; color: #8B7565; margin: 20px 0 0;">
-          Sales Progressor — sales progression for estate agents
+        <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center">
+          Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a>
         </p>
       </td>
     </tr>
@@ -67,6 +68,7 @@ They can now see all of your active sales and reach you directly through the pla
     subject,
     text,
     html,
+    from: agencyFrom(input.agencyName),
   });
 }
 

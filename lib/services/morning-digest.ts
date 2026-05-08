@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 
 type DigestFile = {
   id: string;
@@ -95,6 +96,9 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
 }
 
 export async function sendMorningDigests(agencyId: string): Promise<number> {
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
+  const fromAddr = agency ? agencyFrom(agency.name) : undefined;
+
   const digests = await buildMorningDigest(agencyId);
   let sent = 0;
 
@@ -109,8 +113,8 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
     const greeting = new Date().getHours() < 12 ? "Good morning" : "Good afternoon";
 
     const subject = totalActions > 0
-      ? `Morning briefing — ${totalActions} action${totalActions !== 1 ? "s" : ""} due`
-      : `Morning briefing — ${d.activeCount} active file${d.activeCount !== 1 ? "s" : ""}`;
+      ? `${totalActions} action${totalActions !== 1 ? "s" : ""} to clear today`
+      : `Nothing urgent today — quick check-in`;
 
     const lines: string[] = [
       `${greeting}, ${d.name}.`,
@@ -164,10 +168,10 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
 <p style="margin:0 0 20px;color:#4a5162;font-size:14px"><strong>${d.activeCount}</strong> active file${d.activeCount !== 1 ? "s" : ""}${totalActions > 0 ? ` · <strong style="color:#ef4444">${totalActions} action${totalActions !== 1 ? "s" : ""} due</strong>` : " · no actions due today"}.</p>
 ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${tableRows}</tbody></table>` : ""}
 <p style="margin:0 0 24px"><a href="${base}/dashboard" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Open dashboard</a></p>
-<p style="margin:0;font-size:12px;color:#8b91a3">You're receiving this because you have active files assigned to you in Sales Progressor.</p>
+<p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`;
 
-    await sendEmail({ to: d.email, subject, text: lines.join("\n"), html }).catch(() => {});
+    await sendEmail({ to: d.email, subject, text: lines.join("\n"), html, from: fromAddr }).catch(() => {});
     sent++;
   }
 

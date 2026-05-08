@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
@@ -20,6 +21,9 @@ function daysUntil(d: Date) {
 }
 
 export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
+  const fromAddr = agency ? agencyFrom(agency.name) : undefined;
+
   const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000);
 
   const agents = await prisma.user.findMany({
@@ -78,8 +82,8 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     const allGood = files.filter((f) => !needsAttention.includes(f) && !exchangeSoon.includes(f));
 
     const subject = needsAttention.length > 0
-      ? `Weekly briefing — ${needsAttention.length} file${needsAttention.length !== 1 ? "s" : ""} need attention`
-      : `Weekly briefing — ${transactions.length} active file${transactions.length !== 1 ? "s" : ""}`;
+      ? `${needsAttention.length} file${needsAttention.length !== 1 ? "s" : ""} need attention this week`
+      : `All your files are on track this week`;
 
     const lines: string[] = [
       `Good morning, ${extractFirstName(agent.name)}.`,
@@ -160,10 +164,10 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
 <p style="margin:0 0 20px;color:#4a5162;font-size:14px">You have <strong>${transactions.length}</strong> active file${transactions.length !== 1 ? "s" : ""}${needsAttention.length > 0 ? ` · <strong style="color:#ef4444">${needsAttention.length} need${needsAttention.length === 1 ? "s" : ""} attention</strong>` : " · all progressing normally"}.${exchangeSoon.length > 0 ? ` ${exchangeSoon.length} approaching exchange.` : ""}</p>
 ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${tableRows}</tbody></table>` : ""}
 <p style="margin:0 0 24px"><a href="${base}/agent/dashboard" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your files →</a></p>
-<p style="margin:0;font-size:12px;color:#8b91a3">Weekly summary from Sales Progressor. Sent every Monday morning.</p>
+<p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`;
 
-    await sendEmail({ to: agent.email, subject, text: lines.join("\n"), html }).catch(() => {});
+    await sendEmail({ to: agent.email, subject, text: lines.join("\n"), html, from: fromAddr }).catch(() => {});
     sent++;
   }
 

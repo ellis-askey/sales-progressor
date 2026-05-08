@@ -1,4 +1,5 @@
 import { sendEmail } from "@/lib/email";
+import { agencyFrom } from "@/lib/email/from-name";
 
 interface SendNegotiatorAcceptedEmailInput {
   to: string;
@@ -61,7 +62,7 @@ export async function sendNegotiatorAcceptedEmail(
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="border-radius: 8px; background: #E86A4B;">
+                  <td style="border-radius: 8px; background: #FF6B4A;">
                     <a href="${teamUrl}" style="display: inline-block; padding: 12px 24px; color: white; text-decoration: none; font-weight: 500; font-size: 15px;">
                       View your team
                     </a>
@@ -71,8 +72,8 @@ export async function sendNegotiatorAcceptedEmail(
             </td>
           </tr>
         </table>
-        <p style="font-size: 12px; color: #8B7565; margin: 20px 0 0;">
-          Sales Progressor — sales progression for estate agents
+        <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center">
+          Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a>
         </p>
       </td>
     </tr>
@@ -80,5 +81,5 @@ export async function sendNegotiatorAcceptedEmail(
 </body>
 </html>`;
 
-  await sendEmail({ to, subject, text, html });
+  await sendEmail({ to, subject, text, html, from: agencyFrom(agencyName) });
 }
