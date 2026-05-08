@@ -1,0 +1,113 @@
+# Confirming exchange and completion
+
+Exchange and completion are the two bilateral moments in a sale — they happen on both sides simultaneously and require both sides to be ready before either can proceed. The Milestones tab handles them with a dedicated flow that's different from confirming any other milestone.
+
+This article assumes familiarity with the everyday milestone flow. If you're new to the Milestones tab, read [The Milestones tab](./03-milestones-tab.mdx) first.
+
+## What "ready to exchange" means
+
+Each side has a gate milestone — VM18 for the vendor, PM25 for the purchaser. The gate becomes available once every blocking milestone on that side is complete or marked not required. On the vendor side that means all 17 conveyancing and onboarding milestones; on the purchaser side that means all 24 preceding milestones, including finances and conveyancing steps.
+
+The gate milestone itself is a standard one-click confirm. When you confirm VM18, you're recording that the vendor's side has done everything needed and is legally ready to exchange. When you confirm PM25, you're recording the same for the purchaser's side. Neither gate has prerequisites beyond its side's chain being complete — there is no link between VM18 and PM25, and no requirement that both sides reach readiness at the same time. One side can be at the gate while the other is still working through earlier steps.
+
+When both gates are confirmed, the green **Ready to exchange** banner replaces the progress bar at the top of the Milestones tab, and the exchange milestone (VM19 / PM26) becomes available on both sides.
+
+## Confirming exchange
+
+The exchange milestone — VM19 on the vendor side, PM26 on the purchaser side — is a single bilateral event. Confirming on either side confirms both. You do not need to confirm VM19 and PM26 separately, and it doesn't matter which side you start from.
+
+Click **Confirm** on VM19 or PM26 to start the exchange flow. Three things can happen:
+
+**If both sides are ready** — the reconciliation modal opens immediately.
+
+**If the other side isn't ready** — an inline amber notice appears explaining which side is still pending and which gate milestone is the holdup. The reconciliation modal does not open. Dismiss the notice with **OK**, confirm the other side's gate milestone, and then return to click Confirm on the exchange milestone again.
+
+**If exchange has already been confirmed** — the milestone shows as complete with the exchange date. This state is reached when the counterpart side confirmed first; both sides are recorded simultaneously, so if a colleague confirmed PM26 moments ago, your VM19 row is already complete.
+
+The counterpart-readiness check is a UI guard — it prevents the reconciliation modal from opening when the other side can't be confirmed. It does not prevent you from working on each side's milestones independently up to that point.
+
+## The reconciliation modal
+
+<HelpSplit>
+<HelpSplitText>
+When both sides are ready and you click Confirm on VM19 or PM26, the reconciliation modal opens.
+
+**Exchange date** — required. Enter the date contracts were exchanged. This becomes the canonical exchange date across the system: it updates the file's exchange date, feeds into the Exchange Forecast on the Hub and Analytics, and is recorded on both VM19 and PM26.
+
+**Expected completion date** — optional. If you know the completion date at the point of exchange, enter it here. It can be set or updated later.
+
+**Outstanding milestones** — a list of every milestone on both sides that is still incomplete and not marked not required. For each one, you can tick the box to confirm it as part of the exchange — the system records it complete with today's timestamp. Leave it unticked to skip it; you can confirm it normally later.
+
+For any outstanding milestone that requires an event date (such as a survey date), a date field appears when you tick the box. If you leave the date blank, that milestone is excluded from the reconciliation even if ticked.
+
+The reconciliation list is for tidying up. In practice most outstanding milestones at the point of exchange are paperwork that has actually been done but not yet logged. Ticking the box confirms them all in one transaction rather than one by one.
+</HelpSplitText>
+<HelpSplitVisual>
+<ReconciliationModalHelpExample />
+</HelpSplitVisual>
+<p className="caption">The exchange reconciliation modal. Exchange date set to 13 June 2026, expected completion 27 June. Two outstanding milestones ticked for reconciliation; two left unticked to confirm separately later.</p>
+</HelpSplit>
+
+## What happens when you confirm
+
+Clicking **Confirm exchange** writes everything atomically in a single operation:
+
+- VM19 and PM26 are both confirmed with the exchange date you entered
+- Every ticked outstanding milestone is confirmed with today's timestamp — these are recorded as reconciled at exchange
+- The file's exchange date is updated to match the date you entered
+- Any active chase reminders targeting the milestones confirmed here are cancelled
+- Reminder logs set up to track those milestones are deactivated
+- The completion milestone (VM20 / PM27) becomes available on both sides
+
+Everything happens as a single write. If anything fails part-way through — for example a server interruption — nothing is written. There is no partial exchange state.
+
+Then a celebration overlay fires — confetti and an **Exchange confirmed** message with the property address and a congratulations note. Click **Continue** to return to the file. The standard milestone confirmation toast is suppressed when the overlay fires; the celebration is the confirmation.
+
+After exchange, the file appears on the [Completions](../01-running-your-pipeline/05-completions.mdx) page. From there, you can track the run-up to legal completion and confirm VM20 and PM27 when the time comes.
+
+## Confirming completion
+
+The completion milestone — VM20 on the vendor side, PM27 on the purchaser side — follows the same pattern as exchange. Confirming on either side confirms both. Click **Confirm** on VM20 or PM27 to start the completion flow.
+
+The reconciliation modal opens with a **completion date** field in place of the exchange date, and a list of any milestones still outstanding on either side. Ticking and confirming writes everything atomically: both VM20 and PM27 are confirmed with the date you entered, ticked outstanding milestones are confirmed alongside, and the file's completion date updates.
+
+Two differences from exchange:
+
+**The counterpart-readiness check looks at exchange, not the gates.** Before opening the completion modal, the system checks that both VM19 and PM26 have been confirmed. If exchange hasn't been confirmed on both sides, an inline amber notice blocks the modal and explains why. The completion flow cannot proceed before exchange has been recorded.
+
+**There is no celebration overlay for completion.** A standard confirmation toast fires instead — "Completion confirmed" — along with the same notification to linked portal contacts.
+
+Once VM20 and PM27 are confirmed, the file is at a natural end point. The Milestones tab will show all sections collapsed with green checkmarks. You can change the file's status to Completed from the Overview tab — the status dropdown will now allow it, whereas before exchange and completion were confirmed it would not. See [The property file](./01-property-file-overview.mdx) for how the status change works and what fall-through reason options are available if the sale did not complete.
+
+## What gets recorded
+
+Every milestone confirmation — whether confirmed directly, as part of the exchange reconciliation, or as part of the completion reconciliation — is recorded in the file's activity log and visible on the Activity tab. The Activity tab shows a full timeline of milestone confirmations, chases, portal updates, and internal notes in chronological order.
+
+For milestones confirmed during reconciliation, the activity log entry notes that they were reconciled at exchange (or completion), distinguishing them from milestones confirmed individually in the ordinary flow.
+
+## Undoing exchange or completion
+
+Both exchange and completion can be undone like any other confirmed milestone — the cascade preview modal applies (see [The Milestones tab](./03-milestones-tab.mdx)). Undoing exchange re-locks the exchange gate where appropriate: if the conditions that satisfied the gate are no longer met, the gate reverts to locked.
+
+Undoing exchange or completion in normal use is rare. It's there for genuine errors — confirming the wrong file, entering the wrong date — not for ordinary corrections to other milestones.
+
+## What changes by role
+
+Both directors and negotiators see the same exchange and completion flows. Both can confirm, undo, and reinstate these milestones.
+
+For which files each role can open, see [The property file](./01-property-file-overview.mdx). For the everyday milestone flow that leads up to exchange, see [The Milestones tab](./03-milestones-tab.mdx).
+
+## What to do next
+
+- The exchange date you enter becomes the canonical date across the whole system — check it before clicking Confirm
+- The reconciliation list is for tidying up: don't be afraid to tick everything that's genuinely done
+- Once exchange is confirmed, the file appears on the [Completions](../01-running-your-pipeline/05-completions.mdx) page; once completion is confirmed, change the file status to Completed
+- For chain transactions, each file confirms exchange independently with the same date — coordinate with the other files in the chain before confirming
+- The Exchange Forecast on [The Hub](../01-running-your-pipeline/02-hub.mdx) updates automatically once the exchange date is set
+
+## Related articles
+
+- [The Milestones tab](./03-milestones-tab.mdx)
+- [The property file](./01-property-file-overview.mdx)
+- [Completions](../01-running-your-pipeline/05-completions.mdx)
+- [The Hub](../01-running-your-pipeline/02-hub.mdx)

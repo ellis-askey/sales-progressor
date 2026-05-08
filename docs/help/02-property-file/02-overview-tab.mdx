@@ -1,0 +1,213 @@
+# The overview tab
+
+The Overview tab is the first thing you see when you open a property file. It is the default landing point — every visit to a file opens here. Its purpose is to give you a complete picture of one sale in a single scroll: who is involved, what needs doing next, how the file is tracking, and any internal notes the team has left.
+
+You do not need to go to another tab to get a read on the file. The Overview brings together the key signals from the Milestones, Reminders, and Activity tabs so they are visible in one place.
+
+## The health banner
+
+<HelpSplit>
+<HelpSplitText>
+A banner appears at the top of the Overview when the file needs attention. It is not dismissible — it stays until the underlying issue resolves.
+
+**Red banner** — appears when the file has at least one overdue reminder AND is behind schedule. Both conditions are true at once. It shows how many reminders are overdue, a "File may be behind schedule" line, and a **View reminders →** link that takes you directly to the Reminders tab.
+
+**Amber banner** — appears when only one of those conditions is true: either there are overdue reminders with no schedule concern, or the file is behind schedule but no reminder has passed its due date yet. The amber banner shows the relevant line only. If the file is behind schedule but there are no overdue reminders, there is no action button.
+
+When neither condition is met, no banner appears and the Overview starts directly with the meta grid.
+</HelpSplitText>
+<HelpSplitVisual>
+<div className="glass-card px-5 py-4 space-y-2.5">
+  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm">
+    <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+    <div>
+      <p className="text-xs font-semibold text-red-800">2 reminders overdue</p>
+      <p className="text-xs font-semibold text-red-800">File may be behind schedule</p>
+    </div>
+    <button className="ml-auto text-xs font-semibold text-red-700 whitespace-nowrap">View reminders →</button>
+  </div>
+  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+    <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+    <p className="text-xs font-semibold text-amber-800">File may be behind schedule</p>
+  </div>
+</div>
+</HelpSplitVisual>
+<p className="caption">Red banner (top): overdue reminders and behind schedule simultaneously. Amber banner (bottom): behind schedule only, no overdue reminders.</p>
+</HelpSplit>
+
+## The meta grid
+
+Below the header (or the health banner if one is showing) sits a three-cell row with the file's key administrative facts.
+
+**Status** — shows the file's current status: Active, On Hold, Completed, or Withdrawn. Click it to open a dropdown and change the status. The Completed option is gated: the file cannot be marked Completed until both exchange milestones (VM19/VM20 on the vendor side, PM26/PM27 on the purchaser side) have been confirmed. Selecting Withdrawn opens a modal that requires you to select a fall-through reason before the status change is saved.
+
+**Assigned to** — shows who is responsible for the file. On self-managed files this is the agent who owns it; on outsourced files it is the Sales Progressor team member handling it on your behalf. The field is read-only — you cannot edit it from this screen.
+
+**Last progress** — a brief natural-language description of the most recently completed milestone, with a relative date ("Today", "2 days ago", "Last week"). If no milestones have been confirmed yet, this shows "No progress yet."
+
+## Contacts and solicitors
+
+The contacts and solicitors cards sit side by side below the meta grid. On mobile they stack.
+
+### Contacts
+
+Every person or organisation added to the file appears here. Each entry shows the contact's name, their role (Vendor, Purchaser, Solicitor, Broker, or Other), a relative date for when they last viewed their client portal (if they have portal access), and their email and phone.
+
+Clicking a phone number opens your phone dialler. The WhatsApp icon beside the number opens WhatsApp for that contact directly.
+
+For vendor and purchaser contacts, the row includes portal actions:
+- **Set up portal** — creates a portal token for the contact so they can be invited. Appears when the contact has no portal access yet.
+- **Send invite** — sends the contact an email invitation to their portal. Appears once portal access has been set up and the contact has an email address.
+- **Portal link** — copies the contact's portal URL to your clipboard so you can share it directly. Always available once portal access is set up.
+
+**Edit** opens an inline form for name, phone, and email. Role cannot be changed after the contact is created. **Remove** deletes the contact from the file.
+
+**+ Add contact** in the section header adds a new contact. Fields: name (required), role (required), email, and phone.
+
+### Solicitors
+
+The solicitors card shows the vendor solicitor firm and the purchaser solicitor firm as two separate sub-cards. Each shows the firm name, the conveyancer's name, their direct phone (tel: link), and their email.
+
+Below the firm details is the **Solicitor Intelligence badge** — a short summary of that firm's track record on previous files in the system: how many files, average weeks to exchange, average days for searches, and a rating (Fast, Average, or Slow). If the firm has no history in the system, the badge does not appear.
+
+Click **Edit** to change the solicitor assignment. The firm search covers the shared database of conveyancing firms — not just firms your agency has used before. Directors who edit a recommended firm will see a referral fee field; negotiators do not.
+
+## Next steps
+
+<HelpSplit>
+<HelpSplitText>
+The Next Steps widget shows what needs to happen on each side of the transaction. It has a vendor row and a purchaser row, each showing one of three states:
+
+**The next milestone to complete** — the name of the next incomplete, available milestone on that side. If the milestone can be confirmed without entering an event date, a **Complete** button appears inline. Clicking it confirms the milestone immediately — the page refreshes and the next item in sequence appears. If the milestone requires a date (such as an exchange date or completion date), a **Complete →** link appears instead. Clicking it takes you to the Milestones tab where you can enter the date and confirm.
+
+**Awaiting exchange-readiness** — shown on the vendor side when VM18 (Ready to exchange — vendor) is the next outstanding item, and on the purchaser side when PM25 is outstanding. These milestones cannot be quick-completed — they have their own confirmation flow on the Milestones tab.
+
+**Awaiting exchange or completion** — shown after exchange has been confirmed but the post-exchange milestones have not yet been completed.
+
+The widget is hidden once both sides reach **All milestones complete**.
+</HelpSplitText>
+<HelpSplitVisual>
+<div className="glass-card">
+  <div className="px-4 py-2.5 border-b border-white/20 flex items-center gap-2">
+    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+    <h3 className="text-xs font-semibold text-slate-900/70">Next steps</h3>
+  </div>
+  <div className="divide-y divide-white/15">
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-slate-900/40">Vendor</p>
+        <p className="text-xs font-semibold text-slate-900/80 truncate">Vendor searches applied for</p>
+      </div>
+      <button className="text-xs font-medium px-2.5 py-1 rounded-lg flex-shrink-0" style={{background:"rgba(255,107,74,0.12)",color:"#c0300a"}}>Complete</button>
+    </div>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="w-5 h-5 rounded-full bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
+      <div>
+        <p className="text-xs font-semibold text-slate-900/40">Purchaser</p>
+        <p className="text-xs font-medium text-amber-700">Awaiting exchange-readiness</p>
+      </div>
+    </div>
+  </div>
+</div>
+</HelpSplitVisual>
+<p className="caption">Vendor side: next milestone with a quick-complete button. Purchaser side: waiting at the exchange-readiness gate.</p>
+</HelpSplit>
+
+## Reminders
+
+<HelpSplit>
+<HelpSplitText>
+The Reminders widget shows the two reminders with the soonest due dates. The badge in the header shows the total number of active reminders on the file — if the badge shows 8 but only two rows are visible, **View all →** takes you to the Reminders tab where every active reminder is listed.
+
+Each row shows the reminder name and its status:
+- **Overdue** — shown in red with a red row background, and how many days it has been overdue
+- **Due today** — shown in the file's coral colour
+- **Upcoming** — shown as the date it becomes active
+
+If a chase has been sent for a reminder and is awaiting a response, a chase badge appears on the right showing the number of pending chases.
+</HelpSplitText>
+<HelpSplitVisual>
+<RemindersWidgetHelpExample />
+</HelpSplitVisual>
+<p className="caption">Two reminders shown. First reminder: 3 days overdue, 2 pending chases (red row). Second reminder: due today. Badge shows 5 active reminders total on the file.</p>
+</HelpSplit>
+
+## Recent activity
+
+The Recent Activity widget sits beside the Reminders widget on desktop (below it on mobile). It shows the three most recent events on the file: milestone completions and communications (outbound chases, inbound replies, and internal notes).
+
+Each entry shows a coloured dot — emerald for milestone completions, blue for outbound messages, emerald for inbound, and slate for internal notes — plus the event description and how long ago it happened.
+
+**View all →** takes you to the Activity tab, which shows the full timeline without limit.
+
+## Fall-through risk
+
+<HelpSplit>
+<HelpSplitText>
+The fall-through risk widget gives you a score-based read on how likely the sale is to fall through based on the current file data. It is not a prediction — it is a transparent summary of the signals that correlate with sales falling through: overdue chases, escalations, progress against the 12-week exchange target, and periods of inactivity.
+
+**The score bar** shows a value from 0 to 100. The level badge shows the overall assessment:
+
+| Badge | Score | What it means |
+|---|---|---|
+| **No data yet** | 0 | The file has too little activity to assess. Risk factors will appear as it progresses |
+| **On track** | Under 20 | No significant risk factors are present |
+| **Watch** | 20–54 | One or more moderate signals detected |
+| **At risk** | 55+ | Significant signals present — file needs attention |
+
+**Active risk factors** lists the signals that are currently triggering. Each shows the factor name, an explanation, and an impact level (High, Medium, or Low).
+
+**Not flagged** lists the factors that are clear. This gives you confidence that the score is based on the actual state of the file, not missing data.
+
+The score is calculated from seven factors. High-impact factors are worth 40 points each; medium 20 points; low 10 points. The total is capped at 100.
+
+| Factor | Impact |
+|---|---|
+| Escalated chases | High |
+| Progress vs 12-week target (significantly behind) | High |
+| Multiple overdue reminders | Medium |
+| Progress vs 12-week target (slightly behind) | Medium |
+| No file activity in 21+ days | Medium |
+| Single overdue reminder | Low |
+| No milestone completed in 14+ days | Low |
+</HelpSplitText>
+<HelpSplitVisual>
+<RiskScoreHelpExample />
+</HelpSplitVisual>
+<p className="caption">Watch state: the file is slightly behind the 12-week exchange target, and there has been no activity in 25 days. Score 40/100. Escalated chases, progress vs pace (off track), and overdue reminders are all clear.</p>
+</HelpSplit>
+
+The widget updates every time the page loads. It does not update in real time while you are on the page.
+
+## Property Intel
+
+The Property Intel card fetches data from Land Registry and the EPC Register when the page opens. It is read-only — it is reference information, not something you edit in the system.
+
+**Price Paid History** — up to five recent Land Registry sales recorded at the same postcode as the file's property address. Each entry shows the price, property type, whether it was a new build, and the date. This is postcode-level data: it includes neighbouring properties in the same postcode, not only the file's property. Always verify before citing it.
+
+**EPC** — the most recent Energy Performance Certificate for the address, showing the rating (A–G), score, property type, floor area, and a link to the full certificate on GOV.UK.
+
+If EPC data is not available, the card shows "EPC data is currently unavailable." This does not affect price history.
+
+If no postcode can be extracted from the property address, both panels show empty.
+
+External links to Rightmove, Zoopla, and the Land Registry portal appear in the card header when the address matches a known property.
+
+## Notes
+
+The Notes section is for internal team communication about the file. Notes are not visible to clients — they do not appear on the client portal.
+
+Add a note by typing in the text area and clicking **Add note**. Notes appear immediately as you type, and the saved version replaces the optimistic preview when the server confirms. There is no character limit on notes.
+
+Existing notes show the author's name, a relative timestamp, and the note content. Notes respect line breaks. Hover over a note to reveal a **Delete** button. The first five notes are shown; **Show more** expands all of them. There is no way to collapse them again after expanding.
+
+Notes are stored as internal records and appear in the file's Activity tab timeline alongside other file events.
+
+## Director and negotiator differences
+
+Most of the Overview tab is identical for directors and negotiators. The one difference is in the Solicitors card: when a director edits a solicitor assignment and selects a firm from the agency's recommended list, a referral fee field appears. Negotiators do not see this field.
+
+Directors can open any file in their agency. Negotiators can only open files they own. If a file link is shared with a negotiator who does not own it, the page returns a not-found error rather than showing the file.

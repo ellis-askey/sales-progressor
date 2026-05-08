@@ -1,7 +1,7 @@
 // lib/services/risk.ts
 // Fall-through risk scoring for a transaction. Transparent — factors are exposed to the UI.
 
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "low" | "medium" | "high" | "no_data";
 
 export type RiskFactor = {
   label: string;
@@ -26,6 +26,17 @@ export type RiskInput = {
 
 export function calculateRiskScore(input: RiskInput): RiskScore {
   const { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone } = input;
+
+  const isNoData =
+    escalatedTaskCount === 0 &&
+    overdueTaskCount === 0 &&
+    daysSinceLastActivity === null &&
+    daysStuckOnMilestone === null &&
+    onTrack === "unknown";
+
+  if (isNoData) {
+    return { level: "no_data", score: 0, factors: [] };
+  }
 
   const factors: RiskFactor[] = [
     {
@@ -105,7 +116,8 @@ export function calculateRiskScore(input: RiskInput): RiskScore {
 }
 
 export const RISK_CONFIG: Record<RiskLevel, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  low:    { label: "On track", color: "text-emerald-700", bg: "bg-emerald-50",  border: "border-emerald-200", dot: "bg-emerald-400" },
-  medium: { label: "Watch",    color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200",   dot: "bg-amber-400" },
-  high:   { label: "At risk",  color: "text-red-700",     bg: "bg-red-50",     border: "border-red-200",     dot: "bg-red-500" },
+  low:     { label: "On track",    color: "text-emerald-700",    bg: "bg-emerald-50",  border: "border-emerald-200", dot: "bg-emerald-400" },
+  medium:  { label: "Watch",       color: "text-amber-700",      bg: "bg-amber-50",    border: "border-amber-200",   dot: "bg-amber-400" },
+  high:    { label: "At risk",     color: "text-red-700",        bg: "bg-red-50",      border: "border-red-200",     dot: "bg-red-500" },
+  no_data: { label: "No data yet", color: "text-slate-500",      bg: "bg-slate-50",    border: "border-slate-200",   dot: "bg-slate-300" },
 };

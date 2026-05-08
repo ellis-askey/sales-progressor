@@ -25,6 +25,7 @@ type Props = {
   onUndoStart?: () => void;
   optimisticallyAvailable?: boolean;
   optimisticallyRelocked?: boolean;
+  counterpartNotice?: string;
 };
 
 // Only PM9 (mortgage application) can be manually marked N/R
@@ -32,7 +33,7 @@ const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice }: Props) {
   const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -70,6 +71,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const [pendingReconcileEd, setPendingReconcileEd] = useState<string | undefined>(undefined);
   const [reconcileEventDate, setReconcileEventDate] = useState("");
   const [reconcileCompletionDate, setReconcileCompletionDate] = useState("");
+  const [showCounterpartNotice, setShowCounterpartNotice] = useState(false);
 
   // Detect when this row transitions from blocked → available and play unlock animation
   const wasAvailableRef = useRef(def.isAvailable);
@@ -86,6 +88,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   useEffect(() => {
     if (def.isComplete) setError(null);
   }, [def.isComplete]);
+
+  useEffect(() => {
+    if (!counterpartNotice) setShowCounterpartNotice(false);
+  }, [counterpartNotice]);
 
   // Exchange celebration overlay
   const [celebrating, setCelebrating] = useState(false);
@@ -110,8 +116,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const effectivelyAvailable = (def.isAvailable || (optimisticallyAvailable ?? false)) && !(optimisticallyRelocked ?? false);
 
   function handleConfirmClick() {
-    onConfirmStart?.();
     setError(null);
+    if (RECONCILIATION_CODES.has(def.code) && counterpartNotice) {
+      setShowCounterpartNotice(true);
+      return;
+    }
+    onConfirmStart?.();
     if (def.eventDateRequired && !RECONCILIATION_CODES.has(def.code)) {
       setShowEventDate(true);
       return;
@@ -344,6 +354,24 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           {isBlocked && <p className="text-xs text-slate-900/40 mt-0.5">Previous milestones must be completed first</p>}
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
 
+          {/* Counterpart-readiness notice */}
+          {showCounterpartNotice && counterpartNotice && (
+            <div className="mt-2 space-y-2">
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p className="text-xs text-amber-800">{counterpartNotice}</p>
+              </div>
+              <button
+                onClick={() => setShowCounterpartNotice(false)}
+                className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          )}
+
           {/* Event date input */}
           {showEventDate && (
             <div className="mt-2 space-y-2">
@@ -406,7 +434,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {!isDone && !showEventDate && !showNotRequired && (
+          {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && (
             <>
               {effectivelyAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading || isPending}

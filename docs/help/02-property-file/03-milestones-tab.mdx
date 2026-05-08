@@ -1,0 +1,163 @@
+# The milestones tab
+
+The Milestones tab is where every legal and financial step on a sale is tracked. Both sides of the transaction — vendor (seller) and purchaser (buyer) — have their own ordered list of steps that run in parallel, and this is where you confirm them as they happen, mark ones that don't apply, and roll back if you confirmed something in error.
+
+It is the most active tab on a property file. Every time a solicitor sends an update, a survey report comes back, or a mortgage offer is issued, this is where you log it.
+
+## How the Milestones tab is laid out
+
+The tab is arranged top to bottom: a progress bar showing overall exchange progress for the active side, a side toggle to switch between vendor and purchaser, section groups within the active side (each with a collapse affordance), and a Not required section at the bottom listing milestones that don't apply to this file.
+
+Both sides have their own independent list. The vendor side has 20 milestones across 3 sections; the purchaser side has 27 milestones across 4 sections. Switching between sides takes one tap.
+
+## Reading the progress bar
+
+The exchange progress bar shows weighted progress for the active side as a percentage. Milestones marked not required are excluded from the calculation entirely — they don't count against you, and they don't pad the total.
+
+As the bar fills:
+
+- Below 40% — indigo to blue
+- 40–75% — blue to emerald
+- Above 75% — full emerald
+
+When all blocking milestones on both sides are complete or marked not required, the progress bar is replaced with a green **Ready to exchange** banner across the top of the tab. That banner is file-level — both sides together — even though the progress bar is per-side. Switching from vendor to purchaser shows that side's percentage; the banner only appears when both sides are ready simultaneously.
+
+## Section groups
+
+Each side is divided into named sections.
+
+**Vendor sections:** Onboarding (instructing a solicitor, the memo of sale, early communication), Conveyancing (searches, contract pack, enquiries, mortgage-related steps on the seller's side, leasehold-specific steps where applicable), Exchange & Completion (the exchange gate, exchange itself, and legal completion).
+
+**Purchaser sections:** Onboarding (instructing a solicitor, the memo of sale), Finances (mortgage application, lender valuation, mortgage offer, private survey), Conveyancing (searches, contract pack, enquiries, anti-money laundering, pre-exchange steps), Exchange & Completion (the exchange gate, exchange, and completion).
+
+Each section header shows how many milestones are complete within it and has a chevron. Click the header to expand or collapse the section. Sections where every milestone is complete (or not required) auto-collapse when the page loads — the file opens with completed sections tucked away and the active sections expanded. If you expand a completed section manually, it stays expanded for the rest of the page visit. Switching between the vendor and purchaser tabs recomputes which sections are collapsed based on the new side's milestone state.
+
+When every milestone in a section is not required, the section shows a small note — "All milestones in this section are not required" — in place of the milestone rows. This happens most commonly in the Finances section on a cash-buyer file where all mortgage-related milestones have been auto-set to not required.
+
+## The milestone row
+
+<HelpSplit>
+<HelpSplitText>
+Each milestone is displayed as a single row. The row shows the milestone name, its current state, and the actions available for that state. There are four states:
+
+**Locked** — the previous milestone in the chain hasn't been confirmed yet. No action is available. The row shows a lock icon and the text "Previous milestones must be completed first."
+
+**Available** — the previous milestone is complete (or marked not required), so this one can now be actioned. A **Confirm** button appears on the right. For the one milestone that can be manually marked not required (PM9 — private survey), an **N/R** button also appears.
+
+**Complete** — confirmed by the team or, in some cases, by the client via their portal. Shows the date it was completed and any associated event date (valuation date, survey date). If the client confirmed it themselves through their portal, a **Client confirmed** badge appears.
+
+**Not required** — doesn't apply to this file. Removed from the inline list and moved to the Not required section at the bottom of the page.
+
+The exchange gate milestones (VM18 for the vendor side, PM25 for the purchaser side) show an amber **Exchange gate** badge in their available state — these are the final blocking steps before exchange can be confirmed.
+</HelpSplitText>
+<HelpSplitVisual>
+<MilestoneRowFourStatesHelpExample />
+</HelpSplitVisual>
+<p className="caption">The four states from top to bottom: locked (predecessor not complete), available (ready to confirm), complete (confirmed 12 May 2026 with Undo link), not required (auto-set at file creation).</p>
+</HelpSplit>
+
+## Confirming a milestone
+
+Most milestones use a simple one-click confirm. Click **Confirm**, and the milestone is marked complete with today's date. The next milestone in the chain unlocks immediately — you'll see it transition from a lock icon to an available state. Where multiple milestones were waiting behind the one you just confirmed, all of them unlock in the same moment if their individual predecessors are now satisfied.
+
+Behind the scenes, confirming a milestone also:
+
+- Updates the **Last progress** entry on the [Overview tab](./02-overview-tab.mdx), so anyone looking at the file gets an instant read on what happened and when
+- Cancels any scheduled chase reminders targeting that milestone — no chasing needed for something already done
+- Sends a notification to linked client portal contacts, letting buyers and sellers see the update in their portal without you needing to call them
+
+When the milestone you confirm is the last blocker before the exchange gate, the gate milestone (VM18 for the vendor, PM25 for the purchaser) becomes available. The gate row changes from locked to an amber-highlighted available state with an **Exchange gate** badge. See [Confirming exchange and completion](./04-exchange-and-completion.mdx) for what happens next.
+
+The UI updates optimistically — the row turns green and subsequent milestones unlock before the server response arrives. If the server action fails for any reason, the row reverts and an inline error message appears. This keeps the interface feeling immediate without losing accuracy.
+
+### Milestones with event dates
+
+Two milestones ask for a specific date when you confirm them:
+
+**Lender valuation booked (PM6)** — clicking Confirm opens a date picker for the valuation date. If the lender carried out a desktop valuation with no physical visit, tick **Desktop valuation — no date** and confirm without a date.
+
+**Private survey booked (PM9)** — clicking Confirm opens a date picker for the survey date.
+
+In both cases, the date is stored alongside the confirmation timestamp and is used to schedule reminders relative to the actual event rather than the moment you logged it — so if you book a valuation for three weeks from now, the system chases based on that appointment date.
+
+Exchange and completion milestones (VM19, PM26, VM20, PM27) also capture dates, but they use a separate flow described in [Confirming exchange and completion](./04-exchange-and-completion.mdx).
+
+## Marking a milestone as not required
+
+Most milestones cannot be manually marked not required. The system handles this automatically at the time the file is created, based on the tenure and purchase type you selected:
+
+**Freehold files** — the management pack milestones are auto-set to not required before you see the file. Management packs are a leasehold requirement; there's nothing for the solicitor to order on a freehold.
+
+**Cash buyers** — the mortgage-related purchaser milestones (mortgage application, lender valuation, mortgage offer) are auto-set to not required. A buyer without a mortgage has no need for these steps.
+
+These auto-set milestones appear in the Not required section from day one with the reason "Auto-set at file creation." You do not need to do anything with them.
+
+The one milestone you can manually mark not required is **Private survey booked (PM9)**. When the buyer confirms they don't need a private survey, click **N/R** on PM9. A confirmation modal asks you to confirm, then both PM9 and the related **Survey report received (PM10)** milestone are marked not required together — PM10 follows PM9 automatically because a survey report cannot exist without a survey.
+
+A milestone marked not required counts as satisfied for everything downstream. The next milestone in the chain unlocks, and the exchange gate considers it cleared when checking whether all blockers are done. Not required is not the same as skipped — it is a positive declaration that the step genuinely doesn't apply.
+
+## The Not required section
+
+Not required milestones live at the bottom of the page in a collapsible section. The header shows the count. The section is collapsed by default — click the header to expand it.
+
+Each row shows the milestone name and the reason it was marked not required. Auto-set milestones show "Auto-set at file creation." Manually marked ones show the reason logged at the time — for PM9, that's always "Buyer confirmed no private survey required."
+
+Each row has a **Reinstate** button. Clicking it moves the milestone back to its normal place in the active milestone list — locked or available, depending on whether its predecessor is currently satisfied. You'd reinstate a milestone when circumstances change: if a buyer initially said they didn't need a survey and then changes their mind, or if a file was created as cash but the buyer has since arranged a mortgage.
+
+Reinstating PM9 specifically asks whether the buyer is now using a mortgage. If yes, the mortgage-related milestones (PM5 for mortgage application, PM6 for lender valuation, PM11 for mortgage offer) are reinstated alongside it, and the file's purchase type is updated. If the buyer is reinstating the survey without changing their purchase method, they can reinstate PM9 without that update.
+
+## Undoing a confirmed milestone
+
+<HelpSplit>
+<HelpSplitText>
+Sometimes you'll confirm a milestone too soon, or discover that a confirmation was wrong. Click **Undo** on any complete milestone to reverse it.
+
+If nothing depends on this milestone, undo is a single confirmation — one click, done.
+
+If downstream milestones have already been confirmed, a modal opens with two options:
+
+**Undo this milestone only** — reverses just the one you clicked. Downstream milestones stay complete but are internally flagged as out of order. When you re-confirm the target milestone, the flag clears automatically and everything is consistent again.
+
+**Undo this and downstream milestones** — reverses the target and all completed milestones that depend on it. Use this when the downstream confirmations were based on the target being correct and shouldn't stand without it.
+
+The modal shows the projected progress percentage for each option so you can see the impact before committing.
+
+A separate effect: if undoing a milestone means the exchange gate is no longer satisfied, the gate re-locks automatically. The file returns to a not-yet-ready-to-exchange state.
+</HelpSplitText>
+<HelpSplitVisual>
+<UndoCascadeModalHelpExample />
+</HelpSplitVisual>
+<p className="caption">Undo cascade modal with two options. Option 1 (selected): undo the target only, progress drops from 58% to 47%, downstream milestones stay complete. Option 2: undo the target and three downstream milestones, progress drops to 28%.</p>
+</HelpSplit>
+
+## What changes by role
+
+Both directors and negotiators see the same Milestones tab. Both can confirm milestones, mark them not required, undo them, and reinstate them.
+
+Milestone actions remain available regardless of the file's status. On a file that has been put on hold, withdrawn, or marked completed, the confirm and undo buttons are still visible — the team retains the ability to correct or update milestones after a file's status changes.
+
+For which files a director versus a negotiator can open, see [The property file](./01-property-file-overview.mdx). For what the client sees as milestones are confirmed, see the client portal section in [What is Sales Progressor?](../00-getting-started/01-what-is-sales-progressor.mdx).
+
+## Approaching exchange
+
+When all the regular milestones on a side are complete or not required, the exchange gate milestone for that side becomes available: VM18 for the vendor, PM25 for the purchaser. Confirming the gate is a simple one-click confirm — same as any other milestone. It records that this side has done everything needed and is ready to exchange.
+
+Once both gates are confirmed, the exchange milestone (VM19 on the vendor side / PM26 on the purchaser side) becomes available and the green **Ready to exchange** banner appears at the top of the tab.
+
+Confirming exchange itself is more involved — the system opens a dedicated flow that captures the exchange date and lets you tidy up any remaining outstanding milestones in one step. See [Confirming exchange and completion](./04-exchange-and-completion.mdx) for the full flow.
+
+## What to do next
+
+- Confirm milestones as they happen rather than in batches — the system uses the confirmation dates to schedule chase reminders accurately, so late logging means reminders fire at the wrong time
+- For files with freehold tenure or cash buyers, check the Not required section on your first visit — it shows exactly which milestones don't apply and why
+- If you confirm a milestone in error, use Undo straight away rather than trying to work around it by confirming subsequent steps
+- When both sides are nearing exchange-readiness, read [Confirming exchange and completion](./04-exchange-and-completion.mdx) before you start — the flow is different from confirming any other milestone
+- Quick-complete buttons on the [Overview tab](./02-overview-tab.mdx) let you confirm the next milestone without switching to this tab — useful for routine confirmations when you're doing a file review
+
+## Related articles
+
+- [The property file](./01-property-file-overview.mdx)
+- [The Overview tab](./02-overview-tab.mdx)
+- [Confirming exchange and completion](./04-exchange-and-completion.mdx)
+- [All Files](../01-running-your-pipeline/03-all-files.mdx)
+- [The Hub](../01-running-your-pipeline/02-hub.mdx)

@@ -24,7 +24,7 @@ import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { RemindersWidget } from "@/components/transaction/RemindersWidget";
 import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
-import { NextMilestoneWidget } from "@/components/transaction/NextMilestoneWidget";
+import { NextMilestoneWidget, type MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
@@ -141,13 +141,30 @@ export default async function AgentTransactionDetailPage({
   const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
   const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
 
-  const vendorNext = milestoneData?.vendor.find(
-    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
-  ) ?? null;
+  function computeMilestoneSideState(
+    milestones: Array<{ id: string; name: string; code: string; isComplete: boolean; isNotRequired: boolean; isAvailable: boolean; eventDateRequired: boolean }>
+  ): MilestoneSideState {
+    const next = milestones.find(
+      (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
+    );
+    if (next) return { state: "hasNext", milestone: { id: next.id, name: next.name, code: next.code, eventDateRequired: next.eventDateRequired } };
 
-  const purchaserNext = milestoneData?.purchaser.find(
-    (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
-  ) ?? null;
+    const hasGatePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && EXCHANGE_GATES.has(m.code));
+    if (hasGatePending) return { state: "gatePending", gateType: "exchange_gate" };
+
+    const hasPostExchangePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && POST_EXCHANGE.has(m.code));
+    if (hasPostExchangePending) return { state: "gatePending", gateType: "post_exchange" };
+
+    return { state: "allComplete" };
+  }
+
+  const vendorSideState: MilestoneSideState = milestoneData
+    ? computeMilestoneSideState(milestoneData.vendor)
+    : { state: "allComplete" };
+
+  const purchaserSideState: MilestoneSideState = milestoneData
+    ? computeMilestoneSideState(milestoneData.purchaser)
+    : { state: "allComplete" };
 
   const openTodoCount = manualTasks.filter((t) => t.status === "open").length;
 
@@ -315,18 +332,8 @@ export default async function AgentTransactionDetailPage({
 
           <NextMilestoneWidget
             transactionId={transaction.id}
-            vendorNext={vendorNext ? {
-              id:                vendorNext.id,
-              name:              vendorNext.name,
-              code:              vendorNext.code,
-              eventDateRequired: vendorNext.eventDateRequired,
-            } : null}
-            purchaserNext={purchaserNext ? {
-              id:                purchaserNext.id,
-              name:              purchaserNext.name,
-              code:              purchaserNext.code,
-              eventDateRequired: purchaserNext.eventDateRequired,
-            } : null}
+            vendorSide={vendorSideState}
+            purchaserSide={purchaserSideState}
           />
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">

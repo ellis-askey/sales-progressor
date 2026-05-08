@@ -12,18 +12,23 @@ type NextMilestone = {
   eventDateRequired: boolean;
 };
 
+export type MilestoneSideState =
+  | { state: "hasNext"; milestone: NextMilestone }
+  | { state: "gatePending"; gateType: "exchange_gate" | "post_exchange" }
+  | { state: "allComplete" };
+
 type Props = {
   transactionId: string;
-  vendorNext: NextMilestone | null;
-  purchaserNext: NextMilestone | null;
+  vendorSide: MilestoneSideState;
+  purchaserSide: MilestoneSideState;
 };
 
-function MilestoneQuickComplete({
-  milestone,
+function MilestoneSideRow({
+  side,
   label,
   transactionId,
 }: {
-  milestone: NextMilestone | null;
+  side: MilestoneSideState;
   label: string;
   transactionId: string;
 }) {
@@ -31,7 +36,7 @@ function MilestoneQuickComplete({
   const { setActiveTab } = useTabContext();
   const [loading, setLoading] = useState(false);
 
-  if (!milestone) {
+  if (side.state === "allComplete") {
     return (
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
@@ -46,6 +51,25 @@ function MilestoneQuickComplete({
       </div>
     );
   }
+
+  if (side.state === "gatePending") {
+    const copy =
+      side.gateType === "exchange_gate"
+        ? "Awaiting exchange-readiness"
+        : "Awaiting exchange or completion";
+    return (
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-5 h-5 rounded-full bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
+          <p className="text-xs text-amber-700 font-medium">{copy}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // side.state === "hasNext"
+  const { milestone } = side;
 
   if (milestone.eventDateRequired) {
     return (
@@ -70,9 +94,9 @@ function MilestoneQuickComplete({
     try {
       await confirmMilestoneAction({
         transactionId,
-        milestoneDefinitionId: milestone!.id,
+        milestoneDefinitionId: milestone.id,
       });
-      toast.success(milestone!.name);
+      toast.success(milestone.name);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete milestone";
       toast.error("Couldn't complete milestone", { description: message });
@@ -99,8 +123,8 @@ function MilestoneQuickComplete({
   );
 }
 
-export function NextMilestoneWidget({ transactionId, vendorNext, purchaserNext }: Props) {
-  if (!vendorNext && !purchaserNext) return null;
+export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }: Props) {
+  if (vendorSide.state === "allComplete" && purchaserSide.state === "allComplete") return null;
 
   return (
     <div className="glass-card">
@@ -113,16 +137,8 @@ export function NextMilestoneWidget({ transactionId, vendorNext, purchaserNext }
         </div>
       </div>
       <div className="divide-y divide-white/15">
-        <MilestoneQuickComplete
-          milestone={vendorNext}
-          label="Vendor"
-          transactionId={transactionId}
-        />
-        <MilestoneQuickComplete
-          milestone={purchaserNext}
-          label="Purchaser"
-          transactionId={transactionId}
-        />
+        <MilestoneSideRow side={vendorSide} label="Vendor" transactionId={transactionId} />
+        <MilestoneSideRow side={purchaserSide} label="Purchaser" transactionId={transactionId} />
       </div>
     </div>
   );

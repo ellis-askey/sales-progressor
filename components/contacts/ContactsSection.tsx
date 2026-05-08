@@ -16,7 +16,7 @@ function whatsappHref(phone: string): string {
 }
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { ContactRole } from "@prisma/client";
-import { EnvelopeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { EnvelopeSimple, Phone, WhatsappLogo } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
 
 type Contact = {
@@ -288,10 +288,20 @@ export function ContactsSection({
                           </a>
                         )}
                         {contact.phone && (
-                          <a data-sensitive="true" href={whatsappHref(contact.phone)} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
-                            <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
-                            {contact.phone}
-                          </a>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-900/40">
+                            <Phone className="w-3 h-3 flex-shrink-0" weight="regular" />
+                            <a data-sensitive="true" href={`tel:${contact.phone}`} className="hover:text-green-600 transition-colors">
+                              {contact.phone}
+                            </a>
+                            <a
+                              href={whatsappHref(contact.phone)}
+                              aria-label="Open WhatsApp"
+                              title="Open WhatsApp"
+                              className="hover:text-green-600 transition-colors"
+                            >
+                              <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
+                            </a>
+                          </div>
                         )}
                       </div>
                       {/* Action buttons row */}

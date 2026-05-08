@@ -56,6 +56,34 @@ export function MilestonePanel({
 
   const milestones = activeTab === "vendor" ? vendor : purchaser;
   const gateReady = activeTab === "vendor" ? vendorGateReady : purchaserGateReady;
+
+  const allMilestoneLookup = useMemo(() => {
+    const lookup = new Map<string, EnrichedDef>();
+    for (const m of vendor) lookup.set(m.code, m);
+    for (const m of purchaser) lookup.set(m.code, m);
+    return lookup;
+  }, [vendor, purchaser]);
+
+  function getCounterpartNotice(code: string): string | undefined {
+    if (code === "VM19") {
+      const pm25 = allMilestoneLookup.get("PM25");
+      if (pm25 && !pm25.isComplete && !pm25.isNotRequired) {
+        return `Both sides must be ready to exchange before exchange can be confirmed. The purchaser side is still at "${pm25.name}".`;
+      }
+    } else if (code === "PM26") {
+      const vm18 = allMilestoneLookup.get("VM18");
+      if (vm18 && !vm18.isComplete && !vm18.isNotRequired) {
+        return `Both sides must be ready to exchange before exchange can be confirmed. The vendor side is still at "${vm18.name}".`;
+      }
+    } else if (code === "VM20" || code === "PM27") {
+      const vm19 = allMilestoneLookup.get("VM19");
+      const pm26 = allMilestoneLookup.get("PM26");
+      if ((vm19 && !vm19.isComplete) || (pm26 && !pm26.isComplete)) {
+        return "Exchange must be confirmed on both sides before completion can be recorded.";
+      }
+    }
+    return undefined;
+  }
   const sectionDefs = activeTab === "vendor" ? VENDOR_SECTIONS : PURCHASER_SECTIONS;
 
   const nrMilestones = milestones.filter((m) => m.isNotRequired);
@@ -344,6 +372,7 @@ export function MilestonePanel({
                         optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
                         onNRStart={() => handleNRStart(def.id, def.code)}
                         onUndoStart={() => handleUndoStart(def.id, def.code)}
+                        counterpartNotice={getCounterpartNotice(def.code)}
                       />
                     ))}
                   </div>
