@@ -122,10 +122,9 @@ export default async function AgentTransactionDetailPage({
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
-  const activeReminderCount = activeReminders.filter((l) => {
-    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due <= today || l.chaseTasks.some((t: { status: string }) => t.status === "pending");
-  }).length;
+  const activeReminderCount = activeReminders.filter((l) =>
+    l.chaseTasks.some((t: { status: string }) => t.status === "pending")
+  ).length;
 
   const overdueCount = activeReminders.filter((l) => {
     const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);

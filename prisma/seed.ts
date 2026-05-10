@@ -329,7 +329,7 @@ async function main() {
   // Codes are the new spec codes (already remapped from old seed)
   const rules = [
     { name: "Chase: Seller instructed solicitor",                              targetMilestoneCode: "VM1",  anchorCode: null,    graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller MOS received",                                      targetMilestoneCode: "VM2",  anchorCode: null,    graceDays: 1,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Seller MOS received",                                      targetMilestoneCode: "VM2",  anchorCode: null,    graceDays: 0,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller welcome pack received",                             targetMilestoneCode: "VM3",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller ID & AML completed",                               targetMilestoneCode: "VM4",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller property information forms received",               targetMilestoneCode: "VM5",  anchorCode: "VM3",   graceDays: 5,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
@@ -349,7 +349,7 @@ async function main() {
     { name: "Chase: Contracts exchanged (seller)",                             targetMilestoneCode: "VM19", anchorCode: "VM18",  graceDays: 1,  repeatEveryDays: 2,  escalateAfterChases: 1, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Sale completed (seller)",                                  targetMilestoneCode: "VM20", anchorCode: "VM19",  graceDays: 1,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer instructed solicitor",                               targetMilestoneCode: "PM1",  anchorCode: null,    graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Buyer MOS received",                                       targetMilestoneCode: "PM2",  anchorCode: null,    graceDays: 1,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Buyer MOS received",                                       targetMilestoneCode: "PM2",  anchorCode: null,    graceDays: 0,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer ID & AML completed",                                 targetMilestoneCode: "PM3",  anchorCode: "PM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer money paid on account",                              targetMilestoneCode: "PM4",  anchorCode: "PM1",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer mortgage application submitted",                     targetMilestoneCode: "PM5",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },

@@ -115,5 +115,5 @@ export async function getTransactionReminderCountAction(transactionId: string): 
     : scope.kind === "assigned"
     ? { transactionId, transaction: { assignedUserId: scope.userId } }
     : { transactionId, transaction: { agencyId: scope.agencyIds[0] } };
-  return prisma.reminderLog.count({ where });
+  return prisma.reminderLog.count({ where: { ...where, chaseTasks: { some: { status: "pending" } } } });
 }

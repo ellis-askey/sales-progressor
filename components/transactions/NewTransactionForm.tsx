@@ -213,7 +213,7 @@ function CreatingOverlay({ address }: { address: string }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 left-0 md:left-[220px] z-50 flex items-center justify-center"
       style={{
         background: "rgba(15,23,42,0.72)",
         backdropFilter: "blur(14px)",

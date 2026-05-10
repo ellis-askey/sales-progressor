@@ -73,10 +73,11 @@ export async function getReminderLogsForTransaction(
     },
   }) as ReminderLogWithRule[];
 
-  const now = new Date();
-  const dueWithNoTask = logs.filter(
-    (l) => l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && new Date(l.nextDueDate) <= now
-  );
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const dueWithNoTask = logs.filter((l) => {
+    const dueDay = new Date(l.nextDueDate); dueDay.setHours(0, 0, 0, 0);
+    return l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && dueDay <= todayMidnight;
+  });
   if (dueWithNoTask.length > 0) {
     await Promise.all(
       dueWithNoTask.map((l) =>
@@ -130,10 +131,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     orderBy: { nextDueDate: "asc" },
   });
 
-  const now = new Date();
-  const dueWithNoTask = logs.filter(
-    (l) => l.chaseTasks.length === 0 && new Date(l.nextDueDate) <= now
-  );
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const dueWithNoTask = logs.filter((l) => {
+    const dueDay = new Date(l.nextDueDate); dueDay.setHours(0, 0, 0, 0);
+    return l.chaseTasks.length === 0 && dueDay <= todayMidnight;
+  });
   if (dueWithNoTask.length > 0) {
     await Promise.all(
       dueWithNoTask.map((l) =>
@@ -309,23 +311,26 @@ export async function evaluateTransactionReminders(transactionId: string) {
           },
         });
       }
-    } else if (log.nextDueDate <= today) {
-      await prisma.chaseTask.create({
-        data: {
+    } else {
+      const logDueDay = new Date(log.nextDueDate); logDueDay.setHours(0, 0, 0, 0);
+      if (logDueDay <= today) {
+        await prisma.chaseTask.create({
+          data: {
+            transactionId,
+            reminderLogId: log.id,
+            assignedToId: transaction.assignedUserId,
+            dueDate: log.nextDueDate,
+            status: "pending",
+            priority: "normal",
+            chaseCount: 0,
+          },
+        });
+        await writeEngineAudit(
           transactionId,
-          reminderLogId: log.id,
-          assignedToId: transaction.assignedUserId,
-          dueDate: log.nextDueDate,
-          status: "pending",
-          priority: "normal",
-          chaseCount: 0,
-        },
-      });
-      await writeEngineAudit(
-        transactionId,
-        `Reminder engine: chase task created for "${rule.name}" — due ${formatEngineDate(log.nextDueDate)}.`,
-        assignedUserId
-      );
+          `Reminder engine: chase task created for "${rule.name}" — due ${formatEngineDate(log.nextDueDate)}.`,
+          assignedUserId
+        );
+      }
     }
   }
 }
@@ -425,6 +430,7 @@ export async function runReminderEngine(agencyId?: string) {
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
+  result.setHours(0, 0, 0, 0);
   return result;
 }
 
