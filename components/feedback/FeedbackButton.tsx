@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { X } from "@phosphor-icons/react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type FeedbackType = "bug" | "idea" | "general";
 
@@ -11,6 +14,7 @@ const TYPE_OPTIONS: { value: FeedbackType; label: string; sub: string }[] = [
 ];
 
 export function FeedbackButton() {
+  const theme = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>("general");
   const [message, setMessage] = useState("");
@@ -57,14 +61,8 @@ export function FeedbackButton() {
       {/* Floating trigger button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-2xl flex items-center justify-center transition-all"
-        style={{
-          background: "rgba(255,255,255,0.82)",
-          backdropFilter: "blur(16px) saturate(1.6)",
-          WebkitBackdropFilter: "blur(16px) saturate(1.6)",
-          border: "1px solid rgba(255,255,255,0.6)",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.10)",
-        }}
+        className="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-2xl flex items-center justify-center glass-card transition-all hover:shadow-lg"
+        style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.10)" }}
         title="Send feedback"
         aria-label="Send feedback"
       >
@@ -73,22 +71,21 @@ export function FeedbackButton() {
         </svg>
       </button>
 
-      {/* Modal */}
-      {open && (
+      {/* Modal — portalled to body */}
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+          data-theme={theme}
+          style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
         >
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          {/* Backdrop — click to dismiss */}
+          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setOpen(false)} />
 
+          {/* Card */}
           <div
-            className="relative w-full max-w-sm rounded-2xl overflow-hidden"
+            className="glass-card-strong relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
             style={{
-              background: "rgba(255,255,255,0.94)",
-              backdropFilter: "blur(28px) saturate(1.6)",
-              WebkitBackdropFilter: "blur(28px) saturate(1.6)",
-              border: "1px solid rgba(255,255,255,0.6)",
-              boxShadow: "0 16px 48px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)",
+              borderTop: "2px solid var(--agent-coral-deep)",
+              animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
             }}
           >
             {done ? (
@@ -103,20 +100,23 @@ export function FeedbackButton() {
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900/80">Send feedback</p>
+                {/* Header */}
+                <div className="px-6 pt-5 pb-4 border-b border-white/20 flex items-center justify-between">
+                  <p className="text-base font-semibold text-slate-900/85">Send feedback</p>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-900/30 hover:text-slate-900/60 agent-hover-row transition-all"
+                    aria-label="Close"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X size={16} weight="bold" />
                   </button>
                 </div>
 
-                <div className="p-5 space-y-4">
+                {/* Body */}
+                <div className="px-6 py-5 space-y-4">
                   {/* Type selector */}
                   <div className="grid grid-cols-3 gap-2">
                     {TYPE_OPTIONS.map((opt) => (
@@ -143,14 +143,14 @@ export function FeedbackButton() {
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Tell us what happened or what you'd like to see…"
                     rows={4}
-                    className="glass-input w-full resize-none text-sm"
+                    className="glass-input agent-focus w-full resize-none text-sm"
                     required
                   />
 
                   <button
                     type="submit"
                     disabled={submitting || !message.trim()}
-                    className="w-full py-2.5 rounded-xl agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
+                    className="w-full py-2.5 rounded-xl agent-btn-color-primary text-sm font-semibold transition-colors disabled:opacity-40"
                   >
                     {submitting ? "Sending…" : "Send feedback"}
                   </button>
@@ -158,7 +158,8 @@ export function FeedbackButton() {
               </form>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

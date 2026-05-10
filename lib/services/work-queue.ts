@@ -30,12 +30,12 @@ export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg:
   stale:                     { label: "No progress in 14+ days",     color: "var(--agent-info)",    bg: "var(--agent-info-bg)",    border: "var(--agent-info-border)"    },
 };
 
-function txWhere(vis: AgentVisibility) {
+export function txWhereWorkQueue(vis: AgentVisibility) {
   if (vis.seeAll) {
     if (vis.firmName) {
       return { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } };
     }
-    return { agentUserId: vis.userId };
+    return { agencyId: vis.agencyId };
   }
   return { agentUserId: vis.userId };
 }
@@ -53,7 +53,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
 
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
-      ...txWhere(vis),
+      ...txWhereWorkQueue(vis),
       status: { in: ["active", "on_hold"] as TransactionStatus[] },
     },
     select: {
@@ -61,6 +61,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       propertyAddress: true,
       status: true,
       expectedExchangeDate: true,
+      overridePredictedDate: true,
       vendorSolicitorFirmId: true,
       purchaserSolicitorFirmId: true,
       createdAt: true,
@@ -68,7 +69,7 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
         where: { state: "complete" },
-        select: { milestoneDefinitionId: true, completedAt: true },
+        select: { milestoneDefinitionId: true, completedAt: true, reconciledAtExchange: true },
         orderBy: { completedAt: "desc" },
       },
     },
@@ -84,14 +85,16 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
     );
 
     if (!hasExchanged) {
-      // Overdue exchange date
-      if (tx.expectedExchangeDate && new Date(tx.expectedExchangeDate) < now) {
+      // Overdue exchange date — prefer manually-overridden date if set
+      const exchangeDateToCheck = tx.overridePredictedDate ?? tx.expectedExchangeDate;
+      if (exchangeDateToCheck && new Date(exchangeDateToCheck) < now) {
         alerts.push("overdue_exchange");
       }
 
-      // Stale progress — only flag if file is older than the grace period
-      if (new Date(tx.createdAt) < newFileGrace) {
-        const lastCompletion = tx.milestoneCompletions[0]?.completedAt ?? null;
+      // Stale progress — active files only, older than grace period, no genuine milestone in 14 days
+      if (tx.status === "active" && new Date(tx.createdAt) < newFileGrace) {
+        const genuineCompletions = tx.milestoneCompletions.filter((c) => !c.reconciledAtExchange);
+        const lastCompletion = genuineCompletions[0]?.completedAt ?? null;
         if (!lastCompletion || new Date(lastCompletion) < staleThreshold) {
           alerts.push("stale");
         }

@@ -2,7 +2,6 @@
 // components/milestones/MilestoneRow.tsx
 
 import { useState, useOptimistic, useTransition, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -10,6 +9,10 @@ import { confirmMilestoneAction, markNotRequiredAction, reverseMilestoneAction, 
 import type { UndoImpact, NotificationStatus } from "@/app/actions/milestones";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { ExchangeCelebration } from "@/components/milestones/ExchangeCelebration";
+import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmModal";
+import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
+import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
+import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -58,19 +61,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   // Undo modal state (two-step: read impact → show modal → confirm)
   const [showUndoModal, setShowUndoModal] = useState(false);
   const [undoData, setUndoData] = useState<UndoImpact | null>(null);
-  const [undoMode, setUndoMode] = useState<"target_only" | "cascade">("target_only");
-  const [undoCascadeExpanded, setUndoCascadeExpanded] = useState(false);
 
   // Exchange / completion reconciliation state
-  type ReconciliationItem = { id: string; name: string; side: string; code: string; eventDateRequired: boolean };
   const [reconciliationOutstanding, setReconciliationOutstanding] = useState<ReconciliationItem[]>([]);
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
-  const [reconciledIds, setReconciledIds] = useState<Set<string>>(new Set());
-  const [reconciledDates, setReconciledDates] = useState<Record<string, string>>({});
-  const [reconciliationExpanded, setReconciliationExpanded] = useState(false);
-  const [pendingReconcileEd, setPendingReconcileEd] = useState<string | undefined>(undefined);
-  const [reconcileEventDate, setReconcileEventDate] = useState("");
-  const [reconcileCompletionDate, setReconcileCompletionDate] = useState("");
+  const [reconcileInitialDate, setReconcileInitialDate] = useState("");
   const [showCounterpartNotice, setShowCounterpartNotice] = useState(false);
 
   // Detect when this row transitions from blocked → available and play unlock animation
@@ -141,12 +136,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           setLoading(false);
           const todayStr = new Date().toISOString().split("T")[0];
           setReconciliationOutstanding(data.outstanding);
-          setReconciledIds(new Set(data.outstanding.map((m) => m.id)));
-          setReconciledDates({});
-          setReconciliationExpanded(false);
-          setPendingReconcileEd(eventDate || undefined);
-          setReconcileEventDate(eventDate || todayStr);
-          setReconcileCompletionDate("");
+          setReconcileInitialDate(eventDate || todayStr);
           setShowReconciliationModal(true);
         })
         .catch((err: unknown) => {
@@ -202,8 +192,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           completionDate: completionDate || undefined,
         });
         if (result.triggeredCelebration && result.propertyAddress) {
-          setCelebrationAddress(result.propertyAddress);
-          setCelebrating(true);
+          const addr = result.propertyAddress;
+          setTimeout(() => {
+            setCelebrationAddress(addr);
+            setCelebrating(true);
+          }, 200);
         } else {
           const count = outstandingIds.length;
           toast.success(def.name, count > 0 ? { description: `+${count} milestone${count > 1 ? "s" : ""} reconciled` } : undefined);
@@ -223,8 +216,6 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     try {
       const data = await getUndoImpactAction({ transactionId, milestoneDefinitionId: def.id });
       setUndoData(data);
-      setUndoMode("target_only");
-      setUndoCascadeExpanded(false);
       setShowUndoModal(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not load undo information");
@@ -233,15 +224,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
     }
   }
 
-  function doUndo() {
+  function doUndo(mode: "target_only" | "cascade") {
     if (!undoData) return;
     setShowUndoModal(false);
     onUndoStart?.();
     startTransition(async () => {
       addOptimistic("reverse");
       try {
-        await executeUndoMilestoneAction({ transactionId, milestoneDefinitionId: def.id, mode: undoMode });
-        const count = undoMode === "cascade" ? undoData.cascade.length : 0;
+        await executeUndoMilestoneAction({ transactionId, milestoneDefinitionId: def.id, mode });
+        const count = mode === "cascade" ? undoData.cascade.length : 0;
         toast.info("Milestone reversed", {
           description: count > 0 ? `+${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name,
         });
@@ -469,326 +460,35 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       </div>
 
       {/* PM9 N/R — survey confirmation */}
-      {showSurveyNrConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <p className="text-sm font-semibold text-slate-900/90">No private survey required?</p>
-              <p className="text-xs text-slate-900/50 mt-1">
-                Please confirm the buyer does not require a private Level 2 or Level 3 survey. The survey report milestone will also be marked as not required.
-              </p>
-            </div>
-            <div className="px-5 py-4 space-y-2">
-              <button onClick={() => doNotRequired()}
-                className="w-full py-2.5 text-sm font-semibold agent-btn-color-primary rounded-xl transition-colors">
-                Yes, mark as not required
-              </button>
-              <button onClick={() => setShowSurveyNrConfirm(false)}
-                className="w-full py-2 text-xs text-slate-900/30 hover:text-slate-900/60 transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {showSurveyNrConfirm && (
+        <SurveyNrConfirmModal
+          onConfirm={() => doNotRequired()}
+          onCancel={() => setShowSurveyNrConfirm(false)}
+        />
       )}
 
-      {/* Exchange / completion reconciliation modal */}
-      {showReconciliationModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
-            <h3 className="text-base font-semibold text-slate-900 mb-3">
-              {def.code === "VM19" || def.code === "PM26" ? "Confirm exchange" : "Confirm completion"}
-            </h3>
-
-            {/* Date inputs */}
-            <div className="bg-slate-50 rounded-xl p-4 mb-4 space-y-3 flex-shrink-0">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                  {def.code === "VM19" || def.code === "PM26" ? "Date contracts exchanged" : "Date sale completed"}
-                </label>
-                <input
-                  type="date"
-                  value={reconcileEventDate}
-                  onChange={(e) => setReconcileEventDate(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-                <p className="text-xs text-slate-400 mt-1">Pre-filled with today — change if it was different</p>
-              </div>
-              {(def.code === "VM19" || def.code === "PM26") && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                    Expected completion date <span className="font-normal text-slate-400">(optional)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={reconcileCompletionDate}
-                    onChange={(e) => setReconcileCompletionDate(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  />
-                </div>
-              )}
-            </div>
-
-            {reconciliationOutstanding.length > 0 && (
-              <>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 flex-shrink-0">Outstanding milestones</p>
-                <p className="text-xs text-slate-400 mb-3 flex-shrink-0">
-                  These haven{"'"}t been confirmed yet. Tick those that are done — they{"'"}ll be marked as reconciled at exchange.
-                  Untick or leave a date blank to exclude.
-                </p>
-
-                <div className="rounded-lg border border-slate-100 divide-y divide-slate-100 mb-3 overflow-y-auto flex-1 min-h-0">
-                  {(reconciliationExpanded ? reconciliationOutstanding : reconciliationOutstanding.slice(0, 5)).map((item) => (
-                    <div key={item.id} className="px-4 py-2.5">
-                      <label className="flex items-start gap-2.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 rounded"
-                          checked={reconciledIds.has(item.id)}
-                          onChange={(e) => {
-                            setReconciledIds((prev) => {
-                              const next = new Set(prev);
-                              e.target.checked ? next.add(item.id) : next.delete(item.id);
-                              return next;
-                            });
-                          }}
-                        />
-                        <span className="flex-1 min-w-0">
-                          <span className="text-sm text-slate-700 block">{item.name}</span>
-                          <span className="text-xs text-slate-400">{item.side === "vendor" ? "Vendor" : "Purchaser"}</span>
-                        </span>
-                      </label>
-                      {item.eventDateRequired && reconciledIds.has(item.id) && (
-                        <div className="mt-2 ml-6">
-                          <label className="block text-xs text-slate-500 mb-1">{getEventDateLabel(item.code)} <span className="text-slate-400">(blank = exclude)</span></label>
-                          <input
-                            type="date"
-                            value={reconciledDates[item.id] ?? ""}
-                            onChange={(e) => setReconciledDates((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                            className="border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-[180px]"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {reconciliationOutstanding.length > 5 && (
-                  <button
-                    onClick={() => setReconciliationExpanded((v) => !v)}
-                    className="text-xs text-blue-500 hover:text-blue-600 mb-3 text-left flex-shrink-0"
-                  >
-                    {reconciliationExpanded
-                      ? "Show fewer"
-                      : `Show ${reconciliationOutstanding.length - 5} more`}
-                  </button>
-                )}
-              </>
-            )}
-
-            <div className="flex gap-3 pt-1 flex-shrink-0">
-              <button
-                onClick={() => {
-                  const effectiveIds = [...reconciledIds].filter((id) => {
-                    const item = reconciliationOutstanding.find((m) => m.id === id);
-                    if (!item) return false;
-                    if (item.eventDateRequired && !reconciledDates[id]) return false;
-                    return true;
-                  });
-                  doReconciliationConfirm(
-                    reconcileEventDate || pendingReconcileEd,
-                    effectiveIds,
-                    Object.fromEntries(
-                      Object.entries(reconciledDates).filter(([, v]) => !!v)
-                    ),
-                    reconcileCompletionDate || undefined
-                  );
-                }}
-                className="flex-1 py-2.5 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors"
-              >
-                {isExchangeMilestone ? "Confirm exchange" : "Confirm completion"}
-              </button>
-              <button
-                onClick={() => setShowReconciliationModal(false)}
-                className="flex-1 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 agent-hover-row transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {/* Exchange / completion reconciliation drawer */}
+      {showReconciliationModal && (
+        <ReconciliationDrawer
+          isExchangeFlow={isExchangeMilestone}
+          outstanding={reconciliationOutstanding}
+          initialEventDate={reconcileInitialDate}
+          pendingEventDate={eventDate || undefined}
+          onConfirm={(ed, ids, dates, cd) => doReconciliationConfirm(ed, ids, dates, cd)}
+          onCancel={() => setShowReconciliationModal(false)}
+        />
       )}
 
       {/* Undo milestone modal — target_only or cascade */}
-      {showUndoModal && undoData && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl max-h-[88vh] flex flex-col">
-            {/* Header */}
-            <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-slate-900">Undo milestone</h3>
-                <button
-                  onClick={() => setShowUndoModal(false)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 agent-hover-row transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-sm text-slate-500 mt-1">
-                {undoData.cascade.length > 0
-                  ? `${def.name} — what would you like to do?`
-                  : `Are you sure you want to undo "${def.name}"?`}
-              </p>
-            </div>
-
-            {/* Body */}
-            <div className="px-6 py-5 overflow-y-auto flex-1">
-              {undoData.cascade.length === 0 ? (
-                /* No cascade — simple confirmation */
-                <div className="space-y-3">
-                  <p className="text-sm text-slate-600">
-                    Reverse this milestone. Use this if you ticked the wrong one or it hasn{"'"}t happened yet.
-                  </p>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 flex items-center gap-4">
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400 mb-0.5">Current</p>
-                      <p className="text-xl font-semibold text-slate-700">{undoData.currentPercent}%</p>
-                    </div>
-                    <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                    </svg>
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400 mb-0.5">After</p>
-                      <p className={`text-xl font-semibold ${undoData.targetOnlyPercent < undoData.currentPercent ? "text-orange-500" : "text-slate-700"}`}>
-                        {undoData.targetOnlyPercent}%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Two options */
-                <div className="space-y-3">
-                  {/* Option 1 — target only */}
-                  <label
-                    className={`block rounded-xl border-2 p-4 cursor-pointer transition-all ${
-                      undoMode === "target_only"
-                        ? "border-blue-500 bg-blue-50/50"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name={`undoMode-${def.id}`}
-                        value="target_only"
-                        checked={undoMode === "target_only"}
-                        onChange={() => setUndoMode("target_only")}
-                        className="mt-0.5 accent-blue-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">Undo this milestone only</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Reverse this milestone but keep downstream work as-is. Use this if you ticked the wrong one or it hasn{"'"}t happened yet.
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1.5">
-                          Progress: <span className="font-medium">{undoData.currentPercent}% → {undoData.targetOnlyPercent}%</span>
-                        </p>
-                        <p className="text-xs text-orange-600 mt-1.5">
-                          Note: {undoData.cascade.length} downstream milestone{undoData.cascade.length !== 1 ? "s are" : " is"} complete. {undoData.cascade.length !== 1 ? "They" : "It"} will stay complete and may need re-checking later if this milestone is permanently undone.
-                        </p>
-                      </div>
-                    </div>
-                  </label>
-
-                  {/* Option 2 — cascade */}
-                  <label
-                    className={`block rounded-xl border-2 p-4 cursor-pointer transition-all ${
-                      undoMode === "cascade"
-                        ? "border-blue-500 bg-blue-50/50"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name={`undoMode-${def.id}`}
-                        value="cascade"
-                        checked={undoMode === "cascade"}
-                        onChange={() => setUndoMode("cascade")}
-                        className="mt-0.5 accent-blue-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">Undo this and downstream milestones</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Reverse this milestone and all completed dependents. Use this if the chain of work genuinely didn{"'"}t happen.
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1.5">
-                          Progress: <span className="font-medium">{undoData.currentPercent}% → {undoData.cascadePercent}%</span>
-                        </p>
-                        <div className="mt-2 rounded-lg border border-slate-100 divide-y divide-slate-50 overflow-hidden">
-                          {(undoCascadeExpanded ? undoData.cascade : undoData.cascade.slice(0, 5)).map((item) => (
-                            <div key={item.id} className="flex items-center gap-2 px-3 py-2">
-                              <svg className="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              <span className="text-xs text-slate-700 flex-1 min-w-0 truncate">{item.name}</span>
-                              {item.reconciledAtExchange && (
-                                <span className="text-[10px] text-violet-600 bg-violet-50 border border-violet-100 rounded px-1 py-0.5 flex-shrink-0">reconciled</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {undoData.cascade.length > 5 && (
-                          <button
-                            onClick={(e) => { e.preventDefault(); setUndoCascadeExpanded((v) => !v); }}
-                            className="text-xs text-blue-500 hover:text-blue-600 mt-1"
-                          >
-                            {undoCascadeExpanded ? "Show fewer" : `Show ${undoData.cascade.length - 5} more`}
-                          </button>
-                        )}
-                        {(() => {
-                          const rc = undoData.cascade.filter((m) => m.reconciledAtExchange).length;
-                          return rc > 0 ? (
-                            <p className="text-xs text-slate-400 mt-2">
-                              Note: {rc} milestone{rc !== 1 ? "s" : ""} marked complete during exchange reconciliation will also be reversed.
-                            </p>
-                          ) : null;
-                        })()}
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 pb-5 pt-3 border-t border-slate-100 flex gap-3">
-              <button
-                onClick={doUndo}
-                disabled={isPending}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-sm font-semibold text-white transition-colors"
-              >
-                {isPending
-                  ? "Undoing…"
-                  : undoMode === "cascade" && undoData.cascade.length > 0
-                  ? `Undo milestone and ${undoData.cascade.length} dependent${undoData.cascade.length !== 1 ? "s" : ""}`
-                  : "Undo milestone"}
-              </button>
-              <button
-                onClick={() => setShowUndoModal(false)}
-                disabled={isPending}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 agent-hover-row transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {showUndoModal && undoData && (
+        <UndoMilestoneModal
+          milestoneName={def.name}
+          milestoneId={def.id}
+          undoData={undoData}
+          isPending={isPending}
+          onConfirm={(mode) => doUndo(mode)}
+          onCancel={() => setShowUndoModal(false)}
+        />
       )}
       {confirmedNotifications && confirmedNotifications.length > 0 && (
         <NotificationFeedback

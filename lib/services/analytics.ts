@@ -49,7 +49,7 @@ export type AnalyticsData = {
 export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
   const [transactions, exchangeDefs] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      where: { agencyId },
+      where: { agencyId, status: { not: "draft" } },
       select: {
         id: true,
         status: true,
@@ -194,7 +194,7 @@ export type ReferralStat = {
 
 export async function getReferralStats(agencyId: string): Promise<ReferralStat[]> {
   const rows = await prisma.propertyTransaction.findMany({
-    where: { agencyId, referredFirmId: { not: null } },
+    where: { agencyId, referredFirmId: { not: null }, status: { not: "draft" } },
     select: {
       referralFee: true,
       referralFeeReceived: true,
@@ -223,6 +223,48 @@ export async function getReferralStats(agencyId: string): Promise<ReferralStat[]
   return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);
 }
 
+// ── Broker referral stats ─────────────────────────────────────────────────────
+
+export type BrokerReferralStat = {
+  firmId: string;
+  firmName: string;
+  referralCount: number;
+  feeExpectedPence: number;
+  feeReceivedPence: number;
+  pendingCount: number;
+};
+
+export async function getBrokerReferralStats(agencyId: string): Promise<BrokerReferralStat[]> {
+  const rows = await prisma.propertyTransaction.findMany({
+    where: { agencyId, brokerFirmId: { not: null }, status: { not: "draft" } },
+    select: {
+      brokerReferralFee: true,
+      brokerReferralFeeReceived: true,
+      brokerFirm: { select: { id: true, name: true } },
+    },
+  }).catch(() => []);
+
+  const map = new Map<string, BrokerReferralStat>();
+  for (const r of rows) {
+    if (!r.brokerFirm) continue;
+    const existing = map.get(r.brokerFirm.id) ?? {
+      firmId: r.brokerFirm.id,
+      firmName: r.brokerFirm.name,
+      referralCount: 0,
+      feeExpectedPence: 0,
+      feeReceivedPence: 0,
+      pendingCount: 0,
+    };
+    existing.referralCount++;
+    existing.feeExpectedPence += r.brokerReferralFee ?? 0;
+    if (r.brokerReferralFeeReceived) existing.feeReceivedPence += r.brokerReferralFee ?? 0;
+    else existing.pendingCount++;
+    map.set(r.brokerFirm.id, existing);
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.referralCount - a.referralCount);
+}
+
 // ── Monthly activity (visibility-scoped, 12 months) ──────────────────────────
 
 export type MonthlyActivityBucket = { month: string; created: number; exchanged: number };
@@ -241,12 +283,12 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
 
   const [txsInWindow, exchangesInWindow] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      where: { ...txWhere, createdAt: { gte: windowStart } },
+      where: { ...txWhere, status: { not: "draft" }, createdAt: { gte: windowStart } },
       select: { createdAt: true },
     }),
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: txWhere,
+        transaction: { ...txWhere, status: { not: "draft" } },
         milestoneDefinitionId: { in: exchangeDefIds },
         state: "complete",
         completedAt: { gte: windowStart, lt: windowEnd },

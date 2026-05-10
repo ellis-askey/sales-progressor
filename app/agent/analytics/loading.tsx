@@ -1,23 +1,10 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+
 export default function AnalyticsLoading() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-      {/* Header */}
-      <div
-        className="agent-glass-strong px-4 pt-[18px] pb-[22px] sm:px-8 sm:pt-[22px] sm:pb-[26px]"
-        style={{ borderBottom: "0.5px solid var(--agent-glass-border)" }}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div>
-            <div className="agent-skeleton" style={{ height: 26, width: 130, borderRadius: 6, marginBottom: 6 }} />
-            <div className="agent-skeleton" style={{ height: 13, width: 240, borderRadius: 6 }} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div className="agent-skeleton" style={{ height: 32, width: 110, borderRadius: 8 }} />
-            <div className="agent-skeleton" style={{ height: 32, width: 96, borderRadius: 8 }} />
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
 
       <div className="px-4 py-5 sm:px-8 flex flex-col" style={{ gap: 18 }}>
 
@@ -111,13 +98,7 @@ export default function AnalyticsLoading() {
             <div className="agent-skeleton" style={{ height: 10, width: 280, borderRadius: 6 }} />
           </div>
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                padding: "11px 20px", borderTop: "0.5px solid var(--agent-border-subtle)",
-                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-              }}
-            >
+            <div key={i} style={{ padding: "11px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <div className="agent-skeleton" style={{ height: 13, width: 160, borderRadius: 6 }} />
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <div className="agent-skeleton" style={{ height: 11, width: 70, borderRadius: 6 }} />
@@ -135,13 +116,7 @@ export default function AnalyticsLoading() {
             <div className="agent-skeleton" style={{ height: 10, width: 260, borderRadius: 6 }} />
           </div>
           {[1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                padding: "12px 20px", borderTop: "0.5px solid var(--agent-border-subtle)",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}
-            >
+            <div key={i} style={{ padding: "12px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div className="agent-skeleton" style={{ height: 12, width: 200, borderRadius: 6, marginBottom: 5 }} />
                 <div className="agent-skeleton" style={{ height: 10, width: 110, borderRadius: 6 }} />
@@ -161,14 +136,7 @@ export default function AnalyticsLoading() {
             <div className="agent-skeleton" style={{ height: 20, width: 60, borderRadius: 99 }} />
           </div>
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                padding: "11px 20px",
-                borderTop: i > 1 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}
-            >
+            <div key={i} style={{ padding: "11px 20px", borderTop: i > 1 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div className="agent-skeleton" style={{ height: 12, width: 130, borderRadius: 6, marginBottom: 4 }} />
                 <div className="agent-skeleton" style={{ height: 10, width: 200, borderRadius: 6 }} />

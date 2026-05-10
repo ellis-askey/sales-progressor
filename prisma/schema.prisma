@@ -33,6 +33,7 @@ model Agency {
   chains                   PropertyChain[]
   verifiedDomains          VerifiedDomain[]
   recommendedSolicitors    AgencyRecommendedSolicitor[]
+  preferredBroker          AgencyPreferredBroker?
   feedbackSubmissions      FeedbackSubmission[]
   negotiatorInvitations    NegotiatorInvitation[]
   directorInvitations      DirectorInvitation[]
@@ -172,6 +173,11 @@ model PropertyTransaction {
   vendorSolicitorContactId     String?
   purchaserSolicitorFirmId     String?
   purchaserSolicitorContactId  String?
+  brokerFirmId                 String?
+  brokerContactId              String?
+  brokerReferralFee            Int?
+  brokerReferralFeeReceived    Boolean               @default(false)
+  purchaserBrokerReferral      Boolean               @default(false)
   lastActivityAt               DateTime?
   createdAt                    DateTime          @default(now())
   updatedAt                    DateTime          @updatedAt
@@ -185,6 +191,8 @@ model PropertyTransaction {
   purchaserSolicitorFirm     SolicitorFirm?        @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
   purchaserSolicitorContact  SolicitorContact?     @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
   referredFirm               SolicitorFirm?        @relation("ReferredFirm",           fields: [referredFirmId],           references: [id])
+  brokerFirm                 BrokerFirm?           @relation(fields: [brokerFirmId],    references: [id])
+  brokerContact              BrokerContact?        @relation(fields: [brokerContactId], references: [id])
   milestoneCompletions       MilestoneCompletion[]
   reminderLogs               ReminderLog[]
   chaseTasks                 ChaseTask[]
@@ -334,6 +342,43 @@ model SolicitorContact {
   firm SolicitorFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
+}
+
+model BrokerFirm {
+  id        String   @id @default(cuid())
+  name      String
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  handlers     BrokerContact[]
+  transactions PropertyTransaction[]
+  preferences  AgencyPreferredBroker[]
+}
+
+model BrokerContact {
+  id        String   @id @default(cuid())
+  firmId    String
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firm         BrokerFirm           @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  transactions PropertyTransaction[]
+}
+
+model AgencyPreferredBroker {
+  id                      String   @id @default(cuid())
+  agencyId                String   @unique
+  brokerFirmId            String
+  defaultReferralFeePence Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  agency     Agency     @relation(fields: [agencyId], references: [id])
+  brokerFirm BrokerFirm @relation(fields: [brokerFirmId], references: [id], onDelete: Cascade)
 }
 
 enum ContactRole {

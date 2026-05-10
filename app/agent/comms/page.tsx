@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getAgentMilestoneActivity, resolveAgentVisibility } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   CommsActivityFeed,
   type DayBucket,
@@ -69,80 +70,76 @@ export default async function AgentCommsPage({
 
   return (
     <>
-      <div style={{
-        background: "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="relative px-4 pt-6 pb-7 md:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-4">
-            <div>
-              <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Updates</h1>
-              <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-                Milestone activity across all your files.
-              </p>
-            </div>
-            {/* Filter tabs */}
-            <div className="flex w-full md:w-auto" style={{ gap: 4, background: "rgba(255,255,255,0.40)", borderRadius: 10, padding: 3 }}>
-              <Link
-                href={filterBase}
-                className="flex flex-1 items-center justify-center md:flex-none"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: "10px 12px",
-                  borderRadius: 7,
-                  textDecoration: "none",
-                  transition: "background 150ms",
-                  background: !portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
-                  color: !portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
-                  boxShadow: !portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                }}
-              >
-                All milestones
-              </Link>
-              <Link
-                href={`${filterBase}?filter=portal`}
-                className="flex flex-1 items-center justify-center md:flex-none"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: "10px 12px",
-                  borderRadius: 7,
-                  textDecoration: "none",
-                  transition: "background 150ms",
-                  background: portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
-                  color: portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
-                  boxShadow: portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                }}
-              >
-                Client confirmations
-              </Link>
-            </div>
-          </div>
+      <PageHeader title="Updates" subtitle="Milestone activity across all your files.">
+        <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.05)", borderRadius: 10, padding: 3 }}>
+          <Link
+            href={filterBase}
+            style={{
+              fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 7,
+              textDecoration: "none", transition: "background 150ms",
+              background: !portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
+              color: !portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
+              boxShadow: !portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            All milestones
+          </Link>
+          <Link
+            href={`${filterBase}?filter=portal`}
+            style={{
+              fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 7,
+              textDecoration: "none", transition: "background 150ms",
+              background: portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
+              color: portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
+              boxShadow: portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            Client confirmations
+          </Link>
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="px-4 md:px-8 py-5 md:py-7 space-y-6">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
 
         {milestones.length === 0 && (
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-            <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {portalOnly ? "No client confirmations yet" : "No milestone activity yet"}
-            </p>
-            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              {portalOnly
-                ? "Client confirmations will appear here when clients confirm their milestones via the portal."
-                : "Completed milestones across your files will appear here."}
-            </p>
-          </div>
+          <>
+            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+              <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                {portalOnly ? "No client confirmations yet" : "No milestone activity yet"}
+              </p>
+              <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                {portalOnly
+                  ? "Client confirmations will appear here when clients confirm their milestones via the portal."
+                  : "Completed milestones across your files will appear here."}
+              </p>
+            </div>
+
+            {/* Ghost day-bucket preview */}
+            <div style={{ opacity: 0.3, pointerEvents: "none" }}>
+              <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</p>
+              <div className="agent-glass-strong" style={{ borderRadius: 16, overflow: "hidden" }}>
+                <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>14 Maple Close, Birmingham</p>
+                </div>
+                {[
+                  { text: "Mortgage offer received", time: "9:41 am" },
+                  { text: "Search results obtained", time: "8:15 am" },
+                ].map(({ text, time }, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+                    borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb), 0.12)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="var(--agent-coral)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                    <p style={{ flex: 1, margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{text}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>{time}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {days.length > 0 && <CommsActivityFeed days={days} />}

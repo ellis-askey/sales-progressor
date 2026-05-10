@@ -160,23 +160,21 @@ export function ChainSection({
 
   if (!expanded) {
     return (
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="glass-section-label text-slate-900/40">
-            Chain{" "}
-            <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
-          </h2>
+      <div className="rounded-xl agent-chain-callout px-4 py-3.5 flex items-center justify-between gap-4">
+        <div>
+          <p className="glass-section-label text-slate-900/50 mb-1">
+            Chain <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
+          </p>
+          <p className="text-sm text-slate-900/60">Is this property part of a chain?</p>
+          <p className="text-xs text-slate-900/40 mt-0.5">Adding a chain sends invite links to the other agents involved.</p>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-900/40">Is this property part of a chain?</p>
-          <button
-            type="button"
-            onClick={onExpand}
-            className="text-xs font-medium agent-link-primary transition-colors"
-          >
-            + Add chain
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onExpand}
+          className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg agent-chain-callout-btn"
+        >
+          + Add chain
+        </button>
       </div>
     );
   }
@@ -258,7 +256,7 @@ export function ChainSection({
           <button
             type="button"
             onClick={() => { setAddNodeDir("above"); setEditingStub(null); }}
-            className="flex-1 text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 transition-colors"
+            className="flex-1 text-xs font-semibold py-2 rounded-xl agent-chain-callout-btn"
           >
             + Add sale above
           </button>
@@ -267,7 +265,7 @@ export function ChainSection({
           <button
             type="button"
             onClick={() => { setAddNodeDir("below"); setEditingStub(null); }}
-            className="flex-1 text-xs text-slate-900/40 agent-hover-link border border-dashed border-white/30 rounded-xl py-2 transition-colors"
+            className="flex-1 text-xs font-semibold py-2 rounded-xl agent-chain-callout-btn"
           >
             + Add sale below
           </button>

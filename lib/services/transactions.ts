@@ -21,6 +21,7 @@ export async function listTransactions(
   } else {
     whereClause = { agencyId, progressedBy: "progressor" };
   }
+  whereClause = { ...whereClause, status: { not: "draft" } };
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
@@ -145,6 +146,7 @@ export async function countTransactionsByStatus(
   } else {
     whereClause = { agencyId, progressedBy: "progressor" };
   }
+  whereClause = { ...whereClause, status: { not: "draft" } };
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
     where: whereClause,
@@ -163,7 +165,9 @@ export async function listTransactionsByScope(scope: AccessScope) {
   const totalMilestones = await prisma.milestoneDefinition.count();
   const base = scopeTransactionWhere(scope);
   const whereClause: Record<string, unknown> =
-    scope.kind === "agency" ? { ...base, progressedBy: "progressor" } : { ...base };
+    scope.kind === "agency"
+      ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
+      : { ...base, status: { not: "draft" } };
 
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
@@ -245,7 +249,9 @@ export async function listTransactionsByScope(scope: AccessScope) {
 export async function countTransactionsByScope(scope: AccessScope) {
   const base = scopeTransactionWhere(scope);
   const whereClause: Record<string, unknown> =
-    scope.kind === "agency" ? { ...base, progressedBy: "progressor" } : { ...base };
+    scope.kind === "agency"
+      ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
+      : { ...base, status: { not: "draft" } };
 
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
@@ -539,6 +545,10 @@ export type CreateTransactionInput = {
   agentFeeIsVatInclusive?: boolean | null;
   referredFirmId?: string | null;
   referralFee?: number | null;
+  brokerFirmId?: string | null;
+  brokerContactId?: string | null;
+  brokerReferralFee?: number | null;
+  purchaserBrokerReferral?: boolean;
 };
 
 export async function createTransaction(input: CreateTransactionInput) {
@@ -571,6 +581,10 @@ export async function createTransaction(input: CreateTransactionInput) {
       agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
       referredFirmId: input.referredFirmId ?? null,
       referralFee: input.referralFee ?? null,
+      brokerFirmId: input.brokerFirmId ?? null,
+      brokerContactId: input.brokerContactId ?? null,
+      brokerReferralFee: input.brokerReferralFee ?? null,
+      purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
       twelveWeekTarget,
     },
   });

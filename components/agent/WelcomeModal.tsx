@@ -5,22 +5,30 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getFirstName } from "@/lib/utils";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
-import { Lightning, PlayCircle, X } from "@phosphor-icons/react";
+import { Lightning, X } from "@phosphor-icons/react";
 import { TourSlides } from "@/components/agent/TourSlides";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export function WelcomeModal({ name }: { name: string }) {
   const router = useRouter();
+  const theme = usePortalTheme();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [showTour, setShowTour] = useState(false);
-  const [theme, setTheme] = useState("sunset");
   const firstName = getFirstName(name) || "there";
 
   useEffect(() => {
     setMounted(true);
     markWelcomeSeenAction().catch(() => {});
-    const el = document.querySelector("[data-theme]");
-    if (el) setTheme(el.getAttribute("data-theme") ?? "sunset");
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setVisible(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   function close() {
@@ -37,30 +45,40 @@ export function WelcomeModal({ name }: { name: string }) {
   return createPortal(
     <div
       data-theme={theme}
-      className="agent-backdrop"
-      style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={close}
     >
+      {/* Backdrop */}
+      <div className="fixed inset-0 agent-backdrop-overlay" />
+
+      {/* Card */}
       <div
         className="agent-modal"
-        style={{ maxWidth: showTour ? 540 : 460, width: "calc(100vw - 48px)", position: "relative" }}
+        style={{
+          maxWidth: showTour ? 540 : 460,
+          width: "calc(100vw - 48px)",
+          position: "relative",
+          borderTop: "2px solid var(--agent-coral-deep)",
+          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close button — ghost treatment */}
         <button
           onClick={close}
           aria-label="Close"
           style={{
             position: "absolute", top: 16, right: 16, zIndex: 1,
-            width: 28, height: 28, borderRadius: 8,
-            border: "none", background: "rgba(0,0,0,0.06)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "var(--agent-text-muted)",
-            transition: "background 150ms",
+            padding: 6, borderRadius: 8, border: "none",
+            background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer",
           }}
-          className="hover:bg-black/10"
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
-          <X size={14} weight="bold" />
+          <X size={16} weight="bold" />
         </button>
+
         {showTour ? (
           <TourSlides
             onClose={close}
@@ -71,11 +89,11 @@ export function WelcomeModal({ name }: { name: string }) {
           />
         ) : (
           <>
-            {/* Header gradient strip */}
+            {/* Header gradient strip — theme-driven */}
             <div style={{
               margin: "-24px -24px 24px",
               padding: "28px 24px 24px",
-              background: "linear-gradient(135deg, rgba(255,138,101,0.18) 0%, rgba(255,183,77,0.12) 100%)",
+              background: "linear-gradient(135deg, rgba(var(--agent-coral-base-rgb), 0.18) 0%, rgba(var(--agent-bloom-gold-rgb), 0.12) 100%)",
               borderBottom: "0.5px solid rgba(255,255,255,0.50)",
               borderRadius: "var(--agent-radius-xl) var(--agent-radius-xl) 0 0",
             }}>
@@ -94,25 +112,19 @@ export function WelcomeModal({ name }: { name: string }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button
                 onClick={handleAddSale}
-                className="agent-btn agent-btn-primary"
+                className="agent-btn agent-btn-color-primary"
                 style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700 }}
               >
                 <Lightning size={18} weight="fill" />
                 Add my first sale
               </button>
 
+              {/* Secondary — text link, doesn't compete with primary */}
               <button
                 onClick={() => setShowTour(true)}
-                style={{
-                  width: "100%", padding: "12px 20px", borderRadius: "var(--agent-radius-lg)",
-                  border: "1.5px solid var(--agent-border-default)", background: "rgba(255,255,255,0.60)",
-                  fontSize: 14, fontWeight: 600, color: "var(--agent-text-secondary)", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  transition: "background 150ms",
-                }}
-                className="hover:bg-white/80"
+                style={{ background: "none", border: "none", cursor: "pointer", textAlign: "center", textUnderlineOffset: 2, padding: "2px 0" }}
+                className="text-sm text-slate-900/60 hover:text-slate-900/85 hover:underline transition-colors"
               >
-                <PlayCircle size={17} />
                 Explore a quick tour
               </button>
 

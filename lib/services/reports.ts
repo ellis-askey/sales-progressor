@@ -49,7 +49,7 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
       orderBy: { completedAt: "desc" },
     }),
     prisma.propertyTransaction.findMany({
-      where: { agencyId, createdAt: { gte: periodStart } },
+      where: { agencyId, status: { not: "draft" }, createdAt: { gte: periodStart } },
       select: { id: true, propertyAddress: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),

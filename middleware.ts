@@ -151,7 +151,7 @@ export default withAuth(
     }
 
     // Agent users can only access the agent area, APIs, and portal â€” nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/claim", "/invite", "/invite-negotiator", "/help", "/helpdrawertest"];
+    const agentAllowed = ["/agent", "/api", "/portal", "/claim", "/invite", "/invite-negotiator", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }

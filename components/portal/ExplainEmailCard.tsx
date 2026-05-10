@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { P } from "@/components/portal/portal-ui";
 
 type State = "idle" | "open" | "loading" | "result" | "error";
@@ -93,15 +95,37 @@ export function ExplainEmailCard({ token }: { token: string }) {
           <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: P.textPrimary }}>Plain-English Summary</p>
         </div>
         <div style={{ padding: "16px 20px" }}>
-          <div
-            style={{
-              fontSize: 14,
-              lineHeight: 1.65,
-              color: P.textSecondary,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {explanation}
+          <div style={{ fontSize: 14, lineHeight: 1.65, color: P.textSecondary }}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => (
+                  <p style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.65, color: P.textSecondary }}>
+                    {children}
+                  </p>
+                ),
+                strong: ({ children }) => (
+                  <strong style={{ fontWeight: 700, color: P.textPrimary }}>{children}</strong>
+                ),
+                ul: ({ children }) => (
+                  <ul style={{ margin: "4px 0 10px", padding: 0, listStyle: "none" }}>{children}</ul>
+                ),
+                li: ({ children }) => (
+                  <li style={{ display: "flex", gap: 8, marginBottom: 5, alignItems: "flex-start" }}>
+                    <span style={{ color: P.primary, fontWeight: 700, flexShrink: 0, lineHeight: 1.65 }}>–</span>
+                    <span>{children}</span>
+                  </li>
+                ),
+                h2: ({ children }) => (
+                  <p style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: P.textPrimary }}>{children}</p>
+                ),
+                h3: ({ children }) => (
+                  <p style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: P.textPrimary }}>{children}</p>
+                ),
+              }}
+            >
+              {explanation}
+            </ReactMarkdown>
           </div>
           <div
             style={{

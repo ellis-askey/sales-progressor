@@ -1,31 +1,15 @@
+import { PageHeader } from "@/components/layout/PageHeader";
+
 export default function CompletionsLoading() {
   return (
     <>
-      {/* Header — matches completions page header exactly */}
-      <div style={{
-        background: "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="relative px-4 pt-6 pb-4 md:px-8">
-          <div className="agent-skeleton" style={{ height: 28, width: 140, borderRadius: 8, marginBottom: 8 }} />
-          <div className="agent-skeleton" style={{ height: 13, width: 300, borderRadius: 6, marginBottom: 14 }} />
-          {/* Stat segments */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {[70, 90, 80].map((w, i) => (
-              <div key={i} className="agent-skeleton" style={{ height: 12, width: w, borderRadius: 6 }} />
-            ))}
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Completions" subtitle="Files that have exchanged and are heading to completion.">
+        <div className="agent-skeleton" style={{ height: 22, width: 68, borderRadius: 99 }} />
+        <div className="agent-skeleton" style={{ height: 22, width: 82, borderRadius: 99 }} />
+        <div className="agent-skeleton" style={{ height: 22, width: 74, borderRadius: 99 }} />
+      </PageHeader>
 
-      {/* Body */}
-      <div className="px-4 md:px-8 py-5 md:py-7" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+      <div className="px-4 md:px-8 py-2 md:py-4" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
         {/* Pipeline summary line */}
         <div className="agent-skeleton" style={{ height: 13, width: 240, borderRadius: 6 }} />
@@ -37,7 +21,6 @@ export default function CompletionsLoading() {
           { color: "#3b82f6", label: 150 },
         ].map(({ color, label }, gi) => (
           <div key={gi}>
-            {/* Group chip header */}
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "6px 14px", borderRadius: 99,
@@ -49,7 +32,6 @@ export default function CompletionsLoading() {
               <div className="agent-skeleton" style={{ height: 18, width: 24, borderRadius: 99 }} />
             </div>
 
-            {/* File rows */}
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {[0, 1].map((ri) => (
                 <div key={ri} style={{

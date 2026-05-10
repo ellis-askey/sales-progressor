@@ -36,6 +36,9 @@ export type PricePaidEntry = {
   propertyType: string;
   newBuild: boolean;
   estateType: string;
+  paon?: string;
+  saon?: string;
+  street?: string;
 };
 
 export async function fetchPricePaid(postcode: string, paon?: string | null): Promise<PricePaidEntry[]> {
@@ -49,7 +52,7 @@ export async function fetchPricePaid(postcode: string, paon?: string | null): Pr
     PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-    SELECT ?date ?amount ?propertyType ?newBuild ?estateType WHERE {
+    SELECT ?date ?amount ?propertyType ?newBuild ?estateType ?paon ?saon ?street WHERE {
       ?addr lrcommon:postcode "${postcode.trim()}"^^xsd:string .
       ${paonClause}
       ?tx lrppi:propertyAddress ?addr ;
@@ -58,6 +61,9 @@ export async function fetchPricePaid(postcode: string, paon?: string | null): Pr
           lrppi:propertyType/rdfs:label ?propertyType ;
           lrppi:newBuild ?newBuild ;
           lrppi:estateType/rdfs:label ?estateType .
+      OPTIONAL { ?addr lrcommon:paon ?paon }
+      OPTIONAL { ?addr lrcommon:saon ?saon }
+      OPTIONAL { ?addr lrcommon:street ?street }
     }
     ORDER BY DESC(?date)
     LIMIT 10
@@ -81,6 +87,9 @@ export async function fetchPricePaid(postcode: string, paon?: string | null): Pr
     propertyType: b.propertyType?.value ?? "Unknown",
     newBuild: b.newBuild?.value === "true",
     estateType: b.estateType?.value ?? "",
+    paon: b.paon?.value,
+    saon: b.saon?.value,
+    street: b.street?.value,
   }));
 }
 

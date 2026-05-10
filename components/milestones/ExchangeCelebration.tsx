@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type Props = {
   address: string;
@@ -64,6 +65,7 @@ function startConfetti(canvas: HTMLCanvasElement): () => void {
 }
 
 export function ExchangeCelebration({ address, onDismiss }: Props) {
+  const theme = usePortalTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -71,8 +73,16 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
     return startConfetti(canvasRef.current);
   }, []);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onDismiss();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
+
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div data-theme={theme} className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <style>{`
         @keyframes exchange-in {
           from { opacity: 0; transform: scale(0.92); }
@@ -93,7 +103,7 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
       {/* Modal card */}
       <div
         className="relative z-10 bg-white rounded-3xl max-w-sm w-full px-8 py-10 shadow-2xl text-center"
-        style={{ animation: "exchange-in 200ms ease-out both" }}
+        style={{ animation: "exchange-in 200ms ease-out both", borderTop: "2px solid var(--agent-coral-deep)" }}
       >
         {/* Star icon */}
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-lg">

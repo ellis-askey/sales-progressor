@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import type { ChainV2 } from "@/lib/services/chains";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
-import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
+import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
 import { useToast } from "@/components/ui/ToastContext";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type ChainDrawerProps = {
   transactionId: string;
@@ -15,14 +17,6 @@ type ChainDrawerProps = {
   onClose: () => void;
   onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
 };
-
-function CloseIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
-}
 
 function ChainIcon() {
   return (
@@ -39,9 +33,11 @@ export function ChainDrawer({
   onClose,
   onOpenAddNode,
 }: ChainDrawerProps) {
+  const theme = usePortalTheme();
   const [chain, setChain] = useState<ChainV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { addToast } = useToast();
 
   const fetchChain = useCallback(async () => {
@@ -89,9 +85,9 @@ export function ChainDrawer({
     }
   }
 
-  async function handleDeleteStub(linkId: string) {
+  async function doDeleteConfirmed(linkId: string) {
     if (!chain) return;
-    if (!confirm("Remove this sale from the chain?")) return;
+    setConfirmingDeleteId(null);
     const res = await fetch(`/api/chains/${chain.id}/links/${linkId}`, {
       method: "DELETE",
     });
@@ -164,13 +160,9 @@ export function ChainDrawer({
     (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null);
 
   return createPortal(
-    <div className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-        style={{ animation: "agent-backdrop-in 200ms ease both" }}
-      />
+      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} />
 
       {/* Panel */}
       <div
@@ -181,34 +173,46 @@ export function ChainDrawer({
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(32px) saturate(1.8)",
           WebkitBackdropFilter: "blur(32px) saturate(1.8)",
+          borderTop: "2px solid var(--agent-coral-deep)",
           borderLeft: "1px solid rgba(255,255,255,0.5)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-white/40 bg-white/20 flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-white/40 bg-white/20 flex-shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900/90">Chain progress</h2>
+            <h2 className="text-base font-semibold text-slate-900/90">Chain progress</h2>
             <p className="text-xs text-slate-900/40 mt-0.5">
               Real-time visibility across every link in the chain
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/30 text-slate-900/40 transition-colors"
             aria-label="Close"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            <CloseIcon />
+            <X size={16} weight="bold" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {/* Skeleton loading state */}
           {loading && (
-            <p className="text-sm text-slate-900/30 text-center py-10">Loading chain…</p>
+            <div className="space-y-2 py-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="animate-pulse rounded-xl bg-white/40 border border-white/30 px-4 py-3">
+                  <div className="h-3 bg-slate-900/10 rounded w-3/4 mb-2.5" />
+                  <div className="h-2 bg-slate-900/06 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
           )}
 
+          {/* No chain linked */}
           {!loading && !chain && (
             <EmptyState
               icon={<ChainIcon />}
@@ -225,14 +229,34 @@ export function ChainDrawer({
             />
           )}
 
+          {/* Chain exists but no links yet */}
           {!loading && chain && links.length === 0 && (
             <EmptyState
               icon={<ChainIcon />}
-              title="No chain linked to this sale"
-              description="Create a chain to track your sale's position and invite other agents to share progress visibility."
+              title="Chain created — add the first link"
+              description="Add the sale above or below this one to start tracking the chain together."
+              action={
+                onOpenAddNode ? (
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => onOpenAddNode("above", chain.id)}
+                      className="px-4 py-2 text-sm font-medium rounded-xl agent-btn-color-primary transition-colors"
+                    >
+                      + Add sale above
+                    </button>
+                    <button
+                      onClick={() => onOpenAddNode("below", chain.id)}
+                      className="px-4 py-2 text-sm font-medium rounded-xl border border-white/50 bg-white/30 hover:bg-white/60 text-slate-900/70 transition-all"
+                    >
+                      + Add sale below
+                    </button>
+                  </div>
+                ) : undefined
+              }
             />
           )}
 
+          {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
             <div className="space-y-0">
               {/* Add above button */}
@@ -248,30 +272,48 @@ export function ChainDrawer({
               {/* Link cards */}
               {links.map((link, i) => (
                 <div key={link.id}>
-                  <LinkCard
-                    link={link}
-                    totalLinks={links.length}
-                    currentUserId={currentUserId}
-                    isYourFile={
-                      link.claimedByUserId === currentUserId ||
-                      (link.transactionId !== null && link.createdByUserId === currentUserId)
-                    }
-                    onResendInvite={
-                      link.createdByUserId === currentUserId && link.transactionId === null
-                        ? (id) => { void handleResendInvite(id); }
-                        : undefined
-                    }
-                    onEditStub={
-                      link.createdByUserId === currentUserId && link.transactionId === null
-                        ? (l) => { onOpenAddNode?.("above", chain.id, l); }
-                        : undefined
-                    }
-                    onDeleteStub={
-                      link.createdByUserId === currentUserId && link.transactionId === null
-                        ? (id) => { void handleDeleteStub(id); }
-                        : undefined
-                    }
-                  />
+                  {confirmingDeleteId === link.id ? (
+                    <div className="rounded-xl bg-white/40 border border-white/30 px-4 py-3 flex items-center gap-3">
+                      <p className="flex-1 text-sm text-slate-900/70">Delete this node?</p>
+                      <button
+                        onClick={() => { void doDeleteConfirmed(link.id); }}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setConfirmingDeleteId(null)}
+                        className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <LinkCard
+                      link={link}
+                      totalLinks={links.length}
+                      currentUserId={currentUserId}
+                      isYourFile={
+                        link.claimedByUserId === currentUserId ||
+                        (link.transactionId !== null && link.createdByUserId === currentUserId)
+                      }
+                      onResendInvite={
+                        link.createdByUserId === currentUserId && link.transactionId === null
+                          ? (id) => { void handleResendInvite(id); }
+                          : undefined
+                      }
+                      onEditStub={
+                        link.createdByUserId === currentUserId && link.transactionId === null
+                          ? (l) => { onOpenAddNode?.("above", chain.id, l); }
+                          : undefined
+                      }
+                      onDeleteStub={
+                        link.createdByUserId === currentUserId && link.transactionId === null
+                          ? (id) => setConfirmingDeleteId(id)
+                          : undefined
+                      }
+                    />
+                  )}
                   {i < links.length - 1 && <ChainConnector />}
                 </div>
               ))}
@@ -291,7 +333,7 @@ export function ChainDrawer({
 
         {/* Sticky footer: bulk invite */}
         {invitablePending.length > 0 && (
-          <div className="flex-shrink-0 px-5 py-3 border-t border-white/30 bg-white/20 flex items-center justify-between">
+          <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/20 flex items-center justify-between">
             <p className="text-xs text-slate-900/60">
               {invitablePending.length} node{invitablePending.length !== 1 ? "s" : ""} ready to invite
             </p>

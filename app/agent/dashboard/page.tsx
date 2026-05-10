@@ -10,6 +10,7 @@ import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { AgentRequestsPanel } from "@/components/agent/AgentRequestsPanel";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import type { TransactionStatus } from "@prisma/client";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function AgentDashboard({
   searchParams,
@@ -39,39 +40,33 @@ export default async function AgentDashboard({
 
   return (
     <>
-      {/* Warm glass header */}
-      <div style={{
-        background: "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        {/* Subtle coral bloom — top right, very low opacity */}
-        <div aria-hidden="true" style={{
-          position: "absolute", top: -60, right: -40,
-          width: 260, height: 260, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }} />
-        {/* Subtle warm bloom — bottom left */}
-        <div aria-hidden="true" style={{
-          position: "absolute", bottom: -40, left: 60,
-          width: 180, height: 180, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }} />
+      <PageHeader
+        title={isDirector ? "All Files" : "My Files"}
+        subtitle="All property files assigned to you."
+      >
+        <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+          <Plus size={14} weight="bold" />
+          New sale
+        </Link>
+        <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
+      </PageHeader>
 
-        <div className="relative px-4 pt-6 pb-7 md:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-                My Files
-              </h1>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7">
+
+        {forecastMonths.length > 0 && (
+          <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
+        )}
+
+        {transactions.length === 0 ? (
+          <>
+            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+              <HouseLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                Create your first sale
+              </p>
+              <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                Once you submit a sale, you&apos;ll see it here. Track milestones, manage chases, and progress to exchange.
+              </p>
               <Link
                 href="/agent/transactions/new"
                 className="agent-btn agent-btn-primary agent-btn-md"
@@ -80,36 +75,37 @@ export default async function AgentDashboard({
                 <Plus size={16} weight="bold" />
                 New sale
               </Link>
-              <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
             </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="px-4 md:px-8 py-5 md:py-7 space-y-7">
-
-        {forecastMonths.length > 0 && (
-          <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
-        )}
-
-        {transactions.length === 0 ? (
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-            <HouseLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              Create your first sale
-            </p>
-            <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              Once you submit a sale, you&apos;ll see it here. Track milestones, manage chases, and progress to exchange.
-            </p>
-            <Link
-              href="/agent/transactions/new"
-              className="agent-btn agent-btn-primary agent-btn-md"
-              style={{ textDecoration: "none" }}
-            >
-              <Plus size={16} weight="bold" />
-              New sale
-            </Link>
-          </div>
+            {/* Ghost filter tabs + transaction rows preview */}
+            <div style={{ opacity: 0.3, pointerEvents: "none" }}>
+              <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">
+                {["All", "Active", "On Hold", "Completed", "Withdrawn"].map((label, i) => (
+                  <div key={label} className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium" style={{ background: i === 0 ? "rgba(255,255,255,0.6)" : "transparent", color: i === 0 ? "rgba(15,23,42,0.9)" : "rgba(15,23,42,0.4)" }}>
+                    {label}
+                    <span className="text-xs rounded-full px-1.5 py-0.5 font-normal" style={{ background: i === 0 ? "rgba(219,234,254,0.8)" : "rgba(255,255,255,0.3)", color: i === 0 ? "#2563eb" : "rgba(15,23,42,0.4)" }}>—</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  { addr: "14 Maple Close, Birmingham", status: "Active" },
+                  { addr: "8 The Crescent, Bristol", status: "Active" },
+                  { addr: "22 Victoria Road, Manchester", status: "On Hold" },
+                ].map(({ addr, status }) => (
+                  <div key={addr} className="glass-card" style={{ padding: "14px 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{addr}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>Smith & Jones · Vendor</p>
+                      </div>
+                      <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, borderRadius: 99, padding: "3px 10px", background: "rgba(0,0,0,0.06)", color: "var(--agent-text-secondary)" }}>{status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         ) : (
           <div>
             <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">

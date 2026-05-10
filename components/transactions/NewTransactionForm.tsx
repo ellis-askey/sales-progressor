@@ -1098,13 +1098,13 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "rgba(15,23,42,0.85)", marginBottom: 8, marginTop: 0 }}>Save your progress?</h2>
             <p style={{ fontSize: 14, color: "rgba(15,23,42,0.5)", marginBottom: 24, lineHeight: 1.6 }}>You&apos;ve started filling in transaction details. Save as a draft to pick up where you left off.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button type="button" onClick={handleNavSaveDraft} disabled={draftSaving} style={{ padding: "11px 16px", background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer", opacity: draftSaving ? 0.6 : 1 }}>
+              <button type="button" onClick={handleNavSaveDraft} disabled={draftSaving} className="agent-btn-color-primary" style={{ padding: "11px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}>
                 {draftSaving ? "Saving…" : "Save as draft"}
               </button>
               <button type="button" onClick={handleNavLeave} style={{ padding: "11px 16px", background: "transparent", color: "rgba(15,23,42,0.5)", borderRadius: 12, fontWeight: 500, fontSize: 14, border: "1px solid rgba(15,23,42,0.12)", cursor: "pointer" }}>
                 Leave without saving
               </button>
-              <button type="button" onClick={handleNavStay} style={{ padding: "8px 16px", background: "transparent", color: "rgba(15,23,42,0.3)", fontSize: 13, border: "none", cursor: "pointer" }}>
+              <button type="button" onClick={handleNavStay} style={{ padding: "8px 16px", background: "transparent", color: "rgba(15,23,42,0.4)", fontSize: 13, border: "none", cursor: "pointer" }}>
                 Stay on this page
               </button>
             </div>
@@ -1137,7 +1137,8 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a
                 href={`${redirectBase}/${duplicateModal.id}`}
-                style={{ display: "block", padding: "11px 16px", background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "white", borderRadius: 12, fontWeight: 600, fontSize: 14, textDecoration: "none" }}
+                className="agent-btn-color-primary"
+                style={{ display: "block", padding: "11px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, textDecoration: "none" }}
               >
                 View existing file
               </a>
@@ -1253,7 +1254,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     className={`flex-1 py-3.5 rounded-xl border-2 text-sm font-medium transition-all flex flex-col items-center gap-1 ${
                       form.tenure === value
                         ? "border-blue-400 bg-blue-50/60 text-blue-700"
-                        : "border-white/30 text-slate-900/50 hover:border-white/50"
+                        : "agent-option-btn text-slate-900/50"
                     }`}
                   >
                     {label}
@@ -1279,7 +1280,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     className={`w-full py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all flex flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
                       form.purchaseType === value
                         ? "border-blue-400 bg-blue-50/60 text-blue-700"
-                        : "border-white/30 text-slate-900/50 hover:border-white/50"
+                        : "agent-option-btn text-slate-900/50"
                     }`}
                   >
                     {label}
@@ -1292,7 +1293,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
             {/* Purchase price */}
             <div>
               <h2 className="glass-section-label text-slate-900/40 mb-3">
-                Purchase Price
+                Purchase Price <span className="text-slate-900/30 font-normal normal-case">(optional)</span>
                 {memoFields.has("purchasePrice") && <MemoTag />}
               </h2>
               <div className="flex items-center gap-2">
@@ -1302,7 +1303,6 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                   onBlur={handlePriceBlur}
                   className="w-48"
                 />
-                <span className="text-xs text-slate-900/40">Optional</span>
               </div>
               {priceWarning && (
                 <p className="text-xs text-amber-500 mt-1.5">{priceWarning}</p>
@@ -1318,14 +1318,14 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     <button
                       type="button"
                       onClick={() => setAgentFeeType("amount")}
-                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "amount" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "border-white/30 text-slate-900/50 hover:border-white/50"}`}
+                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "amount" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "agent-option-btn text-slate-900/50"}`}
                     >
                       Fixed £
                     </button>
                     <button
                       type="button"
                       onClick={() => setAgentFeeType("percent")}
-                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "percent" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "border-white/30 text-slate-900/50 hover:border-white/50"}`}
+                      className={`flex-1 py-2 text-xs rounded-lg border-2 font-medium transition-colors ${agentFeeType === "percent" ? "border-blue-400 bg-blue-50/60 text-blue-700" : "agent-option-btn text-slate-900/50"}`}
                     >
                       % of sale price
                     </button>
@@ -1444,7 +1444,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                       progressedBy === "agent"
                         ? "border-emerald-400 bg-emerald-50/60 text-emerald-700"
-                        : "border-white/30 text-slate-900/50 hover:border-white/50"
+                        : "agent-option-btn text-slate-900/50"
                     }`}
                   >
                     Self-progress
@@ -1456,7 +1456,7 @@ export function NewTransactionForm({ userRole, redirectBase = "/transactions", r
                     className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                       progressedBy === "progressor"
                         ? "border-blue-400 bg-blue-50/60 text-blue-700"
-                        : "border-white/30 text-slate-900/50 hover:border-white/50"
+                        : "agent-option-btn text-slate-900/50"
                     }`}
                   >
                     Send to progressor

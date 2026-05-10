@@ -18,6 +18,8 @@ import type {
   MonthlyActivityBucket,
   KpiSparklines,
   FilesAtRiskData,
+  ReferralStat,
+  BrokerReferralStat,
 } from "@/lib/services/analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -53,6 +55,8 @@ export type AnalyticsClientShellProps = {
   transactions: Tx[];
   team: TeamMember[];
   solicitorStats: SolicitorExchangeStat[];
+  referralStats: ReferralStat[];
+  brokerReferralStats: BrokerReferralStat[];
   monthlyActivity: MonthlyActivityBucket[];
   kpiSparklines: KpiSparklines;
   filesAtRisk: FilesAtRiskData;
@@ -149,6 +153,8 @@ export function AnalyticsClientShell({
   transactions,
   team,
   solicitorStats,
+  referralStats,
+  brokerReferralStats,
   monthlyActivity,
   kpiSparklines,
   filesAtRisk,
@@ -576,6 +582,70 @@ export function AnalyticsClientShell({
                   <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{s.exchangeCount} {s.exchangeCount === 1 ? "exchange" : "exchanges"}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>{badge.label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Solicitor referral income by firm ─────────────────────────────── */}
+      {referralStats.length > 0 && (
+        <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Referral income · Conveyancers</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>All-time solicitor referral fees by firm</p>
+            </div>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-success)" }}>
+              {fmtGBP(referralStats.reduce((s, r) => s + r.feeReceivedPence, 0))}
+            </p>
+          </div>
+          {referralStats.map((r, i) => {
+            const pending = r.feeExpectedPence - r.feeReceivedPence;
+            return (
+              <div
+                key={r.firmId}
+                className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+              >
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{r.firmName}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{r.referralCount} referral{r.referralCount !== 1 ? "s" : ""}</span>
+                  {r.feeReceivedPence > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-success)" }}>{fmtGBP(r.feeReceivedPence)} received</span>}
+                  {pending > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>{fmtGBP(pending)} pending</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Broker referral income by firm ────────────────────────────────── */}
+      {brokerReferralStats.length > 0 && (
+        <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Referral income · Brokers</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>All-time mortgage broker referral fees</p>
+            </div>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-success)" }}>
+              {fmtGBP(brokerReferralStats.reduce((s, r) => s + r.feeReceivedPence, 0))}
+            </p>
+          </div>
+          {brokerReferralStats.map((r, i) => {
+            const pending = r.feeExpectedPence - r.feeReceivedPence;
+            return (
+              <div
+                key={r.firmId}
+                className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+              >
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{r.firmName}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{r.referralCount} referral{r.referralCount !== 1 ? "s" : ""}</span>
+                  {r.feeReceivedPence > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-success)" }}>{fmtGBP(r.feeReceivedPence)} received</span>}
+                  {pending > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>{fmtGBP(pending)} pending</span>}
                 </div>
               </div>
             );

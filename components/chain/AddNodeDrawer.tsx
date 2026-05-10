@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { X } from "@phosphor-icons/react";
+import { titleCase } from "@/lib/utils";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export type StubFormData = {
   stubPropertyAddress: string;
@@ -48,7 +51,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold text-slate-900/40 uppercase tracking-wider mb-1.5">
+    <p className="agent-section-label mb-2">
       {children}
     </p>
   );
@@ -58,6 +61,7 @@ function Field({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   type = "text",
   required,
@@ -68,6 +72,7 @@ function Field({
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   type?: string;
   required?: boolean;
@@ -76,18 +81,21 @@ function Field({
   rows?: number;
 }) {
   const inputClass =
-    "w-full glass-input text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 focus:outline-none focus:ring-2 focus:ring-blue-300/50 transition-all";
+    "w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all";
 
   return (
     <div className="space-y-1">
-      <label className="block text-xs font-medium text-slate-900/60">
-        {label}
-        {required && <span className="text-red-400 ml-0.5">*</span>}
-      </label>
+      {label && (
+        <label className="block text-xs font-semibold text-slate-900/65">
+          {label}
+          {required && <span className="text-red-400 ml-0.5">*</span>}
+        </label>
+      )}
       {rows ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={placeholder}
           rows={rows}
           maxLength={maxLength}
@@ -98,6 +106,7 @@ function Field({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={placeholder}
           maxLength={maxLength}
           className={inputClass}
@@ -117,6 +126,7 @@ export function AddNodeDrawer({
   onClose,
   onSaved,
 }: Props) {
+  const theme = usePortalTheme();
   const isEditMode = !!editingLink;
   const isExistingChain = !!chainId;
 
@@ -148,6 +158,15 @@ export function AddNodeDrawer({
 
   function update(field: keyof StubFormData) {
     return (v: string) => setForm((f) => ({ ...f, [field]: v }));
+  }
+
+  function applyTitleCase(field: keyof StubFormData) {
+    return () => {
+      const val = form[field];
+      if (typeof val === "string" && val.trim()) {
+        setForm((f) => ({ ...f, [field]: titleCase(val) }));
+      }
+    };
   }
 
   function validateEmail(): boolean {
@@ -238,14 +257,16 @@ export function AddNodeDrawer({
     ? "Save and add above"
     : "Save and add below";
 
+  const directionPill = !isEditMode && (
+    <span className="agent-chain-callout text-[10px] font-semibold px-2 py-0.5 rounded-full">
+      {direction === "above" ? "↑ Above" : "↓ Below"}
+    </span>
+  );
+
   return createPortal(
-    <div className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
+    <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-        style={{ animation: "agent-backdrop-in 200ms ease both" }}
-      />
+      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} />
 
       {/* Panel */}
       <div
@@ -256,98 +277,118 @@ export function AddNodeDrawer({
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(32px) saturate(1.8)",
           WebkitBackdropFilter: "blur(32px) saturate(1.8)",
+          borderTop: "2px solid var(--agent-coral-deep)",
           borderLeft: "1px solid rgba(255,255,255,0.5)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-white/40 bg-white/20 flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-white/40 bg-white/20 flex-shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900/90">{title}</h2>
-            <p className="text-xs text-slate-900/40 mt-0.5">Tell us what you know about this link</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <h2 className="text-base font-semibold text-slate-900/85">{title}</h2>
+              {directionPill}
+            </div>
+            <p className="text-xs text-slate-900/50">Tell us what you know about this link</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/30 text-slate-900/40 transition-colors"
             aria-label="Close"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={16} weight="bold" />
           </button>
         </div>
 
         {/* Form body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {/* Property section */}
           <div>
             <SectionLabel>Property</SectionLabel>
-            <Field
-              label="Property address"
-              required
-              value={form.stubPropertyAddress}
-              onChange={update("stubPropertyAddress")}
-              placeholder="e.g. 47 Oak Road, Bristol"
-              maxLength={200}
-            />
+            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
+              <Field
+                label="Property address"
+                required
+                value={form.stubPropertyAddress}
+                onChange={update("stubPropertyAddress")}
+                onBlur={applyTitleCase("stubPropertyAddress")}
+                placeholder="e.g. 47 Oak Road, Bristol"
+                maxLength={200}
+              />
+            </div>
           </div>
 
           {/* Agency section */}
           <div>
             <SectionLabel>Agency</SectionLabel>
-            <Field
-              label="Agency name"
-              required
-              value={form.stubAgencyName}
-              onChange={update("stubAgencyName")}
-              placeholder="e.g. Bristol Estates"
-              maxLength={100}
-            />
+            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
+              <Field
+                label="Agency name"
+                required
+                value={form.stubAgencyName}
+                onChange={update("stubAgencyName")}
+                onBlur={applyTitleCase("stubAgencyName")}
+                placeholder="e.g. Bristol Estates"
+                maxLength={100}
+              />
+            </div>
           </div>
 
           {/* Agent contact section */}
-          <div className="space-y-3">
-            <SectionLabel>Agent contact <span className="normal-case font-normal">(optional — needed to send invite)</span></SectionLabel>
-            <Field
-              label="Agent name"
-              value={form.stubAgentName}
-              onChange={update("stubAgentName")}
-              placeholder="e.g. Sarah Jones"
-              maxLength={100}
-            />
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-900/60">Agent email</label>
-              <input
-                type="email"
-                value={form.stubAgentEmail}
-                onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
-                onBlur={() => validateEmail()}
-                placeholder="agent@agency.co.uk"
-                className="w-full glass-input text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 focus:outline-none focus:ring-2 focus:ring-blue-300/50 transition-all"
+          <div>
+            <SectionLabel>
+              Agent contact{" "}
+              <span className="normal-case font-normal">(optional — add email to send invite)</span>
+            </SectionLabel>
+            <div className="rounded-xl agent-chain-callout px-4 py-3 space-y-3">
+              <Field
+                label="Agent name"
+                value={form.stubAgentName}
+                onChange={update("stubAgentName")}
+                onBlur={applyTitleCase("stubAgentName")}
+                placeholder="e.g. Sarah Jones"
+                maxLength={100}
               />
-              {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-900/65">Agent email</label>
+                <input
+                  type="email"
+                  value={form.stubAgentEmail}
+                  onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
+                  onBlur={() => validateEmail()}
+                  placeholder="agent@agency.co.uk"
+                  className="w-full glass-input text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 focus:outline-none focus:ring-2 focus:ring-blue-300/50 transition-all"
+                />
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+              </div>
+              <Field
+                label="Contact number"
+                type="tel"
+                value={form.stubAgentPhone}
+                onChange={update("stubAgentPhone")}
+                placeholder="07700 900000"
+              />
             </div>
-            <Field
-              label="Contact number"
-              type="tel"
-              value={form.stubAgentPhone}
-              onChange={update("stubAgentPhone")}
-              placeholder="07700 900000"
-            />
           </div>
 
           {/* Notes section */}
           <div>
-            <SectionLabel>Notes <span className="normal-case font-normal">(only you see this)</span></SectionLabel>
-            <Field
-              label=""
-              value={form.stubNotes}
-              onChange={update("stubNotes")}
-              placeholder="Any context about this link…"
-              rows={3}
-              maxLength={1000}
-            />
+            <SectionLabel>
+              Notes <span className="normal-case font-normal">(only you see this)</span>
+            </SectionLabel>
+            <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
+              <Field
+                label=""
+                value={form.stubNotes}
+                onChange={update("stubNotes")}
+                placeholder="Any context about this link…"
+                rows={3}
+                maxLength={1000}
+              />
+            </div>
           </div>
 
           {serverError && (
@@ -358,23 +399,23 @@ export function AddNodeDrawer({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-5 py-4 border-t border-white/30 bg-white/20">
+        <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/20">
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="px-3 py-2 text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors"
+              className="w-24 py-2.5 text-xs font-medium rounded-xl text-slate-900/60 border border-white/50 bg-white/30 hover:bg-white/60 transition-all"
             >
               Cancel
             </button>
             <button
               onClick={() => { void handleSave(); }}
               disabled={!requiredFilled || saving}
-              className="flex-1 px-4 py-2 text-xs font-medium rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 py-2.5 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? "Saving…" : submitLabel}
             </button>
           </div>
-          <p className="text-[10px] text-slate-900/35 text-center">{helperText()}</p>
+          <p className="text-[11px] text-slate-900/45 text-center">{helperText()}</p>
         </div>
       </div>
     </div>,

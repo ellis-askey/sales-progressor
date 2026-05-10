@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatDate } from "@/lib/utils";
 import type { MilestoneDefinition, MilestoneCompletion, PurchaseType } from "@prisma/client";
 import { reverseMilestoneAction } from "@/app/actions/milestones";
+import { MortgageModal } from "@/components/milestones/MortgageModal";
 
 type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
@@ -74,36 +75,11 @@ export function NotRequiredRow({ def, transactionId }: Props) {
       </div>
 
       {showMortgageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="glass-card-strong rounded-2xl w-full max-w-sm mx-4" style={{ clipPath: "inset(0 round 16px)" }}>
-            <div className="px-5 py-4 border-b border-white/20">
-              <p className="text-sm font-semibold text-slate-900/90">Is this buyer now using a mortgage?</p>
-              <p className="text-xs text-slate-900/40 mt-1">
-                Reinstating this will re-open the mortgage milestones. We'll update the purchase method to match.
-              </p>
-            </div>
-            <div className="px-5 py-4 space-y-2">
-              <button
-                onClick={() => doReinstate("mortgage")}
-                className="w-full py-2.5 text-sm font-semibold agent-btn-color-primary rounded-xl transition-colors"
-              >
-                Yes — mortgage buyer
-              </button>
-              <button
-                onClick={() => doReinstate()}
-                className="w-full py-2.5 text-sm text-slate-900/50 hover:text-slate-900/80 rounded-xl hover:bg-white/20 transition-colors"
-              >
-                Reinstate without changing purchase method
-              </button>
-              <button
-                onClick={() => setShowMortgageModal(false)}
-                className="w-full py-2 text-xs text-slate-900/30 hover:text-slate-900/60 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <MortgageModal
+          onConfirmMortgage={() => doReinstate("mortgage")}
+          onConfirmReinstate={() => doReinstate()}
+          onCancel={() => setShowMortgageModal(false)}
+        />
       )}
     </>
   );

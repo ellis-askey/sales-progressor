@@ -23,6 +23,21 @@
   65%      { transform: translate( 20px,  50px) scale(0.98); }
 }
 
+@keyframes agent-aurora-down-a {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(350px); }
+}
+
+@keyframes agent-aurora-up-b {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-280px); }
+}
+
+@keyframes agent-aurora-down-c {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(420px); }
+}
+
 @keyframes agent-spin {
   to { transform: rotate(360deg); }
 }
@@ -52,6 +67,11 @@
   to   { opacity: 1; transform: scale(1.00) translateY(0);   }
 }
 
+@keyframes agent-drawer-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
 @keyframes agent-backdrop-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -60,6 +80,16 @@
 @keyframes agent-pulse-dot {
   0%, 100% { opacity: 1;   transform: scale(1);    }
   50%      { opacity: 0.5; transform: scale(0.80); }
+}
+
+@keyframes agent-section-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes right-col-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
 /* ─── Component classes ──────────────────────────────────────────────────────
@@ -176,18 +206,19 @@
 
   /* Primary */
   .agent-btn-primary {
-    background: var(--agent-coral-deep);
+    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light));
     color: var(--agent-text-on-coral);
-    box-shadow: 0 2px 12px rgba(var(--agent-coral-rgb), 0.28);
+    box-shadow: 0 4px 16px rgba(var(--agent-coral-rgb), 0.28);
   }
   .agent-btn-primary:hover:not(:disabled) {
-    background: var(--agent-coral-darker);
-    box-shadow: 0 4px 20px rgba(var(--agent-coral-rgb), 0.38);
+    filter: brightness(1.06);
+    box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38);
     transform: translateY(-1px);
   }
   .agent-btn-primary:disabled {
     background: rgba(var(--agent-coral-rgb), 0.40);
     box-shadow: none;
+    filter: none;
   }
 
   /* Secondary */
@@ -332,6 +363,51 @@
     cursor: not-allowed;
   }
 
+  /* Themed focus ring — apply to <input>, <select>, <textarea> inside drawers/modals
+   * Uses !important on border-color to override inline-style borders during focus */
+  .agent-focus:focus {
+    outline: none;
+    border-color: var(--agent-border-focus) !important;
+    box-shadow: var(--agent-focus-ring);
+  }
+
+  /* Themed section label — replaces divergent all-caps grey label implementations.
+   * Color is a muted brand-tinted label, not a bold accent */
+  .agent-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(var(--agent-coral-rgb), 0.65);
+    line-height: 1.2;
+  }
+
+  /* Chain callout (collapsed state in add sale form) */
+  .agent-chain-callout {
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.28);
+    background: rgba(var(--agent-coral-rgb), 0.05);
+  }
+  .agent-chain-callout-btn {
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.38);
+    color: var(--agent-coral-deep);
+    background: rgba(255, 255, 255, 0.60);
+    transition: background var(--agent-transition-fast), border-color var(--agent-transition-fast);
+  }
+  .agent-chain-callout-btn:hover {
+    background: rgba(255, 255, 255, 0.90);
+    border-color: rgba(var(--agent-coral-rgb), 0.60);
+  }
+
+  /* Option button (unselected state) */
+  .agent-option-btn {
+    border-color: var(--agent-border-default);
+    transition: border-color var(--agent-transition-fast), background-color var(--agent-transition-fast);
+  }
+  .agent-option-btn:hover {
+    border-color: var(--agent-border-strong);
+    background-color: var(--agent-glass-bg);
+  }
+
   /* Field label */
   .agent-label {
     display: block;
@@ -455,7 +531,7 @@
       var(--agent-bg-warm) 50%,
       var(--agent-bg-mid)  100%);
     background-size: 200% 100%;
-    animation: agent-shimmer 1500ms ease-in-out infinite;
+    animation: agent-shimmer 2000ms ease-in-out infinite;
     border-radius: var(--agent-radius-sm);
   }
 
@@ -514,6 +590,15 @@
     animation: agent-modal-in 250ms var(--agent-ease) both;
     max-height: 80vh;
     overflow-y: auto;
+  }
+
+  /* Standard backdrop — visual properties only; position/inset set by the element
+   * itself (absolute or fixed depending on context) */
+  .agent-backdrop-overlay {
+    background: var(--agent-backdrop-bg, rgba(0, 0, 0, 0.35));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: agent-backdrop-in 200ms ease both;
   }
 
   /* ── Toast ───────────────────────────────────────────────────────────────── */
@@ -578,7 +663,7 @@
     color: var(--agent-text-primary);
   }
   .agent-nav-item-active {
-    background: var(--agent-coral-deep);
+    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light));
     color: var(--agent-text-on-coral);
     box-shadow: 0 2px 10px rgba(var(--agent-coral-rgb), 0.28);
   }
@@ -718,10 +803,22 @@
   .group:hover .agent-group-link { color: var(--agent-coral-deep); }
 
   /* Color-only primary button — swaps blue Tailwind colour utils without changing layout */
-  .agent-btn-color-primary { background: var(--agent-coral-deep) !important; color: var(--agent-text-on-coral) !important; }
-  .agent-btn-color-primary:hover:not(:disabled) { background: var(--agent-coral-darker) !important; }
+  .agent-btn-color-primary {
+    background: linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light)) !important;
+    color: var(--agent-text-on-coral) !important;
+    box-shadow: 0 4px 16px rgba(var(--agent-coral-rgb), 0.28) !important;
+  }
+  .agent-btn-color-primary:hover:not(:disabled) {
+    filter: brightness(1.06) !important;
+    box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38) !important;
+    transform: translateY(-1px);
+  }
   .agent-btn-color-primary:disabled,
-  .agent-btn-color-primary[disabled] { background: rgba(var(--agent-coral-rgb), 0.40) !important; }
+  .agent-btn-color-primary[disabled] {
+    background: rgba(var(--agent-coral-rgb), 0.40) !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
 
   /* Brand-tinted badge/pill — replaces bg-blue-50 text-blue-600 hover:bg-blue-100 secondary actions */
   .agent-badge-brand { background: var(--agent-coral-bg-tint); color: var(--agent-coral-deep); transition: background 150ms ease, color 150ms ease; }
@@ -744,6 +841,9 @@
     .agent-backdrop               { animation: none; }
     .agent-bloom-1,
     .agent-bloom-2                { animation: none; }
+    @keyframes agent-aurora-down-a { 0%, 100% { transform: translateY(0); } }
+    @keyframes agent-aurora-up-b   { 0%, 100% { transform: translateY(0); } }
+    @keyframes agent-aurora-down-c { 0%, 100% { transform: translateY(0); } }
 }
 
 /* ── Theme picker grid ───────────────────────────────────────────────────── */
@@ -764,4 +864,123 @@
   .agent-theme-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── New sale flow — two-column layout ──────────────────────────────────── */
+
+.new-sale-two-col {
+  display: grid;
+  grid-template-columns: 65fr 35fr;
+  gap: 32px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.new-sale-form-col,
+.new-sale-right-col {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .new-sale-two-col {
+    grid-template-columns: 1fr;
+  }
+  .new-sale-right-col {
+    display: none;
+  }
+}
+
+/* ── New sale flow — contacts responsive grid ─────────────────────────────── */
+
+.contacts-section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.contact-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .contacts-section-grid {
+    grid-template-columns: 1fr;
+  }
+  .contacts-section-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Contact carousel ─────────────────────────────────────────────────────── */
+
+@keyframes carousel-slide-left {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes carousel-slide-right {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+
+@media (max-width: 768px) {
+  .carousel-chevron {
+    display: none;
+  }
+}
+
+/* ── Price & Fees calculator inputs ───────────────────────────────────────── */
+
+/* Hero-sized input used inside PriceFeesSection coral containers.
+   Overrides glass-input background/border so the container provides the box. */
+.price-hero-input {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  letter-spacing: -0.015em;
+  color: rgba(15, 23, 42, 0.85);
+  width: 100%;
+}
+
+.price-hero-input:focus {
+  outline: none;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Native number input for percent mode — matches hero styling */
+.price-hero-input-native {
+  font-size: 20px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  padding: 0;
+  color: rgba(15, 23, 42, 0.85);
+  width: 100%;
+  letter-spacing: -0.015em;
+  -moz-appearance: textfield;
+}
+
+.price-hero-input-native::-webkit-inner-spin-button,
+.price-hero-input-native::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.price-hero-input-native::placeholder {
+  color: rgba(15, 23, 42, 0.28);
+  font-weight: 400;
 }

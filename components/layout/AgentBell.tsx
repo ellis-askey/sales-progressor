@@ -49,7 +49,7 @@ export function AgentBell({ userKey }: { userKey: string }) {
   return (
     <button
       onClick={handleClick}
-      className="relative w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/60 transition-colors flex-shrink-0"
+      className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/[0.06] transition-colors flex-shrink-0"
       title={count > 0 ? `${count} portal update${count === 1 ? "" : "s"}` : "Portal activity"}
     >
       <Bell

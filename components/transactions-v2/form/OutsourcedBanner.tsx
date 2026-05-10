@@ -1,0 +1,39 @@
+"use client";
+
+import { Headset } from "@phosphor-icons/react";
+
+export function OutsourcedBanner() {
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 12,
+      background: "rgba(var(--agent-coral-base-rgb), 0.05)",
+      border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
+      borderRadius: 14,
+      padding: "12px 16px",
+    }}>
+      <div style={{
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: "rgba(var(--agent-coral-base-rgb), 0.10)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        marginTop: 1,
+      }}>
+        <Headset size={14} color="var(--agent-coral-deep)" />
+      </div>
+      <div>
+        <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
+          Outsourced — our team will progress this file
+        </p>
+        <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.52)", lineHeight: 1.55 }}>
+          We&apos;ll need at least one vendor and one purchaser with a name and contact method so we can reach out from day one.
+        </p>
+      </div>
+    </div>
+  );
+}

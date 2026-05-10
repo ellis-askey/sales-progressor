@@ -85,6 +85,8 @@ export function PropertyHero({
         WebkitBackdropFilter: "blur(32px) saturate(180%)",
         borderBottom: "0.5px solid rgba(255,255,255,0.72)",
         boxShadow: "0 6px 36px rgba(var(--agent-coral-base-rgb),0.09), 0 1px 0 rgba(255,255,255,0.85) inset",
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
         position: "relative",
         zIndex: 0,
         overflow: "hidden",

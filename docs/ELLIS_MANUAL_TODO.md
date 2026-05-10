@@ -4,7 +4,105 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-03
+Last updated: 2026-05-10
+
+---
+
+## Partners page & broker feature — two database migrations required
+
+Apply **both** migrations in order (staging first, then production). Both are additive and non-breaking.
+
+---
+
+### Migration 1 of 2 — broker models
+
+Migration file: `prisma/migrations/20260510000001_broker_models/migration.sql`
+
+Adds: `BrokerFirm`, `BrokerContact`, `AgencyPreferredBroker` tables; four broker columns on `PropertyTransaction`.
+
+```bash
+# Set DATABASE_URL to the STAGING direct connection URL (not pooler)
+DATABASE_URL="postgres://postgres:..." npx prisma migrate deploy
+```
+
+Verify on staging:
+- [ ] `/agent/partners` loads without errors
+- [ ] Director can add a preferred broker (full card: firm, contact, phone, email, website)
+- [ ] New sale form Stage 2 "Solicitors & Broker" shows broker picker pre-filled from preference
+- [ ] `brokerFirmId` column visible in Supabase table editor on `PropertyTransaction`
+
+---
+
+### Migration 2 of 2 — broker website + referral flag
+
+Migration file: `prisma/migrations/20260510000002_broker_website_referral/migration.sql`
+
+Adds: `website TEXT` on `BrokerFirm`; `purchaserBrokerReferral BOOLEAN DEFAULT FALSE` on `PropertyTransaction`.
+
+```bash
+# Same DATABASE_URL as above (still STAGING)
+DATABASE_URL="postgres://postgres:..." npx prisma migrate deploy
+```
+
+Verify on staging (after both migrations applied):
+- [ ] `/agent/partners` broker card shows website link when set
+- [ ] New sale form — select Mortgage + pick a broker → "Purchaser referred to [broker name]?" checkbox appears
+- [ ] Submit a mortgage transaction with the checkbox ticked → property file sidebar shows "Purchaser referred to broker" badge
+
+### Production
+
+Once both verified on staging:
+
+```bash
+# Set DATABASE_URL to the PRODUCTION direct connection URL
+DATABASE_URL="postgres://postgres:..." npx prisma migrate deploy
+```
+
+---
+
+## New sale flow v2 — staged rollout playbook (Phase E complete)
+
+**Phase E is shipped. Mobile polish is done. The flow is production-ready behind the feature flag. Read this section before flipping the flag.**
+
+### Staging rollout (do this first)
+
+- [ ] **Enable on staging** — in Vercel dashboard → salesprogressor project → Settings → Environment Variables → staging environment: add `NEXT_PUBLIC_NEW_SALE_V2=true`. Redeploy staging (or trigger a redeployment from the Deployments tab).
+- [ ] **Smoke test on staging** — run the full checklist below before touching production.
+
+### Smoke test checklist (staging, then production)
+
+Run these after each flag flip:
+
+1. **MOS upload flow** — drop a real MOS PDF onto the hero zone. Confirm extraction runs (spinner shows), form fills with address/price/solicitors/contacts. Confirm no console errors.
+2. **Submit from extracted path** — fill in Purchase Type (not on MOS), click "Create transaction". Confirm redirect to `/agent/transactions/[id]?mosConfirmed=1`. Confirm VM2 and PM2 are marked complete in the milestones panel.
+3. **Submit from manual path** — click "Prefer to fill in manually", complete Stage 1, click Continue, fill in contacts and details, click "Create transaction". Confirm redirect with `?newFile=1`. Confirm milestones initialised (no VM2/PM2 auto-confirm).
+4. **Outsourced validation** — in manual mode, select "Send to progressor", submit without contacts. Confirm error appears on the Vendors section. Fix and resubmit.
+5. **Duplicate address** — create a transaction, then try to create another with the exact same address. Confirm the duplicate modal appears with "View existing file" and "Create anyway". Test both paths.
+6. **Draft round-trip** — start filling in the form (manual path), click "Save draft", navigate away. Return to `/agent/transactions/new-v2`. Confirm draft appears in the panel. Load it. Confirm form pre-populated and advanced to Stage 2 if Stage 1 was complete.
+7. **Draft auto-save on MOS** — upload a MOS. Confirm a draft appears in the panel immediately after extraction (before you fill in anything else). Navigate away and return — draft still there.
+8. **Mobile contacts layout** — resize browser to 375px. Confirm Vendors and Purchasers stack vertically (not side by side). Confirm pill pickers, text inputs all legible.
+9. **HEIC guard** — if you have an iPhone HEIC photo handy, try dropping it on the hero zone. Confirm the inline error "iPhone photos need to be saved as JPEG…" appears and the upload does not proceed.
+10. **Old form still works** — visit `/agent/transactions/new` (old URL, no flag). Confirm it still loads and a transaction can be submitted normally.
+
+### Production rollout
+
+- [ ] **Enable on production** — add `NEXT_PUBLIC_NEW_SALE_V2=true` to Vercel production environment variables. Redeploy. Run smoke test checklist items 1–5 against production immediately after.
+
+### Rollback procedure
+
+If anything is wrong after flag flip: remove `NEXT_PUBLIC_NEW_SALE_V2` from the environment (or set it to `false`). No code deploy needed. The sidebar button reverts to the old form. Old form is untouched and fully functional.
+
+### Burn-in period
+
+Wait 4–6 weeks of zero production issues before the old form deletion PR. The deletion PR removes `/agent/transactions/new`, `NewTransactionForm.tsx`, the old route, and the feature flag itself.
+
+---
+
+---
+
+## Schema migration needed — chain invite status
+
+- [ ] **Add `NO_EMAIL` to `InviteStatus` enum** — `lib/services/chains.ts` line 305 has a tautology (`"NOT_SENT" : "NOT_SENT"`) because `NO_EMAIL` doesn't exist in the Prisma enum. To fix properly: add `NO_EMAIL` to the `InviteStatus` enum in `prisma/schema.prisma`, create a migration (`npx prisma migrate dev --name add_no_email_invite_status`), apply to staging first, verify, then apply to production. Then update line 305 of `chains.ts` to `stub.stubAgentEmail ? "NOT_SENT" : "NO_EMAIL"`. The chain invite UI can then distinguish "has email, invite pending" from "no email provided."
 
 ---
 

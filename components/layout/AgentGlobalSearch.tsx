@@ -87,18 +87,19 @@ export function AgentGlobalSearch() {
 
   const hasResults = results && (results.transactions.length + results.contacts.length + results.solicitors.length) > 0;
 
-  // Closed state — a compact trigger button that fits in the sidebar
+  // Closed state — input-like trigger with white background and hairline border
   if (!open) return (
     <button
       onClick={() => setOpen(true)}
       title="Search (⌘K)"
       style={{
-        width: "100%", display: "flex", alignItems: "center", gap: 8,
-        padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-        background: "rgba(255,255,255,0.35)", color: "var(--agent-text-muted)",
-        fontSize: 12, transition: "background 150ms",
+        width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
+        padding: "0 10px", borderRadius: 8, cursor: "pointer",
+        background: "white", border: "0.5px solid rgba(0,0,0,0.12)",
+        color: "var(--agent-text-muted)", fontSize: 12,
+        transition: "background 150ms, box-shadow 150ms",
       }}
-      className="hover:bg-white/60"
+      className="hover:shadow-sm"
     >
       <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>

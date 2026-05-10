@@ -10,6 +10,9 @@ html {
 
 @layer base {
   :root {
+    /* Agent top bar height — referenced by sidebar and mobile calculations */
+    --agent-topbar-height: 44px;
+
     /* Glass fills — Phase 2 adjustment: +18pp opacity, photo still bleeds through */
     --glass-fill:          linear-gradient(180deg, rgb(255 255 255 / 0.56) 0%, rgb(255 255 255 / 0.44) 100%);
     --glass-fill-strong:   linear-gradient(180deg, rgb(255 255 255 / 0.68) 0%, rgb(255 255 255 / 0.56) 100%);
@@ -70,8 +73,44 @@ body {
 /* 100dvh — iOS Safari URL-bar fix. Declare 100vh first as fallback for
    older browsers; 100dvh overrides it in browsers that support it. */
 .agent-shell-root  { min-height: 100vh; min-height: 100dvh; }
-.agent-sidebar-height { height: 100vh; height: 100dvh; }
-.agent-main-content { margin-left: 220px; }
+.agent-sidebar-height { height: 100vh; height: 100dvh; top: 0; }
+.agent-main-content { margin-left: 220px; padding-top: var(--agent-topbar-height); }
+
+/* Sticky top bar — nav row only */
+.agent-topbar {
+  position: fixed;
+  top: 0; left: 220px; right: 0;
+  height: var(--agent-topbar-height);
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07), 0 1px 0 rgba(255, 255, 255, 0.90) inset;
+}
+
+/* In-page page header — scrolls with the page */
+.agent-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 32px 16px;
+}
+.agent-page-header-text { flex: 1; min-width: 0; }
+.agent-page-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 5px;
+}
 
 /* ─── Glass surface primitives ───────────────────────────────────────────── */
 /*
@@ -247,6 +286,10 @@ body {
   }
   .glass-input::placeholder {
     color: rgba(0, 0, 0, 0.35);
+  }
+  .glass-input:hover:not(:focus):not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.60);
   }
   .glass-input:focus {
     outline: none;
@@ -482,19 +525,9 @@ select {
 
 /* ─── Agent shell — mobile ───────────────────────────────────────────────── */
 
-/* Mobile top bar — hidden on desktop */
-.agent-mobile-header {
-  display: none;
-}
-
 /* Sidebar close button — hidden on desktop */
 .agent-sidebar-close {
   display: none;
-}
-
-/* Sidebar bell — hidden on mobile (top bar bell is used instead) */
-.agent-bell-sidebar {
-  display: flex;
 }
 
 /* Mobile backdrop */
@@ -502,38 +535,44 @@ select {
   display: none;
 }
 
-@media (max-width: 767px) {
-  /* Stack header above main — sidebar is position:fixed (out of flow) on mobile */
-  .agent-shell-root {
-    flex-direction: column;
-  }
+/* Top bar hamburger — hidden on desktop, shown on mobile */
+.agent-topbar-hamburger {
+  display: none;
+}
 
+@media (max-width: 767px) {
   /* Remove sidebar offset on mobile — sidebar slides in as overlay */
   .agent-main-content {
     margin-left: 0;
+    padding-top: var(--agent-topbar-height);
   }
 
-  /* Show top bar, hide desktop sidebar by default */
-  .agent-mobile-header {
-    display: flex;
-    align-items: center;
+  /* Top bar is full-width on mobile (sidebar is hidden) */
+  .agent-topbar {
+    left: 0;
+  }
+
+  /* Page header becomes a column on mobile — actions drop below subtitle */
+  .agent-page-header {
+    flex-direction: column;
     gap: 10px;
-    padding: 12px 16px;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: rgba(255,245,236,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 0.5px solid rgba(255,138,101,0.18);
+    padding: 20px 16px 14px;
+  }
+  .agent-page-header-actions {
+    padding-top: 0;
   }
 
-  /* Sidebar becomes a slide-in overlay */
+  .agent-topbar-hamburger {
+    display: flex;
+  }
+
+  /* Sidebar becomes a slide-in overlay — starts below the top bar on mobile */
   .agent-sidebar-mobile {
     position: fixed !important;
-    top: 0;
+    top: var(--agent-topbar-height) !important; /* beats desktop top: 0 from agent-sidebar-height */
     left: 0;
-    height: 100vh !important; height: 100dvh !important;
+    height: calc(100vh - var(--agent-topbar-height)) !important;
+    height: calc(100dvh - var(--agent-topbar-height)) !important;
     z-index: 100;
     transform: translateX(-100%);
     transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -547,14 +586,11 @@ select {
     display: flex;
   }
 
-  .agent-bell-sidebar {
-    display: none;
-  }
-
   .agent-mobile-backdrop {
     display: block;
     position: fixed;
     inset: 0;
+    top: var(--agent-topbar-height);
     background: rgba(15,5,0,0.35);
     backdrop-filter: blur(2px);
     z-index: 99;

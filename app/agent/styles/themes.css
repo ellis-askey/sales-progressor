@@ -243,6 +243,11 @@
     --agent-avatar-user-start: #FAEEDA;
     --agent-avatar-user-end:   #FAC775;
     --agent-avatar-user-text:  #633806;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba(255, 138, 101, 0.22);
+    --agent-aurora-band2: rgba(255, 190, 140, 0.20);
+    --agent-aurora-band3: rgba(255, 215,  95, 0.16);
 }
 
 /* ============================================================
@@ -397,6 +402,11 @@
     --agent-avatar-user-start: #D0EAF0;
     --agent-avatar-user-end:   #84C2D6;
     --agent-avatar-user-text:  #0F3844;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba( 30, 130, 155, 0.30);
+    --agent-aurora-band2: rgba(210, 175, 110, 0.24);
+    --agent-aurora-band3: rgba(140, 205, 225, 0.20);
 }
 
 /* ============================================================
@@ -551,6 +561,11 @@
     --agent-avatar-user-start: #DCE7F8;
     --agent-avatar-user-end:   #9AB0DC;
     --agent-avatar-user-text:  #1E2D4A;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba( 80, 105, 205, 0.30);
+    --agent-aurora-band2: rgba(155, 100, 215, 0.24);
+    --agent-aurora-band3: rgba(210, 185, 120, 0.20);
 }
 
 /* ============================================================
@@ -705,6 +720,11 @@
     --agent-avatar-user-start: #DCE3E9;
     --agent-avatar-user-end:   #8A9CB2;
     --agent-avatar-user-text:  #1E2A38;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba( 75, 105, 145, 0.34);
+    --agent-aurora-band2: rgba(175, 160, 145, 0.28);
+    --agent-aurora-band3: rgba(160, 175, 210, 0.24);
 }
 
 /* ============================================================
@@ -859,6 +879,11 @@
     --agent-avatar-user-start: #DBEDDF;
     --agent-avatar-user-end:   #6BA888;
     --agent-avatar-user-text:  #1A3625;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba( 45, 120,  75, 0.30);
+    --agent-aurora-band2: rgba(210, 170,  80, 0.26);
+    --agent-aurora-band3: rgba(120, 185, 145, 0.22);
 }
 
 /* ============================================================
@@ -1014,4 +1039,9 @@
     --agent-avatar-user-start: #F5DEDF;
     --agent-avatar-user-end:   #B8788A;
     --agent-avatar-user-text:  #3D0F1A;
+
+    /* ── Aurora drift band colours ───────────────────────────────────────── */
+    --agent-aurora-band1: rgba(145,  30,  55, 0.30);
+    --agent-aurora-band2: rgba(215, 100, 125, 0.24);
+    --agent-aurora-band3: rgba(240, 185, 155, 0.20);
 }

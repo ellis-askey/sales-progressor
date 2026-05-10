@@ -7,6 +7,9 @@ import {
   type CompletionGroup,
   type CompletionFileRow,
 } from "@/components/completions/CompletionsGroupList";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { StatPill } from "@/components/layout/StatPill";
+import type { PillColor } from "@/components/layout/StatPill";
 
 function fmtCompact(pence: number) {
   const pounds = pence / 100;
@@ -15,11 +18,11 @@ function fmtCompact(pence: number) {
 }
 
 const GROUP_STYLES_STAT = {
-  overdue:   { statColor: "#dc2626" },
-  this_week: { statColor: "#d97706" },
-  next_week: { statColor: "#3b82f6" },
-  later:     { statColor: "rgba(15,23,42,0.5)" },
-  no_date:   { statColor: "rgba(15,23,42,0.4)" },
+  overdue:   { statColor: "#dc2626", pillColor: "danger"  as PillColor },
+  this_week: { statColor: "#d97706", pillColor: "warning" as PillColor },
+  next_week: { statColor: "#3b82f6", pillColor: "muted"   as PillColor },
+  later:     { statColor: "rgba(15,23,42,0.5)", pillColor: "muted" as PillColor },
+  no_date:   { statColor: "rgba(15,23,42,0.4)", pillColor: "muted" as PillColor },
 } as const;
 
 const STAT_LABELS: Record<string, string> = {
@@ -61,7 +64,7 @@ export default async function AgentCompletionsPage() {
 
   const statSegments = (["overdue", "this_week", "next_week", "later", "no_date"] as const)
     .filter((k) => counts[k] > 0)
-    .map((k) => ({ key: k, label: STAT_LABELS[k], count: counts[k], color: GROUP_STYLES_STAT[k].statColor, anchor: `#section-${k}` }));
+    .map((k) => ({ key: k, label: `${counts[k]} ${STAT_LABELS[k]}`, pillColor: GROUP_STYLES_STAT[k].pillColor, anchor: `#section-${k}` }));
 
   const totalValue    = files.reduce((sum, f) => sum + (f.purchasePrice  ?? 0), 0);
   const filesWithPrice = files.filter((f) => f.purchasePrice).length;
@@ -113,52 +116,64 @@ export default async function AgentCompletionsPage() {
 
   return (
     <>
-      {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div style={{
-        background: "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="relative px-4 pt-6 pb-4 md:px-8">
-          <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>Completions</h1>
-          <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>Files that have exchanged and are heading to completion.</p>
-
-          {/* Stat row — each anchor is ≥44px tall for touch */}
-          {statSegments.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 0, marginTop: 10 }}>
-              {statSegments.map((s, i) => (
-                <span key={s.key} style={{ display: "flex", alignItems: "center" }}>
-                  {i > 0 && <span style={{ color: "rgba(15,23,42,0.2)", margin: "0 8px" }}>·</span>}
-                  <a href={s.anchor} style={{ fontSize: 12, color: s.color, fontWeight: 500, textDecoration: "none", minHeight: 44, display: "flex", alignItems: "center" }}>
-                    {s.count} {s.label}
-                  </a>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Completions" subtitle="Files that have exchanged and are heading to completion.">
+        {statSegments.map(s => (
+          <StatPill key={s.key} href={s.anchor} label={s.label} color={s.pillColor} />
+        ))}
+      </PageHeader>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <div className="px-4 md:px-8 py-5 md:py-7 space-y-7">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-7">
 
         {/* Empty state */}
         {files.length === 0 && (
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-            <ClockCountdown size={32} weight="regular" style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              No files awaiting completion
-            </p>
-            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              Once a file exchanges, it&apos;ll appear here as it heads toward completion.
-            </p>
-          </div>
+          <>
+            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+              <ClockCountdown size={32} weight="regular" style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                No files awaiting completion
+              </p>
+              <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                Once a file exchanges, it&apos;ll appear here as it heads toward completion.
+              </p>
+            </div>
+
+            {/* Ghost urgency groups preview */}
+            <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
+              {[
+                { color: "#dc2626", label: "Overdue", files: ["14 Maple Close, Birmingham", "8 The Crescent, Bristol"] },
+                { color: "#d97706", label: "Completing this week", files: ["22 Victoria Road, Manchester"] },
+              ].map(({ color, label, files: ghostFiles }) => (
+                <div key={label}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, background: "rgba(0,0,0,0.04)", marginBottom: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, borderRadius: 99, padding: "1px 7px" }}>{ghostFiles.length}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                    {ghostFiles.map((addr, i) => (
+                      <div key={i} style={{
+                        padding: "12px 16px",
+                        border: "0.5px solid var(--agent-border-subtle)",
+                        borderRadius: i === 0 ? (ghostFiles.length === 1 ? 8 : "8px 8px 0 0") : "0 0 8px 8px",
+                        borderTop: i > 0 ? "none" : undefined,
+                        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                        background: "rgba(255,255,255,0.55)",
+                      }}>
+                        <div>
+                          <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{addr}</p>
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Smith & Smith Solicitors</p>
+                        </div>
+                        <div style={{ flexShrink: 0, fontSize: 12, fontWeight: 500, color, background: `${color}15`, borderRadius: 99, padding: "3px 10px" }}>
+                          {label === "Overdue" ? (i === 0 ? "3 days overdue" : "1 day overdue") : "in 4 days"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Pipeline summary — numbers prominent, descriptors muted */}

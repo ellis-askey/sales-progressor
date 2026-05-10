@@ -247,22 +247,13 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   const triggerRef    = useRef<HTMLButtonElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
   const closeRef      = useRef<HTMLButtonElement>(null);
-  const scrollTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Scroll compact behaviour
   useEffect(() => {
     function onScroll() {
-      if (window.scrollY > 100) {
-        setIsCompact(true);
-        if (scrollTimer.current) clearTimeout(scrollTimer.current);
-        scrollTimer.current = setTimeout(() => setIsCompact(false), 1000);
-      } else {
-        setIsCompact(false);
-        if (scrollTimer.current) clearTimeout(scrollTimer.current);
-      }
+      setIsCompact(window.scrollY > 100);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { window.removeEventListener("scroll", onScroll); if (scrollTimer.current) clearTimeout(scrollTimer.current); };
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   // Escape key
@@ -392,21 +383,25 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             </button>
           </div>
           <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => { window.open("/help", "_blank"); close(); }}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(249,115,22,0.06)", border: "0.5px solid rgba(249,115,22,0.22)", borderRadius: 10, cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#f97316" }}>
-                <IconBook />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>Browse Help</p>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>Articles and guides</p>
-              </div>
-              <span style={{ color: "#f97316", flexShrink: 0 }}><IconChevron /></span>
-            </button>
-            <div style={{ height: "0.5px", background: "#f3f4f6", margin: "2px 0" }} />
+            {!portalToken && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { window.open("/help", "_blank"); close(); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(249,115,22,0.06)", border: "0.5px solid rgba(249,115,22,0.22)", borderRadius: 10, cursor: "pointer", textAlign: "left" }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#f97316" }}>
+                    <IconBook />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>Browse Help</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>Articles and guides</p>
+                  </div>
+                  <span style={{ color: "#f97316", flexShrink: 0 }}><IconChevron /></span>
+                </button>
+                <div style={{ height: "0.5px", background: "#f3f4f6", margin: "2px 0" }} />
+              </>
+            )}
             <CategoryCard icon={<IconBug />}      title="Report an issue"        description="Something's not working" onClick={() => selectCategory("bug")} />
             <CategoryCard icon={<IconBulb />}     title="Suggest an improvement" description="Share your idea"         onClick={() => selectCategory("suggestion")} />
             <CategoryCard icon={<IconQuestion />} title="Ask a question"         description="Get help and advice"     onClick={() => selectCategory("question")} />

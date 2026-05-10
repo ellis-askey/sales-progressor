@@ -222,6 +222,7 @@ export default async function TransactionDetailPage({
     <TransactionSidebar
         transaction={{
           id: transaction.id,
+          propertyAddress: transaction.propertyAddress,
           purchasePrice: transaction.purchasePrice ?? null,
           tenure: transaction.tenure ?? null,
           purchaseType: transaction.purchaseType ?? null,

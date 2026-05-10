@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
-import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk } from "@/lib/services/analytics";
+import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, getReferralStats, getBrokerReferralStats } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
 import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
@@ -63,13 +64,15 @@ export default async function AgentAnalyticsPage({
     : vis;
 
   const pageNow = new Date();
-  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk] = await Promise.all([
+  const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk, referralStats, brokerReferralStats] = await Promise.all([
     getAgentTransactions(effectiveVis),
     isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
     getSolicitorExchangeStats(effectiveVis),
     getMonthlyActivity(effectiveVis),
     getKpiTrendsForAgency(effectiveVis, { start: new Date(0), end: pageNow }),
     getFilesAtRisk(effectiveVis),
+    isDirector ? getReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
+    isDirector ? getBrokerReferralStats(session.user.agencyId).catch(() => []) : Promise.resolve([]),
   ]);
 
   const selectedName = filterUserId
@@ -87,18 +90,8 @@ export default async function AgentAnalyticsPage({
   if (transactions.length === 0) {
     return (
       <>
-        <div className="agent-glass-strong" style={{ padding: "22px 32px 26px", borderBottom: "0.5px solid var(--agent-glass-border)", position: "relative", overflow: "hidden" }}>
-          <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.11) 0%, transparent 70%)" }} />
-          <div style={{ position: "relative" }}>
-            <h1 style={{ margin: 0, fontSize: "var(--agent-text-h2)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-              Analytics
-            </h1>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
-              Performance and revenue across your agency.
-            </p>
-          </div>
-        </div>
-        <div className="px-4 py-5 sm:px-8">
+        <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
+        <div className="px-4 py-5 sm:px-8 flex flex-col" style={{ gap: 18 }}>
           <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
             <svg width="32" height="32" viewBox="0 0 48 48" fill="none" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }} aria-hidden="true">
               <rect x="6"  y="30" width="10" height="12" rx="2" fill="var(--agent-coral)" />
@@ -119,6 +112,38 @@ export default async function AgentAnalyticsPage({
               + Submit your first sale
             </Link>
           </div>
+
+          {/* Ghost analytics preview */}
+          <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {["Week", "Month", "Year", "All time"].map((l) => (
+                <div key={l} style={{ height: 34, padding: "0 18px", borderRadius: 99, background: "rgba(255,255,255,0.55)", border: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: "var(--agent-text-secondary)" }}>{l}</div>
+              ))}
+            </div>
+            <div className="agent-glass" style={{ padding: "16px 20px" }}>
+              <div className="grid grid-cols-3 gap-3">
+                {["Active files", "Exchanged", "Completed"].map((label) => (
+                  <div key={label}>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                    <p style={{ margin: "0 0 5px", fontSize: 28, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1 }}>—</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: "Pipeline funnel", widths: [85, 55, 35] },
+                { label: "Speed to exchange", widths: [70, 45, 25] },
+              ].map(({ label, widths }) => (
+                <div key={label} className="agent-glass" style={{ padding: "16px 20px" }}>
+                  <p style={{ margin: "0 0 14px", fontSize: 10, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                  {widths.map((w, j) => (
+                    <div key={j} style={{ height: 9, width: `${w}%`, borderRadius: 3, background: "var(--agent-text-tertiary)", marginBottom: 10 }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </>
     );
@@ -127,60 +152,44 @@ export default async function AgentAnalyticsPage({
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div className="agent-glass-strong px-4 pt-[18px] pb-[22px] sm:px-8 sm:pt-[22px] sm:pb-[26px]" style={{ borderBottom: "0.5px solid var(--agent-glass-border)", position: "relative", overflow: "hidden" }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -70, right: -50, width: 260, height: 260, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.11) 0%, transparent 70%)" }} />
-        <div style={{ position: "relative" }}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-            <div>
-              <h1 style={{ margin: 0, fontSize: "var(--agent-text-h2)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-                Analytics
-              </h1>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
-                {filterUserId
-                  ? `Performance and revenue for ${selectedName}.`
-                  : "Performance and revenue across your agency."}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {isDirector && team.length > 0 && (
-                <AnalyticsFilterClient
-                  team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
-                  currentUserId={filterUserId ?? null}
-                  basePath="/agent/analytics"
-                />
-              )}
-              {isDirector && (
-                <a
-                  href={`/api/agent/analytics-export?period=${period}${filterUserId ? `&user=${filterUserId}` : ""}`}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 8,
-                    color: "var(--agent-text-secondary)",
-                    background: "rgba(255,255,255,0.50)",
-                    border: "1px solid rgba(180,130,90,0.18)",
-                    textDecoration: "none", whiteSpace: "nowrap",
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Export CSV
-                </a>
-              )}
-              <div className="hidden md:block">
-                <AnalyticsNotifCta />
-              </div>
-            </div>
-          </div>
+      <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline.">
+        {isDirector && team.length > 0 && (
+          <AnalyticsFilterClient
+            team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+            currentUserId={filterUserId ?? null}
+            basePath="/agent/analytics"
+          />
+        )}
+        {isDirector && (
+          <a
+            href={`/api/agent/analytics-export?period=${period}${filterUserId ? `&user=${filterUserId}` : ""}`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 8,
+              color: "var(--agent-text-secondary)",
+              background: "rgba(255,255,255,0.50)",
+              border: "1px solid rgba(180,130,90,0.18)",
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Export CSV
+          </a>
+        )}
+        <div className="hidden md:block">
+          <AnalyticsNotifCta />
         </div>
-      </div>
+      </PageHeader>
 
       {/* ── Client shell — manages period state, all stats ────────────────── */}
       <AnalyticsClientShell
         transactions={transactions.map(t => ({ ...t, agentFeePercent: t.agentFeePercent != null ? Number(t.agentFeePercent) : null }))}
         team={team.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
         solicitorStats={solicitorStats}
+        referralStats={referralStats}
+        brokerReferralStats={brokerReferralStats}
         monthlyActivity={monthlyActivity}
         kpiSparklines={kpiSparklines}
         filesAtRisk={filesAtRisk}

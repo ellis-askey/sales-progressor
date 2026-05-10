@@ -15,6 +15,7 @@ type NextMilestone = {
 export type MilestoneSideState =
   | { state: "hasNext"; milestone: NextMilestone }
   | { state: "gatePending"; gateType: "exchange_gate" | "post_exchange" }
+  | { state: "completionPending"; completionDate: Date }
   | { state: "allComplete" };
 
 type Props = {
@@ -56,13 +57,26 @@ function MilestoneSideRow({
     const copy =
       side.gateType === "exchange_gate"
         ? "Awaiting exchange-readiness"
-        : "Awaiting exchange or completion";
+        : "Awaiting exchange confirmation";
     return (
       <div className="flex items-center gap-3 px-4 py-3">
         <div className="w-5 h-5 rounded-full bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
         <div>
           <p className="text-xs font-semibold text-slate-900/40">{label}</p>
           <p className="text-xs text-amber-700 font-medium">{copy}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (side.state === "completionPending") {
+    const formatted = side.completionDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return (
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-200 flex-shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
+          <p className="text-xs text-blue-700 font-medium">Completion due {formatted}</p>
         </div>
       </div>
     );

@@ -36,6 +36,10 @@ export async function createTransactionAction(input: {
   agentFeeIsVatInclusive?: boolean | null;
   referredFirmId?: string | null;
   referralFee?: number | null;
+  brokerFirmId?: string | null;
+  brokerContactId?: string | null;
+  brokerReferralFee?: number | null;
+  purchaserBrokerReferral?: boolean;
   mosUploaded?: boolean;
   mosStoragePath?: string;
   mosFileSize?: number;
@@ -99,6 +103,10 @@ export async function createTransactionAction(input: {
     agentFeeIsVatInclusive: input.agentFeeIsVatInclusive ?? null,
     referredFirmId: input.referredFirmId ?? null,
     referralFee: input.referralFee ?? null,
+    brokerFirmId: input.brokerFirmId ?? null,
+    brokerContactId: input.brokerContactId ?? null,
+    brokerReferralFee: input.brokerReferralFee ?? null,
+    purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
   });
 
   if (input.contacts.length > 0) {
@@ -528,6 +536,76 @@ export async function saveReferralAction(
   revalidateTx(transactionId);
 }
 
+export async function saveBrokerReferralAction(
+  transactionId: string,
+  data: { brokerFirmId: string | null; brokerContactId: string | null; brokerReferralFee: number | null; brokerReferralFeeReceived: boolean }
+) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: {
+      brokerFirmId:              data.brokerFirmId,
+      brokerContactId:           data.brokerContactId,
+      brokerReferralFee:         data.brokerReferralFee,
+      brokerReferralFeeReceived: data.brokerReferralFeeReceived,
+    },
+  });
+
+  await logActivity(transactionId, `${session.user.name} updated broker referral details`, session.user.id);
+
+  revalidateTx(transactionId);
+}
+
+export async function getAddressConsequencesAction(transactionId: string): Promise<{ commCount: number; milestoneCount: number }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const [commCount, milestoneCount] = await Promise.all([
+    prisma.outboundMessage.count({ where: { transactionId } }),
+    prisma.milestoneCompletion.count({ where: { transactionId, state: "complete" } }),
+  ]);
+  return { commCount, milestoneCount };
+}
+
+export async function saveAddressAction(transactionId: string, newAddress: string): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, propertyAddress: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const trimmed = newAddress.trim();
+  if (!trimmed) throw new Error("Address cannot be empty");
+  if (trimmed === tx.propertyAddress) return;
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { propertyAddress: trimmed },
+  });
+
+  await logActivity(
+    transactionId,
+    `${session.user.name} updated property address to "${trimmed}"`,
+    session.user.id
+  );
+
+  revalidateTx(transactionId);
+}
+
 // ─── Draft actions ────────────────────────────────────────────────────────────
 
 const DRAFT_STATUS = "draft" as TransactionStatus;
@@ -550,6 +628,9 @@ export async function saveDraftAction(data: {
   purchaserSolicitorContactId?: string | null;
   referredFirmId?: string | null;
   referralFee?: number | null;
+  brokerFirmId?: string | null;
+  brokerContactId?: string | null;
+  brokerReferralFee?: number | null;
   mosStoragePath?: string | null;
   mosFileSize?: number | null;
   mosMimeType?: string | null;
@@ -590,6 +671,9 @@ export async function saveDraftAction(data: {
     purchaserSolicitorContactId: data.purchaserSolicitorContactId ?? null,
     referredFirmId: data.referredFirmId ?? null,
     referralFee: data.referralFee ?? null,
+    brokerFirmId: data.brokerFirmId ?? null,
+    brokerContactId: data.brokerContactId ?? null,
+    brokerReferralFee: data.brokerReferralFee ?? null,
   };
 
   async function saveMosDocument(transactionId: string) {

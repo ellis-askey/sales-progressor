@@ -1,29 +1,30 @@
+import Link from "next/link";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { PageHeader } from "@/components/layout/PageHeader";
+
+function loadingGreeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning." : h < 17 ? "Good afternoon." : "Good evening.";
+}
+
 export default function HubLoading() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-      {/* Header skeleton */}
-      <div
-        className="agent-glass-strong hub-header-pad"
-        style={{ padding: "22px 32px 26px", borderBottom: "0.5px solid var(--agent-glass-border)" }}
-      >
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-          <div className="agent-skeleton" style={{ height: 12, width: 100, borderRadius: 6 }} />
-        </div>
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <div className="agent-skeleton" style={{ height: 26, width: 220, borderRadius: 6, marginBottom: 8 }} />
-            <div className="agent-skeleton" style={{ height: 13, width: 160, borderRadius: 6 }} />
-          </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            <div className="agent-skeleton" style={{ height: 36, width: 140, borderRadius: 8 }} />
-            <div className="agent-skeleton" style={{ height: 36, width: 120, borderRadius: 8 }} />
-          </div>
-        </div>
-      </div>
+      <PageHeader title={loadingGreeting()} subtitle="Here's what matters today.">
+        <Link
+          href="/agent/transactions/new"
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ textDecoration: "none" }}
+        >
+          <Plus size={14} weight="bold" />
+          New sale
+        </Link>
+        <div className="agent-skeleton" style={{ height: 32, width: 168, borderRadius: 8 }} />
+      </PageHeader>
 
       {/* Content area */}
-      <div className="hub-content-pad" style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="hub-content-pad" style={{ padding: "8px 32px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* 1. Needs Attention */}
         <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
@@ -53,7 +54,6 @@ export default function HubLoading() {
         {/* 2. Pipeline Health + Momentum */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
-          {/* Pipeline Health */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div style={{ marginBottom: 20 }}>
               <div className="agent-skeleton" style={{ height: 11, width: 110, borderRadius: 6, marginBottom: 6 }} />
@@ -69,7 +69,6 @@ export default function HubLoading() {
             </div>
           </div>
 
-          {/* Momentum */}
           <div className="agent-glass" style={{ padding: "20px 24px", display: "flex", flexDirection: "column" }}>
             <div className="agent-skeleton" style={{ height: 11, width: 80, borderRadius: 6, marginBottom: 6 }} />
             <div className="agent-skeleton" style={{ height: 12, width: 160, borderRadius: 6, marginBottom: 16 }} />
@@ -90,11 +89,9 @@ export default function HubLoading() {
         {/* 3. Exchange Forecast + Service Split */}
         <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
-          {/* Exchange Forecast */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-skeleton" style={{ height: 11, width: 130, borderRadius: 6, marginBottom: 6 }} />
             <div className="agent-skeleton" style={{ height: 12, width: 210, borderRadius: 6, marginBottom: 16 }} />
-            {/* 5 bar stubs */}
             <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 70, marginBottom: 12 }}>
               {[45, 65, 80, 50, 35].map((h, i) => (
                 <div key={i} className="agent-skeleton" style={{ flex: 1, height: h, borderRadius: 3 }} />
@@ -110,7 +107,6 @@ export default function HubLoading() {
             </div>
           </div>
 
-          {/* Service Split */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-skeleton" style={{ height: 11, width: 100, borderRadius: 6, marginBottom: 6 }} />
             <div className="agent-skeleton" style={{ height: 12, width: 190, borderRadius: 6, marginBottom: 16 }} />

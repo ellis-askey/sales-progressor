@@ -125,6 +125,32 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
             Jot down your next steps, or send a request to your progressor.
           </p>
         </div>
+
+        {/* Ghost to-do section preview */}
+        <div style={{ opacity: 0.3, pointerEvents: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>My to-dos</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)", background: "rgba(0,0,0,0.07)", borderRadius: 99, padding: "1px 7px" }}>2</span>
+          </div>
+          <div className="glass-card" style={{ overflow: "hidden" }}>
+            <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>14 Maple Close, Birmingham</p>
+            </div>
+            {[
+              { text: "Chase vendor solicitor for draft contracts", date: "Today" },
+              { text: "Request mortgage offer from broker", date: "Tomorrow" },
+            ].map(({ text, date }, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px",
+                borderBottom: i === 0 ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+              }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", border: "1.5px solid var(--agent-text-muted)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ flex: 1, margin: 0, fontSize: 13, color: "var(--agent-text-primary)" }}>{text}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 2 }}>{date}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

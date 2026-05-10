@@ -394,7 +394,18 @@ export async function getExchangeReconciliationList(input: {
     counterDefId = counterDef?.id ?? null;
   }
 
-  const excludeIds = [input.milestoneDefinitionId, counterDefId].filter(Boolean) as string[];
+  let excludeIds = [input.milestoneDefinitionId, counterDefId].filter(Boolean) as string[];
+
+  // Exchange flow: completion milestones (VM20/PM27) can't have occurred yet —
+  // they require exchange as a prerequisite. Exclude them so they don't appear
+  // in the reconciliation list when confirming VM19 or PM26.
+  if (def.code === "VM19" || def.code === "PM26") {
+    const completionDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM20", "PM27"] } },
+      select: { id: true },
+    });
+    excludeIds = [...excludeIds, ...completionDefs.map((d) => d.id)];
+  }
 
   const allDefs = await prisma.milestoneDefinition.findMany({
     where: { id: { notIn: excludeIds } },

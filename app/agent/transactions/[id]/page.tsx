@@ -18,6 +18,7 @@ import { CommsEntry } from "@/components/activity/CommsEntry";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { TransactionSidebar } from "@/components/transaction/TransactionSidebar";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
+import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
 import { ManualTaskList } from "@/components/todos/ManualTaskList";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
@@ -138,22 +139,38 @@ export default async function AgentTransactionDetailPage({
     pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
   }));
 
-  const POST_EXCHANGE = new Set(["VM19", "VM20", "PM26", "PM27"]);
+  const EXCHANGE_MILESTONES = new Set(["VM19", "PM26"]);
+  const COMPLETION_MILESTONES = new Set(["VM20", "PM27"]);
   const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
 
   function computeMilestoneSideState(
     milestones: Array<{ id: string; name: string; code: string; isComplete: boolean; isNotRequired: boolean; isAvailable: boolean; eventDateRequired: boolean }>
   ): MilestoneSideState {
+    // Regular next milestone — excludes exchange gates, exchange milestones, and completion milestones
     const next = milestones.find(
-      (m) => !m.isComplete && !m.isNotRequired && m.isAvailable && !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code)
+      (m) => !m.isComplete && !m.isNotRequired && m.isAvailable
+        && !EXCHANGE_MILESTONES.has(m.code) && !EXCHANGE_GATES.has(m.code) && !COMPLETION_MILESTONES.has(m.code)
     );
     if (next) return { state: "hasNext", milestone: { id: next.id, name: next.name, code: next.code, eventDateRequired: next.eventDateRequired } };
 
     const hasGatePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && EXCHANGE_GATES.has(m.code));
     if (hasGatePending) return { state: "gatePending", gateType: "exchange_gate" };
 
-    const hasPostExchangePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && POST_EXCHANGE.has(m.code));
-    if (hasPostExchangePending) return { state: "gatePending", gateType: "post_exchange" };
+    // Exchange milestone (VM19/PM26) not yet confirmed
+    const hasExchangePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && EXCHANGE_MILESTONES.has(m.code));
+    if (hasExchangePending) return { state: "gatePending", gateType: "post_exchange" };
+
+    // Completion milestone — only actionable once exchange is confirmed (isAvailable) and the completion date has arrived
+    const completionMilestone = milestones.find(
+      (m) => COMPLETION_MILESTONES.has(m.code) && !m.isComplete && !m.isNotRequired && m.isAvailable
+    );
+    if (completionMilestone) {
+      if (transaction?.completionDate) {
+        const cd = new Date(transaction.completionDate); cd.setHours(0, 0, 0, 0);
+        if (cd > today) return { state: "completionPending", completionDate: cd };
+      }
+      return { state: "hasNext", milestone: { id: completionMilestone.id, name: completionMilestone.name, code: completionMilestone.code, eventDateRequired: completionMilestone.eventDateRequired } };
+    }
 
     return { state: "allComplete" };
   }
@@ -211,9 +228,10 @@ export default async function AgentTransactionDetailPage({
     : null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = prisma as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recommendedFirms = isDirectorRole
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ? await (prisma as any).agencyRecommendedSolicitor.findMany({
+    ? await db.agencyRecommendedSolicitor.findMany({
         where: { agencyId: session.user.agencyId },
         orderBy: { solicitorFirm: { name: "asc" } },
         select: { solicitorFirmId: true, defaultReferralFeePence: true, solicitorFirm: { select: { name: true } } },
@@ -225,10 +243,26 @@ export default async function AgentTransactionDetailPage({
       })))
     : null;
 
+  const brokerRow = await Promise.resolve().then(() =>
+    prisma.propertyTransaction.findFirst({
+      where: { id, agencyId: session.user.agencyId },
+      select: {
+        brokerFirmId: true,
+        brokerContactId: true,
+        brokerReferralFee: true,
+        brokerReferralFeeReceived: true,
+        purchaserBrokerReferral: true,
+        brokerFirm: { select: { id: true, name: true } },
+        brokerContact: { select: { id: true, name: true } },
+      },
+    })
+  ).catch(() => null);
+
   const sidebar = (
     <TransactionSidebar
       transaction={{
         id: transaction.id,
+        propertyAddress: transaction.propertyAddress,
         purchasePrice: transaction.purchasePrice ?? null,
         tenure: transaction.tenure ?? null,
         purchaseType: transaction.purchaseType ?? null,
@@ -240,6 +274,8 @@ export default async function AgentTransactionDetailPage({
         referralFee: transaction.referralFee ?? null,
         referredFirmName: transaction.referredFirm?.name ?? null,
         referredFirmId: transaction.referredFirmId ?? null,
+        brokerReferralFee: brokerRow?.brokerReferralFee ?? null,
+        brokerFirmName: brokerRow?.brokerFirm?.name ?? null,
         serviceType: transaction.serviceType ?? null,
       }}
       recommendedFirms={recommendedFirms}
@@ -254,7 +290,7 @@ export default async function AgentTransactionDetailPage({
 
   return (
     <div className="glass-page agent-page">
-      <TransactionViewTracker transactionId={id} />
+      <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ChainClaimedNotice /></Suspense>
@@ -328,6 +364,18 @@ export default async function AgentTransactionDetailPage({
               referredFirmId={transaction.referredFirmId ?? null}
               referralFee={transaction.referralFee ?? null}
             />
+            {brokerRow?.brokerFirmId && (
+              <BrokerSection
+                transactionId={transaction.id}
+                brokerFirmId={brokerRow.brokerFirmId}
+                brokerContactId={brokerRow.brokerContactId}
+                brokerFirmName={brokerRow.brokerFirm?.name ?? null}
+                brokerContactName={brokerRow.brokerContact?.name ?? null}
+                brokerReferralFee={brokerRow.brokerReferralFee}
+                brokerReferralFeeReceived={brokerRow.brokerReferralFeeReceived}
+                purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
+              />
+            )}
           </div>
 
           <NextMilestoneWidget

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { NumericFormat } from "react-number-format";
 import {
   upsertRecommendedSolicitorAction,
   removeRecommendedSolicitorAction,
@@ -15,16 +16,6 @@ type RecommendedFirm = {
 };
 
 type AllFirm = { id: string; name: string };
-
-function fmtFee(pence: number | null) {
-  if (!pence) return "";
-  return (pence / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function parseFee(val: string): number | null {
-  const n = parseFloat(val.replace(/,/g, ""));
-  return isNaN(n) || n <= 0 ? null : Math.round(n * 100);
-}
 
 export function RecommendedSolicitorsSettings({
   initialRecommended,
@@ -48,7 +39,7 @@ export function RecommendedSolicitorsSettings({
   const [cName, setCName] = useState("");
   const [cPhone, setCPhone] = useState("");
   const [cEmail, setCEmail] = useState("");
-  const [pendingFee, setPendingFee] = useState("");
+  const [pendingFee, setPendingFee] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -92,13 +83,13 @@ export function RecommendedSolicitorsSettings({
   function openContactForm(firm: { id?: string; name: string }) {
     setQuery("");
     setShowSearch(false);
-    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(""); setAddError("");
+    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setAddError("");
     setPendingFirm(firm);
   }
 
   function cancelPending() {
     setPendingFirm(null);
-    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(""); setAddError("");
+    setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setAddError("");
   }
 
   async function confirmAdd() {
@@ -109,18 +100,17 @@ export function RecommendedSolicitorsSettings({
     setAdding(true);
     setAddError("");
     try {
-      const feePence = parseFee(pendingFee);
       const result = await addRecommendedSolicitorWithContactAction({
         firmId: pendingFirm!.id,
         firmName: pendingFirm!.id ? undefined : pendingFirm!.name,
         contactName: cName,
         contactPhone: cPhone,
         contactEmail: cEmail,
-        referralFeePence: feePence,
+        referralFeePence: pendingFee,
       });
       setRecommended((prev) => [
         ...prev,
-        { id: "", firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: feePence },
+        { id: "", firmId: result.firmId, firmName: result.firmName, defaultReferralFeePence: pendingFee },
       ]);
       cancelPending();
     } catch {
@@ -141,15 +131,17 @@ export function RecommendedSolicitorsSettings({
         <div key={r.firmId} className="flex items-center gap-3 py-2 border-b border-white/15 last:border-0">
           <span className="flex-1 text-sm font-medium text-slate-900/80 truncate">{r.firmName}</span>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs text-slate-900/40">£</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={fmtFee(r.defaultReferralFeePence)}
-              onChange={(e) => updateFee(r.firmId, parseFee(e.target.value))}
+          <div className="flex items-center flex-shrink-0">
+            <NumericFormat
+              value={r.defaultReferralFeePence != null ? r.defaultReferralFeePence / 100 : ""}
+              onValueChange={({ floatValue }) => updateFee(r.firmId, floatValue != null ? Math.round(floatValue * 100) : null)}
               onBlur={() => saveFee(r.firmId, r.defaultReferralFeePence)}
-              placeholder="default fee"
+              prefix="£"
+              thousandSeparator=","
+              decimalScale={2}
+              allowNegative={false}
+              inputMode="decimal"
+              placeholder="£ fee"
               className="w-28 px-2 py-1 text-sm rounded-lg bg-white/50 border border-white/30 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
             />
           </div>
@@ -208,13 +200,16 @@ export function RecommendedSolicitorsSettings({
               />
             </div>
             <div className="col-span-1 sm:col-span-2">
-              <label className="block text-xs text-slate-900/50 mb-1">Default referral fee (£, optional)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={pendingFee}
-                onChange={(e) => setPendingFee(e.target.value)}
-                placeholder="e.g. 250"
+              <label className="block text-xs text-slate-900/50 mb-1">Default referral fee (optional)</label>
+              <NumericFormat
+                value={pendingFee != null ? pendingFee / 100 : ""}
+                onValueChange={({ floatValue }) => setPendingFee(floatValue != null ? Math.round(floatValue * 100) : null)}
+                prefix="£"
+                thousandSeparator=","
+                decimalScale={2}
+                allowNegative={false}
+                inputMode="decimal"
+                placeholder="£250"
                 className="w-40 px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
               />
             </div>

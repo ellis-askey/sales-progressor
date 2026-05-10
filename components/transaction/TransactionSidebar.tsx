@@ -43,11 +43,10 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   );
 }
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { PencilSimple } from "@phosphor-icons/react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
-import { savePriceAction, saveOverrideDateAction, saveCompletionDateAction, saveAgentFeeAction, saveReferralAction } from "@/app/actions/transactions";
-import { PriceInput } from "@/components/ui/PriceInput";
-import { EditSaleDetailsModal } from "@/components/transaction/EditSaleDetailsModal";
+import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
@@ -56,6 +55,7 @@ type KeyDate = { name: string; eventDate: Date };
 type Props = {
   transaction: {
     id: string;
+    propertyAddress: string;
     purchasePrice: number | null;
     tenure: Tenure | null;
     purchaseType: PurchaseType | null;
@@ -67,6 +67,8 @@ type Props = {
     referralFee?: number | null;
     referredFirmName?: string | null;
     referredFirmId?: string | null;
+    brokerReferralFee?: number | null;
+    brokerFirmName?: string | null;
     serviceType?: "self_managed" | "outsourced" | null;
   };
   recommendedFirms?: { id: string; name: string; defaultReferralFeePence: number | null }[] | null;
@@ -82,31 +84,7 @@ type Props = {
 };
 
 export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms }: Props) {
-  const [isPending, startTransition] = useTransition();
-  const [editingPrice, setEditingPrice] = useState(false);
-  const [pricePence, setPricePence] = useState<number | null>(transaction.purchasePrice ?? null);
-  const [editingOverride, setEditingOverride] = useState(false);
-  const [overrideInput, setOverrideInput] = useState(
-    transaction.overridePredictedDate
-      ? new Date(transaction.overridePredictedDate).toISOString().split("T")[0]
-      : ""
-  );
-  const [editingCompletion, setEditingCompletion] = useState(false);
-  const [completionInput, setCompletionInput] = useState(
-    transaction.completionDate
-      ? new Date(transaction.completionDate).toISOString().split("T")[0]
-      : ""
-  );
-  const [saving, setSaving] = useState(false);
-  const [editingAgentFee, setEditingAgentFee] = useState(false);
-  const [agentFeeType, setAgentFeeType] = useState<"amount" | "percent">("amount");
-  const [agentFeeAmountPence, setAgentFeeAmountPence] = useState<number | null>(null);
-  const [agentFeePercentStr, setAgentFeePercentStr] = useState("");
-  const [agentFeeVat, setAgentFeeVat] = useState<"inclusive" | "exclusive">("exclusive");
-  const [editingReferral, setEditingReferral] = useState(false);
-  const [editFirmId, setEditFirmId] = useState<string>("");
-  const [editFeePence, setEditFeePence] = useState<number | null>(null);
-  const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
+  const [showEditDrawer, setShowEditDrawer] = useState(false);
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
@@ -114,89 +92,20 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       ? { fee: 5900, label: "Self-progressed (inc VAT)" }
       : { fee: null, label: "No progressor assigned" };
 
-  function savePrice() {
-    if (pricePence == null) return;
-    setSaving(true);
-    setEditingPrice(false);
-    startTransition(async () => {
-      try { await savePriceAction(transaction.id, pricePence); }
-      finally { setSaving(false); }
-    });
-  }
+  const agentFeeCalcPence: number | null =
+    transaction.agentFeeAmount != null
+      ? transaction.agentFeeAmount
+      : transaction.agentFeePercent != null && transaction.purchasePrice != null
+        ? Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100)
+        : null;
 
-  function saveOverride() {
-    setSaving(true);
-    setEditingOverride(false);
-    startTransition(async () => {
-      try { await saveOverrideDateAction(transaction.id, overrideInput || null); }
-      finally { setSaving(false); }
-    });
-  }
-
-  function saveCompletion() {
-    setSaving(true);
-    setEditingCompletion(false);
-    startTransition(async () => {
-      try { await saveCompletionDateAction(transaction.id, completionInput || null); }
-      finally { setSaving(false); }
-    });
-  }
-
-  function saveAgentFee() {
-    setSaving(true);
-    setEditingAgentFee(false);
-    setAgentFeeAmountPence(null);
-    setAgentFeePercentStr("");
-    const vatInclusive = agentFeeVat === "inclusive";
-    const amount = agentFeeType === "amount" ? agentFeeAmountPence : null;
-    const percent = agentFeeType === "percent" ? parseFloat(agentFeePercentStr) : null;
-    startTransition(async () => {
-      try {
-        await saveAgentFeeAction({ transactionId: transaction.id, agentFeeAmount: amount, agentFeePercent: percent, agentFeeIsVatInclusive: vatInclusive });
-      } finally { setSaving(false); }
-    });
-  }
-
-  function openReferralEdit() {
-    const firmId = transaction.referredFirmId ?? "";
-    let feePence = transaction.referralFee ?? null;
-    // If firm is already set but fee is missing, pre-fill from the firm's default
-    if (firmId && feePence == null && recommendedFirms) {
-      const firm = recommendedFirms.find((f) => f.id === firmId);
-      if (firm?.defaultReferralFeePence != null) feePence = firm.defaultReferralFeePence;
-    }
-    setEditFirmId(firmId);
-    setEditFeePence(feePence);
-    setEditingReferral(true);
-  }
-
-  function handleReferralFirmChange(firmId: string) {
-    setEditFirmId(firmId);
-    if (firmId && recommendedFirms) {
-      const firm = recommendedFirms.find((f) => f.id === firmId);
-      if (firm?.defaultReferralFeePence != null) setEditFeePence(firm.defaultReferralFeePence);
-    }
-  }
-
-  function saveReferral() {
-    // If fee wasn't set, fall back to the selected firm's default fee
-    let feePence = editFeePence;
-    if (feePence == null && editFirmId && recommendedFirms) {
-      const firm = recommendedFirms.find((f) => f.id === editFirmId);
-      feePence = firm?.defaultReferralFeePence ?? null;
-    }
-    setSaving(true);
-    setEditingReferral(false);
-    startTransition(async () => {
-      try {
-        await saveReferralAction(transaction.id, {
-          referredFirmId: editFirmId || null,
-          referralFee: feePence,
-          referralFeeReceived: false,
-        });
-      } finally { setSaving(false); }
-    });
-  }
+  const progressorFeePence = showOurFee && ourFee.fee != null ? ourFee.fee : 0;
+  const totalFeesPence =
+    (agentFeeCalcPence ?? 0)
+    + (transaction.referralFee ?? 0)
+    + (transaction.brokerReferralFee ?? 0)
+    - progressorFeePence;
+  const hasTotal = agentFeeCalcPence != null;
 
   const onTrackColors = {
     on_track: { bg: "bg-green-100",  text: "text-green-700",  label: "On track" },
@@ -207,6 +116,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   const trackStyle = onTrackColors[progress.onTrack];
 
   return (
+    <>
     <div className="space-y-4">
 
       {/* Progress card */}
@@ -243,64 +153,24 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
           <div>
             <p className="text-xs text-slate-900/40 mb-0.5">Predicted exchange</p>
-            {editingOverride ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={overrideInput}
-                  onChange={(e) => setOverrideInput(e.target.value)}
-                  className="glass-input px-2 py-1 text-sm"
-                />
-                <button onClick={saveOverride} disabled={saving || isPending}
-                  className="text-xs agent-link-primary font-medium">Save</button>
-                <button onClick={() => setEditingOverride(false)}
-                  className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <p className={`text-sm font-semibold ${
-                  transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"
-                }`}>
-                  {progress.predictedExchangeDate
-                    ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                    : "—"}
-                  {transaction.overridePredictedDate && (
-                    <span className="ml-1 text-xs text-blue-500">(overridden)</span>
-                  )}
-                </p>
-                <button onClick={() => setEditingOverride(true)}
-                  className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
-              </div>
-            )}
+            <p className={`text-sm font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
+              {progress.predictedExchangeDate
+                ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                : "—"}
+              {transaction.overridePredictedDate && (
+                <span className="ml-1 text-xs text-blue-500">(overridden)</span>
+              )}
+            </p>
           </div>
 
           <div>
             <p className="text-xs text-slate-900/40 mb-0.5">Completion date</p>
             {exchangeConfirmed ? (
-              editingCompletion ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={completionInput}
-                    onChange={(e) => setCompletionInput(e.target.value)}
-                    className="glass-input px-2 py-1 text-sm"
-                  />
-                  <button onClick={saveCompletion} disabled={saving || isPending}
-                    className="text-xs agent-link-primary font-medium">Save</button>
-                  <button onClick={() => setEditingCompletion(false)}
-                    className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <p className={`text-sm font-semibold ${transaction.completionDate ? "text-emerald-700" : "text-slate-900/40"}`}>
-                    {transaction.completionDate
-                      ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                      : "Not set"}
-                  </p>
-                  <button onClick={() => setEditingCompletion(true)}
-                    className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
-                </div>
-              )
+              <p className={`text-sm font-semibold ${transaction.completionDate ? "text-emerald-700" : "text-slate-900/40"}`}>
+                {transaction.completionDate
+                  ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                  : "Not set"}
+              </p>
             ) : (
               <p className="text-sm text-slate-900/30 italic">Set once exchange is confirmed</p>
             )}
@@ -354,148 +224,42 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
       {/* Price & fees card */}
       <div className="glass-card p-5">
-        <p className="glass-section-label text-slate-900/40 mb-4">Price & Fees</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="glass-section-label text-slate-900/40">Price &amp; Fees</p>
+          <button
+            onClick={() => setShowEditDrawer(true)}
+            className="flex items-center gap-1 text-xs text-slate-900/65 hover:text-slate-900/85 transition-colors"
+          >
+            <PencilSimple size={11} />
+            Edit details
+          </button>
+        </div>
 
         <div className="space-y-3">
           {/* Purchase price */}
           <div>
             <p className="text-xs text-slate-900/40 mb-1">Purchase price</p>
-            {editingPrice ? (
-              <div className="flex items-center gap-2">
-                <PriceInput
-                  value={pricePence}
-                  onChange={setPricePence}
-                  size="sm"
-                  className="w-32"
-                />
-                <button onClick={savePrice} disabled={saving || isPending || pricePence == null}
-                  className="text-xs agent-link-primary font-semibold disabled:opacity-40">Save</button>
-                <button onClick={() => setEditingPrice(false)}
-                  className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-slate-900/90">
-                  {formatPrice(transaction.purchasePrice)}
-                </p>
-                <button onClick={() => setEditingPrice(true)}
-                  className="text-xs text-slate-900/30 hover:text-slate-900/60">Edit</button>
-              </div>
-            )}
+            <p className="text-sm font-bold text-slate-900/90">{formatPrice(transaction.purchasePrice)}</p>
           </div>
 
           {/* Tenure + purchase type */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              {transaction.tenure && (
-                <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                  {transaction.tenure}
-                </span>
-              )}
-              {transaction.purchaseType && (
-                <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                  {transaction.purchaseType.replace(/_/g, " ")}
-                </span>
-              )}
-            </div>
-            {transaction.tenure && transaction.purchaseType && (
-              <button
-                onClick={() => setShowSaleDetailsModal(true)}
-                className="text-xs text-slate-900/30 hover:text-slate-900/60 flex-shrink-0"
-              >
-                Edit
-              </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {transaction.tenure && (
+              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
+                {transaction.tenure}
+              </span>
+            )}
+            {transaction.purchaseType && (
+              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
+                {transaction.purchaseType.replace(/_/g, " ")}
+              </span>
             )}
           </div>
 
-          {showSaleDetailsModal && transaction.tenure && transaction.purchaseType && (
-            <EditSaleDetailsModal
-              transactionId={transaction.id}
-              currentPurchaseType={transaction.purchaseType}
-              currentTenure={transaction.tenure}
-              onClose={() => setShowSaleDetailsModal(false)}
-            />
-          )}
-
-          {/* Progressor fee — progressors always, directors only on agent side */}
-          {showOurFee && (
-            <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Progressor fee</p>
-              <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
-              <p className="text-xs text-slate-900/40">{ourFee.label}</p>
-            </div>
-          )}
-
           {/* Agent fee */}
           <div className="pt-2 border-t border-white/20">
-            <div className="flex items-center justify-between mb-0.5">
-              <p className="text-xs text-slate-900/40">Agent fee</p>
-              {!editingAgentFee && (
-                <button onClick={() => setEditingAgentFee(true)}
-                  className="text-xs text-slate-900/30 hover:text-slate-900/60">
-                  {transaction.agentFeeAmount || transaction.agentFeePercent ? "Edit" : "Set"}
-                </button>
-              )}
-            </div>
-            {editingAgentFee ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setAgentFeeType("amount")}
-                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "amount" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-white/30 text-slate-900/50 bg-white/30"}`}
-                  >
-                    Fixed £
-                  </button>
-                  <button
-                    onClick={() => setAgentFeeType("percent")}
-                    className={`flex-1 py-1 text-xs rounded border transition-colors ${agentFeeType === "percent" ? "bg-blue-50 border-blue-300 text-blue-700" : "border-white/30 text-slate-900/50 bg-white/30"}`}
-                  >
-                    %
-                  </button>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {agentFeeType === "amount" ? (
-                    <PriceInput
-                      value={agentFeeAmountPence}
-                      onChange={setAgentFeeAmountPence}
-                      size="sm"
-                      className="w-28"
-                      placeholder="1,500"
-                    />
-                  ) : (
-                    <>
-                      <input
-                        type="number"
-                        value={agentFeePercentStr}
-                        onChange={(e) => setAgentFeePercentStr(e.target.value)}
-                        placeholder="e.g. 1.5"
-                        inputMode="decimal"
-                        className="glass-input w-24 px-2 py-1 text-sm"
-                      />
-                      <span className="text-xs text-slate-900/50">%</span>
-                    </>
-                  )}
-                </div>
-                <select
-                  value={agentFeeVat}
-                  onChange={(e) => setAgentFeeVat(e.target.value as "inclusive" | "exclusive")}
-                  className="glass-input w-full px-2 py-1 text-xs"
-                >
-                  <option value="exclusive">+ VAT</option>
-                  <option value="inclusive">Inc VAT</option>
-                </select>
-                <div className="flex gap-2">
-                  <button onClick={saveAgentFee} disabled={saving || (agentFeeType === "amount" ? agentFeeAmountPence == null : !agentFeePercentStr)}
-                    className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40">
-                    {saving ? "…" : "Save"}
-                  </button>
-                  <button onClick={() => { setEditingAgentFee(false); setAgentFeeAmountPence(null); setAgentFeePercentStr(""); }}
-                    className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : transaction.agentFeeAmount ? (
+            <p className="text-xs text-slate-900/40 mb-0.5">Agent fee</p>
+            {transaction.agentFeeAmount ? (
               <p className="text-sm font-semibold text-slate-900/90">
                 {formatFee(transaction.agentFeeAmount)}
                 {transaction.agentFeeIsVatInclusive !== null && (
@@ -523,43 +287,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             )}
           </div>
 
-          {/* Referral fee */}
+          {/* Solicitor referral fee */}
           {((recommendedFirms != null && recommendedFirms.length > 0) || transaction.referredFirmName) && (
             <div className="pt-2 border-t border-white/20">
-              <div className="flex items-center justify-between mb-0.5">
-                <p className="text-xs text-slate-900/40">Referral fee</p>
-                {recommendedFirms != null && recommendedFirms.length > 0 && !editingReferral && (
-                  <button onClick={openReferralEdit}
-                    className="text-xs text-slate-900/30 hover:text-slate-900/60">
-                    {transaction.referredFirmName ? "Edit" : "Set"}
-                  </button>
-                )}
-              </div>
-              {editingReferral ? (
-                <div className="space-y-2 mt-1">
-                  <select
-                    value={editFirmId}
-                    onChange={(e) => handleReferralFirmChange(e.target.value)}
-                    className="glass-input w-full px-2 py-1 text-xs"
-                  >
-                    <option value="">— select firm —</option>
-                    {recommendedFirms!.map((f) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
-                  <PriceInput value={editFeePence} onChange={setEditFeePence} size="sm" className="w-32" />
-                  <div className="flex gap-2">
-                    <button onClick={saveReferral} disabled={saving || isPending || !editFirmId}
-                      className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40">
-                      {saving ? "…" : "Save"}
-                    </button>
-                    <button onClick={() => setEditingReferral(false)}
-                      className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : transaction.referredFirmName ? (
+              <p className="text-xs text-slate-900/40 mb-0.5">Solicitor referral</p>
+              {transaction.referredFirmName ? (
                 <>
                   <p className="text-sm font-semibold text-slate-900/90">
                     {transaction.referralFee != null ? formatFee(transaction.referralFee) : "No fee set"}
@@ -572,16 +304,61 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             </div>
           )}
 
-          {/* Total agency income — only when both agent fee (fixed) and referral fee are set */}
-          {transaction.agentFeeAmount && transaction.referralFee ? (
+          {/* Broker referral fee */}
+          {transaction.brokerFirmName && (
             <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Total agency income</p>
-              <p className="text-sm font-bold text-emerald-700">{formatFee(transaction.agentFeeAmount + transaction.referralFee)}</p>
-              <p className="text-xs text-slate-900/40">Agent fee + referral fee</p>
+              <p className="text-xs text-slate-900/40 mb-0.5">Broker referral</p>
+              <p className="text-sm font-semibold text-slate-900/90">
+                {transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "No fee set"}
+              </p>
+              <p className="text-xs text-slate-900/40">{transaction.brokerFirmName}</p>
             </div>
-          ) : null}
+          )}
+
+          {/* Progressor fee */}
+          {showOurFee && (
+            <div className="pt-2 border-t border-white/20">
+              <p className="text-xs text-slate-900/40 mb-0.5">Progressor fee</p>
+              <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
+              <p className="text-xs text-slate-900/40">{ourFee.label}</p>
+            </div>
+          )}
+
+          {/* Total */}
+          {hasTotal && (
+            <div className="pt-3 mt-1 border-t-2 border-white/40">
+              <p className="text-xs text-slate-900/40 mb-0.5">Net income</p>
+              <p className="text-base font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
+              {transaction.agentFeeIsVatInclusive === false && (
+                <p className="text-xs text-slate-900/40">Agent fee excludes VAT</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
+
+    {showEditDrawer && (
+      <EditSaleDetailsDrawer
+        transactionId={transaction.id}
+        propertyAddress={transaction.propertyAddress}
+        tenure={transaction.tenure ?? null}
+        purchaseType={transaction.purchaseType ?? null}
+        purchasePrice={transaction.purchasePrice ?? null}
+        agentFeeAmount={transaction.agentFeeAmount ?? null}
+        agentFeePercent={transaction.agentFeePercent ?? null}
+        agentFeeIsVatInclusive={transaction.agentFeeIsVatInclusive ?? null}
+        referralFee={transaction.referralFee ?? null}
+        referredFirmName={transaction.referredFirmName ?? null}
+        referredFirmId={transaction.referredFirmId ?? null}
+        recommendedFirms={recommendedFirms}
+        overridePredictedDate={transaction.overridePredictedDate ?? null}
+        predictedExchangeDate={progress.predictedExchangeDate ?? null}
+        completionDate={transaction.completionDate ?? null}
+        exchangeConfirmed={exchangeConfirmed}
+        onClose={() => setShowEditDrawer(false)}
+      />
+    )}
+    </>
   );
 }

@@ -520,7 +520,7 @@ export async function sendAdminMilestoneNotificationToPortal(
 ): Promise<void> {
   // Exchange gets the rich "what happens next" pack — delegate entirely
   if (milestoneCode === "VM19" || milestoneCode === "PM26") {
-    return sendExchangeCompletionPack(transactionId);
+    return sendExchangeCompletionPack(transactionId, milestoneCode, confirmerId);
   }
 
   const tx = await prisma.propertyTransaction.findUnique({
@@ -824,8 +824,8 @@ async function sendRichMilestoneEmails(
     logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 
-  // Agent notification — BUG2: suppress self-notification on self-managed when agent is the confirmer
-  const skipAgentEmail = serviceType === "self_managed" && tx.agentUser?.id === confirmerId;
+  // Agent notification — only on outsourced files; self-managed agents manage their own files
+  const skipAgentEmail = serviceType === "self_managed";
   if (tx.agentUser?.email && emailCopy.vendorAgent && !skipAgentEmail) {
     const copy    = emailCopy.vendorAgent;
     const vars    = { address, eventDate: eventDateVar, eventDateClause };
@@ -851,15 +851,18 @@ async function sendRichMilestoneEmails(
   return true;
 }
 
-async function sendExchangeCompletionPack(transactionId: string): Promise<void> {
+async function sendExchangeCompletionPack(transactionId: string, milestoneCode = "VM19", confirmerId?: string): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
       propertyAddress: true,
       completionDate: true,
+      serviceType: true,
       contacts: {
         select: { id: true, name: true, email: true, roleType: true, portalToken: true },
       },
+      agentUser: { select: { id: true, name: true, email: true } },
+      assignedUser: { select: { name: true, email: true } },
     },
   });
   if (!tx) return;
@@ -881,23 +884,23 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
     <ul style="padding-left:20px;line-height:2">
       <li>Your solicitor will handle the transfer of funds — you don't need to be at the property.</li>
       <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
-      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to your agent).</li>
+      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${tx.agentUser?.name ?? "your agent"} or a member of our team).</li>
       <li>Leave appliance manuals, warranties, and service records — the buyer is entitled to these.</li>
       <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
     </ul>`;
-  const vendorBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to your agent).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`;
+  const vendorBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${tx.agentUser?.name ?? "your agent"} or a member of our team).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`;
 
   const purchaserBodyHtml = `
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. Your purchase is now legally committed.</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
-      <li>Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.</li>
+      <li>Keys are usually available from midday, once your solicitor confirms completion. ${tx.agentUser?.name ?? "Your agent"} or a member of our team will let you know.</li>
       <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
-      <li>Risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building.</li>
+      <li>From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.</li>
       <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
     </ul>`;
-  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. Your agent will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- Risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${tx.agentUser?.name ?? "Your agent"} or a member of our team will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
   const vendorIds: string[] = [];
   for (const c of vendors) {
@@ -937,6 +940,25 @@ async function sendExchangeCompletionPack(transactionId: string): Promise<void> 
   }
   if (purchaserIds.length > 0) {
     logAutomatedEmail(transactionId, purchaserIds, "Contracts exchanged — what happens next for your purchase", purchaserBodyPlain).catch(() => {});
+  }
+
+  // Agent email — once only, on VM19 (PM26 is suppressed), outsourced files only
+  if (milestoneCode === "VM19" && tx.agentUser?.email && tx.serviceType !== "self_managed") {
+    const completionDateStr = tx.completionDate
+      ? new Date(tx.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : "to be confirmed";
+    const dashUrl = `${base}/transactions/${transactionId}`;
+    const agentCopy = getMilestoneCopy("VM19").emailCopy?.vendorAgent;
+    if (agentCopy) {
+      const greeting = buildGreeting(tx.agentUser.name);
+      const progressorName = tx.assignedUser?.name ?? "Your sales progressor";
+      const progressorEmail = tx.assignedUser?.email ?? "";
+      const extraVars = { address, completionDate: completionDateStr };
+      const html = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType: tx.serviceType ?? undefined, extraVars });
+      const subject = interpolate(agentCopy.subject, { address });
+      const text = [greeting, "", interpolate(agentCopy.whatHappened, extraVars)].join("\n");
+      sendEmail({ to: tx.agentUser.email, subject, text, html }).catch(() => {});
+    }
   }
 }
 

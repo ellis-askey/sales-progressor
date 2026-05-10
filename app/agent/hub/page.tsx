@@ -17,12 +17,13 @@ import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import {
   ExchangeForecastChart, ServiceSplitDonut,
-  MomentumRing, RefreshButton,
+  MomentumRing,
 } from "@/components/hub/HubCharts";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AlertCircle, ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,16 +54,6 @@ function fmtCompact(pence: number): string {
   if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (p >= 1_000)     return `£${Math.round(p / 1_000)}k`;
   return `£${Math.round(p)}`;
-}
-
-function formatAsOf(date: Date): string {
-  try {
-    return date.toLocaleTimeString("en-GB", {
-      timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false,
-    });
-  } catch {
-    return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-  }
 }
 
 function timeAgo(date: Date): string {
@@ -105,7 +96,6 @@ export default async function HubPreviewPage() {
   const next7Days      = weeklyForecast[0]?.count ?? 0;
   const next30Days     = weeklyForecast.reduce((s, w) => s + w.count, 0);
   const savedHours     = Math.round(serviceSplit.outsourced * 2.5);
-  const updatedAt      = new Date();
   const greeting       = getGreeting(session.user.name ?? "there");
   const isEmpty        = pipelineStats.activeFiles === 0 && attentionItems.length === 0;
 
@@ -114,57 +104,16 @@ export default async function HubPreviewPage() {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        {/* Header — same as full hub */}
-        <div
-          className="agent-glass-strong"
-          style={{
-            padding: "22px 32px 26px",
-            borderBottom: "0.5px solid var(--agent-glass-border)",
-            position: "relative", overflow: "hidden",
-          }}
-        >
-          <div aria-hidden="true" style={{
-            position: "absolute", top: -70, right: -50,
-            width: 280, height: 280, borderRadius: "50%", pointerEvents: "none",
-            background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
-          }} />
-          <div style={{ position: "relative" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-              <RefreshButton updatedLabel={`As of ${formatAsOf(updatedAt)}`} />
-            </div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h1 style={{
-                  margin: 0,
-                  fontSize: "var(--agent-text-h2)",
-                  fontWeight: "var(--agent-weight-semibold)",
-                  color: "var(--agent-text-primary)",
-                  letterSpacing: "var(--agent-tracking-tight)",
-                  lineHeight: "var(--agent-line-tight)",
-                }}>
-                  {greeting}
-                </h1>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
-                  Here&apos;s what matters today.
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                <Link
-                  href="/agent/transactions/new"
-                  className="agent-btn agent-btn-primary agent-btn-md"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Plus size={16} weight="bold" />
-                  New sale
-                </Link>
-                <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeader title={greeting} subtitle="Here's what matters today.">
+          <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+            <Plus size={14} weight="bold" />
+            New sale
+          </Link>
+          <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
+        </PageHeader>
 
         {/* Content: welcome card + ghost cards */}
-        <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ padding: "8px 32px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Welcome CTA */}
           <div className="agent-glass" style={{
@@ -284,66 +233,20 @@ export default async function HubPreviewPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-      {/* ── 1. Header ─────────────────────────────────────────────────────────── */}
-      <div
-        className="agent-glass-strong hub-header-pad"
-        style={{
-          padding: "22px 32px 26px",
-          borderBottom: "0.5px solid var(--agent-glass-border)",
-          position: "relative", overflow: "hidden",
-        }}
-      >
-        {/* Ambient coral bloom */}
-        <div aria-hidden="true" style={{
-          position: "absolute", top: -70, right: -50,
-          width: 280, height: 280, borderRadius: "50%", pointerEvents: "none",
-          background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
-        }} />
-
-        <div style={{ position: "relative" }}>
-          {/* Refresh timestamp */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-            <RefreshButton updatedLabel={`As of ${formatAsOf(updatedAt)}`} />
-          </div>
-
-          {/* Greeting + actions */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: "var(--agent-text-h2)",
-                fontWeight: "var(--agent-weight-semibold)",
-                color: "var(--agent-text-primary)",
-                letterSpacing: "var(--agent-tracking-tight)",
-                lineHeight: "var(--agent-line-tight)",
-              }}>
-                {greeting}
-              </h1>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)" }}>
-                Here&apos;s what matters today.
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <Link
-                href="/agent/transactions/new"
-                className="agent-btn agent-btn-primary agent-btn-md"
-                style={{ textDecoration: "none" }}
-              >
-                <Plus size={16} weight="bold" />
-                New sale
-              </Link>
-              <AgentFlagButton
-                transactionId={null}
-                address="general"
-                label="Send note to progressor"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader title={greeting} subtitle="Here's what matters today.">
+        <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+          <Plus size={14} weight="bold" />
+          New sale
+        </Link>
+        <AgentFlagButton
+          transactionId={null}
+          address="general"
+          label="Send note to progressor"
+        />
+      </PageHeader>
 
       {/* ── Content ────────────────────────────────────────────────────────────── */}
-      <div className="hub-content-pad" style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="hub-content-pad" style={{ padding: "8px 32px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}
         {diaryItems.length > 0 && (

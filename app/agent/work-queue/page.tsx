@@ -1,11 +1,14 @@
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { getWorkQueueItems } from "@/lib/services/work-queue";
+import { getWorkQueueItems, txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
 import { FileAlertsStrip } from "@/components/reminders/FileAlertsStrip";
 import { prisma } from "@/lib/prisma";
 import { Bell } from "@phosphor-icons/react/dist/ssr";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { StatPill } from "@/components/layout/StatPill";
+import type { PillColor } from "@/components/layout/StatPill";
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -37,7 +40,7 @@ export default async function WorkQueuePage() {
   const [items, reminderLogs, activeFileCount] = await Promise.all([
     getWorkQueueItems(vis),
     getAgentReminderLogs(vis),
-    prisma.propertyTransaction.count({ where: { agencyId: session.user.agencyId, status: { in: ["active", "on_hold"] } } }),
+    prisma.propertyTransaction.count({ where: { ...txWhereWorkQueue(vis), status: { in: ["active", "on_hold"] } } }),
   ]);
 
   const now = new Date();
@@ -53,62 +56,70 @@ export default async function WorkQueuePage() {
     else if (g === "coming_up") comingUpCount++;
   }
 
-  const statSegments: { label: string; anchor: string; color: string }[] = [];
-  if (overdueCount > 0)  statSegments.push({ label: `${overdueCount} overdue`,   anchor: "#section-overdue",  color: "var(--agent-danger)"   });
-  if (dueTodayCount > 0) statSegments.push({ label: `${dueTodayCount} due today`, anchor: "#section-due_today", color: "var(--agent-warning)"  });
-  if (comingUpCount > 0) statSegments.push({ label: `${comingUpCount} coming up`, anchor: "#section-upcoming",  color: "var(--agent-text-muted)" });
+  const statSegments: { label: string; anchor: string; colorKey: PillColor }[] = [];
+  if (overdueCount > 0)  statSegments.push({ label: `${overdueCount} overdue`,   anchor: "#section-overdue",  colorKey: "danger"  });
+  if (dueTodayCount > 0) statSegments.push({ label: `${dueTodayCount} due today`, anchor: "#section-due_today", colorKey: "warning" });
+  if (comingUpCount > 0) statSegments.push({ label: `${comingUpCount} coming up`, anchor: "#section-upcoming",  colorKey: "muted"   });
 
   return (
     <>
-      {/* Header */}
-      <div style={{
-        background: "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        <div aria-hidden="true" style={{ position: "absolute", top: -60, right: -40, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -40, left: 60, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="relative px-4 pt-6 pb-7 md:px-8">
-          <h1 style={{ margin: 0, fontSize: "var(--agent-text-h1)", fontWeight: "var(--agent-weight-semibold)", color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: "var(--agent-line-tight)" }}>
-            Reminders
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-tertiary)" }}>
-            What needs chasing, today and ahead.
-          </p>
-          {statSegments.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0, marginTop: 10 }}>
-              {statSegments.map((seg, i) => (
-                <span key={seg.anchor} style={{ display: "inline-flex", alignItems: "center" }}>
-                  {i > 0 && <span style={{ margin: "0 6px", color: "var(--agent-text-muted)", fontSize: 11, opacity: 0.4 }}>·</span>}
-                  <a
-                    href={seg.anchor}
-                    style={{ fontSize: 12, fontWeight: 500, color: seg.color, textDecoration: "none" }}
-                  >
-                    {seg.label}
-                  </a>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Reminders" subtitle="What needs chasing, today and ahead.">
+        {statSegments.map(seg => (
+          <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
+        ))}
+      </PageHeader>
 
-      <div className="px-4 md:px-8 py-5 md:py-7 space-y-6">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
         {items.length > 0 && <FileAlertsStrip items={items} />}
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-            <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
-            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              Your reminders will appear here
-            </p>
-            <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              Once you create a sale, we&apos;ll surface chases and follow-ups as files progress.
-            </p>
-          </div>
+          <>
+            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+              <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                Your reminders will appear here
+              </p>
+              <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                Once you create a sale, we&apos;ll surface chases and follow-ups as files progress.
+              </p>
+            </div>
+
+            {/* Ghost reminder groups preview */}
+            <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 20 }}>
+              {[
+                { groupLabel: "Overdue", color: "#dc2626", reminders: [
+                  { addr: "14 Maple Close, Birmingham", milestone: "Mortgage offer — chaser due", tag: "3 days overdue" },
+                  { addr: "8 The Crescent, Bristol", milestone: "Search results — follow-up", tag: "1 day overdue" },
+                ]},
+                { groupLabel: "Due today", color: "#d97706", reminders: [
+                  { addr: "22 Victoria Road, Manchester", milestone: "Contract pack — review", tag: "Due today" },
+                ]},
+              ].map(({ groupLabel, color, reminders }) => (
+                <div key={groupLabel}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{groupLabel}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, borderRadius: 99, padding: "1px 7px" }}>{reminders.length}</span>
+                  </div>
+                  <div className="agent-glass-strong" style={{ borderRadius: 12, overflow: "hidden" }}>
+                    {reminders.map((r, i) => (
+                      <div key={i} style={{
+                        padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
+                        borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.addr}</p>
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{r.milestone}</p>
+                        </div>
+                        <div style={{ flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, color, background: `${color}12`, borderRadius: 6, padding: "3px 8px" }}>{r.tag}</span>
+                          <div style={{ height: 30, width: 70, borderRadius: 8, background: "rgba(255,255,255,0.6)", border: "0.5px solid var(--agent-border-subtle)" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <AgentRemindersList logs={reminderLogs} />
         )}

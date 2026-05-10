@@ -34,7 +34,8 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
     return (
       <button
         onClick={() => setOpen(true)}
-        className="agent-btn agent-btn-secondary agent-btn-sm"
+        className="agent-btn agent-btn-md"
+        style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.15)", boxShadow: "none", backdropFilter: "none" }}
       >
         {label ?? "Flag to progressor"}
       </button>
