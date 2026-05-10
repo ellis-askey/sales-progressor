@@ -334,7 +334,7 @@ export default async function AgentTransactionDetailPage({
                     <p className="text-xs text-slate-900/40 mt-0.5">{lastUpdate.completedAt ? relativeDate(lastUpdate.completedAt) : ""}</p>
                   </div>
                 ) : (
-                  <span className="text-sm text-slate-900/30 italic">No progress yet</span>
+                  <span className="text-sm text-slate-900/50 italic">Sale added{agentUser?.name ? ` by ${agentUser.name}` : ""}</span>
                 )}
               </MetaField>
             </div>
