@@ -2,14 +2,10 @@
 // components/transaction/TransactionSidebar.tsx
 // Shows purchase price, fees, progress, and exchange prediction.
 
-function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }) {
-  const r = 32;
+function ProgressRing({ percent }: { percent: number }) {
+  const r = 28;
   const circ = 2 * Math.PI * r;
   const target = circ * (1 - percent / 100);
-  const stroke =
-    onTrack === "on_track" ? "#10b981" :
-    onTrack === "at_risk"  ? "#f59e0b" :
-    onTrack === "off_track"? "#ef4444" : "#3b82f6";
 
   const prefersRM = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [offset, setOffset] = useState(prefersRM ? target : circ);
@@ -23,7 +19,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   }, []);
 
   return (
-    <div className="relative flex-shrink-0 w-20 h-20">
+    <div className="relative flex-shrink-0 w-[72px] h-[72px]">
       <style>{`
         @keyframes ring-glow-pulse {
           0%, 100% { opacity: 1; }
@@ -33,25 +29,25 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
           .ring-glow { animation: none; }
         }
       `}</style>
-      <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(160,120,80,0.18)" strokeWidth="8" />
+      <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
+        <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(160,120,80,0.18)" strokeWidth="6" />
         <circle
-          cx="40" cy="40" r={r} fill="none"
-          stroke={stroke} strokeWidth="8"
+          cx="36" cy="36" r={r} fill="none"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={offset}
           className="ring-glow"
           style={{
+            stroke: "var(--agent-coral-deep)",
             transition: prefersRM ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)",
-            filter: percent > 0 ? `drop-shadow(0 0 5px ${stroke}90)` : "none",
+            filter: percent > 0 ? "drop-shadow(0 0 5px rgba(255,107,74,0.56))" : "none",
             animation: percent > 0 ? "ring-glow-pulse 3s ease-in-out infinite" : "none",
           }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-slate-900/80 leading-none">{percent}</span>
-        <span className="text-[10px] text-slate-900/40 font-medium">%</span>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[15px] font-bold text-slate-900/80 leading-none">{percent}%</span>
       </div>
     </div>
   );
@@ -138,11 +134,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     <div className="space-y-4">
 
       {/* Progress card */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4">
         <p className="agent-sidebar-label mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
-          <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
+          <ProgressRing percent={progress.percent} />
 
           <div className="flex-1 space-y-2">
             <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`}>
@@ -156,22 +152,22 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       </div>
 
       {/* Exchange dates card */}
-      <div className="glass-card p-5">
+      <div className="glass-card px-4 py-3">
         <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
-          <div>
-            <p className="text-xs text-slate-900/40 mb-0.5">12-week target</p>
-            <p className="text-sm font-semibold text-slate-900/90">
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-900/40">12-week target</p>
+            <p className="text-xs font-semibold text-slate-900/90">
               {progress.twelveWeekTarget
                 ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                 : "—"}
             </p>
           </div>
 
-          <div>
-            <p className="text-xs text-slate-900/40 mb-0.5">Expected exchange</p>
-            <p className={`text-sm font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-900/40">Expected exchange</p>
+            <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
               {progress.predictedExchangeDate
                 ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                 : "—"}
@@ -181,23 +177,23 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             </p>
           </div>
 
-          <div>
-            <p className="text-xs text-slate-900/40 mb-0.5">Completion date</p>
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-900/40">Completion date</p>
             {exchangeConfirmed ? (
-              <p className={`text-sm font-semibold ${transaction.completionDate ? "text-emerald-700" : "text-slate-900/40"}`}>
+              <p className={`text-xs font-semibold ${transaction.completionDate ? "text-emerald-700" : "text-slate-900/40"}`}>
                 {transaction.completionDate
                   ? new Date(transaction.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                   : "Not set"}
               </p>
             ) : (
-              <p className="text-sm text-slate-900/30 italic">Set once exchange is confirmed</p>
+              <p className="text-xs text-slate-900/30 italic">Set once exchange is confirmed</p>
             )}
           </div>
 
           {progress.weeksRemaining !== null && (
-            <div>
-              <p className="text-xs text-slate-900/40 mb-0.5">Weeks to exchange</p>
-              <p className={`text-sm font-semibold ${
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-slate-900/40">Weeks to exchange</p>
+              <p className={`text-xs font-semibold ${
                 progress.weeksRemaining < 0 ? "text-red-600" :
                 progress.weeksRemaining <= 2 ? "text-amber-600" : "text-slate-900/90"
               }`}>
@@ -215,9 +211,9 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                 {keyDates.map((kd) => {
                   const isPast = kd.eventDate < new Date();
                   return (
-                    <div key={kd.name}>
+                    <div key={kd.name} className="flex justify-between items-center">
                       <p className="text-xs text-slate-900/40 leading-snug">{kd.name}</p>
-                      <p className={`text-sm font-semibold ${isPast ? "text-slate-900/40" : "text-slate-900/90"}`}>
+                      <p className={`text-xs font-semibold ${isPast ? "text-slate-900/40" : "text-slate-900/90"}`}>
                         {kd.eventDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                         {isPast && <span className="ml-1 text-xs text-slate-900/30">(past)</span>}
                       </p>
@@ -241,8 +237,8 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       )}
 
       {/* Price & fees card */}
-      <div className="glass-card p-5">
-        <div className="flex items-center justify-between mb-4">
+      <div className="glass-card px-4 py-3">
+        <div className="flex items-center justify-between mb-3">
           <p className="agent-sidebar-label">Price &amp; Fees</p>
           <button
             onClick={() => setShowEditDrawer(true)}
