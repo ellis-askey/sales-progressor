@@ -17,31 +17,22 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
   const isRed = overdueCount > 0 && isBehind;
 
   return (
-    <div className={`agent-reveal-in rounded-xl border px-4 py-3 flex items-start gap-3 ${
+    <div className={`agent-reveal-in rounded-xl border px-4 py-3 flex items-center justify-between ${
       isRed
         ? "bg-[var(--agent-danger-bg)] border-[var(--agent-danger-border)]"
         : "bg-[var(--agent-warning-bg)] border-[var(--agent-warning-border)]"
     }`}>
-      <svg
-        className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isRed ? "text-red-500" : "text-amber-500"}`}
-        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-      </svg>
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col gap-0.5">
-          {overdueCount > 0 && (
-            <p className={`text-xs font-semibold ${isRed ? "text-red-700" : "text-amber-700"}`}>
-              {overdueCount} reminder{overdueCount !== 1 ? "s" : ""} overdue
-            </p>
-          )}
-          {isBehind && (
-            <p className={`text-xs ${isRed ? "text-red-600" : "text-amber-600"}`}>
-              File may be behind schedule
-            </p>
-          )}
-        </div>
+      <div className="flex flex-col gap-0.5">
+        {overdueCount > 0 && (
+          <p className={`text-xs font-semibold ${isRed ? "text-red-700" : "text-amber-700"}`}>
+            {overdueCount} reminder{overdueCount !== 1 ? "s" : ""} overdue
+          </p>
+        )}
+        {isBehind && (
+          <p className={`text-xs ${isRed ? "text-red-600" : "text-amber-600"}`}>
+            File may be behind schedule
+          </p>
+        )}
       </div>
       {overdueCount > 0 && (
         <button
