@@ -139,7 +139,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
       {/* Progress card */}
       <div className="glass-card p-5">
-        <p className="glass-section-label text-slate-900/40 mb-4">Progress</p>
+        <p className="agent-sidebar-label mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
           <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
@@ -157,7 +157,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
       {/* Exchange dates card */}
       <div className="glass-card p-5">
-        <p className="glass-section-label text-slate-900/40 mb-4">Exchange Forecast</p>
+        <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
           <div>
@@ -210,7 +210,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
           {keyDates.length > 0 && (
             <div className="pt-3 border-t border-white/20">
-              <p className="glass-section-label text-slate-900/40 mb-2">Key Dates</p>
+              <p className="agent-sidebar-label mb-2">Key Dates</p>
               <div className="space-y-2">
                 {keyDates.map((kd) => {
                   const isPast = kd.eventDate < new Date();
@@ -233,7 +233,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       {/* Agent card */}
       {agentUser && (
         <div className="glass-card p-5">
-          <p className="glass-section-label text-slate-900/40 mb-3">Agent</p>
+          <p className="agent-sidebar-label mb-3">Agent</p>
           <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
           {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
           <p className="text-xs text-slate-900/40 mt-0.5">{agentUser.email}</p>
@@ -243,7 +243,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       {/* Price & fees card */}
       <div className="glass-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="glass-section-label text-slate-900/40">Price &amp; Fees</p>
+          <p className="agent-sidebar-label">Price &amp; Fees</p>
           <button
             onClick={() => setShowEditDrawer(true)}
             className="text-xs agent-link"
