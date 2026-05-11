@@ -25,21 +25,22 @@ List every component imported and rendered by this page, with file paths. Includ
 
 | Component | File | Stage 4 scope | Notes |
 |---|---|---|---|
-| `AgentShell` | `components/layout/AgentShell.tsx` | Canonical classes only | Wraps the page; sidebar, topbar, toaster |
-| `MilestonePanel` | `components/milestones/MilestonePanel.tsx` | Canonical classes only | Rendered only when `completions` is loaded |
-| `ChaseDrawer` | `components/chase/ChaseDrawer.tsx` | Full visual rebuild | Portal: open state controlled by `chaseOpen` |
-| _[list every import]_ | | _[Canonical classes only / Full visual rebuild]_ | |
+| `AgentShell` | `components/layout/AgentShell.tsx` | No changes — already matches polish | Wraps the page; sidebar, topbar, toaster |
+| `MilestonePanel` | `components/milestones/MilestonePanel.tsx` | Match polish page | Rendered only when `completions` is loaded |
+| `ChaseDrawer` | `components/chase/ChaseDrawer.tsx` | Match polish page | Portal: open state controlled by `chaseOpen` |
+| _[list every import]_ | | _[Match polish page / No changes — already matches polish / Out of scope]_ | |
 
 **Stage 4 scope — mandatory declaration (one per component row):**
 
 Every component listed here must be tagged with exactly one of:
 
-- **Canonical classes only** — Stage 4 applies the class changes specified in Section 10.5 (agent-acc, agent-reveal-in, agent-link, agent-icon-btn, etc.) to this component's existing markup. Layout, spacing, and visual structure are not touched unless a specific class change happens to affect them. The polish test page is the visual target for how those class changes should look — it is not a contract for layout changes.
-- **Full visual rebuild** — Stage 4 rewrites this component's layout to match the polish test page design. The test page is both the visual target and the structural contract. Markup changes, spacing changes, and layout restructuring are all in scope.
+- **Match polish page** — Stage 4 changes this component's markup, layout, spacing, and classes to make it match the polish page. The polish page is both the visual target and the structural contract. See Section 13 for the per-section specification.
+- **No changes — already matches polish** — This component already matches the polish page visually and structurally. Stage 4 verifies but does not modify it.
+- **Out of scope** — This component is not part of this polish pass. It should not be touched in Stage 4.
 
-**Why this matters:** If a component is mocked in the Stage 2 test page (not the real import), there will be a visual gap between the test page and the production component. Without an explicit scope declaration, this gap causes Stage 4 confusion — it is unclear whether the gap is a miss (for full rebuild) or expected (for canonical-classes-only). Declaring scope here at Stage 1 resolves this before Stage 4 starts.
+**Why this matters:** Without an explicit scope declaration, Stage 4 has no basis for deciding whether a visual gap between production and the polish page is a miss to fix or an expected difference to leave alone. Declaring scope here at Stage 1 eliminates that ambiguity.
 
-**Components mocked in Stage 2 test page:** If you know at Stage 1 that a component will be mocked rather than imported in the test page (e.g. because it requires complex server data), note it in the Notes column: "Mocked in Stage 2 — inline mock, not real import." This pre-warns Stage 4 to verify the real component directly against Section 10.5 rather than relying on the test page as a reference.
+**Components mocked in Stage 2 polish page:** If you know at Stage 1 that a component will be mocked rather than imported in the polish page (e.g. because it requires complex server data), note it in the Notes column: "Mocked in Stage 2 — inline mock, not real import." This pre-warns Stage 4 to verify the real component directly against Section 13 rather than relying on the polish page as the sole reference.
 
 **Depth rule:** If a component imports sub-components that are specific to this page's behaviour (not generic UI primitives), list those too. If a sub-component is generic (e.g. a `Button` or `Input`), list it once and omit its children.
 
@@ -301,7 +302,27 @@ List anything on this page that must not change in this pass.
 
 ---
 
-## Amendments
+## 13. Per-section visual specification
+
+This section is the visual contract for Stage 4. One row per visible section of the polish page, top to bottom. Stage 4 is not complete until every in-scope row reads "Done."
+
+| Section name | Polish-page structure | Production component(s) | Current state vs polish | Stage 4 changes required |
+|---|---|---|---|---|
+| _[e.g. Next milestone widget]_ | `glass-card overflow-hidden rounded-[12px]`. CardHdr: `px-4 py-3 border-b border-white/20`, title `text-xs font-semibold text-slate-900/70`. Body: `px-5 py-4`. | `components/milestones/NextMilestoneWidget.tsx` | External `<section>` wrapper; title `text-sm font-bold`. | Wrap in `glass-card overflow-hidden rounded-[12px]`. Add CardHdr. Match body padding. |
+| _[list every section]_ | | | | |
+
+**Filling this section at Stage 1:**
+- Walk the polish page top to bottom, section by section
+- For each section: note the outermost wrapper class(es), the header pattern (CardHdr or plain `<p>`), and any structural specifics (divide-y, px-5 py-4, etc.)
+- Note which production component renders that section
+- Note what currently differs — best guess at Stage 1, corrected via Amendments if wrong
+- "Stage 4 changes required" must be specific enough that Stage 4 can execute it without re-reading the polish page
+
+**This section is the primary gate for Stage 4 sign-off.** Visual parity across every in-scope row must be confirmed before the gate closes.
+
+---
+
+## 14. Amendments
 
 _(Empty until Stage 2 begins. Mid-flight discoveries are appended here with timestamp and brief description.)_
 

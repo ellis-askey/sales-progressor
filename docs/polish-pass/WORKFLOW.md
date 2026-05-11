@@ -165,23 +165,25 @@ Items 1–10 must all have either a Playwright assertion or a "requires Ellis br
 
 ### Stage 4 — Production swap
 
-**The inventory is the contract. The polish page is the visual target.**
+Stage 4 transplants the polish page's visual design onto production components. The polish page is the contract — production must look like the polish page when Stage 4 is done. Structural markup changes, layout reflows, hierarchy changes, and component restructuring are all in scope, alongside canonical class application.
 
-Stage 4 is a mechanical walk of the inventory's Section 12 task list against each production component file. The polish test page is useful for confirming *what it should look like* — it is not what gets applied. The task list in the inventory is what gets applied, line by line. If an item is in Section 12 but not on the test page, it still gets applied. If something is on the test page but not in Section 12, it is out of scope for Stage 4.
+Every prop, server action, useOptimistic hook, conditional render, and edge case catalogued in the Stage 1 inventory must survive the transplant unchanged. The visual layer changes; the wiring does not.
 
-This distinction matters especially for mocked components (see Stage 2 above): the mock shows the visual direction, but the production file must be walked against the same inventory task list independently.
+If during Stage 4 you find that something on the polish page doesn't work for production (e.g. real data breaks the layout, an edge case the mock didn't anticipate), do not change the polish page during Stage 4. Stop, escalate, return to Stage 2, amend the polish page with Ellis's sign-off, then resume Stage 4 against the amended polish page. The polish page is the contract; only Stage 2 can change it.
 
-**What happens:** The Stage 2 test page has proven the design and the Stage 3 pass has approved the copy. Now it is a mechanical operation:
+**What happens:** The Stage 2 test page has proven the design and the Stage 3 pass has approved the copy. Now:
 
-1. Open the production page file and its components
-2. Walk the inventory's Section 12 task list item by item — apply each task to each named component file
-3. Apply the JSX structural changes (canonical class substitutions, accordion wiring, reveal wiring)
-4. Apply the copy changes — each changed string has an `{/* OLD: */}` annotation in the test page so nothing gets lost
-5. Run `npx tsc --noEmit` — must pass clean
-6. **Commit** the changes as a single atomic commit. Message format: `polish-pass: stage 4 — [page name] ([route])`. This step is mandatory before posting "ready" — no commit, no gate.
-7. **Local-visibility check** — confirm the changes are visible on the production route URL served locally (e.g. `/agent/transactions/[id]`), NOT the polish test page (`/agent/polish/...`). The production route is the only valid verification surface for Stage 4. Run `npm run dev` if not already running; restart the dev server if needed to clear any stale build state.
-8. **Playwright on the production route** — if the production route is automatable (static ID or test account), run the gate spec against it. If it requires a real transaction ID that Claude cannot supply, state this explicitly in the gate post and Ellis runs it before sign-off.
-9. If something regresses, revert (see Rollback below) and return to Stage 2
+1. Open the production route and the polish test page side by side
+2. Section by section, audit visual match: hero, banners, tab strip, each tab's cards, sidebar, modals, drawers
+3. For each "no" — describe the gap and what the production component needs to change to close it
+4. Post the audit. No code until the audit is reviewed and authorized
+5. Implement: edit production components to match the polish page visually, preserving all wiring
+6. Apply copy changes — each changed string has an `{/* OLD: */}` annotation in the test page so nothing gets lost
+7. Run `npx tsc --noEmit` — must pass clean
+8. **Commit** the changes as a single atomic commit. Message format: `polish-pass: stage 4 — [page name] ([route])`. This step is mandatory before posting "ready" — no commit, no gate.
+9. **Local-visibility check** — confirm the production route (e.g. `/agent/transactions/[id]`) matches the polish route (e.g. `/agent/polish/transaction-detail`) visually. The production route is the only valid verification surface. Run `npm run dev` if not already running.
+10. **Playwright on the production route** — if the production route is automatable (static ID or test account), run the gate spec against it. If it requires a real transaction ID that Claude cannot supply, state this explicitly in the gate post and Ellis runs it before sign-off.
+11. If something regresses, revert (see Rollback below) and return to Stage 2
 
 **Sign-off gate — mandatory format.** Post the following block before declaring Stage 4 ready. No field may be omitted or substituted with "should work":
 
@@ -192,33 +194,50 @@ Commit: [SHA]
 Production route: [URL]
 tsc: PASS / N errors
 
-Local visibility confirmed: YES / NO (reason if NO)
-  - Checked at: [production route URL on npm run dev]
-  - Tab labels / copy visible: YES / NO
-  - Canonical classes visible in DevTools: YES / NO
+VISUAL PARITY — section-by-section (primary gate)
 
-Playwright: [N]/[N] tests passing against [route] / N/A (reason)
+Per-section spec from inventory Section 13 (Per-section visual specification):
 
-Section 12 task checklist (one row per task — no prose summaries):
-  Task 1 — .agent-acc / .agent-acc-in: applied at [file]:[line] / MISSED — [reason]
-  Task 2 — .agent-reveal-in / .agent-reveal-out: applied at [file]:[line] / MISSED — [reason]
-  Task 3 — .agent-dropdown-in: applied at [file]:[line] / MISSED — [reason]
-  Task 4 — .agent-row-flash: applied at [file]:[line] / MISSED — [reason]
-  Task 5 — .agent-btn press-down audit: [files confirmed] / gaps: [list]
-  Task 6 — .agent-segment-pill: applied at [file]:[line] / MISSED — [reason]
-  Task 7 — .agent-link / .agent-link-muted: applied at [file]:[line] per target / MISSED — [target, reason]
-  Task 8 — .agent-btn-ghost-bordered: applied at [file]:[line] / MISSED — [reason]
-  Task 9 — .agent-acc-hdr: applied at [file]:[line] / MISSED — [reason]
-  Task 10 — .agent-icon-btn: applied at [file]:[line] per target / MISSED — [target, reason]
-  Task 11 — agent-focus inputs: applied at [file]:[line] / MISSED — [reason]
-  Task 12 — agent-hover-link: [resolution]
-  [Add rows for any page-specific tasks in the inventory]
+  Section: [Hero]
+    Polish-page structure: [brief description from inventory]
+    Production after Stage 4: [matches polish / gap: describe]
+    Screenshot evidence: [filename — production route]
 
-Mocked components verified:
-  [ComponentName] — [confirmed production file walked against inventory task list / NOT verified]
+  Section: [File health banner]
+    [same format]
 
-Ellis spot-check: PENDING
-Ellis walkthrough items: [list specific items requiring Ellis browser walkthrough]
+  Section: [Tab strip]
+    [same format]
+
+  [Continue for every section in the inventory's Section 13 — no omissions]
+
+  All sections match polish page: YES / NO
+  If NO: list the gaps and the reason (e.g. polish page needs amendment, data edge case discovered, scope decision needed from Ellis)
+
+CANONICAL CLASS CHECKLIST — Section 10.5 tasks (secondary gate)
+
+  Task 1 — .agent-acc / .agent-acc-in: applied at [file]:[line] / N/A
+  Task 2 — .agent-reveal-in / .agent-reveal-out: applied at [file]:[line] / N/A
+  [... continue for all tasks ...]
+
+LOCAL VISIBILITY
+
+  Checked at: [production route URL on npm run dev]
+  Production matches polish page visually: YES / NO
+  Real-data edge cases verified: [list specific transactions / states tested]
+
+PLAYWRIGHT
+
+  [N]/[N] tests passing against [route] / N/A (reason)
+
+MOCKED COMPONENTS VERIFIED
+
+  [ComponentName] — [confirmed production file rebuilt to match polish / NOT verified]
+
+ELLIS WALKTHROUGH ITEMS
+
+  [list specific items requiring Ellis browser walkthrough]
+
 24h monitoring window: starts after Ellis deploys to production
 ```
 
