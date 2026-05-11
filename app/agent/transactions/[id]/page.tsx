@@ -348,9 +348,9 @@ export default async function AgentTransactionDetailPage({
           <RemindersWidget reminders={topReminders} totalActive={activeReminders.length} />
           <RecentActivityWidget entries={activityEntries} />
 
-          <div className="glass-card px-5 py-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900/90">Property chain</p>
+          <div className="glass-card overflow-hidden rounded-[12px]">
+            <div className="flex items-center justify-between px-4 py-3">
+              <h3 className="text-xs font-semibold text-slate-900/70">Property chain</h3>
               <ViewChainButton
                 transactionId={transaction.id}
                 currentUserId={session.user.id}

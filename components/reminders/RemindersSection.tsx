@@ -51,13 +51,6 @@ const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; lab
   upcoming:  { label: "Coming up",  headerCls: "bg-white/30 border border-white/50",        labelCls: "text-slate-900/60", badgeCls: "bg-white/60 text-slate-900/60" },
 };
 
-const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
-  escalated: "#dc2626",
-  overdue:   "#ea580c",
-  due_today: "#d97706",
-  upcoming:  "rgba(148,163,184,0.35)",
-  snoozed:   "rgba(168,85,247,0.5)",
-};
 
 const SNOOZE_OPTIONS = [
   { label: "24 h",   hours: 24 },
@@ -136,9 +129,9 @@ function SideSnoozeMenu({ taskIds, onSnooze, disabled }: { taskIds: string[]; on
       <button
         onClick={() => setOpen((p) => !p)}
         disabled={disabled}
-        style={{ fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.50)", padding: "5px 10px", borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.12)", background: "rgba(255,255,255,0.55)", cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}
+        className="agent-btn agent-btn-sm agent-btn-ghost"
       >
-        <span style={{ fontSize: 10 }}>🕐</span> Snooze all
+        🕐 Snooze all
       </button>
       {open && (
         <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
@@ -278,7 +271,7 @@ function ColumnSection({
         <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center" }}>
           <button
             onClick={() => setDrawerOpen(true)}
-            style={{ flex: 1, fontSize: 11, fontWeight: 600, color: "white", padding: "6px 10px", borderRadius: 8, border: "none", background: isSeller ? "#ea580c" : "#3b82f6", cursor: "pointer", whiteSpace: "nowrap" }}
+            className="agent-btn agent-btn-sm agent-btn-primary flex-1"
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
           </button>
@@ -401,18 +394,17 @@ export function RemindersSection({
         const logs = grouped[groupKey];
         if (logs.length === 0) return null;
         const cfg = GROUP_CONFIG[groupKey];
-        const leftBorder = GROUP_LEFT_BORDER[groupKey];
         const isCollapsed = collapsed[groupKey];
 
         const buyerLogs   = logs.filter((l) => l.reminderRule.targetMilestoneCode?.startsWith("PM"));
         const sellerLogs  = logs.filter((l) => !l.reminderRule.targetMilestoneCode?.startsWith("PM"));
 
         return (
-          <div key={groupKey}>
-            <div className={`flex items-center justify-between px-3 py-2 rounded-xl mb-2 ${cfg.headerCls}`}>
+          <div key={groupKey} className="glass-card overflow-hidden rounded-[12px]">
+            <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.badgeCls}`}>{logs.length}</span>
+                <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
+                <span className="agent-badge">{logs.length}</span>
               </div>
               <button onClick={() => toggleCollapse(groupKey)} className="text-[10px] agent-link agent-link-muted">
                 {isCollapsed ? "Show" : "Hide"}
@@ -420,15 +412,13 @@ export function RemindersSection({
             </div>
             <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
               <div className="agent-acc-in">
-                <div className="glass-card" style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}>
-                  <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
-                    {sellerLogs.length > 0
-                      ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
-                      : <EmptyColumn side="seller" />}
-                    {buyerLogs.length > 0
-                      ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
-                      : <EmptyColumn side="buyer" />}
-                  </div>
+                <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
+                  {sellerLogs.length > 0
+                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                    : <EmptyColumn side="seller" />}
+                  {buyerLogs.length > 0
+                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                    : <EmptyColumn side="buyer" />}
                 </div>
               </div>
             </div>
@@ -438,11 +428,11 @@ export function RemindersSection({
 
       {/* Snoozed */}
       {snoozedLogs.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between px-3 py-2 rounded-xl mb-2" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
+        <div className="glass-card overflow-hidden rounded-[12px]">
+          <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-purple-700">Snoozed</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{snoozedLogs.length}</span>
+              <span className="agent-acc-title text-purple-700">Snoozed</span>
+              <span className="agent-badge">{snoozedLogs.length}</span>
             </div>
             <button onClick={() => toggleCollapse("snoozed")} className="text-[10px] agent-link agent-link-muted">
               {collapsed.snoozed ? "Show" : "Hide"}
@@ -450,28 +440,26 @@ export function RemindersSection({
           </div>
           <div className={`agent-acc ${!collapsed.snoozed ? "open" : ""}`}>
             <div className="agent-acc-in">
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 p-4">
                 {snoozedLogs.map((log) => (
-                  <div key={log.id} className="glass-card" style={{ borderLeft: `4px solid ${GROUP_LEFT_BORDER.snoozed}`, borderRadius: 16, overflow: "hidden" }}>
-                    <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.80)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {stripChase(log.reminderRule.name)}
+                  <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-900/80 truncate">
+                        {stripChase(log.reminderRule.name)}
+                      </p>
+                      {log.snoozedUntil && (
+                        <p className="text-xs text-slate-900/40 mt-0.5">
+                          Wakes {new Date(log.snoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         </p>
-                        {log.snoozedUntil && (
-                          <p style={{ margin: "2px 0 0", fontSize: 10, color: "rgba(168,85,247,0.85)", fontWeight: 500 }}>
-                            Wakes {new Date(log.snoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleWakeup(log.id)}
-                        disabled={loading === log.id}
-                        style={{ fontSize: 10, fontWeight: 600, color: "rgba(168,85,247,0.85)", padding: "4px 10px", borderRadius: 8, border: "0.5px solid rgba(168,85,247,0.25)", background: "rgba(168,85,247,0.08)", cursor: "pointer", whiteSpace: "nowrap" }}
-                      >
-                        Wake up
-                      </button>
+                      )}
                     </div>
+                    <button
+                      onClick={() => handleWakeup(log.id)}
+                      disabled={loading === log.id}
+                      className="text-[10px] agent-link"
+                    >
+                      Wake up
+                    </button>
                   </div>
                 ))}
               </div>
@@ -482,19 +470,19 @@ export function RemindersSection({
 
       {/* Completed */}
       {completedLogs.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between px-3 py-2 rounded-xl mb-2" style={{ background: "rgba(255,255,255,0.25)", border: "1px solid rgba(255,255,255,0.40)" }}>
+        <div className="glass-card overflow-hidden rounded-[12px]">
+          <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-900/40">Completed</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50 text-slate-900/40">{completedLogs.length}</span>
+              <span className="agent-acc-title text-slate-900/50">Completed</span>
+              <span className="agent-badge">{completedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("completed")} className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors">
+            <button onClick={() => toggleCollapse("completed")} className="text-[10px] agent-link agent-link-muted">
               {collapsed.completed ? "Show" : "Hide"}
             </button>
           </div>
           <div className={`agent-acc ${!collapsed.completed ? "open" : ""}`}>
             <div className="agent-acc-in">
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 p-4">
                 {completedLogs.map((log) => (
                   <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5">
                     <p className="text-xs font-medium text-slate-900/60">{stripChase(log.reminderRule.name)}</p>
