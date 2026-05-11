@@ -23,12 +23,23 @@
 
 List every component imported and rendered by this page, with file paths. Include layout wrappers.
 
-| Component | File | Notes |
-|---|---|---|
-| `AgentShell` | `components/layout/AgentShell.tsx` | Wraps the page; sidebar, topbar, toaster |
-| `MilestonePanel` | `components/milestones/MilestonePanel.tsx` | Rendered only when `completions` is loaded |
-| `ChaseDrawer` | `components/chase/ChaseDrawer.tsx` | Portal: open state controlled by `chaseOpen` |
-| _[list every import]_ | | |
+| Component | File | Stage 4 scope | Notes |
+|---|---|---|---|
+| `AgentShell` | `components/layout/AgentShell.tsx` | Canonical classes only | Wraps the page; sidebar, topbar, toaster |
+| `MilestonePanel` | `components/milestones/MilestonePanel.tsx` | Canonical classes only | Rendered only when `completions` is loaded |
+| `ChaseDrawer` | `components/chase/ChaseDrawer.tsx` | Full visual rebuild | Portal: open state controlled by `chaseOpen` |
+| _[list every import]_ | | _[Canonical classes only / Full visual rebuild]_ | |
+
+**Stage 4 scope — mandatory declaration (one per component row):**
+
+Every component listed here must be tagged with exactly one of:
+
+- **Canonical classes only** — Stage 4 applies the class changes specified in Section 10.5 (agent-acc, agent-reveal-in, agent-link, agent-icon-btn, etc.) to this component's existing markup. Layout, spacing, and visual structure are not touched unless a specific class change happens to affect them. The polish test page is the visual target for how those class changes should look — it is not a contract for layout changes.
+- **Full visual rebuild** — Stage 4 rewrites this component's layout to match the polish test page design. The test page is both the visual target and the structural contract. Markup changes, spacing changes, and layout restructuring are all in scope.
+
+**Why this matters:** If a component is mocked in the Stage 2 test page (not the real import), there will be a visual gap between the test page and the production component. Without an explicit scope declaration, this gap causes Stage 4 confusion — it is unclear whether the gap is a miss (for full rebuild) or expected (for canonical-classes-only). Declaring scope here at Stage 1 resolves this before Stage 4 starts.
+
+**Components mocked in Stage 2 test page:** If you know at Stage 1 that a component will be mocked rather than imported in the test page (e.g. because it requires complex server data), note it in the Notes column: "Mocked in Stage 2 — inline mock, not real import." This pre-warns Stage 4 to verify the real component directly against Section 10.5 rather than relying on the test page as a reference.
 
 **Depth rule:** If a component imports sub-components that are specific to this page's behaviour (not generic UI primitives), list those too. If a sub-component is generic (e.g. a `Button` or `Input`), list it once and omit its children.
 

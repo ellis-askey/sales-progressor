@@ -75,6 +75,12 @@
 
 ## REMAINING / DEFERRED
 
+### Polish — agent-btn press-down (Task 5 audit, deferred from transaction-detail polish pass)
+Three buttons in inventory-touched components still use raw `bg-blue-500` instead of `agent-btn-color-primary`. No press-down state (`:active` transform). Fix is mechanical — swap class, verify color is acceptable (coral vs blue is a visual decision):
+- `components/todos/AddManualTaskForm.tsx:184` — Add task submit button
+- `components/activity/CommsEntry.tsx:214` — "Continue" button (step 3 → 4)
+- `components/activity/CommsEntry.tsx:248` — "Save" button (step 4)
+
 ### Data consistency
 - **D2** — Self-managed files appear in main pipeline analytics. Should be fully separated. (Requires analytics query audit — lower priority.)
 
