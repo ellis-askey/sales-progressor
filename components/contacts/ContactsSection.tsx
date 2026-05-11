@@ -189,38 +189,33 @@ export function ContactsSection({
   }
 
   return (
-    <section>
-      {/* ── Section header ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      {/* ── CardHdr ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900/40">Contacts</h2>
+          <h3 className="text-xs font-semibold text-slate-900/70">Contacts</h3>
           {contacts.length > 0 && (
-            <span className="text-xs bg-white/30 text-slate-900/50 rounded-full px-2 py-0.5 font-medium">
-              {contacts.length}
-            </span>
+            <span className="agent-badge">{contacts.length}</span>
           )}
         </div>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="text-xs font-semibold text-slate-900/60 hover:text-slate-900/90 transition-colors"
+            className="text-xs agent-link"
           >
-            + Add contact
+            + Add
           </button>
         )}
       </div>
 
       {/* ── Existing contacts ────────────────────────────────────────────── */}
       {contacts.length > 0 && (
-        <div className="glass-card mb-4">
-          {contacts.map((contact, i) => {
+        <div className="divide-y divide-white/15">
+          {contacts.map((contact) => {
             const role = contact.roleType as ContactRole;
             const isEditing = editingId === contact.id;
             return (
-              <div
-                key={contact.id}
-                className={`px-5 py-4 ${i !== contacts.length - 1 ? "border-b border-white/15" : ""}`}
-              >
+              <div key={contact.id} className="px-5 py-4">
                 {isEditing ? (
                   <div className="space-y-2.5">
                     <div className="grid grid-cols-3 gap-2">
@@ -247,13 +242,13 @@ export function ContactsSection({
                       <button
                         onClick={() => handleEdit(contact.id)}
                         disabled={editSaving || !editForm.name.trim()}
-                        className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
+                        className="agent-btn agent-btn-sm agent-btn-primary"
                       >
                         {editSaving ? "Saving…" : "Save"}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="px-3 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 rounded-lg hover:bg-white/20 transition-colors"
+                        className="text-xs agent-link-muted"
                       >
                         Cancel
                       </button>
@@ -282,7 +277,7 @@ export function ContactsSection({
                       {/* Contact details */}
                       <div className="flex flex-col gap-0.5 mb-2.5">
                         {contact.email && (
-                          <a data-sensitive="true" href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
+                          <a data-sensitive="true" href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs agent-link-muted">
                             <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
                             <span className="truncate">{contact.email}</span>
                           </a>
@@ -321,7 +316,7 @@ export function ContactsSection({
                               )}
                               <button
                                 onClick={() => copyPortalLink(contact.portalToken!)}
-                                className="text-xs text-[#3a7bd5] hover:text-blue-700 transition-colors whitespace-nowrap"
+                                className="text-xs agent-link whitespace-nowrap"
                                 title="Copy portal link"
                               >
                                 {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
@@ -331,7 +326,7 @@ export function ContactsSection({
                             <button
                               onClick={() => setupPortalToken(contact.id)}
                               disabled={generatingToken === contact.id}
-                              className="text-xs text-slate-900/40 hover:text-blue-500 transition-colors whitespace-nowrap disabled:opacity-40"
+                              className="text-xs agent-link-muted whitespace-nowrap disabled:opacity-40"
                             >
                               {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
                             </button>
@@ -341,7 +336,7 @@ export function ContactsSection({
                         <span className="text-slate-900/15 text-xs">·</span>
                         <button
                           onClick={() => startEdit(contact)}
-                          className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+                          className="text-xs agent-link-muted"
                         >
                           Edit
                         </button>
@@ -364,25 +359,23 @@ export function ContactsSection({
 
       {/* Empty state (no contacts, no form) */}
       {contacts.length === 0 && !showForm && (
-        <div className="glass-card">
-          <EmptyState
-            title="No contacts yet"
-            description="Add vendors, purchasers, solicitors, and other parties."
-            action={
-              <button
-                onClick={() => setShowForm(true)}
-                className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
-              >
-                Add first contact
-              </button>
-            }
-          />
-        </div>
+        <EmptyState
+          title="No contacts yet"
+          description="Add vendors, purchasers, solicitors, and other parties."
+          action={
+            <button
+              onClick={() => setShowForm(true)}
+              className="text-sm agent-link"
+            >
+              Add first contact
+            </button>
+          }
+        />
       )}
 
       {/* ── Add contact form ─────────────────────────────────────────────── */}
       {showForm && (
-        <div className="glass-card-strong p-5">
+        <div className={`p-5${contacts.length > 0 ? " border-t border-white/20" : ""}`}>
           <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -449,14 +442,14 @@ export function ContactsSection({
               <button
                 type="submit"
                 disabled={loading || isPending}
-                className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
+                className="agent-btn agent-btn-primary"
               >
                 {loading ? "Adding…" : "Add contact"}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setError(null); setForm(EMPTY_FORM); }}
-                className="px-4 py-2 rounded-lg text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 transition-colors"
+                className="agent-btn agent-btn-ghost"
               >
                 Cancel
               </button>
@@ -464,6 +457,6 @@ export function ContactsSection({
           </form>
         </div>
       )}
-    </section>
+    </div>
   );
 }

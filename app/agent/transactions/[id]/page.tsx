@@ -339,67 +339,62 @@ export default async function AgentTransactionDetailPage({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <ContactsSection
-              transactionId={transaction.id}
-              contacts={transaction.contacts}
-              portalViewDates={Object.fromEntries(
-                transaction.contacts
-                  .filter((c) => c.lastVisitedPortalAt)
-                  .map((c) => [c.id, c.lastVisitedPortalAt as Date])
-              )}
-            />
-            <SolicitorSection
-              transactionId={transaction.id}
-              vendor={{
-                firm: transaction.vendorSolicitorFirm ?? null,
-                contact: transaction.vendorSolicitorContact ?? null,
-              }}
-              purchaser={{
-                firm: transaction.purchaserSolicitorFirm ?? null,
-                contact: transaction.purchaserSolicitorContact ?? null,
-              }}
-              recommendedFirms={recommendedFirms ?? undefined}
-              referredFirmId={transaction.referredFirmId ?? null}
-              referralFee={transaction.referralFee ?? null}
-            />
-            {brokerRow?.brokerFirmId && (
-              <BrokerSection
-                transactionId={transaction.id}
-                brokerFirmId={brokerRow.brokerFirmId}
-                brokerContactId={brokerRow.brokerContactId}
-                brokerFirmName={brokerRow.brokerFirm?.name ?? null}
-                brokerContactName={brokerRow.brokerContact?.name ?? null}
-                brokerReferralFee={brokerRow.brokerReferralFee}
-                brokerReferralFeeReceived={brokerRow.brokerReferralFeeReceived}
-                purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
-              />
-            )}
-          </div>
-
           <NextMilestoneWidget
             transactionId={transaction.id}
             vendorSide={vendorSideState}
             purchaserSide={purchaserSideState}
           />
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <RemindersWidget reminders={topReminders} totalActive={activeReminders.length} />
-            <RecentActivityWidget entries={activityEntries} />
-          </div>
+          <RemindersWidget reminders={topReminders} totalActive={activeReminders.length} />
+          <RecentActivityWidget entries={activityEntries} />
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <RiskScoreWidget input={riskInput} />
-            <div className="glass-card px-5 py-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900/90">Property chain</p>
-                <ViewChainButton
-                  transactionId={transaction.id}
-                  currentUserId={session.user.id}
-                />
-              </div>
+          <div className="glass-card px-5 py-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900/90">Property chain</p>
+              <ViewChainButton
+                transactionId={transaction.id}
+                currentUserId={session.user.id}
+              />
             </div>
           </div>
+
+          <RiskScoreWidget input={riskInput} />
+
+          <ContactsSection
+            transactionId={transaction.id}
+            contacts={transaction.contacts}
+            portalViewDates={Object.fromEntries(
+              transaction.contacts
+                .filter((c) => c.lastVisitedPortalAt)
+                .map((c) => [c.id, c.lastVisitedPortalAt as Date])
+            )}
+          />
+          <SolicitorSection
+            transactionId={transaction.id}
+            vendor={{
+              firm: transaction.vendorSolicitorFirm ?? null,
+              contact: transaction.vendorSolicitorContact ?? null,
+            }}
+            purchaser={{
+              firm: transaction.purchaserSolicitorFirm ?? null,
+              contact: transaction.purchaserSolicitorContact ?? null,
+            }}
+            recommendedFirms={recommendedFirms ?? undefined}
+            referredFirmId={transaction.referredFirmId ?? null}
+            referralFee={transaction.referralFee ?? null}
+          />
+          {brokerRow?.brokerFirmId && (
+            <BrokerSection
+              transactionId={transaction.id}
+              brokerFirmId={brokerRow.brokerFirmId}
+              brokerContactId={brokerRow.brokerContactId}
+              brokerFirmName={brokerRow.brokerFirm?.name ?? null}
+              brokerContactName={brokerRow.brokerContact?.name ?? null}
+              brokerReferralFee={brokerRow.brokerReferralFee}
+              brokerReferralFeeReceived={brokerRow.brokerReferralFeeReceived}
+              purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
+            />
+          )}
 
           <PropertyIntelCard transactionId={transaction.id} />
           <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={session.user.name ?? ""} />

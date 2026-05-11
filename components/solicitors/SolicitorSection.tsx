@@ -143,18 +143,18 @@ function SolicitorCard({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</p>
+          <p className="text-xs font-semibold text-slate-900/50">{label}</p>
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleSave}
-              className="text-xs text-blue-500 hover:text-blue-600 font-medium">Save</button>
+              className="text-xs agent-link">Save</button>
             <button type="button" onClick={handleCancel}
-              className="text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
+              className="text-xs agent-link-muted">Cancel</button>
           </div>
         </div>
         <SolicitorPicker label={editLabel} value={draft} onChange={handlePickerChange} />
         {selectedRecommended && (
           <div>
-            <label className="block text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
               Referral fee
             </label>
             <PriceInput
@@ -176,9 +176,9 @@ function SolicitorCard({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">{label}</p>
+        <p className="text-xs font-semibold text-slate-900/50">{label}</p>
         <button type="button" onClick={() => setEditing(true)}
-          className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors">
+          className="text-xs agent-link">
           {info.firm ? "Edit" : "+ Add"}
         </button>
       </div>
@@ -199,13 +199,13 @@ function SolicitorCard({
               )}
               <div className="flex flex-col gap-0.5 mt-1">
                 {info.contact?.phone && (
-                  <a href={`tel:${info.contact.phone}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-green-600 transition-colors">
+                  <a href={`tel:${info.contact.phone}`} className="flex items-center gap-1.5 text-xs agent-link-muted">
                     <Phone className="w-3 h-3 flex-shrink-0" weight="regular" />
                     {info.contact.phone}
                   </a>
                 )}
                 {info.contact?.email && (
-                  <a href={`mailto:${info.contact.email}`} className="flex items-center gap-1.5 text-xs text-slate-900/40 hover:text-blue-500 transition-colors">
+                  <a href={`mailto:${info.contact.email}`} className="flex items-center gap-1.5 text-xs agent-link-muted">
                     <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
                     {info.contact.email}
                   </a>
@@ -254,12 +254,14 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   }
 
   return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">
-        Solicitors
-        {(saving || isPending) && <span className="ml-2 text-slate-900/30 font-normal normal-case">Saving…</span>}
-      </h2>
-      <div className="glass-card divide-y divide-white/20">
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-slate-900/70">Solicitors</h3>
+          {(saving || isPending) && <span className="text-xs text-slate-900/30">Saving…</span>}
+        </div>
+      </div>
+      <div className="divide-y divide-white/20">
         <div className="px-5 py-4">
           <SolicitorCard
             label="Vendor solicitor"
@@ -286,6 +288,6 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
