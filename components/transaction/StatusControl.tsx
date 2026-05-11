@@ -115,7 +115,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           <>
             <div className="fixed inset-0" style={{ zIndex: 1499 }} onClick={() => setOpen(false)} />
             <div
-              className="fixed bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
+              className="fixed agent-dropdown-in bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
               style={{ zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left }}
             >
               {STATUSES.map(({ value, label }) => (

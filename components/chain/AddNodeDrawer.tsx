@@ -290,15 +290,9 @@ export function AddNodeDrawer({
               <h2 className="text-base font-semibold text-slate-900/85">{title}</h2>
               {directionPill}
             </div>
-            <p className="text-xs text-slate-900/50">Tell us what you know about this link</p>
+            <p className="text-xs text-slate-900/50">Tell us about this sale</p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
+          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
             <X size={16} weight="bold" />
           </button>
         </div>
@@ -360,7 +354,7 @@ export function AddNodeDrawer({
                   onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
                   onBlur={() => validateEmail()}
                   placeholder="agent@agency.co.uk"
-                  className="w-full glass-input text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 focus:outline-none focus:ring-2 focus:ring-blue-300/50 transition-all"
+                  className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
                 />
                 {emailError && <p className="text-xs text-red-500">{emailError}</p>}
               </div>
@@ -403,7 +397,7 @@ export function AddNodeDrawer({
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="w-24 py-2.5 text-xs font-medium rounded-xl text-slate-900/60 border border-white/50 bg-white/30 hover:bg-white/60 transition-all"
+              className="w-24 py-2.5 text-xs rounded-xl agent-btn-ghost-bordered"
             >
               Cancel
             </button>

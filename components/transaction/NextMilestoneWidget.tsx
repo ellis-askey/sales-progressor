@@ -47,7 +47,7 @@ function MilestoneSideRow({
         </div>
         <div>
           <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs text-emerald-600 font-medium">All milestones complete</p>
+          <p className="text-xs text-emerald-600 font-medium">All steps complete</p>
         </div>
       </div>
     );

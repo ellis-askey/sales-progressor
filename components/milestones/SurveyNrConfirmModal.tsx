@@ -60,7 +60,7 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
         {/* Body */}
         <div style={{ padding: "16px 20px" }}>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", lineHeight: 1.6, margin: 0 }}>
-            Please confirm the buyer does not require a private Level 2 or Level 3 survey. The survey report milestone will also be marked as not required.
+            Please confirm the buyer does not require a private Level 2 or Level 3 survey. The survey report step will also be skipped.
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
             className="agent-btn-color-primary"
             style={{ width: "100%", padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}
           >
-            Yes, mark as not required
+            Yes, skip these
           </button>
           <button
             onClick={onCancel}

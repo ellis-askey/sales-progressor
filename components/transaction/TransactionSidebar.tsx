@@ -5,12 +5,22 @@
 function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }) {
   const r = 32;
   const circ = 2 * Math.PI * r;
-  const filled = circ * (percent / 100);
-  const gap = circ - filled;
+  const target = circ * (1 - percent / 100);
   const stroke =
     onTrack === "on_track" ? "#10b981" :
     onTrack === "at_risk"  ? "#f59e0b" :
     onTrack === "off_track"? "#ef4444" : "#3b82f6";
+
+  const prefersRM = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [offset, setOffset] = useState(prefersRM ? target : circ);
+
+  useEffect(() => {
+    if (prefersRM) { setOffset(target); return; }
+    setOffset(circ);
+    const t = setTimeout(() => setOffset(target), 60);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="relative flex-shrink-0 w-20 h-20">
@@ -19,6 +29,9 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
           0%, 100% { opacity: 1; }
           50% { opacity: 0.78; }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .ring-glow { animation: none; }
+        }
       `}</style>
       <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
         <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(160,120,80,0.18)" strokeWidth="8" />
@@ -26,10 +39,11 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
           cx="40" cy="40" r={r} fill="none"
           stroke={stroke} strokeWidth="8"
           strokeLinecap="round"
-          strokeDasharray={`${filled} ${gap}`}
-          strokeDashoffset="0"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          className="ring-glow"
           style={{
-            transition: "stroke-dasharray 0.6s ease",
+            transition: prefersRM ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)",
             filter: percent > 0 ? `drop-shadow(0 0 5px ${stroke}90)` : "none",
             animation: percent > 0 ? "ring-glow-pulse 3s ease-in-out infinite" : "none",
           }}
@@ -43,7 +57,7 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
   );
 }
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PencilSimple } from "@phosphor-icons/react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
@@ -89,7 +103,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
     : transaction.serviceType === "self_managed"
-      ? { fee: 5900, label: "Self-progressed (inc VAT)" }
+      ? { fee: 5900, label: "Self-managed · £59 inc. VAT" }
       : { fee: null, label: "No progressor assigned" };
 
   const agentFeeCalcPence: number | null =
@@ -152,7 +166,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           </div>
 
           <div>
-            <p className="text-xs text-slate-900/40 mb-0.5">Predicted exchange</p>
+            <p className="text-xs text-slate-900/40 mb-0.5">Expected exchange</p>
             <p className={`text-sm font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
               {progress.predictedExchangeDate
                 ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -228,7 +242,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           <p className="glass-section-label text-slate-900/40">Price &amp; Fees</p>
           <button
             onClick={() => setShowEditDrawer(true)}
-            className="flex items-center gap-1 text-xs text-slate-900/65 hover:text-slate-900/85 transition-colors"
+            className="flex items-center gap-1 text-xs agent-link-muted"
           >
             <PencilSimple size={11} />
             Edit details

@@ -36,7 +36,7 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
         </div>
         <button
           onClick={() => setActiveTab("reminders")}
-          className="text-xs text-slate-900/40 agent-hover-link transition-colors font-semibold"
+          className="text-xs agent-link-muted"
         >
           View all →
         </button>

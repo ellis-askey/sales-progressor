@@ -110,14 +110,18 @@ export function CommsEntry({ transactionId, contacts }: Props) {
             if (isSkipped) return null;
             return (
               <div key={s} className="flex items-center gap-1.5">
-                <div className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium ${
-                  isDone ? "bg-green-500 text-white" :
-                  isActive ? "bg-blue-500 text-white" :
-                  "bg-white/30 text-slate-900/50"
-                }`}>
+                <div
+                  className="w-5 h-5 rounded-full text-xs flex items-center justify-center font-medium"
+                  style={{
+                    background: isDone   ? "var(--agent-success)" :
+                                isActive ? "var(--agent-info)"    :
+                                "rgba(255,255,255,0.30)",
+                    color: isDone || isActive ? "#fff" : "rgba(15,23,42,0.50)",
+                  }}
+                >
                   {isDone ? "✓" : s}
                 </div>
-                {s < 4 && !isSkipped && <div className="w-4 h-px bg-white/30" />}
+                {s < 4 && !isSkipped && <div className="w-4 h-px" style={{ background: "rgba(255,255,255,0.30)" }} />}
               </div>
             );
           })}

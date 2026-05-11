@@ -247,7 +247,7 @@ export function ContactsSection({
                       <button
                         onClick={() => handleEdit(contact.id)}
                         disabled={editSaving || !editForm.name.trim()}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
                       >
                         {editSaving ? "Saving…" : "Save"}
                       </button>
@@ -449,7 +449,7 @@ export function ContactsSection({
               <button
                 type="submit"
                 disabled={loading || isPending}
-                className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-sm font-medium text-white transition-colors shadow-sm"
+                className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium transition-colors disabled:opacity-40"
               >
                 {loading ? "Adding…" : "Add contact"}
               </button>

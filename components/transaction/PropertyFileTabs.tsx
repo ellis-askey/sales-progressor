@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, createContext, useContext, useCallback } from "react";
 import { ChevronDown } from "lucide-react";
 import { TabContext } from "./TabContext";
+import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
 type TabBadgeUpdater = (key: string, count: number) => void;
 const TabBadgeContext = createContext<TabBadgeUpdater | null>(null);
@@ -31,6 +32,10 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
   const [badges, setBadges] = useState<Record<string, number>>(
     Object.fromEntries(tabs.map((t) => [t.key, t.badge ?? 0]))
   );
+
+  const activeIdx = tabs.findIndex((t) => t.key === active);
+  const { btnRefs, ind } = useTabIndicator(activeIdx);
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const updateBadge = useCallback<TabBadgeUpdater>((key, count) => {
     setBadges((prev) => ({ ...prev, [key]: count }));
@@ -62,20 +67,34 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
     <TabContext.Provider value={{ setActiveTab: setActive }}>
       <TabBadgeContext.Provider value={updateBadge}>
         <div ref={tabBarRef} className="sticky top-0 z-20 glass-nav">
-          <div ref={scrollRef} className="px-4 md:px-8 py-2.5 flex items-center gap-1 overflow-x-auto scrollbar-hide">
-            {tabs.map((tab) => {
+          <div ref={scrollRef} className="px-4 md:px-8 agent-tab-bar overflow-x-auto scrollbar-hide">
+            {/* Sliding underline indicator */}
+            {ind && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: ind.left,
+                  width: ind.width,
+                  height: 2,
+                  background: "var(--agent-coral)",
+                  borderRadius: "1px 1px 0 0",
+                  transition: prefersReducedMotion ? "none" : "left 200ms ease, width 200ms ease",
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+            {tabs.map((tab, i) => {
               const isActive = active === tab.key;
               const badgeCount = badges[tab.key] ?? 0;
               return (
                 <button
                   key={tab.key}
+                  ref={(el) => { btnRefs.current[i] = el; }}
                   onClick={() => setActive(tab.key)}
-                  data-active={String(isActive)}
-                  className={`relative flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-xl ${
-                    isActive
-                      ? "bg-white/[0.92] text-slate-900 shadow-sm"
-                      : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"
-                  }`}
+                  aria-selected={isActive}
+                  className="agent-tab flex-shrink-0"
                 >
                   {tab.label}
                   {badgeCount > 0 && (

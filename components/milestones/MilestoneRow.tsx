@@ -199,7 +199,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           }, 200);
         } else {
           const count = outstandingIds.length;
-          toast.success(def.name, count > 0 ? { description: `+${count} milestone${count > 1 ? "s" : ""} reconciled` } : undefined);
+          toast.success(def.name, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} reconciled` } : undefined);
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not complete this milestone.";
@@ -233,8 +233,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       try {
         await executeUndoMilestoneAction({ transactionId, milestoneDefinitionId: def.id, mode });
         const count = mode === "cascade" ? undoData.cascade.length : 0;
-        toast.info("Milestone reversed", {
-          description: count > 0 ? `+${count} downstream milestone${count > 1 ? "s" : ""} also undone` : def.name,
+        toast.info("Step undone", {
+          description: count > 0 ? `+${count} linked step${count > 1 ? "s" : ""} also undone` : def.name,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not reverse this milestone.";
@@ -270,7 +270,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           milestoneDefinitionId: def.id,
           reason: finalReason,
         });
-        toast.success("Marked not required");
+        toast.success("Skipped");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Could not mark as not required.";
         setError(message);
@@ -342,12 +342,12 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               )}
             </p>
           )}
-          {isBlocked && <p className="text-xs text-slate-900/40 mt-0.5">Previous milestones must be completed first</p>}
+          {isBlocked && <p className="text-xs text-slate-900/40 mt-0.5">Previous steps must be completed first</p>}
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
 
           {/* Counterpart-readiness notice */}
           {showCounterpartNotice && counterpartNotice && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 space-y-2 agent-reveal-in">
               <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
                 <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -356,7 +356,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               </div>
               <button
                 onClick={() => setShowCounterpartNotice(false)}
-                className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+                className="text-xs agent-link-muted"
               >
                 OK
               </button>
@@ -365,7 +365,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
           {/* Event date input */}
           {showEventDate && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 space-y-2 agent-reveal-in">
               <div className="flex items-center gap-2">
                 <div>
                   <label className="block text-xs text-slate-900/50 mb-1">
@@ -388,7 +388,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 </button>
                 <button
                   onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
-                  className="mt-5 text-xs text-slate-900/40 hover:text-slate-900/70"
+                  className="mt-5 text-xs agent-link-muted"
                 >
                   Cancel
                 </button>
@@ -409,7 +409,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
           {/* N/R reason (PM9 uses modal, others shouldn't reach here) */}
           {showNotRequired && !isPM9 && (
-            <div className="mt-2 flex items-start gap-2">
+            <div className="mt-2 flex items-start gap-2 agent-reveal-in">
               <div className="flex-1">
                 <label className="block text-xs text-slate-900/50 mb-1">Reason <span className="text-red-400">*</span></label>
                 <input type="text" value={notRequiredReason} onChange={(e) => setNotRequiredReason(e.target.value)}
@@ -418,7 +418,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               </div>
               <button onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
                 className="mt-5 px-3 py-1.5 text-xs font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40">Confirm</button>
-              <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 text-xs text-slate-900/40 hover:text-slate-900/70">Cancel</button>
+              <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 text-xs agent-link-muted">Cancel</button>
             </div>
           )}
         </div>

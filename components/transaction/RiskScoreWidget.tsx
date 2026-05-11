@@ -22,7 +22,7 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
       <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-900/90">Fall-through risk</p>
-          <p className="text-xs text-slate-900/40 mt-0.5">Based on live file data, not a guess</p>
+          <p className="text-xs text-slate-900/40 mt-0.5">From your file data</p>
         </div>
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border whitespace-nowrap flex-shrink-0 ${cfg.bg} ${cfg.border}`}>
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />

@@ -79,7 +79,7 @@ export function MilestonePanel({
       const vm19 = allMilestoneLookup.get("VM19");
       const pm26 = allMilestoneLookup.get("PM26");
       if ((vm19 && !vm19.isComplete) || (pm26 && !pm26.isComplete)) {
-        return "Exchange must be confirmed on both sides before completion can be recorded.";
+        return "Both sides need to confirm exchange before you can mark completion.";
       }
     }
     return undefined;
@@ -212,13 +212,6 @@ export function MilestonePanel({
         }
         .ms-node-pop { animation: ms-node-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
-        @keyframes ms-unlock {
-          0%   { box-shadow: inset 3px 0 0 rgba(59,130,246,0.9); background: rgba(59,130,246,0.08); }
-          55%  { box-shadow: inset 3px 0 0 rgba(59,130,246,0.3); background: rgba(59,130,246,0.03); }
-          100% { box-shadow: none; background: transparent; }
-        }
-        .ms-unlock-enter { animation: ms-unlock 900ms ease-out both; }
-
         @keyframes ms-node-unlock {
           0%   { transform: scale(0.55); opacity: 0; }
           60%  { transform: scale(1.15); opacity: 1; }
@@ -247,7 +240,7 @@ export function MilestonePanel({
           </div>
           <div>
             <p className="text-sm font-semibold text-green-800">Ready to exchange</p>
-            <p className="text-xs text-green-600">All blocking milestones are complete on both sides</p>
+            <p className="text-xs text-green-600">All blocking steps are complete on both sides</p>
           </div>
         </div>
       ) : (
@@ -273,12 +266,12 @@ export function MilestonePanel({
               />
             </div>
           </div>
-          <p className="text-xs text-slate-900/40 mt-2">{doneAll} of {totalAll} milestones complete</p>
+          <p className="text-xs text-slate-900/40 mt-2">{doneAll} of {totalAll} steps complete</p>
         </div>
       )}
 
       {/* ── Side tabs ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 mb-4 glass-subtle p-1 w-fit">
+      <div className="flex items-center gap-2 mb-4">
         {(["vendor", "purchaser"] as const).map((side) => {
           const mils = side === "vendor" ? vendor : purchaser;
           const applicable = mils.filter((m) => !m.isNotRequired);
@@ -289,11 +282,7 @@ export function MilestonePanel({
             <button
               key={side}
               onClick={() => handleTabChange(side)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === side
-                  ? "bg-white/60 text-slate-900/90 shadow-sm"
-                  : "text-slate-900/50 hover:text-slate-900/70"
-              }`}
+              className={`agent-segment-pill${activeTab === side ? " on" : ""}`}
             >
               <span className="capitalize">{side}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${
@@ -380,7 +369,7 @@ export function MilestonePanel({
 
                 {!isCollapsed && rows.length === 0 && allInSection.length > 0 && (
                   <div className="mt-1 px-4 py-3 glass-subtle rounded-xl text-xs text-slate-900/40 italic">
-                    All milestones in this section are not required
+                    All steps in this section are skipped
                   </div>
                 )}
               </div>
@@ -397,7 +386,7 @@ export function MilestonePanel({
               >
                 <div className="w-2 h-2 rounded-full bg-slate-900/20 flex-shrink-0" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-900/40">
-                  Not required
+                  Skipped
                 </span>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/30 text-slate-900/40">
                   {nrMilestones.length}
@@ -425,7 +414,7 @@ export function MilestonePanel({
 
       {gateReady && (
         <p className="mt-3 text-xs text-emerald-600 text-center">
-          ✓ {activeTab === "vendor" ? "Vendor" : "Purchaser"} side ready — exchange gate milestone is now available
+          ✓ {activeTab === "vendor" ? "Vendor" : "Purchaser"} side ready — exchange gate step is now available
         </p>
       )}
     </section>

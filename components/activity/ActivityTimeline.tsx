@@ -29,7 +29,7 @@ type FilterKind = "all" | "milestones" | "comms" | "automated" | "notes";
 
 const FILTERS: { value: FilterKind; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "milestones", label: "Milestones" },
+  { value: "milestones", label: "Steps" },
   { value: "comms", label: "Comms" },
   { value: "automated", label: "Automated" },
   { value: "notes", label: "Notes" },
@@ -137,11 +137,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
           <button
             key={f.value}
             onClick={() => handleFilter(f.value)}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              filter === f.value
-                ? "bg-slate-900/15 text-slate-900/80"
-                : "bg-white/40 text-slate-900/40 hover:text-slate-900/70 hover:bg-white/60"
-            }`}
+            className={`agent-segment-pill agent-segment-pill-sm${filter === f.value ? " on" : ""}`}
           >
             {f.label}
           </button>
@@ -163,7 +159,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="Search…"
-          className="glass-input ml-auto px-3 py-1.5 rounded-lg text-slate-900/70 focus:ring-1 focus:ring-blue-300/50 w-36"
+          className="glass-input agent-focus ml-auto px-3 py-1.5 rounded-lg text-slate-900/70 w-36"
         />
       </div>
 
@@ -195,10 +191,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
                             entry.confirmedByClient ? "text-emerald-600" : "text-blue-600"
                           }`}>
                             {entry.isNotRequired
-                              ? "Marked not required"
+                              ? "Skipped"
                               : entry.confirmedByClient
                               ? "Confirmed by client"
-                              : "Milestone confirmed"}
+                              : "Step confirmed"}
                           </p>
                           {entry.summaryText ? (
                             <p className="text-sm text-slate-900/80 leading-snug">{entry.summaryText}</p>
@@ -225,7 +221,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
                           ? `${entry.confirmerName} via portal · ${formatDate(entry.at)}`
                           : entry.confirmedByClient
                           ? `Client via portal · ${formatDate(entry.at)}`
-                          : `${entry.completedByName ? extractFirstName(entry.completedByName) : "System"} · ${formatDate(entry.at)}`}
+                          : `${entry.completedByName ? extractFirstName(entry.completedByName) : "Auto-confirmed"} · ${formatDate(entry.at)}`}
                       </p>
                     </div>
                   ) : (

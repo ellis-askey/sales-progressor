@@ -36,7 +36,7 @@ export function RecentActivityWidget({ entries }: Props) {
         </div>
         <button
           onClick={() => setActiveTab("activity")}
-          className="text-xs text-slate-900/40 agent-hover-link transition-colors font-semibold"
+          className="text-xs agent-link-muted"
         >
           View all →
         </button>

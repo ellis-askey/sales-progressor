@@ -151,10 +151,9 @@ export function ReconciliationDrawer({
           {/* Outstanding milestones */}
           {outstanding.length > 0 && (
             <div>
-              <p className="agent-section-label" style={{ marginBottom: 4 }}>Outstanding milestones</p>
+              <p className="agent-section-label" style={{ marginBottom: 4 }}>Steps not yet confirmed</p>
               <p style={{ fontSize: 12, color: "rgba(15,23,42,0.45)", marginBottom: 12, lineHeight: 1.6 }}>
-                These haven{"'"}t been confirmed yet. Tick those that are done — they{"'"}ll be marked as reconciled at exchange.
-                Untick or leave a date blank to exclude.
+                Tick the steps below that are done. We{"'"}ll check them off at exchange. Leave a step unticked to exclude it.
               </p>
 
               <div style={{ borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.10)", overflow: "hidden", marginBottom: 8 }}>

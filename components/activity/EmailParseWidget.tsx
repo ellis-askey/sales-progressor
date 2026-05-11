@@ -11,19 +11,9 @@ export function EmailParseWidget({ transactionId: _ }: { transactionId: string }
       {/* Dismiss button — sits above the disabled overlay so it stays interactive */}
       <button
         onClick={() => setDismissed(true)}
-        style={{
-          position: "absolute", top: 10, right: 10, zIndex: 2,
-          width: 22, height: 22,
-          background: "rgba(0,0,0,0.06)",
-          border: "none",
-          borderRadius: 99,
-          cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "rgba(0,0,0,0.35)",
-          fontSize: 13,
-          lineHeight: 1,
-        }}
         aria-label="Dismiss"
+        className="agent-icon-btn agent-icon-btn-sm"
+        style={{ position: "absolute", top: 10, right: 10, zIndex: 2 }}
       >
         ×
       </button>
@@ -41,10 +31,8 @@ export function EmailParseWidget({ transactionId: _ }: { transactionId: string }
               </svg>
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold text-slate-900/60">Smart email reader — coming soon</p>
-              <p className="text-xs text-slate-900/35">
-                Paste an email and we&apos;ll suggest which milestones to update. We&apos;re refining this — check back soon.
-              </p>
+              <p className="text-sm font-semibold text-slate-900/60">Email reader — coming soon</p>
+              <p className="text-xs text-slate-900/35">Available soon.</p>
             </div>
           </div>
           <svg className="w-4 h-4 text-slate-900/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

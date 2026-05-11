@@ -143,7 +143,7 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
           {!expanded && hidden > 0 && (
             <button
               onClick={() => setExpanded(true)}
-              className="w-full text-xs text-slate-900/40 hover:text-slate-900/70 py-2 text-center transition-colors"
+              className="w-full text-xs py-2 text-center agent-link-muted"
             >
               Show {hidden} more note{hidden !== 1 ? "s" : ""}
             </button>

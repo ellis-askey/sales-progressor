@@ -64,7 +64,7 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
         {/* Body */}
         <div style={{ padding: "14px 20px 4px" }}>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.6, margin: 0 }}>
-            Reinstating this will re-open the mortgage milestones. We{"'"}ll update the purchase method to match.
+            Reinstating this will re-open the mortgage steps and update the purchase type.
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            Reinstate without changing purchase method
+            Reinstate without changing purchase type
           </button>
 
           {/* Tertiary */}

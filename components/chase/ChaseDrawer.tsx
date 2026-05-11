@@ -136,9 +136,10 @@ export function ChaseDrawer({
   const displayShowCcToggle = displayChannel === "email" && solicitorContact !== null;
 
   // Shared fade style applied to elements that differ between channels
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const swapFade: React.CSSProperties = {
     opacity: contentFading ? 0 : 1,
-    transition: "opacity 120ms ease",
+    transition: prefersReducedMotion ? "none" : "opacity 120ms ease",
   };
 
   function switchChannel(next: Channel) {
@@ -324,13 +325,7 @@ export function ChaseDrawer({
               )}
             </div>
             {/* Close — ghost, no border */}
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              style={{ padding: 6, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--agent-text-muted)", display: "flex", flexShrink: 0, transition: "background 120ms" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.30)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-            >
+            <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
               <X size={14} weight="bold" />
             </button>
           </div>
@@ -498,7 +493,7 @@ export function ChaseDrawer({
                 </span>
               </button>
               {toneMenuOpen && (
-                <div style={{
+                <div className="agent-dropdown-in" style={{
                   position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 20,
                   background: "rgba(255,251,248,0.98)", backdropFilter: "blur(20px)",
                   borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",

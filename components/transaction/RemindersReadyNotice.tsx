@@ -27,7 +27,7 @@ export function RemindersReadyNotice({ transactionId }: { transactionId: string 
         const count = await getTransactionReminderCountAction(transactionId);
         if (count > 0) {
           if (!cancelled) {
-            toast.success("Chase reminders are active", {
+            toast.success("Reminders are set up", {
               description: "Check the Reminders tab to see what needs following up.",
             });
           }

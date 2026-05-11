@@ -70,6 +70,7 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
 
   useEffect(() => {
     if (!canvasRef.current) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     return startConfetti(canvasRef.current);
   }, []);
 
@@ -83,13 +84,6 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
 
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <style>{`
-        @keyframes exchange-in {
-          from { opacity: 0; transform: scale(0.92); }
-          to   { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
-
       {/* Confetti canvas — pointer-events:none so it doesn't block the modal */}
       <canvas
         ref={canvasRef}
@@ -102,8 +96,8 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
 
       {/* Modal card */}
       <div
-        className="relative z-10 bg-white rounded-3xl max-w-sm w-full px-8 py-10 shadow-2xl text-center"
-        style={{ animation: "exchange-in 200ms ease-out both", borderTop: "2px solid var(--agent-coral-deep)" }}
+        className="relative z-10 bg-white rounded-3xl max-w-sm w-full px-8 py-10 shadow-2xl text-center agent-modal-in--celebrate"
+        style={{ borderTop: "2px solid var(--agent-coral-deep)" }}
       >
         {/* Star icon */}
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-lg">
@@ -115,7 +109,7 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
         <h2 className="text-2xl font-bold text-slate-900 mb-2 leading-tight">Exchange confirmed</h2>
         <p className="text-base font-semibold text-slate-600 mb-3 leading-snug">{address}</p>
         <p className="text-sm text-slate-500 leading-relaxed mb-8">
-          Contracts are now legally exchanged. Your fee is crystallised — congratulations.
+          Contracts are now legally exchanged. Your fee is crystallised.
         </p>
 
         <button

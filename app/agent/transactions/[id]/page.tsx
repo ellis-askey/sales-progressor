@@ -213,7 +213,7 @@ export default async function AgentTransactionDetailPage({
 
   const tabs = [
     { key: "overview",   label: "Overview" },
-    { key: "milestones", label: "Milestones" },
+    { key: "milestones", label: "Steps" },
     { key: "reminders",  label: "Reminders", badge: activeReminderCount },
     { key: "todos",      label: "To-Do", badge: openTodoCount },
     { key: "activity",   label: "Activity" },

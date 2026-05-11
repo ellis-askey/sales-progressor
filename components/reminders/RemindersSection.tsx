@@ -111,7 +111,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId
         🕐
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 right-0 z-30" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
+        <div className="absolute bottom-full mb-1 right-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button key={opt.hours} onClick={() => { onSnooze(taskId, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
@@ -141,7 +141,7 @@ function SideSnoozeMenu({ taskIds, onSnooze, disabled }: { taskIds: string[]; on
         <span style={{ fontSize: 10 }}>🕐</span> Snooze all
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-30" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
+        <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button key={opt.hours} onClick={() => { taskIds.forEach((id) => onSnooze(id, opt.hours)); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
@@ -392,7 +392,7 @@ export function RemindersSection({
       {activeLogs.length === 0 && snoozedLogs.length === 0 && completedLogs.length === 0 && (
         <div className="glass-card px-5 py-8 text-center">
           <p className="text-sm text-slate-900/40">No active reminders</p>
-          <p className="text-xs text-slate-900/30 mt-1">Tasks appear here once their grace period has passed.</p>
+          <p className="text-xs text-slate-900/30 mt-1">Reminders are set up — they&apos;ll appear here as they come due.</p>
         </div>
       )}
 

@@ -82,7 +82,7 @@ export function UndoMilestoneModal({
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "0.5px solid rgba(15,23,42,0.06)", flexShrink: 0, gap: 12 }}>
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo milestone</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
             <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
               {hasCascade
                 ? `${milestoneName} — what would you like to do?`
@@ -106,7 +106,7 @@ export function UndoMilestoneModal({
             /* No cascade — simple confirmation */
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <p style={{ fontSize: 14, color: "rgba(15,23,42,0.60)", margin: 0 }}>
-                Reverse this milestone. Use this if you ticked the wrong one or it hasn{"'"}t happened yet.
+                This step is undone — steps that follow stay as they are.
               </p>
               <div style={{ borderRadius: 12, border: "0.5px solid rgba(15,23,42,0.08)", background: "rgba(15,23,42,0.02)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={{ textAlign: "center" }}>
@@ -139,16 +139,16 @@ export function UndoMilestoneModal({
                     style={{ marginTop: 2, accentColor: "var(--agent-coral-deep)", flexShrink: 0 }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo this milestone only</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo this step only</p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 4, marginBottom: 0 }}>
-                      Reverse this milestone but keep downstream work as-is. Use this if you ticked the wrong one or it hasn{"'"}t happened yet.
+                      This step is undone — steps that follow stay as they are.
                     </p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 6, marginBottom: 0 }}>
                       Progress: <span style={{ fontWeight: 500 }}>{undoData.currentPercent}% → {undoData.targetOnlyPercent}%</span>
                     </p>
                     <p style={{ fontSize: 12, color: "#ea580c", marginTop: 6, marginBottom: 0 }}>
-                      Note: {undoData.cascade.length} downstream milestone{undoData.cascade.length !== 1 ? "s are" : " is"} complete.{" "}
-                      {undoData.cascade.length !== 1 ? "They" : "It"} will stay complete and may need re-checking later if this milestone is permanently undone.
+                      Note: {undoData.cascade.length} downstream step{undoData.cascade.length !== 1 ? "s are" : " is"} complete.{" "}
+                      {undoData.cascade.length !== 1 ? "They" : "It"} will stay complete and may need re-checking later if this step is permanently undone.
                     </p>
                   </div>
                 </div>
@@ -166,9 +166,9 @@ export function UndoMilestoneModal({
                     style={{ marginTop: 2, accentColor: "var(--agent-coral-deep)", flexShrink: 0 }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo this and downstream milestones</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo this step and linked steps</p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 4, marginBottom: 0 }}>
-                      Reverse this milestone and all completed dependents. Use this if the chain of work genuinely didn{"'"}t happen.
+                      This step and all completed steps that follow are undone.
                     </p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 6, marginBottom: 0 }}>
                       Progress: <span style={{ fontWeight: 500 }}>{undoData.currentPercent}% → {undoData.cascadePercent}%</span>
@@ -203,7 +203,7 @@ export function UndoMilestoneModal({
                       const rc = undoData.cascade.filter((m) => m.reconciledAtExchange).length;
                       return rc > 0 ? (
                         <p style={{ fontSize: 12, color: "rgba(15,23,42,0.40)", marginTop: 8, marginBottom: 0 }}>
-                          Note: {rc} milestone{rc !== 1 ? "s" : ""} marked complete during exchange reconciliation will also be reversed.
+                          Note: {rc} step{rc !== 1 ? "s" : ""} confirmed during exchange reconciliation will also be reversed.
                         </p>
                       ) : null;
                     })()}
@@ -238,8 +238,8 @@ export function UndoMilestoneModal({
             {isPending
               ? "Undoing…"
               : undoMode === "cascade" && undoData.cascade.length > 0
-              ? `Undo milestone and ${undoData.cascade.length} dependent${undoData.cascade.length !== 1 ? "s" : ""}`
-              : "Undo milestone"}
+              ? `Undo step and ${undoData.cascade.length} linked step${undoData.cascade.length !== 1 ? "s" : ""}`
+              : "Undo step"}
           </button>
           <button
             onClick={onCancel}

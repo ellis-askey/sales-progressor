@@ -66,8 +66,7 @@ function SectionButtons({ hasChanges, saving, onSave, onCancel, label, error }: 
           {saving ? "Saving…" : label}
         </button>
         <button onClick={onCancel} disabled={saving}
-          className="flex-1 py-2 rounded-xl text-xs text-slate-900/60 glass-subtle transition-colors disabled:opacity-40"
-          style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
+          className="flex-1 py-2 text-xs rounded-xl agent-btn-ghost-bordered disabled:opacity-40">
           Cancel
         </button>
       </div>
@@ -587,10 +586,7 @@ export function EditSaleDetailsDrawer({
             </div>
             <p style={{ fontSize: 12, color: "rgba(15,23,42,0.50)", margin: 0 }}>Changes save per section</p>
           </div>
-          <button onClick={handleClose} aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <button onClick={handleClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md" style={{ marginLeft: 12 }}>
             <X size={16} weight="bold" />
           </button>
         </div>
@@ -681,8 +677,8 @@ export function EditSaleDetailsDrawer({
               {/* Fix 8 delta preview — only in tenure_preview */}
               {propStage === "tenure_preview" && propDelta && (
                 <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12 }}>
-                  <DeltaList label="Milestones that will be marked not required" items={propDelta.becomingNr} color="red" />
-                  <DeltaList label="Milestones that will be re-activated" items={propDelta.becomingRequired} color="green" />
+                  <DeltaList label="Steps that will be skipped" items={propDelta.becomingNr} color="red" />
+                  <DeltaList label="Steps that will be re-activated" items={propDelta.becomingRequired} color="green" />
                   {(propDelta.becomingNr.length > 0 || propDelta.becomingRequired.length > 0) && (
                     <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 flex items-center gap-4">
                       <div className="text-center">
@@ -833,9 +829,9 @@ export function EditSaleDetailsDrawer({
             </p>
             <div style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
 
-              {/* Predicted exchange date */}
+              {/* Expected exchange date */}
               <div>
-                <p className="text-xs text-slate-900/40 mb-1">Predicted exchange date</p>
+                <p className="text-xs text-slate-900/40 mb-1">Expected exchange date</p>
                 {!showOverrideInput ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <p className="text-sm text-slate-900/70">
@@ -844,7 +840,7 @@ export function EditSaleDetailsDrawer({
                     </p>
                     <button onClick={() => setShowOverrideInput(true)} disabled={timelineStage === "saving"}
                       className="text-xs agent-link-primary flex-shrink-0">
-                      Set override
+                      Use a different date
                     </button>
                   </div>
                 ) : (
@@ -930,10 +926,7 @@ export function EditSaleDetailsDrawer({
           <div style={{ position: "relative", zIndex: 1, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", borderRadius: 16, maxWidth: 380, width: "100%", padding: "24px", borderTop: "2px solid var(--agent-coral-deep)", boxShadow: "0 20px 60px rgba(0,0,0,0.22)", animation: "agent-modal-in 200ms ease-out both" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Change address?</h3>
-              <button onClick={() => setPropStage("idle")}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+              <button onClick={() => setPropStage("idle")} className="agent-icon-btn agent-icon-btn-sm">
                 <X size={14} weight="bold" />
               </button>
             </div>

@@ -184,16 +184,10 @@ export function ChainDrawer({
           <div>
             <h2 className="text-base font-semibold text-slate-900/90">Chain progress</h2>
             <p className="text-xs text-slate-900/40 mt-0.5">
-              Real-time visibility across every link in the chain
+              Track progress across every linked sale
             </p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
+          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
             <X size={16} weight="bold" />
           </button>
         </div>
@@ -217,7 +211,7 @@ export function ChainDrawer({
             <EmptyState
               icon={<ChainIcon />}
               title="No chain linked to this sale"
-              description="Create a chain to track your sale's position and invite other agents to share progress visibility."
+              description="Create a chain to track your sale's position and invite other agents to share updates."
               action={
                 <button
                   onClick={handleCreateChain}
@@ -233,7 +227,7 @@ export function ChainDrawer({
           {!loading && chain && links.length === 0 && (
             <EmptyState
               icon={<ChainIcon />}
-              title="Chain created — add the first link"
+              title="Chain created — add the first sale"
               description="Add the sale above or below this one to start tracking the chain together."
               action={
                 onOpenAddNode ? (
@@ -283,7 +277,7 @@ export function ChainDrawer({
                       </button>
                       <button
                         onClick={() => setConfirmingDeleteId(null)}
-                        className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors"
+                        className="text-xs agent-link-muted"
                       >
                         Cancel
                       </button>
@@ -335,7 +329,7 @@ export function ChainDrawer({
         {invitablePending.length > 0 && (
           <div className="flex-shrink-0 px-6 py-4 border-t border-white/30 bg-white/20 flex items-center justify-between">
             <p className="text-xs text-slate-900/60">
-              {invitablePending.length} node{invitablePending.length !== 1 ? "s" : ""} ready to invite
+              {invitablePending.length} agent{invitablePending.length !== 1 ? "s" : ""} ready to invite
             </p>
             <button
               onClick={() => { void handleBulkInvite(); }}

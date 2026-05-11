@@ -92,6 +92,35 @@
   to   { opacity: 1; transform: translateY(0);   }
 }
 
+/* Canonical accordion, reveal, dropdown-entrance, and row-flash animations.
+ * Extracted from /agent/anim-preview. All agent pages use these — no page invents its own. */
+
+@keyframes agent-reveal-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes agent-reveal-out {
+  from { opacity: 1; transform: translateY(0);    }
+  to   { opacity: 0; transform: translateY(-3px); }
+}
+
+@keyframes agent-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes agent-row-flash {
+  0%   { background: transparent; }
+  20%  { background: rgba(16, 185, 129, 0.07); }
+  100% { background: transparent; }
+}
+
+@keyframes agent-modal-in--celebrate {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
 /* ─── Component classes ──────────────────────────────────────────────────────
  * Plain CSS (no @layer) — processed cleanly when imported in layout.tsx.
  * ─────────────────────────────────────────────────────────────────────────── */
@@ -182,6 +211,7 @@
     transition: transform var(--agent-transition-fast),
                 box-shadow var(--agent-transition-fast),
                 background var(--agent-transition-fast),
+                filter var(--agent-transition-fast),
                 opacity var(--agent-transition-fast);
     white-space: nowrap;
     text-decoration: none;
@@ -214,6 +244,9 @@
     filter: brightness(1.06);
     box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38);
     transform: translateY(-1px);
+  }
+  .agent-btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
   }
   .agent-btn-primary:disabled {
     background: rgba(var(--agent-coral-rgb), 0.40);
@@ -265,10 +298,139 @@
     background: var(--agent-danger-bg);
   }
   .agent-btn-danger:focus-visible {
-    box-shadow: 0 0 0 3px rgba(199, 62, 62, 0.20);
+    box-shadow: 0 0 0 1.5px rgba(199, 62, 62, 0.50), 0 0 12px 2px rgba(199, 62, 62, 0.18);
   }
   .agent-btn-danger:disabled {
     opacity: 0.40;
+  }
+
+  /* ── Segment pill / toggle ───────────────────────────────────────────────── */
+  /* Binary or multi-option selection (tenure, purchase type, mode, fee type).
+   * Mark selected with .on. Subtitle text uses .agent-segment-pill-note.
+   * Small variant: .agent-segment-pill-sm for compact inline chips. */
+
+  .agent-segment-pill {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 14px;
+    border-radius: var(--agent-radius-md);
+    border: 1.5px solid var(--agent-border-default);
+    background: transparent;
+    color: var(--agent-text-muted);
+    font-size: var(--agent-text-body-sm);
+    font-weight: var(--agent-weight-medium);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color var(--agent-transition-fast),
+                background   var(--agent-transition-fast),
+                color        var(--agent-transition-fast),
+                box-shadow   var(--agent-transition-fast);
+  }
+  .agent-segment-pill:hover:not(:disabled):not(.on) {
+    border-color: var(--agent-border-strong);
+    background: var(--agent-glass-bg-subtle);
+    color: var(--agent-text-secondary);
+  }
+  .agent-segment-pill:focus-visible {
+    outline: none;
+    border-color: var(--agent-border-focus);
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-segment-pill:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .agent-segment-pill.on {
+    border-color: var(--agent-coral-deep);
+    background: var(--agent-coral-bg-tint);
+    color: var(--agent-text-primary);
+  }
+  .agent-segment-pill.on:hover:not(:disabled) {
+    background: var(--agent-coral-bg-tint-hover);
+  }
+  .agent-segment-pill:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .agent-segment-pill-sm {
+    padding: 3px 10px;
+    font-size: var(--agent-text-micro);
+    border-radius: var(--agent-radius-sm);
+    border-width: 1px;
+  }
+  .agent-segment-pill-note {
+    font-size: var(--agent-text-micro);
+    font-weight: var(--agent-weight-regular);
+    color: var(--agent-text-disabled);
+  }
+  .agent-segment-pill.on .agent-segment-pill-note {
+    color: var(--agent-coral-deep);
+  }
+
+  /* ── Text link button ────────────────────────────────────────────────────── */
+  /* Inline <button> styled as a text link. Coral by default.
+   * Muted variant: .agent-link-muted (uses text-muted colour). */
+
+  .agent-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: var(--agent-weight-medium);
+    color: var(--agent-coral-deep);
+    text-decoration: none;
+    line-height: inherit;
+    transition: color        var(--agent-transition-fast),
+                opacity      var(--agent-transition-fast),
+                box-shadow   var(--agent-transition-fast);
+  }
+  .agent-link:hover:not(:disabled) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .agent-link:focus-visible {
+    outline: none;
+    box-shadow: var(--agent-focus-ring);
+    border-radius: var(--agent-radius-sm);
+  }
+  .agent-link:active:not(:disabled) {
+    opacity: 0.65;
+  }
+  .agent-link:disabled {
+    color: var(--agent-text-disabled);
+    cursor: not-allowed;
+  }
+  .agent-link-muted {
+    color: var(--agent-text-muted);
+    font-weight: var(--agent-weight-regular);
+  }
+  .agent-link-muted:hover:not(:disabled) {
+    color: var(--agent-text-secondary);
+  }
+
+  /* ── Bordered ghost button ───────────────────────────────────────────────── */
+  /* Coral border + coral text, fills tint on hover. Pairs with .agent-btn base.
+   * Usage: className="agent-btn agent-btn-ghost-bordered agent-btn-sm" */
+
+  .agent-btn-ghost-bordered {
+    background: transparent;
+    color: var(--agent-coral-deep);
+    border: 1px solid var(--agent-coral-deep);
+  }
+  .agent-btn-ghost-bordered:hover:not(:disabled) {
+    background: var(--agent-coral-bg-tint);
+    border-color: var(--agent-coral);
+  }
+  .agent-btn-ghost-bordered:focus-visible {
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-btn-ghost-bordered:disabled {
+    opacity: 0.45;
   }
 
   /* Icon button (square) */
@@ -480,47 +642,81 @@
   .agent-alert-danger  { background: var(--agent-danger-bg);  border-color: var(--agent-danger-border);  color: var(--agent-danger);  }
   .agent-alert-info    { background: var(--agent-info-bg);    border-color: var(--agent-info-border);    color: var(--agent-info);    }
 
-  /* ── Tabs ────────────────────────────────────────────────────────────────── */
+  /* ── Tabs (underline paradigm) ───────────────────────────────────────────
+   * Active state is communicated by a JS-driven sliding underline bar
+   * (see useTabIndicator hook, ANIMATION_STANDARDS.md § A5).
+   * No background fill — the underline alone is the active indicator.
+   * Focus uses text-decoration (non-spatial) rather than the halo focus ring.
+   * ─────────────────────────────────────────────────────────────────────── */
 
   .agent-tab-bar {
     display: flex;
-    gap: 2px;
-    padding: 4px;
-    border-radius: var(--agent-radius-lg);
+    position: relative; /* required: absolute underline bar positions within this */
+    overflow: hidden;   /* clips the sliding bar at edges */
   }
   .agent-tab {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    border-radius: var(--agent-radius-md);
+    padding: 10px 14px;
     font-size: var(--agent-text-body-sm);
-    color: var(--agent-text-secondary);
+    color: var(--agent-text-muted);
     background: transparent;
     border: none;
     cursor: pointer;
-    transition: background var(--agent-transition-fast),
-                color    var(--agent-transition-fast),
-                box-shadow var(--agent-transition-fast);
+    transition: color var(--agent-transition-fast);
     white-space: nowrap;
   }
   .agent-tab:hover:not([aria-selected="true"]):not(:disabled) {
-    background: var(--agent-glass-bg-subtle);
-    color: var(--agent-text-primary);
+    color: var(--agent-text-secondary);
   }
   .agent-tab[aria-selected="true"] {
-    background: var(--agent-surface-elevated);
     color: var(--agent-text-primary);
     font-weight: var(--agent-weight-medium);
-    box-shadow: 0 1px 4px rgba(var(--agent-shadow-rgb), 0.08), 0 0 0 0.5px rgba(var(--agent-shadow-rgb), 0.06);
   }
   .agent-tab:focus-visible {
     outline: none;
-    box-shadow: var(--agent-focus-ring);
+    color: var(--agent-text-primary);
+    /* Thin underline in theme focus colour — non-spatial, no halo */
+    text-decoration: underline;
+    text-decoration-color: var(--agent-border-focus);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
   }
   .agent-tab:disabled {
     color: var(--agent-text-disabled);
     cursor: not-allowed;
+  }
+
+  /* ── Dropdown menu items ─────────────────────────────────────────────────
+   * Use for items inside .agent-dropdown-in menus (status, snooze, tone, etc.)
+   * Full-width button, left-aligned text, hover fills with --agent-hover-tint.
+   * ─────────────────────────────────────────────────────────────────────── */
+
+  .agent-dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    padding: 9px 14px;
+    font-size: var(--agent-text-body-sm);
+    color: var(--agent-text-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background var(--agent-transition-fast),
+                color    var(--agent-transition-fast);
+  }
+  .agent-dropdown-item:hover {
+    background: var(--agent-hover-tint);
+  }
+  .agent-dropdown-item:active {
+    background: var(--agent-hover-tint-strong);
+  }
+  .agent-dropdown-item:focus-visible {
+    outline: none;
+    background: var(--agent-hover-tint);
+    box-shadow: inset 0 0 0 1.5px var(--agent-border-focus);
   }
 
   /* ── Skeleton loading ────────────────────────────────────────────────────── */
@@ -653,8 +849,9 @@
     border: none;
     cursor: pointer;
     text-decoration: none;
-    transition: background var(--agent-transition-fast),
-                color    var(--agent-transition-fast);
+    transition: background  var(--agent-transition-fast),
+                color      var(--agent-transition-fast),
+                box-shadow var(--agent-transition-fast);
     width: 100%;
     text-align: left;
   }
@@ -813,6 +1010,9 @@
     box-shadow: 0 6px 20px rgba(var(--agent-coral-rgb), 0.38) !important;
     transform: translateY(-1px);
   }
+  .agent-btn-color-primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
   .agent-btn-color-primary:disabled,
   .agent-btn-color-primary[disabled] {
     background: rgba(var(--agent-coral-rgb), 0.40) !important;
@@ -829,6 +1029,132 @@
   .agent-dropzone:hover { border-color: var(--agent-coral-light); background: var(--agent-coral-bg-tint-hover); }
   .agent-dropzone-active { border-color: var(--agent-coral); background: var(--agent-coral-bg-tint-hover); }
 
+  /* ── Accordion (grid-template-rows technique) ───────────────────────────── */
+  /* Two wrappers required: .agent-acc (grid container) + .agent-acc-in (inner clip).
+   * Default state is closed. Toggle the .open class to expand.
+   * Open: 200ms / Close: 150ms — different durations via per-state transition declarations. */
+
+  .agent-acc {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 150ms cubic-bezier(0.16, 1, 0.3, 1),
+                opacity             100ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .agent-acc.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                opacity             180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .agent-acc-in {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── Accordion header ────────────────────────────────────────────────────── */
+  /* Clickable header for collapsible sections. Pairs with .agent-acc / .agent-acc-in.
+   * Add tabIndex={0} when the element is a <div> (not a <button>) to enable focus. */
+
+  .agent-acc-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 0.5px solid var(--agent-border-default);
+    transition: background  var(--agent-transition-fast),
+                box-shadow  var(--agent-transition-fast);
+  }
+  .agent-acc-hdr:hover:not([aria-disabled="true"]) {
+    background: var(--agent-hover-tint);
+  }
+  .agent-acc-hdr:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--agent-border-focus), inset 0 0 12px rgba(var(--agent-coral-rgb), 0.06);
+  }
+  .agent-acc-hdr:active:not([aria-disabled="true"]) {
+    background: var(--agent-hover-tint-strong);
+  }
+  .agent-acc-title {
+    font-size: var(--agent-text-body-sm);
+    font-weight: var(--agent-weight-semibold);
+    color: var(--agent-text-primary);
+  }
+  .agent-acc-summary {
+    font-size: var(--agent-text-caption);
+    color: var(--agent-text-muted);
+  }
+  .agent-acc-body {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Icon button (circular) ──────────────────────────────────────────────── */
+  /* Circular close / dismiss button. Size variants: .agent-icon-btn-sm (22px),
+   * .agent-icon-btn-md (28px). */
+
+  .agent-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--agent-text-muted);
+    padding: 0;
+    flex-shrink: 0;
+    transition: background  var(--agent-transition-fast),
+                color       var(--agent-transition-fast),
+                transform   var(--agent-transition-fast),
+                box-shadow  var(--agent-transition-fast);
+  }
+  .agent-icon-btn:hover:not(:disabled) {
+    background: var(--agent-hover-tint);
+    color: var(--agent-text-secondary);
+  }
+  .agent-icon-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--agent-focus-ring);
+  }
+  .agent-icon-btn:active:not(:disabled) {
+    transform: scale(0.88);
+    background: var(--agent-hover-tint-strong);
+  }
+  .agent-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .agent-icon-btn-sm { width: 22px; height: 22px; font-size: 14px; }
+  .agent-icon-btn-md { width: 28px; height: 28px; font-size: 16px; }
+
+  /* ── Inline reveal / dismiss ─────────────────────────────────────────────── */
+  /* Use for validation errors, inline edit forms, delta previews, any element
+   * that mounts/unmounts as a direct response to user action.
+   * Exit: apply .agent-reveal-out, wait 150ms, then unmount (two-step pattern). */
+
+  .agent-reveal-in  { animation: agent-reveal-in  150ms ease-out both; }
+  .agent-reveal-out { animation: agent-reveal-out 150ms ease-in  both; }
+
+  /* ── Dropdown entrance ───────────────────────────────────────────────────── */
+  /* Apply on mount. Direction note: downward-opening = translateY(-4px→0).
+   * Upward-opening dropdowns (e.g. user nav) need translateY(+4px→0) — invert manually. */
+
+  .agent-dropdown-in { animation: agent-dropdown-in 120ms ease-out both; }
+
+  /* ── Row confirm flash ───────────────────────────────────────────────────── */
+  /* Subtle green wash (rgba 16,185,129 at 0.07) over 700ms. Apply on milestone confirm.
+   * key the element to force remount if confirm fires more than once on the same row. */
+
+  .agent-row-flash    { animation: agent-row-flash 700ms ease-out both; }
+  /* ms-unlock-enter: canonical slot for the milestone row unlock flash */
+  .ms-unlock-enter    { animation: agent-row-flash 900ms ease-out both; }
+  .agent-modal-in--celebrate { animation: agent-modal-in--celebrate 200ms ease-out both; }
+
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {
@@ -844,6 +1170,21 @@
     @keyframes agent-aurora-down-a { 0%, 100% { transform: translateY(0); } }
     @keyframes agent-aurora-up-b   { 0%, 100% { transform: translateY(0); } }
     @keyframes agent-aurora-down-c { 0%, 100% { transform: translateY(0); } }
+    .agent-acc, .agent-acc.open   { transition: none; }
+    .agent-btn-primary:hover:not(:disabled),
+    .agent-btn-color-primary:hover:not(:disabled) { transform: none; }
+    .agent-segment-pill:active:not(:disabled)    { transform: none; }
+    .agent-icon-btn:active:not(:disabled)        { transform: none; }
+    /* Focus ring: glow still appears but without fade — remove box-shadow from transition */
+    .agent-btn, .agent-segment-pill, .agent-link,
+    .agent-input, .agent-textarea, .agent-icon-btn,
+    .agent-tab, .agent-nav-item, .agent-acc-hdr  { transition-property: transform, background, color, filter, opacity, border-color; }
+    .agent-reveal-in,
+    .agent-reveal-out,
+    .agent-dropdown-in,
+    .agent-row-flash,
+    .ms-unlock-enter,
+    .agent-modal-in--celebrate    { animation: none; }
 }
 
 /* ── Theme picker grid ───────────────────────────────────────────────────── */

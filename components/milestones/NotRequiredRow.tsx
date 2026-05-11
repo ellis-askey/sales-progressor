@@ -68,7 +68,7 @@ export function NotRequiredRow({ def, transactionId }: Props) {
         <button
           onClick={handleReinstate}
           disabled={loading}
-          className="text-xs text-slate-900/30 hover:text-blue-500 transition-colors font-medium disabled:opacity-40 flex-shrink-0"
+          className="text-xs agent-link font-medium disabled:opacity-40 flex-shrink-0"
         >
           {loading ? "…" : "Reinstate"}
         </button>
