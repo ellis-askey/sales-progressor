@@ -88,3 +88,17 @@ Three buttons in inventory-touched components still use raw `bg-blue-500` instea
 - **M2** — Hold / withdraw flow is already implemented in `StatusControl` — it's a discoverability issue only. Consider adding a hint or surfacing it more prominently.
 - **U1** — Clicking milestones rapidly fires multiple pop-ups. Lower priority; milestone `loading` state already guards within a single row.
 - **M5** — Upload memo of sale with auto-populate. Complex feature, lowest priority.
+
+### C1 — completeMilestone server action: defensive Prisma `connect` syntax
+`completeMilestone` (and related milestone actions) set `completedById: input.completedById` directly. If the user ID from the JWT doesn't exist in the connected database (stale session after a DB re-seed or env switch), the FK constraint fires as a raw Prisma error with an opaque constraint name (`MilestoneCompletion_completedById_fkey`), not a readable message.
+
+**Fix:** Change `completedById: input.completedById` to the Prisma `connect` syntax:
+```typescript
+completedBy: input.completedById
+  ? { connect: { id: input.completedById } }
+  : undefined,
+```
+Prisma will throw a typed `P2025 Record not found` error rather than a raw FK violation, making stale-session failures debuggable without a DB query.
+
+**Affects:** `lib/services/` — verify exact file path before applying (likely `milestone-service.ts` or inline in `app/actions/milestones.ts`).
+**No urgency.** The user-facing fix is Option A (clear cookies, re-login). This is an observability improvement only.

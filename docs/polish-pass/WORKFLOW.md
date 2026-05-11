@@ -230,6 +230,20 @@ PLAYWRIGHT
 
   [N]/[N] tests passing against [route] / N/A (reason)
 
+FUNCTIONAL SERVER-ACTION SPOT-CHECK
+
+  Required for any commit that touches a component wired to a server action.
+  One end-to-end exercise per server action in scope. No field may be skipped.
+
+  Action: [server action name, e.g. confirmMilestoneAction]
+    Trigger path: [how it was invoked — e.g. "clicked Confirm on VM3 in Sarah Jones > 14 High Street"]
+    Verified state change: [observable proof — e.g. "row turned green, DB row MilestoneCompletion.completedAt set"]
+    Reverse path: [undo exercised / N/A — e.g. "Undo clicked, row returned to available state"]
+
+  [Repeat block for each server action touched in this commit]
+
+  If no server actions are in scope for this commit: state "No server actions in scope."
+
 MOCKED COMPONENTS VERIFIED
 
   [ComponentName] — [confirmed production file rebuilt to match polish / NOT verified]
