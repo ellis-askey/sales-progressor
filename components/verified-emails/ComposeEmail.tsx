@@ -58,19 +58,19 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   if (verifiedEmails.length === 0) {
     if (noEmailDismissed) return null;
     return (
-      <div className="flex items-start gap-3 px-4 py-4 rounded-xl bg-amber-50 border border-amber-100">
-        <Warning className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" weight="fill" />
+      <div className="agent-reveal-in flex items-center justify-between px-4 py-4 rounded-[10px]"
+           style={{ background: "var(--agent-warning-bg)", border: "0.5px solid var(--agent-warning-border)" }}>
         <div className="flex-1">
           <p className="text-sm font-semibold text-amber-800">No verified sending address</p>
           <p className="text-xs text-amber-700 mt-0.5">
             Go to{" "}
-            <a href="/agent/settings" className="underline font-medium">Settings → Sending addresses</a>
+            <a href="/agent/settings" className="agent-link">Settings → Sending addresses</a>
             {" "}to verify a work email address before sending.
           </p>
         </div>
         <button
           onClick={() => setNoEmailDismissed(true)}
-          className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition-colors text-sm leading-none"
+          className="agent-icon-btn agent-icon-btn-sm"
           aria-label="Dismiss"
         >
           ×
@@ -81,27 +81,28 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
 
   if (sent) {
     return (
-      <div className="px-4 py-4 rounded-xl bg-emerald-50 border border-emerald-100">
+      <div className="agent-reveal-in px-4 py-4 rounded-[10px]"
+           style={{ background: "var(--agent-success-bg)", border: "0.5px solid var(--agent-success-border)" }}>
         <p className="text-sm font-semibold text-emerald-700">✓ Email sent</p>
       </div>
     );
   }
 
   return (
-    <div className="glass-card p-5 space-y-3">
+    <div className="glass-card p-4 space-y-3">
       <p className="text-sm font-semibold text-slate-900/80">Compose email</p>
 
       {/* From */}
       <div>
-        <label className="block text-[11px] font-semibold text-slate-900/40 uppercase tracking-wide mb-1">From</label>
+        <label className="agent-label">From</label>
         {verifiedEmails.length === 1 ? (
-          <p className="text-sm text-slate-900/70 px-3 py-2 glass-input">{verifiedEmails[0].email}</p>
+          <p className="text-sm text-slate-900/70 px-3 py-2 agent-input agent-input-sm">{verifiedEmails[0].email}</p>
         ) : (
           <div className="relative">
             <select
               value={fromEmail}
               onChange={(e) => setFromEmail(e.target.value)}
-              className="glass-input w-full px-3 py-2 text-sm appearance-none pr-8"
+              className="agent-input agent-input-sm w-full appearance-none pr-8"
             >
               {verifiedEmails.map((e) => (
                 <option key={e.id} value={e.email}>{e.email}</option>
@@ -114,37 +115,37 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
 
       {/* To */}
       <div>
-        <label className="block text-[11px] font-semibold text-slate-900/40 uppercase tracking-wide mb-1">To</label>
+        <label className="agent-label">To</label>
         <input
           type="email"
           value={to}
           onChange={(e) => setTo(e.target.value)}
           placeholder="recipient@example.com"
-          className="glass-input w-full px-3 py-2 text-sm"
+          className="agent-input agent-input-sm w-full"
         />
       </div>
 
       {/* Subject */}
       <div>
-        <label className="block text-[11px] font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Subject</label>
+        <label className="agent-label">Subject</label>
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Re: 14 Grosvenor Square"
-          className="glass-input w-full px-3 py-2 text-sm"
+          className="agent-input agent-input-sm w-full"
         />
       </div>
 
       {/* Body */}
       <div>
-        <label className="block text-[11px] font-semibold text-slate-900/40 uppercase tracking-wide mb-1">Message</label>
+        <label className="agent-label">Message</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={6}
           placeholder="Write your email here…"
-          className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+          className="agent-input w-full resize-none"
         />
       </div>
 
@@ -154,7 +155,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
         <button
           onClick={send}
           disabled={sending || !to.trim() || !subject.trim() || !body.trim()}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium disabled:opacity-40 transition-colors"
+          className="agent-btn agent-btn-sm agent-btn-primary"
         >
           <PaperPlaneTilt className="w-4 h-4" />
           {sending ? "Sending…" : "Send"}
@@ -162,7 +163,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
         {onCancel && (
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 transition-colors"
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
           >
             Cancel
           </button>

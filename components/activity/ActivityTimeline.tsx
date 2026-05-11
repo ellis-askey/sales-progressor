@@ -172,7 +172,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
           {/* Vertical line */}
           <div className="absolute left-[19px] top-2 bottom-2 w-px bg-white/30" />
 
-          <div className="space-y-0">
+          <div className="divide-y divide-white/10">
             {visible.map((entry) => (
               <div key={entry.id} className="relative flex gap-4 pb-4">
                 {/* Timeline icon */}

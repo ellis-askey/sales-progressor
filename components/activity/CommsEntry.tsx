@@ -139,19 +139,19 @@ export function CommsEntry({ transactionId, contacts }: Props) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => selectType("internal_note")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-amber-50/60 hover:border-amber-200/60 hover:text-amber-700 transition-all"
+                className="agent-btn px-4 py-2.5 text-sm text-slate-900/70 hover:bg-amber-50/60 hover:text-amber-700"
               >
                 <span>📝</span> Internal note
               </button>
               <button
                 onClick={() => selectType("outbound")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-blue-50/60 hover:border-blue-200/60 hover:text-blue-700 transition-all"
+                className="agent-btn px-4 py-2.5 text-sm text-slate-900/70 hover:bg-blue-50/60 hover:text-blue-700"
               >
                 <span>→</span> Outbound
               </button>
               <button
                 onClick={() => selectType("inbound")}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium text-slate-900/70 hover:bg-green-50/60 hover:border-green-200/60 hover:text-green-700 transition-all"
+                className="agent-btn px-4 py-2.5 text-sm text-slate-900/70 hover:bg-green-50/60 hover:text-green-700"
               >
                 <span>←</span> Inbound
               </button>
@@ -172,7 +172,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 <button
                   key={m.value}
                   onClick={() => selectMethod(m.value)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-sm font-medium transition-all hover:opacity-80 ${m.color}`}
+                  className={`agent-btn px-3.5 py-2 text-sm hover:opacity-80 ${m.color}`}
                 >
                   <span>{m.icon}</span> {m.label}
                 </button>
@@ -211,7 +211,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
             </div>
             <button
               onClick={() => setStep(4)}
-              className="px-4 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              className="agent-btn agent-btn-sm agent-btn-primary"
             >
               {selectedContacts.length === 0 ? "Skip" : "Continue"}
             </button>
@@ -245,11 +245,11 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 <button
                   onClick={submit}
                   disabled={!content.trim() || loading || isPending}
-                  className="px-4 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+                  className="agent-btn agent-btn-sm agent-btn-primary"
                 >
                   {loading ? "Saving…" : "Save"}
                 </button>
-                <button onClick={reset} className="text-xs text-slate-900/40 hover:text-slate-900/70">
+                <button onClick={reset} className="agent-link agent-link-muted text-xs">
                   Cancel
                 </button>
               </div>
