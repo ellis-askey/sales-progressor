@@ -48,10 +48,10 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
   }, [transactionId]);
 
   return (
-    <div className="glass-card">
-      <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900/90">Property Intel</p>
+          <p className="text-xs font-semibold text-slate-900/70">Property Intel</p>
           <p className="text-xs text-slate-900/40 mt-0.5">
             {data?.postcode ?? "Land Registry · EPC · Search links"}
           </p>
@@ -88,7 +88,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
           <p className="text-[11px] text-slate-900/30 mb-3 italic">
             Data sourced from Land Registry and EPC Register. Always verify before use.
           </p>
-          <div className="flex gap-6">
+          <div className="space-y-4">
 
             {/* Price paid history */}
             <div className="flex-1 min-w-0">
@@ -120,7 +120,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
             </div>
 
             {/* EPC */}
-            <div className="w-44 flex-shrink-0 border-l border-white/20 pl-6">
+            <div className="border-t border-white/20 pt-4">
               <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">EPC</p>
               {data.epc ? (
                 <div className="space-y-2">

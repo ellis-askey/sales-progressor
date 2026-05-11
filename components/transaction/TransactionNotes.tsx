@@ -71,12 +71,15 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
   }
 
   return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">Notes</h2>
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      {/* CardHdr */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+        <h3 className="text-xs font-semibold text-slate-900/70">Notes</h3>
+      </div>
 
       {/* Add note form */}
-      <form onSubmit={handleAdd} className="mb-4">
-        <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+      <div className="px-5 py-4 border-b border-white/20">
+        <form onSubmit={handleAdd}>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -96,12 +99,12 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
               {isPending ? "Saving…" : "Add note"}
             </button>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Note list */}
       {optimisticNotes.length > 0 && (
-        <div className="space-y-2.5">
+        <div className="divide-y divide-white/15">
           {visible.map((note) => {
             const initials = note.createdByName
               ? note.createdByName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
@@ -110,7 +113,7 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
             return (
               <div
                 key={note.id}
-                className="group glass-card px-4 py-3.5 flex items-start gap-3"
+                className="group px-4 py-3 flex items-start gap-3"
                 style={isOptimistic ? { opacity: 0.65 } : undefined}
               >
                 <div className="w-7 h-7 rounded-full bg-blue-100/80 text-blue-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5">
@@ -152,8 +155,10 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
       )}
 
       {optimisticNotes.length === 0 && (
-        <p className="text-sm text-slate-900/30 italic px-1">No notes yet</p>
+        <div className="px-5 py-4">
+          <p className="text-sm text-slate-900/30 italic">No notes yet</p>
+        </div>
       )}
-    </section>
+    </div>
   );
 }

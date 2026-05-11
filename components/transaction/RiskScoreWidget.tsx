@@ -16,12 +16,12 @@ export function RiskScoreWidget({ input }: { input: RiskInput }) {
   const clear = factors.filter((f) => !f.triggered);
 
   return (
-    <div className="glass-card">
+    <div className="glass-card overflow-hidden rounded-[12px]">
 
       {/* Header */}
-      <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900/90">Fall-through risk</p>
+          <p className="text-xs font-semibold text-slate-900/70">Fall-through risk</p>
           <p className="text-xs text-slate-900/40 mt-0.5">From your file data</p>
         </div>
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border whitespace-nowrap flex-shrink-0 ${cfg.bg} ${cfg.border}`}>

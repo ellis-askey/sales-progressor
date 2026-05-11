@@ -141,7 +141,7 @@ export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }
   if (vendorSide.state === "allComplete" && purchaserSide.state === "allComplete") return null;
 
   return (
-    <div className="glass-card">
+    <div className="glass-card overflow-hidden rounded-[12px]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <h3 className="text-xs font-semibold text-slate-900/70">Next steps</h3>
       </div>

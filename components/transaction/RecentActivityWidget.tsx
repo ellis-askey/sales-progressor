@@ -25,7 +25,7 @@ export function RecentActivityWidget({ entries }: Props) {
   const recent = entries.slice(0, 3);
 
   return (
-    <div className="glass-card">
+    <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <h3 className="text-xs font-semibold text-slate-900/70">Recent activity</h3>
@@ -63,7 +63,7 @@ export function RecentActivityWidget({ entries }: Props) {
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${COMM_TYPE_DOT[entry.type] ?? "bg-slate-400"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-xs font-semibold text-slate-900/70">
+                    <span className="text-xs font-semibold text-[var(--agent-coral-deep)]">
                       {COMM_TYPE_LABEL[entry.type] ?? entry.type}
                     </span>
                     {entry.method && (

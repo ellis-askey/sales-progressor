@@ -19,7 +19,7 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
   const { setActiveTab } = useTabContext();
 
   return (
-    <div className="glass-card">
+    <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-2">
