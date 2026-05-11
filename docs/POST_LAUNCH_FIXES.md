@@ -76,10 +76,19 @@
 ## REMAINING / DEFERRED
 
 ### Polish — agent-btn press-down (Task 5 audit, deferred from transaction-detail polish pass)
-Three buttons in inventory-touched components still use raw `bg-blue-500` instead of `agent-btn-color-primary`. No press-down state (`:active` transform). Fix is mechanical — swap class, verify color is acceptable (coral vs blue is a visual decision):
+One button in inventory-touched components still uses raw `bg-blue-500` instead of `agent-btn-color-primary`. No press-down state (`:active` transform). Fix is mechanical — swap class, verify color is acceptable (coral vs blue is a visual decision):
 - `components/todos/AddManualTaskForm.tsx:184` — Add task submit button
-- `components/activity/CommsEntry.tsx:214` — "Continue" button (step 3 → 4)
-- `components/activity/CommsEntry.tsx:248` — "Save" button (step 4)
+
+(CommsEntry.tsx Continue/Save buttons fixed in Commit 6 — entries above removed.)
+
+### Polish — agent-reveal-out exit animation (two component sites, five call sites)
+`agent-reveal-out` requires the element to remain mounted during its exit animation, then be removed via an `onAnimationEnd` callback. Pure conditional-render components cannot use it as a className-only addition. Deferred from Stage 4.
+
+**Call sites:**
+- `components/milestones/MilestoneRow.tsx` — counterpart notice dismiss, event-date form cancel, N/R reason form cancel (3 sites)
+- `components/transaction/EditSaleDetailsDrawer.tsx` — PropSaveStage delta preview, Save/Cancel conditional div (2 sites)
+
+**Fix:** Apply the two-step pattern per `ANIMATION_STANDARDS.md §3` at each site: keep element mounted, add `agent-reveal-out` class on exit trigger, remove from DOM in `onAnimationEnd`. Standalone follow-up commit. Low priority.
 
 ### Data consistency
 - **D2** — Self-managed files appear in main pipeline analytics. Should be fully separated. (Requires analytics query audit — lower priority.)
