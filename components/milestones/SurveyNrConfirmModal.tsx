@@ -73,9 +73,7 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
           </button>
           <button
             onClick={onCancel}
-            style={{ width: "100%", padding: "8px 16px", background: "transparent", fontSize: 14, fontWeight: 500, color: "rgba(15,23,42,0.50)", border: "none", cursor: "pointer", borderRadius: 8 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.70)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.50)")}
+            className="agent-btn agent-btn-ghost-bordered w-full"
           >
             Cancel
           </button>

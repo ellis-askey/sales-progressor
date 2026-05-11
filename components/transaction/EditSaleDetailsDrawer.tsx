@@ -676,7 +676,7 @@ export function EditSaleDetailsDrawer({
 
               {/* Fix 8 delta preview — only in tenure_preview */}
               {propStage === "tenure_preview" && propDelta && (
-                <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12 }}>
+                <div className="agent-reveal-in" style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12 }}>
                   <DeltaList label="Steps that will be skipped" items={propDelta.becomingNr} color="red" />
                   <DeltaList label="Steps that will be re-activated" items={propDelta.becomingRequired} color="green" />
                   {(propDelta.becomingNr.length > 0 || propDelta.becomingRequired.length > 0) && (
@@ -704,7 +704,7 @@ export function EditSaleDetailsDrawer({
 
             {/* Property section Save/Cancel */}
             {(propHasChanges || propStage !== "idle") && (
-              <div style={{ marginTop: 8 }}>
+              <div className="agent-reveal-in" style={{ marginTop: 8 }}>
                 <div style={{ display: "flex", gap: 8 }}>
                   {propStage === "tenure_preview" ? (
                     <>

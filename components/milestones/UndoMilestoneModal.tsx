@@ -242,20 +242,7 @@ export function UndoMilestoneModal({
           <button
             onClick={onCancel}
             disabled={isPending}
-            style={{
-              flex: 1,
-              padding: "10px 16px",
-              borderRadius: 12,
-              background: "transparent",
-              color: "rgba(15,23,42,0.60)",
-              fontWeight: 500,
-              fontSize: 14,
-              border: "1px solid rgba(15,23,42,0.15)",
-              cursor: isPending ? "not-allowed" : "pointer",
-              transition: "background 150ms",
-            }}
-            onMouseEnter={(e) => { if (!isPending) e.currentTarget.style.background = "rgba(15,23,42,0.04)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            className="agent-btn agent-btn-ghost-bordered flex-1"
           >
             Cancel
           </button>
