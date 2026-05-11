@@ -196,7 +196,7 @@ export function MilestonePanel({
       : "linear-gradient(90deg, #34d399 0%, #10b981 100%)";
 
   return (
-    <section>
+    <section className="overflow-hidden rounded-[12px]">
       <style>{`
         @keyframes ms-shimmer {
           0%   { transform: translateX(-100%); }
@@ -232,7 +232,7 @@ export function MilestonePanel({
 
       {/* ── Exchange readiness banner ──────────────────────────────────── */}
       {exchangeReady ? (
-        <div className="mb-5 px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-400/25 flex items-center gap-3 animate-enter">
+        <div className="mb-5 px-4 py-3 rounded-xl bg-[var(--agent-success-bg)] border border-[var(--agent-success-border)] flex items-center gap-3 agent-reveal-in">
           <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

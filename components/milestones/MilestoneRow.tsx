@@ -382,7 +382,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <button
                   onClick={() => doComplete()}
                   disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                  className="mt-5 px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40"
+                  className="agent-btn mt-5 px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40"
                 >
                   Confirm
                 </button>
@@ -417,7 +417,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   className="glass-input w-full px-2 py-1.5 text-sm" />
               </div>
               <button onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
-                className="mt-5 px-3 py-1.5 text-xs font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40">Confirm</button>
+                className="agent-btn mt-5 px-3 py-1.5 text-xs font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40">Confirm</button>
               <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 text-xs agent-link-muted">Cancel</button>
             </div>
           )}
@@ -429,7 +429,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             <>
               {effectivelyAvailable && (
                 <button onClick={handleConfirmClick} disabled={loading || isPending}
-                  className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
+                  className="agent-btn px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
                   {loading ? (
                     <>
                       <svg className="animate-spin w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24">
@@ -444,7 +444,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               {effectivelyAvailable && canBeNR && (
                 <button onClick={handleNRClick}
                   disabled={loading || isPending}
-                  className="px-2 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
+                  className="agent-btn px-2 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
                   title="Mark as not required">
                   N/R
                 </button>
@@ -452,7 +452,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
             </>
           )}
           {isDone && (
-            <button onClick={handleUndoClick} disabled={loading || isPending} className="text-xs text-slate-900/30 hover:text-red-400 transition-colors">
+            <button onClick={handleUndoClick} disabled={loading || isPending} className="agent-btn text-xs text-slate-900/30 hover:text-red-400 transition-colors">
               {loading ? "…" : "Undo"}
             </button>
           )}
