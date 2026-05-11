@@ -290,6 +290,7 @@ function SideColumn({
           return (
             <div
               key={log.id}
+              className={loading === task.id ? "agent-row-flash" : undefined}
               style={{
                 padding: "7px 12px",
                 borderTop: i > 0 ? `0.5px solid rgba(15,23,42,0.06)` : undefined,

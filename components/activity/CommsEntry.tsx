@@ -134,7 +134,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
       <div className="px-5 py-4">
         {/* Step 1: Type */}
         {step === 1 && (
-          <div>
+          <div className="agent-reveal-in">
             <p className="text-xs font-medium text-slate-900/50 mb-3">What type of entry is this?</p>
             <div className="flex items-center gap-2">
               <button
@@ -161,7 +161,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
 
         {/* Step 2: Method */}
         {step === 2 && (
-          <div>
+          <div className="agent-reveal-in">
             <div className="flex items-center gap-2 mb-3">
               <TypeBadge type={type!} />
               <span className="text-xs text-slate-900/40">→</span>
@@ -183,7 +183,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
 
         {/* Step 3: Contacts */}
         {step === 3 && (
-          <div>
+          <div className="agent-reveal-in">
             <div className="flex items-center gap-2 mb-3">
               <TypeBadge type={type!} />
               <MethodBadge method={method!} />
@@ -220,7 +220,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
 
         {/* Step 4: Content */}
         {step === 4 && (
-          <div>
+          <div className="agent-reveal-in">
             {type !== "internal_note" && (
               <div className="flex items-center gap-2 mb-3">
                 <TypeBadge type={type!} />

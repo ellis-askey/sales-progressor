@@ -105,7 +105,8 @@ export function PropertyHero({
             <div className="flex items-center gap-3">
               <Link
                 href={backHref}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--agent-text-tertiary)", textDecoration: "none", fontWeight: 500 }}
+                className="agent-link-muted inline-flex items-center gap-1.5 text-xs font-medium"
+                style={{ textDecoration: "none" }}
               >
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />

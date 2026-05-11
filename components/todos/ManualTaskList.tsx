@@ -195,14 +195,14 @@ export function ManualTaskList({
             {myOpen.map((task) => (
               <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
             ))}
-            {filter === "all" && myDone.length > 0 && (
-              <>
+            <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
+              <div className="agent-acc-in">
                 <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Done</div>
                 {myDone.map((task) => (
                   <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
                 ))}
-              </>
-            )}
+              </div>
+            </div>
           </div>
         )}
       </div>

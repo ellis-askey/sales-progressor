@@ -53,9 +53,7 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
           <button
             onClick={onCancel}
             aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            className="agent-icon-btn agent-icon-btn-md"
           >
             <X size={16} weight="bold" />
           </button>

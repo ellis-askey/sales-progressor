@@ -418,18 +418,20 @@ export function RemindersSection({
                 {isCollapsed ? "Show" : "Hide"}
               </button>
             </div>
-            {!isCollapsed && (
-              <div className="glass-card" style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}>
-                <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
-                  {sellerLogs.length > 0
-                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
-                    : <EmptyColumn side="seller" />}
-                  {buyerLogs.length > 0
-                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
-                    : <EmptyColumn side="buyer" />}
+            <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
+              <div className="agent-acc-in">
+                <div className="glass-card" style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}>
+                  <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
+                    {sellerLogs.length > 0
+                      ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                      : <EmptyColumn side="seller" />}
+                    {buyerLogs.length > 0
+                      ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                      : <EmptyColumn side="buyer" />}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         );
       })}
@@ -446,33 +448,35 @@ export function RemindersSection({
               {collapsed.snoozed ? "Show" : "Hide"}
             </button>
           </div>
-          {!collapsed.snoozed && (
-            <div className="space-y-1.5">
-              {snoozedLogs.map((log) => (
-                <div key={log.id} className="glass-card" style={{ borderLeft: `4px solid ${GROUP_LEFT_BORDER.snoozed}`, borderRadius: 16, overflow: "hidden" }}>
-                  <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.80)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {stripChase(log.reminderRule.name)}
-                      </p>
-                      {log.snoozedUntil && (
-                        <p style={{ margin: "2px 0 0", fontSize: 10, color: "rgba(168,85,247,0.85)", fontWeight: 500 }}>
-                          Wakes {new Date(log.snoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+          <div className={`agent-acc ${!collapsed.snoozed ? "open" : ""}`}>
+            <div className="agent-acc-in">
+              <div className="space-y-1.5">
+                {snoozedLogs.map((log) => (
+                  <div key={log.id} className="glass-card" style={{ borderLeft: `4px solid ${GROUP_LEFT_BORDER.snoozed}`, borderRadius: 16, overflow: "hidden" }}>
+                    <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.80)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {stripChase(log.reminderRule.name)}
                         </p>
-                      )}
+                        {log.snoozedUntil && (
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: "rgba(168,85,247,0.85)", fontWeight: 500 }}>
+                            Wakes {new Date(log.snoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleWakeup(log.id)}
+                        disabled={loading === log.id}
+                        style={{ fontSize: 10, fontWeight: 600, color: "rgba(168,85,247,0.85)", padding: "4px 10px", borderRadius: 8, border: "0.5px solid rgba(168,85,247,0.25)", background: "rgba(168,85,247,0.08)", cursor: "pointer", whiteSpace: "nowrap" }}
+                      >
+                        Wake up
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleWakeup(log.id)}
-                      disabled={loading === log.id}
-                      style={{ fontSize: 10, fontWeight: 600, color: "rgba(168,85,247,0.85)", padding: "4px 10px", borderRadius: 8, border: "0.5px solid rgba(168,85,247,0.25)", background: "rgba(168,85,247,0.08)", cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      Wake up
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -488,18 +492,20 @@ export function RemindersSection({
               {collapsed.completed ? "Show" : "Hide"}
             </button>
           </div>
-          {!collapsed.completed && (
-            <div className="space-y-1.5">
-              {completedLogs.map((log) => (
-                <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5">
-                  <p className="text-xs font-medium text-slate-900/60">{stripChase(log.reminderRule.name)}</p>
-                  <p className="text-xs text-slate-900/40 mt-0.5 capitalize">
-                    {log.status}{log.statusReason ? ` · ${log.statusReason}` : ""}
-                  </p>
-                </div>
-              ))}
+          <div className={`agent-acc ${!collapsed.completed ? "open" : ""}`}>
+            <div className="agent-acc-in">
+              <div className="space-y-1.5">
+                {completedLogs.map((log) => (
+                  <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5">
+                    <p className="text-xs font-medium text-slate-900/60">{stripChase(log.reminderRule.name)}</p>
+                    <p className="text-xs text-slate-900/40 mt-0.5 capitalize">
+                      {log.status}{log.statusReason ? ` · ${log.statusReason}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </section>

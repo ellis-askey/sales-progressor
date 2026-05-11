@@ -323,7 +323,7 @@ export function MilestonePanel({
                 <button
                   type="button"
                   onClick={() => toggleSection(section.label)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all group ${
+                  className={`w-full flex items-center gap-2.5 rounded-xl transition-all group agent-acc-hdr ${
                     isCollapsed && allDone
                       ? "bg-emerald-50/60 border border-emerald-100/60"
                       : "bg-transparent"
@@ -348,30 +348,32 @@ export function MilestonePanel({
                   </svg>
                 </button>
 
-                {!isCollapsed && rows.length > 0 && (
-                  <div className="glass-card relative mt-1 rounded-[20px] overflow-hidden">
-                    <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
-                    {rows.map((def) => (
-                      <MilestoneRow
-                        key={def.id}
-                        def={def}
-                        transactionId={transactionId}
-                        onConfirmStart={() => handleConfirmStart(def.id, def.code)}
-                        optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
-                        optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
-                        onNRStart={() => handleNRStart(def.id, def.code)}
-                        onUndoStart={() => handleUndoStart(def.id, def.code)}
-                        counterpartNotice={getCounterpartNotice(def.code)}
-                      />
-                    ))}
+                <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
+                  <div className="agent-acc-in">
+                    {rows.length > 0 ? (
+                      <div className="glass-card relative mt-1 rounded-[20px] overflow-hidden">
+                        <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
+                        {rows.map((def) => (
+                          <MilestoneRow
+                            key={def.id}
+                            def={def}
+                            transactionId={transactionId}
+                            onConfirmStart={() => handleConfirmStart(def.id, def.code)}
+                            optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                            optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                            onNRStart={() => handleNRStart(def.id, def.code)}
+                            onUndoStart={() => handleUndoStart(def.id, def.code)}
+                            counterpartNotice={getCounterpartNotice(def.code)}
+                          />
+                        ))}
+                      </div>
+                    ) : allInSection.length > 0 ? (
+                      <div className="mt-1 px-4 py-3 glass-subtle rounded-xl text-xs text-slate-900/40 italic">
+                        All steps in this section are skipped
+                      </div>
+                    ) : null}
                   </div>
-                )}
-
-                {!isCollapsed && rows.length === 0 && allInSection.length > 0 && (
-                  <div className="mt-1 px-4 py-3 glass-subtle rounded-xl text-xs text-slate-900/40 italic">
-                    All steps in this section are skipped
-                  </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -382,7 +384,7 @@ export function MilestonePanel({
               <button
                 type="button"
                 onClick={() => setNrCollapsed((p) => !p)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all group glass-subtle"
+                className="w-full flex items-center gap-2.5 transition-all group glass-subtle agent-acc-hdr"
               >
                 <div className="w-2 h-2 rounded-full bg-slate-900/20 flex-shrink-0" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-900/40">
@@ -400,13 +402,15 @@ export function MilestonePanel({
                 </svg>
               </button>
 
-              {!nrCollapsed && (
-                <div className="glass-card mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
-                  {nrMilestones.map((def) => (
-                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
-                  ))}
+              <div className={`agent-acc ${!nrCollapsed ? "open" : ""}`}>
+                <div className="agent-acc-in">
+                  <div className="glass-card mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
+                    {nrMilestones.map((def) => (
+                      <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
+                    ))}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>

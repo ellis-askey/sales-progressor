@@ -38,6 +38,22 @@ This workflow covers the agent pass. The buyer/seller portal pass follows the sa
 - Old copy annotated next to new copy in the JSX as `{/* OLD: "..." */}` comments above each changed string
 - State toggles where needed (e.g. a button to switch between "populated" and "empty" views without navigating)
 
+**Mocked vs production components — mandatory rule:**
+
+Some components on the test page will be *mocked* (custom inline implementations rather than imports of the production component). This is sometimes unavoidable — a component may be too stateful or data-dependent to use directly in the test page. However, every mocked component creates a blind spot: Stage 4 will apply classes from the test page, but the production component has a different implementation. The mock is the visual target; it is not the contract.
+
+Two requirements for every mocked component:
+
+1. **Source annotation in the test page.** Above the mock's JSX, add a comment:
+   ```tsx
+   {/* MOCKED: [ComponentName] — production import at [path]. Stage 4 must verify production file against inventory. */}
+   ```
+2. **Inventory section 2 annotation.** In the Stage 1 inventory, find the component in the component table (section 2) and add the note: `[MOCKED IN TEST PAGE — not a production import. Stage 4 must verify production file separately.]`
+
+**Stage 2 gate confirmation must list all mocked components** so Ellis knows what was not directly shown in the test page.
+
+**Rule:** If a component is mocked, Stage 4 must explicitly walk every canonical class task in the inventory's section 12 that applies to that component against the production file — even if the mock "looked right." The mock confirms the visual direction; the inventory task list confirms the mechanical application.
+
 **Preview route convention:**
 
 ```
@@ -149,11 +165,17 @@ Items 1–10 must all have either a Playwright assertion or a "requires Ellis br
 
 ### Stage 4 — Production swap
 
+**The inventory is the contract. The polish page is the visual target.**
+
+Stage 4 is a mechanical walk of the inventory's Section 12 task list against each production component file. The polish test page is useful for confirming *what it should look like* — it is not what gets applied. The task list in the inventory is what gets applied, line by line. If an item is in Section 12 but not on the test page, it still gets applied. If something is on the test page but not in Section 12, it is out of scope for Stage 4.
+
+This distinction matters especially for mocked components (see Stage 2 above): the mock shows the visual direction, but the production file must be walked against the same inventory task list independently.
+
 **What happens:** The Stage 2 test page has proven the design and the Stage 3 pass has approved the copy. Now it is a mechanical operation:
 
 1. Open the production page file and its components
-2. Apply the CSS changes (new classes, token adjustments) from the test page
-3. Apply the JSX structural changes
+2. Walk the inventory's Section 12 task list item by item — apply each task to each named component file
+3. Apply the JSX structural changes (canonical class substitutions, accordion wiring, reveal wiring)
 4. Apply the copy changes — each changed string has an `{/* OLD: */}` annotation in the test page so nothing gets lost
 5. Run `npx tsc --noEmit` — must pass clean
 6. **Commit** the changes as a single atomic commit. Message format: `polish-pass: stage 4 — [page name] ([route])`. This step is mandatory before posting "ready" — no commit, no gate.
@@ -177,10 +199,34 @@ Local visibility confirmed: YES / NO (reason if NO)
 
 Playwright: [N]/[N] tests passing against [route] / N/A (reason)
 
+Section 12 task checklist (one row per task — no prose summaries):
+  Task 1 — .agent-acc / .agent-acc-in: applied at [file]:[line] / MISSED — [reason]
+  Task 2 — .agent-reveal-in / .agent-reveal-out: applied at [file]:[line] / MISSED — [reason]
+  Task 3 — .agent-dropdown-in: applied at [file]:[line] / MISSED — [reason]
+  Task 4 — .agent-row-flash: applied at [file]:[line] / MISSED — [reason]
+  Task 5 — .agent-btn press-down audit: [files confirmed] / gaps: [list]
+  Task 6 — .agent-segment-pill: applied at [file]:[line] / MISSED — [reason]
+  Task 7 — .agent-link / .agent-link-muted: applied at [file]:[line] per target / MISSED — [target, reason]
+  Task 8 — .agent-btn-ghost-bordered: applied at [file]:[line] / MISSED — [reason]
+  Task 9 — .agent-acc-hdr: applied at [file]:[line] / MISSED — [reason]
+  Task 10 — .agent-icon-btn: applied at [file]:[line] per target / MISSED — [target, reason]
+  Task 11 — agent-focus inputs: applied at [file]:[line] / MISSED — [reason]
+  Task 12 — agent-hover-link: [resolution]
+  [Add rows for any page-specific tasks in the inventory]
+
+Mocked components verified:
+  [ComponentName] — [confirmed production file walked against inventory task list / NOT verified]
+
 Ellis spot-check: PENDING
 Ellis walkthrough items: [list specific items requiring Ellis browser walkthrough]
 24h monitoring window: starts after Ellis deploys to production
 ```
+
+**Rules for the task checklist:**
+- Every task row is required, even if the answer is "N/A — not applicable to this page."
+- "Applied" entries must cite file and line number. "MISSED" entries must explain why (out of scope, deferred, needs design decision).
+- A MISSED row in the gate post is a visible gap — it does not block the gate if agreed, but it must be listed. Hidden misses (prose summaries that obscure skipped items) are what this format prevents.
+- The checklist is not a sign-off blocker if misses are intentional and documented. It is a blocker if rows are omitted or fabricated.
 
 The SHA field is structurally required. If there is no SHA, the commit has not been made and the gate cannot be posted. "tsc clean" alone is not a gate.
 

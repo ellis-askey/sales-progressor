@@ -181,7 +181,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
             </div>
 
             {reason === "Other" && (
-              <div className="mb-4">
+              <div className="agent-reveal-in mb-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Specify reason
                 </label>
@@ -199,7 +199,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg agent-hover-row transition-colors"
+                className="flex-1 agent-btn-ghost-bordered"
               >
                 Cancel
               </button>

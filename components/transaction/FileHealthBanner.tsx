@@ -17,10 +17,10 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
   const isRed = overdueCount > 0 && isBehind;
 
   return (
-    <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
+    <div className={`agent-reveal-in rounded-xl border px-4 py-3 flex items-start gap-3 ${
       isRed
-        ? "bg-red-50 border-red-200"
-        : "bg-amber-50 border-amber-200"
+        ? "bg-[var(--agent-danger-bg)] border-[var(--agent-danger-border)]"
+        : "bg-[var(--agent-warning-bg)] border-[var(--agent-warning-border)]"
     }`}>
       <svg
         className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isRed ? "text-red-500" : "text-amber-500"}`}
@@ -46,9 +46,7 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
       {overdueCount > 0 && (
         <button
           onClick={() => setActiveTab("reminders")}
-          className={`text-xs font-medium flex-shrink-0 ${
-            isRed ? "text-red-600 hover:text-red-800" : "text-amber-700 hover:text-amber-900"
-          } transition-colors`}
+          className="agent-link text-xs font-medium flex-shrink-0"
         >
           View reminders →
         </button>
