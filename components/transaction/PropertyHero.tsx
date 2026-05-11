@@ -26,12 +26,12 @@ const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: s
   withdrawn: { bg: "bg-gray-500/15 text-gray-400 ring-gray-400/30",          dot: "bg-gray-400",    label: "Withdrawn" },
 };
 
-const WARM_STATUS: Record<TransactionStatus, { dot: string; text: string; bg: string }> = {
-  draft:     { dot: "bg-slate-300",   text: "text-slate-500",   bg: "bg-slate-50/90"   },
-  active:    { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50/90" },
-  on_hold:   { dot: "bg-amber-500",   text: "text-amber-700",   bg: "bg-amber-50/90"   },
-  completed: { dot: "bg-blue-500",    text: "text-blue-700",    bg: "bg-blue-50/90"    },
-  withdrawn: { dot: "bg-gray-400",    text: "text-gray-600",    bg: "bg-gray-100/80"   },
+const STATUS_PILL: Record<TransactionStatus, string> = {
+  draft:     "",
+  active:    "agent-pill-active",
+  on_hold:   "agent-pill-hold",
+  completed: "agent-pill-completed",
+  withdrawn: "agent-pill-withdrawn",
 };
 
 const STATUS_LABEL: Record<TransactionStatus, string> = {
@@ -77,7 +77,6 @@ export function PropertyHero({
   const isAgent = backHref === "/agent/dashboard";
 
   if (isAgent) {
-    const ws = WARM_STATUS[status];
     return (
       <div style={{
         background: "rgba(255,255,255,0.58)",
@@ -121,10 +120,7 @@ export function PropertyHero({
               <span className="text-xs md:hidden" style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
               <div className="flex items-center gap-2">
                 {flagSlot}
-                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ring-inset ring-black/5 ${ws.bg} ${ws.text}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ws.dot}`} />
-                  {STATUS_LABEL[status]}
-                </span>
+                <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
               </div>
             </div>
           </div>

@@ -21,22 +21,16 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
   return (
     <div className="glass-card">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-2">
-          <svg className="w-3.5 h-3.5" style={{ color: "var(--agent-coral)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-          </svg>
           <h3 className="text-xs font-semibold text-slate-900/70">Reminders</h3>
           {totalActive > 0 && (
-            <span className="text-xs font-semibold rounded-full px-2 py-0.5 tabular-nums"
-                  style={{ background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }}>
-              {totalActive}
-            </span>
+            <span className="agent-badge">{totalActive}</span>
           )}
         </div>
         <button
           onClick={() => setActiveTab("reminders")}
-          className="text-xs agent-link-muted"
+          className="text-xs agent-link"
         >
           View all →
         </button>

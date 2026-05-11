@@ -414,7 +414,7 @@ export function RemindersSection({
                 <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.badgeCls}`}>{logs.length}</span>
               </div>
-              <button onClick={() => toggleCollapse(groupKey)} className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors">
+              <button onClick={() => toggleCollapse(groupKey)} className="text-[10px] agent-link agent-link-muted">
                 {isCollapsed ? "Show" : "Hide"}
               </button>
             </div>
@@ -444,7 +444,7 @@ export function RemindersSection({
               <span className="text-xs font-semibold uppercase tracking-wide text-purple-700">Snoozed</span>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">{snoozedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("snoozed")} className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors">
+            <button onClick={() => toggleCollapse("snoozed")} className="text-[10px] agent-link agent-link-muted">
               {collapsed.snoozed ? "Show" : "Hide"}
             </button>
           </div>

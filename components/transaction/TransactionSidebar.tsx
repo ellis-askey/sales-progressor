@@ -58,7 +58,6 @@ function ProgressRing({ percent, onTrack }: { percent: number; onTrack: string }
 }
 
 import { useState, useEffect } from "react";
-import { PencilSimple } from "@phosphor-icons/react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import type { ProgressResult } from "@/lib/services/fees";
@@ -121,13 +120,18 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     - progressorFeePence;
   const hasTotal = agentFeeCalcPence != null;
 
-  const onTrackColors = {
-    on_track: { bg: "bg-green-100",  text: "text-green-700",  label: "On track" },
-    at_risk:  { bg: "bg-amber-100",  text: "text-amber-700",  label: "At risk" },
-    off_track:{ bg: "bg-red-100",    text: "text-red-700",    label: "Off track" },
-    unknown:  { bg: "bg-white/30",    text: "text-slate-900/50", label: "No data yet" },
+  const TRACK_PILL: Record<string, string> = {
+    on_track:  "agent-pill-active",
+    at_risk:   "agent-pill-hold",
+    off_track: "agent-pill-withdrawn",
+    unknown:   "",
   };
-  const trackStyle = onTrackColors[progress.onTrack];
+  const TRACK_LABEL: Record<string, string> = {
+    on_track:  "On track",
+    at_risk:   "At risk",
+    off_track: "Off track",
+    unknown:   "No data yet",
+  };
 
   return (
     <>
@@ -141,8 +145,8 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           <ProgressRing percent={progress.percent} onTrack={progress.onTrack} />
 
           <div className="flex-1 space-y-2">
-            <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full ${trackStyle.bg} ${trackStyle.text}`}>
-              {trackStyle.label}
+            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`}>
+              {TRACK_LABEL[progress.onTrack]}
             </span>
             <p className="text-xs text-slate-900/40">
               {progress.weeksElapsed} week{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
@@ -242,9 +246,8 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           <p className="glass-section-label text-slate-900/40">Price &amp; Fees</p>
           <button
             onClick={() => setShowEditDrawer(true)}
-            className="flex items-center gap-1 text-xs agent-link-muted"
+            className="text-xs agent-link"
           >
-            <PencilSimple size={11} />
             Edit details
           </button>
         </div>

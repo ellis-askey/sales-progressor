@@ -330,14 +330,12 @@ export function MilestonePanel({
                   }`}
                 >
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${allDone ? "bg-emerald-400" : sc.dot}`} />
-                  <span className="glass-section-label text-slate-900/60">
+                  <span className="agent-acc-title">
                     {section.label}
                   </span>
                   {!(isCollapsed && allDone) && <div className="flex-1 h-px bg-white/30" />}
                   {isCollapsed && allDone && <div className="flex-1" />}
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    allDone ? "bg-emerald-100/80 text-emerald-700" : "bg-white/30 text-slate-900/40"
-                  }`}>
+                  <span className="agent-badge">
                     {allDone ? "All done" : `${sectionDone}/${allInSection.length}`}
                   </span>
                   <svg
@@ -351,7 +349,7 @@ export function MilestonePanel({
                 <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
                   <div className="agent-acc-in">
                     {rows.length > 0 ? (
-                      <div className="glass-card relative mt-1 rounded-[20px] overflow-hidden">
+                      <div className="glass-card relative mt-1 rounded-[12px] overflow-hidden">
                         <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
                         {rows.map((def) => (
                           <MilestoneRow
@@ -387,12 +385,8 @@ export function MilestonePanel({
                 className="w-full flex items-center gap-2.5 transition-all group glass-subtle agent-acc-hdr"
               >
                 <div className="w-2 h-2 rounded-full bg-slate-900/20 flex-shrink-0" />
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-900/40">
-                  Skipped
-                </span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/30 text-slate-900/40">
-                  {nrMilestones.length}
-                </span>
+                <span className="agent-acc-title">Skipped</span>
+                <span className="agent-badge">{nrMilestones.length}</span>
                 <div className="flex-1" />
                 <svg
                   className={`w-3.5 h-3.5 text-slate-900/30 group-hover:text-slate-900/60 transition-transform flex-shrink-0 ${nrCollapsed ? "" : "rotate-180"}`}
@@ -404,7 +398,7 @@ export function MilestonePanel({
 
               <div className={`agent-acc ${!nrCollapsed ? "open" : ""}`}>
                 <div className="agent-acc-in">
-                  <div className="glass-card mt-1" style={{ clipPath: "inset(0 round 20px)" }}>
+                  <div className="glass-card mt-1 rounded-[12px] overflow-hidden">
                     {nrMilestones.map((def) => (
                       <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
                     ))}
