@@ -64,7 +64,7 @@ export function ManualTaskCard({
   const due = task.dueDate ? formatDue(task.dueDate) : null;
 
   return (
-    <div className={`glass-card px-4 py-3.5 flex items-start gap-3 transition-opacity ${isDone ? "opacity-60" : ""}`}>
+    <div className={`px-4 py-2.5 flex items-start gap-3 transition-opacity ${isDone ? "opacity-60" : ""}`}>
 
       {/* Checkbox */}
       <button
@@ -144,11 +144,9 @@ export function ManualTaskCard({
       {/* Delete */}
       <button
         onClick={handleDelete}
-        className="text-slate-900/30 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+        className="agent-icon-btn agent-icon-btn-sm flex-shrink-0 mt-0.5"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        ×
       </button>
     </div>
   );

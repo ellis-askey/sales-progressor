@@ -22,7 +22,7 @@ function timeAgo(date: Date): string {
 function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
   const isDone = task.status === "done";
   return (
-    <div className={`glass-card px-4 py-3.5 flex items-start gap-3 ${isDone ? "opacity-75" : ""}`}>
+    <div className={`px-4 py-2.5 flex items-start gap-3 ${isDone ? "opacity-75" : ""}`}>
       <div className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
         isDone ? "bg-emerald-500" : "border-2 border-amber-300 bg-amber-50"
       }`}>
@@ -164,19 +164,13 @@ export function ManualTaskList({
   const agentDone = agentTasks.filter((t) => t.status === "done");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ── My to-dos ── */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between glass-subtle px-4 py-3 rounded-xl">
-          <div className="flex items-center gap-3">
-            {showDone && myDone.length > 0 && (
-              <button
-                onClick={() => setFilter(filter === "open" ? "all" : "open")}
-                className="text-xs text-slate-900/40 hover:text-slate-900/70"
-              >
-                {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
-              </button>
-            )}
+      <div className="glass-card overflow-hidden rounded-[12px]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold text-slate-900/70">To-Do</h3>
+            {myOpen.length > 0 && <span className="agent-badge">{myOpen.length}</span>}
           </div>
           <AddManualTaskForm
             transactionId={transactionId}
@@ -187,17 +181,17 @@ export function ManualTaskList({
         </div>
 
         {myVisible.length === 0 ? (
-          <div className="text-center py-8 text-sm text-slate-900/30">
+          <div className="px-4 py-8 text-center text-sm text-slate-900/30">
             {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-white/15">
             {myOpen.map((task) => (
               <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
             ))}
             <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
               <div className="agent-acc-in">
-                <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">Done</div>
+                <div className="text-xs text-slate-900/30 font-medium px-4 pt-2 pb-1">Done</div>
                 {myDone.map((task) => (
                   <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
                 ))}
@@ -205,33 +199,39 @@ export function ManualTaskList({
             </div>
           </div>
         )}
+
+        {showDone && myDone.length > 0 && (
+          <div className="px-4 py-2">
+            <button
+              onClick={() => setFilter(filter === "open" ? "all" : "open")}
+              className="agent-link-muted text-xs"
+            >
+              {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Agent requests / With Sales Progressor ── */}
       {agentTasks.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <h2 className="text-sm font-semibold text-slate-900/80">
-              {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
-              {agentOpen.length > 0 && (
-                <span className="ml-2 text-xs font-medium bg-amber-100/80 text-amber-700 px-2 py-0.5 rounded-full">
-                  {agentOpen.length}
-                </span>
-              )}
-            </h2>
+        <div className="glass-card overflow-hidden rounded-[12px]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-semibold text-slate-900/70">
+                {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
+              </h3>
+              {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
+            </div>
             {agentDone.length > 0 && (
               <button
                 onClick={() => setShowAgentDone((v) => !v)}
-                className="ml-auto text-xs text-slate-900/40 hover:text-slate-900/70"
+                className="agent-link-muted text-xs"
               >
                 {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
               </button>
             )}
           </div>
-          <div className="space-y-2">
+          <div className="divide-y divide-white/15">
             {agentOpen.map((task) => (
               perspective === "agent"
                 ? <AgentRequestRow key={task.id} task={task} />
@@ -239,9 +239,7 @@ export function ManualTaskList({
             ))}
             {showAgentDone && agentDone.length > 0 && (
               <>
-                <div className="text-xs text-slate-900/30 font-medium pt-2 pb-1">
-                  {perspective === "agent" ? "Resolved" : "Resolved"}
-                </div>
+                <div className="text-xs text-slate-900/30 font-medium px-4 pt-2 pb-1">Resolved</div>
                 {agentDone.map((task) => (
                   perspective === "agent"
                     ? <AgentRequestRow key={task.id} task={task} />
@@ -250,7 +248,7 @@ export function ManualTaskList({
               </>
             )}
             {agentOpen.length === 0 && !showAgentDone && (
-              <div className="text-center py-4 text-sm text-slate-900/30">
+              <div className="px-4 py-4 text-center text-sm text-slate-900/30">
                 {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
               </div>
             )}
