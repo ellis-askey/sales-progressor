@@ -10,7 +10,7 @@ import type { TransactionStatus } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
   { value: "active",    label: "Active" },
-  { value: "on_hold",   label: "On Hold" },
+  { value: "on_hold",   label: "On hold" },
   { value: "completed", label: "Completed" },
   { value: "withdrawn", label: "Withdrawn" },
 ];
@@ -106,7 +106,11 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           title="Change status"
         >
           <StatusBadge status={optimisticStatus} />
-          <svg className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 flex-shrink-0"
+            style={{ transition: "transform 180ms ease, color 150ms", transform: open ? "rotate(180deg)" : undefined }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>

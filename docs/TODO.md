@@ -210,3 +210,35 @@ ANIMATION_STANDARDS.md as a new deliberate exception (similar to E1).
 **Out of scope for the polish pass** — surface inconsistencies will be
 caught by Stage 4 spec rows, but structural consolidation is a
 separate refactor.
+
+---
+
+## Stage 1 inventory checklist: grep for component-local string constants
+
+Filed 2026-05-12 after the transaction-detail retroactive sentence-case
+fix (PropertyHero.STATUS_VARIANTS + StatusControl.STATUSES rendered
+"On Hold" while the rest of the app moved to "On hold"). The
+transaction-detail Stage 4 sign-off missed these because the inventory's
+component-by-component tracking captures imports, not component-local
+constants that hold user-facing strings.
+
+**Pattern to add to Stage 1 inventory workflow (fold into
+`INVENTORY_TEMPLATE.md` during next batched doc tightening):**
+
+When walking a component for §7 copy inventory, additionally grep for
+component-local Record / object constants that map to user-facing labels:
+
+- `*_LABELS` / `*_LABEL`
+- `*_VARIANTS` / `*_VARIANT`
+- `*_CONFIG` / `*_CONFIGS`
+- `STATUSES` / `STATUS_OPTIONS`
+- `*_OPTIONS`
+
+Each such constant should be listed in the §7 copy inventory if its values
+render to users. Otherwise app-wide updates (e.g. STATUS_LABELS sentence-
+case migrations) will silently miss the component-local copies and create
+drift between pages.
+
+**Not urgent.** Catch on the next batched doc tightening pass; the four
+remaining polish-pass inventories (dashboard, analytics, completions,
+to-do, etc.) can apply this workflow ad hoc until the template is updated.

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
+import { StatusControl } from "./StatusControl";
 
 type Props = {
   address: string;
@@ -16,12 +17,15 @@ type Props = {
   serviceType?: ServiceType | null;
   backHref?: string;
   flagSlot?: React.ReactNode;
+  assignedUserName?: string | null;
+  weeksActive?: number | null;
+  transactionId?: string;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
   draft:     { bg: "bg-slate-500/15 text-slate-300 ring-slate-400/30",       dot: "bg-slate-400",   label: "Draft" },
   active:    { bg: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30", dot: "bg-emerald-400", label: "Active" },
-  on_hold:   { bg: "bg-amber-500/15 text-amber-300 ring-amber-400/30",       dot: "bg-amber-400",   label: "On Hold" },
+  on_hold:   { bg: "bg-amber-500/15 text-amber-300 ring-amber-400/30",       dot: "bg-amber-400",   label: "On hold" },
   completed: { bg: "bg-blue-500/15 text-blue-300 ring-blue-400/30",          dot: "bg-blue-400",    label: "Completed" },
   withdrawn: { bg: "bg-gray-500/15 text-gray-400 ring-gray-400/30",          dot: "bg-gray-400",    label: "Withdrawn" },
 };
@@ -35,7 +39,7 @@ const STATUS_PILL: Record<TransactionStatus, string> = {
 };
 
 const STATUS_LABEL: Record<TransactionStatus, string> = {
-  draft: "Draft", active: "Active", on_hold: "On Hold", completed: "Completed", withdrawn: "Withdrawn",
+  draft: "Draft", active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
 };
 
 const TRACK_BAR: Record<string, string> = {
@@ -67,7 +71,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, weeksActive, transactionId,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -77,127 +81,81 @@ export function PropertyHero({
   const isAgent = backHref === "/agent/dashboard";
 
   if (isAgent) {
+    const metaParts = [
+      assignedUserName ?? null,
+      weeksActive != null
+        ? `${weeksActive} week${weeksActive !== 1 ? "s" : ""} active`
+        : null,
+    ].filter(Boolean);
+    const metaText = metaParts.join(" · ");
+
     return (
-      <div style={{
-        background: "rgba(255,255,255,0.58)",
-        backdropFilter: "blur(32px) saturate(180%)",
-        WebkitBackdropFilter: "blur(32px) saturate(180%)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.72)",
-        boxShadow: "0 6px 36px rgba(var(--agent-coral-base-rgb),0.09), 0 1px 0 rgba(255,255,255,0.85) inset",
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        position: "relative",
-        zIndex: 0,
+      <div className="property-hero-glass" style={{
+        background: "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        borderTop: "0.5px solid var(--agent-border-default)",
+        borderLeft: "0.5px solid var(--agent-border-default)",
+        borderRight: "0.5px solid var(--agent-border-default)",
+        borderBottom: "none",
+        borderRadius: "14px 14px 0 0",
         overflow: "hidden",
       }}>
-        {/* Coral bloom — top right */}
-        <div aria-hidden="true" style={{ position: "absolute", top: -90, right: -60, width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.20) 0%, transparent 70%)", pointerEvents: "none" }} />
-        {/* Warm accent — bottom left */}
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -60, left: -20, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-        {/* Secondary bloom — centre */}
-        <div aria-hidden="true" style={{ position: "absolute", top: "20%", left: "35%", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-        <div className="relative px-4 pt-5 pb-6 md:px-8 md:pb-7">
-          {/* Breadcrumb + status */}
-          <div className="flex flex-col gap-1.5 mb-4 md:flex-row md:items-center md:justify-between md:mb-[18px]">
-            {/* Left: My Files (+ separator + agency on desktop) */}
-            <div className="flex items-center gap-3">
-              <Link
-                href={backHref}
-                className="agent-link-muted inline-flex items-center gap-1.5 text-xs font-medium"
-                style={{ textDecoration: "none" }}
-              >
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                </svg>
-                My Files
-              </Link>
-              <span className="hidden md:inline" style={{ color: "var(--agent-border-subtle)", fontSize: 14 }}>·</span>
-              <span className="hidden md:inline" style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
-            </div>
-            {/* Right: agency name (mobile only, left) + flag + status pill */}
-            <div className="flex items-center justify-between md:justify-end md:gap-2">
-              <span className="text-xs md:hidden" style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>{agencyName}</span>
-              <div className="flex items-center gap-2">
-                {flagSlot}
-                <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="mb-4 md:mb-[18px]">
-            <h1 data-sensitive="true" className="text-2xl md:text-[30px] font-bold" style={{ margin: 0, color: "var(--agent-text-primary)", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{line1}</h1>
-            {line2 && <p data-sensitive="true" style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-tertiary)", fontWeight: 500 }}>{line2}</p>}
-          </div>
-
-          {/* Bottom row: price/pills + exchange/progress */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              {price && (
-                <p data-sensitive="true" style={{ margin: "0 0 10px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.015em" }}>{price}</p>
+        <div style={{ padding: "16px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <Link
+              href={backHref}
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 11, marginBottom: 8, display: "block", textDecoration: "none" }}
+            >
+              ← Back
+            </Link>
+            <h1
+              data-sensitive="true"
+              style={{ fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", margin: "0 0 8px", letterSpacing: "-0.015em", lineHeight: 1.2 }}
+            >
+              {address}
+            </h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              {transactionId
+                ? <StatusControl transactionId={transactionId} currentStatus={status} />
+                : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+              }
+              {tenure && (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                  {formatTenure(tenure)}
+                </span>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                {tenure && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.15)" }}>
-                    {formatTenure(tenure)}
-                  </span>
-                )}
-                {purchaseType && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(255,255,255,0.65)", color: "var(--agent-text-secondary)", border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.15)" }}>
-                    {formatPurchaseType(purchaseType)}
-                  </span>
-                )}
-                {serviceType === "outsourced" && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(219,234,254,0.70)", color: "#1e40af", border: "0.5px solid rgba(96,165,250,0.35)" }}>
-                    Outsourced to us
-                  </span>
-                )}
-                {serviceType === "self_managed" && (
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 999, background: "rgba(209,250,229,0.70)", color: "#065f46", border: "0.5px solid rgba(52,211,153,0.35)" }}>
-                    Self-managed
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Exchange + progress: row on both breakpoints, full-width on mobile */}
-            <div className="flex items-end gap-5 md:gap-7 md:flex-shrink-0">
-              {days !== null && (
-                <div>
-                  <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Exchange</p>
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: days < 0 ? "var(--agent-danger)" : days <= 14 ? "var(--agent-warning)" : "var(--agent-text-primary)" }}>
-                    {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d`}
-                  </p>
-                </div>
+              {purchaseType && (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                  {formatPurchaseType(purchaseType)}
+                </span>
               )}
-              <div className="flex-1 md:min-w-[150px]">
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Progress</p>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{percent}%</p>
-                </div>
-                <div style={{ height: 8, background: "rgba(var(--agent-coral-base-rgb),0.12)", borderRadius: 999, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.06)" }}>
-                  <div
-                    className={barColor}
-                    style={{ height: "100%", borderRadius: 999, transition: "width 0.65s cubic-bezier(0.34,1.3,0.64,1)", width: `${Math.max(percent, 2)}%`, position: "relative", overflow: "hidden" }}
-                  >
-                    <div aria-hidden="true" style={{
-                      position: "absolute", inset: 0,
-                      background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.52) 50%, transparent 100%)",
-                      animation: "hero-bar-shimmer 3s ease-in-out infinite",
-                    }} />
-                  </div>
-                </div>
-              </div>
+              {serviceType === "self_managed" && (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                  Self-managed
+                </span>
+              )}
+              {serviceType === "outsourced" && (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-coral)", background: "rgba(var(--agent-coral-rgb), 0.1)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
+                  With progressor
+                </span>
+              )}
+              {metaText && (
+                <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{metaText}</span>
+              )}
             </div>
           </div>
+          {flagSlot}
         </div>
-        <style>{`
-          @keyframes hero-bar-shimmer {
-            0%, 100% { transform: translateX(-100%); }
-            40%, 60% { transform: translateX(250%); }
-          }
-        `}</style>
+        <div style={{ height: 4, background: "rgba(30,45,74,0.08)", position: "relative", overflow: "hidden" }}>
+          <div style={{
+            position: "absolute", left: 0, top: 0, bottom: 0,
+            width: `${Math.max(percent, 2)}%`,
+            background: "linear-gradient(90deg, var(--agent-coral-deep), var(--agent-coral-light))",
+            transition: "width 700ms ease-out",
+          }} />
+        </div>
       </div>
     );
   }
