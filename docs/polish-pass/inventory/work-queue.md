@@ -554,3 +554,21 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 | 2026-05-12 | **Stage 1 review — Point 2 resolution:** FileAlertsStrip §13 row originally said "Header: `agent-card-hdr` (amber background tint via inline override)". Inline overrides of canonical classes violate the no-drift rule. Resolved by introducing `agent-card-hdr-warning` as a new canonical class (precedent: `agent-hover-row-warning` at `agent-system.css:1084`) — to be defined in Stage 2 and documented in `ANIMATION_STANDARDS.md` changelog. §13 row updated to split work between Stage 2 (define class) and Stage 4 (apply class). No inline. | §13 (FileAlertsStrip row) |
 | 2026-05-12 | **Stage 1 review — Point 3 resolution:** SplitFileCard address-header §13 row originally contained an "or inline with correct token colours if the → arrow conflicts with the underline hover" escape clause. Rewritten to remove the inline fallback: if `agent-link` conflicts with the trailing `→` arrow visual, Stage 2 must either adjust the arrow placement (e.g. extract to a non-underlined span outside the anchor) or define `agent-link-with-arrow` as a new canonical variant in `agent-system.css`. No inline. | §13 (SplitFileCard address header row) |
 | 2026-05-12 | **Stage 1 review — Other notes (purple snoozed palette):** Per Ellis's flag, the snoozed-state purple tokens (`purple-50`, `purple-200`, `purple-600`, `purple-800`) used in `ReminderCard.tsx` snoozed mode are theme-fixed Tailwind values — they do not adapt across the six theme blocks in `themes.css`. §13 snoozed-view row updated to flag a Stage 2 decision: either introduce `--agent-snoozed-*` token family (text, bg, border) for cross-theme adaptation, or document the purple as an intentional theme-fixed semantic colour (E1 precedent). Decision belongs in Stage 2, not Stage 4. | §13 (Snoozed view row) |
+
+---
+
+## 15. Canonical contributions
+
+Track new canonical classes and tokens added during work queue Stage 2 (defined + documented) and Stage 4 (applied). See INVENTORY_TEMPLATE.md §15 for the full discipline.
+
+**New canonical classes added during work queue Stage 2:**
+
+| Class name | file:line in `agent-system.css` | Doc entry in `ANIMATION_STANDARDS.md` | Reason (1 sentence) |
+|---|---|---|---|
+| _(populated as Stage 2 progresses)_ | | | |
+
+**New canonical tokens added during work queue Stage 2:**
+
+| Token name | Defined in | Reason |
+|---|---|---|
+| _(populated as Stage 2 progresses)_ | | |
