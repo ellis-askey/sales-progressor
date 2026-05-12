@@ -1,210 +1,108 @@
-"use client";
-
 // components/transactions/ForecastStrip.tsx
-// Exchange forecast strip — active transactions grouped by upcoming exchange
-// month. Polished to canonical standard during /agent/dashboard merge into
-// /agent/transactions (2026-05-12).
+// Compact exchange forecast strip — single-row month-pill summary above the
+// transaction-list status tabs. Each pill is a filter affordance that updates
+// ?exchanging=YYYY-MM on /agent/transactions; the table below re-filters via
+// getMonthExchangingIds (lib/services/hub.ts).
+//
+// Refactored 2026-05-12 from a tall card showing month-by-month file rows to
+// a compact navigation strip. The previous shape competed visually with the
+// table for the same data; this shape repositions the forecast as a filter
+// tool and lets the table own the file rows.
 //
 // Visual contract:
-//   - agent-glass-strong outer, var(--agent-radius-xl), overflow hidden
-//   - agent-card-hdr header (canonical), agent-card-title "Exchange forecast"
-//   - Count folded into agent-card-subtitle (no separate pill)
-//   - Per-month: agent-eyebrow label, token-driven file count, token divider
-//   - Per-file row: agent-hover-row + typography matching TransactionRowView
-//   - Service chip: "You" / "Our team" matching TransactionRowView.serviceTag
-//     exactly (vocabulary AND colour parity)
-//
-// Collapsed-glimpse pattern (2026-05-12):
-//   - First 2 files per month always visible
-//   - Remaining files wrapped in canonical .agent-acc / .agent-acc-in
-//   - "+ N more" link expands inline; "Show less" collapses
-//   - Each month toggles independently
+//   - tl-filter-banner outer (matches hub-filter banner weight — single-row,
+//     above status tabs, glass↔solid pair already wired)
+//   - "Exchanging soon →" label in agent-text-secondary
+//   - Month pills: agent-segment-pill + agent-segment-pill-sm (canonical
+//     hover/focus/active states; .on modifier when filter is applied)
+//   - Year-suffix rule: bare label when month.year === earliestYear,
+//     two-digit year suffix otherwise (e.g. "Jun" / "Jul" / "Jan 27")
 
-import { useState } from "react";
 import Link from "next/link";
 import type { ForecastMonth } from "@/lib/services/transactions";
-
-const VISIBLE_PER_MONTH = 2;
-
-function splitAddress(address: string): { line: string; location: string } {
-  const parts = address.split(",").map((p) => p.trim());
-  if (parts.length <= 1) return { line: address, location: "" };
-  const line = parts.slice(0, -2).join(", ") || parts[0];
-  const location = parts.slice(-2).join(", ");
-  return { line, location };
-}
 
 type Props = {
   months: ForecastMonth[];
   basePath?: string;
+  // URL-form month key ("YYYY-MM", 1-indexed month, zero-padded) so the
+  // component compares against the URL param shape directly without conversion.
+  activeMonthKey?: string | null;
 };
 
-type Tx = ForecastMonth["transactions"][number];
-
-function FileRow({ tx, basePath, withDivider }: { tx: Tx; basePath: string; withDivider: boolean }) {
-  const { line, location } = splitAddress(tx.propertyAddress);
-  return (
-    <Link
-      href={`${basePath}/${tx.id}`}
-      className="agent-hover-row"
-      style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "10px 4px",
-        borderTop: withDivider ? "0.5px solid var(--agent-border-subtle)" : undefined,
-        textDecoration: "none",
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          margin: 0, fontSize: 14, fontWeight: 600,
-          color: "var(--agent-text-primary)",
-          lineHeight: 1.35,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {line}
-        </p>
-        {location && (
-          <p style={{
-            margin: "2px 0 0", fontSize: 11,
-            color: "var(--agent-text-muted)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
-            {location}
-          </p>
-        )}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        {tx.serviceType && (
-          // Vocabulary + colour parity with TransactionRowView.serviceTag
-          // (Stage 3 voice fix: "Self-progressed"→"You", "With progressor"→"Our team")
-          <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-            tx.serviceType === "outsourced"
-              ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
-              : "bg-slate-100/60 text-slate-400 border-slate-200/40"
-          }`}>
-            {tx.serviceType === "outsourced" ? "Our team" : "You"}
-          </span>
-        )}
-        <span style={{
-          fontSize: 11, color: "var(--agent-text-muted)",
-        }}>
-          {new Date(tx.forecastDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-        </span>
-      </div>
-    </Link>
-  );
+function urlKey(m: ForecastMonth): string {
+  // URL is 1-indexed (human convention) so the regex stays readable
+  return `${m.year}-${String(m.month + 1).padStart(2, "0")}`;
 }
 
-export function ForecastStrip({ months, basePath = "/transactions" }: Props) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
+export function ForecastStrip({ months, basePath = "/transactions", activeMonthKey = null }: Props) {
   if (months.length === 0) return null;
 
-  const now = new Date();
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
+  // Year-suffix rule: render bare when this month's year equals the earliest
+  // year in the forecast; annotate with two-digit year suffix otherwise.
+  // Handles: in-year forecast (all bare), one boundary crossing (later year
+  // annotated), wholly-next-year forecast (still works — earliestYear is the
+  // single year present and all pills render bare).
+  const earliestYear = months[0].year;
 
-  const totalFiles = months.reduce((n, m) => n + m.transactions.length, 0);
-  const subtitle = totalFiles === 1
-    ? "1 active file exchanging in the next 3 months"
-    : `${totalFiles} active files exchanging in the next 3 months`;
+  function pillLabel(m: ForecastMonth): string {
+    const short = new Date(m.year, m.month, 1)
+      .toLocaleDateString("en-GB", { month: "short" });
+    if (m.year === earliestYear) return short;
+    const yearSuffix = String(m.year).slice(-2);
+    return `${short} ${yearSuffix}`;
+  }
 
   return (
     <div
-      className="agent-glass-strong"
-      style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
+      className="tl-filter-banner"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 12px",
+        borderRadius: 10,
+        flexWrap: "wrap",
+      }}
+      role="navigation"
+      aria-label="Exchange forecast by month"
     >
-      {/* Header — canonical agent-card-hdr */}
-      <div className="agent-card-hdr">
-        <div>
-          <p className="agent-card-title">Exchange forecast</p>
-          <p className="agent-card-subtitle">{subtitle}</p>
-        </div>
-      </div>
+      <span style={{
+        fontSize: 12, fontWeight: 600,
+        color: "var(--agent-text-secondary)",
+        display: "inline-flex", alignItems: "center", gap: 6,
+      }}>
+        Exchanging soon
+        <span aria-hidden style={{ color: "var(--agent-text-muted)" }}>→</span>
+      </span>
 
-      {months.map((month, mi) => {
-        const isCurrent = month.month === thisMonth && month.year === thisYear;
-        const key = `${month.year}-${month.month}`;
-        const isOpen = !!expanded[key];
-        const visible = month.transactions.slice(0, VISIBLE_PER_MONTH);
-        const hidden = month.transactions.slice(VISIBLE_PER_MONTH);
-        const hasMore = hidden.length > 0;
-
-        return (
-          <div
-            key={key}
-            style={{
-              padding: "14px 20px 16px",
-              borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-            }}
-          >
-            {/* Month section header — agent-eyebrow + "This month" coral chip + file count */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span
-                className="agent-eyebrow"
-                style={isCurrent ? { color: "var(--agent-coral-deep)" } : undefined}
-              >
-                {month.label}
-              </span>
-              {isCurrent && (
-                <span style={{
-                  fontSize: 10, fontWeight: 600,
-                  padding: "1px 8px", borderRadius: 99,
-                  color: "var(--agent-coral-deep)",
-                  background: "var(--agent-coral-bg-tint)",
-                  border: "1px solid rgba(var(--agent-coral-base-rgb), 0.30)",
-                }}>
-                  This month
-                </span>
-              )}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {months.map((m) => {
+          const key = urlKey(m);
+          const isActive = key === activeMonthKey;
+          return (
+            <Link
+              key={key}
+              // Active pill click clears the filter — same self-toggle pattern
+              // as the status tabs (page.tsx:226-230 "Active" tab → bare route).
+              href={isActive ? basePath : `${basePath}?exchanging=${key}`}
+              scroll={false}
+              className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+              aria-pressed={isActive}
+            >
+              {pillLabel(m)}
               <span style={{
-                marginLeft: "auto",
-                fontSize: 11, color: "var(--agent-text-muted)",
+                fontSize: 10, fontWeight: 500,
+                padding: "1px 7px", borderRadius: 99,
+                background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
+                color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
               }}>
-                {month.transactions.length} {month.transactions.length === 1 ? "file" : "files"}
+                {m.transactions.length}
               </span>
-            </div>
-
-            {/* Always-visible rows */}
-            <div>
-              {visible.map((tx, i) => (
-                <FileRow key={tx.id} tx={tx} basePath={basePath} withDivider={i > 0} />
-              ))}
-            </div>
-
-            {hasMore && (
-              <>
-                {/* Hidden rows — canonical agent-acc accordion */}
-                <div className={`agent-acc${isOpen ? " open" : ""}`}>
-                  <div className="agent-acc-in">
-                    {hidden.map((tx) => (
-                      <FileRow key={tx.id} tx={tx} basePath={basePath} withDivider />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setExpanded((s) => ({ ...s, [key]: !s[key] }))}
-                  className="agent-link agent-link-muted"
-                  style={{
-                    marginTop: 8,
-                    padding: 0,
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 11,
-                  }}
-                  aria-expanded={isOpen}
-                >
-                  {isOpen ? "Show less" : `+ ${hidden.length} more`}
-                </button>
-              </>
-            )}
-          </div>
-        );
-      })}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

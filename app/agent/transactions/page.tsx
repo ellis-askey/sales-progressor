@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
-import { getHubFilteredIds, type HubFilter } from "@/lib/services/hub";
+import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,6 +26,15 @@ const HUB_FILTER_VALUES = [
 
 function isHubFilter(v: string | undefined): v is HubFilter {
   return HUB_FILTER_VALUES.includes(v as HubFilter);
+}
+
+// Validates ?exchanging=YYYY-MM (1-indexed month, zero-padded). Returns a
+// JS-convention 0-indexed month for downstream Date construction, or null.
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+function parseMonthFilter(v: string | undefined): { year: number; month: number; key: string } | null {
+  if (!v || !MONTH_RE.test(v)) return null;
+  const [y, m] = v.split("-").map(Number);
+  return { year: y, month: m - 1, key: v };
 }
 
 const FILTER_LABELS: Record<HubFilter, string> = {
@@ -61,19 +70,21 @@ const FILTER_EMPTY: Record<HubFilter, { title: string; description: string }> = 
 export default async function AllTransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; exchanging?: string }>;
 }) {
   const session = await requireSession();
-  const { filter } = await searchParams;
+  const { filter, exchanging } = await searchParams;
 
   const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const opts = vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
   const agentId = vis.seeAll ? undefined : session.user.id;
   const isDirector = session.user.role === "director";
 
-  const hubFilter = isHubFilter(filter) ? filter : null;
-  // Status filter — only relevant when no hub filter is active
-  const statusFilter: TransactionStatus | "all" = !hubFilter
+  // Three-way filter priority: hubFilter → monthFilter → statusFilter.
+  // Only the highest-priority filter that resolves is used.
+  const hubFilter   = isHubFilter(filter) ? filter : null;
+  const monthFilter = !hubFilter ? parseMonthFilter(exchanging) : null;
+  const statusFilter: TransactionStatus | "all" = (!hubFilter && !monthFilter)
     ? ((filter as TransactionStatus | "all") ?? "active")
     : "active";
 
@@ -83,15 +94,25 @@ export default async function AllTransactionsPage({
     getExchangeForecast(session.user.agencyId, agentId, opts).catch(() => []),
   ]);
 
-  // Fetch IDs from the same DB query as the Hub so counts match exactly
+  // Fetch IDs from the same DB query as the Hub / month helper so counts match exactly
   let filteredTransactions = allTransactions;
   if (hubFilter) {
     const matchingIds = await getHubFilteredIds(vis, hubFilter);
     const idSet = new Set(matchingIds);
     filteredTransactions = allTransactions.filter((tx) => idSet.has(tx.id));
+  } else if (monthFilter) {
+    const matchingIds = await getMonthExchangingIds(vis, monthFilter.year, monthFilter.month);
+    const idSet = new Set(matchingIds);
+    filteredTransactions = allTransactions.filter((tx) => idSet.has(tx.id));
   } else if (statusFilter !== "all") {
     filteredTransactions = allTransactions.filter((tx) => tx.status === statusFilter);
   }
+
+  // Pretty month label for the active-month banner + empty state
+  const monthLabel = monthFilter
+    ? new Date(monthFilter.year, monthFilter.month, 1)
+        .toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+    : null;
 
   return (
     <>
@@ -134,6 +155,40 @@ export default async function AllTransactionsPage({
             <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", flex: 1 }}>
               <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>
                 {FILTER_LABELS[hubFilter]}
+              </strong>
+              <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
+                · {filteredTransactions.length} {filteredTransactions.length === 1 ? "file" : "files"}
+              </span>
+            </span>
+            <Link
+              href="/agent/transactions"
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              <X size={11} />
+              Clear filter
+            </Link>
+          </div>
+        )}
+
+        {/* Month-filter banner — parallel to hub-filter banner, fires when
+         * ?exchanging=YYYY-MM is set. The compact ForecastStrip below still
+         * renders (active pill carries .on state) — banner is the explicit
+         * state confirmation + escape hatch. */}
+        {monthFilter && (
+          <div
+            className="tl-filter-banner"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 12px",
+              borderRadius: 10,
+            }}
+          >
+            <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", flex: 1 }}>
+              <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>
+                Exchanging in {monthLabel}
               </strong>
               <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
                 · {filteredTransactions.length} {filteredTransactions.length === 1 ? "file" : "files"}
@@ -197,17 +252,24 @@ export default async function AllTransactionsPage({
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Exchange forecast — absorbed from /agent/dashboard (2026-05-12 merge).
-             * Hidden when hub filter is active (banner replaces forecast in narrowed
-             * contexts; the strip is the broader "next 3 months" overview). */}
+            {/* Exchange forecast — compact month-pill strip. Refactored
+             * 2026-05-12 from tall card to single-row filter affordance.
+             * Hidden when hub filter is active (banner replaces forecast in
+             * narrowed contexts). When monthFilter is active the strip stays
+             * visible and the matching pill renders with .on state. */}
             {!hubFilter && forecastMonths.length > 0 && (
-              <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
+              <ForecastStrip
+                months={forecastMonths}
+                basePath="/agent/transactions"
+                activeMonthKey={monthFilter?.key ?? null}
+              />
             )}
 
-            {/* Status tabs — hidden when a hub filter is active. agent-segment-pill-sm
-             * canonical hover/focus/active states; <Link> preserved for server-side URL
-             * routing. "On Hold" → "On hold" Stage 3 voice fix applied. */}
-            {!hubFilter && (
+            {/* Status tabs — hidden when any filter (hub or month) is active.
+             * agent-segment-pill-sm canonical hover/focus/active states;
+             * <Link> preserved for server-side URL routing. "On Hold" → "On hold"
+             * Stage 3 voice fix applied. */}
+            {!hubFilter && !monthFilter && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "auto" }}>
                 {(
                   [
@@ -251,6 +313,25 @@ export default async function AllTransactionsPage({
                   <EmptyState
                     title={FILTER_EMPTY[hubFilter].title}
                     description={FILTER_EMPTY[hubFilter].description}
+                    action={
+                      <Link
+                        href="/agent/transactions"
+                        className="agent-link"
+                        style={{ fontSize: 13 }}
+                      >
+                        View all files
+                      </Link>
+                    }
+                  />
+                ) : monthFilter ? (
+                  /* Third empty-state branch — fires on stale bookmarked URL or
+                   * manually constructed ?exchanging= param. Banner above still
+                   * carries the × Clear filter affordance; this empty state
+                   * matches the hub-filter pattern so the user sees their filter
+                   * is active and can clear it explicitly. */
+                  <EmptyState
+                    title={`No files exchanging in ${monthLabel}`}
+                    description="Files appear here when their expected exchange date falls within this month."
                     action={
                       <Link
                         href="/agent/transactions"

@@ -278,6 +278,45 @@ export async function getHubFilteredIds(
   return results.map((r) => r.id);
 }
 
+/**
+ * Returns IDs of active transactions exchanging within a specific calendar
+ * month. Parallel to getHubFilteredIds but parameterised on year/month so the
+ * ForecastStrip compact summary can drive per-month filtering via ?exchanging=YYYY-MM.
+ *
+ * The OR on expectedExchangeDate || overridePredictedDate mirrors getExchangeForecast
+ * (lib/services/transactions.ts:286-289) so the pill count and the row count below
+ * stay identical — that's the contract that makes the strip a credible filter.
+ */
+export async function getMonthExchangingIds(
+  vis: AgentVisibility,
+  year: number,
+  month: number, // 0-indexed (matches ForecastMonth.month + JS Date convention)
+): Promise<string[]> {
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth   = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const txWhere = buildTxWhere(vis);
+
+  const where: Prisma.PropertyTransactionWhereInput = {
+    ...txWhere,
+    status: "active",
+    OR: [
+      { expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth } },
+      { overridePredictedDate: { gte: startOfMonth, lte: endOfMonth } },
+    ],
+    NOT: {
+      milestoneCompletions: {
+        some: {
+          state: "complete",
+          milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+        },
+      },
+    },
+  };
+
+  const results = await prisma.propertyTransaction.findMany({ where, select: { id: true } });
+  return results.map((r) => r.id);
+}
+
 // ── Flags with severity ───────────────────────────────────────────────────────
 
 export type HubFlag = {
