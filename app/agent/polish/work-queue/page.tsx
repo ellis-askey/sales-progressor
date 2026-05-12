@@ -271,10 +271,14 @@ export default function WorkQueuePolishPage() {
 type PillColor = "danger" | "warning" | "muted";
 
 function StatPill({ href, label, color }: { href: string; label: string; color: PillColor }) {
+  /* Brightness matches StatusBadge pattern (text-red-700 bg-red-50 border-red-200):
+   * - Solid pale tint background (bumped from 0.08 → 0.16)
+   * - Clearly visible coloured border (bumped from 0.15 → 0.40)
+   * - Locked semantic text colour (--agent-danger / --agent-warning) */
   const styleMap: Record<PillColor, React.CSSProperties> = {
-    danger:  { color: "var(--agent-danger)",     background: "rgba(var(--agent-danger-rgb),0.08)",  border: "1px solid rgba(var(--agent-danger-rgb),0.15)"  },
-    warning: { color: "var(--agent-warning)",    background: "rgba(var(--agent-warning-rgb),0.08)", border: "1px solid rgba(var(--agent-warning-rgb),0.15)" },
-    muted:   { color: TM,                         background: "rgba(0,0,0,0.06)",                    border: "1px solid rgba(0,0,0,0.09)"                    },
+    danger:  { color: "var(--agent-danger)",     background: "rgba(var(--agent-danger-rgb),0.16)",  border: "1px solid rgba(var(--agent-danger-rgb),0.40)"  },
+    warning: { color: "var(--agent-warning)",    background: "rgba(var(--agent-warning-rgb),0.16)", border: "1px solid rgba(var(--agent-warning-rgb),0.40)" },
+    muted:   { color: "var(--agent-text-secondary)", background: "rgba(0,0,0,0.05)",                border: "1px solid rgba(0,0,0,0.18)"                    },
   };
   return (
     <a href={href} className="agent-link" style={{
@@ -383,7 +387,7 @@ function FilterBar({
         type="text"
         placeholder="Search address or reminder…"
         className="agent-input agent-input-sm"
-        style={{ width: "100%", marginBottom: 10 }}
+        style={{ width: "100%", marginBottom: 10, fontSize: 13 }}
       />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -563,12 +567,12 @@ function SideColumn({ side, reminders }: { side: "seller" | "buyer"; reminders: 
                   </p>
                 )}
               </div>
-              {/* Snooze trigger — agent-btn-sm (canonical) */}
-              <button className="agent-btn agent-btn-sm agent-btn-ghost" title="Snooze">
+              {/* Snooze trigger — agent-btn-secondary (neutral white-glass hover) */}
+              <button className="agent-btn agent-btn-sm agent-btn-secondary" title="Snooze">
                 <Clock size={12} weight="regular" />
               </button>
-              {/* Done — agent-btn-sm (canonical) */}
-              <button className="agent-btn agent-btn-sm" title="Confirm milestone done">
+              {/* Done — agent-btn-secondary (neutral white-glass hover, matches Snooze) */}
+              <button className="agent-btn agent-btn-sm agent-btn-secondary" title="Confirm milestone done">
                 <CheckCircle size={12} weight="fill" /> Done
               </button>
             </div>
@@ -692,33 +696,30 @@ function ZeroFilesEmpty() {
         </p>
       </div>
 
-      {/* Ghost group preview */}
-      <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
+      {/* Ghost group preview — skeleton lines, not mock data.
+       * Keeps group headers + row count to convey the structure agents will see;
+       * replaces hardcoded addresses/reminders/tags with .agent-skeleton shapes. */}
+      <div style={{ opacity: 0.5, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
         {[
-          { label: "Overdue",   color: "#dc2626", samples: [
-            { addr: "14 Maple Close, Birmingham", name: "Mortgage offer — chaser due", tag: "3 days overdue" },
-            { addr: "8 The Crescent, Bristol",   name: "Search results — follow-up",  tag: "1 day overdue"  },
-          ]},
-          { label: "Due today", color: "#d97706", samples: [
-            { addr: "22 Victoria Road, Manchester", name: "Contract pack — review", tag: "Due today" },
-          ]},
+          { label: "Overdue",   rows: 2 },
+          { label: "Due today", rows: 1 },
         ].map(group => (
           <div key={group.label}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: TP }}>{group.label}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: group.color, background: `${group.color}18`, borderRadius: 99, padding: "1px 7px" }}>{group.samples.length}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TM }}>{group.label}</span>
+              <div className="agent-skeleton" style={{ height: 18, width: 22, borderRadius: 99 }} />
             </div>
             <div className="agent-glass-strong" style={{ borderRadius: 12, overflow: "hidden" }}>
-              {group.samples.map((s, i) => (
+              {Array.from({ length: group.rows }).map((_, i) => (
                 <div key={i} style={{
                   padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
                   borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: TP, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.addr}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: TM }}>{s.name}</p>
+                    <div className="agent-skeleton" style={{ height: 12, width: "55%", borderRadius: 6, marginBottom: 7 }} />
+                    <div className="agent-skeleton" style={{ height: 10, width: "38%", borderRadius: 6 }} />
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 500, color: group.color, background: `${group.color}12`, borderRadius: 6, padding: "3px 8px" }}>{s.tag}</span>
+                  <div className="agent-skeleton" style={{ height: 20, width: 76, borderRadius: 6, flexShrink: 0 }} />
                 </div>
               ))}
             </div>
