@@ -2,7 +2,8 @@
 
 **Status:** Active standard. Applies to all 27 agent pages and (via portal handoff) the buyer/seller portal pass.  
 **Established:** 2026-05-11, during new-v2 Stage 3.  
-**Source:** Patterns proven in `/agent/anim-preview` (Rounds 1 and 2). Extracted to `agent-system.css` before new-v2 Stage 4.
+**Source:** Patterns proven in `/agent/anim-preview` (Rounds 1 and 2). Extracted to `agent-system.css` before new-v2 Stage 4.  
+**Baseline reference:** `/agent/transactions/[id]` (transaction-detail) — the canonical production implementation of every class in this doc, signed off 2026-05-12. When in doubt about how a class should look or behave in production, open this page and observe. Keyframe definitions live in `app/agent/styles/agent-system.css`. Top-level implementation doc: `docs/ANIMATION_STANDARDS.md`.
 
 ---
 

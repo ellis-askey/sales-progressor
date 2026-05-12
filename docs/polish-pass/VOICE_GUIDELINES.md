@@ -1,7 +1,8 @@
 # Voice Guidelines
 
 **Version:** 1.0 — agent pass  
-**Living document:** Add to the translation table as new terms are found. Rules change only with explicit sign-off.
+**Living document:** Add to the translation table as new terms are found. Rules change only with explicit sign-off.  
+**Baseline reference:** Transaction-detail Stage 3 copy, signed off 2026-05-12 — the voice baseline for every subsequent agent page. When a Stage 3 review produces a new before/after, add the pair to the relevant rule's translation table with the source file and line. The table grows; the rules do not change without Ellis's sign-off.
 
 ---
 

@@ -35,7 +35,8 @@ List every component imported and rendered by this page, with file paths. Includ
 Every component listed here must be tagged with exactly one of:
 
 - **Match polish page** — Stage 4 changes this component's markup, layout, spacing, and classes to make it match the polish page. The polish page is both the visual target and the structural contract. See Section 13 for the per-section specification.
-- **No changes — already matches polish** — This component already matches the polish page visually and structurally. Stage 4 verifies but does not modify it.
+- **Reuse from transaction-detail** — This component already exists in its canonical production form as shipped on transaction-detail (Stage 4 signed off 2026-05-12). No redesign needed — Stage 4 verifies that this page's instance matches transaction-detail's implementation exactly. If it does, mark "Done — matches transaction-detail." If it diverges, close the gap.
+- **No changes** — This component already matches the polish page visually and structurally. Stage 4 verifies but does not modify it.
 - **Out of scope** — This component is not part of this polish pass. It should not be touched in Stage 4.
 
 **Why this matters:** Without an explicit scope declaration, Stage 4 has no basis for deciding whether a visual gap between production and the polish page is a miss to fix or an expected difference to leave alone. Declaring scope here at Stage 1 eliminates that ambiguity.
@@ -263,6 +264,7 @@ Which canonical classes does this page use? For each, note where it fires and wh
 | `.agent-reveal-in` / `.agent-reveal-out` | Yes / No | [validation errors? inline edit forms?] | Already present / Needs wiring in Stage 4 |
 | `.agent-dropdown-in` | Yes / No | [which dropdowns?] | Already present / Needs wiring in Stage 4 |
 | `.agent-row-flash` | Yes / No | [which confirm rows?] | Already present / Needs wiring in Stage 4 |
+| `.agent-row-exit` | Yes / No | [which delete-able list rows?] | Already present / Needs wiring in Stage 4 |
 | `.agent-btn` (press-down + hover) | Yes — all buttons | [note any inline-styled buttons that need the class added] | Audit in Stage 2 |
 
 **Interactive-state classes (§6–10):**
@@ -305,6 +307,8 @@ List anything on this page that must not change in this pass.
 ## 13. Per-section visual specification
 
 This section is the visual contract for Stage 4. One row per visible section of the polish page, top to bottom. Stage 4 is not complete until every in-scope row reads "Done."
+
+**Baseline:** Transaction-detail (`/agent/transactions/[id]`) is the absolute quality bar — signed off Stage 4 on 2026-05-12. Every section of every subsequent page must match this bar in animation, hover, spacing, type scale, and theme treatment. When filling this section, open transaction-detail alongside the polish page. If a section's structure in the polish page matches how transaction-detail does it, note "Follows transaction-detail pattern" in the Stage 4 changes column — this is faster to verify and unambiguous about the reference. If a section diverges from transaction-detail, document the divergence explicitly so Stage 4 can close the gap intentionally rather than by accident.
 
 | Section name | Polish-page structure | Production component(s) | Current state vs polish | Stage 4 changes required |
 |---|---|---|---|---|
