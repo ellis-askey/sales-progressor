@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { label: "Hub",          href: "/agent/hub",              sub: "Your pipeline overview"        },
   { label: "Reminders",    href: "/agent/work-queue",       sub: "Due and overdue chasers"       },
   { label: "Completions",  href: "/agent/completions",      sub: "Files ready to complete"       },
-  { label: "My Files",     href: "/agent/dashboard",        sub: "All your property files"       },
+  { label: "My Files",     href: "/agent/transactions",     sub: "All your property files"       },
   { label: "Updates",      href: "/agent/comms",            sub: "Portal activity"               },
   { label: "Analytics",    href: "/agent/analytics",        sub: "Pipeline and fee data"         },
   { label: "New sale",     href: "/agent/transactions/new", sub: "Register a new property"       },

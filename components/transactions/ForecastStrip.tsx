@@ -1,5 +1,16 @@
 // components/transactions/ForecastStrip.tsx
-// Dashboard exchange forecast strip — shows active transactions grouped by expected exchange month.
+// Exchange forecast strip — active transactions grouped by upcoming exchange
+// month. Polished to canonical standard during /agent/dashboard merge into
+// /agent/transactions (2026-05-12).
+//
+// Visual contract:
+//   - agent-glass-strong outer, var(--agent-radius-xl), overflow hidden
+//   - agent-card-hdr header (canonical), agent-card-title "Exchange forecast"
+//   - Count folded into agent-card-subtitle (no separate pill)
+//   - Per-month: agent-eyebrow label, token-driven file count, token divider
+//   - Per-file row: agent-hover-row + typography matching TransactionRowView
+//   - Service chip: "You" / "Our team" matching TransactionRowView.serviceTag
+//     exactly (vocabulary AND colour parity)
 
 import Link from "next/link";
 import type { ForecastMonth } from "@/lib/services/transactions";
@@ -24,73 +35,121 @@ export function ForecastStrip({ months, basePath = "/transactions" }: Props) {
   const thisMonth = now.getMonth();
   const thisYear = now.getFullYear();
 
+  const totalFiles = months.reduce((n, m) => n + m.transactions.length, 0);
+  const subtitle = totalFiles === 1
+    ? "1 active file exchanging in the next 3 months"
+    : `${totalFiles} active files exchanging in the next 3 months`;
+
   return (
-    <div className="glass-card">
-      <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
+    <div
+      className="agent-glass-strong"
+      style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
+    >
+      {/* Header — canonical agent-card-hdr */}
+      <div className="agent-card-hdr">
         <div>
-          <p className="text-sm font-semibold text-slate-900/90">Exchange Forecast</p>
-          <p className="text-xs text-slate-900/40 mt-0.5">Active files with a predicted or expected exchange date</p>
+          <p className="agent-card-title">Exchange forecast</p>
+          <p className="agent-card-subtitle">{subtitle}</p>
         </div>
-        <span className="text-xs font-medium text-blue-500 bg-blue-50/60 px-2.5 py-1 rounded-full whitespace-nowrap">
-          {months.reduce((n, m) => n + m.transactions.length, 0)}
-        </span>
       </div>
 
-      <div className="divide-y divide-white/15">
-        {months.map((month) => {
-          const isCurrent = month.month === thisMonth && month.year === thisYear;
-          return (
-            <div key={`${month.year}-${month.month}`} className="pl-5 pr-8 py-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`text-xs font-semibold uppercase tracking-wide ${isCurrent ? "text-blue-600" : "text-slate-900/50"}`}>
-                  {month.label}
+      {months.map((month, mi) => {
+        const isCurrent = month.month === thisMonth && month.year === thisYear;
+        return (
+          <div
+            key={`${month.year}-${month.month}`}
+            style={{
+              padding: "14px 20px 16px",
+              borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+            }}
+          >
+            {/* Month section header — agent-eyebrow + "This month" coral chip + file count */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span
+                className="agent-eyebrow"
+                style={isCurrent ? { color: "var(--agent-coral-deep)" } : undefined}
+              >
+                {month.label}
+              </span>
+              {isCurrent && (
+                <span style={{
+                  fontSize: 10, fontWeight: 600,
+                  padding: "1px 8px", borderRadius: 99,
+                  color: "var(--agent-coral-deep)",
+                  background: "var(--agent-coral-bg-tint)",
+                  border: "1px solid rgba(var(--agent-coral-base-rgb), 0.30)",
+                }}>
+                  This month
                 </span>
-                {isCurrent && (
-                  <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">This month</span>
-                )}
-                <span className="text-xs text-slate-900/30 ml-auto">
-                  {month.transactions.length} file{month.transactions.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="space-y-2.5">
-                {month.transactions.map((tx) => {
-                  const { line, location } = splitAddress(tx.propertyAddress);
-                  return (
-                    <Link
-                      key={tx.id}
-                      href={`${basePath}/${tx.id}`}
-                      className="flex items-center justify-between group gap-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900/75 agent-group-link transition-colors leading-snug">
-                          {line}
-                        </p>
-                        {location && (
-                          <p className="text-xs text-slate-900/40 mt-0.5">{location}</p>
-                        )}
-                      </div>
-                      <div className="flex-shrink-0 flex items-center gap-2">
-                        {tx.serviceType && (
-                          <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-                            tx.serviceType === "outsourced"
-                              ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
-                              : "bg-slate-100/60 text-slate-400 border-slate-200/40"
-                          }`}>
-                            {tx.serviceType === "outsourced" ? "Out" : "Self"}
-                          </span>
-                        )}
-                        <span className="text-xs text-slate-900/40">
-                          {tx.forecastDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+              )}
+              <span style={{
+                marginLeft: "auto",
+                fontSize: 11, color: "var(--agent-text-muted)",
+              }}>
+                {month.transactions.length} {month.transactions.length === 1 ? "file" : "files"}
+              </span>
             </div>
-          );
-        })}
-      </div>
+
+            {/* File rows — agent-hover-row + typography matching TransactionRowView */}
+            <div>
+              {month.transactions.map((tx, i) => {
+                const { line, location } = splitAddress(tx.propertyAddress);
+                return (
+                  <Link
+                    key={tx.id}
+                    href={`${basePath}/${tx.id}`}
+                    className="agent-hover-row"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "10px 4px",
+                      borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                      textDecoration: "none",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        margin: 0, fontSize: 14, fontWeight: 600,
+                        color: "var(--agent-text-primary)",
+                        lineHeight: 1.35,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {line}
+                      </p>
+                      {location && (
+                        <p style={{
+                          margin: "2px 0 0", fontSize: 11,
+                          color: "var(--agent-text-muted)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {location}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      {tx.serviceType && (
+                        // Vocabulary + colour parity with TransactionRowView.serviceTag
+                        // (Stage 3 voice fix: "Self-progressed"→"You", "With progressor"→"Our team")
+                        <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                          tx.serviceType === "outsourced"
+                            ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
+                            : "bg-slate-100/60 text-slate-400 border-slate-200/40"
+                        }`}>
+                          {tx.serviceType === "outsourced" ? "Our team" : "You"}
+                        </span>
+                      )}
+                      <span style={{
+                        fontSize: 11, color: "var(--agent-text-muted)",
+                      }}>
+                        {tx.forecastDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

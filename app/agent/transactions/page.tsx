@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { listTransactions, countTransactionsByStatus } from "@/lib/services/transactions";
+import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
 import { getHubFilteredIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
+import { ForecastStrip } from "@/components/transactions/ForecastStrip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import { X } from "lucide-react";
 import type { TransactionStatus } from "@prisma/client";
@@ -75,9 +77,10 @@ export default async function AllTransactionsPage({
     ? ((filter as TransactionStatus | "all") ?? "active")
     : "active";
 
-  const [allTransactions, counts] = await Promise.all([
+  const [allTransactions, counts, forecastMonths] = await Promise.all([
     listTransactions(session.user.agencyId, agentId, opts),
     countTransactionsByStatus(session.user.agencyId, agentId, opts),
+    getExchangeForecast(session.user.agencyId, agentId, opts).catch(() => []),
   ]);
 
   // Fetch IDs from the same DB query as the Hub so counts match exactly
@@ -106,6 +109,10 @@ export default async function AllTransactionsPage({
           <Plus size={14} weight="bold" />
           New sale
         </Link>
+        {/* Added during /agent/dashboard merge (2026-05-12). Canonical label per
+            VOICE_GUIDELINES.md translation table — dashboard's old "Send note to
+            progressor" is dropped in favour of "Send a note to our team". */}
+        <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
@@ -189,7 +196,14 @@ export default async function AllTransactionsPage({
             </Link>
           </div>
         ) : (
-          <div>
+          <div className="space-y-5">
+            {/* Exchange forecast — absorbed from /agent/dashboard (2026-05-12 merge).
+             * Hidden when hub filter is active (banner replaces forecast in narrowed
+             * contexts; the strip is the broader "next 3 months" overview). */}
+            {!hubFilter && forecastMonths.length > 0 && (
+              <ForecastStrip months={forecastMonths} basePath="/agent/transactions" />
+            )}
+
             {/* Status tabs — hidden when a hub filter is active. agent-segment-pill-sm
              * canonical hover/focus/active states; <Link> preserved for server-side URL
              * routing. "On Hold" → "On hold" Stage 3 voice fix applied. */}
@@ -232,7 +246,7 @@ export default async function AllTransactionsPage({
             )}
 
             {filteredTransactions.length === 0 ? (
-              <div className="glass-card">
+              <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
                 {hubFilter ? (
                   <EmptyState
                     title={FILTER_EMPTY[hubFilter].title}
@@ -240,7 +254,8 @@ export default async function AllTransactionsPage({
                     action={
                       <Link
                         href="/agent/transactions"
-                        className="text-sm agent-link-primary"
+                        className="agent-link"
+                        style={{ fontSize: 13 }}
                       >
                         View all files
                       </Link>
@@ -248,12 +263,15 @@ export default async function AllTransactionsPage({
                   />
                 ) : (
                   <EmptyState
-                    title={`No ${statusFilter.replace("_", " ")} files`}
+                    /* statusFilter "on_hold" → "on-hold" (hyphen, not space) per
+                       Stage 3 voice review — sentence case + canonical hyphenation. */
+                    title={`No ${statusFilter.replace("_", "-")} files`}
                     description="Try a different filter."
                     action={
                       <Link
                         href="/agent/transactions"
-                        className="text-sm agent-link-primary"
+                        className="agent-link"
+                        style={{ fontSize: 13 }}
                       >
                         View all
                       </Link>

@@ -90,6 +90,19 @@ One button in inventory-touched components still uses raw `bg-blue-500` instead 
 
 **Fix:** Apply the two-step pattern per `ANIMATION_STANDARDS.md §3` at each site: keep element mounted, add `agent-reveal-out` class on exit trigger, remove from DOM in `onAnimationEnd`. Standalone follow-up commit. Low priority.
 
+### AgentRequestsPanel — render path removed, awaiting `/agent/to-do` redesign (2026-05-12)
+
+**Context.** During the `/agent/dashboard` → `/agent/transactions` merge, the requests panel was removed from the dashboard render tree. The dashboard was the only surface rendering it, so the panel is currently not visible to any user.
+
+**State of the code:**
+- `components/agent/AgentRequestsPanel.tsx` — **file preserved in codebase, only render path removed.** Component still imports cleanly and remains a valid React component; it simply has no caller.
+- Write paths still functional. `AgentFlagButton` (now in the transaction-list PageHeader and on every transaction-detail page) and `AddManualTaskForm` continue creating `ManualTask{ isAgentRequest: true }` rows. The data keeps accumulating in production with no visible reader.
+- DB snapshot column (row count of `ManualTask` rows where `isAgentRequest = true`) left blank — Ellis to fill in post-merge if a paper trail is wanted before the future redesign.
+
+**Future home.** The `/agent/to-do` two-column redesign brief (pending, owned by Ellis) is where these rows surface again. The redesign should pick up the existing component as-is or rebuild against the same data contract — both options remain open because the file is preserved.
+
+**No urgency.** This is a deliberate parking of a feature, not a bug. The data integrity is intact; only the UI affordance is paused.
+
 ### Data consistency
 - **D2** — Self-managed files appear in main pipeline analytics. Should be fully separated. (Requires analytics query audit — lower priority.)
 

@@ -163,7 +163,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
 <h1 style="margin:0 0 16px;font-size:20px;font-weight:700">Good morning, ${extractFirstName(agent.name)}.</h1>
 <p style="margin:0 0 20px;color:#4a5162;font-size:14px">You have <strong>${transactions.length}</strong> active file${transactions.length !== 1 ? "s" : ""}${needsAttention.length > 0 ? ` · <strong style="color:#ef4444">${needsAttention.length} need${needsAttention.length === 1 ? "s" : ""} attention</strong>` : " · all progressing normally"}.${exchangeSoon.length > 0 ? ` ${exchangeSoon.length} approaching exchange.` : ""}</p>
 ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>${tableRows}</tbody></table>` : ""}
-<p style="margin:0 0 24px"><a href="${base}/agent/dashboard" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your files →</a></p>
+<p style="margin:0 0 24px"><a href="${base}/agent/transactions" style="display:inline-block;background:#3b82f6;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">View your files →</a></p>
 <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`;
 

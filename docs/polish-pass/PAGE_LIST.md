@@ -75,16 +75,29 @@ These six pages are also the deferred Stage 4 trigger for position 1. All six mu
 | Mobile complexity | **More complex.** Row cards stack differently. Filter/search bar behaviour on mobile needs documenting in Stage 1. Exchange gate badges must remain visible. |
 | Uncertainty | None significant. |
 
-### 6. All Files / My Files dashboard
-| Field | Value |
-|---|---|
-| Route | `/agent/dashboard` |
-| File | `app/agent/dashboard/page.tsx` |
-| Position justification | Placed here because it is a transaction list variant — shares data shape and row components with position 5. Designing these two in sequence keeps the list aesthetic consistent. Also a deferred Stage 4 trigger for position 1. |
-| Complexity | **Medium** |
-| Audience | **Director** sees all agency files ("All Files" view). **Negotiator** sees own assigned files only ("My Files" view). Both views must be inventoried in Stage 1 and rendered in the Stage 2 test page. |
-| Mobile complexity | **More complex.** Role filter, status tabs, and row cards all need mobile treatment. |
-| Uncertainty | Appears to be a parallel transaction list using `TransactionListWithSearch`, `ForecastStrip`, `AgentRequestsPanel`. Stage 1 will clarify whether it duplicates or meaningfully extends the transaction list. If substantially the same, flag to Ellis before proceeding. |
+### 6. All Files / My Files dashboard — **ABSORBED INTO POSITION 5 (2026-05-12)**
+
+`/agent/dashboard` was merged into `/agent/transactions` after an investigation surfaced that the two routes were near-duplicates (~80% shared component tree, identical data scope per user, no coherent navigation distinction). See:
+
+- Investigation report: in chat history 2026-05-12 (uncommitted findings)
+- Merge commit: see `git log --grep "merge /agent/dashboard"`
+
+What changed:
+- `/agent/dashboard` → 307 redirect to `/agent/transactions` (preserves `?filter=` deep links)
+- `ForecastStrip` polished + relocated onto `/agent/transactions` (above status tabs, hidden when hub filter is active)
+- `AgentFlagButton` added to `/agent/transactions` PageHeader with canonical label "Send a note to our team"
+- `AgentRequestsPanel` hidden (render path removed; component file `components/agent/AgentRequestsPanel.tsx` preserved for future `/agent/to-do` redesign wire-in)
+- Ghost preview pattern dropped from zero-files state
+- Sidebar nav `href` updated to `/agent/transactions`
+- Weekly brief email CTA updated to `/agent/transactions`
+
+**Deferred Stage 4 trigger count reduced 6 → 5.** Remaining trigger for new-v2: analytics.
+
+Original entry archived for reference below the strikethrough.
+
+> ~~Route: `/agent/dashboard`~~
+> ~~File: `app/agent/dashboard/page.tsx`~~
+> ~~Position justification: Placed here because it is a transaction list variant…~~ See merge note above.
 
 ### 7. Activity feed / comms
 | Field | Value |

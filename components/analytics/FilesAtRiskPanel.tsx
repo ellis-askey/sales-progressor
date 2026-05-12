@@ -106,7 +106,7 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
         label="Missing event dates"
         sublabel="Completed milestones without a required date"
         count={data.missingEventDate.count}
-        href="/agent/dashboard"
+        href="/agent/transactions"
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { SolidModeToggle } from "@/components/layout/SolidModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
@@ -35,7 +36,7 @@ function buildNavGroups(role: UserRole) {
       { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
       { href: "/agent/to-do",       label: "To-Do",       Icon: CheckSquare   },
       { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
-      { href: "/agent/dashboard",   label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+      { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
       { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
     ],
     secondary: [
@@ -219,6 +220,7 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
             <ArrowsClockwise size={13} />
             {`As of ${formatAgentTime(refreshedAt)}`}
           </button>
+          <SolidModeToggle />
           <AgentBell userKey={session.user.email ?? session.user.id} />
           <UserDropdown session={session} isDirector={isDirector} />
         </div>
@@ -299,7 +301,10 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
 
           {/* Main nav group */}
           {navGroups.main.map(({ href, label, Icon }) => {
-            const isActive = pathname === href || (href !== "/agent/dashboard" && pathname.startsWith(href));
+            // /agent/transactions exception — only exact match (otherwise the
+            // "All Files" nav item would highlight on transaction-detail pages
+            // since /agent/transactions/[id] startsWith /agent/transactions).
+            const isActive = pathname === href || (href !== "/agent/transactions" && pathname.startsWith(href));
             return (
               <Link key={href} href={href}
                 onClick={() => setMobileOpen(false)}

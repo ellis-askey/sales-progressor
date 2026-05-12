@@ -28,7 +28,6 @@ import { RecentActivityWidget } from "@/components/transaction/RecentActivityWid
 import { NextMilestoneWidget, type MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
-import { EmailParseWidget } from "@/components/activity/EmailParseWidget";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
@@ -128,7 +127,7 @@ export default async function AgentTransactionDetailPage({
 
   const overdueCount = activeReminders.filter((l) => {
     const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due < today;
+    return due <= today;
   }).length;
 
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
@@ -214,7 +213,7 @@ export default async function AgentTransactionDetailPage({
   const tabs = [
     { key: "overview",   label: "Overview" },
     { key: "milestones", label: "Steps" },
-    { key: "reminders",  label: "Reminders", badge: activeReminderCount },
+    { key: "reminders",  label: "Reminders", badge: overdueCount },
     { key: "todos",      label: "To-Do", badge: openTodoCount },
     { key: "activity",   label: "Activity" },
   ];
@@ -225,6 +224,14 @@ export default async function AgentTransactionDetailPage({
         select: { id: true, name: true, email: true, firmName: true },
       })
     : null;
+
+  const weeksActive = Math.floor(
+    (Date.now() - new Date(transaction.createdAt).getTime()) / (7 * 24 * 60 * 60 * 1000)
+  );
+  const assignedDisplayName =
+    (transaction.assignedUser as { name?: string | null } | null)?.name ??
+    agentUser?.name ??
+    null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = prisma as any;
@@ -288,7 +295,7 @@ export default async function AgentTransactionDetailPage({
   );
 
   return (
-    <div className="glass-page agent-page">
+    <div className="glass-page agent-page pt-4 px-4 md:px-8">
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
@@ -304,40 +311,16 @@ export default async function AgentTransactionDetailPage({
         percent={progress.percent}
         onTrack={progress.onTrack}
         serviceType={transaction.serviceType}
-        backHref="/agent/dashboard"
+        backHref="/agent/transactions"
+        assignedUserName={assignedDisplayName}
+        weeksActive={weeksActive}
+        transactionId={transaction.id}
       />
 
-      <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab}>
+      <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab} heroConnected>
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
-
-          <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-            <div className="grid grid-cols-2 divide-white/20 md:grid-cols-[130px_160px_1fr] md:divide-x">
-              <MetaField label="Status">
-                <StatusControl transactionId={transaction.id} currentStatus={transaction.status} />
-              </MetaField>
-              <MetaField label="Assigned to">
-                <span className="text-sm text-slate-900/80">
-                  {transaction.assignedUser?.name
-                    ?? (transaction.serviceType === "self_managed"
-                      ? (agentUser?.name ?? <span className="text-slate-900/30 italic">Self-progressed</span>)
-                      : <span className="text-slate-900/30 italic">Unassigned</span>)
-                  }
-                </span>
-              </MetaField>
-              <MetaField label="Last progress" className="col-span-2 border-t border-white/20 md:col-span-1 md:border-t-0">
-                {lastUpdate ? (
-                  <div>
-                    <p className="text-sm text-slate-900/80 leading-snug line-clamp-2">{lastUpdate.summaryText}</p>
-                    <p className="text-xs text-slate-900/40 mt-0.5">{lastUpdate.completedAt ? relativeDate(lastUpdate.completedAt) : ""}</p>
-                  </div>
-                ) : (
-                  <span className="text-sm text-slate-900/50 italic">Sale added{agentUser?.name ? ` by ${agentUser.name}` : ""}</span>
-                )}
-              </MetaField>
-            </div>
-          </div>
 
           <NextMilestoneWidget
             transactionId={transaction.id}
@@ -345,12 +328,12 @@ export default async function AgentTransactionDetailPage({
             purchaserSide={purchaserSideState}
           />
 
-          <RemindersWidget reminders={topReminders} totalActive={activeReminders.length} />
+          <RemindersWidget reminders={topReminders} totalActive={overdueCount} />
           <RecentActivityWidget entries={activityEntries} />
 
           <div className="glass-card overflow-hidden rounded-[12px]">
-            <div className="flex items-center justify-between px-4 py-3">
-              <h3 className="text-xs font-semibold text-slate-900/70">Property chain</h3>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
+              <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
               <ViewChainButton
                 transactionId={transaction.id}
                 currentUserId={session.user.id}
@@ -363,6 +346,7 @@ export default async function AgentTransactionDetailPage({
           <ContactsSection
             transactionId={transaction.id}
             contacts={transaction.contacts}
+            address={transaction.propertyAddress}
             portalViewDates={Object.fromEntries(
               transaction.contacts
                 .filter((c) => c.lastVisitedPortalAt)
@@ -382,6 +366,8 @@ export default async function AgentTransactionDetailPage({
             recommendedFirms={recommendedFirms ?? undefined}
             referredFirmId={transaction.referredFirmId ?? null}
             referralFee={transaction.referralFee ?? null}
+            address={transaction.propertyAddress}
+            contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
           />
           {brokerRow?.brokerFirmId && (
             <BrokerSection
@@ -445,10 +431,13 @@ export default async function AgentTransactionDetailPage({
 
         {/* ── Tab 4: Activity ──────────────────────────────────────────── */}
         <div className="space-y-4">
-          <EmailParseWidget transactionId={transaction.id} />
+          <ActivityTimeline
+            entries={activityEntries}
+            transactionId={transaction.id}
+            mosDocUrl={mosDocUrl}
+            beforeEntries={<CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />}
+          />
           <ComposeEmail transactionId={transaction.id} />
-          <CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />
-          <ActivityTimeline entries={activityEntries} transactionId={transaction.id} mosDocUrl={mosDocUrl} />
         </div>
       </PropertyFileTabs>
     </div>

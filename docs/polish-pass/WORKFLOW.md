@@ -493,3 +493,27 @@ For each discrepancy found: treat as a mid-flight discovery (see drift protectio
 If revalidation finds no discrepancies: state this explicitly ("Revalidation complete — no drift found. Proceeding to Stage 4.") and continue.
 
 If revalidation finds significant drift (multiple structural changes, feature additions): report to Ellis before proceeding. Ellis decides whether to run a compressed Stages 2–3 refresh or proceed with the cutover acknowledging the gaps.
+
+---
+
+## Change Log
+
+### 2026-05-12 — `/agent/dashboard` absorbed into `/agent/transactions` (merge / scope change)
+
+**Type:** merge / scope change. Reduces the Polish Pass queue and the deferred-Stage-4 trigger set.
+
+**What changed:**
+- `/agent/dashboard` was merged into `/agent/transactions` after an investigation surfaced that the two routes were near-duplicates (~80% shared component tree, identical data scope per user, no coherent navigation distinction between them).
+- `/agent/dashboard` rewritten as a 307 redirect to `/agent/transactions`, preserving `?filter=` deep-link params.
+- `ForecastStrip` polished to the canonical standard (`agent-glass-strong`, `agent-card-hdr`, `agent-eyebrow`, `agent-hover-row`, voice-fixed subtitle pluralisation, "You" / "Our team" service chips matched to `TransactionRowView`) and relocated above the status tabs on `/agent/transactions`. Hidden when a hub filter is active.
+- `AgentRequestsPanel` hidden — render path removed. **Component file `components/agent/AgentRequestsPanel.tsx` preserved in codebase**; deferred for the future `/agent/to-do` two-column redesign. Logged in `docs/POST_LAUNCH_FIXES.md`.
+- `AgentFlagButton` added to the transaction-list `PageHeader` with canonical label "Send a note to our team".
+- Ghost preview pattern dropped from the zero-files state (was dashboard-only; not carried into transactions).
+- Cross-page link updates: sidebar nav (`AgentShell`), weekly brief email CTA (`agent-weekly-brief.ts`), hub stat cell, transaction-detail `backHref`, `PropertyHero.isAgent` check (accepts both routes for back-compat), `FilesAtRiskPanel`, `OnboardingChecklist`, `AgentGlobalSearch`.
+
+**Polish Pass queue impact:**
+- PAGE_LIST.md position 6 (All Files / My Files dashboard) marked **ABSORBED INTO POSITION 5**. Original entry archived as strikethrough below the merge note.
+- **Deferred Stage 4 trigger count reduced from 6 → 5.** The remaining trigger pages for new-v2 Stage 4 are: transaction detail ✓, hub, work queue, transaction list, analytics. Dashboard is no longer a separate trigger.
+
+**Why this is recorded as a workflow change, not a polish-pass change:**
+The merge removes a page from the Polish Pass queue entirely and rewrites a piece of the new-v2 deferred-Stage-4 contract (the trigger set). Both are workflow-level facts that future Stage 1 reads need to see. The visual work on `ForecastStrip` itself is a normal Stage 4 polish — only the route consolidation and trigger-count change belong here.

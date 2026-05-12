@@ -78,7 +78,9 @@ export function PropertyHero({
   const barColor = TRACK_BAR[onTrack];
   const days = exchangeDate ? daysUntil(new Date(exchangeDate)) : null;
   const price = formatPrice(purchasePrice);
-  const isAgent = backHref === "/agent/dashboard";
+  // backHref="/agent/transactions" since 2026-05-12 merge; "/agent/dashboard" kept
+  // for any legacy callers (now extinct in-tree but defensive against external use).
+  const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
 
   if (isAgent) {
     const metaParts = [

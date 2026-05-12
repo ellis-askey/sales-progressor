@@ -322,7 +322,7 @@ export default async function HubPreviewPage() {
                     value: pipelineStats.activeFiles.toLocaleString(),
                     label: "Active files",
                     color: "var(--agent-coral)",
-                    href: "/agent/dashboard",
+                    href: "/agent/transactions",
                     delta: pipelineStats.newThisMonth > 0 ? `+${pipelineStats.newThisMonth} this month` : null,
                   },
                   {
