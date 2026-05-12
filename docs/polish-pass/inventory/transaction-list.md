@@ -542,7 +542,7 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 
 | Date | Discovery | Added to which section |
 |---|---|---|
-| — | — | — |
+| 2026-05-12 | **Stage 2 polish page built.** `app/agent/polish/transaction-list/page.tsx`. State toggles: view (populated / zero-files / filter-empty / client-empty), hub filter on/off, director / negotiator (Owner column), reduced motion. Demonstrates every canonical class conversion catalogued in §13. **Bloom-decoration decision locked: Option A — dropped entirely.** PageHeader now identical to hub / transaction-detail / work-queue / dashboard. **`loading.tsx` added** to production at `app/agent/transactions/loading.tsx` (Stage 2 add per Ellis — work-queue loading.tsx as reference). Skeleton mirrors the polish page layout: PageHeader shape + status tab strip + filter bar + 6 row skeletons inside agent-glass-strong table. **Voice fixes applied to polish page** for all 7 §7.1 flagged strings (zero-files body, "on-hold" hyphenation, ManagedByChip labels, RISK_LABEL grammar bug, client-filtered empty, "Quiet" badge). All 4 dropdown surfaces (3 chips + risk popover) use `createPortal` + `agent-dropdown-in` per work-queue B1+B2 pattern. tsc clean. | §13 (all rows), polish page, loading.tsx |
 
 ---
 
@@ -556,10 +556,12 @@ Track new canonical classes and tokens added during transaction-list Stage 2 (de
 
 | Class name | file:line in `agent-system.css` | Doc entry in `ANIMATION_STANDARDS.md` | Reason (1 sentence) |
 |---|---|---|---|
-| _(populated as Stage 2 progresses — expected empty)_ | | | |
+| _(none — prediction held: zero new classes needed)_ | | | |
 
 **New canonical tokens added during transaction-list Stage 2:**
 
 | Token name | Defined in | Reason |
 |---|---|---|
-| _(populated as Stage 2 progresses — expected empty)_ | | |
+| _(none — prediction held: zero new tokens needed)_ | | |
+
+**Library maturity confirmation:** every Stage 4 conversion catalogued in §13 was satisfied by existing canonical primitives (`agent-glass-strong`, `agent-segment-pill agent-segment-pill-sm`, `agent-link`, `agent-link-muted`, `agent-input agent-input-sm`, `agent-dropdown-in`, `agent-dropdown-item`, `agent-hover-row`, `agent-icon-btn agent-icon-btn-sm`, `agent-btn-primary`, `agent-btn-sm`, `PageHeader`, `agent-skeleton`). Page 4 of the queue confirms the system-maturity trajectory: by now the canonical library covers an entire complex list+filter+table+dropdown surface without extension. The §15 discipline is paying off.
