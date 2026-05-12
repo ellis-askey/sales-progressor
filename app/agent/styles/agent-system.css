@@ -808,8 +808,8 @@
     align-items: center;
     width: 100%;
     text-align: left;
-    padding: 7px 12px;
-    font-size: var(--agent-text-caption);
+    padding: 6px 11px;
+    font-size: var(--agent-text-micro);
     color: var(--agent-text-primary);
     background: none;
     border: none;
