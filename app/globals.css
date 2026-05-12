@@ -811,12 +811,26 @@ select {
  * modes. */
 .tl-filter-banner {
   transition: background 150ms ease, border-color 150ms ease;
-  background: rgba(var(--agent-coral-base-rgb), 0.07);
-  border: 0.5px solid rgba(var(--agent-coral-base-rgb), 0.18);
+  /* Glass mode (2026-05-12 bump): vertical gradient from coral 0.16 (top) to
+   * coral 0.09 (bottom). Adds depth without going opaque; reads as a
+   * distinct affordance rather than a faint wash against the page bg. */
+  background: linear-gradient(
+    180deg,
+    rgba(var(--agent-coral-base-rgb), 0.16) 0%,
+    rgba(var(--agent-coral-base-rgb), 0.09) 100%
+  );
+  border: 0.5px solid rgba(var(--agent-coral-base-rgb), 0.28);
 }
 [data-solid] .tl-filter-banner {
-  background: rgba(var(--agent-coral-base-rgb), 0.15) !important;
-  border: 1px solid rgba(var(--agent-coral-base-rgb), 0.35) !important;
+  /* Solid mode (2026-05-12 bump): much fuller gradient — coral 0.32 (top) to
+   * coral 0.18 (bottom). Reads as a properly-saturated coral panel rather
+   * than a watered-down tint. Border bumped to 0.45 alpha for definition. */
+  background: linear-gradient(
+    180deg,
+    rgba(var(--agent-coral-base-rgb), 0.32) 0%,
+    rgba(var(--agent-coral-base-rgb), 0.18) 100%
+  ) !important;
+  border: 1px solid rgba(var(--agent-coral-base-rgb), 0.45) !important;
 }
 
 /* ── Transaction-list paired card — search (TOP HALF, white) + tabs/chips (BOTTOM HALF, lighter)
