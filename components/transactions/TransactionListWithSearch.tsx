@@ -355,11 +355,18 @@ export function TransactionListWithSearch({
     ? uniqueUsers.length > 0
     : uniqueUsers.length > 1;
 
+  // Director sees the Managed-by chip whenever there is at least one file in
+  // the visible set — preserves the affordance after narrowing (month-pill
+  // click, hub-filter, etc.). Same narrowing-scope fix as showUserFilter above
+  // (locked 2026-05-11, extended here 2026-05-12). Negotiators keep the
+  // original logic: chip only shows when there are BOTH self_managed AND
+  // outsourced files in the visible set.
   const showManagedByFilter = useMemo(
-    () =>
-      transactions.some((t) => t.serviceType === "self_managed") &&
-      transactions.some((t) => t.serviceType === "outsourced"),
-    [transactions]
+    () => isDirector
+      ? transactions.length > 0
+      : transactions.some((t) => t.serviceType === "self_managed") &&
+        transactions.some((t) => t.serviceType === "outsourced"),
+    [transactions, isDirector]
   );
 
   function toggleRiskLevel(level: RiskLevel) {
@@ -432,7 +439,7 @@ export function TransactionListWithSearch({
     <div className="space-y-3">
       {/* Hanging-basket bar (status tabs + filter chips + clear filter) */}
       {(showStatusTabs || showUserFilter || showManagedByFilter || true) && (
-        <div className="agent-glass-strong tl-bar" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "visible" }}>
+        <div className="tl-bar" style={{ overflow: "visible" }}>
           <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
             {/* Status tabs (LEFT) */}
             {showStatusTabs && statusCounts && (

@@ -820,12 +820,26 @@ select {
 }
 
 /* ── Transaction-list hanging-basket bar — status tabs (LEFT) + filter chips (RIGHT)
- * Mirrors PropertyFileTabs visual pattern: agent-glass-strong outer, agent-tab-bar
- * agent-tab-bar-static for the rail. Status tabs and chip triggers all use the
- * canonical .agent-tab class so the underline hover-preview and active state are
- * unified. Chips are a slim variant (.tl-bar-chip). Mobile (<640px): bar wraps to
- * stacked rows; chips no longer push to the right.
+ * Mirrors the PropertyFileTabs "flap" look: a separate, lighter-glass strip below
+ * the page header (and ForecastStrip), with rounded corners. Lighter than
+ * .agent-glass-strong so it reads as a navigation tray rather than primary content.
+ * Status tabs and chip triggers all use the canonical .agent-tab class so the
+ * underline hover-preview and active state are unified. Chips are a slim variant
+ * (.tl-bar-chip). Mobile (<640px): bar wraps to stacked rows; chips no longer
+ * push to the right.
  */
+.tl-bar {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 0.5px solid var(--agent-border-default);
+  border-radius: var(--agent-radius-xl);
+}
+[data-solid] .tl-bar {
+  background: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 .tl-bar-row {
   display: flex;
   align-items: stretch;
