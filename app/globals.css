@@ -79,7 +79,7 @@ body {
 /* Sticky top bar — nav row only */
 .agent-topbar {
   position: fixed;
-  top: 0; left: 220px; right: 0;
+  top: 0; left: 232px; right: 12px;
   height: var(--agent-topbar-height);
   z-index: 101;
   display: flex;
@@ -550,6 +550,7 @@ select {
   /* Top bar is full-width on mobile (sidebar is hidden) */
   .agent-topbar {
     left: 0;
+    right: 0;
   }
 
   /* Page header becomes a column on mobile — actions drop below subtitle */
@@ -602,6 +603,9 @@ select {
   .hub-stats-grid   { grid-template-columns: repeat(2, 1fr) !important; }
   .hub-content-pad  { padding: 16px 16px !important; }
   .hub-header-pad   { padding: 16px 16px 20px !important; }
+  /* Cell index 2 (nth-child 3) becomes the first cell of row 2 in 2-col layout.
+   * The i>0 borderLeft rule in hub/page.tsx orphans it — suppress here. */
+  .hub-stats-grid > *:nth-child(3) { border-left: none !important; }
 
   /* Reminders page — work queue mobile */
   .reminders-page-pad { padding: 16px 16px !important; }
@@ -667,4 +671,91 @@ select {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+}
+
+/* ─── Solid White Mode (Variant D) ─────────────────────────────────────────── */
+/* Toggle via ◈ Glass / ◧ Solid button in the agent topbar.                    */
+/* Applies data-solid to <html>. Instantly reversible — remove the attribute.  */
+/* Card style: white + warm hairline border + soft two-layer shadow.            */
+
+/* 1. Kill aurora, set warm stone page background */
+[data-solid] {
+  --agent-aurora-band1: transparent;
+  --agent-aurora-band2: transparent;
+  --agent-aurora-band3: transparent;
+  --agent-bg-base: #F4F1EC;
+}
+
+/* 2. Glass variable overrides — agent-glass classes pick these up automatically */
+[data-solid] [data-theme] {
+  --agent-glass-bg:        rgba(255,255,255,1);
+  --agent-glass-bg-strong: rgba(255,255,255,1);
+  --agent-glass-bg-subtle: rgba(250,249,247,1);
+  --agent-glass-bg-hover:  rgba(252,251,249,1);
+  --agent-glass-border:    rgba(30,20,10,0.09);
+  --agent-glass-border-bright: rgba(30,20,10,0.12);
+  --agent-glass-shadow:    0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04);
+  --agent-glass-shadow-lifted: 0 2px 8px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.05);
+}
+
+/* 3. glass-card uses hardcoded gradients — override directly */
+[data-solid] .glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(30,20,10,0.09) !important;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04) !important;
+}
+[data-solid] .glass-card-strong {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(30,20,10,0.11) !important;
+  box-shadow: 0 2px 6px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.05) !important;
+}
+[data-solid] .glass-subtle {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(250,249,247,1) !important;
+  border: 1px solid rgba(30,20,10,0.07) !important;
+  box-shadow: none !important;
+}
+
+/* 4. Tab bar (when detached from hero) */
+[data-solid] .glass-nav {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(30,20,10,0.09) !important;
+}
+
+/* 5. Sidebar — very slight warm tint to differentiate from content cards */
+[data-solid] .glass-sidebar {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #FAFAF8 !important;
+  border-right: 1px solid rgba(30,20,10,0.08) !important;
+}
+
+/* 6. Top bar — pure white, sits above sidebar, slight bottom border */
+[data-solid] .agent-topbar {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(30,20,10,0.08) !important;
+  box-shadow: 0 1px 0 rgba(15,23,42,0.03) !important;
+}
+
+/* 7. Property hero glass panel */
+[data-solid] .property-hero-glass {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #ffffff !important;
+  border-color: rgba(30,20,10,0.09) !important;
+}
+
+/* 8. Inputs — solid white */
+[data-solid] .glass-input {
+  background: #ffffff !important;
+  border-color: rgba(30,20,10,0.13) !important;
 }

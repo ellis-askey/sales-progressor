@@ -347,6 +347,55 @@ For items with a trailing note (e.g. "Recommended" tag): add `style={{ justifyCo
 
 ---
 
+## Canonical surface and typography classes (added Stage 2, Hub pass)
+
+These four classes were canonicalised during the Hub Stage 2 build. They are structural (not animation) but live in `agent-system.css` and follow the same "no per-page CSS" rule. Document here so the pattern is visible alongside the interactive-state classes.
+
+### S1 — Internal card header — `.agent-card-hdr-internal`
+
+**What it is:** Card header for stat and chart cards where the section label sits inside the card's own padding — no border-bottom, no flush-to-top positioning. Contains an `.agent-eyebrow` + `.agent-card-subtitle`.
+
+**When to use:** Pipeline health, Momentum, Exchange forecast, Service split — any card where the header is a floating label above inline content, not a hard visual boundary.
+
+**Distinction from `.agent-card-hdr`:** `.agent-card-hdr` is flush-to-card-top with `padding: 12px 16px` + `border-bottom`. Use `.agent-card-hdr` only when there is a clear content boundary between header and body (e.g. diary card, attention card). Use `.agent-card-hdr-internal` for internal floating headers.
+
+**How to use:**
+```jsx
+<div className="agent-card-hdr-internal">
+  <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
+  <p className="agent-card-subtitle">Where your business sits right now</p>
+</div>
+```
+Default `marginBottom` is 16px. Override inline where 20px is needed (e.g. Pipeline health card).
+
+---
+
+### S2 — Card subtitle — `.agent-card-subtitle`
+
+**What it is:** 12px/muted subtitle text. Pairs with `.agent-eyebrow` inside `.agent-card-hdr-internal`.
+
+**Do not use** as a standalone body copy replacement. It is specifically the subtitle that sits beneath the eyebrow in an internal header.
+
+---
+
+### S3 — Emphasis card title — `.agent-card-title-emphasis`
+
+**What it is:** 13px/500/`--agent-text-primary` variant for card headers that need higher visual priority than `.agent-card-title` (12px/600/secondary). Use on attention card ("Needs your attention") and diary card — surfaces where the title is the primary visual anchor, not a secondary label.
+
+**Distinction from `.agent-card-title`:** `.agent-card-title` is secondary-coloured and sits in standard widget headers. `.agent-card-title-emphasis` is primary-coloured and slightly larger — for the two hub cards that are action-oriented rather than informational.
+
+---
+
+### S4 — Light glass surface — `.agent-glass-light`
+
+**What it is:** `rgba(255,255,255,0.42)` + `blur(16px)` — lighter than `.agent-glass-strong` (0.55), less opaque than `.agent-glass-subtle`. Use for secondary ribbon or band surfaces that need to recede visually behind primary stat cards.
+
+**Where it applies:** Hub activity ribbon — the one surface on the hub that should feel "quieter" than the primary content cards.
+
+**Do not use** as a substitute for `.agent-glass` or `.agent-glass-strong` on primary content cards.
+
+---
+
 ## Deliberate exceptions
 
 Components where semantic colour coding overrides canonical class rules. Do not "fix" these on any future pass — the exception is intentional and documented here.
@@ -631,3 +680,4 @@ The primary button is **fully per-theme** — coral is the token name, not a col
 | 2026-05-11 | `.agent-hover-link` added as §12 — hover-only colour shift for non-anchor text within control groups. Deliberate exceptions section added: E1 (RemindersSection urgency headers — semantic colour overrides canonical class). Primary button theme-awareness section added with G4 Playwright measurement fix note. |
 | 2026-05-11 | `.agent-sidebar-label` added — 11px/600/uppercase/0.06em tracking/coral-deep. Replaces `glass-section-label text-slate-900/40` on all TransactionSidebar section labels (Progress, Exchange Forecast, Key Dates, Agent, Price & Fees). |
 | 2026-05-12 | `.agent-row-exit` added as §6 — row deletion exit (opacity + height collapse, 150ms ease-in). Canonical class count updated from 5 to 6. |
+| 2026-05-12 | Four surface/typography classes added (§S1–S4, Hub Stage 2): `.agent-card-hdr-internal` (internal floating card header, 16px marginBottom), `.agent-card-subtitle` (12px/muted, pairs with eyebrow), `.agent-card-title-emphasis` (13px/500/primary, attention/diary cards), `.agent-glass-light` (rgba 0.42 + blur 16px, activity ribbon). Mobile borderLeft orphan fix added to `globals.css` for `.hub-stats-grid > *:nth-child(3)`. |

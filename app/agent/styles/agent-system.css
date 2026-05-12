@@ -190,6 +190,18 @@
     border-radius: var(--agent-radius-lg);
   }
 
+  /* Lighter glass treatment — for secondary ribbon surfaces (e.g. hub activity ribbon).
+   * rgba(255,255,255,0.42) gives perceptibly less weight than agent-glass-strong (0.55)
+   * without the near-opacity of agent-glass-subtle. Use where a surface needs to recede
+   * behind primary stat cards. */
+  .agent-glass-light {
+    background: rgba(255, 255, 255, 0.42);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 0.5px solid var(--agent-glass-border);
+    border-radius: var(--agent-radius-lg);
+  }
+
   /* ── Solid surface primitives ────────────────────────────────────────────── */
 
   .agent-surface {
@@ -676,6 +688,37 @@
     color: var(--agent-text-secondary);
     margin: 0;
     line-height: 1;
+  }
+
+  /* Emphasis variant — for the hub Attention card and any future "primary surface" headers.
+   * Slightly larger than agent-card-title to signal elevated priority.
+   * Do not apply to standard card headers — only surfaces that need visual emphasis. */
+  .agent-card-title-emphasis {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--agent-text-primary);
+    margin: 0;
+    line-height: 1;
+  }
+
+  /* ── Internal card header (hub-style stat cards) ─────────────────────────── */
+  /* For cards where the section label is internal to the card padding — no border-bottom,
+   * no flush-to-top positioning. Contains an .agent-eyebrow label + .agent-card-subtitle.
+   * Usage: <div className="agent-card-hdr-internal">
+   *          <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Label</p>
+   *          <p className="agent-card-subtitle">Subtitle</p>
+   *        </div>
+   * Default marginBottom is 16px. Override inline where 20px is needed (e.g. Pipeline health). */
+  .agent-card-hdr-internal {
+    margin-bottom: 16px;
+  }
+
+  /* Subtitle text that pairs with .agent-eyebrow inside .agent-card-hdr-internal. */
+  .agent-card-subtitle {
+    font-size: 12px;
+    color: var(--agent-text-muted);
+    margin: 0;
+    line-height: var(--agent-line-base);
   }
 
   /* ── Inline alerts ───────────────────────────────────────────────────────── */
