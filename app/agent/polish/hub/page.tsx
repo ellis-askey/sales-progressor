@@ -110,8 +110,8 @@ function MomentumRingAnimated({ percent, rm }: { percent: number | null; rm: boo
           No comparison yet
         </p>
         <p style={{ margin: "4px 0 0", fontSize: 11, color: TM, lineHeight: 1.5 }}>
-          {/* OLD: "Compares exchanges month over month. Data appears after your first completed month." */}
-          Month-on-month comparison appears after your first full month.
+          {/* OLD: "Month-on-month comparison appears after your first full month." — Rule 1: system narrates its own data gap; rewrite as instruction to user */}
+          Check back after your first full month.
         </p>
       </div>
     );
@@ -227,7 +227,8 @@ export default function HubPolishPage() {
                   Your pipeline starts here.
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: TS, lineHeight: 1.6 }}>
-                  Add your first sale and we&apos;ll track it from offer to completion.
+                  {/* OLD: "Add your first sale and we'll track it from offer to completion." — Rule 1: system-POV "we'll"; Rule 3: split into two active sentences */}
+                  Add your first sale. Track each one from offer through to completion.
                 </p>
               </div>
               <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", flexShrink: 0 }}>
@@ -250,7 +251,8 @@ export default function HubPolishPage() {
                 </div>
               </div>
               <div className="agent-glass" style={{ padding: "20px 24px" }}>
-                <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Momentum</p>
+                {/* OLD: "Service split" eyebrow — Rule 2: internal system noun; rewrite as user intent */}
+                <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Who&apos;s managing</p>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 8, paddingBottom: 8 }}>
                   <div className="agent-skeleton" style={{ width: 80, height: 80, borderRadius: "50%" }} />
                 </div>
@@ -274,8 +276,8 @@ export default function HubPolishPage() {
               Good morning, Sarah
             </h1>
             <p style={{ margin: "2px 0 0", fontSize: 13, color: TM }}>
-              {/* OLD: "Here's what matters today." — voice flag §7.1: passive, system-POV */}
-              Here&apos;s what matters today.
+              {/* OLD: "Here's what matters today." — Rule 1: system deciding what "matters"; rewrite as factual description */}
+              Your pipeline at a glance.
             </p>
           </div>
           <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
@@ -344,14 +346,16 @@ export default function HubPolishPage() {
                     Needs your attention
                   </p>
                   <p style={{ margin: 0, fontSize: 11, color: TM }}>
-                    Files where something&apos;s stuck or due
+                    {/* OLD: "Files where something's stuck or due" — Rule 2: vague "stuck or due"; rewrite as specific, present */}
+                    Reminders due today or overdue.
                   </p>
                 </div>
               </div>
               {attentionItems.length > 0 && (
                 /* OLD: inline-styled anchor → agent-link */
                 <Link href="/agent/work-queue" className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                  Reminders
+                  {/* OLD: "Reminders" — Rule 3: bare noun; add "All" for clearer action */}
+                  All reminders
                   <ArrowRight size={12} />
                 </Link>
               )}
@@ -361,7 +365,8 @@ export default function HubPolishPage() {
               <div style={{ padding: "24px 20px", display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
                 <p style={{ margin: 0, fontSize: 13, color: TS }}>
-                  No reminders due right now. All clear.
+                  {/* OLD: "No reminders due right now. All clear." — Rule 3: "right now" is filler; trimmer is equally clear */}
+                  No reminders due. All clear.
                 </p>
               </div>
             ) : (
@@ -409,8 +414,8 @@ export default function HubPolishPage() {
                 <div>
                   <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
                   <p className="agent-card-subtitle">
-                    {/* OLD: "Where your business sits right now" — fine, factual */}
-                    Where your business sits right now
+                    {/* OLD: "Where your business sits right now" — Rule 3: "sits" is slack; "stands today" is more direct */}
+                    Where your business stands today.
                   </p>
                 </div>
               </div>
@@ -459,9 +464,10 @@ export default function HubPolishPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <AlertCircle size={14} color="var(--agent-warning)" style={{ flexShrink: 0 }} />
                       <span style={{ fontSize: 13, color: TP }}>
-                        <strong>{stalledCount} files stalled</strong>
+                        {/* OLD: "N files stalled — no activity in 14+ days" — Rule 2: "stalled" is system-jargon; Rule 3: "no activity" → "nothing logged" is more concrete */}
+                        <strong>{stalledCount} files need chasing</strong>
                         {" — "}
-                        <span style={{ color: TS }}>no activity in 14+ days</span>
+                        <span style={{ color: TS }}>nothing logged in 14+ days</span>
                       </span>
                     </div>
                     <ChevronRight size={14} color={TM} style={{ flexShrink: 0 }} />
@@ -503,12 +509,16 @@ export default function HubPolishPage() {
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
               <div className="agent-card-hdr-internal">
                 <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
-                <p className="agent-card-subtitle">When your sales expect to exchange</p>
+                <p className="agent-card-subtitle">
+                  {/* OLD: "When your sales expect to exchange" — Rule 2: "your sales" is ambiguous (files/sellers); rewrite with "files" */}
+                  When your files are due to exchange.
+                </p>
               </div>
 
               {forecastEmpty ? (
                 <p style={{ fontSize: 13, color: TM, margin: "0 0 16px", lineHeight: 1.6 }}>
-                  No exchange dates set in the next 30 days. Add expected exchange dates to active files to build your forecast.
+                  {/* OLD: "No exchange dates set in the next 30 days. Add expected exchange dates to active files to build your forecast." — Rule 2: "build your forecast" is system-process jargon; rewrite as outcome-first instruction */}
+                  No exchange dates in the next 30 days. Add expected exchange dates to your files to see them here.
                 </p>
               ) : (
                 <>
@@ -535,7 +545,8 @@ export default function HubPolishPage() {
                 ))}
                 {next7Days > 0 && (
                   <p style={{ margin: "8px 0 0", fontSize: 11, color: CORAL, fontWeight: 500 }}>
-                    {next7Days === 1 ? "1 exchange due this week — files should be ready." : `${next7Days} exchanges due this week — make sure files are ready.`}
+                    {/* OLD: "1 exchange due this week — files should be ready." / "N exchanges due this week — make sure files are ready." — Rule 3: "due this week" is redundant after the chart; rewrite as prompt to verify */}
+                  {next7Days === 1 ? "1 exchange this week — check files are ready." : `${next7Days} exchanges this week — check all files are ready.`}
                   </p>
                 )}
               </div>
@@ -544,12 +555,11 @@ export default function HubPolishPage() {
             {/* Service split */}
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
               <div className="agent-card-hdr-internal">
-                <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Service split</p>
+                {/* OLD: "Service split" eyebrow — Rule 2: internal system noun; rewrite as user intent */}
+                <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Who&apos;s managing</p>
                 <p className="agent-card-subtitle">
-                  {/* OLD: "How your active files are being progressed" (voice rule 1 + 2) */}
-                  {/* Voice guidelines §Rule 2 translation: "Service split" → "Who's managing each file" */}
-                  {/* After: "How each active file is being handled" */}
-                  How each active file is being handled
+                  {/* OLD: "How each active file is being handled" — Rule 2: passive voice; rewrite as agent-POV description */}
+                  Files you manage and files our team handles.
                 </p>
               </div>
 
@@ -560,8 +570,10 @@ export default function HubPolishPage() {
                   {(() => {
                     const total = selfManaged + outsourced;
                     return [
-                      { label: "Self-managed",    count: selfManaged, color: "var(--agent-coral)"   },
-                      { label: "With progressor", count: outsourced,  color: "var(--agent-warning)" },
+                      // OLD: "Self-managed" → "Managed by you" (Rule 2: passive label → active agent-POV)
+                      { label: "Managed by you", count: selfManaged, color: "var(--agent-coral)"   },
+                      // OLD: "With progressor" → "Our team" (Rule 2: "progressor" is system-brand jargon; agent-facing label)
+                      { label: "Our team",        count: outsourced,  color: "var(--agent-warning)" },
                     ].map(({ label, count, color }) => {
                       const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                       return (
@@ -580,20 +592,20 @@ export default function HubPolishPage() {
               <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 12, marginTop: 12 }}>
                 {outsourced > 0 ? (
                   <p style={{ margin: 0, fontSize: 12, color: TS, lineHeight: 1.6 }}>
-                    <strong style={{ color: TP }}>{outsourced} {outsourced === 1 ? "file" : "files"}</strong>{" "}
-                    {/* OLD: "being progressed by our team" (voice rule 1) */}
-                    {/* After: "our team is handling" */}
-                    our team is handling
+                    {/* OLD: "{N} files our team is handling — saving you approximately {N} agent hours this week" — Rule 1: passive construction; Rule 3: "approximately" → "around", "agent hours" → "hours" */}
+                    Our team is handling{" "}
+                    <strong style={{ color: TP }}>{outsourced} {outsourced === 1 ? "file" : "files"}</strong>
                     {savedHours > 0 && (
-                      <> — saving you approximately{" "}
-                        <strong style={{ color: CORAL }}>{savedHours} agent hours</strong>{" "}
+                      <> — saving you around{" "}
+                        <strong style={{ color: CORAL }}>{savedHours} hours</strong>{" "}
                         this week
                       </>
                     )}
                   </p>
                 ) : (
                   <p style={{ margin: 0, fontSize: 12, color: TM, lineHeight: 1.6 }}>
-                    All files are self-managed. Move files to Sales Progressor to free up your time.
+                    {/* OLD: "All files are self-managed. Move files to Sales Progressor to free up your time." — Rule 1: system self-reference ("Sales Progressor"); trim to fact only */}
+                    All files are self-managed.
                   </p>
                 )}
               </div>
