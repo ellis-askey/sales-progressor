@@ -630,16 +630,18 @@ Track new canonical classes and tokens added during transaction-list Stage 2 (de
 
 **Expected library maturity for this page:** transaction list is Page 4 in the queue. By now the canonical library should cover most needs. Anticipated additions: **zero**. Every Stage 4 conversion in §13 maps to an existing canonical class — `agent-glass-strong`, `agent-segment-pill`, `agent-link`, `agent-link-muted`, `agent-input`, `agent-dropdown-in`, `agent-dropdown-item`, `agent-hover-row`, `agent-icon-btn`, `agent-btn-primary`. If Stage 2 surfaces an unexpected pattern, log it here.
 
-**New canonical classes added during transaction-list Stage 2:**
+**Stage 2 prediction & Stage 4 amendment:** Stage 2 predicted zero new canonical classes/tokens — the polish page was built without additions. Stage 4 cutover surfaced one need (hub-filter banner glass/solid pair, Ellis's review feedback during Section 2). One page-specific helper added to `globals.css`. Still zero additions to `agent-system.css` or `themes.css` — the core canonical library is stable.
 
-| Class name | file:line in `agent-system.css` | Doc entry in `ANIMATION_STANDARDS.md` | Reason (1 sentence) |
+**New canonical classes added during transaction-list Stage 2/Stage 4:**
+
+| Class name | file:line | Doc entry | Reason (1 sentence) |
 |---|---|---|---|
-| _(none — prediction held: zero new classes needed)_ | | | |
+| `.tl-filter-banner` | `app/globals.css` (after `.wq-split-body` block) | _Same precedent as `.wq-urgency-bar-*` — page-specific glass/solid helpers live in globals.css with paired `[data-solid]` overrides. Not a core agent-system.css canonical._ | Hub-filter active-indicator surface that needs the same glass→solid transition treatment as FileAlertsStrip/work-queue urgency bars but with a coral semantic tint (filter active = brand-coloured signal). Added during Stage 4 Section 2 per Ellis's review feedback. |
 
-**New canonical tokens added during transaction-list Stage 2:**
+**New canonical tokens added during transaction-list Stage 2/Stage 4:**
 
 | Token name | Defined in | Reason |
 |---|---|---|
-| _(none — prediction held: zero new tokens needed)_ | | |
+| _(none)_ | | |
 
-**Library maturity confirmation:** every Stage 4 conversion catalogued in §13 was satisfied by existing canonical primitives (`agent-glass-strong`, `agent-segment-pill agent-segment-pill-sm`, `agent-link`, `agent-link-muted`, `agent-input agent-input-sm`, `agent-dropdown-in`, `agent-dropdown-item`, `agent-hover-row`, `agent-icon-btn agent-icon-btn-sm`, `agent-btn-primary`, `agent-btn-sm`, `PageHeader`, `agent-skeleton`). Page 4 of the queue confirms the system-maturity trajectory: by now the canonical library covers an entire complex list+filter+table+dropdown surface without extension. The §15 discipline is paying off.
+**Library maturity confirmation:** every Stage 4 conversion catalogued in §13 was satisfied by existing canonical primitives (`agent-glass-strong`, `agent-segment-pill agent-segment-pill-sm`, `agent-link`, `agent-link-muted`, `agent-input agent-input-sm`, `agent-dropdown-in`, `agent-dropdown-item`, `agent-hover-row`, `agent-icon-btn agent-icon-btn-sm`, `agent-btn-primary`, `agent-btn-sm`, `PageHeader`, `agent-skeleton`). One page-specific helper added in globals.css for the hub-filter banner glass/solid pair. The core canonical library is stable — agent-system.css and themes.css untouched.

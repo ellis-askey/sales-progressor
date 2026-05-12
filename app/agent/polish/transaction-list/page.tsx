@@ -281,11 +281,9 @@ export default function TransactionListPolishPage() {
 
 function HubFilterBanner() {
   return (
-    <div style={{
+    <div className="tl-filter-banner" style={{
       display: "flex", alignItems: "center", gap: 8,
       padding: "10px 14px", borderRadius: 10,
-      background: "rgba(var(--agent-coral-base-rgb), 0.07)",
-      border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.18)",
     }}>
       {/* OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
            ("Showing" narrates system state). Stage 3 fix: drop "Showing", lead with the

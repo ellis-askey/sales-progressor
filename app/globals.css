@@ -803,3 +803,18 @@ select {
 @media (max-width: 640px) {
   .wq-split-body { flex-direction: column; gap: 8px; }
 }
+
+/* ── Transaction list: hub-filter active-indicator banner — glass/solid pair
+ * Same precedent as wq-urgency-bar-*: page-specific surface with semantic
+ * coral tint that responds to solid-mode toggle. Glass mode = transparent
+ * coral wash; solid mode = solid pale coral. Coral identity preserved across
+ * modes. */
+.tl-filter-banner {
+  transition: background 150ms ease, border-color 150ms ease;
+  background: rgba(var(--agent-coral-base-rgb), 0.07);
+  border: 0.5px solid rgba(var(--agent-coral-base-rgb), 0.18);
+}
+[data-solid] .tl-filter-banner {
+  background: rgba(var(--agent-coral-base-rgb), 0.15) !important;
+  border: 1px solid rgba(var(--agent-coral-base-rgb), 0.35) !important;
+}

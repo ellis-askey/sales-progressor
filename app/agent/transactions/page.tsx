@@ -6,6 +6,7 @@ import { listTransactions, countTransactionsByStatus } from "@/lib/services/tran
 import { getHubFilteredIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
 import { X } from "lucide-react";
 import type { TransactionStatus } from "@prisma/client";
@@ -91,119 +92,50 @@ export default async function AllTransactionsPage({
 
   return (
     <>
-      {/* Glass header */}
-      <div
-        style={{
-          background: "rgba(255,255,255,0.52)",
-          backdropFilter: "blur(28px) saturate(180%)",
-          WebkitBackdropFilter: "blur(28px) saturate(180%)",
-          borderBottom: "0.5px solid rgba(255,255,255,0.70)",
-          boxShadow:
-            "0 4px 24px rgba(var(--agent-coral-base-rgb),0.07), 0 1px 0 rgba(255,255,255,0.80) inset",
-          position: "relative",
-          overflow: "hidden",
-        }}
+      {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
+       * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
+      <PageHeader
+        title={isDirector ? "All Files" : "My Files"}
+        subtitle={isDirector ? "Every file across the agency." : "Files assigned to you."}
       >
-        {/* Coral bloom — top right */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: -60,
-            right: -40,
-            width: 260,
-            height: 260,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(var(--agent-coral-base-rgb),0.13) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }}
-        />
-        {/* Warm bloom — bottom left */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            bottom: -40,
-            left: 60,
-            width: 180,
-            height: 180,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(var(--agent-bloom-gold-rgb),0.10) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }}
-        />
+        <Link
+          href="/agent/transactions/new"
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ textDecoration: "none" }}
+        >
+          <Plus size={14} weight="bold" />
+          New sale
+        </Link>
+      </PageHeader>
 
-        <div className="relative px-4 pt-6 pb-7 md:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: "var(--agent-text-h1)",
-                  fontWeight: "var(--agent-weight-semibold)",
-                  color: "var(--agent-text-primary)",
-                  letterSpacing: "var(--agent-tracking-tight)",
-                  lineHeight: "var(--agent-line-tight)",
-                }}
-              >
-                {isDirector ? "All Files" : "My Files"}
-              </h1>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <Link
-                href="/agent/transactions/new"
-                className="agent-btn agent-btn-primary agent-btn-md"
-                style={{ textDecoration: "none" }}
-              >
-                <Plus size={16} weight="bold" />
-                New sale
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
 
-      <div className="px-4 md:px-8 py-5 md:py-7 space-y-5">
-
-        {/* Hub filter indicator */}
+        {/* Hub filter indicator — data-first phrasing (Stage 3 voice fix).
+         * OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
+         * ("Showing" narrated system state). Now leads with the filter phrase + count. */}
         {hubFilter && (
           <div
+            className="tl-filter-banner"
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
               padding: "8px 12px",
               borderRadius: 10,
-              background: "rgba(var(--agent-coral-base-rgb), 0.07)",
-              border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.18)",
             }}
           >
             <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", flex: 1 }}>
-              Showing{" "}
               <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>
-                {FILTER_LABELS[hubFilter].toLowerCase()}
-              </strong>{" "}
-              <span style={{ color: "var(--agent-text-muted)" }}>
-                ({filteredTransactions.length})
+                {FILTER_LABELS[hubFilter]}
+              </strong>
+              <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
+                · {filteredTransactions.length} {filteredTransactions.length === 1 ? "file" : "files"}
               </span>
             </span>
             <Link
               href="/agent/transactions"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--agent-text-secondary)",
-                textDecoration: "none",
-                padding: "3px 8px",
-                borderRadius: 6,
-                background: "rgba(255,255,255,0.55)",
-                border: "0.5px solid rgba(0,0,0,0.08)",
-              }}
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
             >
               <X size={11} />
               Clear filter
@@ -212,7 +144,7 @@ export default async function AllTransactionsPage({
         )}
 
         {allTransactions.length === 0 ? (
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+          <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
             <HouseLine
               weight="regular"
               style={{
@@ -234,6 +166,7 @@ export default async function AllTransactionsPage({
             >
               Create your first sale
             </p>
+            {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
             <p
               style={{
                 margin: "0 auto 24px",
@@ -243,7 +176,7 @@ export default async function AllTransactionsPage({
                 lineHeight: 1.5,
               }}
             >
-              Once you submit a sale, you&apos;ll see it here. Track milestones, manage chases,
+              Sales appear here once you submit one. Track milestones, manage chases,
               and progress to exchange.
             </p>
             <Link
@@ -257,14 +190,17 @@ export default async function AllTransactionsPage({
           </div>
         ) : (
           <div>
-            {/* Status tabs — hidden when a hub filter is active */}
+            {/* Status tabs — hidden when a hub filter is active. agent-segment-pill-sm
+             * canonical hover/focus/active states; <Link> preserved for server-side URL
+             * routing. "On Hold" → "On hold" Stage 3 voice fix applied. */}
             {!hubFilter && (
-              <div className="flex items-center gap-1 mb-5 glass-subtle p-1 w-full md:w-fit overflow-x-auto">
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "auto" }}>
                 {(
                   [
                     { value: "all", label: "All", count: allTransactions.length },
                     { value: "active", label: "Active", count: counts.active },
-                    { value: "on_hold", label: "On Hold", count: counts.on_hold },
+                    // OLD: label: "On Hold" — Stage 3 voice fix: sentence case throughout
+                    { value: "on_hold", label: "On hold", count: counts.on_hold },
                     { value: "completed", label: "Completed", count: counts.completed },
                     { value: "withdrawn", label: "Withdrawn", count: counts.withdrawn },
                   ] as { value: string; label: string; count: number }[]
@@ -279,22 +215,16 @@ export default async function AllTransactionsPage({
                           : `/agent/transactions?filter=${value}`
                       }
                       scroll={false}
-                      className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-white/60 text-slate-900/90 shadow-sm"
-                          : "text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20"
-                      }`}
+                      className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
                     >
                       {label}
-                      <span
-                        className={`text-xs rounded-full px-1.5 py-0.5 font-normal ${
-                          isActive
-                            ? "bg-blue-50/80 text-blue-600"
-                            : "bg-white/30 text-slate-900/50"
-                        }`}
-                      >
-                        {count}
-                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 500,
+                        padding: "1px 7px", borderRadius: 99,
+                        background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
+                        color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+                      }}>{count}</span>
                     </Link>
                   );
                 })}

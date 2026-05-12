@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 import { calculateRiskScore } from "@/lib/services/risk";
@@ -9,26 +10,35 @@ import { extractFirstName } from "@/lib/contacts/displayName";
 
 // ── Chip sub-components ────────────────────────────────────────────────────
 
-function useClickOutside(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
+/**
+ * Shared chip-dropdown hook — opens via portal to document.body to escape
+ * any ancestor overflow:hidden / sticky stacking context (work-queue B1+B2
+ * lesson). Auto-closes on click-outside + on scroll.
+ */
+function useChipDropdown() {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [ref, onClose]);
-}
-
-const chipBase = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer";
-const chipDefault = "bg-white/40 text-slate-900/50 border-slate-900/10 hover:border-slate-900/20 hover:text-slate-900/70";
-const chipActive = "bg-orange-50 text-orange-700 border-orange-200";
-
-function ChevronDown() {
-  return (
-    <svg width="9" height="6" viewBox="0 0 9 6" fill="currentColor" style={{ opacity: 0.45, flexShrink: 0 }}>
-      <path d="M0 0l4.5 6L9 0z" />
-    </svg>
-  );
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, []);
+  function openDropdown() {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, left: r.left });
+    }
+    setOpen((v) => !v);
+  }
+  return { open, pos, ref, openDropdown, setOpen };
 }
 
 function AssignedToChip({ users, selected, onChange }: {
@@ -36,10 +46,7 @@ function AssignedToChip({ users, selected, onChange }: {
   selected: string | null;
   onChange: (id: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-
+  const { open, pos, ref, openDropdown, setOpen } = useChipDropdown();
   const selectedUser = selected ? users.find((u) => u.id === selected) : null;
   const firstName = selectedUser ? extractFirstName(selectedUser.name) : null;
   const isActive = selected !== null;
@@ -47,26 +54,34 @@ function AssignedToChip({ users, selected, onChange }: {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
-        className={`${chipBase} ${isActive ? chipActive : chipDefault}`}
+        onClick={openDropdown}
+        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
       >
         {isActive ? `Owner: ${firstName}` : "Owner"}
-        {isActive ? (
+        {isActive && (
           <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); onChange(null); setOpen(false); }}
-            className="text-orange-400 hover:text-orange-600 leading-none ml-0.5"
-          >
-            ×
-          </span>
-        ) : (
-          <ChevronDown />
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange(null); setOpen(false); } }}
+            className="agent-icon-btn agent-icon-btn-sm"
+            aria-label="Clear owner filter"
+            style={{ width: 16, height: 16, fontSize: 12, marginLeft: 2 }}
+          >×</span>
         )}
       </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[160px]">
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div className="agent-dropdown-in" style={{
+          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+          minWidth: 180,
+        }}>
           <button
             onClick={() => { onChange(null); setOpen(false); }}
-            className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row ${!selected ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+            className="agent-dropdown-item"
+            style={{ fontWeight: !selected ? 600 : undefined }}
           >
             All owners
           </button>
@@ -74,13 +89,15 @@ function AssignedToChip({ users, selected, onChange }: {
             <button
               key={u.id}
               onClick={() => { onChange(u.id); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center justify-between gap-2 ${selected === u.id ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+              className="agent-dropdown-item"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontWeight: selected === u.id ? 600 : undefined }}
             >
               {u.name}
-              {selected === u.id && <span className="text-orange-500 flex-shrink-0">✓</span>}
+              {selected === u.id && <span style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }}>✓</span>}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -93,10 +110,7 @@ function RiskChip({ selected, onToggle }: {
   selected: Set<RiskLevel>;
   onToggle: (level: RiskLevel) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-
+  const { open, pos, ref, openDropdown } = useChipDropdown();
   const isActive = selected.size > 0;
   const label = isActive
     ? `Risk: ${[...selected].map((l) => RISK_LABEL[l]).join(", ")}`
@@ -105,36 +119,46 @@ function RiskChip({ selected, onToggle }: {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
-        className={`${chipBase} ${isActive ? chipActive : chipDefault}`}
+        onClick={openDropdown}
+        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
       >
         {label}
-        <ChevronDown />
       </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[150px]">
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div className="agent-dropdown-in" style={{
+          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+          minWidth: 170, padding: "4px 0",
+        }}>
           {(["low", "medium", "high"] as RiskLevel[]).map((level) => {
             const checked = selected.has(level);
             return (
               <button
                 key={level}
                 onClick={() => onToggle(level)}
-                className="w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center gap-2"
+                className="agent-dropdown-item"
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                <span className={`w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center ${checked ? "bg-blue-500 border-blue-500" : "border-slate-300"}`}>
-                  {checked && (
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
+                <span style={{
+                  width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                  background: checked ? "var(--agent-coral-deep)" : "transparent",
+                  border: `1px solid ${checked ? "var(--agent-coral-deep)" : "rgba(0,0,0,0.20)"}`,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {checked && <span style={{ color: "white", fontSize: 9, lineHeight: 1 }}>✓</span>}
                 </span>
-                <span className={checked ? RISK_COLOR[level] : "text-slate-900/60"}>
-                  {RISK_LABEL[level]} risk
+                {/* OLD: "{RISK_LABEL[level]} risk" rendered as "On track risk" /
+                    "At risk risk" — grammar bug. Stage 3 voice fix: drop the
+                    trailing " risk" suffix; RISK_LABEL values are full phrases. */}
+                <span className={checked ? RISK_COLOR[level] : ""} style={!checked ? { color: "var(--agent-text-secondary)" } : undefined}>
+                  {RISK_LABEL[level]}
                 </span>
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -144,11 +168,11 @@ function ManagedByChip({ value, onChange }: {
   value: "all" | "self_managed" | "outsourced";
   onChange: (v: "all" | "self_managed" | "outsourced") => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-
+  const { open, pos, ref, openDropdown, setOpen } = useChipDropdown();
   const isActive = value !== "all";
+  // NOTE: labels here use "Self-progressed" / "With progressor" per current data.
+  // Section 8 will swap to "Managed by you" / "Our team is handling" per the
+  // VOICE_GUIDELINES.md translation table.
   const label = value === "self_managed" ? "Self-progressed"
     : value === "outsourced" ? "With progressor"
     : "Managed by";
@@ -162,34 +186,43 @@ function ManagedByChip({ value, onChange }: {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
-        className={`${chipBase} ${isActive ? chipActive : chipDefault}`}
+        onClick={openDropdown}
+        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
       >
         {label}
-        {isActive ? (
+        {isActive && (
           <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); onChange("all"); setOpen(false); }}
-            className="text-orange-400 hover:text-orange-600 leading-none ml-0.5"
-          >
-            ×
-          </span>
-        ) : (
-          <ChevronDown />
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange("all"); setOpen(false); } }}
+            className="agent-icon-btn agent-icon-btn-sm"
+            aria-label="Clear managed-by filter"
+            style={{ width: 16, height: 16, fontSize: 12, marginLeft: 2 }}
+          >×</span>
         )}
       </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[160px]">
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div className="agent-dropdown-in" style={{
+          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+          minWidth: 200,
+        }}>
           {opts.map((opt) => (
             <button
               key={opt.value}
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs agent-hover-row flex items-center justify-between gap-2 ${value === opt.value ? "font-semibold text-slate-900/80" : "text-slate-900/55"}`}
+              className="agent-dropdown-item"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontWeight: value === opt.value ? 600 : undefined }}
             >
               {opt.label}
-              {value === opt.value && <span className="text-orange-500 flex-shrink-0">✓</span>}
+              {value === opt.value && <span style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }}>✓</span>}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -290,56 +323,66 @@ export function TransactionListWithSearch({
 
   return (
     <div className="space-y-3">
-      {/* Search */}
-      <div className="relative">
-        <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900/30 pointer-events-none"
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round"
-            d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by address…"
-          className="glass-input w-full pl-9 pr-4 py-2.5 text-sm"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-900/30 hover:text-slate-900/60"
+      {/* Search + filter chips — agent-glass-strong wrapper for surface parity with
+       * FileAlertsStrip / status-tabs / table below. Solid-mode override inherits
+       * via globals.css [data-solid] .agent-glass-strong rule. */}
+      <div className="agent-glass-strong" style={{ padding: "12px 14px", borderRadius: "var(--agent-radius-xl)", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Search input — agent-input agent-input-sm with fontSize: 13 override
+         * (matches work-queue precedent — agent-input-sm forces max(16px, body-sm)
+         * which reads oversized on desktop search). Embedded search icon + clear
+         * button (agent-icon-btn-sm) preserved. */}
+        <div style={{ position: "relative" }}>
+          <svg
+            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
-            ×
-          </button>
-        )}
-      </div>
-
-      {/* Filter chips */}
-      {showChipRow && (
-        <div className="flex items-center gap-2 flex-wrap">
-          {showUserFilter && (
-            <AssignedToChip
-              users={uniqueUsers}
-              selected={selectedUserId}
-              onChange={setSelectedUserId}
-            />
-          )}
-          <RiskChip selected={selectedRiskLevels} onToggle={toggleRiskLevel} />
-          {showManagedByFilter && (
-            <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
-          )}
-          {anyFilterActive && (
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by address…"
+            className="agent-input agent-input-sm"
+            style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: 13 }}
+          />
+          {query && (
             <button
-              onClick={clearAllFilters}
-              className="text-xs text-slate-900/35 hover:text-slate-900/65 transition-colors ml-1"
-            >
-              Clear all
-            </button>
+              onClick={() => setQuery("")}
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
+              aria-label="Clear search"
+            >×</button>
           )}
         </div>
-      )}
+
+        {/* Filter chips — implementations transplanted in Section 6 */}
+        {showChipRow && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {showUserFilter && (
+              <AssignedToChip
+                users={uniqueUsers}
+                selected={selectedUserId}
+                onChange={setSelectedUserId}
+              />
+            )}
+            <RiskChip selected={selectedRiskLevels} onToggle={toggleRiskLevel} />
+            {showManagedByFilter && (
+              <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
+            )}
+            {anyFilterActive && (
+              <button
+                onClick={clearAllFilters}
+                className="agent-link agent-link-muted"
+                style={{ fontSize: 12, marginLeft: 4 }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Results */}
       {filtered.length === 0 ? (
