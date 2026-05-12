@@ -796,9 +796,36 @@
     cursor: pointer;
     transition: color var(--agent-transition-fast);
     white-space: nowrap;
+    /* position:relative + ::after pinned to bottom: 0 give every .agent-tab a
+     * coral hover-preview underline (universal, 2026-05-13). Active-state
+     * rendering differs by variant:
+     *   - .agent-tab-bar (sliding):  JS-driven indicator div + colour shift;
+     *     the active tab's ::after stays at scaleX(0) opacity 0.
+     *   - .agent-tab-bar-static:     active tab's ::after snaps to scaleX(1)
+     *     opacity 1 (rule below). */
+    position: relative;
+  }
+  .agent-tab::after {
+    content: "";
+    position: absolute;
+    left: 14px; right: 14px;
+    bottom: 0;
+    height: 2px;
+    background: var(--agent-coral-deep);
+    border-radius: 1px 1px 0 0;
+    transform: scaleX(0);
+    transform-origin: center;
+    opacity: 0;
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                opacity   180ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
   }
   .agent-tab:hover:not([aria-selected="true"]):not(:disabled) {
     color: var(--agent-text-secondary);
+  }
+  .agent-tab:hover:not([aria-selected="true"]):not(:disabled)::after {
+    transform: scaleX(0.4);
+    opacity: 0.35;
   }
   .agent-tab[aria-selected="true"] {
     color: var(--agent-text-primary);
