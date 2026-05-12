@@ -109,7 +109,7 @@ export default async function HubPreviewPage() {
             <Plus size={14} weight="bold" />
             New sale
           </Link>
-          <AgentFlagButton transactionId={null} address="general" label="Send note to progressor" />
+          <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
         </PageHeader>
 
         {/* Content: welcome card + ghost cards */}
@@ -130,7 +130,7 @@ export default async function HubPreviewPage() {
                 Your pipeline starts here.
               </p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-                Add your first sale and we&apos;ll track it from offer to completion.
+                Add your first sale. Track each one from offer through to completion.
               </p>
             </div>
             <Link
@@ -213,7 +213,7 @@ export default async function HubPreviewPage() {
               <div className="agent-skeleton" style={{ height: 11, borderRadius: 4, width: "45%" }} />
             </div>
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Service split</p>
+              <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Who&apos;s managing</p>
               <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>
                 <div className="agent-skeleton" style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0 }} />
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -241,7 +241,7 @@ export default async function HubPreviewPage() {
         <AgentFlagButton
           transactionId={null}
           address="general"
-          label="Send note to progressor"
+          label="Send a note to our team"
         />
       </PageHeader>
 
@@ -251,14 +251,9 @@ export default async function HubPreviewPage() {
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}
         {diaryItems.length > 0 && (
           <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)",
-            }}>
+            <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>
-                  Today&apos;s diary
-                </p>
+                <p className="agent-card-title-emphasis">Today&apos;s diary</p>
                 <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
                   Exchanges and completions scheduled for today
                 </p>
@@ -283,9 +278,9 @@ export default async function HubPreviewPage() {
                   borderLeft: `3px solid ${item.type === "completion" ? "var(--agent-success)" : "var(--agent-coral)"}`,
                   background: item.type === "completion" ? "var(--agent-success-bg)" : "var(--agent-coral-bg-tint)",
                   borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                  textDecoration: "none", transition: "filter 120ms", gap: 12,
+                  textDecoration: "none", gap: 12,
                 }}
-                className="hover:brightness-[0.97]"
+                className="agent-hover-row"
               >
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,
@@ -313,15 +308,10 @@ export default async function HubPreviewPage() {
 
           {/* Pipeline health card */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
-            <div style={{
-              display: "flex", alignItems: "flex-start",
-              justifyContent: "space-between", marginBottom: 20,
-            }}>
+            <div className="agent-card-hdr-internal" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
                 <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
-                <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: 0 }}>
-                  Where your business sits right now
-                </p>
+                <p className="agent-card-subtitle">Where your business stands today.</p>
               </div>
             </div>
 
@@ -395,7 +385,7 @@ export default async function HubPreviewPage() {
                     key={i}
                     href={href}
                     style={{ ...cellStyle, textDecoration: "none" }}
-                    className="hover:bg-black/[0.04]"
+                    className="agent-hover-row"
                   >
                     {inner}
                   </Link>
@@ -499,15 +489,13 @@ export default async function HubPreviewPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    paddingTop: 10,
-                    paddingBottom: 2,
+                    padding: "8px",
+                    marginTop: 8,
                     textDecoration: "none",
-                    cursor: "pointer",
                     borderRadius: 6,
-                    transition: "background 120ms",
                     gap: 8,
                   }}
-                  className="stalled-row-link"
+                  className="agent-hover-row-warning"
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <AlertCircle
@@ -516,9 +504,9 @@ export default async function HubPreviewPage() {
                       style={{ flexShrink: 0 }}
                     />
                     <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>
-                      <strong>{pipelineStats.stalled.count} files stalled</strong>
+                      <strong>{pipelineStats.stalled.count} files need chasing</strong>
                       {" — "}
-                      <span style={{ color: "var(--agent-text-secondary)" }}>no activity in 14+ days</span>
+                      <span style={{ color: "var(--agent-text-secondary)" }}>nothing logged in 14+ days</span>
                     </span>
                   </div>
                   <ChevronRight size={14} color="var(--agent-text-muted)" style={{ flexShrink: 0 }} />
@@ -531,11 +519,9 @@ export default async function HubPreviewPage() {
           <div className="agent-glass" style={{
             padding: "20px 24px", display: "flex", flexDirection: "column",
           }}>
-            <div style={{ marginBottom: 16 }}>
+            <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Momentum</p>
-              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: 0 }}>
-                Exchanges this month vs last
-              </p>
+              <p className="agent-card-subtitle">Exchanges this month vs last</p>
             </div>
             <div style={{
               flex: 1, display: "flex", alignItems: "center",
@@ -579,16 +565,14 @@ export default async function HubPreviewPage() {
 
           {/* Exchange forecast */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
-            <div style={{ marginBottom: 16 }}>
+            <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
-              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>
-                When your sales expect to exchange
-              </p>
+              <p className="agent-card-subtitle">When your files are due to exchange.</p>
             </div>
 
             {next30Days === 0 ? (
               <p style={{ fontSize: 13, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.6 }}>
-                No exchange dates set in the next 30 days. Add expected exchange dates to active files to build your forecast.
+                No exchange dates in the next 30 days. Add expected exchange dates to your files to see them here.
               </p>
             ) : (
               <>
@@ -642,7 +626,7 @@ export default async function HubPreviewPage() {
               ))}
               {next7Days > 0 && (
                 <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 500 }}>
-                  {next7Days === 1 ? "1 exchange due this week — files should be ready." : `${next7Days} exchanges due this week — make sure files are ready.`}
+                  {next7Days === 1 ? "1 exchange this week — check files are ready." : `${next7Days} exchanges this week — check all files are ready.`}
                 </p>
               )}
             </div>
@@ -650,11 +634,9 @@ export default async function HubPreviewPage() {
 
           {/* Service split */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
-            <div style={{ marginBottom: 16 }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Service split</p>
-              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>
-                How your active files are being progressed
-              </p>
+            <div className="agent-card-hdr-internal">
+              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Who&apos;s managing</p>
+              <p className="agent-card-subtitle">Files you manage and files our team handles.</p>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>
@@ -666,8 +648,8 @@ export default async function HubPreviewPage() {
                 {(() => {
                   const total = serviceSplit.selfManaged + serviceSplit.outsourced;
                   return [
-                    { label: "Self-managed",    count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
-                    { label: "With progressor", count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
+                    { label: "Managed by you", count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
+                    { label: "Our team",        count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
                   ].map(({ label, count, color }) => {
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
@@ -710,14 +692,14 @@ export default async function HubPreviewPage() {
                   margin: 0, fontSize: 12,
                   color: "var(--agent-text-secondary)", lineHeight: 1.6,
                 }}>
+                  Our team is handling{" "}
                   <strong style={{ color: "var(--agent-text-primary)" }}>
                     {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                  </strong>{" "}
-                  being progressed by our team
+                  </strong>
                   {savedHours > 0 && (
-                    <> — saving you approximately{" "}
+                    <> — saving you around{" "}
                       <strong style={{ color: "var(--agent-coral-deep)" }}>
-                        {savedHours} agent hours
+                        {savedHours} hours
                       </strong>{" "}
                       this week
                     </>
@@ -725,7 +707,7 @@ export default async function HubPreviewPage() {
                 </p>
               ) : (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
-                  All files are self-managed. Move files to Sales Progressor to free up your time.
+                  All files are self-managed.
                 </p>
               )}
             </div>
@@ -735,15 +717,8 @@ export default async function HubPreviewPage() {
         {/* ── 5. Activity ribbon ─────────────────────────────────────────────────── */}
         {recentActivity && (
           <div
-            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-            style={{
-              background: "rgba(255,255,255,0.42)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              border: "0.5px solid var(--agent-glass-border)",
-              borderRadius: "var(--agent-radius-lg)",
-              padding: "12px 20px",
-            }}
+            className="agent-glass-light hub-activity-ribbon"
+            style={{ padding: "12px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
               <div style={{
@@ -768,12 +743,8 @@ export default async function HubPreviewPage() {
             </div>
             <Link
               href={`/agent/transactions/${recentActivity.transactionId}`}
-              style={{
-                fontSize: 12, fontWeight: 600,
-                color: "var(--agent-coral-deep)",
-                textDecoration: "none",
-                display: "flex", alignItems: "center", gap: 4,
-              }}
+              className="agent-link"
+              style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}
             >
               View file
               <ArrowRight size={12} />

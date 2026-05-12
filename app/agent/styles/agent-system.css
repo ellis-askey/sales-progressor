@@ -1069,7 +1069,7 @@
 
   /* ── Pipeline Health: Coming up strip links ─────────────────────────────── */
   .coming-up-link { text-underline-offset: 2px; }
-  .coming-up-link:hover { text-decoration: underline; }
+  .coming-up-link:hover { text-decoration: underline; color: var(--agent-text-primary); }
 
   /* ── Pipeline Health: Stalled row hover ─────────────────────────────────── */
   .stalled-row-link { display: flex; }

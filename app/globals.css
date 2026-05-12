@@ -759,3 +759,8 @@ select {
   background: #ffffff !important;
   border-color: rgba(30,20,10,0.13) !important;
 }
+
+/* ── Hub: Activity ribbon — mobile stack ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .hub-activity-ribbon { flex-direction: column; align-items: flex-start; }
+}
