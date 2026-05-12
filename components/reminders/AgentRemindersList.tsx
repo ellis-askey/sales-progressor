@@ -15,13 +15,15 @@ type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
 type LastComm = { createdAt: Date; method: string | null };
 
 // E1 semantic colour-coding (intentional, not canonical class — see ANIMATION_STANDARDS §E1).
-// Backgrounds bumped to solid bg-X-50 (from /70 /60 /30 opacity suffixes) so headers pop
-// on cool-toned themes instead of washing into the page. Borders kept at bg-X-200 / -100.
+// Header backgrounds now use wq-urgency-bar-* classes (defined in globals.css) so they
+// transition between glass mode (slightly transparent pale tint) and solid mode (fully
+// solid pale tint) — matching the glass↔solid behaviour of FileAlertsStrip + filter bar.
+// Colour identity unchanged per E1; the transition is added on top.
 const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; labelCls: string; badgeCls: string }> = {
-  escalated: { label: "Escalated",  headerCls: "bg-red-50 border border-red-200",       labelCls: "text-red-700",      badgeCls: "bg-red-100 text-red-700"       },
-  overdue:   { label: "Overdue",    headerCls: "bg-orange-50 border border-orange-200", labelCls: "text-orange-700",   badgeCls: "bg-orange-100 text-orange-700" },
-  due_today: { label: "Due today",  headerCls: "bg-amber-50 border border-amber-200",   labelCls: "text-amber-700",    badgeCls: "bg-amber-100 text-amber-700"   },
-  upcoming:  { label: "Coming up",  headerCls: "bg-slate-50 border border-slate-200",   labelCls: "text-slate-900/60", badgeCls: "bg-slate-100 text-slate-900/60" },
+  escalated: { label: "Escalated",  headerCls: "wq-urgency-bar wq-urgency-bar-escalated", labelCls: "text-red-700",      badgeCls: "bg-red-100 text-red-700"       },
+  overdue:   { label: "Overdue",    headerCls: "wq-urgency-bar wq-urgency-bar-overdue",   labelCls: "text-orange-700",   badgeCls: "bg-orange-100 text-orange-700" },
+  due_today: { label: "Due today",  headerCls: "wq-urgency-bar wq-urgency-bar-due-today", labelCls: "text-amber-700",    badgeCls: "bg-amber-100 text-amber-700"   },
+  upcoming:  { label: "Coming up",  headerCls: "wq-urgency-bar wq-urgency-bar-coming-up", labelCls: "text-slate-900/60", badgeCls: "bg-slate-100 text-slate-900/60" },
 };
 
 function isSunday(d: Date) { return d.getDay() === 0; }
