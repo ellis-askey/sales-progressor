@@ -552,8 +552,6 @@ Which canonical classes does hub use or need? Reference: `docs/polish-pass/ANIMA
 
 ## 14. Amendments
 
-_(Empty — populated if mid-flight discoveries occur in Stage 2.)_
-
 | Date | Discovery | Added to which section |
 |---|---|---|
-| — | — | — |
+| 2026-05-12 | Stage 1 §12 claimed `stalled-row-link` was canonical in `agent-system.css`. Grep during Stage 4 confirmed it was defined only in the polish page's local `<style>` block — never promoted to the canonical system. Stage 4 production cutover correctly replaced it with `agent-hover-row-warning` (genuinely canonical). §12 stale claim stands for reference but should not be treated as a canonical class. | §12 |
