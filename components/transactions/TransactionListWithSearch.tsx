@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import { Funnel } from "@phosphor-icons/react/dist/ssr";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 import { activityStateFor, type ActivityState } from "./TransactionRowView";
@@ -612,6 +613,18 @@ export function TransactionListWithSearch({
                 Clear filter
               </button>
             )}
+            {/* Filter signpost — decorative trailing icon (2026-05-13). Goes
+             * coral when any chip is active to mirror the chip state. */}
+            <Funnel
+              weight={anyFilterActive ? "fill" : "regular"}
+              size={14}
+              aria-hidden
+              style={{
+                marginLeft: 4,
+                color: anyFilterActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+                flexShrink: 0,
+              }}
+            />
           </div>
         </div>
 

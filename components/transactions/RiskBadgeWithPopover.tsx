@@ -38,9 +38,21 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
     if (!open && ref.current) {
       const r = ref.current.getBoundingClientRect();
       const above = r.top > 250;
+      // Clamp left so the popover stays in-viewport when the trigger sits in
+      // the rightmost column of the table. The popover is 230–270px wide; if
+      // anchoring to r.left would push it off the viewport's right edge,
+      // right-anchor it to r.right - popoverWidth instead. 12px safe margin
+      // from either edge.
+      const POPOVER_MAX_W = 270;
+      const SAFE = 12;
+      const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+      let left = r.left;
+      if (left + POPOVER_MAX_W + SAFE > vw) {
+        left = Math.max(SAFE, r.right - POPOVER_MAX_W);
+      }
       setPos({
         top: above ? r.top - 4 : r.bottom + 4,
-        left: r.left,
+        left,
         above,
       });
     }

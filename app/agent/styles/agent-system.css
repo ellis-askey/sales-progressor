@@ -387,14 +387,20 @@
     transform: scale(0.97);
   }
   .agent-segment-pill.on {
-    background: var(--agent-coral-deep);
-    color: #fff;
-    border-color: var(--agent-coral-deep);
-    box-shadow: 0 1px 3px rgba(var(--agent-coral-rgb), 0.35);
+    /* Soft-coral .on (2026-05-13) — replaces the solid-coral-white-text V2
+     * spec. Solid coral was too heavy: the white text on coral bg read as
+     * a visually different element from the inactive chips and was being
+     * perceived as a different font. Soft-coral keeps the active state
+     * unmissable via hue but matches the inactive chips on visual mass +
+     * font-weight, fixing the perceived font inconsistency. */
+    background: rgba(var(--agent-coral-rgb), 0.14);
+    color: var(--agent-coral-deep);
+    border-color: rgba(var(--agent-coral-rgb), 0.45);
+    font-weight: var(--agent-weight-medium);
   }
   .agent-segment-pill.on:hover:not(:disabled) {
-    /* No bg lighten on .on — solid coral is the destination state */
-    filter: brightness(1.05);
+    background: rgba(var(--agent-coral-rgb), 0.20);
+    border-color: rgba(var(--agent-coral-rgb), 0.60);
   }
   .agent-segment-pill:disabled {
     opacity: 0.42;
