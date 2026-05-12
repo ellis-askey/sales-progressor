@@ -341,6 +341,76 @@ Similarly, `addBusinessDays` and `isSunday` helper functions are duplicated acro
 "Reminder rule: Chase after {milestone} ({N}d grace)"
 ```
 
+### 7.1 Voice review (Stage 3 — 2026-05-12)
+
+Walked the polish page top to bottom against `VOICE_GUIDELINES.md` (three rules + tone calibration + translation table). Pre-flagged offenders verified in place. New violations surfaced. ✓ no change rows kept visible per Ellis's instruction.
+
+**P** = polish page (annotated `{/* OLD: ... */}` and rewritten). **Prod** = production-only string (Stage 4 applies the rewrite from this row).
+
+| Location | Current copy | Proposed copy | Reason |
+|---|---|---|---|
+| PageHeader title | "Reminders" | ✓ no change | Translation table: ReminderLog → Reminder, direct |
+| PageHeader subtitle | "What needs chasing, today and ahead." | ✓ no change | Active, present, specific |
+| StatPill | "{N} overdue" / "{N} due today" / "{N} coming up" | ✓ no change | Factual counts |
+| FileAlertsStrip header count | "{N} file alert" / "{N} file alerts" | ✓ no change | Factual |
+| FileAlertsStrip header badges | "{N} overdue exchange" / "{N} missing solicitor" / "{N} stale" | ✓ no change | Factual; "stale" is borderline jargon but industry-adjacent and acceptable |
+| FileAlertsStrip toggle | "Show" / "Hide" | ✓ no change | Imperative |
+| FileAlertsStrip action links | "Add purchaser solicitor →" / "Add vendor solicitor →" / "Add solicitors →" / "Update exchange date →" | ✓ no change | Imperative, specific |
+| FileAlertsStrip row badges | "Overdue exchange" / "Missing solicitor" / "Stale" | ✓ no change | Factual state labels |
+| Zero-files empty heading | "Your reminders will appear here" | ✓ no change | Already passes |
+| Zero-files empty body **[P, pre-flagged 1]** | "Once you create a sale, we'll surface chases and follow-ups as files progress." | "Chases and follow-ups appear here as your files move forward." | Rule 1 (system self-reference). **Verified applied on polish page.** Production fix at `app/agent/work-queue/page.tsx:82` deferred to Stage 4. |
+| Ghost group labels | "Overdue" / "Due today" | ✓ no change | Group label |
+| All-caught-up heading | "All caught up" | ✓ no change | Already passes |
+| All-caught-up body **[P, pre-flagged 2]** | "No reminders due right now. We'll surface them here as files progress." | "No reminders due right now. They'll appear here as files move forward." | Rule 1 (system self-reference). **Verified applied on polish page** — Stage 2 fix used "show up here"; Stage 3 refinement to "appear" for consistency with the zero-files canonical verb from `VOICE_GUIDELINES.md`. Production fix at `AgentRemindersList.tsx:600` deferred to Stage 4. |
+| Filter bar placeholder | "Search address or reminder…" | ✓ no change | Direct |
+| Filter bar pills | "All" / "Seller" / "Buyer" / "Active" / "Snoozed" / "Snoozed ({N})" | ✓ no change | Short, factual |
+| Filter-empty (seller) **[Prod]** | "No reminders for Seller right now." | ✓ no change | Active, present |
+| Filter-empty (buyer) **[Prod]** | "No reminders for Buyer right now." | ✓ no change | Active, present |
+| Filter-empty (search) **[Prod, pre-flagged 3]** | "No reminders match the current filter." | "No reminders match." | Rule 3 (active/specific). "The current filter" is a passive pointer to a system state the user just set — they know what filter is on. Shorter, same meaning. Production-only — applied at Stage 4 to `AgentRemindersList.tsx:657`. |
+| Filter-empty (active, no results) **[Prod]** | "No active reminders." | ✓ no change | Direct |
+| Snoozed-empty **[Prod]** | "No snoozed reminders." | ✓ no change | Direct |
+| Snoozed-empty filtered **[Prod, pre-flagged 4]** | "No snoozed reminders matching filter." | "No matching snoozed reminders." | Rule 3 (smoother active phrasing; same meaning). Production-only — applied at Stage 4 to `AgentRemindersList.tsx:718`. |
+| Urgency group labels | "Escalated" / "Overdue" / "Due today" / "Coming up" | ✓ no change | State labels |
+| Urgency group count badge | "{N}" | ✓ no change | Factual |
+| Urgency group toggle | "Show" / "Hide" | ✓ no change | Imperative |
+| SplitFileCard address | (dynamic property address) | ✓ no change | Data |
+| SplitFileCard count | "{N} reminder" / "{N} reminders" | ✓ no change | Factual |
+| SideColumn label | "Seller" / "Buyer" | ✓ no change | Industry standard |
+| SideColumn count **[P, NEW]** | "{N} item" / "{N} items" | "{N} reminder" / "{N} reminders" | Rule 3 (specific over generic). "Item" gives no information; "reminder" matches the page's primary noun. **Applied on polish page.** Production fix at `AgentRemindersList.tsx:267–269` deferred to Stage 4. |
+| Reminder row name | (`reminderRule.name` with `Chase:` prefix stripped) | ✓ no change in this pass | Stripping verified at `lib/services/hub.ts:481` and inline in both `RemindersSection.tsx:73` / `AgentRemindersList.tsx:275` via `stripChase()` regex. Rule-name copy sampled from `prisma/seed.ts:331+` ("Seller MOS received", "Draft contract pack issued", "Management pack requested" etc.) — past-participle state labels in acceptable industry voice. **Not in scope for this commit.** See note below on rule-name copy. |
+| Reminder row urgency label | "Escalated" / "{N}d overdue" / "Due today" / "From {date}" | ✓ no change | Factual |
+| Row action — Done button text | "Done" (with ✓ icon) | ✓ no change | Imperative |
+| Row action — Done button title **[P, NEW]** | `title="Confirm milestone done"` | `title="Mark step done"` | Rule 2 (schema jargon — translation table: milestone → step). Tooltip is user-facing UI even though hover-only. **Applied on polish page.** Production fix at `AgentRemindersList.tsx:313` deferred to Stage 4. |
+| Row action — Snooze title | `title="Snooze"` (polish) / `title="Snooze this reminder"` (production) | ✓ no change | Imperative |
+| Snooze dropdown options | "24 h" / "48 h" / "72 h" / "7 days" | ✓ no change | Standard time abbreviations |
+| Column footer — Chase button | "Chase" / "Chase all ({N})" | ✓ no change | Imperative, specific |
+| Column footer — Snooze all | "🕐 Snooze all" | ✓ no change | Imperative |
+| EmptyColumn | "Seller is all up to date" / "Buyer is all up to date" | ✓ no change | Conversational present state; passes Rule 3 |
+| Snoozed banner — wake date | "Wakes {date}" | ✓ no change | Present, factual |
+| Snoozed banner — wake action | "Wake now" | ✓ no change | Imperative |
+| ReminderCard active status bar **[Prod]** | "Escalated" / "Escalated · {N}d overdue" / "Escalated · due today" / "Overdue {N}d" / "Due today" / "Active from {date}" | ✓ no change | State labels |
+| ReminderCard chase summary **[Prod]** | "{N} chase sent · last {relative} via {method}" | ✓ no change | Factual past-tense summary |
+| ReminderCard expand toggle **[Prod]** | "Show details" / "Hide details" | ✓ no change | Imperative |
+| ReminderCard kebab — manual chase **[Prod]** | "Chased manually" | ✓ no change | Past-tense action label |
+| ReminderCard kebab — escalate **[Prod]** | "↑ Escalate" | ✓ no change | Imperative; arrow conveys upward action |
+| ReminderCard expanded details **[Prod]** | "Last contact: via {method}, {relative}" / "No contact logged on this file yet." / "Not yet chased" / "Chased {N}× already" / "{N} other reminder(s) active on this file" / "Reminder rule: Chase after {milestone} ({N}d grace)" | ✓ no change overall; **one note**: "Reminder rule: Chase after {milestone} ..." contains the word "milestone" — Rule 2 violation. Flag for Stage 4 production-only fix on `ReminderCard.tsx` expanded-details panel: "milestone" → "step" per translation table. Not in polish page (only the snoozed view renders here). | Mostly factual; one schema-jargon instance for Stage 4 to address |
+| Loading skeleton | (no copy — `PageHeader` reuses "Reminders" + subtitle) | ✓ no change | Same as PageHeader row |
+
+**Pre-flagged offenders summary:** 4/4 verified.
+
+1. ✓ Zero-files body — applied on polish page, matches `VOICE_GUIDELINES.md` canonical "After" verbatim.
+2. ✓ All-caught-up body — applied on polish page; Stage 3 refined the verb "show up" → "appear" for consistency with the zero-files canonical.
+3. ✓ Filter-empty (search) — proposed rewrite "No reminders match." captured for Stage 4 (production-only string, not on polish page).
+4. ✓ Filter-empty (snoozed filtered) — proposed rewrite "No matching snoozed reminders." captured for Stage 4 (production-only).
+
+**Newly surfaced violations:** 3.
+
+1. **[P]** Done button `title` attr — "Confirm milestone done" → "Mark step done" (Rule 2 schema jargon).
+2. **[P]** SideColumn count noun — "item / items" → "reminder / reminders" (Rule 3 specific over generic).
+3. **[Prod, out of polish-page scope]** `ReminderCard` expanded-details panel: "Reminder rule: Chase after {milestone} ..." — Rule 2 schema jargon. Flag for Stage 4 production fix.
+
+**Reminder-rule names (carve-out, out of scope):** sampled 10 from `prisma/seed.ts:331–345` after stripping the `Chase:` prefix. Examples: "Seller MOS received", "Draft contract pack issued", "Management pack requested", "Initial enquiries received by seller's solicitor". Read as acceptable industry-voice past-participle state labels — "received", "issued", "requested" describe the desired milestone outcome that the chase is reminding the agent to push for. Not voice violations; not logged to `POST_LAUNCH_FIXES.md`. A future rule-copy pass could make them more imperative ("Push seller to instruct solicitor" vs "Seller instructed solicitor"), but the current copy passes the three rules.
+
 ---
 
 ## 8. Desktop view
@@ -559,6 +629,7 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 | 2026-05-12 | **Stage 2 decision — snoozed token family.** Selected option (a): introduced `--agent-snoozed-*` token family across all six theme blocks in `themes.css` at identical purple values (theme-locked, like warning/danger/success/info). Rejected option (b) E1 precedent because E1 governs multi-colour urgency hierarchy *within* a theme, not the colour of a single state *across* themes. Snoozed is structurally identical to the four existing semantic states. Documented in `ANIMATION_STANDARDS.md` "Semantic tokens (added Stage 2, Work Queue pass)". Resolves Other notes. | §13 (Snoozed view row), §15 |
 | 2026-05-12 | **Stage 2 polish page built.** `app/agent/polish/work-queue/page.tsx`. State toggles for view (active/snoozed), empty (none/zero-files/all-clear), file-alerts on/off, reduced-motion. Demonstrates every canonical class conversion catalogued in §13. tsc clean. | §13 (all rows) |
 | 2026-05-12 | **Stage 2 review feedback — four polish refinements applied to the polish page.** (1) StatPill background/border alpha bumped 0.08/0.15 → 0.16/0.40 — pills now read at the StatusBadge visibility level instead of glassy/pale. (2) Done and Snooze row buttons converted from `agent-btn agent-btn-sm` (no hover) to `agent-btn agent-btn-sm agent-btn-secondary` (neutral white-glass lifted hover). (3) Search input placeholder font size overridden to `fontSize: 13` inline — `agent-input-sm`'s `max(16px, body-sm)` reads as oversized on desktop work-queue search. (4) Zero-files ghost group rows: hardcoded mock data (addresses, reminder names, tags) replaced with `.agent-skeleton` pulse shapes; group headers + per-group row count preserved to convey structure. §13 rows updated for PageHeader (StatPill), Zero-files empty state (ghost groups), SideColumn (row buttons), and Filter bar (search font-size) to lock in the refined Stage 4 targets. | §13 (PageHeader, Zero-files, SideColumn, Filter bar rows) |
+| 2026-05-12 | **Stage 3 voice pass complete.** Walked polish page top to bottom against `VOICE_GUIDELINES.md` three rules + tone calibration + translation table. Verified all 4 pre-flagged offenders. Surfaced 3 new violations: (1) Done button `title="Confirm milestone done"` → `title="Mark step done"` (Rule 2 schema jargon), applied to polish page; (2) SideColumn count noun "item/items" → "reminder/reminders" (Rule 3 specific over generic), applied to polish page; (3) `ReminderCard` expanded-details "Reminder rule: Chase after {milestone}…" contains schema jargon "milestone" — production-only, flagged for Stage 4. Refined all-caught-up copy from Stage 2's "show up" → "appear" for verb consistency with the zero-files canonical from `VOICE_GUIDELINES.md`. Sampled reminder-rule names from `prisma/seed.ts:331+` after `Chase:` stripping — acceptable industry copy, not violations. Added §7.1 side-by-side voice-review table. | §7.1 (new), polish page (3 rewrites) |
 
 ---
 

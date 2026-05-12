@@ -531,8 +531,9 @@ function SideColumn({ side, reminders }: { side: "seller" | "buyer"; reminders: 
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
           {isSeller ? "Seller" : "Buyer"}
         </span>
+        {/* OLD: "{N} item / items" — Rule 3: "item" is generic; "reminder" is the page's primary noun and more specific */}
         <span style={{ fontSize: 10, color: TM, marginLeft: "auto" }}>
-          {reminders.length} {reminders.length === 1 ? "item" : "items"}
+          {reminders.length} {reminders.length === 1 ? "reminder" : "reminders"}
         </span>
       </div>
 
@@ -572,7 +573,8 @@ function SideColumn({ side, reminders }: { side: "seller" | "buyer"; reminders: 
                 <Clock size={12} weight="regular" />
               </button>
               {/* Done — agent-btn-secondary (neutral white-glass hover, matches Snooze) */}
-              <button className="agent-btn agent-btn-sm agent-btn-secondary" title="Confirm milestone done">
+              {/* OLD: title="Confirm milestone done" — Rule 2: "milestone" is schema jargon (translation table: milestone → step) */}
+              <button className="agent-btn agent-btn-sm agent-btn-secondary" title="Mark step done">
                 <CheckCircle size={12} weight="fill" /> Done
               </button>
             </div>
@@ -741,7 +743,8 @@ function AllClearEmpty() {
       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TP }}>All caught up</p>
       <p style={{ margin: "4px 0 0", fontSize: 12, color: TM }}>
         {/* OLD: "No reminders due right now. We'll surface them here as files progress." — Rule 1 (system self-reference) */}
-        No reminders due right now. They&apos;ll show up here as files move forward.
+        {/* Refined Stage 3: "show up" → "appear" — matches the canonical verb used in the zero-files copy (VOICE_GUIDELINES.md After value) */}
+        No reminders due right now. They&apos;ll appear here as files move forward.
       </p>
     </div>
   );
