@@ -819,27 +819,42 @@ select {
   border: 1px solid rgba(var(--agent-coral-base-rgb), 0.35) !important;
 }
 
-/* ── Transaction-list hanging-basket bar — status tabs (LEFT) + filter chips (RIGHT)
- * Mirrors the PropertyFileTabs "flap" look: a separate, lighter-glass strip below
- * the page header (and ForecastStrip), with rounded corners. Lighter than
- * .agent-glass-strong so it reads as a navigation tray rather than primary content.
- * Status tabs and chip triggers all use the canonical .agent-tab class so the
- * underline hover-preview and active state are unified. Chips are a slim variant
- * (.tl-bar-chip). Mobile (<640px): bar wraps to stacked rows; chips no longer
- * push to the right.
+/* ── Transaction-list paired card — search (TOP HALF, white) + tabs/chips (BOTTOM HALF, lighter)
+ * Single outer card with rounded corners; two stacked halves inside.
+ * Mirrors the PropertyFileTabs visual pattern from transaction-detail:
+ * one card, white top section (analogous to the property hero), more
+ * transparent bottom section (analogous to the tab strip), with a
+ * hairline divider at the seam.
  */
-.tl-bar {
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
+.tl-card {
   border: 0.5px solid var(--agent-border-default);
   border-radius: var(--agent-radius-xl);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
 }
-[data-solid] .tl-bar {
-  background: rgba(255, 255, 255, 0.78) !important;
+.tl-card-search {
+  /* Top half — white. Sits on the card's lighter outer fill so the
+   * white-on-lighter contrast reads as a separate section. */
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 14px;
+  border-bottom: 0.5px solid var(--agent-border-default);
+}
+.tl-card-tabs {
+  /* Bottom half — transparent. Inherits the card's outer fill; no own
+   * background fill required. */
+  position: relative;
+}
+[data-solid] .tl-card {
+  background: rgba(255, 255, 255, 0.62) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+[data-solid] .tl-card-search {
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
 .tl-bar-row {
   display: flex;
   align-items: stretch;

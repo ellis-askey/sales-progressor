@@ -437,9 +437,44 @@ export function TransactionListWithSearch({
 
   return (
     <div className="space-y-3">
-      {/* Hanging-basket bar (status tabs + filter chips + clear filter) */}
-      {(showStatusTabs || showUserFilter || showManagedByFilter || true) && (
-        <div className="tl-bar" style={{ overflow: "visible" }}>
+      {/* Paired card — single outer card, white search top half + lighter tabs bottom half.
+       * Mirrors the property-detail hero+tabs pattern: one card, two sections, hairline
+       * divider at the seam, rounded corners across the whole shape. */}
+      <div className="tl-card">
+        {/* TOP HALF — search input on a white background.
+         * agent-input agent-input-sm with fontSize 13 override matches work-queue
+         * precedent (input-sm forces max(16px, body-sm) which reads oversized
+         * on desktop). */}
+        <div className="tl-card-search">
+          <div style={{ position: "relative" }}>
+            <svg
+              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by address…"
+              className="agent-input agent-input-sm"
+              style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: 13 }}
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="agent-icon-btn agent-icon-btn-sm"
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
+                aria-label="Clear search"
+              >×</button>
+            )}
+          </div>
+        </div>
+
+        {/* BOTTOM HALF — tabs (LEFT) + filter chips (RIGHT) on the card's lighter fill. */}
+        <div className="tl-card-tabs">
           <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
             {/* Status tabs (LEFT) */}
             {showStatusTabs && statusCounts && (
@@ -498,37 +533,6 @@ export function TransactionListWithSearch({
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Search input — its own card; agent-input agent-input-sm with fontSize 13
-       * override matches work-queue precedent (input-sm forces max(16px, body-sm)
-       * which reads oversized on desktop). */}
-      <div className="agent-glass-strong" style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-xl)" }}>
-        <div style={{ position: "relative" }}>
-          <svg
-            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round"
-              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-          </svg>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by address…"
-            className="agent-input agent-input-sm"
-            style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: 13 }}
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="agent-icon-btn agent-icon-btn-sm"
-              style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
-              aria-label="Clear search"
-            >×</button>
-          )}
         </div>
       </div>
 
