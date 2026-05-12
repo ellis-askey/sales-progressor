@@ -378,14 +378,13 @@ export default async function HubPreviewPage() {
                   alignItems: "center", padding: "6px 12px", gap: 4,
                   borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
                   borderRadius: 8,
-                  transition: "background 120ms",
                 };
                 return href ? (
                   <Link
                     key={i}
                     href={href}
                     style={{ ...cellStyle, textDecoration: "none" }}
-                    className="agent-hover-row"
+                    className="agent-press-cell"
                   >
                     {inner}
                   </Link>
@@ -495,7 +494,7 @@ export default async function HubPreviewPage() {
                     borderRadius: 6,
                     gap: 8,
                   }}
-                  className="agent-hover-row-warning"
+                  className="agent-press-cell"
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <AlertCircle

@@ -1177,6 +1177,32 @@
   .agent-hover-row-warning { transition: background-color 150ms ease; }
   .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }
 
+  /* Press-and-deflate cell hover (2026-05-13) — inflates on hover (scale 1.04)
+   * and deflates back on hover-off. Press-down on :active (scale 0.98) gives
+   * tactile feedback. NO colour change — the scale alone signals interactivity.
+   * Use cases: hub Pipeline Health stat cells, the chasing-row escalation,
+   * and any cell-as-link affordance where colour-tint hover feels heavy. */
+  .agent-press-cell {
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform: scale(1);
+    transform-origin: center;
+    will-change: transform;
+  }
+  .agent-press-cell:hover:not(:disabled) {
+    transform: scale(1.04);
+    /* z-index lift so the scaled cell sits above adjacent dividers/cells */
+    position: relative;
+    z-index: 1;
+  }
+  .agent-press-cell:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-press-cell,
+    .agent-press-cell:hover,
+    .agent-press-cell:active { transform: none; transition: none; }
+  }
+
   /* Link-style text hover — replaces hover:text-blue-600 on inline action links */
   .agent-hover-link { transition: color 150ms ease; }
   .agent-hover-link:hover { color: var(--agent-coral-deep); }
