@@ -72,93 +72,90 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
-      {/* CardHdr */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <h3 className="text-xs font-semibold text-slate-900/70">Notes</h3>
+      <div className="agent-card-hdr">
+        <h3 className="agent-card-title">Notes</h3>
       </div>
 
-      {/* Add note form */}
-      <div className="px-5 py-4 border-b border-white/20">
-        <form onSubmit={handleAdd}>
+      <div style={{ padding: 16 }}>
+        {/* Note list */}
+        {optimisticNotes.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            {visible.map((note) => {
+              const isOptimistic = note.id.startsWith("temp-");
+              return (
+                <div key={note.id} className={isOptimistic ? "agent-reveal-in" : ""}>
+                <div
+                  style={{
+                    padding: "8px 10px",
+                    background: "rgba(255,255,255,0.5)",
+                    borderRadius: 8,
+                    border: "0.5px solid var(--agent-border-default)",
+                    position: "relative",
+                    opacity: isOptimistic ? 0.65 : 1,
+                    transition: "background 150ms",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.72)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.5)"; }}
+                >
+                  <p style={{ fontSize: 12, color: "var(--agent-text-primary)", marginRight: 24 }}>
+                    {note.content}
+                  </p>
+                  <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>
+                    {note.createdByName ? `${note.createdByName} · ` : ""}
+                    {isOptimistic ? "just now" : relativeDate(note.createdAt)}
+                  </p>
+                  {!isOptimistic && (
+                    <button
+                      onClick={() => handleDelete(note.id)}
+                      disabled={deleting === note.id || isPending}
+                      className="agent-icon-btn agent-icon-btn-sm"
+                      style={{ position: "absolute", top: 6, right: 6, opacity: 0.35 }}
+                      onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+                      onFocus={(e) => (e.currentTarget.style.opacity = "1")}
+                      onMouseOut={(e) => (e.currentTarget.style.opacity = "0.35")}
+                      onBlur={(e) => (e.currentTarget.style.opacity = "0.35")}
+                      aria-label="Delete note"
+                    >
+                      {deleting === note.id ? "…" : "×"}
+                    </button>
+                  )}
+                </div>
+                </div>
+              );
+            })}
+
+            {!expanded && hidden > 0 && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="text-xs py-1 text-center agent-link-muted"
+              >
+                Show {hidden} more note{hidden !== 1 ? "s" : ""}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Add form */}
+        <form onSubmit={handleAdd} style={{ display: "flex", gap: 8 }}>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            rows={3}
             placeholder="Add a note…"
-            className="w-full px-4 py-3 text-sm text-slate-900/80 placeholder:text-slate-900/30 resize-none focus:outline-none border-b border-white/20 bg-transparent"
+            className="agent-textarea"
+            style={{ flex: 1, minHeight: 60, resize: "none", fontSize: 13 }}
           />
-          <div className="px-4 py-2.5 flex items-center justify-between">
-            {error && (
-              <span className="text-xs text-red-500">{error}</span>
-            )}
-            <button
-              type="submit"
-              disabled={isPending || !draft.trim()}
-              className="px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
-            >
-              {isPending ? "Saving…" : "Add note"}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isPending || !draft.trim()}
+            className="agent-btn agent-btn-sm agent-btn-primary"
+            style={{ alignSelf: "flex-end" }}
+          >
+            {isPending ? "Saving…" : "Add note"}
+          </button>
         </form>
+
+        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
       </div>
-
-      {/* Note list */}
-      {optimisticNotes.length > 0 && (
-        <div className="divide-y divide-white/15">
-          {visible.map((note) => {
-            const initials = note.createdByName
-              ? note.createdByName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-              : "?";
-            const isOptimistic = note.id.startsWith("temp-");
-            return (
-              <div
-                key={note.id}
-                className="group px-4 py-3 flex items-start gap-3"
-                style={isOptimistic ? { opacity: 0.65 } : undefined}
-              >
-                <div className="w-7 h-7 rounded-full bg-blue-100/80 text-blue-600 flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5">
-                  {initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-slate-900/70">{note.createdByName}</span>
-                    <span className="text-xs text-slate-900/30">
-                      {isOptimistic ? "just now" : relativeDate(note.createdAt)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-900/80 whitespace-pre-wrap leading-relaxed">
-                    {note.content}
-                  </p>
-                </div>
-                {!isOptimistic && (
-                  <button
-                    onClick={() => handleDelete(note.id)}
-                    disabled={deleting === note.id || isPending}
-                    className="flex-shrink-0 text-xs text-slate-900/20 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-40 mt-0.5"
-                  >
-                    {deleting === note.id ? "…" : "Delete"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          {!expanded && hidden > 0 && (
-            <button
-              onClick={() => setExpanded(true)}
-              className="w-full text-xs py-2 text-center agent-link-muted"
-            >
-              Show {hidden} more note{hidden !== 1 ? "s" : ""}
-            </button>
-          )}
-        </div>
-      )}
-
-      {optimisticNotes.length === 0 && (
-        <div className="px-5 py-4">
-          <p className="text-sm text-slate-900/30 italic">No notes yet</p>
-        </div>
-      )}
     </div>
   );
 }

@@ -49,9 +49,9 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
-      <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
+      <div className="agent-card-hdr">
         <div>
-          <p className="text-xs font-semibold text-slate-900/70">Property Intel</p>
+          <p className="agent-card-title">Property Intel</p>
           <p className="text-xs text-slate-900/40 mt-0.5">
             {data?.postcode ?? "Land Registry · EPC · Search links"}
           </p>
@@ -67,7 +67,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
               Zoopla
             </a>
             <a href={data.links.landReg} target="_blank" rel="noopener noreferrer"
-               className="text-xs px-2.5 py-1 rounded-lg bg-white/30 text-slate-900/60 font-medium hover:bg-white/50 transition-colors">
+               className="text-xs px-2.5 py-1 rounded-lg bg-[#1d70b8] text-white font-medium hover:opacity-90 transition-opacity">
               Land Reg
             </a>
           </div>
@@ -84,7 +84,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
         )}
 
         {!loading && !error && data && (
-          <div>
+          <div className="agent-reveal-in">
           <p className="text-[11px] text-slate-900/30 mb-3 italic">
             Data sourced from Land Registry and EPC Register. Always verify before use.
           </p>
@@ -100,18 +100,15 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
               ) : (
                 <div className="space-y-2">
                   {data.pricePaid.slice(0, 5).map((entry, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div>
+                    <div key={i} className="agent-hover-row rounded-md px-1 -mx-1 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-900/40 flex-shrink-0">{fmtDate(entry.date)}</span>
                         <span className="text-sm font-semibold text-slate-900/90">
                           {entry.amount > 0 ? fmt(entry.amount * 100) : "—"}
                         </span>
-                        <span className="ml-2 text-xs text-slate-900/40">
-                          {entry.propertyType}{entry.newBuild ? " · New build" : ""}
-                          {entry.estateType ? ` · ${entry.estateType}` : ""}
-                        </span>
                       </div>
                       <span className="text-xs text-slate-900/40 flex-shrink-0 ml-3">
-                        {fmtDate(entry.date)}
+                        {entry.propertyType}{entry.newBuild ? " · New build" : ""}{entry.estateType ? ` · ${entry.estateType}` : ""}
                       </span>
                     </div>
                   ))}
@@ -124,32 +121,31 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
               <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide mb-3">EPC</p>
               {data.epc ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center justify-center w-9 h-9 rounded-lg text-lg font-bold ${EPC_COLOURS[data.epc.rating]?.bg ?? "bg-white/30"} ${EPC_COLOURS[data.epc.rating]?.text ?? "text-slate-900/80"}`}>
-                      {data.epc.rating}
-                    </span>
-                    {data.epc.score !== null && (
-                      <span className="text-xs text-slate-900/50">{data.epc.score} / 100</span>
+                  {data.address && (
+                    <p className="text-xs text-slate-900/40">{data.address}</p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center justify-center w-9 h-9 rounded-lg text-lg font-bold ${EPC_COLOURS[data.epc.rating]?.bg ?? "bg-white/30"} ${EPC_COLOURS[data.epc.rating]?.text ?? "text-slate-900/80"}`}>
+                        {data.epc.rating}
+                      </span>
+                      {data.epc.score !== null && (
+                        <span className="text-xs text-slate-900/50">{data.epc.score} / 100</span>
+                      )}
+                    </div>
+                    {data.postcode && (
+                      <a
+                        href={`https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=${encodeURIComponent(data.postcode)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
+                      >
+                        View on GOV.UK →
+                      </a>
                     )}
                   </div>
-                  {data.epc.propertyType && (
-                    <p className="text-xs text-slate-900/50">{data.epc.propertyType}{data.epc.builtForm ? ` · ${data.epc.builtForm}` : ""}</p>
-                  )}
-                  {data.epc.floorArea && (
-                    <p className="text-xs text-slate-900/50">{data.epc.floorArea} m²</p>
-                  )}
                   {data.epc.inspectionDate && (
                     <p className="text-xs text-slate-900/40">Inspected {fmtDate(data.epc.inspectionDate)}</p>
-                  )}
-                  {data.postcode && (
-                    <a
-                      href={`https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=${encodeURIComponent(data.postcode)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
-                    >
-                      View on GOV.UK →
-                    </a>
                   )}
                 </div>
               ) : data.epcConfigured ? (

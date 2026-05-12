@@ -8,13 +8,13 @@
 
 ## The rule
 
-No page in the Polish Pass invents its own accordion, reveal, dropdown-entrance, or row-flash animation. Everyone uses the five canonical classes below. If a page needs one of these patterns and a canonical class exists, it uses the canonical class. End of story.
+No page in the Polish Pass invents its own accordion, reveal, dropdown-entrance, row-flash, or row-exit animation. Everyone uses the six canonical classes below. If a page needs one of these patterns and a canonical class exists, it uses the canonical class. End of story.
 
 The only exceptions are animations that require JavaScript measurement (A5 tab indicator, H1 status crossfade) — these are implemented per-page using the documented pattern. See **Per-page JS patterns** below.
 
 ---
 
-## Five canonical classes
+## Six canonical classes
 
 ### 1. Accordion — `.agent-acc` / `.agent-acc-in`
 
@@ -129,6 +129,37 @@ Use `key` to force remount each open so the animation replays.
 **Timing:** 700ms `ease-out`. Peaks at rgba(16, 185, 129, 0.07) at the 20% mark, returns to transparent.
 
 **Reduced-motion:** `animation: none` — state change is still visible via dot colour change. No flash.
+
+---
+
+### 6. Row deletion exit — `.agent-row-exit`
+
+**What it animates:** A list row being removed — fades out and collapses its height before the DOM node is actually removed.
+
+**How to use (two-step pattern — required for the animation to play before removal):**
+```tsx
+// 1. Mark as exiting — row gets the class, animation plays
+setExitingId(id);
+// 2. After animation, fire the server action / state removal
+setTimeout(() => {
+  startTransition(async () => {
+    await deleteAction(id);  // revalidates, row disappears from list
+    setExitingId(null);
+  });
+}, 150);
+
+// JSX:
+<div className={exitingId === entry.id ? "agent-row-exit" : ""}>
+  {/* row content */}
+</div>
+```
+`forwards` fill-mode keeps the row at `opacity: 0 / max-height: 0` until React removes it from the DOM. `pointer-events: none` prevents interaction during the animation.
+
+**Timing:** 150ms `ease-in`. `opacity: 1 → 0`, `max-height: 300px → 0`.
+
+**Reduced-motion:** `animation: none; opacity: 0; max-height: 0; overflow: hidden` — row collapses instantly without a fade.
+
+**Where it applies:** ActivityTimeline delete, ManualTaskCard delete, RemindersSection log snooze/dismiss.
 
 ---
 
@@ -598,3 +629,4 @@ The primary button is **fully per-theme** — coral is the token name, not a col
 | 2026-05-11 | Shared hook `lib/agent/use-tab-indicator.ts` created (A5). Progress ring draw-on documented as A6 (C3 pattern from anim-preview). |
 | 2026-05-11 | `.agent-hover-link` added as §12 — hover-only colour shift for non-anchor text within control groups. Deliberate exceptions section added: E1 (RemindersSection urgency headers — semantic colour overrides canonical class). Primary button theme-awareness section added with G4 Playwright measurement fix note. |
 | 2026-05-11 | `.agent-sidebar-label` added — 11px/600/uppercase/0.06em tracking/coral-deep. Replaces `glass-section-label text-slate-900/40` on all TransactionSidebar section labels (Progress, Exchange Forecast, Key Dates, Agent, Price & Fees). |
+| 2026-05-12 | `.agent-row-exit` added as §6 — row deletion exit (opacity + height collapse, 150ms ease-in). Canonical class count updated from 5 to 6. |

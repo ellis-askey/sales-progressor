@@ -36,18 +36,25 @@ function MilestoneSideRow({
   const { toast } = useAgentToast();
   const { setActiveTab } = useTabContext();
   const [loading, setLoading] = useState(false);
+  const [flashed, setFlashed] = useState(false);
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: 12,
+    padding: "10px 16px",
+    borderBottom: "0.5px solid var(--agent-border-default)",
+  };
 
   if (side.state === "allComplete") {
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="agent-hover-row" style={rowStyle}>
         <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
           <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
         <div>
-          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs text-emerald-600 font-medium">All steps complete</p>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
+          <p className="text-xs text-emerald-600 font-medium" style={{ margin: 0 }}>All steps complete</p>
         </div>
       </div>
     );
@@ -59,11 +66,11 @@ function MilestoneSideRow({
         ? "Awaiting exchange-readiness"
         : "Awaiting exchange confirmation";
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="agent-hover-row" style={rowStyle}>
         <div className="w-5 h-5 rounded-full bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
         <div>
-          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs text-amber-700 font-medium">{copy}</p>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>{copy}</p>
         </div>
       </div>
     );
@@ -72,11 +79,11 @@ function MilestoneSideRow({
   if (side.state === "completionPending") {
     const formatted = side.completionDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="agent-hover-row" style={rowStyle}>
         <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-200 flex-shrink-0" />
         <div>
-          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs text-blue-700 font-medium">Completion due {formatted}</p>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Completion due {formatted}</p>
         </div>
       </div>
     );
@@ -87,11 +94,11 @@ function MilestoneSideRow({
 
   if (milestone.eventDateRequired) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="agent-hover-row" style={rowStyle}>
         <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-200 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-          <p className="text-xs font-semibold text-slate-900/80 truncate">{milestone.name}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{milestone.name}</p>
         </div>
         <button
           onClick={() => setActiveTab("milestones")}
@@ -111,6 +118,8 @@ function MilestoneSideRow({
         milestoneDefinitionId: milestone.id,
       });
       toast.success(milestone.name);
+      setFlashed(true);
+      setTimeout(() => setFlashed(false), 700);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete milestone";
       toast.error("Couldn't complete milestone", { description: message });
@@ -120,16 +129,16 @@ function MilestoneSideRow({
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className={`agent-hover-row${flashed ? " agent-row-flash" : ""}`} style={rowStyle}>
       <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-slate-900/40">{label}</p>
-        <p className="text-xs font-semibold text-slate-900/80 truncate">{milestone.name}</p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
+        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{milestone.name}</p>
       </div>
       <button
         onClick={handleClick}
         disabled={loading}
-        className="agent-btn agent-btn-sm agent-btn-primary"
+        className="agent-btn agent-btn-xs agent-btn-primary"
       >
         {loading ? "…" : "Complete"}
       </button>
@@ -142,10 +151,10 @@ export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <h3 className="text-xs font-semibold text-slate-900/70">Next steps</h3>
+      <div className="agent-card-hdr">
+        <h3 className="agent-card-title">Next steps</h3>
       </div>
-      <div className="divide-y divide-white/15">
+      <div>
         <MilestoneSideRow side={vendorSide} label="Vendor" transactionId={transactionId} />
         <MilestoneSideRow side={purchaserSide} label="Purchaser" transactionId={transactionId} />
       </div>

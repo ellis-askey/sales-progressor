@@ -21,59 +21,39 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold text-slate-900/70">Reminders</h3>
-          {totalActive > 0 && (
-            <span className="agent-badge">{totalActive}</span>
-          )}
+      <div className="agent-card-hdr">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h3 className="agent-card-title">Reminders</h3>
+          {totalActive > 0 && <span className="agent-badge">{totalActive}</span>}
         </div>
-        <button
-          onClick={() => setActiveTab("reminders")}
-          className="text-xs agent-link"
-        >
+        <button onClick={() => setActiveTab("reminders")} className="agent-link" style={{ fontSize: 11 }}>
           View all →
         </button>
       </div>
 
       {/* Reminder rows */}
       {reminders.length === 0 ? (
-        <div className="px-4 py-5 text-center">
-          <p className="text-xs text-slate-900/30 italic">No reminders due</p>
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>No reminders due</p>
         </div>
       ) : (
-        <div className="divide-y divide-white/15">
+        <div>
           {reminders.map((r) => {
             const days = daysUntil(r.nextDueDate);
             const isOverdue = days < 0;
             const isToday = days === 0;
+            const dotColor = isOverdue ? "#ef4444" : isToday ? "var(--agent-coral)" : "rgba(15,23,42,0.18)";
+            const daysText = isOverdue
+              ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue`
+              : isToday ? "Due today"
+              : `From ${formatDate(r.nextDueDate)}`;
             return (
-              <div key={r.id} className={`px-4 py-3 flex items-center gap-3 ${isOverdue ? "bg-red-50/60" : ""}`}>
-                <div
-                  className={`w-2 h-2 rounded-full flex-shrink-0 ${isOverdue ? "bg-red-500" : !isToday ? "bg-slate-900/20" : ""}`}
-                  style={isToday && !isOverdue ? { background: "var(--agent-coral)" } : undefined}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-semibold truncate ${isOverdue ? "text-slate-900/90" : "text-slate-900/80"}`}>
-                    {r.ruleName}
-                  </p>
-                  <p
-                    className={`text-xs mt-0.5 font-medium ${isOverdue ? "text-red-600" : !isToday ? "text-slate-900/40" : ""}`}
-                    style={isToday && !isOverdue ? { color: "var(--agent-coral-deep)" } : undefined}
-                  >
-                    {isOverdue
-                      ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue`
-                      : isToday
-                      ? "Due today"
-                      : `Active from ${formatDate(r.nextDueDate)}`}
-                  </p>
+              <div key={r.id} className={isOverdue ? "agent-hover-row-warning" : "agent-hover-row"} style={{ padding: "8px 16px", borderBottom: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: dotColor }} />
+                  <span style={{ fontSize: 11, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
                 </div>
-                {r.pendingChaseCount > 0 && (
-                  <span className="text-xs font-semibold rounded-full px-2 py-0.5 flex-shrink-0 tabular-nums"
-                        style={{ background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)" }}>
-                    {r.pendingChaseCount} chase{r.pendingChaseCount !== 1 ? "s" : ""}
-                  </span>
-                )}
+                <span style={{ fontSize: 10, color: "var(--agent-text-muted)", flexShrink: 0, marginLeft: 8 }}>{daysText}</span>
               </div>
             );
           })}

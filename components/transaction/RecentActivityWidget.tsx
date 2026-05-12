@@ -8,16 +8,10 @@ type Props = {
   entries: ActivityEntry[];
 };
 
-const COMM_TYPE_LABEL: Record<string, string> = {
-  internal_note: "Note",
-  outbound: "Outbound",
-  inbound: "Inbound",
-};
-
-const COMM_TYPE_DOT: Record<string, string> = {
-  internal_note: "bg-slate-900/20",
-  outbound: "bg-blue-400",
-  inbound: "bg-emerald-400",
+const TYPE_LABEL: Record<string, string> = {
+  internal_note: "Internal",
+  outbound: "→ Outbound",
+  inbound: "← Inbound",
 };
 
 export function RecentActivityWidget({ entries }: Props) {
@@ -26,53 +20,37 @@ export function RecentActivityWidget({ entries }: Props) {
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <h3 className="text-xs font-semibold text-slate-900/70">Recent activity</h3>
-        <button
-          onClick={() => setActiveTab("activity")}
-          className="text-xs agent-link"
-        >
+      <div className="agent-card-hdr">
+        <h3 className="agent-card-title">Recent activity</h3>
+        <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11 }}>
           View all →
         </button>
       </div>
 
-      {/* Activity rows */}
       {recent.length === 0 ? (
-        <div className="px-4 py-5 text-center">
-          <p className="text-xs text-slate-900/30 italic">No activity yet</p>
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>No activity yet</p>
         </div>
       ) : (
-        <div className="divide-y divide-white/15">
+        <div>
           {recent.map((entry) => {
-            if (entry.kind === "milestone") {
-              return (
-                <div key={entry.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 mt-1.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-900/80 truncate">
-                      {entry.isNotRequired ? "N/A — " : ""}{entry.milestoneName}
-                    </p>
-                    <p className="text-xs text-slate-900/40 mt-0.5">{entry.at ? relativeDate(entry.at) : ""}</p>
-                  </div>
-                </div>
-              );
-            }
+            const typeLabel = entry.kind === "milestone"
+              ? (entry.isNotRequired ? "Step skipped" : "Step confirmed")
+              : (TYPE_LABEL[entry.type] ?? entry.type);
+            const description = entry.kind === "milestone"
+              ? entry.milestoneName
+              : entry.content;
+            const time = entry.kind === "milestone"
+              ? (entry.at ? relativeDate(entry.at) : "")
+              : relativeDate(entry.at);
+
             return (
-              <div key={entry.id} className="px-4 py-3 flex items-start gap-3">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${COMM_TYPE_DOT[entry.type] ?? "bg-slate-400"}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-xs font-semibold text-[var(--agent-coral-deep)]">
-                      {COMM_TYPE_LABEL[entry.type] ?? entry.type}
-                    </span>
-                    {entry.method && (
-                      <span className="text-xs text-slate-900/30">· {entry.method}</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-900/60 truncate">{entry.content}</p>
-                  <p className="text-xs text-slate-900/40 mt-0.5">{relativeDate(entry.at)}</p>
+              <div key={entry.id} className="agent-hover-row" style={{ padding: "8px 16px", borderBottom: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-coral-deep)", display: "block" }}>{typeLabel}</span>
+                  <p style={{ fontSize: 11, color: "var(--agent-text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{description}</p>
                 </div>
+                <span style={{ fontSize: 10, color: "var(--agent-text-muted)", flexShrink: 0 }}>{time}</span>
               </div>
             );
           })}
