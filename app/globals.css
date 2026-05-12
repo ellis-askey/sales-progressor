@@ -819,6 +819,61 @@ select {
   border: 1px solid rgba(var(--agent-coral-base-rgb), 0.35) !important;
 }
 
+/* ── Transaction-list hanging-basket bar — status tabs (LEFT) + filter chips (RIGHT)
+ * Mirrors PropertyFileTabs visual pattern: agent-glass-strong outer, agent-tab-bar
+ * agent-tab-bar-static for the rail. Status tabs and chip triggers all use the
+ * canonical .agent-tab class so the underline hover-preview and active state are
+ * unified. Chips are a slim variant (.tl-bar-chip). Mobile (<640px): bar wraps to
+ * stacked rows; chips no longer push to the right.
+ */
+.tl-bar-row {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px;
+  /* Override .agent-tab-bar's overflow:hidden so the portal'd dropdowns and the
+   * underline ::after aren't clipped. Dropdowns are portal'd to document.body
+   * but the ::after underline lives inside each .agent-tab. */
+  overflow: visible !important;
+}
+.tl-bar-tabs {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.tl-bar-chips {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.tl-bar-chip {
+  /* Slim variant of .agent-tab — same height, slightly shorter horizontal
+   * padding (so chip text + clear-× fit cleanly), and font matches the chip
+   * text-scale. Hover-preview underline and active state inherit from
+   * .agent-tab-bar-static .agent-tab::after. */
+  padding: 10px 12px;
+  font-size: var(--agent-text-micro);
+}
+.tl-bar-clear {
+  align-self: center;
+  font-size: 11px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+@media (max-width: 639px) {
+  .tl-bar-row { padding: 0 4px; }
+  .tl-bar-tabs, .tl-bar-chips {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tl-bar-chips { margin-left: 0; border-top: 0.5px solid var(--agent-border-subtle); }
+  .tl-bar-clear { padding: 6px 10px; }
+}
+
 /* ── ForecastStrip pill row — rolling 12-month window scroll behaviour
  * Always-12 pills means narrow viewports can't fit the full row inline.
  * Mobile (<640px) collapses to a horizontally-scrolling track with

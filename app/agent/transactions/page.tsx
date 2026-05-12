@@ -265,49 +265,9 @@ export default async function AllTransactionsPage({
               />
             )}
 
-            {/* Status tabs — hidden when any filter (hub or month) is active.
-             * Migrated to .agent-tab (V4 underline, static path — 2026-05-12).
-             * Server-rendered <Link> retained; aria-selected drives the static
-             * coral underline rule in agent-system.css. No JS hook, no sliding
-             * indicator: page navigation, not a UI transition. */}
-            {!hubFilter && !monthFilter && (
-              <div className="agent-tab-bar agent-tab-bar-static" style={{ flexWrap: "wrap", overflowX: "auto" }}>
-                {(
-                  [
-                    { value: "all", label: "All", count: allTransactions.length },
-                    { value: "active", label: "Active", count: counts.active },
-                    // OLD: label: "On Hold" — Stage 3 voice fix: sentence case throughout
-                    { value: "on_hold", label: "On hold", count: counts.on_hold },
-                    { value: "completed", label: "Completed", count: counts.completed },
-                    { value: "withdrawn", label: "Withdrawn", count: counts.withdrawn },
-                  ] as { value: string; label: string; count: number }[]
-                ).map(({ value, label, count }) => {
-                  const isActive = statusFilter === value;
-                  return (
-                    <Link
-                      key={value}
-                      href={
-                        value === "active"
-                          ? "/agent/transactions"
-                          : `/agent/transactions?filter=${value}`
-                      }
-                      scroll={false}
-                      className="agent-tab"
-                      aria-selected={isActive || undefined}
-                      style={{ textDecoration: "none" }}
-                    >
-                      {label}
-                      <span style={{
-                        fontSize: 10, fontWeight: 500,
-                        padding: "1px 7px", borderRadius: 99,
-                        background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
-                        color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
-                      }}>{count}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+            {/* Status tabs moved into TransactionListWithSearch's hanging-basket
+             * bar (2026-05-12) — status tabs (LEFT) + filter chips (RIGHT) now
+             * share a single surface mirroring PropertyFileTabs visual pattern. */}
 
             {filteredTransactions.length === 0 ? (
               <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
@@ -367,6 +327,15 @@ export default async function AllTransactionsPage({
                 transactions={filteredTransactions}
                 basePath="/agent/transactions"
                 isDirector={isDirector}
+                statusFilter={statusFilter}
+                statusCounts={{
+                  all: allTransactions.length,
+                  active: counts.active,
+                  on_hold: counts.on_hold,
+                  completed: counts.completed,
+                  withdrawn: counts.withdrawn,
+                }}
+                showStatusTabs={!hubFilter && !monthFilter}
               />
             )}
           </div>

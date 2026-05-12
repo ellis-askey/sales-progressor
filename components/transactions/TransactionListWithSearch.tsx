@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
@@ -9,56 +10,85 @@ import type { RiskLevel } from "@/lib/services/risk";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
-// ── Chip sub-components ────────────────────────────────────────────────────
+// ── Chip dropdown infrastructure ───────────────────────────────────────────
 
 /**
  * Shared chip-dropdown hook — opens via portal to document.body to escape
  * any ancestor overflow:hidden / sticky stacking context (work-queue B1+B2
  * lesson). Auto-closes on click-outside + on scroll.
  *
+ * Exit animation (2026-05-12): a `closing` flag keeps the dropdown mounted
+ * for the duration of .agent-dropdown-out (100ms ease-in), then unmounts
+ * via onAnimationEnd. Mirrors .agent-reveal-out pattern. Eliminates the
+ * pop-out "jump" that previous instant-unmount behaviour produced.
+ *
  * Click-outside listener checks BOTH `ref` (trigger wrapper) and `popoverRef`
  * (portal'd dropdown) — without the popoverRef check, native mousedown on a
- * dropdown item synchronously triggers setOpen(false) BEFORE React's onClick
- * fires, racing the dropdown into unmount before the item's click can
- * register. Same pattern used by RiskBadgeWithPopover.
+ * dropdown item synchronously triggers close BEFORE React's onClick fires,
+ * racing the dropdown into unmount before the item's click can register.
  */
 function useChipDropdown() {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const theme = usePortalTheme();
+
   useEffect(() => {
     function handle(e: MouseEvent) {
       const t = e.target as Node;
       if (ref.current?.contains(t)) return;
       if (popoverRef.current?.contains(t)) return;
-      setOpen(false);
+      close();
     }
-    function handleScroll() { setOpen(false); }
+    function handleScroll() { close(); }
     document.addEventListener("mousedown", handle);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
       document.removeEventListener("mousedown", handle);
       window.removeEventListener("scroll", handleScroll, true);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  function openDropdown() {
-    if (!open && ref.current) {
-      const r = ref.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.left });
-    }
-    setOpen((v) => !v);
+
+  function close() {
+    setOpen((wasOpen) => {
+      if (wasOpen) setClosing(true);
+      return false;
+    });
   }
-  return { open, pos, ref, popoverRef, theme, openDropdown, setOpen };
+  function openDropdown() {
+    if (open) {
+      close();
+    } else {
+      if (ref.current) {
+        const r = ref.current.getBoundingClientRect();
+        setPos({ top: r.bottom + 4, left: r.left });
+      }
+      setClosing(false);
+      setOpen(true);
+    }
+  }
+  function onClosedAnim() {
+    setClosing(false);
+  }
+
+  return { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim };
 }
+
+function dropdownClass(closing: boolean): string {
+  return closing ? "agent-dropdown-out" : "agent-dropdown-in";
+}
+
+// ── Chip sub-components ────────────────────────────────────────────────────
 
 function AssignedToChip({ users, selected, onChange }: {
   users: { id: string; name: string }[];
   selected: string | null;
   onChange: (id: string | null) => void;
 }) {
-  const { open, pos, ref, popoverRef, theme, openDropdown, setOpen } = useChipDropdown();
+  const { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim } = useChipDropdown();
   const selectedUser = selected ? users.find((u) => u.id === selected) : null;
   const firstName = selectedUser ? extractFirstName(selectedUser.name) : null;
   const isActive = selected !== null;
@@ -67,31 +97,39 @@ function AssignedToChip({ users, selected, onChange }: {
     <div ref={ref} className="relative">
       <button
         onClick={openDropdown}
-        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        className={`agent-tab tl-bar-chip${isActive ? " on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
       >
         {isActive ? `Owner: ${firstName}` : "Owner"}
         {isActive && (
           <span
             role="button"
             tabIndex={0}
-            onClick={(e) => { e.stopPropagation(); onChange(null); setOpen(false); }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange(null); setOpen(false); } }}
+            onClick={(e) => { e.stopPropagation(); onChange(null); close(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange(null); close(); } }}
             className="agent-icon-btn agent-icon-btn-sm"
             aria-label="Clear owner filter"
-            style={{ width: 16, height: 16, fontSize: 12, marginLeft: 2 }}
+            style={{ width: 14, height: 14, fontSize: 10, marginLeft: 2 }}
           >×</span>
         )}
       </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
-          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-          minWidth: 180,
-        }}>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          data-theme={theme}
+          className={dropdownClass(closing)}
+          onAnimationEnd={() => { if (closing) onClosedAnim(); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 180,
+          }}
+        >
           <button
-            onClick={() => { onChange(null); setOpen(false); }}
+            onClick={() => { onChange(null); close(); }}
             className="agent-dropdown-item"
             style={{ fontWeight: !selected ? 600 : undefined }}
           >
@@ -100,7 +138,7 @@ function AssignedToChip({ users, selected, onChange }: {
           {users.map((u) => (
             <button
               key={u.id}
-              onClick={() => { onChange(u.id); setOpen(false); }}
+              onClick={() => { onChange(u.id); close(); }}
               className="agent-dropdown-item"
               style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontWeight: selected === u.id ? 600 : undefined }}
             >
@@ -118,11 +156,12 @@ function AssignedToChip({ users, selected, onChange }: {
 const RISK_LABEL: Record<RiskLevel, string> = { low: "On track", medium: "Watch", high: "At risk", no_data: "No data" };
 const RISK_COLOR: Record<RiskLevel, string> = { low: "text-emerald-700", medium: "text-amber-700", high: "text-red-700", no_data: "text-slate-400" };
 
-function RiskChip({ selected, onToggle }: {
+function RiskChip({ selected, onToggle, onClear }: {
   selected: Set<RiskLevel>;
   onToggle: (level: RiskLevel) => void;
+  onClear: () => void;
 }) {
-  const { open, pos, ref, popoverRef, theme, openDropdown } = useChipDropdown();
+  const { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim } = useChipDropdown();
   const isActive = selected.size > 0;
   const label = isActive
     ? `Risk: ${[...selected].map((l) => RISK_LABEL[l]).join(", ")}`
@@ -132,17 +171,37 @@ function RiskChip({ selected, onToggle }: {
     <div ref={ref} className="relative">
       <button
         onClick={openDropdown}
-        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+        className={`agent-tab tl-bar-chip${isActive ? " on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
       >
         {label}
+        {isActive && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onClear(); close(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClear(); close(); } }}
+            className="agent-icon-btn agent-icon-btn-sm"
+            aria-label="Clear risk filter"
+            style={{ width: 14, height: 14, fontSize: 10, marginLeft: 2 }}
+          >×</span>
+        )}
       </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
-          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-          minWidth: 170, padding: "4px 0",
-        }}>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          data-theme={theme}
+          className={dropdownClass(closing)}
+          onAnimationEnd={() => { if (closing) onClosedAnim(); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 170, padding: "4px 0",
+          }}
+        >
           {(["low", "medium", "high"] as RiskLevel[]).map((level) => {
             const checked = selected.has(level);
             return (
@@ -180,7 +239,7 @@ function ManagedByChip({ value, onChange }: {
   value: "all" | "self_managed" | "outsourced";
   onChange: (v: "all" | "self_managed" | "outsourced") => void;
 }) {
-  const { open, pos, ref, popoverRef, theme, openDropdown, setOpen } = useChipDropdown();
+  const { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim } = useChipDropdown();
   const isActive = value !== "all";
   // Voice fix (Stage 3, pre-flagged 3 + 4): translation table per VOICE_GUIDELINES.md
   //   OLD: "Self-progressed" → "Managed by you"
@@ -199,33 +258,41 @@ function ManagedByChip({ value, onChange }: {
     <div ref={ref} className="relative">
       <button
         onClick={openDropdown}
-        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        className={`agent-tab tl-bar-chip${isActive ? " on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
       >
         {label}
         {isActive && (
           <span
             role="button"
             tabIndex={0}
-            onClick={(e) => { e.stopPropagation(); onChange("all"); setOpen(false); }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange("all"); setOpen(false); } }}
+            onClick={(e) => { e.stopPropagation(); onChange("all"); close(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onChange("all"); close(); } }}
             className="agent-icon-btn agent-icon-btn-sm"
             aria-label="Clear managed-by filter"
-            style={{ width: 16, height: 16, fontSize: 12, marginLeft: 2 }}
+            style={{ width: 14, height: 14, fontSize: 10, marginLeft: 2 }}
           >×</span>
         )}
       </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
-          position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-          background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-          minWidth: 200,
-        }}>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          data-theme={theme}
+          className={dropdownClass(closing)}
+          onAnimationEnd={() => { if (closing) onClosedAnim(); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 200,
+          }}
+        >
           {opts.map((opt) => (
             <button
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onClick={() => { onChange(opt.value); close(); }}
               className="agent-dropdown-item"
               style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontWeight: value === opt.value ? 600 : undefined }}
             >
@@ -242,16 +309,25 @@ function ManagedByChip({ value, onChange }: {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+// Includes "draft" for type compatibility with TransactionStatus | "all" from
+// the server. Draft is never rendered as a tab (omitted from STATUS_TABS below).
+type StatusValue = "all" | "draft" | "active" | "on_hold" | "completed" | "withdrawn";
+
 export function TransactionListWithSearch({
   transactions,
   basePath = "/transactions",
   isDirector = false,
+  statusFilter,
+  statusCounts,
+  showStatusTabs = true,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
   isDirector?: boolean;
-})
- {
+  statusFilter?: StatusValue;
+  statusCounts?: { all: number; active: number; on_hold: number; completed: number; withdrawn: number };
+  showStatusTabs?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<Set<RiskLevel>>(new Set());
@@ -339,18 +415,89 @@ export function TransactionListWithSearch({
     return result;
   }, [transactions, selectedUserId, selectedRiskLevels, managedByFilter, query]);
 
-  const showChipRow = showUserFilter || showManagedByFilter || true; // Risk chip always shown
+  // Hanging-basket bar — single surface containing status tabs (LEFT) and
+  // filter-chip triggers (RIGHT). Mirrors PropertyFileTabs visual pattern:
+  // agent-glass-strong card, .agent-tab-bar agent-tab-bar-static for the tab
+  // rail, hover-preview underline via the canonical class. Mobile: bar wraps
+  // to a second row when status tabs + chips can't fit a single line.
+  const STATUS_TABS: { value: Exclude<StatusValue, "draft">; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "active", label: "Active" },
+    { value: "on_hold", label: "On hold" },
+    { value: "completed", label: "Completed" },
+    { value: "withdrawn", label: "Withdrawn" },
+  ];
 
   return (
     <div className="space-y-3">
-      {/* Search + filter chips — agent-glass-strong wrapper for surface parity with
-       * FileAlertsStrip / status-tabs / table below. Solid-mode override inherits
-       * via globals.css [data-solid] .agent-glass-strong rule. */}
-      <div className="agent-glass-strong" style={{ padding: "12px 14px", borderRadius: "var(--agent-radius-xl)", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Search input — agent-input agent-input-sm with fontSize: 13 override
-         * (matches work-queue precedent — agent-input-sm forces max(16px, body-sm)
-         * which reads oversized on desktop search). Embedded search icon + clear
-         * button (agent-icon-btn-sm) preserved. */}
+      {/* Hanging-basket bar (status tabs + filter chips + clear filter) */}
+      {(showStatusTabs || showUserFilter || showManagedByFilter || true) && (
+        <div className="agent-glass-strong tl-bar" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "visible" }}>
+          <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
+            {/* Status tabs (LEFT) */}
+            {showStatusTabs && statusCounts && (
+              <div className="tl-bar-tabs">
+                {STATUS_TABS.map(({ value, label }) => {
+                  const isActive = statusFilter === value;
+                  const count = statusCounts[value];
+                  const href = value === "active" ? basePath : `${basePath}?filter=${value}`;
+                  return (
+                    <Link
+                      key={value}
+                      href={href}
+                      scroll={false}
+                      className="agent-tab"
+                      aria-selected={isActive || undefined}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {label}
+                      <span style={{
+                        fontSize: 10, fontWeight: 500,
+                        padding: "1px 7px", borderRadius: 99,
+                        background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
+                        color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+                      }}>{count}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Filter chips (RIGHT) */}
+            <div className="tl-bar-chips">
+              {showUserFilter && (
+                <AssignedToChip
+                  users={uniqueUsers}
+                  selected={selectedUserId}
+                  onChange={setSelectedUserId}
+                />
+              )}
+              <RiskChip
+                selected={selectedRiskLevels}
+                onToggle={toggleRiskLevel}
+                onClear={() => setSelectedRiskLevels(new Set())}
+              />
+              {showManagedByFilter && (
+                <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
+              )}
+              {anyFilterActive && (
+                <button
+                  onClick={clearAllFilters}
+                  className="agent-link agent-link-muted tl-bar-clear"
+                  aria-label="Clear all filters"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search input — its own card; agent-input agent-input-sm with fontSize 13
+       * override matches work-queue precedent (input-sm forces max(16px, body-sm)
+       * which reads oversized on desktop). */}
+      <div className="agent-glass-strong" style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-xl)" }}>
         <div style={{ position: "relative" }}>
           <svg
             style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
@@ -376,40 +523,11 @@ export function TransactionListWithSearch({
             >×</button>
           )}
         </div>
-
-        {/* Filter chips — implementations transplanted in Section 6 */}
-        {showChipRow && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {showUserFilter && (
-              <AssignedToChip
-                users={uniqueUsers}
-                selected={selectedUserId}
-                onChange={setSelectedUserId}
-              />
-            )}
-            <RiskChip selected={selectedRiskLevels} onToggle={toggleRiskLevel} />
-            {showManagedByFilter && (
-              <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
-            )}
-            {anyFilterActive && (
-              <button
-                onClick={clearAllFilters}
-                className="agent-link agent-link-muted"
-                style={{ fontSize: 12, marginLeft: 4 }}
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Results */}
       {filtered.length === 0 ? (
         <div className="agent-glass-strong" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-          {/* OLD: "No files match the active filters." — Stage 3 voice fix (Rule 3):
-              drop the passive pointer to "the active filters" — agent already knows
-              what filter is on; same precedent as work-queue Stage 3 fix. */}
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--agent-text-muted)" }}>
             {query
               ? `No files match "${query}"`

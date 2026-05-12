@@ -110,6 +110,11 @@
   to   { opacity: 1; transform: translateY(0);    }
 }
 
+@keyframes agent-dropdown-out {
+  from { opacity: 1; transform: translateY(0);    }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
 @keyframes agent-row-flash {
   0%   { background: transparent; }
   20%  { background: rgba(16, 185, 129, 0.07); }
@@ -809,13 +814,13 @@
 
   /* Static-underline variant — no JS, no sliding indicator (2026-05-12).
    * Apply .agent-tab-bar-static alongside .agent-tab-bar when the consumer
-   * does NOT render the useTabIndicator sliding bar. The active tab carries
-   * a 2px coral underline via ::after pseudo-element pinned to the tab's
-   * bottom. Use cases: server-rendered nav tabs where the underline never
-   * needs to animate between positions (transaction-list status tabs,
-   * MilestonePanel side tabs). */
+   * does NOT render the useTabIndicator sliding bar. Every tab carries a
+   * ::after underline that scales-in on hover (preview) and snaps to full
+   * width on active. Use cases: server-rendered nav tabs where the
+   * underline doesn't need to slide between positions (transaction-list
+   * status tabs, MilestonePanel side tabs). */
   .agent-tab-bar-static .agent-tab { position: relative; }
-  .agent-tab-bar-static .agent-tab[aria-selected="true"]::after {
+  .agent-tab-bar-static .agent-tab::after {
     content: "";
     position: absolute;
     left: 14px; right: 14px;
@@ -823,6 +828,20 @@
     height: 2px;
     background: var(--agent-coral-deep);
     border-radius: 1px 1px 0 0;
+    transform: scaleX(0);
+    transform-origin: center;
+    opacity: 0;
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                opacity   180ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  .agent-tab-bar-static .agent-tab:hover:not([aria-selected="true"]):not(:disabled)::after {
+    transform: scaleX(0.4);
+    opacity: 0.35;
+  }
+  .agent-tab-bar-static .agent-tab[aria-selected="true"]::after {
+    transform: scaleX(1);
+    opacity: 1;
   }
 
   /* ── Dropdown menu items ─────────────────────────────────────────────────
@@ -1300,7 +1319,10 @@
   /* Apply on mount. Direction note: downward-opening = translateY(-4px→0).
    * Upward-opening dropdowns (e.g. user nav) need translateY(+4px→0) — invert manually. */
 
-  .agent-dropdown-in { animation: agent-dropdown-in 120ms ease-out both; }
+  .agent-dropdown-in  { animation: agent-dropdown-in  120ms ease-out both; }
+  /* Paired exit animation — keep the dropdown mounted, swap to this class on
+   * close, unmount in onAnimationEnd. Same pattern as .agent-reveal-out. */
+  .agent-dropdown-out { animation: agent-dropdown-out 100ms ease-in  both; }
 
   /* ── Row confirm flash ───────────────────────────────────────────────────── */
   /* Subtle green wash (rgba 16,185,129 at 0.07) over 700ms. Apply on milestone confirm.
@@ -1349,6 +1371,7 @@
     .agent-reveal-in,
     .agent-reveal-out,
     .agent-dropdown-in,
+    .agent-dropdown-out,
     .agent-row-flash,
     .ms-unlock-enter,
     .agent-modal-in--celebrate    { animation: none; }
