@@ -350,8 +350,12 @@
     gap: 2px;
     padding: 8px 14px;
     border-radius: var(--agent-radius-md);
-    border: 1.5px solid var(--agent-border-default);
-    background: transparent;
+    /* At-rest visibility bump 2026-05-12 — third instance of pill-on-cream
+     * issue fixed at canonical level. bg transparent → white 0.14; border
+     * --agent-border-default (0.10) → --agent-border-strong (0.18). Theme-aware
+     * via existing tokens + white-alpha (reads on every theme background). */
+    border: 1.5px solid var(--agent-border-strong);
+    background: rgba(255, 255, 255, 0.14);
     color: var(--agent-text-muted);
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-medium);
@@ -363,8 +367,11 @@
                 box-shadow   var(--agent-transition-fast);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
-    border-color: var(--agent-border-strong);
-    background: var(--agent-glass-bg-subtle);
+    /* Hover escalates from rest via coral-tinted border (previews the .on
+     * selection direction) + brighter white-alpha bg. Theme-aware through
+     * --agent-coral-base-rgb (per-theme coral hue). */
+    border-color: rgba(var(--agent-coral-base-rgb), 0.30);
+    background: rgba(255, 255, 255, 0.32);
     color: var(--agent-text-secondary);
   }
   .agent-segment-pill:focus-visible {
