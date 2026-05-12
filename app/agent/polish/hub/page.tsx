@@ -276,8 +276,7 @@ export default function HubPolishPage() {
               Good morning, Sarah
             </h1>
             <p style={{ margin: "2px 0 0", fontSize: 13, color: TM }}>
-              {/* OLD: "Here's what matters today." — Rule 1: system deciding what "matters"; rewrite as factual description */}
-              Your pipeline at a glance.
+              Here&apos;s what matters today.
             </p>
           </div>
           <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
