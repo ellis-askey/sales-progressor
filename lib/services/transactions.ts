@@ -33,7 +33,12 @@ export async function listTransactions(
         where: { state: "complete" },
         orderBy: { completedAt: "desc" },
         take: 1,
-        select: { completedAt: true },
+        // milestoneDefinition.name joined for the activity-verb chip
+        // ("X confirmed" label per Variant B IA, 2026-05-13).
+        select: {
+          completedAt: true,
+          milestoneDefinition: { select: { name: true } },
+        },
       },
       _count: {
         select: {
@@ -51,6 +56,16 @@ export async function listTransactions(
         orderBy: { dueDate: "asc" },
         take: 5,
       },
+      // Latest outbound message — joined for the activity-verb chip.
+      // `method` is the granular delivery channel (email/sms/whatsapp/phone/
+      // voicemail/post per CommMethod enum); `channel` is the higher-level
+      // OutboundChannel (email/sms/linkedin/twitter/in_app/other). Both
+      // contribute to the verb mapping below; method wins where present.
+      communications: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true, channel: true, method: true, purpose: true, type: true },
+      },
     },
   });
 
@@ -58,7 +73,9 @@ export async function listTransactions(
     const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
     const escalatedTasks = overdueTasks.filter((t) => t.priority === "escalated");
     const nextTask = tx.chaseTasks[0];
-    const lastMilestoneAt = tx.milestoneCompletions[0]?.completedAt ?? null;
+    const lastMilestone = tx.milestoneCompletions[0] ?? null;
+    const lastMilestoneAt = lastMilestone?.completedAt ?? null;
+    const lastComm = tx.communications[0] ?? null;
 
     const nextActionLabel = nextTask
       ? nextTask.reminderLog.reminderRule.name
@@ -67,6 +84,39 @@ export async function listTransactions(
     const daysStuckOnMilestone = lastMilestoneAt
       ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
       : null;
+
+    // Activity-verb derivation — timestamp-only "latest event wins" rule (v1).
+    // Picks the more recent of (milestone confirmation, outbound message),
+    // maps to a human verb. Falls back to null when no signal — client renders
+    // generic "Active Nd ago" in that case. Phase 4 review may add precedence
+    // weighting if chips read noisy in production (per 2026-05-13 brief).
+    const milestoneTs = lastMilestoneAt ? new Date(lastMilestoneAt).getTime() : 0;
+    const commTs      = lastComm?.createdAt ? new Date(lastComm.createdAt).getTime() : 0;
+    let lastActivityType: string | null = null;
+    let lastActivityLabel: string | null = null;
+    if (milestoneTs > 0 && milestoneTs >= commTs) {
+      lastActivityType = "milestone";
+      const name = lastMilestone?.milestoneDefinition?.name;
+      lastActivityLabel = name ? `${name} confirmed` : "Step confirmed";
+    } else if (commTs > 0 && lastComm) {
+      if (lastComm.purpose === "chase") {
+        lastActivityType = "chase"; lastActivityLabel = "Chase sent";
+      } else if (lastComm.type === "internal_note") {
+        lastActivityType = "note"; lastActivityLabel = "Note added";
+      } else if (lastComm.type === "inbound") {
+        lastActivityType = "inbound"; lastActivityLabel = "Reply received";
+      } else if (lastComm.method === "email" || lastComm.channel === "email") {
+        lastActivityType = "email"; lastActivityLabel = "Email sent";
+      } else if (lastComm.method === "sms" || lastComm.channel === "sms") {
+        lastActivityType = "sms"; lastActivityLabel = "SMS sent";
+      } else if (lastComm.method === "whatsapp") {
+        lastActivityType = "whatsapp"; lastActivityLabel = "WhatsApp sent";
+      } else if (lastComm.method === "phone" || lastComm.method === "voicemail") {
+        lastActivityType = "call"; lastActivityLabel = "Call logged";
+      } else {
+        lastActivityType = "comm"; lastActivityLabel = "Message sent";
+      }
+    }
 
     const completedCount = tx._count.milestoneCompletions;
     const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
@@ -90,6 +140,8 @@ export async function listTransactions(
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,
         lastActivityAt: tx.lastActivityAt,
+        lastActivityType,
+        lastActivityLabel,
         nextActionLabel,
         nextMilestoneLabel: null as string | null,
         daysStuckOnMilestone,

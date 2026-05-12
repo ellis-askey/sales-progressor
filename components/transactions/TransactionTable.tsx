@@ -82,51 +82,93 @@ export function TransactionTable({
   basePath?: string;
   showOwner?: boolean;
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("exchange");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // Variant B default sort (2026-05-13): Last activity desc — most recent
+  // first. asc on the same column = "stalled first" (oldest activity first).
+  // No separate top-level "Stalled first" toggle — the sort header does it.
+  const [sortKey, setSortKey] = useState<SortKey>("lastActive");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir("asc");
+      // Default direction per column on first activation. lastActive defaults
+      // desc (recent first); the others default asc (alphabetical / earliest).
+      setSortDir(key === "lastActive" ? "desc" : "asc");
     }
   }
 
   const sorted = sortTransactions(transactions, sortKey, sortDir);
 
+  // Column widths match TransactionRowView (Variant B):
+  //   [stripe] Property | Assigned | [Owner] | Last activity | Exchange | Status | Risk
   const gridCols = showOwner
-    ? "4px minmax(0,1fr) 160px 160px 110px 120px 100px 130px"
-    : "4px minmax(0,1fr) 160px 160px 110px 120px 100px";
+    ? "4px minmax(0,1fr) 160px 130px 220px 160px 110px 120px"
+    : "4px minmax(0,1fr) 160px 220px 160px 110px 120px";
 
   return (
-    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
-      {/* Header — desktop only */}
-      <div className="hidden md:grid border-b border-white/20 bg-white/10" style={{ gridTemplateColumns: gridCols }}>
+    <div
+      className="agent-glass-strong"
+      style={{ borderRadius: 20, overflow: "hidden" }}
+    >
+      {/* Header — desktop only. Token-driven background + border (was bg-white/10
+       * + border-white/20 Tailwind). Sort buttons keep the hover-reveal chevron
+       * pattern but inherit canonical link colour transitions on hover. */}
+      <div
+        className="hidden md:grid"
+        style={{
+          gridTemplateColumns: gridCols,
+          background: "rgba(var(--agent-shadow-rgb), 0.04)",
+          borderBottom: "0.5px solid var(--agent-border-subtle)",
+        }}
+      >
         <div />
         {(
           [
-            { label: "Property",        key: "property"   as SortKey | null },
-            { label: "Assigned To",     key: null },
-            { label: "Exchange Target", key: "exchange"   as SortKey | null },
-            { label: "Status",          key: "status"     as SortKey | null },
-            { label: "Risk",            key: "risk"       as SortKey | null },
-            { label: "Last active",     key: "lastActive" as SortKey | null },
-            ...(showOwner ? [{ label: "Owner", key: null }] : []),
+            // Variant B column order (2026-05-13).
+            { label: "Property",         key: "property"   as SortKey | null },
+            { label: "Assigned to",      key: null },
+            ...(showOwner ? [{ label: "Owner", key: null as SortKey | null }] : []),
+            // Last activity is the Variant B headline column. Default sort
+            // desc (most recent first); asc surfaces stalled-first.
+            { label: "Last activity",    key: "lastActive" as SortKey | null },
+            { label: "Exchange target",  key: "exchange"   as SortKey | null },
+            { label: "Status",           key: "status"     as SortKey | null },
+            { label: "Risk",             key: "risk"       as SortKey | null },
           ] as { label: string; key: SortKey | null }[]
         ).map(({ label, key }) =>
           key ? (
             <button
               key={label}
               onClick={() => handleSort(key)}
-              className="px-4 py-3 text-xs font-semibold text-slate-900/40 uppercase tracking-wide text-left flex items-center group/hdr hover:text-slate-900/60 transition-colors"
+              className="group/hdr"
+              style={{
+                padding: "12px 16px",
+                fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.04em",
+                color: "var(--agent-text-muted)",
+                textAlign: "left",
+                display: "flex", alignItems: "center",
+                background: "none", border: "none", cursor: "pointer",
+                transition: "color 150ms ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--agent-text-muted)"; }}
             >
               {label}
               <SortChevron col={key} active={sortKey} dir={sortDir} />
             </button>
           ) : (
-            <div key={label} className="px-4 py-3 text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
+            <div
+              key={label}
+              style={{
+                padding: "12px 16px",
+                fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.04em",
+                color: "var(--agent-text-muted)",
+              }}
+            >
               {label}
             </div>
           )

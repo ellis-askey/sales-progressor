@@ -855,6 +855,31 @@ select {
   padding: 10px 14px;
   border-bottom: 0.5px solid var(--agent-border-default);
 }
+/* Variant B layout (2026-05-13): search input + filter chips inline on one
+ * row inside .tl-card-search. Search input takes the leading space; chips
+ * align to the right. Wraps to two rows on mobile (chips below input). */
+.tl-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.tl-search-input {
+  flex: 1 1 240px;
+  min-width: 200px;
+  position: relative;
+}
+.tl-search-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+@media (max-width: 639px) {
+  .tl-search-input { flex-basis: 100%; min-width: 0; }
+  .tl-search-chips { margin-left: 0; width: 100%; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+}
 .tl-card-tabs {
   /* Bottom half — transparent. Inherits the card's outer fill; no own
    * background fill required. */

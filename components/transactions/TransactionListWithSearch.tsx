@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
+import { activityStateFor, type ActivityState } from "./TransactionRowView";
 import { calculateRiskScore } from "@/lib/services/risk";
 import type { RiskLevel } from "@/lib/services/risk";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -307,6 +308,94 @@ function ManagedByChip({ value, onChange }: {
   );
 }
 
+/* ActivityFilterChip — Variant B IA (2026-05-13). Multi-select dropdown over
+ * Moving / Stalled / Stale buckets. Filter logic compares each row's
+ * activityStateFor(health.lastActivityAt) against the selected set. */
+const ACTIVITY_LABEL: Record<ActivityState, string> = {
+  moving: "Moving", stalled: "Stalled", stale: "Stale",
+};
+const ACTIVITY_HINT: Record<ActivityState, string> = {
+  moving: "Active in last 7 days",
+  stalled: "7–14 days quiet",
+  stale: "14+ days quiet",
+};
+
+function ActivityFilterChip({ selected, onToggle, onClear }: {
+  selected: Set<ActivityState>;
+  onToggle: (s: ActivityState) => void;
+  onClear: () => void;
+}) {
+  const { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim } = useChipDropdown();
+  const isActive = selected.size > 0;
+  const label = isActive
+    ? `Activity: ${[...selected].map((s) => ACTIVITY_LABEL[s]).join(", ")}`
+    : "Activity";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={openDropdown}
+        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+      >
+        {label}
+        {isActive && (
+          <span
+            role="button" tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onClear(); close(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClear(); close(); } }}
+            className="agent-icon-btn agent-icon-btn-sm"
+            aria-label="Clear activity filter"
+            style={{ width: 14, height: 14, fontSize: 10, marginLeft: 2 }}
+          >×</span>
+        )}
+      </button>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          data-theme={theme}
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) onClosedAnim(); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 200, padding: "4px 0",
+          }}
+        >
+          {(["moving", "stalled", "stale"] as ActivityState[]).map((s) => {
+            const checked = selected.has(s);
+            return (
+              <button
+                key={s}
+                onClick={() => onToggle(s)}
+                className="agent-dropdown-item"
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <span style={{
+                  width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                  background: checked ? "var(--agent-coral-deep)" : "transparent",
+                  border: `1px solid ${checked ? "var(--agent-coral-deep)" : "rgba(0,0,0,0.20)"}`,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {checked && <span style={{ color: "white", fontSize: 9, lineHeight: 1 }}>✓</span>}
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <span style={{ color: "var(--agent-text-primary)", fontSize: 12 }}>{ACTIVITY_LABEL[s]}</span>
+                  <span style={{ color: "var(--agent-text-muted)", fontSize: 10 }}>{ACTIVITY_HINT[s]}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 // Includes "draft" for type compatibility with TransactionStatus | "all" from
@@ -331,7 +420,17 @@ export function TransactionListWithSearch({
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRiskLevels, setSelectedRiskLevels] = useState<Set<RiskLevel>>(new Set());
+  const [activityFilter, setActivityFilter] = useState<Set<ActivityState>>(new Set());
   const [managedByFilter, setManagedByFilter] = useState<"all" | "self_managed" | "outsourced">("all");
+
+  function toggleActivityState(s: ActivityState) {
+    setActivityFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  }
 
   const uniqueUsers = useMemo(() => {
     const seen = new Set<string>();
@@ -379,11 +478,15 @@ export function TransactionListWithSearch({
   }
 
   const anyFilterActive =
-    selectedUserId !== null || selectedRiskLevels.size > 0 || managedByFilter !== "all";
+    selectedUserId !== null
+    || selectedRiskLevels.size > 0
+    || activityFilter.size > 0
+    || managedByFilter !== "all";
 
   function clearAllFilters() {
     setSelectedUserId(null);
     setSelectedRiskLevels(new Set());
+    setActivityFilter(new Set());
     setManagedByFilter("all");
     setQuery("");
   }
@@ -412,6 +515,13 @@ export function TransactionListWithSearch({
       });
     }
 
+    if (activityFilter.size > 0) {
+      result = result.filter((t) => {
+        const s = activityStateFor(t.health?.lastActivityAt);
+        return s !== null && activityFilter.has(s);
+      });
+    }
+
     if (managedByFilter !== "all") {
       result = result.filter((t) => t.serviceType === managedByFilter);
     }
@@ -420,7 +530,7 @@ export function TransactionListWithSearch({
     if (q) result = result.filter((t) => t.propertyAddress.toLowerCase().includes(q));
 
     return result;
-  }, [transactions, selectedUserId, selectedRiskLevels, managedByFilter, query]);
+  }, [transactions, selectedUserId, selectedRiskLevels, activityFilter, managedByFilter, query]);
 
   // Hanging-basket bar — single surface containing status tabs (LEFT) and
   // filter-chip triggers (RIGHT). Mirrors PropertyFileTabs visual pattern:
@@ -441,12 +551,12 @@ export function TransactionListWithSearch({
        * Mirrors the property-detail hero+tabs pattern: one card, two sections, hairline
        * divider at the seam, rounded corners across the whole shape. */}
       <div className="tl-card">
-        {/* TOP HALF — search input on a white background.
-         * agent-input agent-input-sm with fontSize 13 override matches work-queue
-         * precedent (input-sm forces max(16px, body-sm) which reads oversized
-         * on desktop). */}
-        <div className="tl-card-search">
-          <div style={{ position: "relative" }}>
+        {/* TOP HALF (Variant B IA, 2026-05-13) — search input (shorter) + filter
+         * chips inline on a single row. Chip set: Owner (director) + Risk +
+         * Activity + Managed-by (director). Negotiators see 3 chips, directors
+         * see 4. */}
+        <div className="tl-card-search tl-search-row">
+          <div className="tl-search-input">
             <svg
               style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -471,13 +581,45 @@ export function TransactionListWithSearch({
               >×</button>
             )}
           </div>
+
+          <div className="tl-search-chips">
+            {showUserFilter && (
+              <AssignedToChip
+                users={uniqueUsers}
+                selected={selectedUserId}
+                onChange={setSelectedUserId}
+              />
+            )}
+            <RiskChip
+              selected={selectedRiskLevels}
+              onToggle={toggleRiskLevel}
+              onClear={() => setSelectedRiskLevels(new Set())}
+            />
+            <ActivityFilterChip
+              selected={activityFilter}
+              onToggle={toggleActivityState}
+              onClear={() => setActivityFilter(new Set())}
+            />
+            {showManagedByFilter && (
+              <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
+            )}
+            {anyFilterActive && (
+              <button
+                onClick={clearAllFilters}
+                className="agent-link agent-link-muted tl-bar-clear"
+                aria-label="Clear all filters"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* BOTTOM HALF — tabs (LEFT) + filter chips (RIGHT) on the card's lighter fill. */}
-        <div className="tl-card-tabs">
-          <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
-            {/* Status tabs (LEFT) */}
-            {showStatusTabs && statusCounts && (
+        {/* BOTTOM HALF — status tabs alone, full-width row (per Ellis override 1,
+         * 2026-05-13). Tabs stay below the search/chips row on their own line. */}
+        {showStatusTabs && statusCounts && (
+          <div className="tl-card-tabs">
+            <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
               <div className="tl-bar-tabs">
                 {STATUS_TABS.map(({ value, label }) => {
                   const isActive = statusFilter === value;
@@ -503,37 +645,9 @@ export function TransactionListWithSearch({
                   );
                 })}
               </div>
-            )}
-
-            {/* Filter chips (RIGHT) */}
-            <div className="tl-bar-chips">
-              {showUserFilter && (
-                <AssignedToChip
-                  users={uniqueUsers}
-                  selected={selectedUserId}
-                  onChange={setSelectedUserId}
-                />
-              )}
-              <RiskChip
-                selected={selectedRiskLevels}
-                onToggle={toggleRiskLevel}
-                onClear={() => setSelectedRiskLevels(new Set())}
-              />
-              {showManagedByFilter && (
-                <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
-              )}
-              {anyFilterActive && (
-                <button
-                  onClick={clearAllFilters}
-                  className="agent-link agent-link-muted tl-bar-clear"
-                  aria-label="Clear all filters"
-                >
-                  Clear filter
-                </button>
-              )}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Results */}

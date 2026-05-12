@@ -74,6 +74,7 @@ These six pages are also the deferred Stage 4 trigger for position 1. All six mu
 | Audience | Director, Negotiator |
 | Mobile complexity | **More complex.** Row cards stack differently. Filter/search bar behaviour on mobile needs documenting in Stage 1. Exchange gate badges must remain visible. |
 | Uncertainty | None significant. |
+| **Table IA (2026-05-13)** | **Variant B — Activity Forward locked as canonical.** Column order: Property / Assigned-to / [Owner if director] / **Last activity (verb chip)** / Exchange target / Status / Risk. Default sort: Last activity desc (most recent first); asc on the same column = stalled-first. Filter chip set: Owner (director) + Risk + Activity (Moving / Stalled / Stale) + Managed-by (director). Status tabs stay on their own full-width row below the search+chips row. Activity verb chip is derived server-side from the latest milestone / outbound message (`lastActivityType` + `lastActivityLabel` on `HealthRaw`), with timestamp-only "latest event wins" resolution. Hover the chip → portal'd 3-entry preview (canonical `agent-dropdown-in/out`). **The verb-chip pattern is a candidate for propagation to hub's Recent Activity ribbon and transaction-detail's Activity tab** — Phase 4 review will judge whether the chip quality is good enough to extend. |
 
 ### 6. All Files / My Files dashboard — **ABSORBED INTO POSITION 5 (2026-05-12)**
 

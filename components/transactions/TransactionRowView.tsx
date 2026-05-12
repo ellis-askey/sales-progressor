@@ -1,16 +1,26 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 
 export type HealthRaw = {
   pendingOverdueTasks: number;
   escalatedTasks: number;
   lastActivityAt: Date | null;
+  // Variant B IA (2026-05-13): derived from latest milestone / outbound message
+  // server-side. lastActivityLabel is the human-readable verb; lastActivityType
+  // tags the source ("milestone" / "chase" / "note" / "inbound" / "email" /
+  // "sms" / "whatsapp" / "comm"). null fields fall back to a generic "Active"
+  // chip client-side.
+  lastActivityType?: string | null;
+  lastActivityLabel?: string | null;
   nextChaseLabel?: string | null;
   nextActionLabel: string | null;
   nextMilestoneLabel: string | null;
@@ -52,34 +62,136 @@ const ROLE_LABEL: Partial<Record<UserRole, string>> = {
   admin: "Admin",
 };
 
-type LastActiveResult = {
-  primary: string;
-  secondary: string | null;
-  tone: "normal" | "amber" | "red" | "muted";
-  stale: boolean;
+/* Activity state — drives the verb-chip colour. Moving / Stalled / Stale
+ * thresholds match the Variant B preview and the Activity filter chip.
+ * Used by both the row chip and the filter logic in TransactionListWithSearch. */
+export type ActivityState = "moving" | "stalled" | "stale";
+
+export function activityStateFor(date: Date | null | undefined): ActivityState | null {
+  if (!date) return null;
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  if (days < 7)  return "moving";
+  if (days < 14) return "stalled";
+  return "stale";
+}
+
+function relTime(date: Date): string {
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7)  return `${days}d ago`;
+  if (days < 14) return "1w ago";
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  return `${Math.round(days / 30)}mo ago`;
+}
+
+const ACTIVITY_TONE: Record<ActivityState, { bg: string; fg: string; dot: string }> = {
+  moving:  { bg: "rgba(16,185,129,0.10)", fg: "#059669", dot: "#10b981" },
+  stalled: { bg: "rgba(245,158,11,0.12)", fg: "#b45309", dot: "#f59e0b" },
+  stale:   { bg: "rgba(239,68,68,0.10)",  fg: "#dc2626", dot: "#ef4444" },
 };
 
-function fmtLastActive(date: Date | null, createdAt: Date): LastActiveResult {
-  if (!date) {
-    const daysSinceCreation = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
-    const secondary = daysSinceCreation > 0
-      ? new Date(createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-      : null;
-    return { primary: "Just added", secondary, tone: "muted", stale: false };
-  }
-  const d = new Date(date);
-  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-  const exactDate = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+/* ActivityVerbChip — Variant B headline cell. Verb + relative time + colour
+ * tied to activityStateFor(). Hover/focus shows a 3-entry log preview via
+ * portal'd .agent-dropdown-in / .agent-dropdown-out. Falls back to generic
+ * "Active Nd ago" when no derived verb (no signal). */
+function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?: boolean }) {
+  const lastAt = tx.health?.lastActivityAt ?? null;
+  const verb = tx.health?.lastActivityLabel ?? null;
+  const state = activityStateFor(lastAt);
+  const theme = usePortalTheme();
 
-  if (days === 0) {
-    const timeStr = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    return { primary: `Today, ${timeStr}`, secondary: null, tone: "normal", stale: false };
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  if (!lastAt) {
+    return (
+      <span style={{
+        fontSize: 11, color: "var(--agent-text-muted)",
+        display: "inline-flex", alignItems: "center", gap: 6,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(0,0,0,0.18)" }} />
+        Just added
+      </span>
+    );
   }
-  if (days === 1) return { primary: "Yesterday", secondary: null, tone: "normal", stale: false };
-  if (days < 7)  return { primary: `${days} days ago`, secondary: exactDate, tone: "normal", stale: false };
-  if (days < 14) return { primary: `${days} days ago`, secondary: exactDate, tone: "amber",  stale: false };
-  if (days < 30) return { primary: `${days} days ago`, secondary: exactDate, tone: "red",    stale: false };
-  return           { primary: `${days} days ago`, secondary: exactDate, tone: "red",    stale: true  };
+
+  const tone = state ? ACTIVITY_TONE[state] : ACTIVITY_TONE.moving;
+  const labelText = verb ? `${verb} · ${relTime(lastAt)}` : `Active ${relTime(lastAt)}`;
+
+  function show() {
+    if (ref.current) {
+      const r0 = ref.current.getBoundingClientRect();
+      setPos({ top: r0.bottom + 4, left: r0.left });
+    }
+    setClosing(false);
+    setOpen(true);
+  }
+  function hide() {
+    setOpen((wasOpen) => { if (wasOpen) setClosing(true); return false; });
+  }
+
+  return (
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        tabIndex={0}
+        style={{
+          background: tone.bg, color: tone.fg,
+          fontSize: mobile ? 12 : 11, fontWeight: 600,
+          padding: mobile ? "3px 10px" : "3px 9px",
+          borderRadius: 99,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          cursor: "default", whiteSpace: "nowrap",
+          maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis",
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: tone.dot, flexShrink: 0 }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{labelText}</span>
+      </span>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          data-theme={theme}
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
+            background: "rgba(255,255,255,0.97)", borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+            padding: "10px 14px", minWidth: 240, maxWidth: 320,
+            pointerEvents: "none",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>
+            Recent activity
+          </p>
+          <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+            <li style={{ fontSize: 12, color: "var(--agent-text-primary)" }}>
+              {verb ?? "Active"}
+              <span style={{ color: "var(--agent-text-muted)" }}> · {relTime(lastAt)}</span>
+            </li>
+            {tx.health?.nextActionLabel && (
+              <li style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
+                Next: {tx.health.nextActionLabel}
+              </li>
+            )}
+            {tx.health?.daysStuckOnMilestone !== null && tx.health?.daysStuckOnMilestone !== undefined && (
+              <li style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
+                {tx.health.daysStuckOnMilestone}d since last milestone
+              </li>
+            )}
+          </ul>
+        </div>,
+        document.body
+      )}
+    </>
+  );
 }
 
 function VendorBuyerLine({ contacts }: { contacts?: { name: string; roleType: string }[] }) {
@@ -109,15 +221,18 @@ export function TransactionRowView({
   basePath?: string;
   isLast?: boolean;
 }) {
+  // Variant B column order (2026-05-13): Property | Assigned-to | [Owner] |
+  // Last activity (verb chip) | Exchange target | Status | Risk
+  // gridCols widths chosen so the verb chip cell can fit a reasonable
+  // "<verb> · Nd ago" string without truncation in the common case.
   const gridCols = showOwner
-    ? "4px minmax(0,1fr) 160px 160px 110px 120px 100px 130px"
-    : "4px minmax(0,1fr) 160px 160px 110px 120px 100px";
+    ? "4px minmax(0,1fr) 160px 130px 220px 160px 110px 120px"
+    : "4px minmax(0,1fr) 160px 220px 160px 110px 120px";
 
   const { line, location } = splitAddress(tx.propertyAddress);
   const initials = tx.assignedUser?.name
     .split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const health = tx.health ?? null;
-  const lastActive = fmtLastActive(health?.lastActivityAt ?? null, tx.createdAt);
 
   const riskStripe = tx.health
     ? (() => {
@@ -140,11 +255,11 @@ export function TransactionRowView({
         ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
         : "bg-slate-100/60 text-slate-400 border-slate-200/40"
     }`}>
-      {tx.serviceType === "outsourced" ? "With progressor" : "Self-progressed"}
+      {tx.serviceType === "outsourced" ? "Our team" : "You"}
     </span>
   ) : null;
 
-  const divider = !isLast ? "border-b border-white/15" : "";
+  const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
 
   const assignedText = tx.assignedUser?.name
     ?? (tx.serviceType === "outsourced" ? "Awaiting assignment"
@@ -156,32 +271,27 @@ export function TransactionRowView({
       {/* ── Mobile card (hidden md+) ─────────────────────────────── */}
       <Link
         href={`${basePath}/${tx.id}`}
-        className={`flex md:hidden hover:bg-white/20 active:bg-white/30 transition-colors ${divider}`}
+        className="flex md:hidden agent-hover-row"
+        style={{ textDecoration: "none", borderBottom: divider }}
       >
         <div className={`w-1 self-stretch flex-shrink-0 ${riskStripe}`} />
         <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
           <div>
-            <p className="text-sm font-semibold text-slate-900/90 leading-snug">{line}</p>
-            {location && <p className="text-xs text-slate-900/40 mt-0.5">{location}</p>}
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
+            {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
             <VendorBuyerLine contacts={tx.contacts} />
           </div>
+
+          {/* Verb chip — top of the badges row on mobile (Variant B mobile design) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <ActivityVerbChip tx={tx} mobile />
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={tx.status} />
             {tx.health && <RiskBadgeWithPopover raw={tx.health} />}
-            <span className={`text-xs font-medium ${
-              lastActive.tone === "red"   ? "text-red-500" :
-              lastActive.tone === "amber" ? "text-amber-600" :
-              lastActive.tone === "muted" ? "text-slate-900/30" :
-              "text-slate-900/55"
-            }`}>
-              Last: {lastActive.primary}
-              {lastActive.stale && (
-                <span className="ml-1 text-[9px] font-semibold px-1 py-0.5 rounded bg-red-50 text-red-500 border border-red-100">
-                  Stale
-                </span>
-              )}
-            </span>
           </div>
+
           <div>
             <ExchangeTargetCell
               transactionId={tx.id}
@@ -190,14 +300,17 @@ export function TransactionRowView({
             />
           </div>
           <div>
-            <p className={`text-xs ${assignedMuted ? "font-medium" : "text-slate-900/55"}`}
-               style={assignedMuted ? { color: "rgba(180,87,9,0.65)" } : undefined}>
+            <p style={{
+              margin: 0, fontSize: 11,
+              fontWeight: assignedMuted ? 500 : 400,
+              color: assignedMuted ? "var(--agent-warning)" : "var(--agent-text-secondary)",
+            }}>
               Assigned: {assignedText}
             </p>
             {serviceTag && <div className="mt-1">{serviceTag}</div>}
           </div>
           {showOwner && tx.agentUser && (
-            <p className="text-xs text-slate-900/55">
+            <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-secondary)" }}>
               Owner: {tx.agentUser.name}
               {tx.agentUser.role && ` · ${ROLE_LABEL[tx.agentUser.role] ?? tx.agentUser.role}`}
             </p>
@@ -205,45 +318,77 @@ export function TransactionRowView({
         </div>
       </Link>
 
-      {/* ── Desktop row (hidden below md) ───────────────────────── */}
+      {/* ── Desktop row (hidden below md) ─────────────────────────
+       * Column order (Variant B, 2026-05-13):
+       *   [stripe] Property | Assigned-to | [Owner] | Last activity (verb chip) |
+       *   Exchange target | Status | Risk
+       * Row link = entire row navigates (legacy behaviour). Activity chip's
+       * popover is pointer-events:none so it does not intercept the row link.
+       */}
       <Link
         href={`${basePath}/${tx.id}`}
-        className={`hidden md:grid items-center hover:bg-white/20 active:bg-white/30 transition-colors group ${divider}`}
-        style={{ gridTemplateColumns: gridCols }}
+        className="hidden md:grid items-center agent-hover-row group"
+        style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
         <div className={`self-stretch ${riskStripe}`} />
 
+        {/* Property */}
         <div className="px-4 py-3.5 min-w-0">
-          <p className="text-sm font-semibold text-slate-900/90 truncate leading-snug agent-group-link transition-colors">
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="agent-group-link transition-colors">
             {line}
           </p>
-          {location && <p className="text-xs text-slate-900/40 mt-0.5 truncate">{location}</p>}
+          {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
           <VendorBuyerLine contacts={tx.contacts} />
           {health?.nextActionLabel && (
-            <p className="text-xs text-orange-600 mt-1 truncate font-semibold">
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               → {health.nextActionLabel}
             </p>
           )}
         </div>
 
+        {/* Assigned-to */}
         <div className="px-4 py-3.5">
           {tx.assignedUser ? (
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-[10px] font-bold text-white">{initials}</span>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "white" }}>{initials}</span>
               </div>
-              <span className="text-sm text-slate-900/70 truncate">{tx.assignedUser.name}</span>
+              <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.assignedUser.name}</span>
             </div>
           ) : tx.serviceType === "outsourced" ? (
-            <span className="text-xs font-medium" style={{ color: "rgba(180,87,9,0.65)" }}>Awaiting assignment</span>
+            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>Awaiting assignment</span>
           ) : tx.agentUser ? (
-            <span className="text-sm text-slate-900/50 truncate">{tx.agentUser.name}</span>
+            <span style={{ fontSize: 13, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
           ) : (
-            <span className="text-sm text-slate-900/30 italic">Unassigned</span>
+            <span style={{ fontSize: 13, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Unassigned</span>
           )}
           {serviceTag && <div className="mt-1">{serviceTag}</div>}
         </div>
 
+        {/* Owner — director only */}
+        {showOwner && (
+          <div className="px-4 py-3.5">
+            {tx.agentUser ? (
+              <>
+                <span style={{ display: "block", fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
+                {tx.agentUser.role && (
+                  <span style={{ display: "block", marginTop: 2, fontSize: 10, color: "var(--agent-text-muted)" }}>
+                    {ROLE_LABEL[tx.agentUser.role] ?? tx.agentUser.role}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
+            )}
+          </div>
+        )}
+
+        {/* Last activity — verb chip (Variant B headline) */}
+        <div className="px-4 py-3.5">
+          <ActivityVerbChip tx={tx} />
+        </div>
+
+        {/* Exchange target */}
         <div className="px-4 py-3.5">
           <ExchangeTargetCell
             transactionId={tx.id}
@@ -252,49 +397,15 @@ export function TransactionRowView({
           />
         </div>
 
+        {/* Status */}
         <div className="px-4 py-3.5">
           <StatusBadge status={tx.status} />
         </div>
 
+        {/* Risk */}
         <div className="px-4 py-3.5">
-          {tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : <span className="text-slate-900/30 text-xs">—</span>}
+          {tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>—</span>}
         </div>
-
-        <div className="px-4 py-3.5">
-          <p className={`text-xs font-medium leading-snug ${
-            lastActive.tone === "red"    ? "text-red-500" :
-            lastActive.tone === "amber"  ? "text-amber-600" :
-            lastActive.tone === "muted"  ? "text-slate-900/30" :
-            "text-slate-900/65"
-          }`}>
-            {lastActive.primary}
-          </p>
-          {lastActive.secondary && (
-            <p className="text-[10px] text-slate-900/30 mt-0.5">{lastActive.secondary}</p>
-          )}
-          {lastActive.stale && (
-            <span className="inline-block mt-0.5 text-[9px] font-semibold px-1 py-0.5 rounded bg-red-50 text-red-500 border border-red-100 leading-none">
-              Stale
-            </span>
-          )}
-        </div>
-
-        {showOwner && (
-          <div className="px-4 py-3.5">
-            {tx.agentUser ? (
-              <>
-                <span className="text-sm text-slate-900/70 truncate block">{tx.agentUser.name}</span>
-                {tx.agentUser.role && (
-                  <span className="text-[10px] text-slate-900/35 mt-0.5 block">
-                    {ROLE_LABEL[tx.agentUser.role] ?? tx.agentUser.role}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-sm text-slate-900/25">—</span>
-            )}
-          </div>
-        )}
       </Link>
     </div>
   );
