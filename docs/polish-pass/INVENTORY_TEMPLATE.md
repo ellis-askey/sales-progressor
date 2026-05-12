@@ -333,3 +333,36 @@ _(Empty until Stage 2 begins. Mid-flight discoveries are appended here with time
 | Date | Discovery | Added to which section |
 |---|---|---|
 | — | — | — |
+
+---
+
+## 15. Canonical contributions
+
+This page may need patterns not yet in `agent-system.css`. The polish pass is building a design system page by page; every page either applies existing canonical classes or adds new ones to the library — no inline one-offs.
+
+**Discipline (locked in 2026-05-12 during work queue Stage 1 approval):**
+
+1. Apply every relevant existing canonical class. No inline replication of patterns already canonical.
+2. Add new canonical classes for any pattern not yet in the system. No inline one-offs.
+3. Define and document new classes during Stage 2 — added to `agent-system.css` AND `ANIMATION_STANDARDS.md` as part of Stage 2 polish work, not deferred to Stage 4 or `POST_LAUNCH_FIXES.md`.
+4. Surface inline overrides of canonical classes as defects, not patterns. Inline override = either the canonical class is wrong (define a new variant) or the pattern is non-canonical (canonicalise it).
+
+By the final pages of the queue, no new canonical patterns should be needed because earlier pages have built the library. Track each page's contributions here. Empty section = sign the library is mature for this page's needs.
+
+**New canonical classes added during this page's Stage 2 or Stage 4:**
+
+| Class name | file:line in `agent-system.css` | Doc entry in `ANIMATION_STANDARDS.md` | Reason (1 sentence) |
+|---|---|---|---|
+| _[e.g. `.agent-card-hdr-warning`]_ | _[e.g. agent-system.css:1090]_ | _[e.g. §S5, changelog 2026-05-12]_ | _[e.g. Card headers that signal warning state without inline background overrides — paired with FileAlertsStrip.]_ |
+| _[empty if no new classes needed]_ | | | |
+
+**New canonical tokens added (if any):**
+
+If a new colour or spacing token is introduced to support a canonical class (e.g. `--agent-snoozed-bg`), list it here with the file:line in `themes.css` (per theme) and a one-line reason. Token additions must be defined across all six theme blocks.
+
+| Token name | Defined in | Reason |
+|---|---|---|
+| _[e.g. `--agent-snoozed-bg`]_ | _[themes.css:80,170,…]_ | _[Snoozed-state background; matches snoozed-state-as-semantic-status framing.]_ |
+| _[empty if no new tokens needed]_ | | |
+
+**Library maturity expectation:** by page 5 of the polish pass, this section should trend toward zero new entries. A non-zero entry on a late page should be justified — either a genuinely new visual paradigm or a back-fill of a missed pattern from an earlier page.
