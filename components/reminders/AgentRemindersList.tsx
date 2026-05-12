@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Clock } from "@phosphor-icons/react";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -85,6 +86,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const theme = usePortalTheme();
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -117,6 +119,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
+          data-theme={theme}
           className="agent-dropdown-in"
           style={{
             position: "fixed", top: pos.top, left: pos.left,
@@ -153,6 +156,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const theme = usePortalTheme();
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -185,6 +189,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
+          data-theme={theme}
           className="agent-dropdown-in"
           style={{
             position: "fixed", top: pos.top, right: pos.right,

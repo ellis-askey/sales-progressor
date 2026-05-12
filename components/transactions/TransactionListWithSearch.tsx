@@ -7,6 +7,7 @@ import type { TransactionRow } from "./TransactionTable";
 import { calculateRiskScore } from "@/lib/services/risk";
 import type { RiskLevel } from "@/lib/services/risk";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 // ── Chip sub-components ────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ function useChipDropdown() {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const theme = usePortalTheme();
   useEffect(() => {
     function handle(e: MouseEvent) {
       const t = e.target as Node;
@@ -48,7 +50,7 @@ function useChipDropdown() {
     }
     setOpen((v) => !v);
   }
-  return { open, pos, ref, popoverRef, openDropdown, setOpen };
+  return { open, pos, ref, popoverRef, theme, openDropdown, setOpen };
 }
 
 function AssignedToChip({ users, selected, onChange }: {
@@ -56,7 +58,7 @@ function AssignedToChip({ users, selected, onChange }: {
   selected: string | null;
   onChange: (id: string | null) => void;
 }) {
-  const { open, pos, ref, popoverRef, openDropdown, setOpen } = useChipDropdown();
+  const { open, pos, ref, popoverRef, theme, openDropdown, setOpen } = useChipDropdown();
   const selectedUser = selected ? users.find((u) => u.id === selected) : null;
   const firstName = selectedUser ? extractFirstName(selectedUser.name) : null;
   const isActive = selected !== null;
@@ -82,7 +84,7 @@ function AssignedToChip({ users, selected, onChange }: {
         )}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} className="agent-dropdown-in" style={{
+        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
@@ -120,7 +122,7 @@ function RiskChip({ selected, onToggle }: {
   selected: Set<RiskLevel>;
   onToggle: (level: RiskLevel) => void;
 }) {
-  const { open, pos, ref, popoverRef, openDropdown } = useChipDropdown();
+  const { open, pos, ref, popoverRef, theme, openDropdown } = useChipDropdown();
   const isActive = selected.size > 0;
   const label = isActive
     ? `Risk: ${[...selected].map((l) => RISK_LABEL[l]).join(", ")}`
@@ -135,7 +137,7 @@ function RiskChip({ selected, onToggle }: {
         {label}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} className="agent-dropdown-in" style={{
+        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
@@ -178,7 +180,7 @@ function ManagedByChip({ value, onChange }: {
   value: "all" | "self_managed" | "outsourced";
   onChange: (v: "all" | "self_managed" | "outsourced") => void;
 }) {
-  const { open, pos, ref, popoverRef, openDropdown, setOpen } = useChipDropdown();
+  const { open, pos, ref, popoverRef, theme, openDropdown, setOpen } = useChipDropdown();
   const isActive = value !== "all";
   // Voice fix (Stage 3, pre-flagged 3 + 4): translation table per VOICE_GUIDELINES.md
   //   OLD: "Self-progressed" → "Managed by you"
@@ -214,7 +216,7 @@ function ManagedByChip({ value, onChange }: {
         )}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div ref={popoverRef} className="agent-dropdown-in" style={{
+        <div ref={popoverRef} data-theme={theme} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",

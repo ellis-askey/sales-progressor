@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { CheckCircle, Clock, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { formatDate } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export type Contact = {
   id: string;
@@ -48,11 +50,11 @@ const SNOOZE_OPTIONS = [
 
 // Border colours per urgency — 4px left stripe
 const LEFT_BORDER: Record<string, string> = {
-  escalated: "#dc2626",               // red-600
-  overdue:   "#ea580c",               // orange-600
-  due_today: "#d97706",               // amber-600
-  upcoming:  "rgba(148,163,184,0.4)", // slate-300/40
-  snoozed:   "rgba(168,85,247,0.5)",  // purple-500/50
+  escalated: "#dc2626",                          // red-600
+  overdue:   "#ea580c",                          // orange-600
+  due_today: "#d97706",                          // amber-600
+  upcoming:  "rgba(148,163,184,0.4)",            // slate-300/40
+  snoozed:   "var(--agent-snoozed-border)",      // canonical snoozed token (Work Queue Stage 2)
 };
 
 function stripChase(name: string) {
@@ -97,23 +99,33 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(true);
+  const [pos, setPos] = useState<{ top: number; right: number; above: boolean } | null>(null);
   const [loadingHours, setLoadingHours] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const theme = usePortalTheme();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => {
-          if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
+          if (!open && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            const above = r.top > 250;
+            setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
+          }
           setOpen((p) => !p);
         }}
         disabled={disabled || loadingHours !== null}
@@ -123,8 +135,8 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         <Clock weight="regular" className="reminder-action-icon" />
         <span className="reminder-btn-label">Snooze</span>
       </button>
-      {open && (
-        <div className={`absolute right-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"} z-30 min-w-[130px]`} style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 130, background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -146,7 +158,8 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
               {opt.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -160,16 +173,22 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   onManualChase?: (id: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(true);
+  const [pos, setPos] = useState<{ top: number; right: number; above: boolean } | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const theme = usePortalTheme();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   async function fireAction(key: string, fn: () => void | Promise<void>) {
@@ -190,7 +209,11 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
     <div className="relative" ref={ref}>
       <button
         onClick={() => {
-          if (!open && ref.current) setOpenUpward(ref.current.getBoundingClientRect().top > 200);
+          if (!open && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            const above = r.top > 250;
+            setPos({ top: above ? r.top : r.bottom + 4, right: window.innerWidth - r.right, above });
+          }
           setOpen((p) => !p);
         }}
         disabled={disabled || loadingAction !== null}
@@ -199,8 +222,8 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
       >
         ⋯
       </button>
-      {open && (
-        <div className={`absolute right-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"} z-30 min-w-[160px]`} style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 160, background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
           {onManualChase && (
             <button
               disabled={loadingAction !== null}
@@ -221,7 +244,8 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
               ↑ Escalate
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -325,13 +349,24 @@ export function ReminderCard({
   if (mode === "snoozed") {
     const card = (
       <>
-        <div className="px-4 py-1.5 text-xs font-medium bg-purple-50/60 text-purple-600 flex items-center justify-between" style={{ borderRadius: grouped ? 0 : "20px 20px 0 0" }}>
+        {/* Snoozed banner — --agent-snoozed-* token family (theme-locked semantic state) */}
+        <div
+          className="text-xs font-medium flex items-center justify-between"
+          style={{
+            padding: "6px 16px",
+            background: "var(--agent-snoozed-bg)",
+            color: "var(--agent-snoozed)",
+            borderBottom: "0.5px solid var(--agent-snoozed-border)",
+            borderRadius: grouped ? 0 : "16px 20px 0 0",
+          }}
+        >
           <span>Wakes {formatDate(log.snoozedUntil!)}</span>
           {onWakeup && (
             <button
               onClick={() => onWakeup(log.id)}
               disabled={isLoading === log.id || isPending}
-              className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-40"
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 12, color: "var(--agent-snoozed)" }}
             >
               {isLoading === log.id ? "…" : "Wake now"}
             </button>
@@ -339,12 +374,16 @@ export function ReminderCard({
         </div>
         <div className="px-5 py-3">
           {showAddressLink && (
-            <Link
-              href={`/agent/transactions/${transactionId}`}
-              className="text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors block mb-1"
-            >
-              {propertyAddress} →
-            </Link>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <Link
+                href={`/agent/transactions/${transactionId}`}
+                className="agent-link"
+                style={{ fontSize: 12, color: "var(--agent-text-secondary)", textDecoration: "none" }}
+              >
+                {propertyAddress}
+              </Link>
+              <span aria-hidden style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>→</span>
+            </div>
           )}
           {contactName && <p className="text-xs text-slate-900/40 mb-0.5">{contactName}</p>}
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
@@ -361,7 +400,10 @@ export function ReminderCard({
 
     if (grouped) return <div>{card}</div>;
     return (
-      <div className="glass-card border border-purple-200/60" style={{ borderRadius: 20, borderLeft: `4px solid ${LEFT_BORDER.snoozed}` }}>
+      <div
+        className="agent-glass-strong"
+        style={{ borderRadius: 20, borderLeft: `4px solid var(--agent-snoozed-border)` }}
+      >
         {card}
       </div>
     );

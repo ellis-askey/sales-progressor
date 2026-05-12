@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { calculateRiskScore, RISK_CONFIG } from "@/lib/services/risk";
 import type { HealthRaw } from "@/components/transactions/TransactionTable";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 function buildInput(raw: HealthRaw) {
   return {
@@ -18,14 +20,47 @@ function buildInput(raw: HealthRaw) {
 
 export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const theme = usePortalTheme();
+
+  function scheduleClose() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpen(false), 100);
+  }
+  function cancelClose() {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+  }
+  function openPopover() {
+    cancelClose();
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const above = r.top > 250;
+      setPos({
+        top: above ? r.top - 4 : r.bottom + 4,
+        left: r.left,
+        above,
+      });
+    }
+    setOpen(true);
+  }
 
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   const risk = calculateRiskScore(buildInput(raw));
@@ -36,11 +71,11 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
     <div
       ref={ref}
       className="relative inline-block"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={openPopover}
+      onMouseLeave={scheduleClose}
     >
       <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openPopover(); }}
         className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${cfg.bg} ${cfg.border} ${cfg.color}`}
         style={{ cursor: "default" }}
       >
@@ -48,35 +83,60 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
         {cfg.label}
       </button>
 
-      {open && (
+      {open && pos && typeof document !== "undefined" && createPortal(
         <div
+          ref={popoverRef}
+          data-theme={theme}
+          className="agent-dropdown-in"
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-full mb-2 left-0 z-40 bg-white rounded-xl shadow-xl border border-slate-100 p-3"
-          style={{ minWidth: 230, maxWidth: 270 }}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+          style={{
+            position: "fixed",
+            top: pos.top, left: pos.left,
+            transform: pos.above ? "translateY(-100%)" : "none",
+            zIndex: 9999,
+            background: "rgba(255,255,255,0.97)",
+            borderRadius: 12,
+            padding: 12,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)",
+            border: "1px solid rgba(0,0,0,0.07)",
+            minWidth: 230, maxWidth: 270,
+          }}
         >
           {/* Score header */}
-          <div className="flex items-center justify-between mb-2.5">
-            <span className={`text-xs font-semibold ${cfg.color}`}>{cfg.label}</span>
-            <span className="text-xs text-slate-900/40">{risk.score}/100</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span className={cfg.color} style={{ fontSize: 12, fontWeight: 600 }}>{cfg.label}</span>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{risk.score}/100</span>
           </div>
 
           {triggered.length === 0 ? (
-            <p className="text-xs text-emerald-700 flex items-center gap-1.5">
-              <span className="text-emerald-500">✓</span>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-success)", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>✓</span>
               No flags. All checks healthy.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
               {risk.factors.map((f) => (
-                <li key={f.label} className="flex items-start gap-2">
-                  <span className={`mt-0.5 flex-shrink-0 text-xs font-bold ${f.triggered ? "text-red-500" : "text-emerald-500"}`}>
+                <li key={f.label} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <span style={{
+                    marginTop: 2, flexShrink: 0,
+                    fontSize: 11, fontWeight: 700,
+                    color: f.triggered ? "var(--agent-danger)" : "var(--agent-success)",
+                  }}>
                     {f.triggered ? "✗" : "✓"}
                   </span>
-                  <div className="min-w-0">
-                    <p className={`text-xs font-medium leading-snug ${f.triggered ? "text-slate-900/80" : "text-slate-900/40"}`}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{
+                      margin: 0, fontSize: 11, fontWeight: 500, lineHeight: 1.35,
+                      color: f.triggered ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
+                    }}>
                       {f.label}
                     </p>
-                    <p className={`text-[10px] leading-snug mt-0.5 ${f.triggered ? "text-slate-900/55" : "text-slate-900/30"}`}>
+                    <p style={{
+                      margin: "2px 0 0", fontSize: 10, lineHeight: 1.35,
+                      color: f.triggered ? "var(--agent-text-secondary)" : "var(--agent-text-muted)",
+                    }}>
                       {f.detail}
                     </p>
                   </div>
@@ -84,7 +144,8 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
               ))}
             </ul>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
