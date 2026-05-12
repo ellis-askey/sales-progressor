@@ -116,7 +116,8 @@ const RISK_CFG: Record<RiskLevel, { bg: string; border: string; color: string; d
 
 const STATUS_CFG: Record<MockRow["status"], { bg: string; text: string; border: string; label: string }> = {
   active:    { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", label: "Active" },
-  on_hold:   { bg: "#fffbeb", text: "#b45309", border: "#fde68a", label: "On Hold" },
+  // OLD: label: "On Hold" — Stage 3 voice fix: sentence-case consistency with status-tab label "On hold"
+  on_hold:   { bg: "#fffbeb", text: "#b45309", border: "#fde68a", label: "On hold" },
   completed: { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0", label: "Completed" },
   withdrawn: { bg: "#fef2f2", text: "#dc2626", border: "#fecaca", label: "Withdrawn" },
 };
@@ -286,10 +287,12 @@ function HubFilterBanner() {
       background: "rgba(var(--agent-coral-base-rgb), 0.07)",
       border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.18)",
     }}>
+      {/* OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
+           ("Showing" narrates system state). Stage 3 fix: drop "Showing", lead with the
+           filter phrase + count. Data-first phrasing. */}
       <span style={{ fontSize: 13, color: TS, flex: 1 }}>
-        Showing{" "}
-        <strong style={{ color: TP, fontWeight: 600 }}>exchanging this week</strong>{" "}
-        <span style={{ color: TM }}>(3)</span>
+        <strong style={{ color: TP, fontWeight: 600 }}>Exchanging this week</strong>
+        <span style={{ color: TM, marginLeft: 6 }}>· 3 files</span>
       </span>
       <Link href="#" className="agent-link agent-link-muted" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
         <X size={11} />

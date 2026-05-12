@@ -327,6 +327,83 @@
 | Client-filtered empty (TransactionListWithSearch.tsx:350) | "No files match the active filters." | "No files match." | Rule 3 — drop the passive pointer to "the active filters"; same pattern as work-queue Stage 3 voice review |
 | Last active "Stale" badge | "Stale" | "Quiet" — or migrate to the work-queue precedent "Not progressing" if a multi-word label fits | Rule 2 — "stale" is dev shorthand; same correction Ellis caught on FileAlertsStrip during work queue Stage 4 |
 
+### 7.2 Voice review (Stage 3 — 2026-05-12)
+
+Walked the polish page top to bottom against `VOICE_GUIDELINES.md`. Verified all 8 Stage 2 fixes (7 from §7.1 + status-tab capitalisation from Stage 1 review). Surfaced 2 new violations. `✓ no change` rows kept visible.
+
+**P** = polish page (annotated `{/* OLD: ... */}` and rewritten). **Prod** = production-only string (Stage 4 applies the rewrite from this row).
+
+| Location | Current copy | Proposed copy | Reason |
+|---|---|---|---|
+| PageHeader h1 (director) | "All Files" | ✓ no change | Industry-standard term, acceptable title case for a page title |
+| PageHeader h1 (negotiator) | "My Files" | ✓ no change | Same |
+| PageHeader subtitle (director) | "Every file across the agency." | ✓ no change | Specific, present, agent-pointed |
+| PageHeader subtitle (negotiator) | "Files assigned to you." | ✓ no change | Same |
+| PageHeader CTA | "New sale" | ✓ no change | Imperative, specific |
+| **Hub filter banner [P, NEW]** | "Showing **exchanging this week** (3)" | "**Exchanging this week** · 3 files" | Rule 1 borderline — "Showing" narrates system state. Drop "Showing", lead with the filter phrase + count. Data-first phrasing. **Applied on polish page.** |
+| Hub filter Clear link | "× Clear filter" | ✓ no change | Imperative, direct |
+| Hub filter labels (FILTER_LABELS) **[Prod]** | "Exchanging this week" / "Completing this week" / "Closing this month" / "Exchanging in the next 30 days" | ✓ no change | Active gerunds, factual |
+| Filter-empty titles (FILTER_EMPTY) **[Prod]** | "No files exchanging this week" / etc. | ✓ no change | Direct |
+| Filter-empty descriptions (FILTER_EMPTY) **[Prod]** | "Files appear here when their expected exchange date is within the next 7 days." (and three siblings) | ✓ no change | "Appear here" is the canonical user-POV verb (matches zero-files copy). "When X" is honest description of the filter rule. Passes the three rules. |
+| Zero-files heading | "Create your first sale" | ✓ no change | Imperative, specific |
+| Zero-files body **[P, pre-flagged 1]** | "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." | "Sales appear here once you submit one. Track milestones, manage chases, and progress to exchange." | Rule 1 — system-narration "you'll see it here". **Verified applied on polish page.** Production fix at `page.tsx:246` for Stage 4. |
+| Status tab labels **[P, pre-flagged 8]** | "All" / "Active" / "On Hold" / "Completed" / "Withdrawn" | "All" / "Active" / "On hold" / "Completed" / "Withdrawn" | Sentence case throughout. **Verified applied on polish page** at STATUS_TABS line 104. Production fix at `page.tsx:268` for Stage 4. |
+| **StatusPill (StatusBadge) labels [P, NEW]** | STATUS_CFG.on_hold.label = "On Hold" | "On hold" | Sentence-case consistency — status TAB says "On hold" but row BADGE renders "On Hold" on the same page. Drift. **Applied on polish page** at line 119. Production fix at `lib/utils.ts:69` (`STATUS_LABELS.on_hold = "On Hold"`) for Stage 4 — affects every StatusBadge instance app-wide. |
+| Status-filtered empty title **[P, pre-flagged 2]** | "No on_hold files" | "No on-hold files" | Schema underscore. **Verified applied on polish page** at line 712. Production fix at `page.tsx:321` for Stage 4. |
+| Filter-empty body | "Try a different filter." | ✓ no change | Imperative, direct |
+| Filter-empty action | "View all" / "View all files" | ✓ no change | Imperative |
+| Search placeholder | "Search by address…" | ✓ no change | Direct |
+| Filter chip closed labels | "Owner" / "Risk" / "Managed by" | ✓ no change | Concise |
+| Owner chip active | "Owner: Rachel" | ✓ no change | Factual |
+| Risk chip active | "Risk: At risk, Watch" | ✓ no change | Comma-joined RISK_LABEL phrases, no " risk" suffix bug |
+| ManagedByChip label closed | "Managed by" | ✓ no change | |
+| **ManagedByChip label "Self-progressed" [P, pre-flagged 3]** | (multiple sites) | "Managed by you" | Translation table. **Verified applied on polish page** at lines 415–418. Production fix at `TransactionListWithSearch.tsx:152, 159` + `TransactionRowView.tsx:143` for Stage 4. |
+| **ManagedByChip label "With progressor" [P, pre-flagged 4]** | (multiple sites) | "Our team is handling" | Translation table. **Verified applied on polish page** at lines 415–419. Production fix at `TransactionListWithSearch.tsx:153, 160` + `TransactionRowView.tsx:143` for Stage 4. |
+| **RISK_LABEL dropdown render [P, pre-flagged 5]** | "On track risk" / "Watch risk" / "At risk risk" / "No data risk" | "On track" / "Watch" / "At risk" / "No data" | **Grammar bug** — render appended " risk". **Verified applied on polish page** at line 397 (RISK_LABEL renders without suffix). Production fix at `TransactionListWithSearch.tsx:132` for Stage 4 — remove the appended " risk" string. |
+| Risk dropdown option list | "On track" / "Watch" / "At risk" | ✓ no change | After fix, reads cleanly |
+| Risk popover score header **[Prod]** | "{label}" + "{score}/100" | ✓ no change | Factual readout |
+| Risk popover factor rows **[Prod]** | (per RISK_CONFIG factors) | ✓ no change overall | Factor copy comes from `lib/services/risk.ts` RISK_CONFIG — not in polish page. Out of scope for this pass; flag for risk-rule copy audit if voice issues surface. |
+| "Clear all" | "Clear all" | ✓ no change | Imperative |
+| **Client-filtered empty [P, pre-flagged 6]** | "No files match the active filters." | "No files match." | Rule 3. **Verified applied on polish page** at line 731. Production fix at `TransactionListWithSearch.tsx:350` for Stage 4. |
+| Client-filtered (search) | `"No files match \"{query}\""` | ✓ no change | Specific, present |
+| Client-filtered Clear | "Clear filters" | ✓ no change | Imperative |
+| Table column headers | "Property" / "Assigned to" / "Exchange target" / "Status" / "Risk" / "Last active" / "Owner" | ✓ no change | All sentence case consistent. "Last active" passes — natural compact column descriptor. |
+| Row Property cell | "{addressLine}" / "{location}" / "Vendor: X · Buyer: Y" / "→ {nextAction}" | ✓ no change | All factual; → arrow + imperative for the next-action callout |
+| Row Vendor/Buyer fallback | "Names not set" / "Vendor: not set" / "Buyer: not set" | ✓ no change | Direct |
+| Row Assigned cell | "{name}" / "Awaiting assignment" / "Unassigned" | ✓ no change | Direct |
+| Row Service tag **[Prod]** | "Self-progressed" / "With progressor" | "Managed by you" / "Our team is handling" | Same translation as ManagedByChip — flagged for Stage 4 production fix at `TransactionRowView.tsx:143`. |
+| Row Exchange target cell | "Set exchange date" / "{formatted date}" | ✓ no change | Imperative empty state; factual date |
+| StatusPill labels | "Active" / "On hold" / "Completed" / "Withdrawn" | ✓ no change | After the StatusPill "On Hold" → "On hold" fix above |
+| RiskPill labels | "On track" / "Watch" / "At risk" | ✓ no change | RISK_LABEL values used directly |
+| Last active text | "Just added" / "Today, {HH:mm}" / "Yesterday" / "{N} days ago" | ✓ no change | Conversational, factual |
+| **"Quiet" badge [P, pre-flagged 7]** | "Stale" | "Quiet" | Rule 2 — "stale" is dev shorthand. **Verified applied on polish page** at line 581. **Deliberate divergence from work-queue's "Not progressing"**: work-queue uses "Not progressing" on a header summary count badge that pairs with the per-row label "No progress in 14+ days"; transaction-list "Quiet" is a per-row state badge alongside an adjacent Last-active column that already shows the day count. Same semantics across surfaces, different optimal text. Production fix at `TransactionRowView.tsx:179, 276` for Stage 4. |
+| Owner cell (showOwner) | "{name}" / "{role}" / "—" | ✓ no change | Factual |
+| Loading skeleton copy | (PageHeader reuses: "All Files" / "Every file across the agency.") | ✓ no change | Same as PageHeader row |
+| Polish controls (dev) | (Populated / Zero files / Filter empty / etc.) | n/a | Out of scope — dev tool labels per VOICE_GUIDELINES.md "Application" section |
+
+**Pre-flagged offenders summary:** 8/8 verified applied.
+
+1. ✓ Zero-files body — applied at polish line 694
+2. ✓ "No on-hold files" — applied at line 712
+3. ✓ "Managed by you" — applied at lines 415, 418
+4. ✓ "Our team is handling" — applied at lines 415, 419
+5. ✓ RISK_LABEL " risk" grammar bug fixed — line 397 renders without suffix
+6. ✓ "No files match." — applied at line 731
+7. ✓ "Quiet" badge — applied at line 581 (deliberate divergence from work-queue's "Not progressing" — documented)
+8. ✓ Status tab "On hold" sentence case — applied at STATUS_TABS line 104
+
+**Newly surfaced violations:** 2.
+
+1. **[P, NEW]** StatusPill (StatusBadge) `STATUS_CFG.on_hold.label` was "On Hold" while the status TAB read "On hold" — same status, two different renderings on the same page. Applied: "On hold" at polish line 119. Production fix at `lib/utils.ts:69` (`STATUS_LABELS`) affects every StatusBadge usage app-wide — flag for Stage 4.
+2. **[P, NEW]** Hub filter banner Rule 1 borderline — "Showing **exchanging this week** (3)" narrates system state. Applied: drop "Showing", lead with the data — "**Exchanging this week** · 3 files". Production fix at `page.tsx:182–191` for Stage 4.
+
+**Structural questions confirmed (per Ellis's Stage 3 brief):**
+
+- **"Quiet" vs "Not progressing"** — deliberate divergence per surface need. Documented in the badge row.
+- **"Last active" column header** — passes. Industry-standard compact descriptor.
+- **"Assigned to" capitalisation** — already sentence case in polish page. Consistent with all other headers.
+- **FILTER_EMPTY "Files appear here when…" descriptions** — pass. "Appear here" is the canonical user-POV verb; "when X" is honest filter-rule description. Not Rule 1 violation.
+
 ---
 
 ## 8. Desktop view
@@ -543,6 +620,7 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 | Date | Discovery | Added to which section |
 |---|---|---|
 | 2026-05-12 | **Stage 2 polish page built.** `app/agent/polish/transaction-list/page.tsx`. State toggles: view (populated / zero-files / filter-empty / client-empty), hub filter on/off, director / negotiator (Owner column), reduced motion. Demonstrates every canonical class conversion catalogued in §13. **Bloom-decoration decision locked: Option A — dropped entirely.** PageHeader now identical to hub / transaction-detail / work-queue / dashboard. **`loading.tsx` added** to production at `app/agent/transactions/loading.tsx` (Stage 2 add per Ellis — work-queue loading.tsx as reference). Skeleton mirrors the polish page layout: PageHeader shape + status tab strip + filter bar + 6 row skeletons inside agent-glass-strong table. **Voice fixes applied to polish page** for all 7 §7.1 flagged strings (zero-files body, "on-hold" hyphenation, ManagedByChip labels, RISK_LABEL grammar bug, client-filtered empty, "Quiet" badge). All 4 dropdown surfaces (3 chips + risk popover) use `createPortal` + `agent-dropdown-in` per work-queue B1+B2 pattern. tsc clean. | §13 (all rows), polish page, loading.tsx |
+| 2026-05-12 | **Stage 3 voice pass complete.** Walked polish page top to bottom against `VOICE_GUIDELINES.md` three rules + tone calibration + translation table. Verified all 8 Stage 2 fixes (7 pre-flagged + status-tab "On hold" capitalisation from Stage 1 review). Surfaced 2 new violations: (1) StatusPill (StatusBadge) `STATUS_CFG.on_hold.label` read "On Hold" while status TAB read "On hold" — same status, two renderings on the same page; applied "On hold" at polish line 119; production-app-wide fix at `lib/utils.ts:69` flagged for Stage 4. (2) Hub filter banner "Showing **exchanging this week** (3)" was Rule 1 borderline ("Showing" narrates system state); applied "**Exchanging this week** · 3 files" — data-first phrasing. Structural questions confirmed: "Quiet" vs work-queue's "Not progressing" is deliberate per-surface divergence (documented); "Last active" passes; "Assigned to" sentence case already correct; FILTER_EMPTY descriptions pass ("appear here when X" is honest filter-rule description). Added §7.2 side-by-side voice-review table (every visible string, ✓-no-change rows kept visible). | §7.2 (new), polish page (2 rewrites) |
 
 ---
 
