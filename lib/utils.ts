@@ -66,7 +66,7 @@ export function normalizePhone(phone: string): string {
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
   draft:     "Draft",
   active:    "Active",
-  on_hold:   "On Hold",
+  on_hold:   "On hold",
   completed: "Completed",
   withdrawn: "Withdrawn",
 };

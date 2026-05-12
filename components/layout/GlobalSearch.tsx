@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { SearchResult } from "@/app/api/search/route";
 
 const STATUS_LABELS: Record<string, string> = {
-  active: "Active", on_hold: "On Hold", completed: "Completed", withdrawn: "Withdrawn",
+  active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
 };
 const STATUS_COLORS: Record<string, string> = {
   active: "text-emerald-600", on_hold: "text-amber-500",
