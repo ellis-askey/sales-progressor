@@ -14,14 +14,24 @@ import { extractFirstName } from "@/lib/contacts/displayName";
  * Shared chip-dropdown hook — opens via portal to document.body to escape
  * any ancestor overflow:hidden / sticky stacking context (work-queue B1+B2
  * lesson). Auto-closes on click-outside + on scroll.
+ *
+ * Click-outside listener checks BOTH `ref` (trigger wrapper) and `popoverRef`
+ * (portal'd dropdown) — without the popoverRef check, native mousedown on a
+ * dropdown item synchronously triggers setOpen(false) BEFORE React's onClick
+ * fires, racing the dropdown into unmount before the item's click can
+ * register. Same pattern used by RiskBadgeWithPopover.
  */
 function useChipDropdown() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setOpen(false);
     }
     function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handle);
@@ -38,7 +48,7 @@ function useChipDropdown() {
     }
     setOpen((v) => !v);
   }
-  return { open, pos, ref, openDropdown, setOpen };
+  return { open, pos, ref, popoverRef, openDropdown, setOpen };
 }
 
 function AssignedToChip({ users, selected, onChange }: {
@@ -46,7 +56,7 @@ function AssignedToChip({ users, selected, onChange }: {
   selected: string | null;
   onChange: (id: string | null) => void;
 }) {
-  const { open, pos, ref, openDropdown, setOpen } = useChipDropdown();
+  const { open, pos, ref, popoverRef, openDropdown, setOpen } = useChipDropdown();
   const selectedUser = selected ? users.find((u) => u.id === selected) : null;
   const firstName = selectedUser ? extractFirstName(selectedUser.name) : null;
   const isActive = selected !== null;
@@ -72,7 +82,7 @@ function AssignedToChip({ users, selected, onChange }: {
         )}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div className="agent-dropdown-in" style={{
+        <div ref={popoverRef} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
@@ -110,7 +120,7 @@ function RiskChip({ selected, onToggle }: {
   selected: Set<RiskLevel>;
   onToggle: (level: RiskLevel) => void;
 }) {
-  const { open, pos, ref, openDropdown } = useChipDropdown();
+  const { open, pos, ref, popoverRef, openDropdown } = useChipDropdown();
   const isActive = selected.size > 0;
   const label = isActive
     ? `Risk: ${[...selected].map((l) => RISK_LABEL[l]).join(", ")}`
@@ -125,7 +135,7 @@ function RiskChip({ selected, onToggle }: {
         {label}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div className="agent-dropdown-in" style={{
+        <div ref={popoverRef} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
@@ -168,19 +178,19 @@ function ManagedByChip({ value, onChange }: {
   value: "all" | "self_managed" | "outsourced";
   onChange: (v: "all" | "self_managed" | "outsourced") => void;
 }) {
-  const { open, pos, ref, openDropdown, setOpen } = useChipDropdown();
+  const { open, pos, ref, popoverRef, openDropdown, setOpen } = useChipDropdown();
   const isActive = value !== "all";
-  // NOTE: labels here use "Self-progressed" / "With progressor" per current data.
-  // Section 8 will swap to "Managed by you" / "Our team is handling" per the
-  // VOICE_GUIDELINES.md translation table.
-  const label = value === "self_managed" ? "Self-progressed"
-    : value === "outsourced" ? "With progressor"
+  // Voice fix (Stage 3, pre-flagged 3 + 4): translation table per VOICE_GUIDELINES.md
+  //   OLD: "Self-progressed" → "Managed by you"
+  //   OLD: "With progressor" → "Our team is handling"
+  const label = value === "self_managed" ? "Managed by you"
+    : value === "outsourced" ? "Our team is handling"
     : "Managed by";
 
   const opts: { value: "all" | "self_managed" | "outsourced"; label: string }[] = [
     { value: "all",          label: "All" },
-    { value: "self_managed", label: "Self-progressed" },
-    { value: "outsourced",   label: "With progressor" },
+    { value: "self_managed", label: "Managed by you" },
+    { value: "outsourced",   label: "Our team is handling" },
   ];
 
   return (
@@ -204,7 +214,7 @@ function ManagedByChip({ value, onChange }: {
         )}
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div className="agent-dropdown-in" style={{
+        <div ref={popoverRef} className="agent-dropdown-in" style={{
           position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
           background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
           boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
@@ -257,7 +267,15 @@ export function TransactionListWithSearch({
     return users.sort((a, b) => a.name.localeCompare(b.name));
   }, [transactions]);
 
-  const showUserFilter = uniqueUsers.length > 1;
+  // Director sees the Owner chip whenever there is at least one assigned owner
+  // in the visible set — preserves the affordance after hub-filter narrowing
+  // (e.g. clicking "X exchanging this week" on /agent/hub lands on a view where
+  // narrowed files often have one shared owner; without this director path, the
+  // chip would auto-hide). Negotiators keep the original > 1 logic: chip hides
+  // when there's nothing meaningful to filter by (they see only their own files).
+  const showUserFilter = isDirector
+    ? uniqueUsers.length > 0
+    : uniqueUsers.length > 1;
 
   const showManagedByFilter = useMemo(
     () =>
@@ -386,16 +404,20 @@ export function TransactionListWithSearch({
 
       {/* Results */}
       {filtered.length === 0 ? (
-        <div className="glass-card px-5 py-8 text-center">
-          <p className="text-sm text-slate-900/40 mb-2">
+        <div className="agent-glass-strong" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+          {/* OLD: "No files match the active filters." — Stage 3 voice fix (Rule 3):
+              drop the passive pointer to "the active filters" — agent already knows
+              what filter is on; same precedent as work-queue Stage 3 fix. */}
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--agent-text-muted)" }}>
             {query
               ? `No files match "${query}"`
-              : "No files match the active filters."}
+              : "No files match."}
           </p>
           {anyFilterActive && (
             <button
               onClick={clearAllFilters}
-              className="text-xs agent-link-primary"
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 12 }}
             >
               Clear filters
             </button>

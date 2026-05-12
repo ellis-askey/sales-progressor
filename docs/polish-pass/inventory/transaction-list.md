@@ -584,6 +584,27 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 - Dashboard's incremental work: `ForecastStrip` polish, `AgentFlagButton` placement, `AgentRequestsPanel` polish, the ghost-preview pattern in zero-files state
 - Recommend dashboard inventory be a much shorter document referencing this one + focused on the 3–4 dashboard-only surfaces
 
+### ForecastStrip design contract (locked 2026-05-12 — for dashboard Stage 1-4)
+
+Surfaced during transaction-list Stage 4 review: ForecastStrip is dashboard-only and was not touched in transaction-list's polish pass. Design direction locked here so dashboard's Stage 1-4 doesn't re-debate.
+
+**Visual:** keep the month-grouped file list. `agent-glass-strong` card surface; inherits canonical surface treatment (theme-aware, glass↔solid responsive).
+
+**New interaction (Stage 4 of dashboard adds):**
+- Month header (e.g. "JULY 2026") becomes clickable — currently static `<span>` at `components/transactions/ForecastStrip.tsx:45`
+- Click → URL filter on the dashboard table below (TransactionListWithSearch consumes the filtered set)
+- File-row links **stay unchanged** — still deep-link to `/agent/transactions/[id]`
+- Two affordances on one widget: scan-and-click-into-file (existing) + click-month-to-narrow-table-below (new)
+
+**Precedent:** parallels hub's existing stat-cell-to-filter pattern (`app/agent/hub/page.tsx:332, 420, 438, 456`). Same affordance, applied to dashboard's forecast surface.
+
+**URL-param scheme — open question for dashboard Stage 1:**
+- (a) Extend `HubFilter` (`lib/services/hub.ts:200`) with per-month keys like `exchange-month-2026-06` — keeps single filter pipeline
+- (b) Use a separate `?forecastMonth=2026-07` URL param handled only on dashboard — keeps HubFilter clean but adds a parallel param
+- Decision deferred to dashboard Stage 1 when the URL-routing implications can be considered against full polish-pass scope
+
+**File-row "click-through" behaviour: preserved.** No regression — agents who click a property name in the forecast still navigate to the file detail page.
+
 ---
 
 ## 13. Per-section visual specification
@@ -621,6 +642,7 @@ Reference: `docs/polish-pass/ANIMATION_STANDARDS.md`.
 |---|---|---|
 | 2026-05-12 | **Stage 2 polish page built.** `app/agent/polish/transaction-list/page.tsx`. State toggles: view (populated / zero-files / filter-empty / client-empty), hub filter on/off, director / negotiator (Owner column), reduced motion. Demonstrates every canonical class conversion catalogued in §13. **Bloom-decoration decision locked: Option A — dropped entirely.** PageHeader now identical to hub / transaction-detail / work-queue / dashboard. **`loading.tsx` added** to production at `app/agent/transactions/loading.tsx` (Stage 2 add per Ellis — work-queue loading.tsx as reference). Skeleton mirrors the polish page layout: PageHeader shape + status tab strip + filter bar + 6 row skeletons inside agent-glass-strong table. **Voice fixes applied to polish page** for all 7 §7.1 flagged strings (zero-files body, "on-hold" hyphenation, ManagedByChip labels, RISK_LABEL grammar bug, client-filtered empty, "Quiet" badge). All 4 dropdown surfaces (3 chips + risk popover) use `createPortal` + `agent-dropdown-in` per work-queue B1+B2 pattern. tsc clean. | §13 (all rows), polish page, loading.tsx |
 | 2026-05-12 | **Stage 3 voice pass complete.** Walked polish page top to bottom against `VOICE_GUIDELINES.md` three rules + tone calibration + translation table. Verified all 8 Stage 2 fixes (7 pre-flagged + status-tab "On hold" capitalisation from Stage 1 review). Surfaced 2 new violations: (1) StatusPill (StatusBadge) `STATUS_CFG.on_hold.label` read "On Hold" while status TAB read "On hold" — same status, two renderings on the same page; applied "On hold" at polish line 119; production-app-wide fix at `lib/utils.ts:69` flagged for Stage 4. (2) Hub filter banner "Showing **exchanging this week** (3)" was Rule 1 borderline ("Showing" narrates system state); applied "**Exchanging this week** · 3 files" — data-first phrasing. Structural questions confirmed: "Quiet" vs work-queue's "Not progressing" is deliberate per-surface divergence (documented); "Last active" passes; "Assigned to" sentence case already correct; FILTER_EMPTY descriptions pass ("appear here when X" is honest filter-rule description). Added §7.2 side-by-side voice-review table (every visible string, ✓-no-change rows kept visible). | §7.2 (new), polish page (2 rewrites) |
+| 2026-05-12 | **Stage 4 follow-up — Owner chip visibility for directors.** Surfaced during dashboard review: when a director clicks `X exchanges this week` on `/agent/hub`, they land on a narrowed view (often single-owner). Pre-existing `showUserFilter = uniqueUsers.length > 1` logic at `TransactionListWithSearch.tsx:270` then auto-hid the Owner chip, removing director-level filtering affordance after hub-filter entry. Not a regression from Stage 4 — long-standing behaviour. Fixed: `showUserFilter = isDirector ? uniqueUsers.length > 0 : uniqueUsers.length > 1`. Directors always see the chip when ≥1 owner exists in the visible set; negotiators keep `> 1` (they see only their own files, so the chip is meaningless without multiple owners). Auto-applies to `/agent/dashboard` via shared component. Plus: §12.1 amended with ForecastStrip design contract — clickable month headers will filter table below during dashboard Stage 1-4. | TransactionListWithSearch.tsx:270, §12.1 (Forecast design contract) |
 
 ---
 
