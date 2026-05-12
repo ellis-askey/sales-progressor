@@ -98,6 +98,8 @@ This gate was first established during new-v2 Stage 2/3 (2026-05-11). It applies
 
 **Updated 2026-05-11 (v2):** Playwright-verified evidence is now mandatory for all assertable gate items. "Observed in browser" language is retired — the format is now "Playwright assertion" (with test name + pass/fail + screenshot) or "requires Ellis browser walkthrough" (with specific check). Gate items without one of these two forms are blockers, not deferrals.
 
+**Visual baseline (established 2026-05-12):** The transaction-detail page (`/agent/transactions/[id]`) is the visual quality baseline for every subsequent page in the Polish Pass. It represents the completed Stage 4 standard: every animation, every hover, every spacing decision, every type-scale choice, and every theme treatment canonically applied. Every Stage 2 test page must be built to this bar. This is not a directional reference — it is the absolute floor. If a test page would not pass at transaction-detail quality in all six themes, reduced-motion, and keyboard-only modes, Stage 2 sign-off cannot be granted. When in doubt, open transaction-detail and compare directly.
+
 **Sign-off gate:** Post the completed GATE CONFIRMATION block below, including the Playwright run output and all screenshot references. Then ask Ellis to complete the walkthrough items and visit the preview route. No Stage 3 until Ellis replies with explicit approval.
 
 **GATE CONFIRMATION FORMAT** — copy this template and fill in every field before posting Stage 2 sign-off:
@@ -185,6 +187,18 @@ If during Stage 4 you find that something on the polish page doesn't work for pr
 10. **Playwright on the production route** — if the production route is automatable (static ID or test account), run the gate spec against it. If it requires a real transaction ID that Claude cannot supply, state this explicitly in the gate post and Ellis runs it before sign-off.
 11. If something regresses, revert (see Rollback below) and return to Stage 2
 
+**Stage 4 execution model:**
+
+One page, one atomic commit. The polish page is the contract — production must match it exactly when Stage 4 closes. Commit message format:
+
+```
+polish-pass: stage 4 — [page name] ([route])
+```
+
+There is no multi-commit Stage 4 for any regular page. The deferred Stage 4 exception (new-v2) is documented in its own section below and does not apply to any other page in the queue without explicit sign-off from Ellis.
+
+The commit happens after: visual parity confirmed section-by-section, tsc clean, local visibility check on the production route. The gate post includes the SHA — no SHA, no gate. "tsc clean" alone is not a gate.
+
 **Sign-off gate — mandatory format.** Post the following block before declaring Stage 4 ready. No field may be omitted or substituted with "should work":
 
 ```
@@ -271,6 +285,8 @@ The SHA field is structurally required. If there is no SHA, the commit has not b
 
 **24h monitoring window:** starts after the production deploy, not after the commit.
 
+**Completion bar:** The visual result must match transaction-detail quality (the absolute baseline established 2026-05-12). A Stage 4 that closes with visual, animation, or theme gaps relative to transaction-detail is not done — it is a partial. Post the gap in the gate, Ellis decides whether to hold or accept with a documented deferred item. Never silently ship below the bar.
+
 ---
 
 ## Critical Rules
@@ -336,7 +352,7 @@ After the agent pass completes, the buyer/seller portal pass begins, reusing thi
 - This workflow doc — all four stages, all rules, the preview route convention, the rollback path
 - `INVENTORY_TEMPLATE.md` — all sections apply to portal pages. The "who sees it" field will say "buyer/seller (token-authenticated)" instead of "agent (director/negotiator)"
 - `VOICE_GUIDELINES.md` — the three core rules apply. The translation table has a portal column. Tone calibration shifts from "brisk" to "reassuring, plain" — see the portal audience note in that doc
-- `ANIMATION_STANDARDS.md` — the five canonical classes (`.agent-acc`, `.agent-reveal-in`, `.agent-reveal-out`, `.agent-dropdown-in`, `.agent-row-flash`) and the per-page JS patterns apply to portal pages. The portal layout may need a one-line import of `agent-system.css` to pick them up — confirm at portal pass start. The portal-specific sheet slide-up (B6) and group accordion (B7) use the same `.agent-acc` pattern.
+- `ANIMATION_STANDARDS.md` — the six canonical classes (`.agent-acc`, `.agent-reveal-in`, `.agent-reveal-out`, `.agent-dropdown-in`, `.agent-row-flash`, `.agent-row-exit`) and the per-page JS patterns apply to portal pages. The portal layout may need a one-line import of `agent-system.css` to pick them up — confirm at portal pass start. The portal-specific sheet slide-up (B6) and group accordion (B7) use the same `.agent-acc` pattern.
 
 **What changes for the portal pass:**
 - Preview routes: `app/portal/polish/[page-slug]/page.tsx` instead of `app/agent/polish/`
