@@ -42,6 +42,10 @@
    Semantic — info:
      --agent-info, --agent-info-bg, --agent-info-border
 
+   Semantic — snoozed (theme-locked, like warning/danger/success/info):
+     --agent-snoozed, --agent-snoozed-bg, --agent-snoozed-border,
+     --agent-snoozed-rgb
+
    Glass surfaces:
      --agent-glass-bg, --agent-glass-bg-strong,
      --agent-glass-bg-subtle, --agent-glass-bg-hover,
@@ -141,6 +145,12 @@
     --agent-info:           #3D7AB8;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
+
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:           rgba(255, 255, 255, 0.50);
@@ -301,6 +311,12 @@
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
 
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.45);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.65);
@@ -459,6 +475,12 @@
     --agent-info:           #3D7AB8;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
+
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
@@ -619,6 +641,12 @@
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
 
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
@@ -778,6 +806,12 @@
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
 
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
@@ -936,6 +970,12 @@
     --agent-info:           #3D7AB8;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
+
+    /* ── Semantic — snoozed (theme-locked, like warning/danger/success/info) ─ */
+    --agent-snoozed:        #7E22CE;
+    --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
+    --agent-snoozed-border: rgba(126, 34, 206, 0.30);
+    --agent-snoozed-rgb:    126, 34, 206;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);

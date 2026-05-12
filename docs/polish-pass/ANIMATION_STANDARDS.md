@@ -396,6 +396,57 @@ Default `marginBottom` is 16px. Override inline where 20px is needed (e.g. Pipel
 
 ---
 
+## Canonical surface classes (added Stage 2, Work Queue pass)
+
+### S5 — Warning card header — `.agent-card-hdr-warning`
+
+**What it is:** Variant of `.agent-card-hdr` for cards whose header signals a warning or attention state. Same flex layout, padding (`12px 16px`), and border-bottom; background fills with `--agent-warning-bg` (theme-locked amber tint, identical hex across all six themes — see `themes.css` semantic-warning block).
+
+**When to use:** A card header that needs to feel like a *soft warning surface* rather than a neutral panel. The warning is structural to the surface, not a one-off badge.
+
+**Distinction from `.agent-card-hdr`:** Neutral header → `.agent-card-hdr`. Warning header → `.agent-card-hdr-warning`. Do not apply an inline `style={{ background: "amber-tint" }}` override on `.agent-card-hdr` — define a new variant if a new colour treatment is needed. Precedent: `.agent-hover-row-warning` at `agent-system.css:1084` (the paired warning-tint variant of `.agent-hover-row`).
+
+**How to use:**
+```jsx
+<div className="agent-glass-strong" style={{ overflow: "hidden" }}>
+  <div className="agent-card-hdr-warning">
+    <div className="flex items-center gap-2">
+      <Warning size={13} color="var(--agent-warning)" />
+      <span className="agent-card-title">3 file alerts</span>
+    </div>
+    <button className="agent-link-muted">Show ↓</button>
+  </div>
+  …
+</div>
+```
+
+**Where it applies:** Work queue `FileAlertsStrip` header (surfaces file-level data quality alerts — missing solicitor, overdue exchange, stale).
+
+---
+
+## Semantic tokens (added Stage 2, Work Queue pass)
+
+### Snoozed token family — `--agent-snoozed-*`
+
+**What it is:** A new theme-locked semantic colour family for the snoozed reminder state. Joins `--agent-warning-*`, `--agent-danger-*`, `--agent-success-*`, `--agent-info-*` as the fifth semantic state. Defined in all six theme blocks in `themes.css` at identical purple values.
+
+**Tokens:**
+
+| Token | Value | Purpose |
+|---|---|---|
+| `--agent-snoozed` | `#7E22CE` (purple-700 equivalent) | Primary text colour |
+| `--agent-snoozed-bg` | `rgba(126, 34, 206, 0.08)` | Surface tint |
+| `--agent-snoozed-border` | `rgba(126, 34, 206, 0.30)` | Border tint |
+| `--agent-snoozed-rgb` | `126, 34, 206` | rgba composition channel |
+
+**Why theme-locked (not theme-shifted):** Snoozed is a *single semantic state* with one meaning ("paused, will wake at scheduled time"), not a *signal within a colour-coded set* like E1's urgency hierarchy. Theme-locked semantic colours are the existing pattern for warning/danger/success/info — snoozed follows that precedent. E1 is the wrong precedent here: E1 governs multi-colour urgency relationships *within* a theme, not the colour of a single state *across* themes.
+
+**Where it applies:** Snoozed banner on `ReminderCard` (transaction-detail and work queue); any future "paused" / "deferred" / "hibernating" UI state.
+
+**Decision rationale (Work Queue Stage 2, 2026-05-12):** Initial production code used Tailwind `purple-50/200/600/700/800` values which are theme-fixed but escape the design system. Choice was between (a) a token family (token-driven theme-locked colour) or (b) documenting purple as an intentional E1-style exception. (a) was chosen because snoozed is structurally identical to warning/danger/success/info (single state, one universal meaning) and slotting it into the existing semantic-token pattern keeps the system uniform. (b) would have required defending why this one state lives outside the token system while four near-identical states live inside it.
+
+---
+
 ## Deliberate exceptions
 
 Components where semantic colour coding overrides canonical class rules. Do not "fix" these on any future pass — the exception is intentional and documented here.
@@ -681,3 +732,6 @@ The primary button is **fully per-theme** — coral is the token name, not a col
 | 2026-05-11 | `.agent-sidebar-label` added — 11px/600/uppercase/0.06em tracking/coral-deep. Replaces `glass-section-label text-slate-900/40` on all TransactionSidebar section labels (Progress, Exchange Forecast, Key Dates, Agent, Price & Fees). |
 | 2026-05-12 | `.agent-row-exit` added as §6 — row deletion exit (opacity + height collapse, 150ms ease-in). Canonical class count updated from 5 to 6. |
 | 2026-05-12 | Four surface/typography classes added (§S1–S4, Hub Stage 2): `.agent-card-hdr-internal` (internal floating card header, 16px marginBottom), `.agent-card-subtitle` (12px/muted, pairs with eyebrow), `.agent-card-title-emphasis` (13px/500/primary, attention/diary cards), `.agent-glass-light` (rgba 0.42 + blur 16px, activity ribbon). Mobile borderLeft orphan fix added to `globals.css` for `.hub-stats-grid > *:nth-child(3)`. |
+| 2026-05-12 | §S5 (Work Queue Stage 2): `.agent-card-hdr-warning` added — variant of `.agent-card-hdr` with `--agent-warning-bg` background tint. Applied to `FileAlertsStrip` header. Same flex/padding/border-bottom as base; only background differs. Precedent: `.agent-hover-row-warning` paired warning-tint variant. Resolves Stage 1 Point 2: no inline overrides of canonical classes. |
+| 2026-05-12 | **Semantic token family added (Work Queue Stage 2): `--agent-snoozed-*`** — `--agent-snoozed` `#7E22CE`, `--agent-snoozed-bg` `rgba(126,34,206,0.08)`, `--agent-snoozed-border` `rgba(126,34,206,0.30)`, `--agent-snoozed-rgb` `126, 34, 206`. Theme-locked across all six theme blocks (identical hex), joining `--agent-warning-*`, `--agent-danger-*`, `--agent-success-*`, `--agent-info-*` as the fifth semantic state. Replaces theme-fixed Tailwind purple values in `ReminderCard` snoozed mode. Rationale: snoozed is a single semantic state, not a multi-colour urgency hierarchy — E1 is the wrong precedent. |
+| 2026-05-12 | **Inventory template §15 added (locked during Work Queue Stage 1 approval):** new mandatory "Canonical contributions" section in `INVENTORY_TEMPLATE.md`. Tracks per-page new canonical classes and tokens with file:line citations, doc entries, and one-sentence reasons. Library maturity expectation: trends toward zero new entries by page 5 of the queue. |

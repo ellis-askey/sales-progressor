@@ -701,6 +701,20 @@
     line-height: 1;
   }
 
+  /* Warning variant of .agent-card-hdr — for card headers that signal a warning state
+   * (e.g. FileAlertsStrip on work queue surfacing file-level data quality alerts).
+   * Same structure and spacing as .agent-card-hdr; background uses --agent-warning-bg.
+   * Precedent: .agent-hover-row-warning (see below) — paired pattern for warning surfaces.
+   * Usage: <div className="agent-card-hdr-warning"><…title + count badges…></div> */
+  .agent-card-hdr-warning {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--agent-warning-bg);
+    border-bottom: 0.5px solid var(--agent-border-default);
+  }
+
   /* ── Internal card header (hub-style stat cards) ─────────────────────────── */
   /* For cards where the section label is internal to the card padding — no border-bottom,
    * no flush-to-top positioning. Contains an .agent-eyebrow label + .agent-card-subtitle.
