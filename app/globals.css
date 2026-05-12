@@ -818,3 +818,22 @@ select {
   background: rgba(var(--agent-coral-base-rgb), 0.15) !important;
   border: 1px solid rgba(var(--agent-coral-base-rgb), 0.35) !important;
 }
+
+/* ── ForecastStrip pill row — rolling 12-month window scroll behaviour
+ * Always-12 pills means narrow viewports can't fit the full row inline.
+ * Mobile (<640px) collapses to a horizontally-scrolling track with
+ * scroll-snap-x so each pill snaps cleanly under the user's thumb.
+ * Wider viewports use the default flex-wrap from the inline style. */
+@media (max-width: 639px) {
+  .forecast-pill-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0;
+  }
+  .forecast-pill-row > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+}

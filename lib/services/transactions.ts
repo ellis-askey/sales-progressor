@@ -307,7 +307,10 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
   });
 
   const now = new Date();
-  const cutoff = new Date(now.getFullYear(), now.getMonth() + 4, 1); // up to 3 months ahead
+  const windowStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Rolling 12-month window: current month through current+11. Cutoff is the
+  // first day of the 13th month; files with forecastDate < cutoff are in.
+  const cutoff = new Date(now.getFullYear(), now.getMonth() + 12, 1);
 
   const mapped = transactions
     .map((tx) => ({
@@ -316,26 +319,31 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
       forecastDate: (tx.overridePredictedDate ?? tx.expectedExchangeDate)!,
       serviceType: tx.serviceType,
     }))
-    .filter((tx) => tx.forecastDate >= new Date(now.getFullYear(), now.getMonth(), 1) && tx.forecastDate < cutoff)
+    .filter((tx) => tx.forecastDate >= windowStart && tx.forecastDate < cutoff)
     .sort((a, b) => a.forecastDate.getTime() - b.forecastDate.getTime());
 
-  const monthMap = new Map<string, ForecastMonth>();
+  // Always-12 contract: build the skeleton first so empty months have a slot
+  // and consumers can render a fixed-width forecast horizon. Disabled-empty
+  // pill state is rendered in components/transactions/ForecastStrip.tsx.
+  const months: ForecastMonth[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push({
+      label: d.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      transactions: [],
+    });
+  }
+  const indexByKey = new Map<string, number>(months.map((m, i) => [`${m.year}-${m.month}`, i]));
+
   for (const tx of mapped) {
-    const y = tx.forecastDate.getFullYear();
-    const m = tx.forecastDate.getMonth();
-    const key = `${y}-${m}`;
-    if (!monthMap.has(key)) {
-      monthMap.set(key, {
-        label: tx.forecastDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
-        year: y,
-        month: m,
-        transactions: [],
-      });
-    }
-    monthMap.get(key)!.transactions.push(tx);
+    const key = `${tx.forecastDate.getFullYear()}-${tx.forecastDate.getMonth()}`;
+    const idx = indexByKey.get(key);
+    if (idx !== undefined) months[idx].transactions.push(tx);
   }
 
-  return Array.from(monthMap.values());
+  return months;
 }
 
 export type PostExchangeTransaction = {
