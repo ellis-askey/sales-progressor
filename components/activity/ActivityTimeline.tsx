@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { formatDate } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction } from "@/app/actions/comms";
@@ -12,6 +13,13 @@ type Props = {
   entries: ActivityEntry[];
   transactionId: string;
   mosDocUrl?: string | null;
+  // Optional slot rendered above the timeline entries. Used by the Activity
+  // tab to mount the CommsEntry wizard above the entry list. Added as a
+  // typecheck-restoration patch (2026-05-12): the consumer at
+  // app/agent/transactions/[id]/page.tsx:438 was passing this prop already
+  // (committed in 696fea0) but the matching prop here was missing — tsc
+  // was being papered over by ambient working-tree changes.
+  beforeEntries?: ReactNode;
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
@@ -64,7 +72,7 @@ function CommPill({ entry }: { entry: Extract<ActivityEntry, { kind: "comm" }> }
   );
 }
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -123,14 +131,18 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl }: Props) {
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-8 text-sm text-slate-900/40">
-        No activity yet — milestone confirmations and communications will appear here.
+      <div>
+        {beforeEntries && <div className="mb-3">{beforeEntries}</div>}
+        <div className="text-center py-8 text-sm text-slate-900/40">
+          No activity yet — milestone confirmations and communications will appear here.
+        </div>
       </div>
     );
   }
 
   return (
     <div>
+      {beforeEntries && <div className="mb-3">{beforeEntries}</div>}
       {/* Filter bar */}
       <div className="flex items-center gap-2 flex-wrap mb-5">
         {FILTERS.map((f) => (

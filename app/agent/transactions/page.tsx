@@ -266,11 +266,12 @@ export default async function AllTransactionsPage({
             )}
 
             {/* Status tabs — hidden when any filter (hub or month) is active.
-             * agent-segment-pill-sm canonical hover/focus/active states;
-             * <Link> preserved for server-side URL routing. "On Hold" → "On hold"
-             * Stage 3 voice fix applied. */}
+             * Migrated to .agent-tab (V4 underline, static path — 2026-05-12).
+             * Server-rendered <Link> retained; aria-selected drives the static
+             * coral underline rule in agent-system.css. No JS hook, no sliding
+             * indicator: page navigation, not a UI transition. */}
             {!hubFilter && !monthFilter && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "auto" }}>
+              <div className="agent-tab-bar agent-tab-bar-static" style={{ flexWrap: "wrap", overflowX: "auto" }}>
                 {(
                   [
                     { value: "all", label: "All", count: allTransactions.length },
@@ -291,8 +292,9 @@ export default async function AllTransactionsPage({
                           : `/agent/transactions?filter=${value}`
                       }
                       scroll={false}
-                      className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+                      className="agent-tab"
+                      aria-selected={isActive || undefined}
+                      style={{ textDecoration: "none" }}
                     >
                       {label}
                       <span style={{

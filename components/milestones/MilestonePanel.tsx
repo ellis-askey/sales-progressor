@@ -271,8 +271,13 @@ export function MilestonePanel({
       )}
 
       {/* ── Side tabs ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-4">
+      {/* Migrated to .agent-tab (V4 underline, 2026-05-12). Vendor / Purchaser
+       * is sub-navigation choosing between two complete milestone trees —
+       * structurally a tab pair, not a chip pair. .agent-tab-bar-static
+       * renders the static coral underline via ::after; no JS hook needed. */}
+      <div className="agent-tab-bar agent-tab-bar-static mb-4">
         {(["vendor", "purchaser"] as const).map((side) => {
+          const isActive = activeTab === side;
           const mils = side === "vendor" ? vendor : purchaser;
           const applicable = mils.filter((m) => !m.isNotRequired);
           const done = applicable.filter((m) => m.isComplete).length;
@@ -282,13 +287,14 @@ export function MilestonePanel({
             <button
               key={side}
               onClick={() => handleTabChange(side)}
-              className={`agent-segment-pill${activeTab === side ? " on" : ""}`}
+              className="agent-tab"
+              aria-selected={isActive || undefined}
             >
               <span className="capitalize">{side}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                 gateOk
                   ? "bg-emerald-100/80 text-emerald-700"
-                  : activeTab === side
+                  : isActive
                   ? "bg-blue-50/80 text-blue-600"
                   : "bg-white/30 text-slate-900/50"
               }`}>

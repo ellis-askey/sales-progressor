@@ -344,35 +344,34 @@
    * Mark selected with .on. Subtitle text uses .agent-segment-pill-note.
    * Small variant: .agent-segment-pill-sm for compact inline chips. */
 
+  /* V2 canonical (2026-05-12) — solid filled chip, replaces the prior
+   * outlined-with-rest-alpha spec. Rationale: pill/tab canonical now splits
+   * along hierarchy (.agent-tab for top-level nav, .agent-segment-pill for
+   * lesser/sub-element selection). V2 emphasises clickability via fill
+   * density; .on becomes solid coral. Documented in ANIMATION_STANDARDS.md. */
   .agent-segment-pill {
     display: inline-flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
     border-radius: var(--agent-radius-md);
-    /* At-rest visibility bump 2026-05-12 — third instance of pill-on-cream
-     * issue fixed at canonical level. bg transparent → white 0.14; border
-     * --agent-border-default (0.10) → --agent-border-strong (0.18). Theme-aware
-     * via existing tokens + white-alpha (reads on every theme background). */
-    border: 1.5px solid var(--agent-border-strong);
-    background: rgba(255, 255, 255, 0.14);
-    color: var(--agent-text-muted);
+    background: rgba(255, 255, 255, 0.50);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    color: var(--agent-text-secondary);
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-medium);
     cursor: pointer;
     user-select: none;
-    transition: border-color var(--agent-transition-fast),
-                background   var(--agent-transition-fast),
-                color        var(--agent-transition-fast),
-                box-shadow   var(--agent-transition-fast);
+    transition: background  var(--agent-transition-fast),
+                color       var(--agent-transition-fast),
+                transform   var(--agent-transition-fast),
+                box-shadow  var(--agent-transition-fast),
+                border-color var(--agent-transition-fast);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
-    /* Hover escalates from rest via coral-tinted border (previews the .on
-     * selection direction) + brighter white-alpha bg. Theme-aware through
-     * --agent-coral-base-rgb (per-theme coral hue). */
-    border-color: rgba(var(--agent-coral-base-rgb), 0.30);
-    background: rgba(255, 255, 255, 0.32);
-    color: var(--agent-text-secondary);
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--agent-text-primary);
   }
   .agent-segment-pill:focus-visible {
     outline: none;
@@ -383,16 +382,19 @@
     transform: scale(0.97);
   }
   .agent-segment-pill.on {
+    background: var(--agent-coral-deep);
+    color: #fff;
     border-color: var(--agent-coral-deep);
-    background: var(--agent-coral-bg-tint);
-    color: var(--agent-text-primary);
+    box-shadow: 0 1px 3px rgba(var(--agent-coral-rgb), 0.35);
   }
   .agent-segment-pill.on:hover:not(:disabled) {
-    background: var(--agent-coral-bg-tint-hover);
+    /* No bg lighten on .on — solid coral is the destination state */
+    filter: brightness(1.05);
   }
   .agent-segment-pill:disabled {
-    opacity: 0.45;
+    opacity: 0.42;
     cursor: not-allowed;
+    pointer-events: none;
   }
   .agent-segment-pill-sm {
     padding: 3px 10px;
@@ -803,6 +805,24 @@
   .agent-tab:disabled {
     color: var(--agent-text-disabled);
     cursor: not-allowed;
+  }
+
+  /* Static-underline variant — no JS, no sliding indicator (2026-05-12).
+   * Apply .agent-tab-bar-static alongside .agent-tab-bar when the consumer
+   * does NOT render the useTabIndicator sliding bar. The active tab carries
+   * a 2px coral underline via ::after pseudo-element pinned to the tab's
+   * bottom. Use cases: server-rendered nav tabs where the underline never
+   * needs to animate between positions (transaction-list status tabs,
+   * MilestonePanel side tabs). */
+  .agent-tab-bar-static .agent-tab { position: relative; }
+  .agent-tab-bar-static .agent-tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    left: 14px; right: 14px;
+    bottom: 0;
+    height: 2px;
+    background: var(--agent-coral-deep);
+    border-radius: 1px 1px 0 0;
   }
 
   /* ── Dropdown menu items ─────────────────────────────────────────────────
