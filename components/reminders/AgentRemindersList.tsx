@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle, Clock } from "@phosphor-icons/react";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -54,19 +55,6 @@ function groupByFile(logs: AgentReminderLog[]): { txId: string; address: string;
   return Array.from(map.values());
 }
 
-function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-        active ? "bg-white/70 shadow-sm text-slate-900/90" : "bg-white/30 text-slate-900/50 hover:bg-white/50"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 // Group border colours matching ReminderCard left-border colours
 const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
   escalated: "#dc2626",
@@ -83,40 +71,52 @@ const SNOOZE_OPTIONS_SPLIT = [
   { label: "7 days", hours: 168 },
 ];
 
-function SideSnoozeMenu({ taskIds, onSnooze, disabled }: {
+function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
+  logIds: string[];
   taskIds: string[];
-  onSnooze: (taskId: string, hours: number) => void;
+  onSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
-        disabled={disabled}
-        style={{
-          fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.50)",
-          padding: "5px 10px", borderRadius: 8, border: "0.5px solid rgba(15,23,42,0.12)",
-          background: "rgba(255,255,255,0.55)", cursor: "pointer", whiteSpace: "nowrap",
-          display: "flex", alignItems: "center", gap: 4,
+        onClick={() => {
+          if (!open && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            setPos({ top: r.top - 4, left: r.left });
+          }
+          setOpen((p) => !p);
         }}
+        disabled={disabled}
+        className="agent-btn agent-btn-sm agent-btn-ghost"
+        style={{ whiteSpace: "nowrap" }}
       >
-        <span style={{ fontSize: 10 }}>🕐</span> Snooze all
+        <Clock size={12} weight="regular" /> Snooze all
       </button>
-      {open && (
+      {open && pos && typeof document !== "undefined" && createPortal(
         <div
-          className="absolute bottom-full mb-1 left-0 z-30"
+          className="agent-dropdown-in"
           style={{
+            position: "fixed", top: pos.top, left: pos.left,
+            transform: "translateY(-100%)",
+            zIndex: 9999,
             background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
             minWidth: 110,
@@ -126,15 +126,16 @@ function SideSnoozeMenu({ taskIds, onSnooze, disabled }: {
             <button
               key={opt.hours}
               onClick={() => {
-                taskIds.forEach((id) => onSnooze(id, opt.hours));
+                onSnoozeAll(logIds, taskIds, opt.hours);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors"
+              className="agent-dropdown-item"
             >
               {opt.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -145,34 +146,45 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
   onSnooze: (taskId: string, hours: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
-        title="Snooze this reminder"
-        style={{
-          fontSize: 10, color: "rgba(15,23,42,0.40)",
-          padding: "3px 7px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)",
-          background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0,
-          display: "flex", alignItems: "center",
+        onClick={() => {
+          if (!open && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            setPos({ top: r.top - 4, right: window.innerWidth - r.right });
+          }
+          setOpen((p) => !p);
         }}
+        title="Snooze"
+        className="agent-btn agent-btn-sm agent-btn-secondary"
+        style={{ flexShrink: 0 }}
       >
-        🕐
+        <Clock size={12} weight="regular" />
       </button>
-      {open && (
+      {open && pos && typeof document !== "undefined" && createPortal(
         <div
-          className="absolute bottom-full mb-1 right-0 z-30"
+          className="agent-dropdown-in"
           style={{
+            position: "fixed", top: pos.top, right: pos.right,
+            transform: "translateY(-100%)",
+            zIndex: 9999,
             background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
             minWidth: 110,
@@ -185,12 +197,13 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
                 onSnooze(taskId, opt.hours);
                 setOpen(false);
               }}
-              className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors"
+              className="agent-dropdown-item"
             >
               {opt.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -203,8 +216,10 @@ function SideColumn({
   address,
   contacts,
   loading,
+  exitingIds,
   handleComplete,
   handleSnooze,
+  handleSnoozeAll,
   handleChased,
 }: {
   logs: AgentReminderLog[];
@@ -213,8 +228,10 @@ function SideColumn({
   address: string;
   contacts: AgentReminderLog["transaction"]["contacts"];
   loading: string | null;
+  exitingIds: Set<string>;
   handleComplete: (taskId: string) => void;
   handleSnooze: (taskId: string, hours: number) => void;
+  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleChased: (taskId: string) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -238,6 +255,7 @@ function SideColumn({
 
   const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
   const allTaskIds = openTasks.map(({ task }) => task.id);
+  const allLogIds  = openTasks.map(({ log })  => log.id);
   const chaseContacts = contacts.filter((c) =>
     isSeller
       ? ["vendor", "solicitor"].includes(c.roleType)
@@ -264,8 +282,9 @@ function SideColumn({
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
           {isSeller ? "Seller" : "Buyer"}
         </span>
+        {/* OLD: "{N} item / items" — Rule 3: "item" is generic; "reminder" matches the page's primary noun */}
         <span style={{ fontSize: 10, color: "rgba(15,23,42,0.35)", marginLeft: "auto" }}>
-          {logs.length} {logs.length === 1 ? "item" : "items"}
+          {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
         </span>
       </div>
 
@@ -287,10 +306,11 @@ function SideColumn({
             : isDueToday ? "Due today"
             : null;
 
+          const isExiting = exitingIds.has(log.id);
           return (
             <div
               key={log.id}
-              className={loading === task.id ? "agent-row-flash" : undefined}
+              className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
               style={{
                 padding: "7px 12px",
                 borderTop: i > 0 ? `0.5px solid rgba(15,23,42,0.06)` : undefined,
@@ -308,17 +328,15 @@ function SideColumn({
                 )}
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+              {/* OLD: title="Confirm milestone done" — Rule 2 schema jargon (milestone → step) */}
               <button
                 onClick={() => handleComplete(task.id)}
-                disabled={loading === task.id}
-                title="Confirm milestone done"
-                style={{
-                  fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.45)",
-                  padding: "3px 8px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)",
-                  background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
-                }}
+                disabled={loading === task.id || isExiting}
+                title="Mark step done"
+                className="agent-btn agent-btn-sm agent-btn-secondary"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
               >
-                ✓ Done
+                <CheckCircle size={12} weight="fill" /> Done
               </button>
             </div>
           );
@@ -334,18 +352,15 @@ function SideColumn({
         }}>
           <button
             onClick={() => setDrawerOpen(true)}
-            style={{
-              flex: 1, fontSize: 11, fontWeight: 600, color: "white",
-              padding: "6px 10px", borderRadius: 8, border: "none",
-              background: isSeller ? "#ea580c" : "#3b82f6",
-              cursor: "pointer", whiteSpace: "nowrap",
-            }}
+            className="agent-btn agent-btn-sm agent-btn-primary"
+            style={{ flex: 1, whiteSpace: "nowrap" }}
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
           </button>
           <SideSnoozeMenu
+            logIds={allLogIds}
             taskIds={allTaskIds}
-            onSnooze={handleSnooze}
+            onSnoozeAll={handleSnoozeAll}
             disabled={loading !== null}
           />
         </div>
@@ -412,8 +427,10 @@ function SplitFileCard({
   logs,
   groupKey,
   loading,
+  exitingIds,
   handleComplete,
   handleSnooze,
+  handleSnoozeAll,
   handleEscalate,
   handleManualChase,
   handleChased,
@@ -423,8 +440,10 @@ function SplitFileCard({
   logs: AgentReminderLog[];
   groupKey: UrgencyGroup;
   loading: string | null;
+  exitingIds: Set<string>;
   handleComplete: (taskId: string) => void;
   handleSnooze: (taskId: string, hours: number) => void;
+  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleEscalate: (taskId: string) => void;
   handleManualChase: (taskId: string) => void;
   handleChased: (taskId: string) => void;
@@ -445,39 +464,48 @@ function SplitFileCard({
 
   return (
     <div
-      className="glass-card"
+      className="agent-glass-strong"
       style={{ borderRadius: 20, borderLeft: `4px solid ${leftBorder}` }}
     >
-      {/* Address header — top corners match card radius minus border-left width */}
-      <div style={{
-        padding: "10px 20px",
+      {/* Address header — agent-card-hdr canonical with semi-transparent bg + tighter padding.
+       * borderRadius inline override clips header bg to the outer card's rounded corners
+       * (16px left = 20px outer minus 4px borderLeft). overflow:hidden NOT applied to outer
+       * so absolute-positioned dropdowns (RowSnoozeMenu / SideSnoozeMenu) can extend
+       * beyond the card without being clipped. */}
+      <div className="agent-card-hdr" style={{
         background: "rgba(255,255,255,0.28)",
-        borderBottom: "0.5px solid rgba(255,255,255,0.40)",
+        padding: "10px 20px",
         borderRadius: "16px 20px 0 0",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       }}>
-        <Link
-          href={`/agent/transactions/${txId}`}
-          style={{
-            fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
-            textDecoration: "none", flex: 1, minWidth: 0,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}
-        >
-          {address} →
-        </Link>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+          <Link
+            href={`/agent/transactions/${txId}`}
+            className="agent-link"
+            style={{
+              fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)",
+              textDecoration: "none",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}
+          >
+            {address}
+          </Link>
+          {/* Arrow extracted to sibling span — outside the anchor so agent-link's
+              hover underline does not extend across the arrow. */}
+          <span aria-hidden style={{ fontSize: 13, color: "var(--agent-text-muted)", flexShrink: 0 }}>→</span>
+        </div>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
           {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
         </span>
       </div>
 
-      {/* Two-column body — always both sides; empty side shows placeholder */}
-      <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
+      {/* Two-column body — always both sides; empty side shows placeholder.
+       * wq-split-body class enables mobile stacking via @media in globals.css. */}
+      <div className="wq-split-body" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
         {effectiveSellerLogs.length > 0
-          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
           : <EmptyColumn side="seller" />}
         {buyerLogs.length > 0
-          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
           : <EmptyColumn side="buyer" />}
       </div>
     </div>
@@ -491,8 +519,12 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: true, overdue: true, due_today: true, upcoming: true });
+  // Initial collapse state: Escalated + Overdue expanded by default (act-now categories);
+  // Due Today + Coming Up collapsed (scan-when-time-permits). Matches the urgency-colour
+  // hierarchy and the agent's natural priority sweep. Locked 2026-05-12 per Ellis.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: false, overdue: false, due_today: true, upcoming: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
 
   useEffect(() => {
@@ -504,6 +536,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
 
   useEffect(() => {
     setHiddenIds(new Set());
+    setExitingIds(new Set());
     setOptimisticSnoozeAdd(0);
   }, [logs]);
 
@@ -569,19 +602,45 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
     });
   }
 
+  // Two-step exit: setExitingIds → 150ms (matches agent-row-exit duration) → hideByTaskId
+  // + fire server action. agent-row-exit's `forwards` fill keeps the row collapsed until
+  // the React filter removes it via hiddenIds.
   function handleComplete(taskId: string) {
-    hideByTaskId(taskId);
-    act(taskId, () => completeTaskAction(taskId, "/agent/work-queue"));
+    const logId = taskToLogId.get(taskId);
+    if (logId) setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+    setTimeout(() => {
+      hideByTaskId(taskId);
+      act(taskId, () => completeTaskAction(taskId, "/agent/work-queue"));
+    }, 150);
   }
   function handleSnooze(taskId: string, hours: number) {
-    hideByTaskId(taskId);
-    setOptimisticSnoozeAdd((n) => n + 1);
-    act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue"));
+    const logId = taskToLogId.get(taskId);
+    if (logId) setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+    setTimeout(() => {
+      hideByTaskId(taskId);
+      setOptimisticSnoozeAdd((n) => n + 1);
+      act(taskId, () => snoozeTaskAction(taskId, hours, "/agent/work-queue"));
+    }, 150);
+  }
+  function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
+    setExitingIds((prev) => {
+      const next = new Set(prev);
+      logIds.forEach((id) => next.add(id));
+      return next;
+    });
+    setTimeout(() => {
+      setHiddenIds((prev) => { const next = new Set(prev); logIds.forEach((id) => next.add(id)); return next; });
+      setOptimisticSnoozeAdd((n) => n + taskIds.length);
+      act(taskIds[0] ?? "", () => Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, "/agent/work-queue"))));
+    }, 150);
   }
   function handleEscalate(taskId: string) { act(taskId, () => escalateTaskAction(taskId, "/agent/work-queue")); }
   function handleWakeup(logId: string) {
-    setHiddenIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
-    act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
+    setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+    setTimeout(() => {
+      setHiddenIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+      act(logId, () => wakeupReminderAction(logId, "/agent/work-queue"));
+    }, 150);
   }
   function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
   function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, "/agent/work-queue")); }
@@ -609,7 +668,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
 
   return (
     <div className="space-y-5">
-      {/* Sticky filter bar — sections 4 */}
+      {/* Sticky filter bar — agent-input + agent-segment-pill canonical */}
       <div
         style={{
           position: "sticky",
@@ -620,11 +679,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           WebkitBackdropFilter: "blur(16px)",
           borderRadius: "var(--agent-radius-lg)",
           border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.18)",
-          paddingTop: 10,
-          paddingBottom: 10,
-          paddingLeft: 16,
-          paddingRight: 16,
-          marginTop: -4,
+          padding: "10px 16px",
         }}
       >
         <input
@@ -632,31 +687,33 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           placeholder="Search address or reminder…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-1.5 text-base rounded-lg glass-subtle border-0 outline-none placeholder:text-slate-900/30 text-slate-900/80 mb-2"
+          className="agent-input agent-input-sm"
+          style={{ width: "100%", marginBottom: 10, fontSize: 13 }}
         />
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1">
-            <FilterChip active={sideFilter === "all"}    onClick={() => setSideFilter("all")}>All</FilterChip>
-            <FilterChip active={sideFilter === "seller"} onClick={() => setSideFilter("seller")}>Seller</FilterChip>
-            <FilterChip active={sideFilter === "buyer"}  onClick={() => setSideFilter("buyer")}>Buyer</FilterChip>
+        <div className="wq-filter-pills" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "all"    ? " on" : ""}`} onClick={() => setSideFilter("all")}>All</button>
+            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "seller" ? " on" : ""}`} onClick={() => setSideFilter("seller")}>Seller</button>
+            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "buyer"  ? " on" : ""}`} onClick={() => setSideFilter("buyer")}>Buyer</button>
           </div>
-          <div className="flex items-center gap-1">
-            <FilterChip active={statusFilter === "active"}  onClick={() => setStatusFilter("active")}>Active</FilterChip>
-            <FilterChip active={statusFilter === "snoozed"} onClick={() => setStatusFilter("snoozed")}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button className={`agent-segment-pill agent-segment-pill-sm${statusFilter === "active"  ? " on" : ""}`} onClick={() => setStatusFilter("active")}>Active</button>
+            <button className={`agent-segment-pill agent-segment-pill-sm${statusFilter === "snoozed" ? " on" : ""}`} onClick={() => setStatusFilter("snoozed")}>
               Snoozed{snoozedCount > 0 ? ` (${snoozedCount})` : ""}
-            </FilterChip>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Filtered empty states */}
       {statusFilter === "active" && !hasActiveResults && (
-        <div className="glass-card px-5 py-8 text-center">
-          <p className="text-sm text-slate-900/40">
+        <div className="agent-glass-strong" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
+            {/* OLD: "No reminders match the current filter." — Rule 3 (active/specific) — Stage 3 voice review */}
             {sideFilter !== "all"
               ? `No reminders for ${sideFilter === "seller" ? "Seller" : "Buyer"} right now.`
               : q
-                ? "No reminders match the current filter."
+                ? "No reminders match."
                 : "No active reminders."}
           </p>
         </div>
@@ -675,6 +732,8 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
 
         return (
           <div key={groupKey} className="space-y-2" id={sectionId}>
+            {/* E1 exception preserved: semantic colour-coded header is the primary
+                urgency signal — intentionally NOT agent-acc-hdr. See ANIMATION_STANDARDS §E1. */}
             <div className={`flex items-center justify-between px-3 py-2 rounded-xl ${cfg.headerCls}`}>
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.labelCls}`}>{cfg.label}</span>
@@ -682,32 +741,38 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
               </div>
               <button
                 onClick={() => toggleCollapse(groupKey)}
-                className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors"
+                className="agent-link agent-link-muted"
+                style={{ fontSize: 12 }}
               >
                 {isCollapsed ? "Show" : "Hide"}
               </button>
             </div>
-            {!isCollapsed && (
-              <div className="space-y-2">
-                {fileGroups.map(({ txId, address, logs: fileLogs }) => {
-                  return (
-                    <SplitFileCard
-                      key={txId}
-                      txId={txId}
-                      address={address}
-                      logs={fileLogs}
-                      groupKey={groupKey}
-                      loading={loading}
-                      handleComplete={handleComplete}
-                      handleSnooze={handleSnooze}
-                      handleEscalate={handleEscalate}
-                      handleManualChase={handleManualChase}
-                      handleChased={handleChased}
-                    />
-                  );
-                })}
+            {/* agent-acc / agent-acc-in: mounted always, animated height transition */}
+            <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
+              <div className="agent-acc-in">
+                <div className="space-y-2">
+                  {fileGroups.map(({ txId, address, logs: fileLogs }) => {
+                    return (
+                      <SplitFileCard
+                        key={txId}
+                        txId={txId}
+                        address={address}
+                        logs={fileLogs}
+                        groupKey={groupKey}
+                        loading={loading}
+                        exitingIds={exitingIds}
+                        handleComplete={handleComplete}
+                        handleSnooze={handleSnooze}
+                        handleSnoozeAll={handleSnoozeAll}
+                        handleEscalate={handleEscalate}
+                        handleManualChase={handleManualChase}
+                        handleChased={handleChased}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         );
       })}
@@ -715,27 +780,32 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
       {/* Snoozed section — sorted by nextDueDate asc (= snooze end date asc, set by snoozeReminderLog) */}
       {statusFilter === "snoozed" && (
         filteredSnoozed.length === 0 ? (
-          <div className="glass-card px-5 py-6 text-center">
-            <p className="text-sm text-slate-900/40">No snoozed reminders{q ? " matching filter" : ""}.</p>
+          <div className="agent-glass-strong" style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
+            {/* OLD: "No snoozed reminders matching filter." — Rule 3 smoother active phrasing — Stage 3 voice review */}
+            <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>{q ? "No matching snoozed reminders." : "No snoozed reminders."}</p>
           </div>
         ) : (
           <div className="space-y-2">
             {filteredSnoozed.map((log) => (
-              <ReminderCard
-                key={log.id}
-                log={log}
-                transactionId={log.transaction.id}
-                contacts={log.transaction.contacts}
-                propertyAddress={log.transaction.propertyAddress}
-                showAddressLink
-                mode="snoozed"
-                isLoading={loading}
-                onComplete={handleComplete}
-                onSnooze={handleSnooze}
-                onEscalate={handleEscalate}
-                onWakeup={handleWakeup}
-                onManualChase={handleManualChase}
-              />
+              // Wake-now exit: wrap so agent-row-exit collapses height + opacity in 150ms
+              // before handleWakeup removes the card via hiddenIds. Matches the four-path
+              // exit pattern (Done / row snooze / side snooze / Wake now).
+              <div key={log.id} className={exitingIds.has(log.id) ? "agent-row-exit" : ""}>
+                <ReminderCard
+                  log={log}
+                  transactionId={log.transaction.id}
+                  contacts={log.transaction.contacts}
+                  propertyAddress={log.transaction.propertyAddress}
+                  showAddressLink
+                  mode="snoozed"
+                  isLoading={loading}
+                  onComplete={handleComplete}
+                  onSnooze={handleSnooze}
+                  onEscalate={handleEscalate}
+                  onWakeup={handleWakeup}
+                  onManualChase={handleManualChase}
+                />
+              </div>
             ))}
           </div>
         )
