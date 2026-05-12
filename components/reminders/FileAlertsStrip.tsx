@@ -36,15 +36,12 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
   const staleCount = items.filter((i) => i.alerts.includes("stale")).length;
 
   return (
-    <div className="glass-card overflow-hidden" style={{ clipPath: "inset(0 round 20px)" }}>
-      {/* Header — always visible */}
-      <div
-        className={`flex items-center justify-between px-4 py-2.5 ${!collapsed ? "border-b border-white/30" : ""}`}
-        style={{ background: "rgba(251, 191, 36, 0.08)" }}
-      >
+    <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      {/* Header — agent-card-hdr-warning (canonical, ANIMATION_STANDARDS §S5) */}
+      <div className="agent-card-hdr-warning">
         <div className="flex items-center gap-2 flex-wrap">
           <Warning weight="fill" style={{ width: 13, height: 13, color: "var(--agent-warning)", flexShrink: 0 }} />
-          <span className="text-xs font-semibold text-slate-900/60">
+          <span className="agent-card-title">
             {items.length} file alert{items.length !== 1 ? "s" : ""}
           </span>
           {overdueCount > 0 && (
@@ -59,22 +56,26 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
           )}
           {staleCount > 0 && (
             <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-600 border border-sky-100">
-              {staleCount} stale
+              {/* OLD: "{N} stale" — Rule 2: "stale" is dev shorthand. The per-row label
+                   in ALERT_CONFIG already reads "No progress in 14+ days"; this summary
+                   badge now matches that spirit in active voice. */}
+              {staleCount} not progressing
             </span>
           )}
         </div>
         <button
           onClick={() => setCollapsed((p) => !p)}
-          className="text-xs text-slate-900/40 hover:text-slate-900/60 transition-colors shrink-0 ml-2"
+          className="agent-link agent-link-muted"
+          style={{ fontSize: 12 }}
         >
-          {collapsed ? "Show ↓" : "Hide ↑"}
+          {collapsed ? "Show" : "Hide"}
         </button>
       </div>
 
-      {/* Expanded body */}
-      {!collapsed && (
-        <div className="divide-y divide-white/30">
-          {items.map((item) => {
+      {/* Expanded body — agent-acc / agent-acc-in for animated height transition */}
+      <div className={`agent-acc${!collapsed ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          {items.map((item, i) => {
             const hasBothSolicitorsMissing =
               item.alerts.includes("missing_vendor_solicitor") &&
               item.alerts.includes("missing_purchaser_solicitor");
@@ -93,7 +94,14 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             }
 
             return (
-              <div key={item.id} className="px-4 py-2.5 hover:bg-white/20 transition-colors">
+              <div
+                key={item.id}
+                className="agent-hover-row"
+                style={{
+                  padding: "10px 16px",
+                  borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                }}
+              >
                 {/* Address — full-width row, no competition with badges */}
                 <Link
                   href={`/agent/transactions/${item.id}`}
@@ -127,8 +135,8 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
                   {actionLabel && (
                     <Link
                       href={deepLink}
-                      style={{ textDecoration: "none" }}
-                      className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-white/50 border border-white/60 text-slate-900/60 hover:bg-white/70 hover:text-slate-900/80 transition-colors whitespace-nowrap"
+                      className="agent-link agent-link-muted"
+                      style={{ fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
                     >
                       {actionLabel}
                     </Link>
@@ -138,7 +146,7 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             );
           })}
         </div>
-      )}
+      </div>
     </div>
   );
 }

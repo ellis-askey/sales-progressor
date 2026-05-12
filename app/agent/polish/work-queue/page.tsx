@@ -271,14 +271,13 @@ export default function WorkQueuePolishPage() {
 type PillColor = "danger" | "warning" | "muted";
 
 function StatPill({ href, label, color }: { href: string; label: string; color: PillColor }) {
-  /* Brightness matches StatusBadge pattern (text-red-700 bg-red-50 border-red-200):
-   * - Solid pale tint background (bumped from 0.08 → 0.16)
-   * - Clearly visible coloured border (bumped from 0.15 → 0.40)
-   * - Locked semantic text colour (--agent-danger / --agent-warning) */
+  /* Solid pale-tint backgrounds matching StatusBadge (bg-red-50/border-red-200 pattern).
+   * Theme-fixed semantic pills — pop on any agent background, including cool-toned
+   * themes (Heritage, Slate) where rgba-tinted bgs blend into the page. */
   const styleMap: Record<PillColor, React.CSSProperties> = {
-    danger:  { color: "var(--agent-danger)",     background: "rgba(var(--agent-danger-rgb),0.16)",  border: "1px solid rgba(var(--agent-danger-rgb),0.40)"  },
-    warning: { color: "var(--agent-warning)",    background: "rgba(var(--agent-warning-rgb),0.16)", border: "1px solid rgba(var(--agent-warning-rgb),0.40)" },
-    muted:   { color: "var(--agent-text-secondary)", background: "rgba(0,0,0,0.05)",                border: "1px solid rgba(0,0,0,0.18)"                    },
+    danger:  { color: "var(--agent-danger)",         background: "#fef2f2", border: "1px solid #fecaca" }, // red-50  / red-200
+    warning: { color: "var(--agent-warning)",        background: "#fffbeb", border: "1px solid #fde68a" }, // amber-50 / amber-200
+    muted:   { color: "var(--agent-text-secondary)", background: "#f8fafc", border: "1px solid #e2e8f0" }, // slate-50 / slate-200
   };
   return (
     <a href={href} className="agent-link" style={{

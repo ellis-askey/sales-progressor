@@ -353,7 +353,8 @@ Walked the polish page top to bottom against `VOICE_GUIDELINES.md` (three rules 
 | PageHeader subtitle | "What needs chasing, today and ahead." | ✓ no change | Active, present, specific |
 | StatPill | "{N} overdue" / "{N} due today" / "{N} coming up" | ✓ no change | Factual counts |
 | FileAlertsStrip header count | "{N} file alert" / "{N} file alerts" | ✓ no change | Factual |
-| FileAlertsStrip header badges | "{N} overdue exchange" / "{N} missing solicitor" / "{N} stale" | ✓ no change | Factual; "stale" is borderline jargon but industry-adjacent and acceptable |
+| FileAlertsStrip header — overdue exchange / missing solicitor badges | "{N} overdue exchange" / "{N} missing solicitor" | ✓ no change | Adjective+noun state labels, plain English |
+| FileAlertsStrip header — stale badge **[NEW, surfaced during Stage 4 §2 by Ellis]** | "{N} stale" | "{N} not progressing" | Rule 2 (dev shorthand): "stale" is a database/dev term meaning "hasn't been updated". Agents don't think in those terms. The per-row label in `lib/services/work-queue.ts:30` already reads "No progress in 14+ days" — the summary badge now mirrors that spirit. Active voice. Applied at `components/reminders/FileAlertsStrip.tsx:61`. Stage 3 review missed this — corrected mid-Stage-4. |
 | FileAlertsStrip toggle | "Show" / "Hide" | ✓ no change | Imperative |
 | FileAlertsStrip action links | "Add purchaser solicitor →" / "Add vendor solicitor →" / "Add solicitors →" / "Update exchange date →" | ✓ no change | Imperative, specific |
 | FileAlertsStrip row badges | "Overdue exchange" / "Missing solicitor" / "Stale" | ✓ no change | Factual state labels |

@@ -73,46 +73,41 @@ export default async function WorkQueuePage() {
         {items.length > 0 && <FileAlertsStrip items={items} />}
         {reminderLogs.length === 0 && activeFileCount === 0 ? (
           <>
-            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                 Your reminders will appear here
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                Once you create a sale, we&apos;ll surface chases and follow-ups as files progress.
+                {/* OLD: "Once you create a sale, we'll surface chases and follow-ups as files progress." — Rule 1 (VOICE_GUIDELINES.md pre-catalogued) */}
+                Chases and follow-ups appear here as your files move forward.
               </p>
             </div>
 
-            {/* Ghost reminder groups preview */}
-            <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Ghost reminder groups preview — skeleton lines, not mock data.
+             * Keeps group headers + row count to convey the structure agents will see;
+             * replaces hardcoded addresses/reminders/tags with .agent-skeleton shapes. */}
+            <div style={{ opacity: 0.5, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
               {[
-                { groupLabel: "Overdue", color: "#dc2626", reminders: [
-                  { addr: "14 Maple Close, Birmingham", milestone: "Mortgage offer — chaser due", tag: "3 days overdue" },
-                  { addr: "8 The Crescent, Bristol", milestone: "Search results — follow-up", tag: "1 day overdue" },
-                ]},
-                { groupLabel: "Due today", color: "#d97706", reminders: [
-                  { addr: "22 Victoria Road, Manchester", milestone: "Contract pack — review", tag: "Due today" },
-                ]},
-              ].map(({ groupLabel, color, reminders }) => (
+                { groupLabel: "Overdue",   rows: 2 },
+                { groupLabel: "Due today", rows: 1 },
+              ].map(({ groupLabel, rows }) => (
                 <div key={groupLabel}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{groupLabel}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, borderRadius: 99, padding: "1px 7px" }}>{reminders.length}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-muted)" }}>{groupLabel}</span>
+                    <div className="agent-skeleton" style={{ height: 18, width: 22, borderRadius: 99 }} />
                   </div>
                   <div className="agent-glass-strong" style={{ borderRadius: 12, overflow: "hidden" }}>
-                    {reminders.map((r, i) => (
+                    {Array.from({ length: rows }).map((_, i) => (
                       <div key={i} style={{
                         padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
                         borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                       }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.addr}</p>
-                          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{r.milestone}</p>
+                          <div className="agent-skeleton" style={{ height: 12, width: "55%", borderRadius: 6, marginBottom: 7 }} />
+                          <div className="agent-skeleton" style={{ height: 10, width: "38%", borderRadius: 6 }} />
                         </div>
-                        <div style={{ flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
-                          <span style={{ fontSize: 11, fontWeight: 500, color, background: `${color}12`, borderRadius: 6, padding: "3px 8px" }}>{r.tag}</span>
-                          <div style={{ height: 30, width: 70, borderRadius: 8, background: "rgba(255,255,255,0.6)", border: "0.5px solid var(--agent-border-subtle)" }} />
-                        </div>
+                        <div className="agent-skeleton" style={{ height: 20, width: 76, borderRadius: 6, flexShrink: 0 }} />
                       </div>
                     ))}
                   </div>

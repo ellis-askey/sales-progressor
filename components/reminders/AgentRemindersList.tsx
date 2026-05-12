@@ -593,11 +593,12 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   // Full empty state (zero logs, before any filter)
   if (logs.length === 0) {
     return (
-      <div className="glass-card" style={{ padding: "40px 32px", textAlign: "center" }}>
+      <div className="agent-glass-strong" style={{ padding: "40px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
         <CheckCircle weight="fill" style={{ width: 32, height: 32, color: "var(--agent-success)", margin: "0 auto 10px" }} />
         <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>All caught up</p>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          No reminders due right now. We&rsquo;ll surface them here as files progress.
+          {/* OLD: "No reminders due right now. We'll surface them here as files progress." — Rule 1 (system self-reference) */}
+          No reminders due right now. They&rsquo;ll appear here as files move forward.
         </p>
       </div>
     );
