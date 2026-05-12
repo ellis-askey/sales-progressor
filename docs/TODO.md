@@ -173,3 +173,40 @@ but were deliberately deferred. Listed here in rough priority order.
 - **Prisma migration history shadow DB drift** — `migrate dev` fails;
   workaround using `prisma db execute` with targeted SQL. Reconcile
   before launch.
+
+---
+
+## RemindersSection / AgentRemindersList drift audit
+
+Filed 2026-05-12 during work queue Stage 1 inventory.
+
+`components/reminders/RemindersSection.tsx` (transaction-detail) and
+`components/reminders/AgentRemindersList.tsx` (work queue) contain
+near-parallel inline sub-components:
+
+- `RowSnoozeMenu` (RemindersSection:87 / AgentRemindersList:143)
+- `SideSnoozeMenu` (RemindersSection:117 / AgentRemindersList:86)
+- `ColumnSection` ↔ `SideColumn` (RemindersSection:162 / AgentRemindersList:199)
+- `EmptyColumn` (RemindersSection:147 / AgentRemindersList:375)
+- `GROUP_CONFIG` constant — duplicated verbatim
+- `classifyActive` / `classifyForStats` — near-identical urgency classifiers
+- `addBusinessDays` / `isSunday` helpers — duplicated across three files
+  (work-queue/page.tsx, AgentRemindersList.tsx, RemindersSection.tsx)
+
+Each parallel implementation differs in prop API (RemindersSection's
+snooze handlers carry `logId` for inline cascade; AgentRemindersList's
+carry only `taskId` because the parent page revalidates), so a naive
+hoist-and-share is not possible without harmonising the action layer
+first.
+
+**Action:** audit both files for visual + behaviour drift one month
+after both pages have been deployed to a real-use environment. If
+drift is minimal, consolidate by introducing a shared
+`useReminderActions` hook + lifted sub-components. If drift is
+substantial (e.g. visual treatments have diverged), keep parallel
+implementations and document the intentional divergences in
+ANIMATION_STANDARDS.md as a new deliberate exception (similar to E1).
+
+**Out of scope for the polish pass** — surface inconsistencies will be
+caught by Stage 4 spec rows, but structural consolidation is a
+separate refactor.
