@@ -10,6 +10,7 @@ import {
   fetchEpc,
   buildRightmoveUrl,
   buildZooplaUrl,
+  buildLandRegUrl,
 } from "@/lib/services/property-intel";
 
 export async function GET(req: NextRequest) {
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     links: {
       rightmove: buildRightmoveUrl(tx.propertyAddress, postcode),
       zoopla: buildZooplaUrl(postcode),
-      landReg: `https://www.gov.uk/search-house-prices?postcode=${encodeURIComponent(postcode)}`,
+      landReg: buildLandRegUrl(postcode),
     },
   });
 }

@@ -159,3 +159,7 @@ export function buildZooplaUrl(postcode: string): string {
   const q = postcode.toLowerCase().replace(/\s+/g, "-");
   return `https://www.zoopla.co.uk/house-prices/${q}/`;
 }
+
+export function buildLandRegUrl(postcode: string): string {
+  return `https://search-property-information.service.gov.uk/search/address?postcode=${encodeURIComponent(postcode)}`;
+}

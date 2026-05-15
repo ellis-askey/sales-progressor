@@ -25,14 +25,6 @@ function fmtDateShort(d: Date | string) {
 }
 
 
-function StatPill({ value, label, color }: { value: number | string; label: string; color: string }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[18px] font-bold tabular-nums" style={{ color }}>{value}</span>
-      <span className="text-[11px]" style={{ color: P.textMuted }}>{label}</span>
-    </div>
-  );
-}
 
 export default async function PortalHomePage({
   params,
@@ -96,9 +88,6 @@ export default async function PortalHomePage({
   const percent   = progress.percent;
 
   // Stat pill counts (Done / Remaining) — simple count, both sides, pre-exchange
-  const allRaw    = [...rawMilestones, ...rawOtherMilestones];
-  const preExchange = allRaw.filter((m) => !POST_EXCHANGE.has(m.code) && !EXCHANGE_GATES.has(m.code) && !m.isNotRequired);
-  const completed   = preExchange.filter((m) => m.isComplete);
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   const hasCompleted = milestones.some((m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete);
@@ -169,6 +158,11 @@ export default async function PortalHomePage({
               <h2 className="text-[22px] font-semibold text-white leading-snug">
                 {transaction.propertyAddress}
               </h2>
+              {transaction.purchasePrice && (
+                <p className="text-[15px] font-semibold mt-2" style={{ color: "rgba(255,255,255,0.85)" }}>
+                  {fmtPrice(transaction.purchasePrice / 100)}
+                </p>
+              )}
             </div>
             <div className="flex flex-col items-center gap-1 flex-shrink-0">
               <CircularProgress percent={percent} />
@@ -178,23 +172,6 @@ export default async function PortalHomePage({
         </div>
       )}
 
-      {/* ── Stats row ────────────────────────────────────────────── */}
-      {!hasExchanged && !hasCompleted && (
-        <div
-          className="rounded-2xl px-5 py-4 flex items-center justify-around"
-          style={{ background: P.cardBg, boxShadow: P.shadowSm }}
-        >
-          <StatPill value={completed.length} label="Done" color={P.success} />
-          <div className="w-px h-8" style={{ background: P.border }} />
-          <StatPill value={preExchange.length - completed.length} label="Remaining" color={P.accent} />
-          {transaction.purchasePrice && (
-            <>
-              <div className="w-px h-8" style={{ background: P.border }} />
-              <StatPill value={fmtPrice(transaction.purchasePrice)} label="Price" color={P.textPrimary} />
-            </>
-          )}
-        </div>
-      )}
 
       {/* ── Next action CTA ──────────────────────────────────────── */}
       {nextAction && !hasCompleted && (

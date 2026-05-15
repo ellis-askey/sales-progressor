@@ -66,8 +66,10 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">
-        <PortalInstallPrompt />
-        <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
+        <div className="lg:hidden">
+          <PortalInstallPrompt />
+          <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
+        </div>
         {children}
       </main>
 

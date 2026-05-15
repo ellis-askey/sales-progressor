@@ -68,7 +68,7 @@ export function PropertyIntelCard({ transactionId }: { transactionId: string }) 
             </a>
             <a href={data.links.landReg} target="_blank" rel="noopener noreferrer"
                className="text-xs px-2.5 py-1 rounded-lg bg-[#1d70b8] text-white font-medium hover:opacity-90 transition-opacity">
-              Land Reg
+              Title info
             </a>
           </div>
         )}
