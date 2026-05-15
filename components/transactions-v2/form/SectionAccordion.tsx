@@ -14,7 +14,7 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, childre
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <div className="agent-glass-strong overflow-hidden">
+    <div className="agent-glass-strong">
       <button
         type="button"
         className="agent-acc-hdr w-full"
