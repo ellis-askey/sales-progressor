@@ -622,6 +622,11 @@ select {
   /* new-v2 hero card — reduce padding on mobile */
   .v2-hero-card { padding: 24px 20px 20px !important; }
 
+  /* Alert banners — boost glass opacity on mobile (0.88 too transparent over glass/photography) */
+  .mobile-alert-banner { background: rgba(255,255,255,0.96) !important; }
+  .mobile-alert-banner--warning { border-color: rgba(201,125,26,0.65) !important; }
+  .mobile-alert-banner--danger  { border-color: rgba(199,62,62,0.65)  !important; }
+
   /* Reminders page — work queue mobile */
   .reminders-page-pad { padding: 16px 16px !important; }
 

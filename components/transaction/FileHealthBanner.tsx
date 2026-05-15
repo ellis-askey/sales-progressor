@@ -21,7 +21,7 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
 
   return (
     <div
-      className="agent-reveal-in"
+      className={`agent-reveal-in mobile-alert-banner${isRed ? " mobile-alert-banner--danger" : " mobile-alert-banner--warning"}`}
       style={{
         background: "rgba(255,255,255,0.88)",
         border: `1px solid ${borderColor}`,

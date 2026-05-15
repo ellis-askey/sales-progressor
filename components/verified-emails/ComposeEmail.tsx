@@ -58,7 +58,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   if (verifiedEmails.length === 0) {
     if (noEmailDismissed) return null;
     return (
-      <div className="agent-reveal-in"
+      <div className="agent-reveal-in mobile-alert-banner mobile-alert-banner--warning"
            style={{ background: "rgba(255,255,255,0.88)", border: "0.5px solid rgba(201,125,26,0.40)", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>No verified sending address</p>
