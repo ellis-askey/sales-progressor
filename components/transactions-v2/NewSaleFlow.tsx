@@ -16,6 +16,7 @@ import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
+import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
 import { DraftPanel } from "@/components/transactions-v2/DraftPanel";
 import { autoFillSolicitor } from "@/components/transactions-v2/form/SolicitorSection";
 import { defaultFormFields } from "@/components/transactions-v2/form/types";
@@ -1108,7 +1109,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                         : isSolid ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.40)",
                       color: active
                         ? "var(--agent-coral-deep)"
-                        : "var(--agent-text-primary)",
+                        : tabHovered
+                        ? "var(--agent-coral)"
+                        : "rgba(15,23,42,0.38)",
                       cursor: "pointer",
                       transition: "border-color 150ms, background 150ms, color 150ms",
                     }}
@@ -1171,6 +1174,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           onDelete={deleteDraft}
         />
       )}
+
+      {/* Submission loading overlay — shows for all creation paths */}
+      <SubmissionOverlay isVisible={isSubmitting} />
 
       {/* Duplicate address modal */}
       {duplicateInfo && (
