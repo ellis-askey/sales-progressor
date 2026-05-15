@@ -7,6 +7,8 @@ import { useState, useTransition } from "react";
 import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
+import { EmptyState } from "@/components/ui/EmptyState";
+import type { ContactRole } from "@prisma/client";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -14,10 +16,27 @@ function whatsappHref(phone: string): string {
   else if (digits.startsWith("0")) digits = "44" + digits.slice(1);
   return `whatsapp://send?phone=${digits}`;
 }
-import { EmptyState } from "@/components/ui/EmptyState";
-import type { ContactRole } from "@prisma/client";
-import { EnvelopeSimple, Phone, WhatsappLogo } from "@phosphor-icons/react";
-import { ContactAvatar } from "@/components/ui/Avatar";
+
+const TITLE_RE = /^(dr|mr|mrs|miss|ms|prof|rev|sir|lady|lord|mx)\.?\s+/i;
+
+function getInitials(name: string): string {
+  const trimmed = name.trim();
+  const titleMatch = trimmed.match(TITLE_RE);
+  const withoutTitle = trimmed.replace(TITLE_RE, "").trim();
+  const parts = withoutTitle.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length === 1 && titleMatch) return (titleMatch[0].trim()[0] + parts[0][0]).toUpperCase();
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return trimmed[0]?.toUpperCase() ?? "?";
+}
+
+function emailHref(email: string, roleType: string, address: string): string {
+  const isVendor = roleType === "vendor";
+  const subject = isVendor
+    ? `The Sale of ${address} - Your Sale Progression`
+    : `The Purchase of ${address} - Your Sale Progression`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+}
 
 type Contact = {
   id: string;
@@ -27,6 +46,14 @@ type Contact = {
   roleType: string;
   portalToken: string | null;
   createdAt: Date;
+};
+
+const ROLE_BADGE_STYLE: Record<string, { background: string; color: string }> = {
+  vendor:    { background: "rgba(59,130,246,.1)",  color: "#3b82f6" },
+  purchaser: { background: "rgba(34,197,94,.1)",   color: "#16a34a" },
+  solicitor: { background: "rgba(139,92,246,.1)",  color: "#7c3aed" },
+  broker:    { background: "rgba(245,158,11,.1)",  color: "#d97706" },
+  other:     { background: "rgba(15,23,42,.06)",   color: "var(--agent-text-muted)" },
 };
 
 function fmtRelative(date: Date): string {
@@ -51,31 +78,15 @@ const EMPTY_FORM = {
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
 const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
 
-/** Avatar colour per role */
-const ROLE_AVATAR: Record<ContactRole, string> = {
-  vendor:    "bg-blue-100 text-blue-600",
-  purchaser: "bg-emerald-100 text-emerald-700",
-  solicitor: "bg-violet-100 text-violet-700",
-  broker:    "bg-amber-100 text-amber-700",
-  other:     "bg-white/20 text-slate-900/50",
-};
-
-/** Light badge per contact role */
-const ROLE_BADGE: Record<ContactRole, string> = {
-  vendor:    "bg-blue-50    text-blue-600   border-blue-100",
-  purchaser: "bg-green-50   text-green-700  border-green-100",
-  solicitor: "bg-violet-50  text-violet-700 border-violet-100",
-  broker:    "bg-amber-50   text-amber-700  border-amber-100",
-  other:     "bg-white/20   text-slate-900/50 border-white/20",
-};
-
 export function ContactsSection({
   transactionId,
   contacts,
+  address = "",
   portalViewDates = {},
 }: {
   transactionId: string;
   contacts: Contact[];
+  address?: string;
   portalViewDates?: Record<string, Date>;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -87,6 +98,7 @@ export function ContactsSection({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [exitingId, setExitingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
@@ -156,12 +168,25 @@ export function ContactsSection({
 
   function startEdit(contact: Contact) {
     setEditingId(contact.id);
+    setExitingId(null);
     setEditForm({ name: contact.name, phone: contact.phone ?? "", email: contact.email ?? "" });
+  }
+
+  function closeEdit() {
+    setExitingId(editingId);
+    setTimeout(() => {
+      setEditingId(null);
+      setExitingId(null);
+    }, 150);
   }
 
   function handleEdit(contactId: string) {
     setEditSaving(true);
-    setEditingId(null);
+    setExitingId(editingId);
+    setTimeout(() => {
+      setEditingId(null);
+      setExitingId(null);
+    }, 150);
     const snap = { id: contactId, transactionId, name: titleCase(editForm.name), phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null, email: editForm.email.trim() || null };
     startTransition(async () => {
       try {
@@ -190,164 +215,145 @@ export function ContactsSection({
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px]">
-      {/* ── CardHdr ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold text-slate-900/70">Contacts</h3>
-          {contacts.length > 0 && (
-            <span className="agent-badge">{contacts.length}</span>
-          )}
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Contacts</h3>
+          {contacts.length > 0 && <span className="agent-badge">{contacts.length}</span>}
         </div>
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="text-xs agent-link"
-          >
-            + Add
+          <button onClick={() => setShowForm(true)} className="agent-link" style={{ fontSize: 11 }}>
+            + Add contact
           </button>
         )}
       </div>
 
-      {/* ── Existing contacts ────────────────────────────────────────────── */}
+      {/* Contact rows */}
       {contacts.length > 0 && (
-        <div className="divide-y divide-white/15">
+        <div>
           {contacts.map((contact) => {
             const role = contact.roleType as ContactRole;
+            const badgeStyle = ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE.other;
             const isEditing = editingId === contact.id;
+            const isExiting = exitingId === contact.id;
             return (
-              <div key={contact.id} className="px-5 py-4">
-                {isEditing ? (
-                  <div className="space-y-2.5">
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        value={editForm.name}
-                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                        placeholder="Full name"
-                        className="glass-input px-2 py-1.5 text-sm"
-                      />
-                      <input
-                        value={editForm.phone}
-                        onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                        placeholder="Phone"
-                        className="glass-input px-2 py-1.5 text-sm"
-                      />
-                      <input
-                        value={editForm.email}
-                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                        placeholder="Email"
-                        className="glass-input px-2 py-1.5 text-sm"
-                      />
+              <div key={contact.id} style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}>
+                {/* Display row — always visible */}
+                <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                  {/* Avatar */}
+                  <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
+
+                  {/* Name + contact details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span data-sensitive="true" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
+                      <span style={{ fontSize: 10, borderRadius: 4, padding: "1px 6px", ...badgeStyle }}>
+                        {CONTACT_ROLE_LABELS[role]}
+                      </span>
+                      {contact.portalToken && portalViewDates[contact.id] && (
+                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>
+                          Viewed {fmtRelative(portalViewDates[contact.id])}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2">
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {contact.phone && (
+                        <a data-sensitive="true" href={whatsappHref(contact.phone)} className="agent-link agent-link-muted" style={{ fontSize: 10 }}>
+                          {contact.phone}
+                        </a>
+                      )}
+                      {contact.email && (
+                        <a data-sensitive="true" href={emailHref(contact.email, contact.roleType, address)} className="agent-link agent-link-muted" style={{ fontSize: 10 }}>
+                          {contact.email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action buttons — portal + edit/remove when not editing */}
+                  {!isEditing && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      {(role === "vendor" || role === "purchaser") && (
+                        contact.portalToken ? (
+                          <>
+                            {contact.email && (
+                              <button
+                                onClick={() => sendInvite(contact.portalToken!, contact.id)}
+                                disabled={inviting === contact.id}
+                                className="agent-btn agent-btn-xs agent-btn-primary"
+                              >
+                                {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => copyPortalLink(contact.portalToken!)}
+                              className="agent-link agent-link-muted"
+                              style={{ fontSize: 11 }}
+                              title="Copy portal link"
+                            >
+                              {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setupPortalToken(contact.id)}
+                            disabled={generatingToken === contact.id}
+                            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                          >
+                            {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
+                          </button>
+                        )
+                      )}
+                      <button onClick={() => startEdit(contact)} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(contact.id)}
+                        disabled={deleting === contact.id}
+                        className="agent-link agent-link-muted"
+                        style={{ fontSize: 11 }}
+                      >
+                        {deleting === contact.id ? "…" : "Remove"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Edit form — slides in below, always animates out on close */}
+                {(isEditing || isExiting) && (
+                  <div
+                    className={isExiting ? "agent-reveal-out" : "agent-reveal-in"}
+                    style={{ padding: "0 16px 12px", display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                      placeholder="Full name"
+                      className="glass-input w-full px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                      placeholder="Phone"
+                      className="glass-input w-full px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={editForm.email}
+                      onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                      placeholder="Email"
+                      className="glass-input w-full px-3 py-2 text-sm"
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                      <button onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-ghost-bordered">
+                        Cancel
+                      </button>
                       <button
                         onClick={() => handleEdit(contact.id)}
                         disabled={editSaving || !editForm.name.trim()}
-                        className="agent-btn agent-btn-sm agent-btn-primary"
+                        className="agent-btn agent-btn-xs agent-btn-primary"
                       >
                         {editSaving ? "Saving…" : "Save"}
                       </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="text-xs agent-link-muted"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-3.5">
-                    {/* Avatar */}
-                    <div className="mt-0.5">
-                      <ContactAvatar contact={{ name: contact.name, roleType: contact.roleType }} size={36} />
-                    </div>
-                    {/* Info + actions */}
-                    <div className="flex-1 min-w-0">
-                      {/* Name row */}
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span data-sensitive="true" className="text-sm font-semibold text-slate-900/90">{contact.name}</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ROLE_BADGE[role] ?? "bg-white/20 text-slate-900/50 border-white/20"}`}>
-                          {CONTACT_ROLE_LABELS[role]}
-                        </span>
-                        {contact.portalToken && portalViewDates[contact.id] && (
-                          <span className="text-[10px] text-slate-900/35 ml-auto">
-                            Viewed {fmtRelative(portalViewDates[contact.id])}
-                          </span>
-                        )}
-                      </div>
-                      {/* Contact details */}
-                      <div className="flex flex-col gap-0.5 mb-2.5">
-                        {contact.email && (
-                          <a data-sensitive="true" href={`mailto:${contact.email}`} className="flex items-center gap-1.5 text-xs agent-link-muted">
-                            <EnvelopeSimple className="w-3 h-3 flex-shrink-0" weight="regular" />
-                            <span className="truncate">{contact.email}</span>
-                          </a>
-                        )}
-                        {contact.phone && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-900/40">
-                            <Phone className="w-3 h-3 flex-shrink-0" weight="regular" />
-                            <a data-sensitive="true" href={`tel:${contact.phone}`} className="hover:text-green-600 transition-colors">
-                              {contact.phone}
-                            </a>
-                            <a
-                              href={whatsappHref(contact.phone)}
-                              aria-label="Open WhatsApp"
-                              title="Open WhatsApp"
-                              className="hover:text-green-600 transition-colors"
-                            >
-                              <WhatsappLogo className="w-3 h-3 flex-shrink-0" weight="regular" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                      {/* Action buttons row */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {/* Portal actions */}
-                        {(role === "vendor" || role === "purchaser") && (
-                          contact.portalToken ? (
-                            <>
-                              {contact.email && (
-                                <button
-                                  onClick={() => sendInvite(contact.portalToken!, contact.id)}
-                                  disabled={inviting === contact.id}
-                                  className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap disabled:opacity-50"
-                                >
-                                  {inviteSent === contact.id ? "✓ Sent" : inviting === contact.id ? "Sending…" : "Send invite"}
-                                </button>
-                              )}
-                              <button
-                                onClick={() => copyPortalLink(contact.portalToken!)}
-                                className="text-xs agent-link whitespace-nowrap"
-                                title="Copy portal link"
-                              >
-                                {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => setupPortalToken(contact.id)}
-                              disabled={generatingToken === contact.id}
-                              className="text-xs agent-link-muted whitespace-nowrap disabled:opacity-40"
-                            >
-                              {generatingToken === contact.id ? "Setting up…" : "Set up portal"}
-                            </button>
-                          )
-                        )}
-                        {/* Divider */}
-                        <span className="text-slate-900/15 text-xs">·</span>
-                        <button
-                          onClick={() => startEdit(contact)}
-                          className="text-xs agent-link-muted"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(contact.id)}
-                          disabled={deleting === contact.id}
-                          className="text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
-                        >
-                          {deleting === contact.id ? "…" : "Remove"}
-                        </button>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -360,16 +366,9 @@ export function ContactsSection({
       {/* Empty state (no contacts, no form) */}
       {contacts.length === 0 && !showForm && (
         <EmptyState
+          compact
           title="No contacts yet"
-          description="Add vendors, purchasers, solicitors, and other parties."
-          action={
-            <button
-              onClick={() => setShowForm(true)}
-              className="text-sm agent-link"
-            >
-              Add first contact
-            </button>
-          }
+          description="Add vendors, purchasers, and other parties."
         />
       )}
 
@@ -442,14 +441,14 @@ export function ContactsSection({
               <button
                 type="submit"
                 disabled={loading || isPending}
-                className="agent-btn agent-btn-primary"
+                className="agent-btn agent-btn-sm agent-btn-primary"
               >
                 {loading ? "Adding…" : "Add contact"}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setError(null); setForm(EMPTY_FORM); }}
-                className="agent-btn agent-btn-ghost"
+                className="agent-btn agent-btn-sm agent-btn-ghost"
               >
                 Cancel
               </button>
