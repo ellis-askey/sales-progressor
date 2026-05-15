@@ -113,23 +113,23 @@ export function MemoStatusBar({
 
   const topBorderColor =
     status === "done" && missingPills.length === 0
-      ? "#10b981"
+      ? "var(--agent-success)"
       : status === "done"
-      ? "#f59e0b"
+      ? "var(--agent-warning)"
       : status === "error"
-      ? "#f59e0b"
+      ? "var(--agent-warning)"
       : "var(--agent-coral-deep)";
 
   return (
     <div
       style={{
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.70)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "0.5px solid rgba(255,255,255,0.60)",
+        borderRadius: "var(--agent-radius-xl)",
+        background: "var(--agent-glass-bg-strong)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        border: "0.5px solid var(--agent-glass-border)",
         borderTop: `2px solid ${topBorderColor}`,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.07)",
+        boxShadow: "var(--agent-glass-shadow)",
         padding: "16px 20px",
         width: "100%",
       }}
@@ -193,7 +193,7 @@ export function MemoStatusBar({
       {/* ── Error state ──────────────────────────────────────────────────── */}
       {status === "error" && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <WarningCircle size={16} weight="fill" color="#f59e0b" style={{ flexShrink: 0 }} />
+          <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
             {errorMessage ?? "Couldn't read the memo — fill in the form below"}
           </p>
@@ -204,7 +204,7 @@ export function MemoStatusBar({
       {status === "done" && missingPills.length === 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle size={16} weight="fill" color="#10b981" style={{ flexShrink: 0 }} />
+            <CheckCircle size={16} weight="fill" color="var(--agent-success)" style={{ flexShrink: 0 }} />
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
               Memo read · all fields filled
             </p>
@@ -225,7 +225,7 @@ export function MemoStatusBar({
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <WarningCircle size={16} weight="fill" color="#f59e0b" style={{ flexShrink: 0 }} />
+              <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
                 Memo read · {missingPills.length} {missingPills.length === 1 ? "field needs" : "fields need"} attention
               </p>
@@ -251,9 +251,9 @@ export function MemoStatusBar({
                   flexShrink: 0,
                   padding: "4px 10px",
                   borderRadius: 20,
-                  border: "1px solid rgba(245,158,11,0.35)",
-                  background: "rgba(245,158,11,0.10)",
-                  color: "#92400e",
+                  border: "1px solid var(--agent-warning-border)",
+                  background: "var(--agent-warning-bg)",
+                  color: "var(--agent-warning)",
                   fontSize: 12,
                   fontWeight: 600,
                   cursor: onFocusField ? "pointer" : "default",

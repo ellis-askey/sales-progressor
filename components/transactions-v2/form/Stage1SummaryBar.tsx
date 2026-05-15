@@ -72,17 +72,8 @@ export function Stage1SummaryBar({
 
   return (
     <div
-      style={{
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.55)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        border: "0.5px solid rgba(255,255,255,0.65)",
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-      }}
+      className="agent-glass-strong"
+      style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{

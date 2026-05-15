@@ -19,14 +19,7 @@ type Props = {
   scrollRef?: React.RefObject<HTMLDivElement>;
 };
 
-const glassCard: React.CSSProperties = {
-  borderRadius: 16,
-  background: "rgba(255,255,255,0.55)",
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-  border: "0.5px solid rgba(255,255,255,0.65)",
-  padding: "18px",
-};
+const glassCardStyle: React.CSSProperties = { borderRadius: 16, padding: "18px" };
 
 export function ContactsRow({
   vendors, purchasers,
@@ -38,7 +31,7 @@ export function ContactsRow({
 }: Props) {
   return (
     <div ref={scrollRef} className="contacts-section-grid" style={{ gap: 12 }}>
-      <div style={glassCard}>
+      <div className="agent-glass-strong" style={glassCardStyle}>
         <ContactCarousel
           label="Vendors"
           contacts={vendors}
@@ -50,7 +43,7 @@ export function ContactsRow({
           onEdit={() => onEdit("vendors")}
         />
       </div>
-      <div style={glassCard}>
+      <div className="agent-glass-strong" style={glassCardStyle}>
         <ContactCarousel
           label="Purchasers"
           contacts={purchasers}
