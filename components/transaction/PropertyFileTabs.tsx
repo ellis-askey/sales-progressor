@@ -152,18 +152,20 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         <div className="lg:hidden border-b border-white/20">
           <button
             onClick={toggleSidebar}
-            className={`w-full flex items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
+            className={`hidden md:flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
           >
             <span>File details</span>
             <ChevronDown
               className={`w-4 h-4 transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`}
             />
           </button>
-          {sidebarOpen && (
-            <div className={`${heroConnected ? "" : "px-4 "}pb-5`}>
-              {sidebar}
-            </div>
-          )}
+          <div className={[
+            !heroConnected ? "px-4" : "",
+            "pb-3 md:pb-5",
+            sidebarOpen ? "" : "md:hidden",
+          ].filter(Boolean).join(" ")}>
+            {sidebar}
+          </div>
         </div>
 
         {/* Tab content + desktop sidebar */}
