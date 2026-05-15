@@ -6,6 +6,7 @@ import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 import { titleCase } from "@/lib/utils";
 import { formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 function isLookupReady(postcode: string): boolean {
   return /^[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}$/i.test(postcode.trim());
@@ -25,6 +26,7 @@ function Pill({
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const isSolid = useSolidMode();
   return (
     <button
       type="button"
@@ -39,14 +41,12 @@ function Pill({
         border: selected
           ? "2px solid var(--agent-coral-deep)"
           : hovered
-          ? "2px solid rgba(15,23,42,0.18)"
-          : "2px solid rgba(15,23,42,0.10)",
-        background: selected
-          ? "rgba(var(--agent-coral-base-rgb), 0.08)"
-          : hovered
-          ? "rgba(255,255,255,0.65)"
-          : "rgba(255,255,255,0.40)",
-        color: selected ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.50)",
+          ? "2px solid var(--agent-coral)"
+          : "2px solid var(--agent-border-default)",
+        background: selected || hovered
+          ? "var(--agent-coral-bg-tint)"
+          : (isSolid ? "#ffffff" : "rgba(255,255,255,0.50)"),
+        color: selected ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
         fontWeight: 600,
         fontSize: 13,
         cursor: "pointer",
@@ -59,7 +59,7 @@ function Pill({
     >
       <span>{label}</span>
       {note && (
-        <span style={{ fontSize: 11, fontWeight: 400, color: selected ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.35)", opacity: 0.85 }}>
+        <span style={{ fontSize: 11, fontWeight: 400, color: selected ? "rgba(var(--agent-coral-base-rgb), 0.80)" : "var(--agent-text-secondary)" }}>
           {note}
         </span>
       )}
@@ -120,9 +120,15 @@ export function Stage1Fields({
   onLookup,
 }: Props) {
   const [postcodeError, setPostcodeError] = useState("");
+  const [touched, setTouched] = useState({ street: false, city: false, postcode: false });
+
+  const streetValid = touched.street && streetAddress.trim().length >= 2;
+  const cityValid   = touched.city   && city.trim().length >= 1;
+  const postcodeValid = touched.postcode && postcode.trim().length > 0 && isValidUKPostcode(postcode);
 
   return (
     <div
+      className="v2-stage1-card"
       style={{
         borderRadius: 16,
         background: "rgba(255,255,255,0.55)",
@@ -165,13 +171,13 @@ export function Stage1Fields({
               type="button"
               onClick={onLookup}
               disabled={!isLookupReady(postcode)}
+              className={isLookupReady(postcode) ? "agent-link" : undefined}
               style={{
                 display: "flex", alignItems: "center", gap: 4,
                 background: "none", border: "none", padding: 0,
                 cursor: isLookupReady(postcode) ? "pointer" : "default",
                 fontSize: 11, fontWeight: 600,
                 color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.25)",
-                transition: "color 150ms",
               }}
             >
               <MagnifyingGlass size={11} weight="bold" />
@@ -184,7 +190,7 @@ export function Stage1Fields({
         <div style={{ marginBottom: 10 }}>
           <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
             Street address
-            <FieldIndicator source={memoSources.streetAddress} />
+            <FieldIndicator source={memoSources.streetAddress} valid={streetValid} />
           </label>
           <input
             className="agent-input"
@@ -193,7 +199,7 @@ export function Stage1Fields({
               onStreetAddressChange(e.target.value);
               onEdit("streetAddress");
             }}
-            onBlur={(e) => { if (e.target.value.trim()) onStreetAddressChange(titleCase(e.target.value)); }}
+            onBlur={(e) => { if (e.target.value.trim()) onStreetAddressChange(titleCase(e.target.value)); setTouched(t => ({ ...t, street: true })); }}
             placeholder="e.g. 14 Hartwell Avenue"
             maxLength={120}
           />
@@ -205,7 +211,7 @@ export function Stage1Fields({
           <div>
             <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
               City / Town
-              <FieldIndicator source={memoSources.city} />
+              <FieldIndicator source={memoSources.city} valid={cityValid} />
             </label>
             <input
               className="agent-input"
@@ -214,7 +220,7 @@ export function Stage1Fields({
                 onCityChange(e.target.value);
                 onEdit("city");
               }}
-              onBlur={(e) => { if (e.target.value.trim()) onCityChange(titleCase(e.target.value)); }}
+              onBlur={(e) => { if (e.target.value.trim()) onCityChange(titleCase(e.target.value)); setTouched(t => ({ ...t, city: true })); }}
               placeholder="e.g. Bristol"
               maxLength={60}
             />
@@ -223,7 +229,7 @@ export function Stage1Fields({
           <div>
             <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
               Postcode
-              <FieldIndicator source={memoSources.postcode} />
+              <FieldIndicator source={memoSources.postcode} valid={postcodeValid} />
             </label>
             <input
               className="agent-input"
@@ -234,10 +240,11 @@ export function Stage1Fields({
                 setPostcodeError("");
               }}
               onBlur={(e) => {
-                if (!e.target.value.trim()) { setPostcodeError(""); return; }
+                if (!e.target.value.trim()) { setPostcodeError(""); setTouched(t => ({ ...t, postcode: true })); return; }
                 const formatted = formatPostcode(e.target.value);
                 onPostcodeChange(formatted);
                 setPostcodeError(isValidUKPostcode(formatted) ? "" : "Doesn't look like a valid UK postcode");
+                setTouched(t => ({ ...t, postcode: true }));
               }}
               placeholder="e.g. BS6 7TH"
               maxLength={8}

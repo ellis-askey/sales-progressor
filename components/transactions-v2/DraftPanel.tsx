@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DraftEntry } from "@/components/transactions-v2/types";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -21,7 +22,9 @@ type Props = {
 };
 
 export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) {
-  const [open, setOpen] = useState(true);
+  const isSolid = useSolidMode();
+  const [open, setOpen] = useState(false);
+  const [pillHovered, setPillHovered] = useState(false);
 
   if (drafts.length === 0) return null;
 
@@ -37,10 +40,10 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
           style={{
             width: 272,
             borderRadius: 16,
-            background: "rgba(255,255,255,0.90)",
-            backdropFilter: "blur(32px) saturate(180%)",
-            WebkitBackdropFilter: "blur(32px) saturate(180%)",
-            border: "0.5px solid rgba(255,255,255,0.80)",
+            background: isSolid ? "#ffffff" : "rgba(255,255,255,0.90)",
+            backdropFilter: isSolid ? "none" : "blur(32px) saturate(180%)",
+            WebkitBackdropFilter: isSolid ? "none" : "blur(32px) saturate(180%)",
+            border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(255,255,255,0.80)",
             boxShadow: "0 16px 48px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.06)",
             overflow: "hidden",
           }}
@@ -54,6 +57,7 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
             {drafts.map((draft) => (
               <div
                 key={draft.id}
+                className="agent-hover-row"
                 style={{
                   padding: "10px 14px",
                   borderBottom: "0.5px solid rgba(15,23,42,0.05)",
@@ -79,7 +83,7 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
                   type="button"
                   onClick={() => onDelete(draft.id)}
                   aria-label="Remove draft"
-                  style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontSize: 11, color: "rgba(15,23,42,0.28)", lineHeight: 1 }}
+                  className="agent-icon-btn agent-icon-btn-sm"
                 >
                   ✕
                 </button>
@@ -92,16 +96,23 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        onMouseEnter={() => setPillHovered(true)}
+        onMouseLeave={() => setPillHovered(false)}
         style={{
           padding: "7px 14px", borderRadius: 20,
-          background: "rgba(255,255,255,0.90)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          border: "0.5px solid rgba(255,255,255,0.80)",
+          background: isSolid
+            ? (pillHovered ? "rgba(15,23,42,0.03)" : "#ffffff")
+            : "rgba(255,255,255,0.90)",
+          backdropFilter: isSolid ? "none" : "blur(24px)",
+          WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
+          border: pillHovered
+            ? "1px solid var(--agent-border-strong)"
+            : isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(255,255,255,0.80)",
           boxShadow: "0 4px 16px rgba(15,23,42,0.10)",
           fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.60)",
           cursor: "pointer",
           display: "flex", alignItems: "center", gap: 6,
+          transition: "background 150ms, border-color 150ms",
         }}
       >
         <span

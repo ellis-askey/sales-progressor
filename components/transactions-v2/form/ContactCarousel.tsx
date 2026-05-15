@@ -53,24 +53,7 @@ function SectionPill({ progressedBy, filled }: { progressedBy: "agent" | "progre
       </span>
     );
   }
-  return (
-    <span style={{
-      fontSize: 9,
-      fontWeight: 600,
-      letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      padding: "2px 6px",
-      borderRadius: 999,
-      background: "rgba(15,23,42,0.07)",
-      color: "rgba(15,23,42,0.40)",
-      marginLeft: 5,
-      flexShrink: 0,
-      display: "inline-block",
-      verticalAlign: "middle",
-    }}>
-      Optional
-    </span>
-  );
+  return null;
 }
 
 // ── Empty state (count === 0) ─────────────────────────────────────────────────
@@ -134,7 +117,8 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
         <button
           type="button"
           onClick={onAdd}
-          style={{ fontSize: 12, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}
+          className="agent-link"
+          style={{ fontSize: 12, fontWeight: 600, padding: 0 }}
         >
           + Add {singular}
         </button>
@@ -307,10 +291,11 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           onClick={canAdd ? addEntry : undefined}
           disabled={!canAdd}
           title={!canAdd ? `Maximum ${MAX_ENTRIES} ${label.toLowerCase()}` : undefined}
+          className={canAdd ? "agent-link" : undefined}
           style={{
             display: "flex", alignItems: "center", gap: 3,
             fontSize: 11, fontWeight: 600,
-            color: canAdd ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.22)",
+            color: canAdd ? undefined : "rgba(15,23,42,0.22)",
             background: "none", border: "none",
             cursor: canAdd ? "pointer" : "not-allowed",
             padding: 0,
@@ -376,23 +361,11 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
               type="button"
               onClick={() => removeEntry(activeIndex)}
               aria-label={`Remove ${singular} ${activeIndex + 1}`}
+              className="agent-icon-btn agent-icon-btn-sm"
               style={{
                 position: "absolute",
                 top: 8,
                 right: 8,
-                width: 20,
-                height: 20,
-                borderRadius: 5,
-                background: "rgba(255,255,255,0.92)",
-                border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                lineHeight: 1,
-                color: "rgba(15,23,42,0.40)",
-                padding: 0,
                 zIndex: 2,
               }}
             >

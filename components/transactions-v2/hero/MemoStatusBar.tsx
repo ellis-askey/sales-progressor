@@ -26,13 +26,16 @@ function computeMissingPills(
   extractedData: ExtractedMemoData,
   formTenure: string,
   formPurchaseType: string,
+  formStreetAddress: string,
+  formCity: string,
+  formPostcode: string,
 ): MissingPill[] {
   return [
     { key: "tenure",        label: "Tenure",         missing: !formTenure },
     { key: "purchaseType",  label: "Purchase type",  missing: !formPurchaseType },
-    { key: "streetAddress", label: "Street address", missing: !extractedData.streetAddress },
-    { key: "city",          label: "City",           missing: !extractedData.city },
-    { key: "postcode",      label: "Postcode",       missing: !extractedData.postcode },
+    { key: "streetAddress", label: "Street address", missing: !extractedData.streetAddress && !formStreetAddress },
+    { key: "city",          label: "City",           missing: !extractedData.city          && !formCity          },
+    { key: "postcode",      label: "Postcode",       missing: !extractedData.postcode      && !formPostcode      },
     { key: "purchasePrice", label: "Price",          missing: extractedData.purchasePricePence == null },
     { key: "vendors",       label: "Vendors",        missing: !extractedData.vendors.some((v) => v.name?.trim()) },
     { key: "purchasers",    label: "Purchasers",     missing: !extractedData.purchasers.some((p) => p.name?.trim()) },
@@ -48,6 +51,9 @@ type Props = {
   errorMessage?: string | null;
   formTenure?: string;
   formPurchaseType?: string;
+  formStreetAddress?: string;
+  formCity?: string;
+  formPostcode?: string;
   onCancel: () => void;
   onChangeFile: () => void;
   onFocusField?: (fieldKey: string) => void;
@@ -72,6 +78,7 @@ function Spinner() {
 export function MemoStatusBar({
   status, isSlow, extractedData, errorMessage,
   formTenure = "", formPurchaseType = "",
+  formStreetAddress = "", formCity = "", formPostcode = "",
   onCancel, onChangeFile, onFocusField,
 }: Props) {
   const [visibleCount, setVisibleCount] = useState(0);
@@ -108,7 +115,7 @@ export function MemoStatusBar({
   }, [status]);
 
   const missingPills: MissingPill[] = status === "done" && extractedData
-    ? computeMissingPills(extractedData, formTenure, formPurchaseType)
+    ? computeMissingPills(extractedData, formTenure, formPurchaseType, formStreetAddress, formCity, formPostcode)
     : [];
 
   const topBorderColor =
@@ -229,10 +236,9 @@ export function MemoStatusBar({
               </p>
             </div>
             <button
+              className="agent-link-muted"
               onClick={onChangeFile}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(15,23,42,0.40)", textDecoration: "underline", textUnderlineOffset: 2, padding: 0, flexShrink: 0, marginLeft: 12 }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.70)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.40)")}
+              style={{ fontSize: 12, flexShrink: 0, marginLeft: 12 }}
             >
               Change file
             </button>

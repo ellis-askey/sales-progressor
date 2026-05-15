@@ -9,6 +9,7 @@ import { PropertyDossier } from "@/components/transactions-v2/PropertyDossier";
 import { FilePreview } from "@/components/transactions-v2/FilePreview";
 import type { MilestoneDefinitionSlim } from "@/components/transactions-v2/FilePreview";
 import { usePropertyIntel } from "@/lib/hooks/usePropertyIntel";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
 import { Stage1SummaryBar } from "@/components/transactions-v2/form/Stage1SummaryBar";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
@@ -30,18 +31,21 @@ const SLOW_THRESHOLD_MS = 15_000;
 
 // ── Memo source computation ────────────────────────────────────────────────────
 
-function computeMemoSources(data: ExtractedMemoData): MemoSources {
+function computeMemoSources(data: ExtractedMemoData, fields: FormFields): MemoSources {
+  // Suppress "failed" hint once the user has filled the field themselves
+  const fill = (extracted: boolean, hasValue: boolean) =>
+    extracted ? "extracted" : hasValue ? null : "failed";
   return {
-    streetAddress: data.streetAddress != null ? "extracted" : "failed",
-    city: data.city != null ? "extracted" : "failed",
-    postcode: data.postcode != null ? "extracted" : "failed",
-    purchasePricePence: data.purchasePricePence != null ? "extracted" : "failed",
-    tenure: data.tenure != null ? "extracted" : "failed",
+    streetAddress: fill(data.streetAddress != null, !!fields.streetAddress.trim()),
+    city: fill(data.city != null, !!fields.city.trim()),
+    postcode: fill(data.postcode != null, !!fields.postcode.trim()),
+    purchasePricePence: fill(data.purchasePricePence != null, !!fields.purchasePricePence),
+    tenure: fill(data.tenure != null, !!fields.tenure),
     purchaseType: "not_on_memos",
-    vendors: data.vendors.some((v) => v.name?.trim()) ? "extracted" : "failed",
-    purchasers: data.purchasers.some((p) => p.name?.trim()) ? "extracted" : "failed",
-    vendorSolicitor: data.vendorSolicitor != null ? "extracted" : "failed",
-    purchaserSolicitor: data.purchaserSolicitor != null ? "extracted" : "failed",
+    vendors: fill(data.vendors.some((v) => v.name?.trim()), fields.vendors.some((v) => v.name.trim())),
+    purchasers: fill(data.purchasers.some((p) => p.name?.trim()), fields.purchasers.some((p) => p.name.trim())),
+    vendorSolicitor: fill(data.vendorSolicitor != null, !!fields.vendorSolicitor),
+    purchaserSolicitor: fill(data.purchaserSolicitor != null, !!fields.purchaserSolicitor),
     agentFee: "not_on_memos",
   };
 }
@@ -197,14 +201,14 @@ function SubmitButton({
   );
 }
 
-function OutsourcedHintCard({ text }: { text: string }) {
+function OutsourcedHintCard({ text, isSolid }: { text: string; isSolid: boolean }) {
   return (
     <div style={{
       display: "flex",
       alignItems: "center",
       gap: 8,
-      background: "rgba(245,158,11,0.07)",
-      border: "0.5px solid rgba(245,158,11,0.22)",
+      background: isSolid ? "rgba(245,158,11,0.14)" : "rgba(245,158,11,0.07)",
+      border: isSolid ? "1px solid rgba(245,158,11,0.40)" : "0.5px solid rgba(245,158,11,0.22)",
       borderRadius: 10,
       padding: "8px 12px",
       marginBottom: 8,
@@ -227,10 +231,12 @@ function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: ()
       type="button"
       onClick={onClick}
       disabled={isSaving}
+      className={isSaving ? undefined : "agent-link"}
       style={{
         display: "block", width: "100%", marginTop: 10, padding: "8px",
         background: "none", border: "none", cursor: isSaving ? "default" : "pointer",
-        fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.38)",
+        fontSize: 12, fontWeight: 500,
+        color: isSaving ? "rgba(15,23,42,0.30)" : undefined,
         textAlign: "center",
       }}
     >
@@ -277,6 +283,18 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // ── Validation state ──────────────────────────────────────────────────────
   const [outsourcedError, setOutsourcedError] = useState<OutsourcedError>(null);
 
+  // Clear outsourcedError as soon as the failing condition is resolved
+  useEffect(() => {
+    if (!outsourcedError) return;
+    if (outsourcedError.field === "vendors") {
+      const ok = formFields.vendors.some((v) => v.name.trim() && (v.phone.trim() || v.email.trim()));
+      if (ok) setOutsourcedError(null);
+    } else if (outsourcedError.field === "purchasers") {
+      const ok = formFields.purchasers.some((p) => p.name.trim() && (p.phone.trim() || p.email.trim()));
+      if (ok) setOutsourcedError(null);
+    }
+  }, [formFields.vendors, formFields.purchasers, outsourcedError]);
+
   // ── Submit state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ id: string; assignedTo: string | null } | null>(null);
@@ -298,6 +316,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Right column mode ─────────────────────────────────────────────────────
   const [rightColumnMode, setRightColumnMode] = useState<"research" | "preview">("research");
+  const [hoveredTab, setHoveredTab] = useState<"research" | "preview" | null>(null);
+  const isSolid = useSolidMode();
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const abortRef = useRef<AbortController | null>(null);
@@ -309,7 +329,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const memoSources: MemoSources = extractedData
-    ? computeMemoSources(extractedData)
+    ? computeMemoSources(extractedData, formFields)
     : NULL_MEMO_SOURCES;
 
   const stage1Valid =
@@ -486,8 +506,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       if (data.vendorSolicitor?.firm) {
         setSolFillingVendor(true);
         autoFillSolicitor(
-          data.vendorSolicitor.firm,
-          { name: data.vendorSolicitor.name, phone: data.vendorSolicitor.phone, email: data.vendorSolicitor.email },
+          titleCase(data.vendorSolicitor.firm),
+          {
+            name: data.vendorSolicitor.name ? titleCase(data.vendorSolicitor.name) : null,
+            phone: data.vendorSolicitor.phone ?? null,
+            email: data.vendorSolicitor.email?.toLowerCase() ?? null,
+          },
           (v) => setFormFields((prev) => ({ ...prev, vendorSolicitor: v })),
         ).then((result) => {
           setSolFillingVendor(false);
@@ -498,8 +522,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       if (data.purchaserSolicitor?.firm) {
         setSolFillingPurchaser(true);
         autoFillSolicitor(
-          data.purchaserSolicitor.firm,
-          { name: data.purchaserSolicitor.name, phone: data.purchaserSolicitor.phone, email: data.purchaserSolicitor.email },
+          titleCase(data.purchaserSolicitor.firm),
+          {
+            name: data.purchaserSolicitor.name ? titleCase(data.purchaserSolicitor.name) : null,
+            phone: data.purchaserSolicitor.phone ?? null,
+            email: data.purchaserSolicitor.email?.toLowerCase() ?? null,
+          },
           (v) => setFormFields((prev) => ({ ...prev, purchaserSolicitor: v })),
         ).then((result) => {
           setSolFillingPurchaser(false);
@@ -641,7 +669,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   async function handleSubmit(forceCreate = false) {
     setOutsourcedError(null);
 
-    if (stage === 2 && (!formFields.tenure || !formFields.purchaseType)) {
+    if (!formFields.tenure || !formFields.purchaseType) {
       setStage1Expanded(true);
       addToast(
         !formFields.tenure && !formFields.purchaseType
@@ -829,6 +857,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               extractedData={extractedData}
               formTenure={formFields.tenure}
               formPurchaseType={formFields.purchaseType}
+              formStreetAddress={formFields.streetAddress}
+              formCity={formFields.city}
+              formPostcode={formFields.postcode}
               onCancel={handleCancel}
               onChangeFile={handleChangeFile}
               onFocusField={(key) => {
@@ -859,19 +890,16 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   <button
                     type="button"
                     onClick={() => setStage1Expanded(false)}
-                    style={{
-                      display: "block", width: "100%", marginTop: 6, marginBottom: 2,
-                      padding: "6px", background: "none", border: "none", cursor: "pointer",
-                      fontSize: 11, fontWeight: 600, color: "rgba(15,23,42,0.38)", textAlign: "center",
-                    }}
+                    className="agent-btn agent-btn-secondary agent-btn-sm"
+                    style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
                   >
                     ↑ Done editing
                   </button>
                 </div>
               )}
 
-              {/* Stage 1 summary bar */}
-              <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 16 }}>
+              {/* Stage 1 summary bar — hidden while editing */}
+              {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both", marginTop: 8 }}>
                 <Stage1SummaryBar
                   streetAddress={formFields.streetAddress}
                   city={formFields.city}
@@ -882,7 +910,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   onEdit={() => setStage1Expanded(true)}
                   onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
                 />
-              </div>
+              </div>}
 
               <Stage2Sections
                 {...stage2SectionsProps}
@@ -894,7 +922,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               />
               <div style={{ marginTop: 20 }}>
                 {isOutsourced && !outsourcedReady && !isSubmitting && (
-                  <OutsourcedHintCard text={submitButtonText} />
+                  <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
                 )}
                 <SubmitButton
                   isSubmitting={isSubmitting}
@@ -909,7 +937,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
           {/* State 3: Manual entry — Stage 1 fields with Continue gate; Stage 2 shows summary bar */}
           {flowState === "manual" && (
-            <div style={{ marginTop: 16 }}>
+            <div>
 
               {/* Stage 1 — full fields + Continue gate */}
               {stage === 1 && (
@@ -960,8 +988,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                     </div>
                   )}
 
-                  {/* Summary bar — always visible in stage 2 */}
-                  <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
+                  {/* Summary bar — hidden while editing */}
+                  {!stage1Expanded && <div style={{ animation: "agent-section-in 360ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1)) 0ms both" }}>
                     <Stage1SummaryBar
                       streetAddress={formFields.streetAddress}
                       city={formFields.city}
@@ -972,7 +1000,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       onEdit={() => setStage1Expanded(true)}
                       onProgressedByChange={(v) => { updateFormFields({ progressedBy: v }); markFieldEdited("progressedBy"); }}
                     />
-                  </div>
+                  </div>}
 
                   <div ref={stage2ContainerRef}>
                     <Stage2Sections
@@ -987,7 +1015,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
                   <div style={{ marginTop: 20 }}>
                     {isOutsourced && !outsourcedReady && !isSubmitting && (
-                      <OutsourcedHintCard text={submitButtonText} />
+                      <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
                     )}
                     <SubmitButton
                       isSubmitting={isSubmitting}
@@ -1009,33 +1037,43 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           {/* Tab strip — only shown when both modes are relevant */}
           {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && (
             <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-              {(["research", "preview"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setRightColumnMode(mode)}
-                  style={{
-                    flex: 1,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: rightColumnMode === mode
-                      ? "1.5px solid var(--agent-coral-deep)"
-                      : "1.5px solid rgba(15,23,42,0.10)",
-                    background: rightColumnMode === mode
-                      ? "rgba(var(--agent-coral-base-rgb), 0.07)"
-                      : "rgba(255,255,255,0.40)",
-                    color: rightColumnMode === mode
-                      ? "var(--agent-coral-deep)"
-                      : "rgba(15,23,42,0.45)",
-                    cursor: "pointer",
-                    transition: "border-color 150ms, background 150ms, color 150ms",
-                  }}
-                >
-                  {mode === "research" ? "Property Research" : "File Preview"}
-                </button>
-              ))}
+              {(["research", "preview"] as const).map((mode) => {
+                const active = rightColumnMode === mode;
+                const tabHovered = hoveredTab === mode && !active;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setRightColumnMode(mode)}
+                    onMouseEnter={() => setHoveredTab(mode)}
+                    onMouseLeave={() => setHoveredTab(null)}
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: active
+                        ? "1.5px solid var(--agent-coral-deep)"
+                        : tabHovered
+                        ? "1.5px solid var(--agent-coral)"
+                        : isSolid ? "1.5px solid rgba(15,23,42,0.12)" : "1.5px solid var(--agent-border-default)",
+                      background: active
+                        ? "rgba(var(--agent-coral-base-rgb), 0.07)"
+                        : tabHovered
+                        ? "var(--agent-coral-bg-tint)"
+                        : isSolid ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.40)",
+                      color: active
+                        ? "var(--agent-coral-deep)"
+                        : "var(--agent-text-primary)",
+                      cursor: "pointer",
+                      transition: "border-color 150ms, background 150ms, color 150ms",
+                    }}
+                  >
+                    {mode === "research" ? "Property Research" : "File Preview"}
+                  </button>
+                );
+              })}
             </div>
           )}
 

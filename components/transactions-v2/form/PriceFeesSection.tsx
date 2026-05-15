@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -13,13 +15,15 @@ function fmt(pence: number): string {
 // ── Segment toggle ────────────────────────────────────────────────────────────
 
 function SegmentToggle({
-  options, value, onChange, size = "md",
+  options, value, onChange, size = "md", isSolid = false,
 }: {
   options: { label: string; value: string }[];
   value: string;
   onChange: (v: string) => void;
   size?: "md" | "sm";
+  isSolid?: boolean;
 }) {
+  const [hoveredValue, setHoveredValue] = useState<string | null>(null);
   const sm = size === "sm";
   return (
     <div style={{
@@ -27,25 +31,32 @@ function SegmentToggle({
       gap: 2,
       padding: 2,
       borderRadius: sm ? 6 : 8,
-      background: "rgba(var(--agent-coral-base-rgb), 0.05)",
-      border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)",
+      background: isSolid ? "rgba(15,23,42,0.05)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
+      border: isSolid ? "0.5px solid rgba(15,23,42,0.12)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)",
       flexShrink: 0,
     }}>
       {options.map((opt) => {
         const active = opt.value === value;
+        const hoveredInactive = hoveredValue === opt.value && !active;
         return (
           <button
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
+            onMouseEnter={() => setHoveredValue(opt.value)}
+            onMouseLeave={() => setHoveredValue(null)}
             style={{
               padding: sm ? "3px 8px" : "4px 10px",
               fontSize: sm ? 10 : 11,
               fontWeight: 600,
               borderRadius: sm ? 4 : 6,
               border: "none",
-              background: active ? "rgba(255,255,255,0.92)" : "transparent",
-              color: active ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.42)",
+              background: active
+                ? "rgba(255,255,255,0.92)"
+                : hoveredInactive ? "rgba(255,255,255,0.65)" : "transparent",
+              color: active
+                ? "var(--agent-coral-deep)"
+                : hoveredInactive ? "var(--agent-text-primary)" : "rgba(15,23,42,0.42)",
               cursor: "pointer",
               boxShadow: active ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
               transition: "background 130ms, color 130ms, box-shadow 130ms",
@@ -62,14 +73,14 @@ function SegmentToggle({
 
 // ── Hero input container ──────────────────────────────────────────────────────
 
-function HeroInputWrap({ children, row = false }: { children: React.ReactNode; row?: boolean }) {
+function HeroInputWrap({ children, row = false, isSolid = false }: { children: React.ReactNode; row?: boolean; isSolid?: boolean }) {
   return (
     <div style={{
       display: row ? "flex" : "block",
       alignItems: row ? "center" : undefined,
       gap: row ? 10 : undefined,
-      background: "rgba(var(--agent-coral-base-rgb), 0.04)",
-      border: "1px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+      background: isSolid ? "#ffffff" : "rgba(var(--agent-coral-base-rgb), 0.04)",
+      border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "1px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 12,
       padding: "10px 14px",
     }}>
@@ -108,6 +119,7 @@ export function PriceFeesSection({
   onAgentFeeAmountChange, onAgentFeePercentStrChange, onAgentFeeVatChange,
   onEdit,
 }: Props) {
+  const isSolid = useSolidMode();
 
   // ── Live calculations ──────────────────────────────────────────────────────
 
@@ -163,7 +175,7 @@ export function PriceFeesSection({
           Sale price
           <FieldIndicator source={priceMemoSource} />
         </p>
-        <HeroInputWrap>
+        <HeroInputWrap isSolid={isSolid}>
           <PriceInput
             value={purchasePricePence}
             onChange={(v) => { onPurchasePriceChange(v); onEdit("purchasePricePence"); }}
@@ -190,11 +202,12 @@ export function PriceFeesSection({
             ]}
             value={agentFeeType}
             onChange={(v) => { onAgentFeeTypeChange(v as "amount" | "percent"); onEdit("agentFeeType"); }}
+            isSolid={isSolid}
           />
         </div>
 
         {/* Fee input + VAT sub-toggle in same row */}
-        <HeroInputWrap row>
+        <HeroInputWrap row isSolid={isSolid}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {agentFeeType === "amount" ? (
               <PriceInput
@@ -228,6 +241,7 @@ export function PriceFeesSection({
             value={agentFeeVat}
             onChange={(v) => { onAgentFeeVatChange(v as "inclusive" | "exclusive"); onEdit("agentFeeVat"); }}
             size="sm"
+            isSolid={isSolid}
           />
         </HeroInputWrap>
 
@@ -262,6 +276,9 @@ export function PriceFeesSection({
         ) : (
           <>
             <strong style={{ color: "rgba(15,23,42,0.78)" }}>{fmt(netPence)}</strong>
+            <span style={{ color: "rgba(15,23,42,0.38)", fontSize: 11 }}>
+              {agentFeeVat === "exclusive" ? " inc VAT" : " (fee inc VAT)"}
+            </span>
             {" on a "}
             <strong style={{ color: "rgba(15,23,42,0.78)" }}>{fmt(purchasePricePence!)}</strong>
             {" sale"}

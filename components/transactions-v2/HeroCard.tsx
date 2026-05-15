@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import type { DraftEntry } from "@/components/transactions-v2/types";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
@@ -19,6 +20,71 @@ function relativeTime(isoString: string): string {
   return "over a month ago";
 }
 
+// ── Single draft row — collapses + fades on delete ────────────────────────────
+
+function DraftRow({ draft, onLoad, onDelete }: {
+  draft: DraftEntry;
+  onLoad: () => void;
+  onDelete: () => void;
+}) {
+  const [removing, setRemoving] = useState(false);
+
+  function handleDelete() {
+    setRemoving(true);
+    setTimeout(onDelete, 220);
+  }
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateRows: removing ? "0fr" : "1fr",
+      transition: "grid-template-rows 220ms cubic-bezier(0.4,0,0.2,1)",
+    }}>
+      <div style={{ overflow: "hidden" }}>
+        <div className="v2-draft-row agent-hover-row" style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "8px 12px",
+          borderRadius: 10,
+          background: "rgba(255,255,255,0.48)",
+          border: "0.5px solid rgba(255,255,255,0.70)",
+          gap: 8,
+          opacity: removing ? 0 : 1,
+          transition: "opacity 160ms",
+          marginBottom: 6,
+        }}>
+          <button
+            type="button"
+            onClick={onLoad}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 500,
+              color: "var(--agent-text-primary)",
+              textAlign: "left", flex: 1, minWidth: 0,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: 0,
+            }}
+          >
+            {draft.propertyAddress.length > 38 ? draft.propertyAddress.slice(0, 38) + "…" : draft.propertyAddress}
+          </button>
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
+            {relativeTime(draft.createdAt)}
+          </span>
+          <button
+            type="button"
+            onClick={handleDelete}
+            aria-label="Remove draft"
+            className="agent-icon-btn agent-icon-btn-sm"
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 type Props = {
   drafts: DraftEntry[];
   onFile: (file: File) => void;
@@ -28,12 +94,25 @@ type Props = {
 };
 
 export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDeleteDraft }: Props) {
+  const isSolid = useSolidMode();
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [showAllDrafts, setShowAllDrafts] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const mostRecentDraft = drafts[0] ?? null;
+
+  function openDrafts() {
+    setShowAllDrafts(true);
+    // tiny rAF so the DOM node exists before we add the open class
+    requestAnimationFrame(() => setListOpen(true));
+  }
+
+  function closeDrafts() {
+    setListOpen(false);
+    setTimeout(() => setShowAllDrafts(false), 160);
+  }
 
   const validateAndSubmit = useCallback((file: File) => {
     setFileError(null);
@@ -76,22 +155,59 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
     e.target.value = "";
   }
 
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+
+      const clipboard = e.clipboardData;
+      if (!clipboard) return;
+
+      // Path 1: file copied from Finder/Explorer (PDF or image file)
+      const directFile = clipboard.files[0];
+      if (directFile) {
+        e.preventDefault();
+        validateAndSubmit(directFile);
+        return;
+      }
+
+      // Path 2: screenshot / image blob (print-screen, Cmd+Shift+4 copy-to-clipboard)
+      const items = Array.from(clipboard.items);
+      const imageItem = items.find((item) => item.type.startsWith("image/"));
+      if (imageItem) {
+        e.preventDefault();
+        const blob = imageItem.getAsFile();
+        if (blob) {
+          const ext = imageItem.type === "image/png" ? "png" : "jpg";
+          const file = new File([blob], `screenshot.${ext}`, { type: imageItem.type });
+          validateAndSubmit(file);
+        }
+      }
+    }
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [validateAndSubmit]);
+
   return (
     <div
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      className="v2-hero-card"
       style={{
         borderRadius: 20,
         background: dragOver
           ? "rgba(var(--agent-coral-base-rgb), 0.06)"
-          : "rgba(255,255,255,0.52)",
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          : isSolid ? "#ffffff" : "rgba(255,255,255,0.52)",
+        backdropFilter: isSolid ? "none" : "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: isSolid ? "none" : "blur(24px) saturate(180%)",
         border: dragOver
           ? "2px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
-          : "0.5px solid rgba(255,255,255,0.70)",
-        boxShadow: "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",
+          : isSolid ? "1px solid rgba(30,20,10,0.09)" : "0.5px solid rgba(255,255,255,0.70)",
+        boxShadow: isSolid
+          ? "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04)"
+          : "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",
         padding: "36px 32px 32px",
         transition: "background 200ms, border 200ms",
       }}
@@ -129,7 +245,7 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         transition: "opacity 200ms",
         opacity: dragOver ? 0 : 1,
       }}>
-        {dragOver ? " " : "Drop a memo and we’ll fill the form for you."}
+        {dragOver ? " " : "Drop a memo, paste it (⌘V), or screenshot an email."}
       </p>
 
       {/* Action buttons */}
@@ -197,81 +313,31 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         <div style={{ marginTop: 14, textAlign: "center" }}>
           <button
             type="button"
-            onClick={() => setShowAllDrafts((v) => !v)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12,
-              color: "var(--agent-text-muted)",
-              textDecoration: "underline",
-              textUnderlineOffset: 3,
-              padding: "2px 0",
-            }}
+            onClick={showAllDrafts ? closeDrafts : openDrafts}
+            className="agent-link"
+            style={{ fontSize: 12, padding: "2px 0" }}
           >
             {showAllDrafts ? "Hide drafts" : `View all drafts (${drafts.length})`}
           </button>
 
+          {/* Animated drawer — grid-template-rows 0fr → 1fr */}
           {showAllDrafts && (
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, textAlign: "left" }}>
-              {drafts.map((draft) => (
-                <div
-                  key={draft.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    background: "rgba(255,255,255,0.48)",
-                    border: "0.5px solid rgba(255,255,255,0.70)",
-                    gap: 8,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onLoadDraft(draft)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--agent-text-primary)",
-                      textAlign: "left",
-                      flex: 1,
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      padding: 0,
-                    }}
-                  >
-                    {draft.propertyAddress.length > 38
-                      ? draft.propertyAddress.slice(0, 38) + "…"
-                      : draft.propertyAddress}
-                  </button>
-                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>
-                    {relativeTime(draft.createdAt)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteDraft(draft.id)}
-                    aria-label="Remove draft"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 14,
-                      color: "var(--agent-text-muted)",
-                      lineHeight: 1,
-                      padding: "2px 4px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    &times;
-                  </button>
+            <div
+              className={`agent-acc${listOpen ? " open" : ""}`}
+              style={{ textAlign: "left", marginTop: 4 }}
+            >
+              <div className="agent-acc-in">
+                <div style={{ paddingTop: 6 }}>
+                  {drafts.map((draft) => (
+                    <DraftRow
+                      key={draft.id}
+                      draft={draft}
+                      onLoad={() => onLoadDraft(draft)}
+                      onDelete={() => onDeleteDraft(draft.id)}
+                    />
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           )}
         </div>
