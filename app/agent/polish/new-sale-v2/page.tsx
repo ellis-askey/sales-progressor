@@ -77,7 +77,7 @@ const CSS = `
   }
   .agent-input[readonly]::placeholder { color: var(--agent-text-muted) !important; }
 
-  .pp-finput-pop { border: 1px solid ${BORDER}; border-radius: 8px; padding: 9px 12px; font-size: 13px;
+  .pp-finput-pop { border: 1px solid ${BORDER}; border-radius: 8px; padding: 9px 12px; font-size: inherit;
     color: ${TP}; background: rgba(255,255,255,.65); font-family: inherit; width: 100%; box-sizing: border-box;
     font-weight: 500; }
   .pp-fhint { font-size: 11px; }

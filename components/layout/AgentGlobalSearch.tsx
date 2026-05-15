@@ -150,7 +150,7 @@ export function AgentGlobalSearch() {
             onKeyDown={onKeyDown}
             placeholder="Search addresses, clients, solicitors…"
             style={{
-              flex: 1, fontSize: 15, color: "var(--agent-text-primary)",
+              flex: 1, fontSize: "var(--agent-text-body)", color: "var(--agent-text-primary)",
               background: "transparent", border: "none", outline: "none",
             }}
           />

@@ -180,13 +180,20 @@ body {
   display: none;
 }
 
-/* ─── iOS zoom prevention ────────────────────────────────────────────────── */
-/* Unlayered — beats @layer utilities (text-sm: 14px, text-xs: 12px).       */
-/* Without this, any Tailwind text-size class on a glass-input/agent-input   */
-/* element wins the cascade and shrinks font below 16px, triggering iOS zoom. */
-.glass-input    { font-size: 16px; }
-.agent-input    { font-size: max(16px, var(--agent-text-body)); }
-.agent-textarea { font-size: max(16px, var(--agent-text-body)); }
+/* ─── Input font-size — responsive (iOS zoom prevention + desktop alignment) */
+/* Unlayered — beats @layer utilities so Tailwind text-size classes can't    */
+/* shrink inputs below 16px on mobile (prevents iOS Safari viewport zoom).   */
+/* Desktop: 14px matches body text. Mobile: 16px floor prevents zoom.        */
+@media (max-width: 767px) {
+  .glass-input,
+  .agent-input,
+  .agent-textarea { font-size: 16px; }
+}
+@media (min-width: 768px) {
+  .glass-input,
+  .agent-input,
+  .agent-textarea { font-size: var(--agent-text-body); }
+}
 
 /* ─── Glass component classes ─────────────────────────────────────────────── */
 
@@ -277,24 +284,29 @@ body {
    */
   .glass-input {
     background: rgba(255, 255, 255, 0.40);
-    border: 1px solid rgba(255, 255, 255, 0.30);
-    border-radius: 12px;
+    border: 0.5px solid var(--agent-border-default);
+    border-radius: var(--agent-radius-md);
     padding: 0.625rem 0.875rem;
-    font-size: 16px;
-    color: rgba(0, 0, 0, 0.80);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    color: var(--agent-text-primary);
+    transition: border-color var(--agent-transition-fast), box-shadow var(--agent-transition-fast), background var(--agent-transition-fast);
   }
   .glass-input::placeholder {
-    color: rgba(0, 0, 0, 0.35);
+    color: var(--agent-text-muted);
+    opacity: 1;
   }
   .glass-input:hover:not(:focus):not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.55);
+    border-color: var(--agent-border-strong);
     background: rgba(255, 255, 255, 0.60);
   }
   .glass-input:focus {
     outline: none;
-    border-color: rgba(59, 130, 246, 0.60);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+    border-color: var(--agent-border-focus);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: var(--agent-focus-ring);
+  }
+  .glass-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /*
