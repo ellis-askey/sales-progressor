@@ -512,7 +512,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             phone: data.vendorSolicitor.phone ?? null,
             email: data.vendorSolicitor.email?.toLowerCase() ?? null,
           },
-          (v) => setFormFields((prev) => ({ ...prev, vendorSolicitor: v })),
+          (v) => setFormFields((prev) => prev.vendorSolicitor !== null ? prev : { ...prev, vendorSolicitor: v }),
         ).then((result) => {
           setSolFillingVendor(false);
           if (result !== false) setSolHintVendor(null);
@@ -528,7 +528,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             phone: data.purchaserSolicitor.phone ?? null,
             email: data.purchaserSolicitor.email?.toLowerCase() ?? null,
           },
-          (v) => setFormFields((prev) => ({ ...prev, purchaserSolicitor: v })),
+          (v) => setFormFields((prev) => prev.purchaserSolicitor !== null ? prev : { ...prev, purchaserSolicitor: v }),
         ).then((result) => {
           setSolFillingPurchaser(false);
           if (result !== false) setSolHintPurchaser(null);

@@ -120,6 +120,22 @@ export function PriceFeesSection({
   onEdit,
 }: Props) {
   const isSolid = useSolidMode();
+  const [priceWarning, setPriceWarning] = useState<string | null>(null);
+
+  function handlePriceChange(v: number | null) {
+    onPurchasePriceChange(v);
+    onEdit("purchasePricePence");
+    if (!v || v === 0) { setPriceWarning(null); return; }
+    if (v > 5_000_000_000) setPriceWarning("Over £50 million — double-check the figure.");
+    else if (v >= 1_000_000) setPriceWarning(null);
+  }
+
+  function handlePriceBlur() {
+    const v = purchasePricePence;
+    if (v && v > 0 && v < 1_000_000) {
+      setPriceWarning("Under £10,000 — double-check the figure.");
+    }
+  }
 
   // ── Live calculations ──────────────────────────────────────────────────────
 
@@ -170,7 +186,7 @@ export function PriceFeesSection({
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* G5.1 — Sale price */}
-      <div>
+      <div onBlur={handlePriceBlur}>
         <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.42)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
           Sale price
           <FieldIndicator source={priceMemoSource} />
@@ -178,11 +194,16 @@ export function PriceFeesSection({
         <HeroInputWrap isSolid={isSolid}>
           <PriceInput
             value={purchasePricePence}
-            onChange={(v) => { onPurchasePriceChange(v); onEdit("purchasePricePence"); }}
+            onChange={handlePriceChange}
             placeholder="0"
             className="price-hero-input"
           />
         </HeroInputWrap>
+        {priceWarning && (
+          <p className="agent-reveal-in" style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)", lineHeight: 1.4 }}>
+            {priceWarning}
+          </p>
+        )}
         <FieldHint source={priceMemoSource} />
       </div>
 
