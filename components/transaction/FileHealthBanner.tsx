@@ -23,7 +23,7 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
     <div
       className={`agent-reveal-in mobile-alert-banner${isRed ? " mobile-alert-banner--danger" : " mobile-alert-banner--warning"}`}
       style={{
-        background: "rgba(255,255,255,0.88)",
+        background: "var(--agent-surface-elevated)",
         border: `1px solid ${borderColor}`,
         borderRadius: 10,
         padding: "10px 16px",

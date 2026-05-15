@@ -1120,6 +1120,12 @@ select {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
+  .agent-shell-root[data-night] .agent-glass-strong,
+  .agent-shell-root[data-night] .agent-glass-subtle,
+  .agent-shell-root[data-night] .agent-glass-light {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
 
   /* ── Slate text ── */
   .agent-shell-root[data-night] .text-slate-900\/90  { color: rgba(239,246,255,0.90); }

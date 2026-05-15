@@ -62,9 +62,9 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
         const stuck = el.getBoundingClientRect().top <= 0;
         if (!stuck) {
           el.classList.remove("glass-nav");
-          el.style.background = "rgba(255,255,255,0.72)";
-          el.style.backdropFilter = "blur(24px) saturate(180%)";
-          el.style.setProperty("-webkit-backdrop-filter", "blur(24px) saturate(180%)");
+          el.style.background = "var(--agent-surface-elevated)";
+          el.style.backdropFilter = "blur(24px)";
+          el.style.setProperty("-webkit-backdrop-filter", "blur(24px)");
           el.style.borderTop = "0.5px solid var(--agent-border-default)";
           el.style.borderLeft = "0.5px solid var(--agent-border-default)";
           el.style.borderRight = "0.5px solid var(--agent-border-default)";

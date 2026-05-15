@@ -153,7 +153,7 @@ function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: isSeller ? "#ea580c" : "#3b82f6" }}>{isSeller ? "Seller" : "Buyer"}</span>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
-        <span style={{ fontSize: 11, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>{isSeller ? "Seller" : "Buyer"} is all up to date</span>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontStyle: "italic" }}>{isSeller ? "Seller" : "Buyer"} is all up to date</span>
       </div>
     </div>
   );
@@ -220,7 +220,7 @@ function ColumnSection({
       <div style={{ padding: "8px 12px", borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`, display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>{isSeller ? "Seller" : "Buyer"}</span>
-        <span style={{ fontSize: 10, color: "rgba(15,23,42,0.35)", marginLeft: "auto" }}>{logs.length} {logs.length === 1 ? "item" : "items"}</span>
+        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>{logs.length} {logs.length === 1 ? "item" : "items"}</span>
       </div>
 
       {/* Rows */}
@@ -235,7 +235,7 @@ function ColumnSection({
           const urgencyColor = task?.priority === "escalated" ? "#dc2626"
             : isOverdue ? "#ea580c"
             : isDueToday ? "#d97706"
-            : "rgba(15,23,42,0.35)";
+            : "var(--agent-text-muted)";
           const urgencyLabel = task?.priority === "escalated" ? "Escalated"
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
@@ -246,7 +246,7 @@ function ColumnSection({
             <div
               key={log.id}
               className={exitingIds.has(log.id) ? "agent-row-exit" : ""}
-              style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid rgba(15,23,42,0.06)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
+              style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>

@@ -144,7 +144,7 @@ export function ManualTaskCard({
             onBlur={handleProgressorNoteBlur}
             placeholder={task.isAgentRequest ? "Add a response…" : "Add a note…"}
             className="w-full text-xs bg-transparent border-b border-dashed focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
-            style={{ borderColor: "rgba(15,23,42,0.12)", color: "var(--agent-text-secondary)" }}
+            style={{ borderColor: "var(--agent-border-default)", color: "var(--agent-text-secondary)" }}
           />
         </div>
 

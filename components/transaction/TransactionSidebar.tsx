@@ -208,7 +208,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           </p>
 
           {isInternal && (
-            <div style={{ borderTop: "1px solid rgba(15,23,42,0.07)", paddingTop: 8, marginBottom: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ borderTop: "1px solid var(--agent-border-default)", paddingTop: 8, marginBottom: 8, display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="flex justify-between items-center">
                 <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>You</p>
                 <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
@@ -378,7 +378,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           )}
 
           {hasTotal && (
-            <div className="pt-2.5 mt-1" style={{ borderTop: "1px solid rgba(15,23,42,0.08)" }}>
+            <div className="pt-2.5 mt-1" style={{ borderTop: "1px solid var(--agent-border-default)" }}>
               <div className="flex justify-between items-center">
                 <p className="text-xs text-slate-900/40 max-w-[60%]">Net income</p>
                 <p className="text-sm font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>

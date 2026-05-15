@@ -205,13 +205,13 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                 {/* Card */}
                 <div className="flex-1 min-w-0">
                   {entry.kind === "milestone" ? (
-                    <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.6)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}>
+                    <div style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                         <div className="min-w-0">
                           <div style={{ marginBottom: 4 }}>
                             <span style={{
                               fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
-                              background: entry.isNotRequired ? "rgba(30,45,74,0.06)" : "rgba(16,185,129,0.1)",
+                              background: entry.isNotRequired ? "var(--agent-surface-glass)" : "rgba(16,185,129,0.1)",
                               color: entry.isNotRequired ? "var(--agent-text-muted)" : "#059669",
                             }}>
                               {entry.isNotRequired
@@ -251,7 +251,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                   ) : (
                     <div
                       className="relative group"
-                      style={{ padding: "10px 14px", background: "rgba(255,255,255,0.6)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}
+                      style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}
                     >
                       <div style={{ display: "flex", gap: 6, marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
                         <CommPill entry={entry} />

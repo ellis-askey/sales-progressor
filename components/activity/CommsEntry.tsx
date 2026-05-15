@@ -129,7 +129,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 >
                   {isDone ? "✓" : s}
                 </div>
-                {s < 4 && !isSkipped && <div className="w-4 h-px" style={{ background: "rgba(255,255,255,0.30)" }} />}
+                {s < 4 && !isSkipped && <div className="w-4 h-px" style={{ background: "var(--agent-surface-glass)" }} />}
               </div>
             );
           })}

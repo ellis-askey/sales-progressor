@@ -188,7 +188,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
           )}
 
           {showDropdown && query.trim() && dropPos && typeof document !== "undefined" && createPortal(
-            <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: "rgba(255,255,255,0.98)", backdropFilter: "blur(8px)", border: "1px solid rgba(15,23,42,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+            <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(8px)", border: "1px solid var(--agent-border-default)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", overflow: "hidden" }}>
               {searchError ? (
                 <div>
                   <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
