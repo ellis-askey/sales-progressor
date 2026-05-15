@@ -161,10 +161,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:           rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.60);
+    --agent-glass-bg:           rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:    rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:    rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:     rgba(255, 255, 255, 0.68);
     --agent-glass-border:       rgba(255, 255, 255, 0.70);
     --agent-glass-border-bright:rgba(255, 255, 255, 0.88);
     --agent-glass-shadow:        0 4px 20px rgba(255, 138, 101, 0.06),
@@ -330,10 +330,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:            rgba(255, 255, 255, 0.45);
-    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.65);
-    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.30);
-    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.55);
+    --agent-glass-bg:            rgba(255, 255, 255, 0.53);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.73);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.38);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.63);
     --agent-glass-border:        rgba(255, 255, 255, 0.65);
     --agent-glass-border-bright: rgba(255, 255, 255, 0.85);
     --agent-glass-shadow:         0 4px 20px rgba(45, 122, 143, 0.06),
@@ -499,10 +499,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:            rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.60);
+    --agent-glass-bg:            rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.68);
     --agent-glass-border:        rgba(255, 255, 255, 0.70);
     --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
     --agent-glass-shadow:         0 4px 20px rgba(106, 133, 200, 0.06),
@@ -668,10 +668,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:            rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.60);
+    --agent-glass-bg:            rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.68);
     --agent-glass-border:        rgba(255, 255, 255, 0.70);
     --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
     --agent-glass-shadow:         0 4px 20px rgba(90,  107, 130, 0.06),
@@ -837,10 +837,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:            rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.60);
+    --agent-glass-bg:            rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.68);
     --agent-glass-border:        rgba(255, 255, 255, 0.70);
     --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
     --agent-glass-shadow:         0 4px 20px rgba(61, 122, 90, 0.06),
@@ -1006,10 +1006,10 @@
     --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
-    --agent-glass-bg:            rgba(255, 255, 255, 0.50);
-    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
-    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.35);
-    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.60);
+    --agent-glass-bg:            rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.68);
     --agent-glass-border:        rgba(255, 255, 255, 0.70);
     --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
     --agent-glass-shadow:         0 4px 20px rgba(139, 42, 61, 0.06),

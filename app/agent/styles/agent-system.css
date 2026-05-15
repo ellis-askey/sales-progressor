@@ -361,9 +361,9 @@
     gap: 6px;
     padding: 6px 13px;
     border-radius: var(--agent-radius-md);
-    background: rgba(255, 255, 255, 0.50);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    color: var(--agent-text-secondary);
+    background: rgba(255, 255, 255, 0.40);
+    border: 1px solid var(--agent-border-default);
+    color: var(--agent-text-muted);
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-medium);
     cursor: pointer;
@@ -375,8 +375,13 @@
                 border-color var(--agent-transition-fast);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
-    background: rgba(255, 255, 255, 0.78);
-    color: var(--agent-text-primary);
+    background: var(--agent-coral-bg-tint);
+    border-color: var(--agent-coral);
+    color: var(--agent-coral);
+  }
+  [data-solid] .agent-segment-pill {
+    background: rgba(15, 23, 42, 0.04);
+    border-color: rgba(15, 23, 42, 0.12);
   }
   .agent-segment-pill:focus-visible {
     outline: none;
@@ -393,9 +398,9 @@
      * perceived as a different font. Soft-coral keeps the active state
      * unmissable via hue but matches the inactive chips on visual mass +
      * font-weight, fixing the perceived font inconsistency. */
-    background: rgba(var(--agent-coral-rgb), 0.14);
+    background: rgba(var(--agent-coral-base-rgb), 0.07);
     color: var(--agent-coral-deep);
-    border-color: rgba(var(--agent-coral-rgb), 0.45);
+    border-color: var(--agent-coral-deep);
     font-weight: var(--agent-weight-medium);
   }
   .agent-segment-pill.on:hover:not(:disabled) {
