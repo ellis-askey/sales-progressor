@@ -777,9 +777,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const hasValidVendor = formFields.vendors.some((v) => v.name.trim() && (v.phone.trim() || v.email.trim()));
   const purchaserHasName = formFields.purchasers.some((p) => p.name.trim());
   const hasValidPurchaser = formFields.purchasers.some((p) => p.name.trim() && (p.phone.trim() || p.email.trim()));
+  const tenurePurchaseReady = !!formFields.tenure && !!formFields.purchaseType;
   const outsourcedReady = !isOutsourced || (hasValidVendor && hasValidPurchaser);
 
   const submitButtonText = (() => {
+    if (!formFields.tenure && !formFields.purchaseType) return "Select tenure and purchase type";
+    if (!formFields.tenure) return "Select tenure to continue";
+    if (!formFields.purchaseType) return "Select purchase type to continue";
     if (!isOutsourced || outsourcedReady) return "Create transaction";
     if (!vendorHasName) return "Add 1 vendor to continue";
     if (!hasValidVendor) return "Add a contact method to continue";
@@ -787,7 +791,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     return "Add a contact method to continue";
   })();
 
-  const isSubmitDisabled = isSubmitting || !outsourcedReady;
+  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
