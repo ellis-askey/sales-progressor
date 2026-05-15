@@ -131,7 +131,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
         disabled={disabled}
         className="agent-btn agent-btn-sm agent-btn-ghost"
       >
-        🕐 Snooze all
+        🕐 Snooze
       </button>
       {open && (
         <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110 }}>
@@ -249,7 +249,7 @@ function ColumnSection({
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid rgba(15,23,42,0.06)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
                 {urgencyLabel && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
                 )}

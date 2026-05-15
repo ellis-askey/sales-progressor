@@ -399,7 +399,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         {/* Zone 1 — Trigger header (always visible) */}
         <div
           className="agent-acc-hdr"
-          style={{ flexDirection: "column", alignItems: "stretch", cursor: "pointer", padding: "14px 16px" }}
+          style={{ cursor: "pointer", padding: "14px 16px" }}
           role="button"
           tabIndex={0}
           onClick={() => setMobileOpen((o) => !o)}
@@ -407,13 +407,34 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           aria-expanded={mobileOpen}
           aria-label="File details"
         >
-          {/* Top row: compact ring + status badge + chevron */}
+          {/* Top row: compact ring + pill + weeks dots column + chevron */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ProgressRing percent={progress.percent} size={44} strokeWidth={4} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`}>
                 {TRACK_LABEL[progress.onTrack]}
               </span>
+              <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: "var(--agent-text-muted)" }} />
+                  <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
+                    {progress.weeksElapsed} wk{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
+                  </span>
+                </div>
+                {progress.weeksRemaining !== null && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                      background: progress.onTrack === "on_track" ? "var(--agent-success)"
+                        : progress.onTrack === "at_risk" ? "var(--agent-warning)"
+                        : "var(--agent-danger)",
+                    }} />
+                    <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
+                      ~{progress.weeksRemaining} wk{progress.weeksRemaining !== 1 ? "s" : ""} to exchange
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             <svg
               style={{
@@ -428,11 +449,6 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </div>
-          {/* Caption row: weeks elapsed · weeks to exchange */}
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-            {progress.weeksElapsed} week{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
-            {progress.weeksRemaining !== null ? ` · ~${progress.weeksRemaining} weeks to exchange` : ""}
-          </p>
         </div>
 
         {/* Zone 2 — Accordion content */}

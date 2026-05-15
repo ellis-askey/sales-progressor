@@ -161,7 +161,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
           </button>
           <div className={[
             !heroConnected ? "px-4" : "",
-            "pb-3 md:pb-5",
+            "pt-3 pb-3 md:pb-5",
             sidebarOpen ? "" : "md:hidden",
           ].filter(Boolean).join(" ")}>
             {sidebar}

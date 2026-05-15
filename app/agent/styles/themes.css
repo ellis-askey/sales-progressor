@@ -132,18 +132,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
@@ -301,18 +301,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
@@ -470,18 +470,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
@@ -639,18 +639,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
@@ -808,18 +808,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
@@ -977,18 +977,18 @@
 
     /* ── Semantic — success ───────────────────────────────────────────────── */
     --agent-success:        #1F8A4A;
-    --agent-success-bg:     rgba(31, 138, 74, 0.10);
-    --agent-success-border: rgba(31, 138, 74, 0.30);
+    --agent-success-bg:     rgba(31, 138, 74, 0.14);
+    --agent-success-border: rgba(31, 138, 74, 0.38);
 
     /* ── Semantic — warning ───────────────────────────────────────────────── */
     --agent-warning:        #C97D1A;
-    --agent-warning-bg:     rgba(201, 125, 26, 0.10);
-    --agent-warning-border: rgba(201, 125, 26, 0.30);
+    --agent-warning-bg:     rgba(201, 125, 26, 0.14);
+    --agent-warning-border: rgba(201, 125, 26, 0.38);
 
     /* ── Semantic — danger ────────────────────────────────────────────────── */
     --agent-danger:         #C73E3E;
-    --agent-danger-bg:      rgba(199, 62, 62, 0.08);
-    --agent-danger-border:  rgba(199, 62, 62, 0.30);
+    --agent-danger-bg:      rgba(199, 62, 62, 0.12);
+    --agent-danger-border:  rgba(199, 62, 62, 0.38);
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
