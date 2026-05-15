@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export function DuplicateAddressModal({
   address,
@@ -17,6 +18,8 @@ export function DuplicateAddressModal({
   onClose: () => void;
   onForceCreate: () => void;
 }) {
+  const theme = usePortalTheme();
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -27,46 +30,55 @@ export function DuplicateAddressModal({
 
   return createPortal(
     <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 2000,
-        background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        animation: "agent-backdrop-in 180ms ease both",
-      }}
+      data-theme={theme}
+      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px" }}
     >
+      {/* Backdrop */}
       <div
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 agent-backdrop-overlay"
+        onClick={onClose}
+      />
+
+      {/* Card */}
+      <div
         style={{
-          width: "100%", maxWidth: 440,
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 420,
           borderRadius: 20,
-          background: "rgba(255,255,255,0.94)",
-          backdropFilter: "blur(40px)",
-          border: "0.5px solid rgba(255,255,255,0.80)",
-          boxShadow: "0 32px 80px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.08)",
+          background: "rgba(255,255,255,0.98)",
+          borderTop: "3px solid var(--agent-coral-deep)",
+          boxShadow: "0 24px 64px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.08)",
           overflow: "hidden",
           animation: "agent-modal-in 280ms cubic-bezier(0.16,1,0.3,1) both",
-          borderTop: "3px solid var(--agent-coral-deep)",
         }}
       >
-        <div style={{ padding: "24px 24px 20px" }}>
-          <p style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+        {/* Body */}
+        <div style={{ padding: "22px 22px 16px" }}>
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
             Address already exists
           </p>
-          <p style={{ margin: 0, fontSize: 13.5, color: "rgba(15,23,42,0.60)", lineHeight: 1.55 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.58)", lineHeight: 1.6 }}>
             There&apos;s already an active file for{" "}
-            <strong style={{ color: "var(--agent-text-primary)" }}>{address}</strong>.
-            {assignedTo && ` It is assigned to ${assignedTo}.`}
+            <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{address}</strong>.
+            {assignedTo && ` Assigned to ${assignedTo}.`}
           </p>
         </div>
-        <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+
+        {/* Actions */}
+        <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
           <Link
             href={`/agent/transactions/${duplicateId}`}
+            className="agent-btn-color-primary"
             style={{
-              display: "block", padding: "11px 16px", borderRadius: 12,
-              fontWeight: 600, fontSize: 14,
-              background: "var(--agent-coral-deep)", color: "#fff",
-              textAlign: "center", textDecoration: "none",
+              display: "block",
+              padding: "11px 16px",
+              borderRadius: 12,
+              fontWeight: 600,
+              fontSize: 14,
+              textAlign: "center",
+              textDecoration: "none",
             }}
           >
             View existing file
@@ -80,23 +92,24 @@ export function DuplicateAddressModal({
               border: "1.5px solid rgba(15,23,42,0.15)",
               cursor: "pointer",
               color: "rgba(15,23,42,0.65)",
+              transition: "background 150ms",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             Create anyway
           </button>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: 0, background: "none", border: "none", cursor: "pointer",
-              fontSize: 12, color: "rgba(15,23,42,0.38)", fontWeight: 500, textAlign: "center",
-            }}
+            className="agent-link"
+            style={{ padding: "6px", fontSize: 12, fontWeight: 500, textAlign: "center" }}
           >
             Cancel
           </button>
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
