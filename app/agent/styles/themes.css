@@ -46,6 +46,10 @@
      --agent-snoozed, --agent-snoozed-bg, --agent-snoozed-border,
      --agent-snoozed-rgb
 
+   Semantic — side accents (categorical, theme-locked; used as text colour on
+   milestone side-labels and party indicators; not quality signals):
+     --agent-vendor-accent, --agent-purchaser-accent
+
    Glass surfaces:
      --agent-glass-bg, --agent-glass-bg-strong,
      --agent-glass-bg-subtle, --agent-glass-bg-hover,
@@ -151,6 +155,10 @@
     --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
+
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:           rgba(255, 255, 255, 0.50);
@@ -317,6 +325,10 @@
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
 
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.45);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.65);
@@ -481,6 +493,10 @@
     --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
+
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
@@ -647,6 +663,10 @@
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
 
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
@@ -812,6 +832,10 @@
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
 
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
+
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
     --agent-glass-bg-strong:     rgba(255, 255, 255, 0.70);
@@ -976,6 +1000,10 @@
     --agent-snoozed-bg:     rgba(126, 34, 206, 0.08);
     --agent-snoozed-border: rgba(126, 34, 206, 0.30);
     --agent-snoozed-rgb:    126, 34, 206;
+
+    /* ── Semantic — side accents (categorical, theme-locked) ─────────────── */
+    --agent-vendor-accent:    #4F46E5;
+    --agent-purchaser-accent: #BE185D;
 
     /* ── Glass surfaces ───────────────────────────────────────────────────── */
     --agent-glass-bg:            rgba(255, 255, 255, 0.50);
