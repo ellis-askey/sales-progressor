@@ -54,10 +54,9 @@ export function canAddAbove(link: LinkPermissionData, userId: string): boolean {
 }
 
 // Add a node below this link:
-//   - originator only, and only if this link is at the bottom (checked by caller)
-//   - claimers cannot add below (requires decouple — deferred to v1.1)
+//   - originator or claimer can add below if their link is at the bottom (checked by caller)
 export function canAddBelow(link: LinkPermissionData, userId: string): boolean {
-  return isOriginator(link, userId) && isUnclaimed(link);
+  return isOriginator(link, userId) || isClaimer(link, userId);
 }
 
 // View the full chain (address, agency, % progress on all nodes)
