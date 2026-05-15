@@ -731,11 +731,13 @@ export default async function HubPreviewPage() {
                 <p style={{
                   margin: 0, fontSize: 12, fontWeight: 500,
                   color: "var(--agent-text-primary)",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   Last activity: {recentActivity.description}
                 </p>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
+                <p style={{
+                  margin: 0, fontSize: 11, color: "var(--agent-text-muted)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
                   {timeAgo(recentActivity.at)} · {recentActivity.context}
                 </p>
               </div>
