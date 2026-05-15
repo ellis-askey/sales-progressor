@@ -68,7 +68,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
         </div>
 
         {/* Footer — three actions, left to right: discard / stay / save */}
-        <div style={{ padding: "14px 20px 20px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="v2-modal-footer" style={{ padding: "14px 20px 20px", display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={onDiscard}
             style={{

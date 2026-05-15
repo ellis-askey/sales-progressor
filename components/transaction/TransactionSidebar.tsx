@@ -332,13 +332,13 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         <div className="space-y-2">
           {/* Purchase price */}
           <div className="flex justify-between items-center">
-            <p className="text-xs text-slate-900/40">Purchase price</p>
+            <p className="text-xs text-slate-900/40 max-w-[60%]">Purchase price</p>
             <p className="text-xs font-semibold text-slate-900/90">{formatPrice(transaction.purchasePrice) ?? "—"}</p>
           </div>
 
           {/* Agent fee */}
           <div className="flex justify-between items-center">
-            <p className="text-xs text-slate-900/40">Agent fee</p>
+            <p className="text-xs text-slate-900/40 max-w-[60%]">Agent fee</p>
             <p className="text-xs font-semibold text-slate-900/90">
               {transaction.agentFeeAmount
                 ? `${formatFee(transaction.agentFeeAmount)}${transaction.agentFeeIsVatInclusive === false ? " + VAT" : transaction.agentFeeIsVatInclusive === true ? " inc VAT" : ""}`
@@ -351,7 +351,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {/* Solicitor referral fee */}
           {((recommendedFirms != null && recommendedFirms.length > 0) || transaction.referredFirmName) && (
             <div className="flex justify-between items-center gap-3">
-              <p className="text-xs text-slate-900/40 flex-shrink-0">Solicitor referral</p>
+              <p className="text-xs text-slate-900/40 flex-shrink-0 max-w-[60%]">Solicitor referral</p>
               <p className="text-xs font-semibold text-slate-900/90 text-right">
                 {transaction.referredFirmName
                   ? (transaction.referralFee != null ? formatFee(transaction.referralFee) : "—")
@@ -363,7 +363,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {/* Broker referral fee */}
           {transaction.brokerFirmName && (
             <div className="flex justify-between items-center gap-3">
-              <p className="text-xs text-slate-900/40 flex-shrink-0">Broker referral</p>
+              <p className="text-xs text-slate-900/40 flex-shrink-0 max-w-[60%]">Broker referral</p>
               <p className="text-xs font-semibold text-slate-900/90 text-right">
                 {transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "—"}
               </p>
@@ -373,7 +373,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {/* Progressor fee */}
           {showOurFee && ourFee.fee != null && (
             <div className="flex justify-between items-baseline gap-3">
-              <p className="text-xs text-slate-900/40 flex-shrink-0">Progressor fee</p>
+              <p className="text-xs text-slate-900/40 flex-shrink-0 max-w-[60%]">Progressor fee</p>
               <p className="text-xs font-semibold text-slate-900/90 text-right">{ourFee.label}</p>
             </div>
           )}
@@ -382,7 +382,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {hasTotal && (
             <div className="pt-2.5 mt-1" style={{ borderTop: "1px solid rgba(15,23,42,0.08)" }}>
               <div className="flex justify-between items-center">
-                <p className="text-xs text-slate-900/40">Net income</p>
+                <p className="text-xs text-slate-900/40 max-w-[60%]">Net income</p>
                 <p className="text-sm font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
               </div>
               {transaction.agentFeeIsVatInclusive === false && (

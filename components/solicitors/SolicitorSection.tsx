@@ -241,7 +241,7 @@ function SolicitorCard({
                 <button
                   type="button"
                   disabled
-                  className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                  className="agent-btn agent-btn-xs agent-btn-ghost-bordered hidden md:inline-flex"
                   style={{ opacity: 0.45, cursor: "default" }}
                   title="Coming soon"
                 >

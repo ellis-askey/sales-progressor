@@ -627,6 +627,10 @@ select {
   .mobile-alert-banner--warning { border-color: rgba(201,125,26,0.65) !important; }
   .mobile-alert-banner--danger  { border-color: rgba(199,62,62,0.65)  !important; }
 
+  /* NavAway modal footer — stack vertically, priority: Save draft (top) → Stay → Discard (bottom) */
+  .v2-modal-footer { flex-direction: column-reverse !important; }
+  .v2-modal-footer > * { width: 100% !important; flex: none !important; justify-content: center !important; }
+
   /* Reminders page — work queue mobile */
   .reminders-page-pad { padding: 16px 16px !important; }
 
