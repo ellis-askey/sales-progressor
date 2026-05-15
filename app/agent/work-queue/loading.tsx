@@ -23,7 +23,7 @@ function ReminderGroupSkeleton({ rows, urgencyColor }: { rows: number; urgencyCo
       {/* Group header chip */}
       <div style={{
         height: 36, borderRadius: 12,
-        background: "rgba(255,255,255,0.40)",
+        background: "var(--agent-glass-bg-subtle)",
         padding: "0 12px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
@@ -41,7 +41,7 @@ function ReminderGroupSkeleton({ rows, urgencyColor }: { rows: number; urgencyCo
           className="agent-glass-strong"
           style={{ borderRadius: 20, borderLeft: `4px solid ${urgencyColor}`, overflow: "hidden", opacity: i > 0 ? 0.7 : 1 }}
         >
-          <div style={{ padding: "6px 16px", background: "rgba(255,255,255,0.20)", borderBottom: "0.5px solid rgba(255,255,255,0.30)" }}>
+          <div style={{ padding: "6px 16px", background: "var(--agent-glass-bg-subtle)", borderBottom: "0.5px solid var(--agent-glass-border)" }}>
             <div className="agent-skeleton" style={{ height: 10, width: 88, borderRadius: 6 }} />
           </div>
           <div style={{ padding: "12px 20px" }}>
