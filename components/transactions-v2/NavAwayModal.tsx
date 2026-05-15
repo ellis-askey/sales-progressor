@@ -26,7 +26,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
   return createPortal(
     <div
       data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}
     >
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={onStay} />
 

@@ -801,7 +801,8 @@
   .agent-tab-bar {
     display: flex;
     position: relative; /* required: absolute underline bar positions within this */
-    overflow: hidden;   /* clips the sliding bar at edges */
+    overflow-x: auto;   /* allows horizontal scroll on mobile; was overflow:hidden which blocked it */
+    overflow-y: hidden; /* still clips the sliding indicator bar vertically */
   }
   .agent-tab {
     display: inline-flex;
