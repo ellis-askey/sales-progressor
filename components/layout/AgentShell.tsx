@@ -223,7 +223,7 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
           <List weight="regular" style={{ width: 20, height: 20 }} />
         </button>
 
-        <div style={{ flex: 1, maxWidth: 480 }}>
+        <div className="md:max-w-[480px]" style={{ flex: 1 }}>
           <AgentGlobalSearch />
         </div>
 
@@ -243,9 +243,9 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
             <ArrowsClockwise size={13} />
             {`As of ${formatAgentTime(refreshedAt)}`}
           </button>
-          <SolidModeToggle />
+          <div className="hidden md:block"><SolidModeToggle /></div>
           <AgentBell userKey={session.user.email ?? session.user.id} />
-          <UserDropdown session={session} isDirector={isDirector} />
+          <div className="hidden md:block"><UserDropdown session={session} isDirector={isDirector} /></div>
         </div>
       </header>
 
@@ -380,6 +380,54 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
             </>
           )}
         </nav>
+
+        {/* User identity + actions — mobile sidebar bottom only */}
+        <div className="md:hidden" style={{
+          borderTop: "0.5px solid var(--agent-border-subtle)",
+          padding: "14px 20px 16px",
+          flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <UserAvatar user={{ name: session.user.name ?? "" }} size={26} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {session.user.name}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>
+                {isDirector ? "Director" : "Negotiator"}
+              </p>
+            </div>
+          </div>
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <Link
+              href="/agent/settings"
+              onClick={() => setMobileOpen(false)}
+              className="hover:bg-black/[0.05]"
+              style={{
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 6, padding: "7px 10px", borderRadius: 8,
+                textDecoration: "none", fontSize: 12, color: "var(--agent-text-secondary)",
+                transition: "background 150ms",
+              }}
+            >
+              <GearSix weight="regular" style={{ width: 14, height: 14, flexShrink: 0 }} />
+              Settings
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="hover:bg-black/[0.05]"
+              style={{
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 6, padding: "7px 10px", borderRadius: 8,
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 12, color: "var(--agent-text-secondary)",
+                transition: "background 150ms",
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Main content */}
