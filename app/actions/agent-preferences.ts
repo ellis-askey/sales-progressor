@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { isAgentTheme, type AgentTheme } from "@/lib/agent/themes";
+import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
 
 export async function updateAgentTheme(theme: AgentTheme) {
   const session = await requireSession();
@@ -39,4 +39,36 @@ export async function updateAgentTheme(theme: AgentTheme) {
   revalidatePath("/agent", "layout");
 
   return { ok: true as const, theme };
+}
+
+export async function updateAgentMobileTheme(mobileTheme: MobileAgentTheme) {
+  const session = await requireSession();
+
+  if (!isMobileAgentTheme(mobileTheme)) {
+    return { ok: false as const, error: "Invalid mobile theme" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...existingPrefs,
+        mobileTheme,
+      },
+    },
+  });
+
+  revalidatePath("/agent", "layout");
+
+  return { ok: true as const, mobileTheme };
 }

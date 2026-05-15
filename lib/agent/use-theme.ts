@@ -1,9 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateAgentTheme } from "@/app/actions/agent-preferences";
+import { updateAgentTheme, updateAgentMobileTheme } from "@/app/actions/agent-preferences";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import type { AgentTheme } from "@/lib/agent/themes";
+import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -14,6 +14,15 @@ const THEME_NAMES: Record<AgentTheme, string> = {
   slate:    "Slate",
   emerald:  "Emerald",
   claret:   "Claret",
+};
+
+const MOBILE_THEME_NAMES: Record<MobileAgentTheme, string> = {
+  heritage: "Heritage",
+  sage:     "Sage",
+  dusk:     "Dusk",
+  stone:    "Stone",
+  mist:     "Mist",
+  blush:    "Blush",
 };
 
 /**
@@ -54,4 +63,34 @@ export function useAgentTheme() {
   }
 
   return { setTheme, isPending };
+}
+
+/**
+ * Hook to switch the mobile theme.
+ * Updates data-mobile-theme on .agent-shell-root immediately, then persists.
+ */
+export function useAgentMobileTheme() {
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useAgentToast();
+
+  function setMobileTheme(mobileTheme: MobileAgentTheme) {
+    const shell = document.querySelector(".agent-shell-root");
+    if (shell) shell.setAttribute("data-mobile-theme", mobileTheme);
+
+    startTransition(() => {
+      updateAgentMobileTheme(mobileTheme)
+        .then((result) => {
+          if (result.ok) {
+            toast.success(`Mobile theme changed to ${MOBILE_THEME_NAMES[mobileTheme]}`);
+          } else {
+            toast.error("Couldn't save mobile theme. Try again.");
+          }
+        })
+        .catch(() => {
+          toast.error("Couldn't save mobile theme. Try again.");
+        });
+    });
+  }
+
+  return { setMobileTheme, isPending };
 }

@@ -24,9 +24,6 @@ export function isAgentTheme(value: unknown): value is AgentTheme {
 /**
  * Reads the theme from a user's agentPreferences JSON field.
  * Returns the default theme if no preference is set or the value is invalid.
- *
- * Use this everywhere the theme needs to be resolved — never reach into
- * agentPreferences directly elsewhere in the codebase.
  */
 export function getAgentTheme(agentPreferences: unknown): AgentTheme {
   if (
@@ -38,4 +35,41 @@ export function getAgentTheme(agentPreferences: unknown): AgentTheme {
     return (agentPreferences as { theme: AgentTheme }).theme;
   }
   return DEFAULT_AGENT_THEME;
+}
+
+// ── Mobile themes ─────────────────────────────────────────────────────────────
+// Separate theme set for ≤1024px viewports. Heritage is the default and crosses
+// over from the desktop set; the other five are mobile-only.
+
+export const MOBILE_AGENT_THEMES = [
+  "heritage",
+  "sage",
+  "dusk",
+  "stone",
+  "mist",
+  "blush",
+] as const;
+
+export type MobileAgentTheme = (typeof MOBILE_AGENT_THEMES)[number];
+
+export const DEFAULT_MOBILE_AGENT_THEME: MobileAgentTheme = "heritage";
+
+export function isMobileAgentTheme(value: unknown): value is MobileAgentTheme {
+  return typeof value === "string" && (MOBILE_AGENT_THEMES as readonly string[]).includes(value);
+}
+
+/**
+ * Reads the mobile theme from a user's agentPreferences JSON field.
+ * Returns heritage if no preference is set or the value is invalid.
+ */
+export function getMobileAgentTheme(agentPreferences: unknown): MobileAgentTheme {
+  if (
+    agentPreferences &&
+    typeof agentPreferences === "object" &&
+    "mobileTheme" in agentPreferences &&
+    isMobileAgentTheme((agentPreferences as Record<string, unknown>).mobileTheme)
+  ) {
+    return (agentPreferences as { mobileTheme: MobileAgentTheme }).mobileTheme;
+  }
+  return DEFAULT_MOBILE_AGENT_THEME;
 }

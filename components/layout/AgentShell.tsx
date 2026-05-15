@@ -7,7 +7,7 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
-import type { AgentTheme } from "@/lib/agent/themes";
+import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
@@ -163,7 +163,7 @@ function UserDropdown({ session, isDirector }: { session: Session; isDirector: b
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role        = session.user.role as UserRole;
@@ -188,7 +188,7 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
   }
 
   return (
-    <div className="agent-shell-root" data-theme={theme} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} style={{ display: "flex" }}>
 
       {/* Aurora background */}
       <div aria-hidden="true" style={{

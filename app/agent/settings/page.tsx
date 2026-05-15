@@ -7,7 +7,7 @@ import { ProfileForm } from "@/components/agent/ProfileForm";
 import { ThemePicker } from "@/components/agent/ThemePicker";
 import { AccountDangerZone } from "@/components/agent/AccountDangerZone";
 import { InviteDirector } from "@/components/agent/InviteDirector";
-import { getAgentTheme } from "@/lib/agent/themes";
+import { getAgentTheme, getMobileAgentTheme } from "@/lib/agent/themes";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 
 export default async function AgentSettingsPage({
@@ -34,6 +34,7 @@ export default async function AgentSettingsPage({
   ]);
 
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
+  const currentMobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
 
   const directorStatus = session.user.agencyId
     ? await getAgencyDirectorStatus(session.user.agencyId)
@@ -112,7 +113,7 @@ export default async function AgentSettingsPage({
         )}
 
         {/* Branch theme */}
-        <ThemePicker currentTheme={currentTheme} />
+        <ThemePicker currentTheme={currentTheme} currentMobileTheme={currentMobileTheme} />
 
         {/* Team — directors only */}
         {isDirector && (

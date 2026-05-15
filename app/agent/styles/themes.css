@@ -1113,3 +1113,407 @@
     --agent-aurora-band2: rgba(215, 100, 125, 0.24);
     --agent-aurora-band3: rgba(240, 185, 155, 0.20);
 }
+
+/* ============================================================
+   Mobile themes  (≤1024px)
+   Applied via data-mobile-theme on .agent-shell-root.
+   At mobile breakpoints these tokens override the desktop
+   [data-theme] values — all components pick them up automatically.
+   Heritage mirrors the desktop heritage block exactly.
+   The other five (Sage, Dusk, Stone, Mist, Blush) are mobile-only.
+   ============================================================ */
+
+@media (max-width: 1024px) {
+
+  /* ── Heritage (mobile) — mirrors desktop heritage exactly ─────────────── */
+
+  .agent-shell-root[data-mobile-theme="heritage"] {
+    --agent-bg-base:  #DCE7F8;
+    --agent-bg-mid:   #E8DEF5;
+    --agent-bg-warm:  #D5DDF0;
+    --agent-bg-deep:  #C5CFE8;
+    --agent-bg-paper: #F5F8FC;
+
+    --agent-text-primary:    #1E2D4A;
+    --agent-text-secondary:  #5B6B85;
+    --agent-text-tertiary:   #7B8AA5;
+    --agent-text-muted:      rgba(30, 45, 74, 0.55);
+    --agent-text-disabled:   rgba(30, 45, 74, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #F5F8FC;
+
+    --agent-coral:                #6A85C8;
+    --agent-coral-deep:           #4A6FB5;
+    --agent-coral-darker:         #3A5A99;
+    --agent-coral-light:          #9AB0DC;
+    --agent-coral-pale:           #C8D5EB;
+    --agent-coral-bg-tint:        rgba(106, 133, 200, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(106, 133, 200, 0.14);
+
+    --agent-glass-bg:            rgba(255, 255, 255, 0.58);
+    --agent-glass-bg-strong:     rgba(255, 255, 255, 0.78);
+    --agent-glass-bg-subtle:     rgba(255, 255, 255, 0.42);
+    --agent-glass-bg-hover:      rgba(255, 255, 255, 0.68);
+    --agent-glass-border:        rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:         0 4px 20px rgba(106, 133, 200, 0.06),
+                                  0 1px  4px rgba(30,  45,  74,  0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(106, 133, 200, 0.10),
+                                  0 2px  8px rgba(30,  45,  74,  0.06);
+
+    --agent-border-subtle:  rgba(30, 45, 74, 0.06);
+    --agent-border-default: rgba(30, 45, 74, 0.10);
+    --agent-border-strong:  rgba(30, 45, 74, 0.18);
+    --agent-border-focus:   rgba(106, 133, 200, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(106, 133, 200, 0.50), 0 0 12px 2px rgba(106, 133, 200, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(106, 133, 200, 0.60), 0 0  8px 1px rgba(106, 133, 200, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     30, 45, 74;
+    --agent-coral-rgb:      74, 111, 181;
+    --agent-coral-base-rgb: 106, 133, 200;
+    --agent-bloom-gold-rgb: 184, 154, 226;
+    --agent-bg-base-rgb:    220, 231, 248;
+
+    --agent-hover-tint:         rgba(74, 111, 181, 0.08);
+    --agent-hover-tint-strong:  rgba(74, 111, 181, 0.16);
+    --agent-hover-tint-warning: rgba(184, 154, 226, 0.30);
+
+    --agent-avatar-user-start: #DCE7F8;
+    --agent-avatar-user-end:   #9AB0DC;
+    --agent-avatar-user-text:  #1E2D4A;
+
+    --agent-aurora-band1: rgba( 80, 105, 205, 0.30);
+    --agent-aurora-band2: rgba(155, 100, 215, 0.24);
+    --agent-aurora-band3: rgba(210, 185, 120, 0.20);
+  }
+
+  /* ── Sage — soft sage green ────────────────────────────────────────────── */
+
+  .agent-shell-root[data-mobile-theme="sage"] {
+    --agent-bg-base:  #E6F0EB;
+    --agent-bg-mid:   #EAE8F2;
+    --agent-bg-warm:  #DCE8E2;
+    --agent-bg-deep:  #CCDDD5;
+    --agent-bg-paper: #F5FAF7;
+
+    --agent-text-primary:    #1A3025;
+    --agent-text-secondary:  #4A6055;
+    --agent-text-tertiary:   #6A8070;
+    --agent-text-muted:      rgba(26, 48, 37, 0.55);
+    --agent-text-disabled:   rgba(26, 48, 37, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #F5FAF7;
+
+    --agent-coral:                #3D7A55;
+    --agent-coral-deep:           #2A6042;
+    --agent-coral-darker:         #1E4D32;
+    --agent-coral-light:          #7AB090;
+    --agent-coral-pale:           #B8D5C5;
+    --agent-coral-bg-tint:        rgba(61, 122, 85, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(61, 122, 85, 0.14);
+
+    --agent-glass-bg:            rgba(220, 240, 228, 0.62);
+    --agent-glass-bg-strong:     rgba(235, 248, 240, 0.80);
+    --agent-glass-bg-subtle:     rgba(210, 235, 220, 0.45);
+    --agent-glass-bg-hover:      rgba(228, 244, 234, 0.70);
+    --agent-glass-border:        rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:         0 4px 20px rgba(61, 122, 85, 0.06),
+                                  0 1px  4px rgba(26, 48,  37, 0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(61, 122, 85, 0.10),
+                                  0 2px  8px rgba(26, 48,  37, 0.06);
+
+    --agent-border-subtle:  rgba(26, 48, 37, 0.06);
+    --agent-border-default: rgba(26, 48, 37, 0.10);
+    --agent-border-strong:  rgba(26, 48, 37, 0.18);
+    --agent-border-focus:   rgba(61, 122, 85, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(61, 122, 85, 0.50), 0 0 12px 2px rgba(61, 122, 85, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(61, 122, 85, 0.60), 0 0  8px 1px rgba(61, 122, 85, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     26, 48, 37;
+    --agent-coral-rgb:      42, 96, 66;
+    --agent-coral-base-rgb: 61, 122, 85;
+    --agent-bloom-gold-rgb: 154, 204, 169;
+    --agent-bg-base-rgb:    230, 240, 235;
+
+    --agent-hover-tint:         rgba(42, 96, 66, 0.08);
+    --agent-hover-tint-strong:  rgba(42, 96, 66, 0.16);
+    --agent-hover-tint-warning: rgba(154, 204, 169, 0.30);
+
+    --agent-avatar-user-start: #E6F0EB;
+    --agent-avatar-user-end:   #7AB090;
+    --agent-avatar-user-text:  #1A3025;
+
+    --agent-aurora-band1: rgba( 50, 120,  80, 0.30);
+    --agent-aurora-band2: rgba(100, 160, 120, 0.24);
+    --agent-aurora-band3: rgba(180, 220, 150, 0.20);
+  }
+
+  /* ── Dusk — soft mauve-purple ──────────────────────────────────────────── */
+
+  .agent-shell-root[data-mobile-theme="dusk"] {
+    --agent-bg-base:  #EDE8F5;
+    --agent-bg-mid:   #E5E0F0;
+    --agent-bg-warm:  #DDD8EC;
+    --agent-bg-deep:  #D0CBE5;
+    --agent-bg-paper: #F8F6FC;
+
+    --agent-text-primary:    #261A38;
+    --agent-text-secondary:  #5A4870;
+    --agent-text-tertiary:   #7A6890;
+    --agent-text-muted:      rgba(38, 26, 56, 0.55);
+    --agent-text-disabled:   rgba(38, 26, 56, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #F8F6FC;
+
+    --agent-coral:                #7A5FB5;
+    --agent-coral-deep:           #6045A0;
+    --agent-coral-darker:         #4D368C;
+    --agent-coral-light:          #A892D0;
+    --agent-coral-pale:           #CEC3E8;
+    --agent-coral-bg-tint:        rgba(122, 95, 181, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(122, 95, 181, 0.14);
+
+    --agent-glass-bg:            rgba(225, 215, 245, 0.62);
+    --agent-glass-bg-strong:     rgba(238, 230, 252, 0.80);
+    --agent-glass-bg-subtle:     rgba(215, 205, 240, 0.45);
+    --agent-glass-bg-hover:      rgba(232, 225, 250, 0.70);
+    --agent-glass-border:        rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:         0 4px 20px rgba(122, 95, 181, 0.06),
+                                  0 1px  4px rgba(38,  26,  56, 0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(122, 95, 181, 0.10),
+                                  0 2px  8px rgba(38,  26,  56, 0.06);
+
+    --agent-border-subtle:  rgba(38, 26, 56, 0.06);
+    --agent-border-default: rgba(38, 26, 56, 0.10);
+    --agent-border-strong:  rgba(38, 26, 56, 0.18);
+    --agent-border-focus:   rgba(122, 95, 181, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(122, 95, 181, 0.50), 0 0 12px 2px rgba(122, 95, 181, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(122, 95, 181, 0.60), 0 0  8px 1px rgba(122, 95, 181, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     38, 26, 56;
+    --agent-coral-rgb:      96, 69, 160;
+    --agent-coral-base-rgb: 122, 95, 181;
+    --agent-bloom-gold-rgb: 195, 165, 230;
+    --agent-bg-base-rgb:    237, 232, 245;
+
+    --agent-hover-tint:         rgba(96, 69, 160, 0.08);
+    --agent-hover-tint-strong:  rgba(96, 69, 160, 0.16);
+    --agent-hover-tint-warning: rgba(195, 165, 230, 0.30);
+
+    --agent-avatar-user-start: #EDE8F5;
+    --agent-avatar-user-end:   #A892D0;
+    --agent-avatar-user-text:  #261A38;
+
+    --agent-aurora-band1: rgba(100,  75, 175, 0.28);
+    --agent-aurora-band2: rgba(165, 125, 210, 0.22);
+    --agent-aurora-band3: rgba(215, 190, 240, 0.18);
+  }
+
+  /* ── Stone — warm grey-putty ───────────────────────────────────────────── */
+
+  .agent-shell-root[data-mobile-theme="stone"] {
+    --agent-bg-base:  #EEEAE4;
+    --agent-bg-mid:   #E8E3DC;
+    --agent-bg-warm:  #DDD7CE;
+    --agent-bg-deep:  #D0C9BE;
+    --agent-bg-paper: #FAF8F5;
+
+    --agent-text-primary:    #2A2420;
+    --agent-text-secondary:  #5A534E;
+    --agent-text-tertiary:   #7A736E;
+    --agent-text-muted:      rgba(42, 36, 32, 0.55);
+    --agent-text-disabled:   rgba(42, 36, 32, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #FAF8F5;
+
+    --agent-coral:                #7A6B60;
+    --agent-coral-deep:           #5E5248;
+    --agent-coral-darker:         #4A3E35;
+    --agent-coral-light:          #A89A92;
+    --agent-coral-pale:           #C8BEB8;
+    --agent-coral-bg-tint:        rgba(122, 107, 96, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(122, 107, 96, 0.14);
+
+    --agent-glass-bg:            rgba(230, 224, 216, 0.62);
+    --agent-glass-bg-strong:     rgba(242, 238, 232, 0.80);
+    --agent-glass-bg-subtle:     rgba(220, 214, 206, 0.45);
+    --agent-glass-bg-hover:      rgba(236, 230, 224, 0.70);
+    --agent-glass-border:        rgba(255, 255, 255, 0.70);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.88);
+    --agent-glass-shadow:         0 4px 20px rgba(122, 107, 96, 0.06),
+                                  0 1px  4px rgba(42,  36,  32, 0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(122, 107, 96, 0.10),
+                                  0 2px  8px rgba(42,  36,  32, 0.06);
+
+    --agent-border-subtle:  rgba(42, 36, 32, 0.06);
+    --agent-border-default: rgba(42, 36, 32, 0.10);
+    --agent-border-strong:  rgba(42, 36, 32, 0.18);
+    --agent-border-focus:   rgba(122, 107, 96, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(122, 107, 96, 0.50), 0 0 12px 2px rgba(122, 107, 96, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(122, 107, 96, 0.60), 0 0  8px 1px rgba(122, 107, 96, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     42, 36, 32;
+    --agent-coral-rgb:      94, 82, 72;
+    --agent-coral-base-rgb: 122, 107, 96;
+    --agent-bloom-gold-rgb: 196, 184, 168;
+    --agent-bg-base-rgb:    238, 234, 228;
+
+    --agent-hover-tint:         rgba(94, 82, 72, 0.08);
+    --agent-hover-tint-strong:  rgba(94, 82, 72, 0.16);
+    --agent-hover-tint-warning: rgba(196, 184, 168, 0.30);
+
+    --agent-avatar-user-start: #EEEAE4;
+    --agent-avatar-user-end:   #A89A92;
+    --agent-avatar-user-text:  #2A2420;
+
+    --agent-aurora-band1: rgba(110, 95,  85, 0.28);
+    --agent-aurora-band2: rgba(160, 145, 130, 0.22);
+    --agent-aurora-band3: rgba(210, 200, 185, 0.18);
+  }
+
+  /* ── Mist — crisp cool blue-white ─────────────────────────────────────── */
+
+  .agent-shell-root[data-mobile-theme="mist"] {
+    --agent-bg-base:  #E8F0F7;
+    --agent-bg-mid:   #DDE8F2;
+    --agent-bg-warm:  #D5E2EE;
+    --agent-bg-deep:  #C8D9E8;
+    --agent-bg-paper: #F5F9FC;
+
+    --agent-text-primary:    #1A2D3A;
+    --agent-text-secondary:  #4A6070;
+    --agent-text-tertiary:   #6A8090;
+    --agent-text-muted:      rgba(26, 45, 58, 0.55);
+    --agent-text-disabled:   rgba(26, 45, 58, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #F5F9FC;
+
+    --agent-coral:                #4A7A9B;
+    --agent-coral-deep:           #356580;
+    --agent-coral-darker:         #264D62;
+    --agent-coral-light:          #7AA5BE;
+    --agent-coral-pale:           #B0CCDA;
+    --agent-coral-bg-tint:        rgba(74, 122, 155, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(74, 122, 155, 0.14);
+
+    --agent-glass-bg:            rgba(210, 230, 244, 0.62);
+    --agent-glass-bg-strong:     rgba(228, 242, 252, 0.80);
+    --agent-glass-bg-subtle:     rgba(200, 222, 240, 0.45);
+    --agent-glass-bg-hover:      rgba(218, 236, 250, 0.70);
+    --agent-glass-border:        rgba(255, 255, 255, 0.72);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.90);
+    --agent-glass-shadow:         0 4px 20px rgba(74, 122, 155, 0.06),
+                                  0 1px  4px rgba(26,  45,  58, 0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(74, 122, 155, 0.10),
+                                  0 2px  8px rgba(26,  45,  58, 0.06);
+
+    --agent-border-subtle:  rgba(26, 45, 58, 0.06);
+    --agent-border-default: rgba(26, 45, 58, 0.10);
+    --agent-border-strong:  rgba(26, 45, 58, 0.18);
+    --agent-border-focus:   rgba(74, 122, 155, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(74, 122, 155, 0.50), 0 0 12px 2px rgba(74, 122, 155, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(74, 122, 155, 0.60), 0 0  8px 1px rgba(74, 122, 155, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     26, 45, 58;
+    --agent-coral-rgb:      53, 101, 128;
+    --agent-coral-base-rgb: 74, 122, 155;
+    --agent-bloom-gold-rgb: 174, 210, 234;
+    --agent-bg-base-rgb:    232, 240, 247;
+
+    --agent-hover-tint:         rgba(53, 101, 128, 0.08);
+    --agent-hover-tint-strong:  rgba(53, 101, 128, 0.16);
+    --agent-hover-tint-warning: rgba(174, 210, 234, 0.30);
+
+    --agent-avatar-user-start: #E8F0F7;
+    --agent-avatar-user-end:   #7AA5BE;
+    --agent-avatar-user-text:  #1A2D3A;
+
+    --agent-aurora-band1: rgba( 55, 110, 150, 0.28);
+    --agent-aurora-band2: rgba(100, 165, 200, 0.22);
+    --agent-aurora-band3: rgba(180, 220, 240, 0.18);
+  }
+
+  /* ── Blush — pale rose-champagne ───────────────────────────────────────── */
+
+  .agent-shell-root[data-mobile-theme="blush"] {
+    --agent-bg-base:  #F5ECF0;
+    --agent-bg-mid:   #F0E5EC;
+    --agent-bg-warm:  #ECDDE8;
+    --agent-bg-deep:  #E5D5E0;
+    --agent-bg-paper: #FBF8FA;
+
+    --agent-text-primary:    #30181E;
+    --agent-text-secondary:  #6A4050;
+    --agent-text-tertiary:   #8A6070;
+    --agent-text-muted:      rgba(48, 24, 30, 0.55);
+    --agent-text-disabled:   rgba(48, 24, 30, 0.35);
+    --agent-text-on-coral:   #FFFFFF;
+    --agent-text-on-dark:    #FBF8FA;
+
+    --agent-coral:                #A0607A;
+    --agent-coral-deep:           #8A4A62;
+    --agent-coral-darker:         #703A50;
+    --agent-coral-light:          #C490A8;
+    --agent-coral-pale:           #DDBECE;
+    --agent-coral-bg-tint:        rgba(160, 96, 122, 0.08);
+    --agent-coral-bg-tint-hover:  rgba(160, 96, 122, 0.14);
+
+    --agent-glass-bg:            rgba(238, 218, 228, 0.62);
+    --agent-glass-bg-strong:     rgba(248, 232, 240, 0.80);
+    --agent-glass-bg-subtle:     rgba(228, 210, 220, 0.45);
+    --agent-glass-bg-hover:      rgba(244, 226, 234, 0.70);
+    --agent-glass-border:        rgba(255, 255, 255, 0.72);
+    --agent-glass-border-bright: rgba(255, 255, 255, 0.90);
+    --agent-glass-shadow:         0 4px 20px rgba(160, 96, 122, 0.06),
+                                  0 1px  4px rgba(48,  24,  30, 0.04);
+    --agent-glass-shadow-lifted:  0 8px 32px rgba(160, 96, 122, 0.10),
+                                  0 2px  8px rgba(48,  24,  30, 0.06);
+
+    --agent-border-subtle:  rgba(48, 24, 30, 0.06);
+    --agent-border-default: rgba(48, 24, 30, 0.10);
+    --agent-border-strong:  rgba(48, 24, 30, 0.18);
+    --agent-border-focus:   rgba(160, 96, 122, 0.45);
+
+    --agent-focus-ring:       0 0 0 1.5px rgba(160, 96, 122, 0.50), 0 0 12px 2px rgba(160, 96, 122, 0.18);
+    --agent-focus-ring-tight: 0 0 0 1px   rgba(160, 96, 122, 0.60), 0 0  8px 1px rgba(160, 96, 122, 0.22);
+
+    --agent-surface-elevated: #FFFFFF;
+
+    --agent-shadow-rgb:     48, 24, 30;
+    --agent-coral-rgb:      138, 74, 98;
+    --agent-coral-base-rgb: 160, 96, 122;
+    --agent-bloom-gold-rgb: 210, 170, 190;
+    --agent-bg-base-rgb:    245, 236, 240;
+
+    --agent-hover-tint:         rgba(138, 74, 98, 0.08);
+    --agent-hover-tint-strong:  rgba(138, 74, 98, 0.16);
+    --agent-hover-tint-warning: rgba(210, 170, 190, 0.30);
+
+    --agent-avatar-user-start: #F5ECF0;
+    --agent-avatar-user-end:   #C490A8;
+    --agent-avatar-user-text:  #30181E;
+
+    --agent-aurora-band1: rgba(155, 85,  110, 0.28);
+    --agent-aurora-band2: rgba(200, 135, 160, 0.22);
+    --agent-aurora-band3: rgba(235, 200, 215, 0.18);
+  }
+
+} /* end @media (max-width: 1024px) */
+
