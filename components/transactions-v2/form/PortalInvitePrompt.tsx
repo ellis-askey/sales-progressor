@@ -7,6 +7,7 @@ const STORAGE_KEY = "portal-invite-prompt-dismissed";
 
 export function PortalInvitePrompt() {
   const [dismissed, setDismissed] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (sessionStorage.getItem(STORAGE_KEY)) {
@@ -16,13 +17,14 @@ export function PortalInvitePrompt() {
 
   function handleDismiss() {
     sessionStorage.setItem(STORAGE_KEY, "1");
-    setDismissed(true);
+    setExiting(true);
+    setTimeout(() => setDismissed(true), 150);
   }
 
   if (dismissed) return null;
 
   return (
-    <div style={{
+    <div className={exiting ? "agent-reveal-out" : "agent-reveal-in"} style={{
       display: "flex",
       alignItems: "flex-start",
       gap: 12,

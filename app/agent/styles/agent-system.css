@@ -1578,3 +1578,23 @@
   color: rgba(15, 23, 42, 0.28);
   font-weight: 400;
 }
+
+/* ── MemoStatusBar amber missing-field pills ─────────────────────────────── */
+
+  .memo-missing-pill {
+    transition: opacity var(--agent-transition-fast), box-shadow var(--agent-transition-fast);
+  }
+  .memo-missing-pill:hover {
+    opacity: 0.72;
+  }
+  .memo-missing-pill:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--agent-warning);
+  }
+
+/* ── Stage1 tenure / purchase-type selection pills ───────────────────────── */
+
+  .stage1-option-pill:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--agent-border-focus), inset 0 0 12px rgba(var(--agent-coral-rgb), 0.06);
+  }

@@ -24,19 +24,27 @@ function Pill({
   selected: boolean;
   onClick: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
+      className="stage1-option-pill"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         flex: 1,
         padding: note ? "12px 14px" : "10px 14px",
         borderRadius: 12,
         border: selected
           ? "2px solid var(--agent-coral-deep)"
+          : hovered
+          ? "2px solid rgba(15,23,42,0.18)"
           : "2px solid rgba(15,23,42,0.10)",
         background: selected
           ? "rgba(var(--agent-coral-base-rgb), 0.08)"
+          : hovered
+          ? "rgba(255,255,255,0.65)"
           : "rgba(255,255,255,0.40)",
         color: selected ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.50)",
         fontWeight: 600,

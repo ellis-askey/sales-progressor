@@ -177,10 +177,9 @@ export function MemoStatusBar({
             <p style={{ margin: "12px 0 0", fontSize: 12, color: "rgba(15,23,42,0.45)" }}>
               Taking longer than expected —{" "}
               <button
+                className="agent-link-muted"
                 onClick={onCancel}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(15,23,42,0.50)", textDecoration: "underline", textUnderlineOffset: 2, padding: 0 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.80)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.50)")}
+                style={{ fontSize: 12 }}
               >
                 cancel and fill manually
               </button>
@@ -204,16 +203,15 @@ export function MemoStatusBar({
       {status === "done" && missingPills.length === 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle size={16} weight="fill" color="var(--agent-success)" style={{ flexShrink: 0 }} />
+            <CheckCircle size={14} weight="fill" color="var(--agent-success)" style={{ flexShrink: 0 }} />
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
               Memo read · all fields filled
             </p>
           </div>
           <button
+            className="agent-link-muted"
             onClick={onChangeFile}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "rgba(15,23,42,0.40)", textDecoration: "underline", textUnderlineOffset: 2, padding: 0, flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.70)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(15,23,42,0.40)")}
+            style={{ fontSize: 12, flexShrink: 0, marginLeft: 12 }}
           >
             Change file
           </button>
@@ -246,7 +244,10 @@ export function MemoStatusBar({
               <button
                 key={pill.key}
                 type="button"
+                className="memo-missing-pill"
                 onClick={() => onFocusField?.(pill.key)}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.72"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
                 style={{
                   flexShrink: 0,
                   padding: "4px 10px",

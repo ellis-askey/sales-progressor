@@ -113,17 +113,9 @@ export function Stage1SummaryBar({
 
       <button
         type="button"
+        className="agent-link"
         onClick={onEdit}
-        style={{
-          flexShrink: 0,
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--agent-coral-deep)",
-          padding: "2px 0",
-        }}
+        style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, padding: "2px 0" }}
       >
         Edit
       </button>

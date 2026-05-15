@@ -173,7 +173,7 @@ export function SolicitorSection({
         <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", display: "flex", alignItems: "center", gap: 4 }}>
           Seller&rsquo;s solicitor
           {vendorSolicitor && (
-            <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
+            <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
         </p>
 
@@ -216,7 +216,7 @@ export function SolicitorSection({
         <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", display: "flex", alignItems: "center", gap: 4 }}>
           Buyer&rsquo;s solicitor
           {purchaserSolicitor && (
-            <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
+            <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
         </p>
 
@@ -264,7 +264,7 @@ export function SolicitorSection({
             Optional
           </span>
           {broker?.firmId && (
-            <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
+            <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
         </p>
         <BrokerPicker

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 /* ─── Design tokens (CSS variable refs — adapt to active data-theme) ────── */
@@ -308,7 +309,7 @@ function HeroCard({ variant }: { variant: "nodraft" | "draft" | "drag" }) {
               Resume a draft (3)
             </button>
           ) : (
-            <>
+            <div className="agent-reveal-in">
               <p style={{ fontSize: 11, color: TM, marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>
                 Resume
               </p>
@@ -323,7 +324,7 @@ function HeroCard({ variant }: { variant: "nodraft" | "draft" | "drag" }) {
               <button className="agent-link agent-link-muted" style={{ marginTop: 8, fontSize: 12 }}>
                 View all drafts (3)
               </button>
-            </>
+            </div>
           )}
         </div>
       )}
@@ -350,7 +351,7 @@ function MemoStatusBar({ variant, slow }: { variant: "reading" | "done" | "missi
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {fields.map((f, i) => (
               <span key={f} style={{ fontSize: 11, color: i < 3 ? SUCCESS : TM, display: "flex", alignItems: "center", gap: 4 }}>
-                {i < 3 && "✓ "}{f}
+                {i < 3 && <CheckCircle size={14} weight="fill" color={SUCCESS} />}{f}
               </span>
             ))}
           </div>
@@ -365,7 +366,7 @@ function MemoStatusBar({ variant, slow }: { variant: "reading" | "done" | "missi
       {variant === "done" && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 18, color: SUCCESS }}>✓</span>
+            <CheckCircle size={14} weight="fill" color={SUCCESS} />
             <span style={{ fontSize: 13, fontWeight: 600, color: TP }}>Memo read · all fields filled</span>
           </div>
           <button className="agent-link" style={{ fontSize: 12 }}>
@@ -572,7 +573,7 @@ function ContactCarousel({ variant, party, outsourced }: {
             </div>
             {outsourced && (
               <p style={{ fontSize: 11, color: SUCCESS, display: "flex", alignItems: "center", gap: 5 }}>
-                <span>✓</span>
+                <CheckCircle size={14} weight="fill" color={SUCCESS} />
                 {/* OLD: "We can reach this vendor" / "We can reach this purchaser" */}
                 Contact details set
               </p>
@@ -867,7 +868,7 @@ function RightColumn({ variant }: { variant: "idle" | "loading" | "error" | "dos
         </p>
         {["Last sold price & date", "EPC energy rating", "Freehold or leasehold", "Full sale price history"].map(f => (
           <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-            <span style={{ color: SUCCESS, fontSize: 12 }}>✓</span>
+            <CheckCircle size={14} weight="fill" color={SUCCESS} />
             <span style={{ fontSize: 12, color: TS }}>{f}</span>
           </div>
         ))}

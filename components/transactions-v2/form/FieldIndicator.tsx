@@ -13,9 +13,9 @@ export function FieldIndicator({ source }: { source: MemoSource }) {
   if (source === "extracted") {
     return (
       <CheckCircle
-        size={12}
+        size={14}
         weight="fill"
-        color="#10b981"
+        color="var(--agent-success)"
         style={{ flexShrink: 0, display: "inline-block", verticalAlign: "middle", marginLeft: 5 }}
       />
     );
@@ -28,7 +28,7 @@ export function FieldIndicator({ source }: { source: MemoSource }) {
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: "#f59e0b",
+          background: "var(--agent-warning)",
           marginLeft: 5,
           verticalAlign: "middle",
           flexShrink: 0,
@@ -46,8 +46,8 @@ export function FieldHint({
 }: Props) {
   if (source === "failed") {
     return (
-      <p style={{ margin: "4px 0 0", fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
+      <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-warning)", flexShrink: 0, display: "inline-block" }} />
         {failedText}
       </p>
     );
