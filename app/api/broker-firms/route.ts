@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { titleCase } from "@/lib/utils";
 
 // GET /api/broker-firms?q=smith  — typeahead search
 export async function GET(req: NextRequest) {
@@ -49,9 +50,9 @@ export async function POST(req: NextRequest) {
           const newHandler = await prisma.brokerContact.create({
             data: {
               firmId: existing.id,
-              name: handler.name.trim(),
+              name: titleCase(handler.name.trim()),
               phone: handler.phone?.trim() || null,
-              email: handler.email?.trim() || null,
+              email: handler.email?.trim().toLowerCase() || null,
             },
           });
           return NextResponse.json({ ...existing, handlers: [...existing.handlers, newHandler] });
@@ -62,14 +63,14 @@ export async function POST(req: NextRequest) {
 
     const firm = await prisma.brokerFirm.create({
       data: {
-        name: name.trim(),
+        name: titleCase(name.trim()),
         ...(handler?.name?.trim()
           ? {
               handlers: {
                 create: {
-                  name: handler.name.trim(),
+                  name: titleCase(handler.name.trim()),
                   phone: handler.phone?.trim() || null,
-                  email: handler.email?.trim() || null,
+                  email: handler.email?.trim().toLowerCase() || null,
                 },
               },
             }

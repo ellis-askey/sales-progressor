@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { titleCase } from "@/lib/utils";
 
 // GET /api/solicitor-firms/[id]/handlers
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!firm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const handler = await prisma.solicitorContact.create({
-    data: { firmId: id, name: name.trim(), phone: phone?.trim() || null, email: email?.trim() || null },
+    data: { firmId: id, name: titleCase(name.trim()), phone: phone?.trim() || null, email: email?.trim().toLowerCase() || null },
   });
 
   return NextResponse.json(handler, { status: 201 });

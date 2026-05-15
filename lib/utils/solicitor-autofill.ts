@@ -1,4 +1,5 @@
 import type { SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
+import { titleCase, normalizePhone } from "@/lib/utils";
 
 export async function autoFillSolicitor(
   firmName: string,
@@ -23,7 +24,7 @@ export async function autoFillSolicitor(
           const createRes = await fetch(`/api/solicitor-firms/${exact.id}/handlers`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: contact.name.trim(), phone: contact.phone?.trim() || null, email: contact.email?.trim() || null }),
+            body: JSON.stringify({ name: titleCase(contact.name), phone: normalizePhone(contact.phone ?? ""), email: contact.email?.trim().toLowerCase() || null }),
           });
           if (createRes.ok) {
             const h = await createRes.json();
@@ -39,8 +40,8 @@ export async function autoFillSolicitor(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: firmName.trim(),
-        ...(contact.name?.trim() ? { handler: { name: contact.name.trim(), phone: contact.phone?.trim() || null, email: contact.email?.trim() || null } } : {}),
+        name: titleCase(firmName),
+        ...(contact.name?.trim() ? { handler: { name: titleCase(contact.name), phone: normalizePhone(contact.phone ?? ""), email: contact.email?.trim().toLowerCase() || null } } : {}),
       }),
     });
     if (!createRes.ok) return false;
