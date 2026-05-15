@@ -73,3 +73,20 @@ export function getMobileAgentTheme(agentPreferences: unknown): MobileAgentTheme
   }
   return DEFAULT_MOBILE_AGENT_THEME;
 }
+
+// ── Night mode ─────────────────────────────────────────────────────────────────
+// null  = auto (client-side time-based: on 22:00–07:00, off otherwise)
+// true  = always on (user manually enabled)
+// false = always off (user manually disabled, overrides auto)
+
+export function getNightMode(agentPreferences: unknown): boolean | null {
+  if (
+    agentPreferences &&
+    typeof agentPreferences === "object" &&
+    "nightMode" in agentPreferences
+  ) {
+    const val = (agentPreferences as Record<string, unknown>).nightMode;
+    if (typeof val === "boolean") return val;
+  }
+  return null;
+}

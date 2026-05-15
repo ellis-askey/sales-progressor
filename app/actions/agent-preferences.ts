@@ -72,3 +72,29 @@ export async function updateAgentMobileTheme(mobileTheme: MobileAgentTheme) {
 
   return { ok: true as const, mobileTheme };
 }
+
+export async function updateAgentNightMode(nightMode: boolean | null) {
+  const session = await requireSession();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...existingPrefs,
+        nightMode,
+      },
+    },
+  });
+
+  return { ok: true as const };
+}

@@ -224,7 +224,7 @@ export function ThemePicker({ currentTheme, currentMobileTheme }: ThemePickerPro
         <div className="mb-5">
           <h2 className="text-sm font-bold text-slate-900/80 mb-1">Branch theme</h2>
           <p className="text-xs text-slate-900/50">
-            Choose the look that matches your branch. Changes apply instantly.
+            Your personal theme — visible only to you, not your whole branch. Applies instantly.
           </p>
         </div>
         <div className="agent-theme-grid">
@@ -246,7 +246,7 @@ export function ThemePicker({ currentTheme, currentMobileTheme }: ThemePickerPro
         <div className="mb-5">
           <h2 className="text-sm font-bold text-slate-900/80 mb-1">Mobile theme</h2>
           <p className="text-xs text-slate-900/50">
-            Choose a calm theme for your phone and tablet. Independent of your desktop theme.
+            Just for you, just for your phone. Separate from your desktop theme — pick whatever feels easier on a small screen.
           </p>
         </div>
         <div className="agent-theme-grid">

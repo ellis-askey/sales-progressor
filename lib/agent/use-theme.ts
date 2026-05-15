@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { updateAgentTheme, updateAgentMobileTheme } from "@/app/actions/agent-preferences";
+import { updateAgentTheme, updateAgentMobileTheme, updateAgentNightMode } from "@/app/actions/agent-preferences";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import * as analytics from "@/lib/analytics/posthog";
@@ -93,4 +93,30 @@ export function useAgentMobileTheme() {
   }
 
   return { setMobileTheme, isPending };
+}
+
+/**
+ * Hook to toggle night mode.
+ * Updates data-night attribute on .agent-shell-root immediately, then persists.
+ * null = auto (time-based), true = always on, false = always off.
+ */
+export function useAgentNightMode() {
+  const [isPending, startTransition] = useTransition();
+
+  function setNightMode(nightMode: boolean | null) {
+    const shell = document.querySelector(".agent-shell-root");
+    if (shell) {
+      if (nightMode) {
+        shell.setAttribute("data-night", "");
+      } else {
+        shell.removeAttribute("data-night");
+      }
+    }
+
+    startTransition(() => {
+      updateAgentNightMode(nightMode).catch(() => {});
+    });
+  }
+
+  return { setNightMode, isPending };
 }

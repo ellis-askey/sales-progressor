@@ -5,7 +5,7 @@ import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
-import { getAgentTheme, getMobileAgentTheme } from "@/lib/agent/themes";
+import { getAgentTheme, getMobileAgentTheme, getNightMode } from "@/lib/agent/themes";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 
@@ -23,11 +23,12 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const showWelcome = !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
+  const nightModePref = getNightMode(userRecord?.agentPreferences);
 
   return (
     <div data-theme={theme} style={{ display: "contents" }}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme}>{children}</AgentShell>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref}>{children}</AgentShell>
         <FeedbackWidget checklistAware userId={session.user.id} />
         <AgentInstallPrompt />
       </AgentToaster>

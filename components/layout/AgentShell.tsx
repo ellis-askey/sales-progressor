@@ -11,7 +11,7 @@ import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -19,6 +19,12 @@ import { SolidModeToggle } from "@/components/layout/SolidModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
+import { useAgentNightMode } from "@/lib/agent/use-theme";
+
+function isNightTimeNow() {
+  const h = new Date().getHours();
+  return h >= 22 || h < 7;
+}
 
 function formatAgentTime(d: Date): string {
   try {
@@ -163,7 +169,7 @@ function UserDropdown({ session, isDirector }: { session: Session; isDirector: b
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role        = session.user.role as UserRole;
@@ -172,6 +178,8 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5);
+  const { setNightMode } = useAgentNightMode();
+  const [nightOn, setNightOn] = useState(() => nightModePref ?? isNightTimeNow());
 
   useEffect(() => {
     if (mobileOpen) {
@@ -182,13 +190,19 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme 
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
+  function handleNightToggle() {
+    const next = !nightOn;
+    setNightOn(next);
+    setNightMode(next);
+  }
+
   function handleRefresh() {
     router.refresh();
     setRefreshedAt(new Date());
   }
 
   return (
-    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} style={{ display: "flex" }}>
+    <div className="agent-shell-root" data-theme={theme} data-mobile-theme={mobileTheme} data-night={nightOn ? "" : undefined} style={{ display: "flex" }}>
 
       {/* Aurora background */}
       <div aria-hidden="true" style={{
@@ -380,6 +394,56 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme 
             </>
           )}
         </nav>
+
+        {/* Night mode toggle — mobile only */}
+        <div className="md:hidden" style={{
+          borderTop: "0.5px solid var(--agent-border-subtle)",
+          padding: "10px 20px",
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={handleNightToggle}
+            style={{
+              display: "flex", alignItems: "center", width: "100%",
+              background: "none", border: "none", cursor: "pointer",
+              padding: 0, gap: 10,
+            }}
+            aria-label={nightOn ? "Turn off night mode" : "Turn on night mode"}
+          >
+            <Moon
+              weight={nightOn ? "fill" : "regular"}
+              style={{
+                width: 16, height: 16, flexShrink: 0,
+                color: nightOn ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                transition: "color 200ms",
+              }}
+            />
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <span style={{ fontSize: 13, color: nightOn ? "var(--agent-text-primary)" : "var(--agent-text-secondary)", fontWeight: 500 }}>
+                Night mode
+              </span>
+              <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", marginTop: 1 }}>
+                Auto-enables at 10pm
+              </p>
+            </div>
+            {/* Pill toggle */}
+            <div style={{
+              width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+              background: nightOn ? "var(--agent-coral-deep)" : "var(--agent-border-strong)",
+              position: "relative",
+              transition: "background 200ms",
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 3, left: nightOn ? 19 : 3,
+                width: 14, height: 14, borderRadius: "50%",
+                background: "#fff",
+                transition: "left 200ms",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+              }} />
+            </div>
+          </button>
+        </div>
 
         {/* User identity + actions — mobile sidebar bottom only */}
         <div className="md:hidden" style={{
