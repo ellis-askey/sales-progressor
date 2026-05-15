@@ -56,9 +56,40 @@ export function normalizePostcode(raw: string): string {
 export function normalizePhone(phone: string): string {
   const cleaned = phone.trim();
   if (!cleaned) return cleaned;
-  const digits = cleaned.replace(/[\s\-().]/g, "");
-  if (digits.startsWith("+44")) return digits;
-  if (/^0[1-9]/.test(digits)) return "+44" + digits.slice(1);
+
+  // Strip common formatting, normalise international prefix → local 0xx
+  let digits = cleaned.replace(/[\s\-().]/g, "");
+  if (digits.startsWith("+44")) digits = "0" + digits.slice(3);
+  else if (digits.startsWith("0044")) digits = "0" + digits.slice(4);
+
+  // Must look like a UK number: leading 0 + 9–10 more digits
+  if (!/^0[1-9]\d{8,9}$/.test(digits)) return cleaned;
+
+  // Mobile (07xxx) → international +44 format
+  if (digits.startsWith("07")) {
+    return "+44" + digits.slice(1);
+  }
+
+  // London / geographic 02x codes (020, 023, 024, 028, 029) → "0xx xxxx xxxx"
+  if (digits.startsWith("02")) {
+    return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+  }
+
+  // Major city 4-digit codes (0113–0118, 0121, 0131, 0141, 0151, 0161, 0191) → "01xx xxx xxxx"
+  if (/^01(?:1[3-8]|[2-9]1)/.test(digits)) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+
+  // Non-geographic 03xx, 08xx, 09xx → "0xxx xxx xxxx"
+  if (/^0[389]/.test(digits)) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+
+  // Remaining 01xxx (5-digit area codes, 11 digits total) → "01xxx xxxxxx"
+  if (digits.startsWith("01") && digits.length === 11) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+
   return cleaned;
 }
 
