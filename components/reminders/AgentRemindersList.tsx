@@ -698,18 +698,19 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
           className="agent-input agent-input-sm"
           style={{ width: "100%", marginBottom: 10, fontSize: 13 }}
         />
-        <div className="wq-filter-pills" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "all"    ? " on" : ""}`} onClick={() => setSideFilter("all")}>All</button>
-            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "seller" ? " on" : ""}`} onClick={() => setSideFilter("seller")}>Seller</button>
-            <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "buyer"  ? " on" : ""}`} onClick={() => setSideFilter("buyer")}>Buyer</button>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button className={`agent-segment-pill agent-segment-pill-sm${statusFilter === "active"  ? " on" : ""}`} onClick={() => setStatusFilter("active")}>Active</button>
-            <button className={`agent-segment-pill agent-segment-pill-sm${statusFilter === "snoozed" ? " on" : ""}`} onClick={() => setStatusFilter("snoozed")}>
-              Snoozed{snoozedCount > 0 ? ` (${snoozedCount})` : ""}
-            </button>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "all"    ? " on" : ""}`} onClick={() => setSideFilter("all")}>All</button>
+          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "seller" ? " on" : ""}`} onClick={() => setSideFilter("seller")}>Seller</button>
+          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "buyer"  ? " on" : ""}`} onClick={() => setSideFilter("buyer")}>Buyer</button>
+          <button
+            className="agent-link agent-link-muted"
+            onClick={() => setStatusFilter(statusFilter === "active" ? "snoozed" : "active")}
+            style={{ fontSize: 11, whiteSpace: "nowrap", marginLeft: "auto" }}
+          >
+            {statusFilter === "active"
+              ? `Snoozed${snoozedCount > 0 ? ` (${snoozedCount})` : ""}`
+              : "← Active"}
+          </button>
         </div>
       </div>
 

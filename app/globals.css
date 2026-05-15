@@ -875,11 +875,6 @@ select {
 }
 
 
-/* ── Work queue: filter pill groups — mobile stack ────────────────────────── */
-@media (max-width: 640px) {
-  .wq-filter-pills { flex-direction: column; align-items: stretch; gap: 8px; }
-}
-
 /* ── Work queue: SplitFileCard two-column body — mobile stack ─────────────── */
 @media (max-width: 640px) {
   .wq-split-body { flex-direction: column; gap: 8px; }
