@@ -1,12 +1,12 @@
 # Inventory: Transaction List
 
 **Route:** `/agent/transactions`
-**Stage 1 status:** Draft — awaiting Ellis review
-**Amendments:** See §14
+**Stage status:** **COMPLETE — Stage 4 signed off 2026-05-15. Final sweep passed. All fixes applied.**
+**Amendments:** See §14 — last updated 2026-05-15
 
-> **No polish page exists yet.** Stage 2 will build `app/agent/polish/transaction-list/page.tsx` from scratch using this inventory + transaction-detail / hub / work-queue baselines.
+> **Polish page exists:** `app/agent/polish/transaction-list/page.tsx` — built Stage 2, used through Stage 4.
 
-> **Dashboard relationship — surface this first.** `/agent/dashboard` renders the same `TransactionListWithSearch` core component as this page (lines 6, 151). The list rendering, status tabs, empty state, and filter logic are structurally near-identical. Dashboard adds `ForecastStrip`, `AgentFlagButton`, `AgentRequestsPanel` on top. **Polish work on transaction list will auto-apply to dashboard's list section** — dashboard's Stage 1 will be much smaller (only the additions need a fresh look). See §12 appendix for the full mapping.
+> **Dashboard absorbed.** `/agent/dashboard` 307-redirects to `/agent/transactions` (with `?filter=` passthrough). The dashboard relationship in §12.1 is now historical — `ForecastStrip`, `AgentFlagButton`, and the month-filter banner all live on `/agent/transactions`. See §14 amendment 2026-05-15.
 
 ---
 
@@ -28,23 +28,27 @@
 | Component | File | Stage 4 scope | Notes |
 |---|---|---|---|
 | `AgentShell` (layout) | `components/layout/AgentShell.tsx` | Out of scope | Wrapper; sidebar/topbar |
-| Inline glass header (h1 + "+ New sale" + bloom decorations) | `page.tsx:94–166` | Match polish page | **Custom inline header, NOT canonical `PageHeader`.** Uses `--agent-text-h1` (large), custom rgba bg + bloom-decoration absolute divs. Hub/transaction-detail/work-queue all use `PageHeader` with `--agent-text-h2`. Dashboard (the parallel) uses `PageHeader`. **Inconsistency to resolve in Stage 2.** |
-| Hub filter indicator banner | `page.tsx:171–212` (inline) | Match polish page | Conditionally rendered when `?filter=exchanging-this-week` etc. Bespoke inline-styled coral-tinted strip. Convert to canonical surface treatment. |
-| Zero-files empty state | `page.tsx:214–257` (inline) | Match polish page | `glass-card` → `agent-glass-strong`. Voice fix on body copy (Rule 1 — "you'll see it here"). |
-| Status tabs strip | `page.tsx:262–301` (inline) | Match polish page | Bespoke Tailwind: `bg-white/60 text-slate-900/90 shadow-sm` for active, hover `bg-white/20`. Each tab is a `<Link>`. **Convert to `agent-segment-pill` / `agent-segment-pill-sm` for canonical hover/focus/active behaviour.** Count badges become inline pills or `.agent-segment-pill-note`. |
-| `EmptyState` (filter-empty) | `components/ui/EmptyState.tsx` | Match polish page | Generic empty-state component used here when filtered-empty. Wrapper class `glass-card` → `agent-glass-strong`. Tailwind text classes → token-driven. |
-| `TransactionListWithSearch` | `components/transactions/TransactionListWithSearch.tsx` | Match polish page | **Main content client component.** Contains search input, 3 filter chips, table. Significant class audit required. Sub-components below. |
-| ↳ `AssignedToChip` | (inline, TransactionListWithSearch.tsx:34) | Match polish page | Bespoke pill (`chipBase` / `chipDefault` / `chipActive` Tailwind constants). Dropdown menu items use `agent-hover-row` ✓. Convert chip trigger to `agent-segment-pill`. Convert dropdown container to `agent-dropdown-in`. Convert items to `agent-dropdown-item`. |
-| ↳ `RiskChip` | (inline, TransactionListWithSearch.tsx:92) | Match polish page | Same Tailwind chip pattern. Same conversions. Multi-select dropdown with checkboxes — markup preserved. |
-| ↳ `ManagedByChip` | (inline, TransactionListWithSearch.tsx:143) | Match polish page | Same conversions. Voice — "Self-progressed" / "With progressor" need translation per VOICE_GUIDELINES.md table → "Managed by you" / "Our team is handling". |
-| ↳ Search input | (inline, TransactionListWithSearch.tsx:302) | Match polish page | `glass-input` Tailwind → `agent-input`. Embedded search icon + clear `×` button preserved. |
-| ↳ Filtered empty | (inline, TransactionListWithSearch.tsx:345) | Match polish page | `glass-card px-5 py-8 text-center` → `agent-glass-strong`. Text classes → tokens. Voice review on `"No files match the active filters."` (Rule 3 — borderline passive). |
-| `TransactionTable` | `components/transactions/TransactionTable.tsx` | Match polish page | Card with grid header + body. `glass-card` + `clipPath: inset(0 round 20px)` → `agent-glass-strong` + `overflow: hidden`. Header row Tailwind classes converted to token-driven inline. Sortable column headers' hover/active states audited. |
-| ↳ `TransactionRowView` | `components/transactions/TransactionRowView.tsx` | Match polish page | Row component — has dual mobile-card / desktop-grid layouts. Hover `hover:bg-white/20 active:bg-white/30 transition-colors` → `agent-hover-row`. Tailwind text colour classes (`text-slate-900/90` etc.) → token-driven. |
-| ↳ `StatusBadge` | `components/ui/StatusBadge.tsx` | Reuse from transaction-detail | Canonical pill component used across the app. No changes — its bg/border Tailwind hex (`bg-red-50 text-red-700 border-red-200`) is the StatusBadge solid pattern that the work-queue StatPill fix already validated. |
-| ↳ `ExchangeTargetCell` | `components/transactions/ExchangeTargetCell.tsx` | Out of scope | Native iOS date picker via hidden `<input type="date">`. Server PATCH wiring + native picker integration untouched. Only visible text styles audited (12px coral colour). |
-| ↳ `RiskBadgeWithPopover` | `components/transactions/RiskBadgeWithPopover.tsx` | Match polish page | Hover popover. Trigger button uses `RISK_CONFIG[level]` bg/border/color Tailwind. Popover container: `bg-white rounded-xl shadow-xl` → `agent-dropdown-in` (with portal — same pattern as work-queue dropdowns to escape ancestor overflow). |
-| `loading.tsx` (skeleton) | **None exists** | Match polish page | **Gap.** Stage 2 should add a skeleton: header shape + 5–8 row placeholders. Work-queue `loading.tsx` as reference. |
+| `PageHeader` (canonical) | `page.tsx` | **Done — Stage 4** | Canonical `PageHeader` with `title={isDirector ? "All Files" : "My Files"}`, subtitle, "+ New sale" `agent-btn-primary agent-btn-sm`, and `AgentFlagButton transactionId={null} label="Send a note to our team"`. **Bloom decorations dropped (Stage 2 decision A, locked 2026-05-12).** |
+| Hub filter indicator banner | `page.tsx` (inline) | **Done — Stage 4** | `tl-filter-banner` glass/solid surface. Voice-fixed: leads with filter phrase + count ("**Exchanging this week** · 3 files"). Clear filter → `agent-link agent-link-muted`. |
+| Month filter indicator banner | `page.tsx` (inline) | **Done — post-merge** | Parallel to hub-filter banner. Fires on `?exchanging=YYYY-MM`. "Exchanging in [month] · N files". × Clear filter link. Added 2026-05-12 merge. |
+| `ForecastStrip` | `components/transactions/ForecastStrip.tsx` | **Done — post-merge** | Rolling 12-month pill strip. Hides when `hubFilter` active. Stays visible when `monthFilter` active (active pill carries `.on` state). Empty months: disabled `agent-segment-pill` at 0.45 opacity. Populated months: `agent-segment-pill.on` + count badge. Year-suffix rule. |
+| Zero-files empty state | `page.tsx` (inline) | **Done — Stage 4** | `agent-glass-strong`, HouseLine icon, voice-fixed body ("Sales appear here once you submit one…"), "+ New sale" `agent-btn-primary agent-btn-md`. |
+| `TransactionListWithSearch` (hanging-basket card) | `components/transactions/TransactionListWithSearch.tsx` | **Done — Stage 4 + Variant B** | Two-half card (`.tl-card`): top half = search input + chip row (`.tl-card-search .tl-search-row`); bottom half = status tabs (`.tl-card-tabs`). All chips use `agent-tab tl-bar-chip`. Portal-rendered dropdowns with `agent-dropdown-in`. Funnel signpost icon. |
+| ↳ `AssignedToChip` (Owner) | inline | Done | `agent-tab tl-bar-chip`. Dropdown `agent-dropdown-in` + `agent-dropdown-item`. Director visibility gate: `uniqueUsers.length > 0` (changed from `> 1` — see §14 2026-05-12). |
+| ↳ `RiskChip` | inline | Done | `agent-tab tl-bar-chip`. Multi-select Set<RiskLevel>. Grammar bug fixed: RISK_LABEL values rendered without trailing "risk" suffix. |
+| ↳ `ActivityFilterChip` | inline | **New — Variant B** | `agent-tab tl-bar-chip`. Multi-select Set<ActivityState> (Moving / Stalled / Stale). Always rendered (no visibility gate). Hint text in dropdown. |
+| ↳ `ManagedByChip` | inline | Done | `agent-tab tl-bar-chip`. Director gate: `transactions.length > 0`. Voice: "Managed by you" / "Our team is handling". |
+| ↳ Search input | inline | Done | `agent-input agent-input-sm`. Inline magnifier icon. Clear `×` → `agent-icon-btn agent-icon-btn-sm`. |
+| ↳ Status tabs | inline | Done | `agent-tab` links in `agent-tab-bar agent-tab-bar-static`. Count badges as inline pills. Hidden via `showStatusTabs={!hubFilter && !monthFilter}`. |
+| ↳ Client-filtered empty | inline | Done | `agent-glass-strong`. Voice-fixed: "No files match." / `"No files match \"${query}\""`. "Clear filters" → `agent-link agent-link-muted`. |
+| `TransactionTable` | `components/transactions/TransactionTable.tsx` | Done — Stage 4 | `agent-glass-strong` + `overflow: hidden`. Token-driven headers. |
+| ↳ `ActivityVerbChip` | `TransactionRowView.tsx` | **New — Variant B** | Coloured pill chip: Moving (green) / Stalled (amber) / Stale (red). Verb + relative time. Hover preview popover (portal, `agent-dropdown-in`, pointer-events:none). "Just added" fallback. |
+| ↳ `TransactionRowView` | `components/transactions/TransactionRowView.tsx` | Done — Stage 4 | Dual mobile-card / desktop-grid. `agent-hover-row`. Token-driven text. Variant B column order: stripe / Property / Assigned-to / [Owner] / Last-activity (verb chip) / Exchange target / Status / Risk. |
+| ↳ `StatusBadge` | `components/ui/StatusBadge.tsx` | Done — Stage 4 | Canonical — no further changes. |
+| ↳ `ExchangeTargetCell` | `components/transactions/ExchangeTargetCell.tsx` | Out of scope | Native date picker. Colour → `var(--agent-coral)`. |
+| ↳ `RiskBadgeWithPopover` | `components/transactions/RiskBadgeWithPopover.tsx` | Done — Stage 4 | Portal-rendered popover. `agent-dropdown-in`. |
+| `loading.tsx` (skeleton) | `app/agent/transactions/loading.tsx` | **Done — Stage 2** | Added Stage 2: PageHeader shape + status-tab strip + filter bar + 6 row skeletons. |
+| `AgentFlagButton` | `components/agent/AgentFlagButton.tsx` | Done — post-sweep | `transactionId={null}` path: "About:" line conditionally hidden (2026-05-15 fix). |
 
 **Depth note:** `TransactionListWithSearch` defines 3 inline chip components (`AssignedToChip`, `RiskChip`, `ManagedByChip`) that all repeat the same `chipBase`/`chipDefault`/`chipActive` Tailwind class pattern. After conversion to `agent-segment-pill`, the helpers can either stay (cleaner API) or fold into inline buttons (less indirection). Stage 2 to decide.
 
@@ -74,101 +78,131 @@
 
 ## 4. States
 
+> **§14 amendment 2026-05-15 applies.** Several rows below are superseded. See §14 for the full diff. Summary of superseded items: (a) Loading state — skeleton exists; (b) Zero-files — voice fixed, `agent-glass-strong`; (c) Hub filter — voice fixed, ForecastStrip hidden, status tabs hidden; (d) Month filter active — new state (not previously listed); (e) "Last-active stale badge" state — removed (replaced by verb chip colour tones); (f) "Sort active on column" — removed (Variant B dropped sortable headers); (g) Owner column: `showOwner = isDirector && selectedUserId === null` (not just director). Current-state rows marked **[CURRENT]**; stale rows marked **[SUPERSEDED]**.
+
 ### Standard states
 
 | State | Trigger | What the user sees |
 |---|---|---|
-| **Loading** | Server fetch in progress | **Currently no `loading.tsx`** — page renders nothing during fetch. Stage 2 to add skeleton. |
-| **Zero files** | `allTransactions.length === 0` | HouseLine icon + "Create your first sale" + body voice violation + "+ New sale" CTA (`glass-card`) |
-| **Active list (default)** | `allTransactions.length > 0`, no filter | Header + status tabs (Active selected) + `TransactionListWithSearch` |
-| **Hub filter active** | `searchParams.filter` is a `HubFilter` | Header + filter banner ("Showing exchanging this week (3)") + list filtered. **Status tabs hidden** when hub filter is active. |
-| **Status filter — non-active tab** | `searchParams.filter` is a `TransactionStatus` other than "active" | Status tabs show selected tab; list filtered to that status |
-| **Filtered empty (status)** | Status filter yields zero rows | `EmptyState` with "No active files" / "No on_hold files" etc. + "View all" link |
-| **Filtered empty (hub filter)** | Hub filter yields zero rows | `EmptyState` with `FILTER_EMPTY[hubFilter].title/description` + "View all files" link |
-| **Client-filter empty** (inside TransactionListWithSearch) | Search + chip filters yield zero rows | `glass-card` muted message ("No files match \"query\"" / "No files match the active filters.") + "Clear filters" link |
-| **Error** | Server throws | `error.tsx` boundary — not styled this pass |
+| **Loading** **[CURRENT]** | Server fetch in progress | `loading.tsx` exists: PageHeader shape + 6 row skeletons. |
+| **Zero files** **[CURRENT]** | `allTransactions.length === 0` | `agent-glass-strong` card: HouseLine icon + "Create your first sale" + voice-fixed body + "+ New sale" `agent-btn-primary`. |
+| **Active list (default)** **[CURRENT]** | `allTransactions.length > 0`, no filter | `PageHeader` + `ForecastStrip` (if any month populated) + `TransactionListWithSearch` (hanging-basket card + table). |
+| **Hub filter active** **[CURRENT]** | `searchParams.filter` is a `HubFilter` | `tl-filter-banner` with filter label + count + × Clear filter. `ForecastStrip` hidden. Status tabs hidden. |
+| **Month filter active** **[CURRENT]** | `searchParams.exchanging` is `YYYY-MM` | `tl-filter-banner` "Exchanging in [month] · N files" + × Clear filter. `ForecastStrip` remains visible; active month pill carries `.on` state. Status tabs hidden. |
+| **Status filter — non-active tab** **[CURRENT]** | `searchParams.filter` is a `TransactionStatus` other than "active" | Status tabs show selected tab; list filtered to that status. ForecastStrip visible. |
+| **Filtered empty (status)** **[CURRENT]** | Status filter yields zero rows | `EmptyState` "No active files" / "No on-hold files" etc. (voice-fixed hyphen) + "View all" link. |
+| **Filtered empty (hub filter)** **[CURRENT]** | Hub filter yields zero rows | `EmptyState` with `FILTER_EMPTY[hubFilter].title/description` + "View all files" link. |
+| **Filtered empty (month filter)** **[CURRENT]** | `?exchanging=` yields zero rows | `EmptyState` "No files exchanging in [month]" + "View all files" link. Month filter banner stays visible above. |
+| **Client-filter empty** **[CURRENT]** | Search + chip filters yield zero rows | `agent-glass-strong`: "No files match." / `"No files match \"query\""`. "Clear filters" `agent-link-muted` when any chip active. |
+| **Error** | Server throws | Next.js default error boundary. |
 
 ### Page-specific states
 
 | State | Trigger | What the user sees |
 |---|---|---|
-| **Director view ("All Files")** | `session.user.role === "director"` | h1 reads "All Files"; row's Owner column shown when no owner filter applied (`showOwner` true) |
-| **Negotiator view ("My Files")** | role `negotiator` | h1 "My Files"; data scoped to `agentId = session.user.id`; no Owner column |
-| **Multiple owners filter chip visible** | `uniqueUsers.length > 1` | AssignedToChip appears in chip row |
-| **Mixed service-type filter chip visible** | At least one transaction `self_managed` AND one `outsourced` | ManagedByChip appears |
-| **Sort active on column** | User clicked a sortable header (Property / Exchange / Status / Risk / Last active) | Active column's chevron solid; click toggles asc/desc |
-| **Risk filter narrowed** | One or more risk levels selected | Rows filtered to those levels; chip shows "Risk: At risk, Watch" |
-| **Search active** | Query in search input | Rows filtered by `propertyAddress.includes(query)`; `×` clear button visible |
-| **Last-active "stale" badge** | `> 30 days` since last activity | Inline red "Stale" badge on the Last active cell |
-| **Exchange-date inline edit** | User taps the coral "Set exchange date" prompt | Native iOS date picker opens; PATCH to `/api/transactions/[id]` on selection |
-| **Risk popover open** | User hovers (desktop) or taps risk badge | Popover with score breakdown via `RISK_CONFIG[level]` |
+| **Director view ("All Files")** **[CURRENT]** | `session.user.role === "director"` | PageHeader "All Files" / "Every file across the agency.". Owner column shown when `selectedUserId === null`. Owner chip shown when `uniqueUsers.length > 0`. ManagedByChip shown when `transactions.length > 0`. |
+| **Negotiator view ("My Files")** **[CURRENT]** | role `negotiator` | PageHeader "My Files" / "Files assigned to you.". No Owner column. Owner chip: `uniqueUsers.length > 1`. ManagedByChip: both service types must exist. |
+| **Activity filter narrowed** **[CURRENT]** | Moving / Stalled / Stale selected in ActivityFilterChip | Rows filtered to matching `activityStateFor()` buckets. Chip shows "Activity: Moving, Stalled". |
+| **Risk filter narrowed** **[CURRENT]** | One or more risk levels selected | Rows filtered; chip shows "Risk: At risk, Watch". |
+| **Search active** **[CURRENT]** | Query in search input | Rows filtered by address; × clear button visible. |
+| **Verb chip hover preview** **[CURRENT]** | Hover / focus on `ActivityVerbChip` | Portal'd preview popover: "Recent activity" header + verb + relative time + next action + days stuck. `pointer-events:none` so row link still navigates. |
+| **Exchange-date inline edit** **[CURRENT]** | User taps "Set exchange date" | Native date picker. PATCH on selection. Coral text fades during save. |
+| **Risk popover open** **[CURRENT]** | Hover (desktop) / tap (mobile) on risk badge | Portal'd `agent-dropdown-in` popover. Score breakdown. |
+| ~~Sort active on column~~ | ~~Sortable header click~~ | **[SUPERSEDED — removed in Variant B]** |
+| ~~Last-active "stale" badge~~ | ~~> 30 days since last activity~~ | **[SUPERSEDED — replaced by verb chip Stale colour tone (red)]** |
 
 ---
 
 ## 5. Interactive elements
 
+> **§14 amendment 2026-05-15 applies.** Sort headers (Property / Exchange / Status / Risk / Last active) removed in Variant B — those rows deleted. New elements added: ForecastStrip pills, month filter clear, ActivityFilterChip, AgentFlagButton, ActivityVerbChip hover. AssignedToChip and ManagedByChip visibility conditions updated.
+
 | Element | Location | Action | Disabled when | Disabled behaviour |
 |---|---|---|---|---|
-| "+ New sale" (header) | Glass header right | Navigate to `/agent/transactions/new` | Never | — |
-| "+ New sale" (empty-state CTA) | Empty state card | Same | Never | — |
-| Status tab `<Link>` (All / Active / On Hold / Completed / Withdrawn) | Status strip | Sets `?filter=...` URL param (or removes for active) | Never | — |
-| Clear filter "× Clear filter" | Hub filter banner right | Navigate to `/agent/transactions` (clears filter) | Never | — |
-| "View all files" / "View all" | `EmptyState` action | Same | Never | — |
-| Search input | TransactionListWithSearch | Filters rows client-side by `propertyAddress.includes(q)` | Never | — |
-| Search clear `×` | Search input right | Resets query to `""` | Renders only when `query.length > 0` | Hidden |
-| AssignedToChip trigger | Filter chip row | Opens dropdown | Renders only when `uniqueUsers.length > 1` | Hidden |
+| "+ New sale" (PageHeader) | PageHeader right | Navigate to `/agent/transactions/new` | Never | — |
+| "Send a note to our team" (AgentFlagButton) | PageHeader right | Opens inline textarea; POST to `/api/agent/flag`; auto-closes 2s after send | Never | — |
+| "+ New sale" (empty-state CTA) | Zero-files card | Navigate to `/agent/transactions/new` | Never | — |
+| ForecastStrip pill (populated month) | Forecast banner | Sets `?exchanging=YYYY-MM`; if already active, clears (self-toggle to `basePath`) | Never (populated) | — |
+| ForecastStrip pill (empty month) | Forecast banner | No action | Always (empty month) | `opacity:0.45`, `pointerEvents:none`, `aria-disabled` |
+| Hub filter clear "× Clear filter" | Hub filter banner right | Navigate to `/agent/transactions` | Never | — |
+| Month filter clear "× Clear filter" | Month filter banner right | Navigate to `/agent/transactions` | Never | — |
+| Status tab `<Link>` (All / Active / On hold / Completed / Withdrawn) | Hanging-basket bottom half | Sets `?filter=...` URL param (or bare path for "Active") | Hidden when `hubFilter` or `monthFilter` active | Hidden |
+| "View all files" / "View all" | `EmptyState` action | Navigate to `/agent/transactions` | Never | — |
+| Search input | Hanging-basket top half | Filters rows client-side by address | Never | — |
+| Search clear `×` | Search input right | Resets query | Renders only when `query.length > 0` | Hidden |
+| AssignedToChip trigger (Owner) | Chip row | Opens dropdown | Director: hidden when `uniqueUsers.length === 0`. Negotiator: hidden when `uniqueUsers.length ≤ 1`. | Hidden |
 | AssignedToChip option | Dropdown | `setSelectedUserId(id)` | Never | — |
-| AssignedToChip clear `×` | Chip when active | Resets to null | Renders only when chip is active | — |
-| RiskChip trigger | Filter chip row | Opens dropdown | Never | — |
-| RiskChip checkbox (Low / Medium / High) | Dropdown | Toggles `selectedRiskLevels` Set | Never | — |
-| ManagedByChip trigger | Filter chip row | Opens dropdown | Renders only when both service types exist | Hidden |
+| AssignedToChip clear `×` | Chip when active | Resets to null | Renders only when chip active | Hidden |
+| RiskChip trigger | Chip row | Opens dropdown | Never | — |
+| RiskChip checkbox (On track / Watch / At risk) | Dropdown | Toggles `selectedRiskLevels` Set | Never | — |
+| ActivityFilterChip trigger | Chip row | Opens dropdown | Never (always rendered) | — |
+| ActivityFilterChip checkbox (Moving / Stalled / Stale) | Dropdown | Toggles `activityFilter` Set | Never | — |
+| ActivityFilterChip clear `×` | Chip when active | Clears all activity selections | Renders only when chip active | Hidden |
+| ManagedByChip trigger | Chip row | Opens dropdown | Director: hidden when `transactions.length === 0`. Negotiator: hidden when service types not mixed. | Hidden |
 | ManagedByChip option | Dropdown | `setManagedByFilter` | Never | — |
-| "Clear all" | Chip row, far right | Resets all client-side filters | Renders only when `anyFilterActive` | Hidden |
-| Sort header (Property) | Desktop column header | Toggles sort by property name asc/desc | Never | — |
-| Sort header (Exchange Target) | Same | Sort by `expectedExchangeDate` | Never | — |
-| Sort header (Status) | Same | Sort by `STATUS_ORDER` | Never | — |
-| Sort header (Risk) | Same | Sort by `riskScore()` | Never | — |
-| Sort header (Last active) | Same | Sort by `health.lastActivityAt` | Never | — |
-| Transaction row link | Each row | Navigate to `/agent/transactions/[id]` | Never | — |
-| ExchangeTargetCell native input | Inline in row | Opens native date picker; PATCH on change | `saving` (during fetch) | Coral text fades to 0.45 opacity |
-| RiskBadgeWithPopover trigger | Risk cell | Toggles popover (hover on desktop, tap-toggle on mobile) | Never | — |
+| "Clear filter" | Chip row, far right | Resets all chip filters + query | Renders only when `anyFilterActive` | Hidden |
+| ActivityVerbChip hover/focus | Last-activity column | Shows "Recent activity" preview popover | Never (popover `pointer-events:none`) | — |
+| Transaction row link | Each row (desktop + mobile) | Navigate to `/agent/transactions/[id]` | Never | — |
+| ExchangeTargetCell native input | Exchange target cell | Opens native date picker; PATCH on change | `saving` (during fetch) | Coral text fades to 0.45 opacity |
+| RiskBadgeWithPopover trigger | Risk cell | Toggles portal'd popover | Never | — |
 
 ---
 
 ## 6. Conditional renders
 
+> **§14 amendment 2026-05-15 applies.** Filter priority upgraded to three-way (hub > month > status). Month filter banner + ForecastStrip conditionals added. `showStatusTabs` now gates on both `!hubFilter && !monthFilter`. `showOwner` condition refined. Stale badge removed. ActivityFilterChip always rendered.
+
 ```tsx
 {hubFilter && <HubFilterBanner />}
 // Shows: when URL has ?filter=exchanging-this-week | completing-this-week | closing-this-month | exchanging-next-30-days
+
+{monthFilter && <MonthFilterBanner />}
+// Shows: when URL has ?exchanging=YYYY-MM (and hubFilter is null)
 
 {allTransactions.length === 0 ? <ZeroFilesEmptyState /> : <ListSection />}
 // Zero-files: new agency, no transactions
 // ListSection: any other state
 
-{!hubFilter && <StatusTabs />}
-// Status tabs shown ONLY when no hub filter is active
-// When hub filter active: tabs hidden, banner shows instead
+{!hubFilter && forecastMonths.length > 0 && <ForecastStrip />}
+// Hidden when hubFilter active (banner replaces)
+// Hidden when all 12 forecast months are empty (totalFiles === 0 guard inside component)
+// Stays visible when monthFilter active; active pill carries .on state
+
+{/* Status tabs hidden when EITHER hubFilter OR monthFilter is active */}
+showStatusTabs={!hubFilter && !monthFilter}
+// Passed to TransactionListWithSearch — tabs only render inside the hanging-basket card
 
 {filteredTransactions.length === 0 ? <FilteredEmptyState /> : <TransactionListWithSearch />}
-// Filtered empty: server-side filter (status or hub) yields zero rows
-// TransactionListWithSearch: when there are rows to render
+// Three branches of FilteredEmptyState: hubFilter / monthFilter / status (see §4)
 
 {/* Inside TransactionListWithSearch: */}
-{showUserFilter && <AssignedToChip />}        // Multiple owners exist
-{showManagedByFilter && <ManagedByChip />}    // Both service types exist
-{anyFilterActive && <ClearAllButton />}        // Any client-side filter active
+{showUserFilter && <AssignedToChip />}
+// Director: uniqueUsers.length > 0
+// Negotiator: uniqueUsers.length > 1
+
+<RiskChip />           // Always rendered
+<ActivityFilterChip /> // Always rendered (no visibility gate — new in Variant B)
+
+{showManagedByFilter && <ManagedByChip />}
+// Director: transactions.length > 0
+// Negotiator: both self_managed AND outsourced exist in visible set
+
+{anyFilterActive && <ClearFilterButton />}
+// anyFilterActive = selectedUserId !== null || riskLevels.size > 0 || activityFilter.size > 0 || managedByFilter !== "all"
+// NOTE: query (search) is NOT counted — query has its own inline × button
 
 {filtered.length === 0 ? <ClientFilteredEmpty /> : <TransactionTable />}
-// Client-filtered empty: search + chip filters yield zero
-// Table: rows exist after all filters
 
 {/* Inside TransactionRowView: */}
 {tx.assignedUser ? <AssignedAvatar /> : tx.serviceType === "outsourced" ? <AwaitingAssignment /> : tx.agentUser ? <AgentName /> : <Unassigned />}
-// Cascade of fallbacks for the Assigned-To cell
+// Cascade of fallbacks for the Assigned-To cell (unchanged)
 
-{lastActive.stale && <StaleBadge />}  // > 30 days inactive
+{/* Owner column — director + no owner filter applied */}
+showOwner = isDirector && selectedUserId === null
+// Column collapses when owner filter is applied (correct — narrows to one owner, column redundant)
+// Passed server-side as prop; also used in TransactionRowView to gate the Owner cell
 
-{showOwner && <OwnerColumn />}  // Director view + no owner filter applied
+{/* Stale badge — REMOVED in Variant B. Replaced by ActivityVerbChip colour tones. */}
 ```
 
 ---
@@ -640,6 +674,38 @@ Surfaced during transaction-list Stage 4 review: ForecastStrip is dashboard-only
 
 | Date | Discovery | Added to which section |
 |---|---|---|
+| 2026-05-15 | **Post-merge + Variant B + final sweep — full state update.** Documents all changes between the last §14 entry (2026-05-12) and sign-off. **Expanded notes follow inline.** | §2, §4, §5, §6, front matter |
+### §14 expanded notes — 2026-05-15
+
+**1 — /agent/dashboard merge (SHA 696fea0)**
+`/agent/dashboard` absorbed into `/agent/transactions`. `app/agent/dashboard/page.tsx` is now a 307 redirect to `/agent/transactions` with `?filter=` passthrough. `app/agent/dashboard/loading.tsx` deleted (dead file — redirect resolves server-side before loading state renders). `AgentFlagButton`, `ForecastStrip`, and the month-filter banner all now live on `/agent/transactions`. The §12.1 appendix is preserved as historical record of the pre-merge split.
+
+**2 — ForecastStrip on /agent/transactions**
+`ForecastStrip` moved from dashboard-only to `/agent/transactions`. Rolling 12-month window. Hidden when `hubFilter` active (banner takes priority). Visible when `monthFilter` active; active month pill carries `.on` state. Empty months: `agent-segment-pill` at `opacity:0.45`, `pointerEvents:none`, `aria-disabled`. Populated months: `agent-segment-pill.on` + count badge. Self-toggle: click active pill clears to `basePath`. Year-suffix: bare label for `earliestYear`, two-digit suffix for later years. Strip hidden entirely when `totalFiles === 0` (no 12 grey pills for all-empty horizon).
+
+**3 — Month filter URL scheme**
+New `?exchanging=YYYY-MM` param (1-indexed month, zero-padded). `parseMonthFilter` validates format; resolves to `{ year, month, key }` where `month` is 0-indexed for JS Date construction and `key` is the raw URL string for ForecastStrip comparison. Month filter banner parallels hub filter banner in structure and voice. Month filter has lower priority than hub filter (hub blocks month evaluation). Status tabs hidden when month filter active.
+
+**4 — Variant B IA**
+Full table IA redesign. Key changes:
+- `ActivityVerbChip` replaces "Last active" column text with coloured pill (Moving=green / Stalled=amber / Stale=red). Shows `lastActivityLabel · relTime` or `Active N ago`. "Just added" fallback when no `lastAt`. Hover/focus: portal'd preview popover (`agent-dropdown-in`, `pointer-events:none`) with recent activity + next action + days stuck.
+- `ActivityFilterChip` added to filter bar. Always rendered. Multi-select Set<ActivityState>. `agent-tab tl-bar-chip` class (consistent with sibling chips — corrected from `agent-segment-pill` in final sweep 2026-05-15).
+- Hanging-basket card (`.tl-card`): two-half layout — search + chips top half, status tabs bottom half. All chips use `agent-tab tl-bar-chip`.
+- Sortable column headers removed. Variant B has no client-side sort.
+- Column order: stripe / Property / Assigned-to / [Owner] / Last-activity (verb chip) / Exchange target / Status / Risk.
+- `showOwner = isDirector && selectedUserId === null` — Owner column collapses when owner filter applied.
+
+**5 — Final sweep fixes (2026-05-15)**
+Three fixes applied post-sweep, before sign-off:
+- `ActivityFilterChip`: `agent-segment-pill agent-segment-pill-sm` → `agent-tab tl-bar-chip` (class consistency with sibling chips in the same `.tl-search-chips` row).
+- `AgentFlagButton`: "About:" line conditionally hidden when `transactionId === null`. Previously rendered "About: general…" on the transactions list page. Now renders nothing above the textarea when there's no specific transaction context. Fix is in the component (not callsite) — benefits all `transactionId={null}` usages.
+- `app/agent/dashboard/loading.tsx`: deleted.
+
+**6 — Sign-off status**
+Transaction list: FINAL sign-off. 4-stage polish pass complete. 14/14 critical paths working. No open issues. Page count: 4 of 27 pages complete (transaction-detail, hub, work queue, transaction list).
+
+---
+
 | 2026-05-12 | **Stage 2 polish page built.** `app/agent/polish/transaction-list/page.tsx`. State toggles: view (populated / zero-files / filter-empty / client-empty), hub filter on/off, director / negotiator (Owner column), reduced motion. Demonstrates every canonical class conversion catalogued in §13. **Bloom-decoration decision locked: Option A — dropped entirely.** PageHeader now identical to hub / transaction-detail / work-queue / dashboard. **`loading.tsx` added** to production at `app/agent/transactions/loading.tsx` (Stage 2 add per Ellis — work-queue loading.tsx as reference). Skeleton mirrors the polish page layout: PageHeader shape + status tab strip + filter bar + 6 row skeletons inside agent-glass-strong table. **Voice fixes applied to polish page** for all 7 §7.1 flagged strings (zero-files body, "on-hold" hyphenation, ManagedByChip labels, RISK_LABEL grammar bug, client-filtered empty, "Quiet" badge). All 4 dropdown surfaces (3 chips + risk popover) use `createPortal` + `agent-dropdown-in` per work-queue B1+B2 pattern. tsc clean. | §13 (all rows), polish page, loading.tsx |
 | 2026-05-12 | **Stage 3 voice pass complete.** Walked polish page top to bottom against `VOICE_GUIDELINES.md` three rules + tone calibration + translation table. Verified all 8 Stage 2 fixes (7 pre-flagged + status-tab "On hold" capitalisation from Stage 1 review). Surfaced 2 new violations: (1) StatusPill (StatusBadge) `STATUS_CFG.on_hold.label` read "On Hold" while status TAB read "On hold" — same status, two renderings on the same page; applied "On hold" at polish line 119; production-app-wide fix at `lib/utils.ts:69` flagged for Stage 4. (2) Hub filter banner "Showing **exchanging this week** (3)" was Rule 1 borderline ("Showing" narrates system state); applied "**Exchanging this week** · 3 files" — data-first phrasing. Structural questions confirmed: "Quiet" vs work-queue's "Not progressing" is deliberate per-surface divergence (documented); "Last active" passes; "Assigned to" sentence case already correct; FILTER_EMPTY descriptions pass ("appear here when X" is honest filter-rule description). Added §7.2 side-by-side voice-review table (every visible string, ✓-no-change rows kept visible). | §7.2 (new), polish page (2 rewrites) |
 | 2026-05-12 | **Stage 4 follow-up — Owner chip visibility for directors.** Surfaced during dashboard review: when a director clicks `X exchanges this week` on `/agent/hub`, they land on a narrowed view (often single-owner). Pre-existing `showUserFilter = uniqueUsers.length > 1` logic at `TransactionListWithSearch.tsx:270` then auto-hid the Owner chip, removing director-level filtering affordance after hub-filter entry. Not a regression from Stage 4 — long-standing behaviour. Fixed: `showUserFilter = isDirector ? uniqueUsers.length > 0 : uniqueUsers.length > 1`. Directors always see the chip when ≥1 owner exists in the visible set; negotiators keep `> 1` (they see only their own files, so the chip is meaningless without multiple owners). Auto-applies to `/agent/dashboard` via shared component. Plus: §12.1 amended with ForecastStrip design contract — clickable month headers will filter table below during dashboard Stage 1-4. | TransactionListWithSearch.tsx:270, §12.1 (Forecast design contract) |
