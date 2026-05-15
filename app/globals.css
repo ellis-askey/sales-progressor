@@ -619,6 +619,9 @@ select {
    * The i>0 borderLeft rule in hub/page.tsx orphans it — suppress here. */
   .hub-stats-grid > *:nth-child(3) { border-left: none !important; }
 
+  /* new-v2 hero card — reduce padding on mobile */
+  .v2-hero-card { padding: 24px 20px 20px !important; }
+
   /* Reminders page — work queue mobile */
   .reminders-page-pad { padding: 16px 16px !important; }
 
