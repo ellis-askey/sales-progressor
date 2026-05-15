@@ -29,7 +29,7 @@ function ProgressRing({ percent }: { percent: number }) {
           .ring-glow { animation: none; }
         }
       `}</style>
-      <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90">
+      <svg width="72" height="72" viewBox="0 0 72 72" className="-rotate-90" style={{ overflow: "visible" }}>
         <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(160,120,80,0.18)" strokeWidth="6" />
         <circle
           cx="36" cy="36" r={r} fill="none"
@@ -41,7 +41,7 @@ function ProgressRing({ percent }: { percent: number }) {
           style={{
             stroke: "var(--agent-coral-deep)",
             transition: prefersRM ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)",
-            filter: percent > 0 ? "drop-shadow(0 0 5px rgba(255,107,74,0.56))" : "none",
+            filter: percent > 0 ? "drop-shadow(0 0 5px rgba(var(--agent-coral-rgb), 0.56))" : "none",
             animation: percent > 0 ? "ring-glow-pulse 3s ease-in-out infinite" : "none",
           }}
         />
@@ -90,16 +90,50 @@ type Props = {
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
   showOurFee?: boolean;
+  fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
+  isInternal?: boolean;
 };
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms }: Props) {
+function fmtTime(seconds: number): string {
+  if (seconds < 60) return "Under a minute";
+  if (seconds < 120) return "1 min";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} mins`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (seconds < 86400) {
+    if (m === 0) return h === 1 ? "1 hour" : `${h} hours`;
+    return `${h}h ${m}m`;
+  }
+  const d = Math.floor(seconds / 86400);
+  if (d < 7) return d === 1 ? "1 day" : `${d} days`;
+  const w = Math.floor(d / 7);
+  if (d < 30) return w === 1 ? "1 week" : `${w} weeks`;
+  const mo = Math.floor(d / 30);
+  return mo <= 1 ? "over a month" : `${mo} months`;
+}
+
+function fmtRelative(date: Date): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 60) return "Active just now";
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return "Active today";
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Active yesterday";
+  if (diffDays < 7) return `Active ${diffDays} days ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffDays < 30) return diffWeeks === 1 ? "Active 1 week ago" : `Active ${diffWeeks} weeks ago`;
+  return "Last active over a month ago";
+}
+
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
 
   const ourFee = assignedUser
     ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
     : transaction.serviceType === "self_managed"
-      ? { fee: 5900, label: "Self-managed · £59 inc. VAT" }
-      : { fee: null, label: "No progressor assigned" };
+      ? { fee: 5900, label: "£59 inc. VAT" }
+      : { fee: null, label: "" };
 
   const agentFeeCalcPence: number | null =
     transaction.agentFeeAmount != null
@@ -151,6 +185,53 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         </div>
       </div>
 
+      {/* Time on file card */}
+      {fileTime && fileTime.totalSeconds > 0 && (
+        <div className="glass-card p-4">
+          <p className="agent-sidebar-label mb-3">Time on file</p>
+
+          {/* Headline total */}
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
+            {fmtTime(fileTime.totalSeconds)}
+          </p>
+
+          {/* Internal split rows */}
+          {isInternal && (
+            <div style={{ borderTop: "1px solid rgba(15,23,42,0.07)", paddingTop: 8, marginBottom: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+              <div className="flex justify-between items-center">
+                <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>You</p>
+                <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
+                  {fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "—"}
+                </p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>Our team</p>
+                <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
+                  {fileTime.teamSeconds > 0 ? fmtTime(fileTime.teamSeconds) : "—"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Activity line */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {fileTime.hasLiveSession ? (
+              <>
+                <span style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: "var(--agent-success)",
+                  display: "inline-block", flexShrink: 0,
+                  animation: "agent-pulse-dot 2s ease-in-out infinite",
+                }} />
+                <span style={{ fontSize: 11, color: "var(--agent-success)", fontWeight: 500 }}>Active now</span>
+              </>
+            ) : fileTime.lastActiveAt ? (
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{fmtRelative(fileTime.lastActiveAt)}</span>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* Exchange dates card */}
       <div className="glass-card px-4 py-3">
         <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
@@ -186,7 +267,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                   : "Not set"}
               </p>
             ) : (
-              <p className="text-xs text-slate-900/30 italic">Set once exchange is confirmed</p>
+              <p className="text-xs text-slate-900/30 italic">Awaiting exchange</p>
             )}
           </div>
 
@@ -239,7 +320,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       {/* Price & fees card */}
       <div className="glass-card px-4 py-3">
         <div className="flex items-center justify-between mb-3">
-          <p className="agent-sidebar-label">Price &amp; Fees</p>
+          <p className="agent-sidebar-label">Fee Breakdown</p>
           <button
             onClick={() => setShowEditDrawer(true)}
             className="text-xs agent-link"
@@ -248,102 +329,64 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Purchase price */}
-          <div>
-            <p className="text-xs text-slate-900/40 mb-1">Purchase price</p>
-            <p className="text-sm font-bold text-slate-900/90">{formatPrice(transaction.purchasePrice)}</p>
-          </div>
-
-          {/* Tenure + purchase type */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {transaction.tenure && (
-              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                {transaction.tenure}
-              </span>
-            )}
-            {transaction.purchaseType && (
-              <span className="glass-subtle text-xs text-slate-900/70 px-2.5 py-0.5 font-medium capitalize">
-                {transaction.purchaseType.replace(/_/g, " ")}
-              </span>
-            )}
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-900/40">Purchase price</p>
+            <p className="text-xs font-semibold text-slate-900/90">{formatPrice(transaction.purchasePrice) ?? "—"}</p>
           </div>
 
           {/* Agent fee */}
-          <div className="pt-2 border-t border-white/20">
-            <p className="text-xs text-slate-900/40 mb-0.5">Agent fee</p>
-            {transaction.agentFeeAmount ? (
-              <p className="text-sm font-semibold text-slate-900/90">
-                {formatFee(transaction.agentFeeAmount)}
-                {transaction.agentFeeIsVatInclusive !== null && (
-                  <span className="ml-1 text-xs text-slate-900/40">
-                    {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
-                  </span>
-                )}
-              </p>
-            ) : transaction.agentFeePercent ? (
-              <p className="text-sm font-semibold text-slate-900/90">
-                {Number(transaction.agentFeePercent).toFixed(2)}%
-                {transaction.agentFeeIsVatInclusive !== null && (
-                  <span className="ml-1 text-xs text-slate-900/40">
-                    {transaction.agentFeeIsVatInclusive ? "inc VAT" : "+ VAT"}
-                  </span>
-                )}
-                {transaction.purchasePrice && (
-                  <span className="ml-1 text-xs text-slate-900/50">
-                    = {formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}
-                  </span>
-                )}
-              </p>
-            ) : (
-              <p className="text-sm text-slate-900/30 italic">Not set</p>
-            )}
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-slate-900/40">Agent fee</p>
+            <p className="text-xs font-semibold text-slate-900/90">
+              {transaction.agentFeeAmount
+                ? `${formatFee(transaction.agentFeeAmount)}${transaction.agentFeeIsVatInclusive === false ? " + VAT" : transaction.agentFeeIsVatInclusive === true ? " inc VAT" : ""}`
+                : transaction.agentFeePercent
+                  ? `${Number(transaction.agentFeePercent).toFixed(2)}%${transaction.agentFeeIsVatInclusive === false ? " + VAT" : ""}${transaction.purchasePrice ? ` = ${formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}` : ""}`
+                  : "—"}
+            </p>
           </div>
 
           {/* Solicitor referral fee */}
           {((recommendedFirms != null && recommendedFirms.length > 0) || transaction.referredFirmName) && (
-            <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Solicitor referral</p>
-              {transaction.referredFirmName ? (
-                <>
-                  <p className="text-sm font-semibold text-slate-900/90">
-                    {transaction.referralFee != null ? formatFee(transaction.referralFee) : "No fee set"}
-                  </p>
-                  <p className="text-xs text-slate-900/40">{transaction.referredFirmName}</p>
-                </>
-              ) : (
-                <p className="text-sm text-slate-900/30 italic">Not set</p>
-              )}
+            <div className="flex justify-between items-center gap-3">
+              <p className="text-xs text-slate-900/40 flex-shrink-0">Solicitor referral</p>
+              <p className="text-xs font-semibold text-slate-900/90 text-right">
+                {transaction.referredFirmName
+                  ? (transaction.referralFee != null ? formatFee(transaction.referralFee) : "—")
+                  : "—"}
+              </p>
             </div>
           )}
 
           {/* Broker referral fee */}
           {transaction.brokerFirmName && (
-            <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Broker referral</p>
-              <p className="text-sm font-semibold text-slate-900/90">
-                {transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "No fee set"}
+            <div className="flex justify-between items-center gap-3">
+              <p className="text-xs text-slate-900/40 flex-shrink-0">Broker referral</p>
+              <p className="text-xs font-semibold text-slate-900/90 text-right">
+                {transaction.brokerReferralFee != null ? formatFee(transaction.brokerReferralFee) : "—"}
               </p>
-              <p className="text-xs text-slate-900/40">{transaction.brokerFirmName}</p>
             </div>
           )}
 
           {/* Progressor fee */}
-          {showOurFee && (
-            <div className="pt-2 border-t border-white/20">
-              <p className="text-xs text-slate-900/40 mb-0.5">Progressor fee</p>
-              <p className="text-sm font-bold text-slate-900/90">{formatFee(ourFee.fee)}</p>
-              <p className="text-xs text-slate-900/40">{ourFee.label}</p>
+          {showOurFee && ourFee.fee != null && (
+            <div className="flex justify-between items-baseline gap-3">
+              <p className="text-xs text-slate-900/40 flex-shrink-0">Progressor fee</p>
+              <p className="text-xs font-semibold text-slate-900/90 text-right">{ourFee.label}</p>
             </div>
           )}
 
-          {/* Total */}
+          {/* Net income */}
           {hasTotal && (
-            <div className="pt-3 mt-1 border-t-2 border-white/40">
-              <p className="text-xs text-slate-900/40 mb-0.5">Net income</p>
-              <p className="text-base font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
+            <div className="pt-2.5 mt-1" style={{ borderTop: "1px solid rgba(15,23,42,0.08)" }}>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-slate-900/40">Net income</p>
+                <p className="text-sm font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
+              </div>
               {transaction.agentFeeIsVatInclusive === false && (
-                <p className="text-xs text-slate-900/40">Agent fee excludes VAT</p>
+                <p className="text-xs text-slate-900/40 mt-0.5">Agent fee excludes VAT</p>
               )}
             </div>
           )}

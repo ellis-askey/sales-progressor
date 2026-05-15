@@ -37,6 +37,7 @@ model Agency {
   feedbackSubmissions      FeedbackSubmission[]
   negotiatorInvitations    NegotiatorInvitation[]
   directorInvitations      DirectorInvitation[]
+  fileTimeSessions         FileTimeSession[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -106,6 +107,7 @@ model User {
   negotiatorInvitationsAccepted NegotiatorInvitation[] @relation("NegotiatorInvitationsAccepted")
   invitationsSent               DirectorInvitation[]   @relation("InvitationsSent")
   invitationsAccepted           DirectorInvitation[]   @relation("InvitationsAccepted")
+  fileTimeSessions              FileTimeSession[]
 }
 
 model AgentPushSubscription {
@@ -207,6 +209,7 @@ model PropertyTransaction {
   documents                  TransactionDocument[]
   flags                      TransactionFlag[]
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
+  fileTimeSessions           FileTimeSession[]
 
   @@index([serviceType, createdAt])
 }
@@ -1428,4 +1431,31 @@ model NegotiatorInvitation {
   @@index([agencyId])
   @@index([token])
   @@index([negotiatorEmail])
+}
+
+// ── FileTimeSession ──────────────────────────────────────────────────────────
+// Tracks engaged (tab visible + window focused) time per user per transaction.
+// Sessions < 10s engaged are discarded on close. Stale open sessions (no
+// heartbeat for 5min) are auto-closed by /api/cron/file-time-close.
+
+model FileTimeSession {
+  id                  String    @id @default(cuid())
+  transactionId       String
+  userId              String
+  agencyId            String
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  lastActivityAt      DateTime  @default(now())
+  engagementIntervals Json      @default("[]")
+  totalEngagedSeconds Int?
+  userAgent           String?
+  closedReason        String?
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id])
+  agency      Agency              @relation(fields: [agencyId], references: [id])
+
+  @@index([transactionId, userId])
+  @@index([userId, startedAt])
+  @@index([agencyId, startedAt])
 }

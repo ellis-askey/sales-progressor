@@ -33,6 +33,7 @@ import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice"
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ChainClaimedNotice } from "@/components/transaction/ChainClaimedNotice";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
+import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 
@@ -249,6 +250,40 @@ export default async function AgentTransactionDetailPage({
       })))
     : null;
 
+  const INTERNAL_ROLES = ["superadmin", "admin", "sales_progressor"] as const;
+  const isInternal = (INTERNAL_ROLES as readonly string[]).includes(session.user.role);
+
+  const fileTimeSessions = await prisma.fileTimeSession.findMany({
+    where: { transactionId: id },
+    select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
+  }).catch(() => []);
+
+  const liveCutoff = new Date(Date.now() - 5 * 60 * 1000);
+  const closedSessions = fileTimeSessions.filter((s) => s.endedAt !== null && (s.totalEngagedSeconds ?? 0) > 0);
+
+  const agentSeconds = closedSessions
+    .filter((s) => !(INTERNAL_ROLES as readonly string[]).includes(s.user.role))
+    .reduce((sum, s) => sum + (s.totalEngagedSeconds ?? 0), 0);
+  const teamSeconds = closedSessions
+    .filter((s) => (INTERNAL_ROLES as readonly string[]).includes(s.user.role))
+    .reduce((sum, s) => sum + (s.totalEngagedSeconds ?? 0), 0);
+
+  const mostRecentActivity = fileTimeSessions
+    .map((s) => s.lastActivityAt)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
+
+  const hasLiveSession = fileTimeSessions.some(
+    (s) => s.endedAt === null && new Date(s.lastActivityAt) > liveCutoff
+  );
+
+  const fileTime = {
+    agentSeconds,
+    teamSeconds,
+    totalSeconds: agentSeconds + teamSeconds,
+    lastActiveAt: mostRecentActivity,
+    hasLiveSession,
+  };
+
   const brokerRow = await Promise.resolve().then(() =>
     prisma.propertyTransaction.findFirst({
       where: { id, agencyId: session.user.agencyId },
@@ -291,12 +326,15 @@ export default async function AgentTransactionDetailPage({
       progress={progress}
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
+      fileTime={fileTime}
+      isInternal={isInternal}
     />
   );
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} />
+      <FileTimeTracker transactionId={id} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ChainClaimedNotice /></Suspense>

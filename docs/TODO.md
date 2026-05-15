@@ -2,6 +2,16 @@
 
 ---
 
+## FileTimeSession — privacy / GDPR (pre-launch required)
+
+Filed 2026-05-15. Review before first paying customer.
+
+- Update privacy policy to disclose per-user, per-file time tracking
+- Add delete-on-offboarding path: wipe `FileTimeSession` rows when a user is deactivated
+- Decide retention policy — recommended: 12 months rolling, enforce in `data-retention` cron
+
+---
+
 ## Chase prompt calibration — follow-up items
 
 Filed 2026-05-08. Ship current glossary integration first; address these in a follow-up after a week of real-use observation.
