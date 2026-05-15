@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X, CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { titleCase, normalizePhone } from "@/lib/utils";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
 type Firm = { id: string; name: string };
@@ -22,7 +23,32 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
   const [handlerEmail, setHandlerEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [touched, setTouched] = useState({ firm: false, name: false, phone: false, email: false });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const firmValid = touched.firm && firmName.trim().length >= 2;
+  const nameValid = touched.name && handlerName.trim().length >= 2;
+  const phoneValid = touched.phone && /\d{10,}/.test(handlerPhone.replace(/\D/g, ""));
+  const emailValid = touched.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim());
+
+  function touch(field: keyof typeof touched) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }
+
+  function blurFirm() { touch("firm"); setFirmName((v) => titleCase(v)); }
+  function blurName() { touch("name"); setHandlerName((v) => titleCase(v)); }
+  function blurPhone() { touch("phone"); setHandlerPhone((v) => normalizePhone(v)); }
+  function blurEmail() {
+    touch("email");
+    const formatted = handlerEmail.trim().toLowerCase();
+    setHandlerEmail(formatted);
+    if (formatted && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formatted)) {
+      setEmailError("Enter a valid email address");
+    } else {
+      setEmailError(null);
+    }
+  }
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -40,6 +66,10 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!firmName.trim()) return;
+    if (handlerEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim())) {
+      setEmailError("Enter a valid email address");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -48,15 +78,15 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: firmName.trim(),
+          name: titleCase(firmName),
           handler: handlerName.trim()
-            ? { name: handlerName.trim(), phone: handlerPhone.trim() || null, email: handlerEmail.trim() || null }
+            ? { name: titleCase(handlerName), phone: normalizePhone(handlerPhone), email: handlerEmail.trim().toLowerCase() || null }
             : null,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create firm");
+      if (!res.ok) throw new Error(data.error ?? "Failed to create brokerage");
 
       const handler: Handler | null = data.handlers?.[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
@@ -100,55 +130,76 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+          {/* Firm name — required */}
           <div>
-            <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">
-              Firm name <span className="text-red-400">*</span>
+            <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+              Brokerage name
+              {firmValid
+                ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                : touched.firm && firmName.trim().length < 2
+                  ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                  : null}
             </label>
             <input
               ref={inputRef}
               value={firmName}
               onChange={(e) => setFirmName(e.target.value)}
+              onBlur={blurFirm}
               placeholder="e.g. Bright Future Mortgages"
               required
               className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
             />
           </div>
 
+          {/* Broker contact — optional */}
           <div>
-            <p className="agent-section-label mb-3">
-              Broker contact <span className="font-normal normal-case text-slate-900/30">(optional — can add later)</span>
-            </p>
+            <p className="agent-section-label mb-3">Broker contact</p>
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Full name</label>
-                <input
-                  value={handlerName}
-                  onChange={(e) => setHandlerName(e.target.value)}
-                  placeholder="e.g. James Morris"
-                  className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                />
-              </div>
+              {/* Full name + Mobile on same row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Mobile</label>
+                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                    Full name
+                    {nameValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                  </label>
+                  <input
+                    value={handlerName}
+                    onChange={(e) => setHandlerName(e.target.value)}
+                    onBlur={blurName}
+                    placeholder="e.g. James Morris"
+                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                    Contact number
+                    {phoneValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                  </label>
                   <input
                     type="tel"
                     value={handlerPhone}
                     onChange={(e) => setHandlerPhone(e.target.value)}
+                    onBlur={blurPhone}
                     placeholder="07700 900 000"
                     className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={handlerEmail}
-                    onChange={(e) => setHandlerEmail(e.target.value)}
-                    placeholder="j.morris@broker.co.uk"
-                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                  />
-                </div>
+              </div>
+              {/* Email — full width */}
+              <div>
+                <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                  Email
+                  {emailValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                </label>
+                <input
+                  type="email"
+                  value={handlerEmail}
+                  onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
+                  onBlur={blurEmail}
+                  placeholder="j.morris@broker.co.uk"
+                  className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${emailError ? " agent-input-error" : ""}`}
+                />
+                {emailError && <p className="agent-helper-error">{emailError}</p>}
               </div>
             </div>
           </div>
@@ -163,7 +214,7 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
               disabled={!firmName.trim() || loading}
               className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
             >
-              {loading ? "Saving…" : "Save firm"}
+              {loading ? "Saving…" : "Save brokerage"}
             </button>
             <button
               type="button"

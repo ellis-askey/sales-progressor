@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AddBrokerModal } from "./AddBrokerModal";
+import { titleCase } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
@@ -32,9 +34,16 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
   const [loadingHandlers, setLoadingHandlers] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalPrefill, setModalPrefill] = useState("");
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [inputBlurred, setInputBlurred] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownPortalRef = useRef<HTMLDivElement>(null);
   const didPreFill = useRef(false);
+
+  useEffect(() => setMounted(true), []);
 
   // Auto-populate from preferred broker on first render
   useEffect(() => {
@@ -45,12 +54,13 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
     }
   }, [preferredBroker, value, onChange]);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click — check both wrapper and portal
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
+      const target = e.target as Node;
+      const inWrapper = wrapperRef.current?.contains(target);
+      const inPortal = dropdownPortalRef.current?.contains(target);
+      if (!inWrapper && !inPortal) setShowDropdown(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -92,9 +102,15 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
     }, 200);
   }, []);
 
+  function openDropdown() {
+    const rect = inputRef.current?.getBoundingClientRect();
+    if (rect) setDropdownRect(rect);
+    setShowDropdown(true);
+  }
+
   function handleQueryChange(q: string) {
     setQuery(q);
-    setShowDropdown(true);
+    openDropdown();
     if (value) onChange(null);
     if (q.trim()) doSearch(q);
     else { setFirms([]); setSearchError(null); }
@@ -103,6 +119,7 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
   function selectFirm(firm: Firm) {
     setQuery(firm.name);
     setShowDropdown(false);
+    setInputBlurred(false);
     onChange({ firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null });
   }
 
@@ -112,7 +129,9 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
   }
 
   function handleAddFirm() {
-    setModalPrefill(query);
+    const cased = titleCase(query);
+    setQuery(cased);
+    setModalPrefill(cased);
     setShowModal(true);
     setShowDropdown(false);
   }
@@ -121,6 +140,7 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
     setShowModal(false);
     setQuery(firm.name);
     setSearchError(null);
+    setInputBlurred(false);
     if (handler) {
       onChange({ firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email });
       setHandlers([handler]);
@@ -136,10 +156,63 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
     setFirms([]);
     setHandlers([]);
     setSearchError(null);
+    setInputBlurred(false);
     onChange(null);
   }
 
   const firmSelected = !!value?.firmId;
+  const unconfirmed = inputBlurred && !!query.trim() && !firmSelected;
+
+  const dropdownContent = showDropdown && query.trim() && dropdownRect ? (
+    <div
+      ref={dropdownPortalRef}
+      style={{
+        position: "fixed",
+        top: dropdownRect.bottom + 4,
+        left: dropdownRect.left,
+        width: dropdownRect.width,
+        zIndex: 9999,
+      }}
+      className="bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden"
+    >
+      {searchError ? (
+        <div>
+          <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
+          <div className="border-t border-white/20">
+            <button type="button" onMouseDown={handleAddFirm}
+              className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+              <span>+</span> Add &ldquo;{query}&rdquo; as new brokerage
+            </button>
+          </div>
+        </div>
+      ) : firms.length > 0 ? (
+        <>
+          {firms.map((f) => (
+            <button key={f.id} type="button" onMouseDown={() => selectFirm(f)}
+              className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors">
+              {f.name}
+            </button>
+          ))}
+          <div className="border-t border-white/20">
+            <button type="button" onMouseDown={handleAddFirm}
+              className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+              <span>+</span> Add &ldquo;{query}&rdquo; as new brokerage
+            </button>
+          </div>
+        </>
+      ) : (
+        <div>
+          <p className="px-4 py-2.5 text-sm text-slate-900/40">No matching brokerages</p>
+          <div className="border-t border-white/20">
+            <button type="button" onMouseDown={handleAddFirm}
+              className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
+              <span>+</span> Add &ldquo;{query}&rdquo; as new brokerage
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <>
@@ -156,58 +229,22 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
         {/* Firm typeahead */}
         <div ref={wrapperRef} className="relative">
           <input
+            ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
+            onChange={(e) => { handleQueryChange(e.target.value); setInputBlurred(false); }}
             onFocus={() => {
               if (query.trim() && !firmSelected) {
-                setShowDropdown(true);
+                openDropdown();
                 doSearch(query);
               }
             }}
+            onBlur={() => { if (!showDropdown) setInputBlurred(true); }}
             placeholder="Search broker name…"
-            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : ""}`}
+            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
           />
-
-          {showDropdown && query.trim() && (
-            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden">
-              {searchError ? (
-                <div>
-                  <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
-                  <div className="border-t border-white/20">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
-                    </button>
-                  </div>
-                </div>
-              ) : firms.length > 0 ? (
-                <>
-                  {firms.map((f) => (
-                    <button key={f.id} type="button" onMouseDown={() => selectFirm(f)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors">
-                      {f.name}
-                    </button>
-                  ))}
-                  <div className="border-t border-white/20">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <p className="px-4 py-2.5 text-sm text-slate-900/40">No matching firms</p>
-                  <div className="border-t border-white/20">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+          {unconfirmed && (
+            <p className="agent-helper-warning">Brokerage not saved — choose from results or add as new</p>
           )}
         </div>
 
@@ -246,6 +283,8 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
           </div>
         )}
       </div>
+
+      {mounted && createPortal(dropdownContent, document.body)}
 
       {showModal && (
         <AddBrokerModal

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X, CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { titleCase, normalizePhone } from "@/lib/utils";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
 type Firm = { id: string; name: string };
@@ -22,14 +23,38 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
   const [handlerEmail, setHandlerEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState({ firm: false, name: false, phone: false, email: false });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const firmValid = touched.firm && firmName.trim().length >= 2;
+  const nameValid = touched.name && handlerName.trim().length >= 2;
+  const phoneValid = touched.phone && /\d{10,}/.test(handlerPhone.replace(/\D/g, ""));
+  const emailValid = touched.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim());
+
+  function touch(field: keyof typeof touched) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }
+
+  function blurFirm() { touch("firm"); setFirmName((v) => titleCase(v)); }
+  function blurName() { touch("name"); setHandlerName((v) => titleCase(v)); }
+  function blurPhone() { touch("phone"); setHandlerPhone((v) => normalizePhone(v)); }
+  function blurEmail() {
+    touch("email");
+    const formatted = handlerEmail.trim().toLowerCase();
+    setHandlerEmail(formatted);
+    if (formatted && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formatted)) {
+      setErrors((prev) => ({ ...prev, handlerEmail: "Email address doesn't look right" }));
+    } else if (formatted) {
+      clearFieldError("handlerEmail");
+    }
+  }
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 
-  // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -38,9 +63,38 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  function clearFieldError(field: string) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!firmName.trim()) e.firmName = "Enter the firm name";
+    if (!handlerName.trim()) e.handlerName = "Enter the case handler's name";
+    if (!handlerPhone.trim()) {
+      e.handlerPhone = "Enter a direct line number";
+    } else {
+      const norm = normalizePhone(handlerPhone);
+      const digits = norm.replace(/\D/g, "");
+      if (digits.length < 10) e.handlerPhone = "Phone number doesn't look right";
+    }
+    if (!handlerEmail.trim()) {
+      e.handlerEmail = "Enter an email address";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim())) {
+      e.handlerEmail = "Email address doesn't look right";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!firmName.trim()) return;
+    if (!validate()) return;
     setLoading(true);
     setError(null);
 
@@ -49,10 +103,12 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: firmName.trim(),
-          handler: handlerName.trim()
-            ? { name: handlerName.trim(), phone: handlerPhone.trim() || null, email: handlerEmail.trim() || null }
-            : null,
+          name: titleCase(firmName),
+          handler: {
+            name: titleCase(handlerName),
+            phone: normalizePhone(handlerPhone),
+            email: handlerEmail.trim().toLowerCase(),
+          },
         }),
       });
 
@@ -72,15 +128,15 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
       data-theme={theme}
       style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
-      {/* Backdrop — does not dismiss on click; user has entered data */}
       <div className="fixed inset-0 agent-backdrop-overlay" />
 
-      {/* Card */}
       <div
-        className="glass-card-strong rounded-2xl shadow-2xl w-full max-w-md"
+        className="rounded-2xl shadow-2xl w-full max-w-md"
         style={{
           position: "relative",
           zIndex: 1,
+          background: "#ffffff",
+          border: "1px solid rgba(15,23,42,0.08)",
           borderTop: "2px solid var(--agent-coral-deep)",
           animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
@@ -106,67 +162,98 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* Firm name */}
           <div>
-            <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">
-              Firm name <span className="text-red-400">*</span>
+            <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+              Firm name
+              {firmValid
+                ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                : touched.firm && firmName.trim().length < 2
+                  ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                  : null}
             </label>
             <input
               ref={inputRef}
               value={firmName}
-              onChange={(e) => setFirmName(e.target.value)}
+              onChange={(e) => { setFirmName(e.target.value); clearFieldError("firmName"); }}
+              onBlur={blurFirm}
               placeholder="e.g. Carter & Wells Solicitors"
-              required
-              className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+              className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.firmName ? " agent-input-error" : ""}`}
             />
+            {errors.firmName && <p className="agent-helper-error">{errors.firmName}</p>}
           </div>
 
-          {/* Case handler (optional) */}
+          {/* Case handler */}
           <div>
-            <p className="agent-section-label mb-3">
-              Case handler <span className="font-normal normal-case text-slate-900/30">(optional — can add later)</span>
-            </p>
+            <p className="agent-section-label mb-3">Case handler</p>
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Full name</label>
-                <input
-                  value={handlerName}
-                  onChange={(e) => setHandlerName(e.target.value)}
-                  placeholder="e.g. Sarah Patel"
-                  className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                />
-              </div>
+              {/* Full name + Direct line on same row */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Mobile</label>
+                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                    Full name
+                    {nameValid
+                      ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                      : touched.name && handlerName.trim().length < 2
+                        ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                        : null}
+                  </label>
+                  <input
+                    value={handlerName}
+                    onChange={(e) => { setHandlerName(e.target.value); clearFieldError("handlerName"); }}
+                    onBlur={blurName}
+                    placeholder="e.g. Sarah Patel"
+                    className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerName ? " agent-input-error" : ""}`}
+                  />
+                  {errors.handlerName && <p className="agent-helper-error">{errors.handlerName}</p>}
+                </div>
+                <div>
+                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                    Direct line
+                    {phoneValid
+                      ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                      : touched.phone && !phoneValid
+                        ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                        : null}
+                  </label>
                   <input
                     type="tel"
                     value={handlerPhone}
-                    onChange={(e) => setHandlerPhone(e.target.value)}
-                    placeholder="07700 900 000"
-                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                    onChange={(e) => { setHandlerPhone(e.target.value); clearFieldError("handlerPhone"); }}
+                    onBlur={blurPhone}
+                    placeholder="020 7946 0000"
+                    className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerPhone ? " agent-input-error" : ""}`}
                   />
+                  {errors.handlerPhone && <p className="agent-helper-error">{errors.handlerPhone}</p>}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-900/65 mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={handlerEmail}
-                    onChange={(e) => setHandlerEmail(e.target.value)}
-                    placeholder="s.patel@firm.co.uk"
-                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                  />
-                </div>
+              </div>
+              {/* Email — full width */}
+              <div>
+                <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                  Email
+                  {emailValid
+                    ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                    : touched.email && !emailValid
+                      ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                      : null}
+                </label>
+                <input
+                  type="text"
+                  value={handlerEmail}
+                  onChange={(e) => { setHandlerEmail(e.target.value); clearFieldError("handlerEmail"); }}
+                  onBlur={blurEmail}
+                  placeholder="s.patel@firm.co.uk"
+                  className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerEmail ? " agent-input-error" : ""}`}
+                />
+                {errors.handlerEmail && <p className="agent-helper-error">{errors.handlerEmail}</p>}
               </div>
             </div>
           </div>
 
-          {error && (
-            <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5">{error}</p>
-          )}
+          {error && <p className="agent-helper-error" style={{ fontSize: 12 }}>{error}</p>}
 
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!firmName.trim() || loading}
+              disabled={!firmName.trim() || !handlerName.trim() || !handlerPhone.trim() || !handlerEmail.trim() || loading}
               className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
             >
               {loading ? "Saving…" : "Save firm"}

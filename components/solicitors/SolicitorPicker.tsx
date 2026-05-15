@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AddFirmModal } from "./AddFirmModal";
+import { titleCase } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
@@ -25,23 +27,30 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [handlers, setHandlers] = useState<Handler[]>([]);
   const [loadingHandlers, setLoadingHandlers] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalPrefill, setModalPrefill] = useState("");
+  const [inputBlurred, setInputBlurred] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click or scroll
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
       }
     }
+    function handleScroll() { setShowDropdown(false); }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
   // Sync query text when firm is set externally (e.g. memo auto-fill)
@@ -82,9 +91,17 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     }, 200);
   }, []);
 
+  function openDropdown() {
+    if (wrapperRef.current) {
+      const r = wrapperRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    setShowDropdown(true);
+  }
+
   function handleQueryChange(q: string) {
     setQuery(q);
-    setShowDropdown(true);
+    openDropdown();
     if (value) onChange(null);
     if (q.trim()) doSearch(q);
     else { setFirms([]); setSearchError(null); }
@@ -93,6 +110,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
   function selectFirm(firm: Firm) {
     setQuery(firm.name);
     setShowDropdown(false);
+    setInputBlurred(false);
     onChange({ firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null });
   }
 
@@ -102,7 +120,9 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
   }
 
   function handleAddFirm() {
-    setModalPrefill(query);
+    const cased = titleCase(query);
+    setQuery(cased);
+    setModalPrefill(cased);
     setShowModal(true);
     setShowDropdown(false);
   }
@@ -111,6 +131,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     setShowModal(false);
     setQuery(firm.name);
     setSearchError(null);
+    setInputBlurred(false);
     if (handler) {
       onChange({ firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email });
       setHandlers([handler]);
@@ -127,10 +148,12 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     setFirms([]);
     setHandlers([]);
     setSearchError(null);
+    setInputBlurred(false);
     onChange(null);
   }
 
   const firmSelected = !!value?.firmId;
+  const unconfirmed = inputBlurred && !!query.trim() && !firmSelected;
 
   return (
     <>
@@ -149,26 +172,30 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
           <input
             type="text"
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
+            onChange={(e) => { handleQueryChange(e.target.value); setInputBlurred(false); }}
             onFocus={() => {
               if (query.trim() && !firmSelected) {
-                setShowDropdown(true);
+                openDropdown();
                 doSearch(query);
               }
             }}
+            onBlur={() => { if (!showDropdown) setInputBlurred(true); }}
             placeholder="Search firm name…"
-            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : ""}`}
+            className={`glass-input w-full px-3 py-2.5 text-sm${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
           />
+          {unconfirmed && (
+            <p className="agent-helper-warning">Firm not saved — choose from results or add as new</p>
+          )}
 
-          {showDropdown && query.trim() && (
-            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden">
+          {showDropdown && query.trim() && dropPos && typeof document !== "undefined" && createPortal(
+            <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: "rgba(255,255,255,0.98)", backdropFilter: "blur(8px)", border: "1px solid rgba(15,23,42,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", overflow: "hidden" }}>
               {searchError ? (
                 <div>
                   <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
                   <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
                       className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
+                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
                 </div>
@@ -183,7 +210,7 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
                   <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
                       className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
+                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
                 </>
@@ -193,12 +220,13 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
                   <div className="border-t border-white/20">
                     <button type="button" onMouseDown={handleAddFirm}
                       className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2">
-                      <span>+</span> Add "{query}" as new firm
+                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
                     </button>
                   </div>
                 </div>
               )}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
