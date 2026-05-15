@@ -14,6 +14,7 @@ import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
 import { Stage1SummaryBar } from "@/components/transactions-v2/form/Stage1SummaryBar";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
+import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
 import { DraftPanel } from "@/components/transactions-v2/DraftPanel";
 import { autoFillSolicitor } from "@/components/transactions-v2/form/SolicitorSection";
@@ -306,6 +307,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [showChangeFileModal, setShowChangeFileModal] = useState(false);
+  const [showNavModal, setShowNavModal] = useState(false);
+  const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
 
   // ── Property intel (right column) ─────────────────────────────────────────
   const intel = usePropertyIntel();
@@ -376,6 +379,45 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [formIsDirty, currentDraftId]);
+
+  // ── In-app nav guard — intercept sidebar link clicks when form has unsaved data ──
+  useEffect(() => {
+    if (!formIsDirty || currentDraftId !== null) return;
+    function clickHandler(e: MouseEvent) {
+      const anchor = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || !href.startsWith("/")) return;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.pathname === window.location.pathname) return;
+      } catch { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingNavHref(href);
+      setShowNavModal(true);
+    }
+    document.addEventListener("click", clickHandler, true);
+    return () => document.removeEventListener("click", clickHandler, true);
+  }, [formIsDirty, currentDraftId]);
+
+  // ── Nav-away modal handlers ───────────────────────────────────────────────
+
+  function handleNavStay() {
+    setShowNavModal(false);
+    setPendingNavHref(null);
+  }
+
+  function handleNavDiscard() {
+    setShowNavModal(false);
+    if (pendingNavHref) router.push(pendingNavHref);
+  }
+
+  async function handleNavSaveDraft() {
+    await saveDraft();
+    setShowNavModal(false);
+    if (pendingNavHref) router.push(pendingNavHref);
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -1110,6 +1152,16 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         <ChangeFileModal
           onConfirm={resetToHero}
           onCancel={() => setShowChangeFileModal(false)}
+        />
+      )}
+
+      {/* Nav-away modal — fires when user clicks a sidebar link with unsaved data */}
+      {showNavModal && (
+        <NavAwayModal
+          isSaving={isSavingDraft}
+          onDiscard={handleNavDiscard}
+          onStay={handleNavStay}
+          onSave={handleNavSaveDraft}
         />
       )}
 
