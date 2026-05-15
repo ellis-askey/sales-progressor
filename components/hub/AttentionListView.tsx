@@ -38,34 +38,19 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
       style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
     >
       {/* Section header */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 20px",
-        borderBottom: "0.5px solid var(--agent-border-subtle)",
-      }}>
+      <div className="agent-card-hdr" style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <Clock size={15} color="var(--agent-text-muted)" />
           <div>
-            <p style={{
-              margin: 0, fontSize: 13, fontWeight: 500,
-              color: "var(--agent-text-primary)",
-            }}>
-              Needs your attention
-            </p>
+            <p className="agent-card-title-emphasis">Needs your attention</p>
             <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Files where something&apos;s stuck or due
+              Reminders due today or overdue.
             </p>
           </div>
         </div>
         {items.length > 0 && (
-          <Link
-            href="/agent/work-queue"
-            style={{
-              fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)",
-              textDecoration: "none", display: "flex", alignItems: "center", gap: 4,
-            }}
-          >
-            Reminders
+          <Link href="/agent/work-queue" className="agent-link" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+            All reminders
             <ArrowRight size={12} />
           </Link>
         )}
@@ -81,7 +66,7 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
             background: "var(--agent-success)", flexShrink: 0,
           }} />
           <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-            No reminders due right now. All clear.
+            No reminders due. All clear.
           </p>
         </div>
       ) : (
@@ -98,9 +83,9 @@ export function AttentionListView({ items }: { items: AttentionItem[] }) {
                 borderLeft: `3px solid ${s.border}`,
                 background: s.bg,
                 borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                textDecoration: "none", transition: "filter 120ms", gap: 12,
+                textDecoration: "none", gap: 12,
               }}
-              className="hover:brightness-[0.97]"
+              className="agent-hover-row"
             >
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{

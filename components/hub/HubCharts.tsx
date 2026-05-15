@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import {
@@ -33,6 +34,23 @@ export function RefreshButton({ updatedLabel }: { updatedLabel: string }) {
 // ── Momentum ring ─────────────────────────────────────────────────────────────
 
 export function MomentumRing({ percent }: { percent: number | null }) {
+  const r = 32; const cx = 40; const cy = 40;
+  const circ = 2 * Math.PI * r;
+  const progress = percent !== null ? Math.min(100, Math.max(0, percent)) / 100 : 0;
+  const target = circ * (1 - progress);
+  const [rm, setRm] = useState(false);
+  const [offset, setOffset] = useState(circ);
+
+  useEffect(() => {
+    if (percent === null) return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) { setRm(true); setOffset(target); return; }
+    setOffset(circ);
+    const t = setTimeout(() => setOffset(target), 60);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (percent === null) {
     return (
       <div style={{ textAlign: "center", maxWidth: 160, padding: "4px 0" }}>
@@ -40,18 +58,11 @@ export function MomentumRing({ percent }: { percent: number | null }) {
           No comparison yet
         </p>
         <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-          Compares exchanges month over month. Data appears after your first completed month.
+          Check back after your first full month.
         </p>
       </div>
     );
   }
-
-  const r = 32;
-  const cx = 40;
-  const cy = 40;
-  const circ = 2 * Math.PI * r;
-  const progress = Math.min(100, Math.max(0, percent)) / 100;
-  const offset = circ * (1 - progress);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -66,6 +77,7 @@ export function MomentumRing({ percent }: { percent: number | null }) {
           strokeDasharray={circ}
           strokeDashoffset={offset}
           transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: rm ? "none" : "stroke-dashoffset 900ms cubic-bezier(0.4,0,0.2,1)" }}
         />
         <text
           x={cx} y={cy + 1}
@@ -92,11 +104,12 @@ function ForecastTooltip({ active, payload }: TooltipProps) {
   const { label, count } = payload[0].payload;
   return (
     <div style={{
-      background: "rgba(255,255,255,0.97)",
-      border: "1px solid rgba(255,138,101,0.25)",
+      background: "rgba(255,255,255,0.88)",
+      border: "0.5px solid var(--agent-glass-border)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
       borderRadius: 8, padding: "5px 10px", fontSize: 12,
       color: "var(--agent-text-primary)",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
     }}>
       <strong>{count}</strong>{" "}
       {count === 1 ? "exchange" : "exchanges"} · {label}
