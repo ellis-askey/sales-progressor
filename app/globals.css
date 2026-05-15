@@ -619,6 +619,14 @@ select {
    * The i>0 borderLeft rule in hub/page.tsx orphans it — suppress here. */
   .hub-stats-grid > *:nth-child(3) { border-left: none !important; }
 
+  /* Hub activity ribbon — stack vertically on mobile/tablet (<768px).
+   * Fixes two issues: (1) "View file" no longer floats right where it collides
+   * with fixed corner elements; (2) overflow/truncation: inline alignItems:center
+   * overrides are beaten with !important, and width:100% on the inner div
+   * constrains the row-flex so the whiteSpace:nowrap text can ellipsis correctly. */
+  .hub-activity-ribbon { flex-direction: column; align-items: flex-start !important; }
+  .hub-activity-ribbon > div { width: 100%; min-width: 0; }
+
   /* new-v2 hero card — reduce padding on mobile */
   .v2-hero-card { padding: 24px 20px 20px !important; }
 
@@ -866,10 +874,6 @@ select {
   box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04) !important;
 }
 
-/* ── Hub: Activity ribbon — mobile stack ──────────────────────────────────── */
-@media (max-width: 640px) {
-  .hub-activity-ribbon { flex-direction: column; align-items: flex-start; }
-}
 
 /* ── Work queue: filter pill groups — mobile stack ────────────────────────── */
 @media (max-width: 640px) {
