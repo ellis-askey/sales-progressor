@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { PencilSimple } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -211,7 +212,7 @@ function SolicitorCard({
               )}
               <SolicitorIntelBadge firmId={info.firm.id} />
               {(info.contact?.phone || info.contact?.email) && (
-                <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
                   {info.contact.phone && (
                     <a
                       href={`tel:${info.contact.phone.replace(/\s/g, "")}`}
@@ -225,7 +226,7 @@ function SolicitorCard({
                     <a
                       href={emailHref}
                       className="agent-link agent-link-muted"
-                      style={{ fontSize: 10 }}
+                      style={{ fontSize: 10, wordBreak: "break-all" }}
                     >
                       {info.contact!.email}
                     </a>
@@ -246,11 +247,21 @@ function SolicitorCard({
                 >
                   Invite
                 </button>
-                <button type="button" onClick={openEdit} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
+                {/* Desktop: text link */}
+                <button type="button" onClick={openEdit} className="agent-link agent-link-muted hidden md:inline" style={{ fontSize: 11 }}>
                   Edit
                 </button>
-                <button type="button" onClick={onRemove} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
+                {/* Mobile: icon button */}
+                <button type="button" onClick={openEdit} className="agent-icon-btn agent-icon-btn-sm md:hidden" aria-label="Edit solicitor">
+                  <PencilSimple weight="regular" style={{ width: 13, height: 13 }} />
+                </button>
+                {/* Desktop: text link */}
+                <button type="button" onClick={onRemove} className="agent-link agent-link-muted hidden md:inline" style={{ fontSize: 11 }}>
                   Remove
+                </button>
+                {/* Mobile: icon button */}
+                <button type="button" onClick={onRemove} className="agent-icon-btn agent-icon-btn-sm md:hidden" aria-label="Remove solicitor">
+                  &times;
                 </button>
               </div>
             )}
