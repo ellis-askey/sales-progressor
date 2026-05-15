@@ -54,12 +54,6 @@ export function PortalInvitePrompt() {
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
             type="button"
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", padding: 0 }}
-          >
-            Tell me more
-          </button>
-          <button
-            type="button"
             onClick={handleDismiss}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.38)", padding: 0 }}
           >

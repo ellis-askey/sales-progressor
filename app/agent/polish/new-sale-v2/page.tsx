@@ -272,6 +272,7 @@ function LoadingSkeleton({ mobile }: { mobile?: boolean }) {
 /* ── B: Hero card */
 function HeroCard({ variant }: { variant: "nodraft" | "draft" | "drag" }) {
   const isDrag = variant === "drag";
+  const [draftsOpen, setDraftsOpen] = useState(false);
   return (
     <div className="agent-glass-strong hero-upload-zone" data-drag={isDrag ? "true" : undefined} style={{
       padding: "40px 32px", textAlign: "center", display: "flex", flexDirection: "column",
@@ -301,22 +302,29 @@ function HeroCard({ variant }: { variant: "nodraft" | "draft" | "drag" }) {
       </div>
       {variant === "draft" && (
         <div style={{ borderTop: `0.5px solid ${BORDER}`, paddingTop: 16, width: "100%", textAlign: "left" }}>
-          <p style={{ fontSize: 11, color: TM, marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>
-            Resume
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-            background: "var(--agent-border-subtle)", borderRadius: 8, padding: "10px 12px" }}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 500, color: TP, margin: 0 }}>14 Hartwell Avenue, Bristol…</p>
-              <p style={{ fontSize: 11, color: TM, margin: 0, marginTop: 2 }}>2h ago</p>
-            </div>
-            <button className="agent-link" style={{ fontSize: 12 }}>
-              Load
+          {!draftsOpen ? (
+            <button className="agent-link agent-link-muted" style={{ fontSize: 12 }}
+              onClick={() => setDraftsOpen(true)}>
+              Resume a draft (3)
             </button>
-          </div>
-          <button className="agent-link agent-link-muted" style={{ marginTop: 8, fontSize: 12 }}>
-            View all drafts (3)
-          </button>
+          ) : (
+            <>
+              <p style={{ fontSize: 11, color: TM, marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }}>
+                Resume
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "var(--agent-border-subtle)", borderRadius: 8, padding: "10px 12px" }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: TP, margin: 0 }}>14 Hartwell Avenue, Bristol…</p>
+                  <p style={{ fontSize: 11, color: TM, margin: 0, marginTop: 2 }}>2h ago</p>
+                </div>
+                <button className="agent-link" style={{ fontSize: 12 }}>Load</button>
+              </div>
+              <button className="agent-link agent-link-muted" style={{ marginTop: 8, fontSize: 12 }}>
+                View all drafts (3)
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -836,9 +844,6 @@ function PortalInvitePrompt() {
           Add their contact details below and you can send portal invites once the file&apos;s created.
         </p>
         <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-          <button className="agent-link" style={{ fontSize: 12 }}>
-            Tell me more
-          </button>
           <button className="agent-link agent-link-muted" style={{ fontSize: 12 }}>
             Skip — I won&apos;t be using the portal
           </button>

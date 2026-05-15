@@ -175,7 +175,6 @@ export function SolicitorSection({
           {vendorSolicitor && (
             <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
           )}
-          <FieldIndicator source={vendorMemoSource} />
         </p>
 
         {isFillingVendor ? (
@@ -219,7 +218,6 @@ export function SolicitorSection({
           {purchaserSolicitor && (
             <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
           )}
-          <FieldIndicator source={purchaserMemoSource} />
         </p>
 
         {isFillingPurchaser ? (
