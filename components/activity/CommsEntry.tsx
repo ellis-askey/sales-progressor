@@ -39,6 +39,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
   const [visibleToClient, setVisibleToClient] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [collapsing, setCollapsing] = useState(false);
 
   function reset() {
     setStep(1);
@@ -48,6 +49,12 @@ export function CommsEntry({ transactionId, contacts }: Props) {
     setContent("");
     setVisibleToClient(false);
     setExpanded(false);
+    setCollapsing(false);
+  }
+
+  function animatedReset() {
+    setCollapsing(true);
+    setTimeout(reset, 150);
   }
 
   function selectType(t: CommType) {
@@ -90,7 +97,8 @@ export function CommsEntry({ transactionId, contacts }: Props) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full text-left px-4 py-3 rounded-xl border border-dashed border-white/30 text-sm text-slate-900/40 hover:text-slate-900/70 hover:border-white/50 hover:bg-white/20 transition-all"
+        className="agent-btn agent-btn-ghost-bordered w-full"
+        style={{ justifyContent: "flex-start", borderStyle: "dashed", borderRadius: 10, fontSize: 12, padding: "12px 16px" }}
       >
         + Add a note or log a communication…
       </button>
@@ -98,7 +106,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
   }
 
   return (
-    <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
+    <div className={`glass-card ${collapsing ? "agent-reveal-out" : ""}`} style={{ clipPath: "inset(0 round 20px)" }}>
 
       {/* Step indicator + start over */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/20 bg-white/10">
@@ -126,7 +134,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
             );
           })}
         </div>
-        <button onClick={reset} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
+        <button onClick={animatedReset} className="text-xs text-slate-900/40 hover:text-slate-900/70 transition-colors">
           Start over
         </button>
       </div>
@@ -249,7 +257,7 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 >
                   {loading ? "Saving…" : "Save"}
                 </button>
-                <button onClick={reset} className="agent-link agent-link-muted text-xs">
+                <button onClick={animatedReset} className="agent-link agent-link-muted text-xs">
                   Cancel
                 </button>
               </div>
