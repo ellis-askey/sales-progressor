@@ -52,23 +52,22 @@ export function NotRequiredRow({ def, transactionId }: Props) {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/15 last:border-0">
-        <div className="w-5 h-5 rounded-full bg-white/20 border border-white/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-slate-900/30 text-[10px] font-bold">—</span>
-        </div>
+      <div className="flex items-center gap-3 px-4 border-b last:border-0" style={{ paddingTop: 10, paddingBottom: 10, borderColor: "var(--agent-border-default)" }}>
+        <div className="ms-dot ms-dot-nr flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-slate-900/50 truncate">{def.name}</p>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "line-through" }}>{def.name}</p>
           {def.completion?.notRequiredReason && (
-            <p className="text-xs text-slate-900/40 mt-0.5 italic">{def.completion.notRequiredReason}</p>
+            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2, fontStyle: "italic" }}>{def.completion.notRequiredReason}</p>
           )}
           {def.completion?.completedAt && (
-            <p className="text-xs text-slate-900/30 mt-0.5">{formatDate(def.completion.completedAt)}</p>
+            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>{formatDate(def.completion.completedAt)}</p>
           )}
         </div>
         <button
           onClick={handleReinstate}
           disabled={loading}
-          className="text-xs agent-link font-medium disabled:opacity-40 flex-shrink-0"
+          className="agent-link flex-shrink-0"
+          style={{ fontSize: 11 }}
         >
           {loading ? "…" : "Reinstate"}
         </button>

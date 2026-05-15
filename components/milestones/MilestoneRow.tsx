@@ -285,55 +285,35 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
   const canBeNR = NR_ALLOWED.has(def.code);
 
   let rowBg = "";
-  if (isDone) rowBg = isNotRequired ? "bg-white/10" : "bg-green-50/40";
-  else if (isBlocked) rowBg = "bg-white/10";
-  else if (isGate && !isBlocked) rowBg = "bg-amber-50/60";
-  else if (isPost) rowBg = "bg-white/5";
+  if (isDone) rowBg = "bg-green-50/30";
 
   // N/R milestones are rendered in the NotRequired section, not here
   if (isNotRequired) return null;
 
+  const isExpanded = showEventDate || showNotRequired || showCounterpartNotice;
+
   return (
     <>
-      <div className={`flex items-start gap-3 pl-4 pr-5 py-3.5 border-b border-white/15 last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}>
-        {/* Timeline node */}
-        <div className="mt-0.5 flex-shrink-0 z-10 relative">
-          {isDone ? (
-            <div className="ms-node-pop w-6 h-6 rounded-full bg-emerald-500 border-2 border-emerald-400 flex items-center justify-center shadow-sm">
-              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          ) : isBlocked ? (
-            <div className="w-6 h-6 rounded-full bg-white/30 border-2 border-white/30 flex items-center justify-center">
-              <svg className="w-3 h-3 text-slate-900/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75" />
-                <rect x="3" y="10.5" width="18" height="11" rx="2" />
-              </svg>
-            </div>
-          ) : isPost ? (
-            <div className="w-6 h-6 rounded-full bg-white/30 border-2 border-white/20" />
-          ) : isGate ? (
-            <div className="w-6 h-6 rounded-full bg-white border-2 border-amber-400 flex items-center justify-center shadow-sm">
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-            </div>
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-white border-2 border-blue-300 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-300" />
-            </div>
-          )}
-        </div>
+      <div
+        className={`flex gap-3 px-4 border-b last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}
+        style={{ paddingTop: 10, paddingBottom: 10, borderColor: "var(--agent-border-default)", alignItems: isExpanded ? "flex-start" : "center" }}
+      >
+        {/* State dot */}
+        <div
+          className={`flex-shrink-0 ${isDone ? "ms-dot ms-dot-done ms-pop" : isBlocked ? "ms-dot ms-dot-locked" : "ms-dot ms-dot-avail"}`}
+          style={isExpanded ? { marginTop: 3, transition: "background 200ms" } : { transition: "background 200ms" }}
+        />
 
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm leading-snug ${isDone ? "text-slate-900/50" : isPost ? "text-slate-900/40" : "text-slate-900/90"} ${isGate ? "font-semibold" : ""}`}>
+          <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
             {def.name}
             {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
           </p>
           {isDone && def.completion && (
-            <p className="text-xs text-slate-900/40 mt-0.5">
+            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>
               Completed {formatDate(def.completion.completedAt)}
-              {def.completion.eventDate && <span className="ml-2">· Event: {formatDate(def.completion.eventDate)}</span>}
+              {def.completion.eventDate && <span style={{ marginLeft: 8 }}>· Event: {formatDate(def.completion.eventDate)}</span>}
               {def.completion.confirmedByPortal && (
                 <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -342,7 +322,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
               )}
             </p>
           )}
-          {isBlocked && <p className="text-xs text-slate-900/40 mt-0.5">Previous steps must be completed first</p>}
+          {isBlocked && <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>Previous steps must be completed first</p>}
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
 
           {/* Counterpart-readiness notice */}
@@ -382,13 +362,13 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 <button
                   onClick={() => doComplete()}
                   disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                  className="agent-btn mt-5 px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40"
+                  className="agent-btn agent-btn-sm agent-btn-primary mt-5"
                 >
                   Confirm
                 </button>
                 <button
                   onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
-                  className="mt-5 text-xs agent-link-muted"
+                  className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}
                 >
                   Cancel
                 </button>
@@ -417,42 +397,46 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   className="glass-input w-full px-2 py-1.5 text-sm" />
               </div>
               <button onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
-                className="agent-btn mt-5 px-3 py-1.5 text-xs font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-40">Confirm</button>
-              <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 text-xs agent-link-muted">Cancel</button>
+                className="agent-btn agent-btn-sm agent-btn-primary mt-5">Confirm</button>
+              <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}>Cancel</button>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && (
             <>
               {effectivelyAvailable && (
-                <button onClick={handleConfirmClick} disabled={loading || isPending}
-                  className="agent-btn px-3 py-1.5 text-xs font-medium agent-btn-color-primary rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5 min-w-[80px] justify-center">
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Confirming…
-                    </>
-                  ) : "Confirm"}
+                <button
+                  onClick={handleConfirmClick}
+                  disabled={loading || isPending}
+                  className="ms-appear agent-btn agent-btn-sm agent-btn-primary"
+                  style={{ minWidth: 76 }}
+                >
+                  {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
                 </button>
               )}
               {effectivelyAvailable && canBeNR && (
-                <button onClick={handleNRClick}
+                <button
+                  onClick={handleNRClick}
                   disabled={loading || isPending}
-                  className="agent-btn px-2 py-1.5 text-xs text-slate-900/40 hover:text-slate-900/70 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-40"
-                  title="Mark as not required">
+                  className="agent-link agent-link-muted"
+                  style={{ fontSize: 11 }}
+                  title="Mark as not required"
+                >
                   N/R
                 </button>
               )}
             </>
           )}
           {isDone && (
-            <button onClick={handleUndoClick} disabled={loading || isPending} className="agent-btn text-xs text-slate-900/30 hover:text-red-400 transition-colors">
+            <button
+              onClick={handleUndoClick}
+              disabled={loading || isPending}
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 11 }}
+            >
               {loading ? "…" : "Undo"}
             </button>
           )}

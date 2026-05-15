@@ -84,8 +84,8 @@ export function MilestonePanel({
     }
     return undefined;
   }
-  const sectionDefs = activeTab === "vendor" ? VENDOR_SECTIONS : PURCHASER_SECTIONS;
 
+  const sectionDefs = activeTab === "vendor" ? VENDOR_SECTIONS : PURCHASER_SECTIONS;
   const nrMilestones = milestones.filter((m) => m.isNotRequired);
 
   const initialCollapsed = useMemo(() => {
@@ -104,7 +104,6 @@ export function MilestonePanel({
   const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
   const [optimisticallyRelockedIds, setOptimisticallyRelockedIds] = useState<Set<string>>(new Set());
 
-  // Clear optimistic state once the server data arrives with the real unlock/relock
   useEffect(() => {
     setOptimisticallyUnlockedIds(new Set());
     setOptimisticallyRelockedIds(new Set());
@@ -127,8 +126,6 @@ export function MilestonePanel({
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
-  // Shared: after a milestone is confirmed or NR'd, unlock any dependent that is
-  // now fully satisfied. Called by handleConfirmStart and handleNRStart.
   function unlockDependents(doneId: string, doneCode: string) {
     const codeToId = new Map(milestones.map((m) => [m.code, m.id]));
     const satisfiedIds = new Set(
@@ -156,13 +153,10 @@ export function MilestonePanel({
     unlockDependents(confirmedId, confirmedCode);
   }
 
-  // N/R counts as "satisfied" for prereq purposes — same cascade as Confirm.
   function handleNRStart(nrId: string, nrCode: string) {
     unlockDependents(nrId, nrCode);
   }
 
-  // After undoing a milestone, re-lock any dependent that is now no longer
-  // fully satisfied. Only affects available (not yet confirmed) dependents.
   function handleUndoStart(undoneId: string, undoneCode: string) {
     const toRelock: string[] = [];
     for (const m of milestones) {
@@ -173,7 +167,6 @@ export function MilestonePanel({
     if (toRelock.length > 0) {
       setOptimisticallyRelockedIds((prev) => new Set([...prev, ...toRelock]));
     }
-    // The undone milestone itself loses its "complete" status — remove from unlocked set
     setOptimisticallyUnlockedIds((prev) => {
       const next = new Set(prev);
       next.delete(undoneId);
@@ -188,49 +181,9 @@ export function MilestonePanel({
   const completedWeight = applicableMs.filter((m) => m.isComplete).reduce((s, m) => s + Number(m.weight), 0);
   const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
 
-  const barGradient =
-    progressPct < 40
-      ? "linear-gradient(90deg, #818cf8 0%, #60a5fa 100%)"
-      : progressPct < 75
-      ? "linear-gradient(90deg, #60a5fa 0%, #34d399 100%)"
-      : "linear-gradient(90deg, #34d399 0%, #10b981 100%)";
-
   return (
-    <section className="overflow-hidden rounded-[12px]">
-      <style>{`
-        @keyframes ms-shimmer {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(300%); }
-        }
-        .ms-shimmer-anim { animation: ms-shimmer 2.4s ease-in-out infinite; }
-
-        @keyframes ms-node-pop {
-          0%   { transform: scale(0.4); opacity: 0; }
-          55%  { transform: scale(1.12); opacity: 1; }
-          75%  { transform: scale(0.96); }
-          100% { transform: scale(1); }
-        }
-        .ms-node-pop { animation: ms-node-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-        @keyframes ms-node-unlock {
-          0%   { transform: scale(0.55); opacity: 0; }
-          60%  { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(1); }
-        }
-        .ms-node-unlock { animation: ms-node-unlock 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-        @keyframes ms-btn-appear {
-          0%   { opacity: 0; transform: translateX(-6px); }
-          100% { opacity: 1; transform: translateX(0); }
-        }
-        .ms-btn-appear { animation: ms-btn-appear 220ms ease-out 120ms both; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .ms-node-pop, .ms-unlock-enter, .ms-node-unlock, .ms-btn-appear { animation: none; }
-        }
-      `}</style>
-
-      {/* ── Exchange readiness banner ──────────────────────────────────── */}
+    <section>
+      {/* ── Exchange readiness banner ──────────────────────────────────────────── */}
       {exchangeReady ? (
         <div className="mb-5 px-4 py-3 rounded-xl bg-[var(--agent-success-bg)] border border-[var(--agent-success-border)] flex items-center gap-3 agent-reveal-in">
           <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
@@ -244,68 +197,48 @@ export function MilestonePanel({
           </div>
         </div>
       ) : (
-        <div className="glass-card mb-5 px-5 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">Exchange progress</span>
-            <span className="text-lg font-bold tabular-nums" style={{ color: progressPct >= 75 ? "#10b981" : progressPct >= 40 ? "#3b82f6" : "#6366f1" }}>
-              {progressPct}%
-            </span>
+        /* ── Progress bar card ───────────────────────────────────────────────── */
+        <div className="glass-card mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Exchange progress</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
           </div>
-          <div className="h-3.5 bg-slate-900/8 rounded-full overflow-hidden relative">
-            <div
-              className="h-full rounded-full transition-[width] duration-700 ease-out relative overflow-hidden"
-              style={{
-                width: `${Math.max(progressPct, 2)}%`,
-                background: barGradient,
-                boxShadow: progressPct > 5 ? "0 0 10px rgba(99,102,241,0.35)" : "none",
-              }}
-            >
+          <div style={{ height: 6, background: "rgba(30,45,74,.08)", borderRadius: 3, overflow: "hidden" }}>
+            {progressPct >= 100 ? (
+              <div style={{ width: "100%", height: "100%", borderRadius: 3, background: "#10b981" }} />
+            ) : (
               <div
-                className="ms-shimmer-anim absolute inset-y-0 w-1/3"
-                style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)" }}
+                className="ms-bar-shimmer"
+                style={{ width: `${Math.max(progressPct, 2)}%`, height: "100%", borderRadius: 3, transition: "width 700ms ease-out" }}
               />
-            </div>
+            )}
           </div>
-          <p className="text-xs text-slate-900/40 mt-2">{doneAll} of {totalAll} steps complete</p>
+          <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>{doneAll} of {totalAll} steps complete</p>
         </div>
       )}
 
-      {/* ── Side tabs ─────────────────────────────────────────────────── */}
-      {/* Migrated to .agent-tab (V4 underline, 2026-05-12). Vendor / Purchaser
-       * is sub-navigation choosing between two complete milestone trees —
-       * structurally a tab pair, not a chip pair. .agent-tab-bar-static
-       * renders the static coral underline via ::after; no JS hook needed. */}
-      <div className="agent-tab-bar agent-tab-bar-static mb-4">
+      {/* ── Side tabs ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-4">
         {(["vendor", "purchaser"] as const).map((side) => {
-          const isActive = activeTab === side;
           const mils = side === "vendor" ? vendor : purchaser;
           const applicable = mils.filter((m) => !m.isNotRequired);
           const done = applicable.filter((m) => m.isComplete).length;
           const total = applicable.length;
-          const gateOk = side === "vendor" ? vendorGateReady : purchaserGateReady;
           return (
             <button
               key={side}
               onClick={() => handleTabChange(side)}
-              className="agent-tab"
-              aria-selected={isActive || undefined}
+              className={`agent-segment-pill agent-segment-pill-sm${activeTab === side ? " on" : ""}`}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
               <span className="capitalize">{side}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                gateOk
-                  ? "bg-emerald-100/80 text-emerald-700"
-                  : isActive
-                  ? "bg-blue-50/80 text-blue-600"
-                  : "bg-white/30 text-slate-900/50"
-              }`}>
-                {done}/{total}
-              </span>
+              <span className="agent-segment-pill-note">{done}/{total}</span>
             </button>
           );
         })}
       </div>
 
-      {/* ── Milestone list ────────────────────────────────────────────── */}
+      {/* ── Milestone list ─────────────────────────────────────────────────────── */}
       {milestones.length === 0 ? (
         <div className="glass-card px-5 py-8 text-center text-sm text-slate-900/40">
           No milestones found
@@ -325,54 +258,45 @@ export function MilestonePanel({
             const isCollapsed = collapsed[section.label] ?? false;
 
             return (
-              <div key={section.label}>
+              <div key={section.label} className="glass-card overflow-hidden rounded-[12px]">
                 <button
                   type="button"
                   onClick={() => toggleSection(section.label)}
-                  className={`w-full flex items-center gap-2.5 rounded-xl transition-all group agent-acc-hdr ${
-                    isCollapsed && allDone
-                      ? "bg-emerald-50/60 border border-emerald-100/60"
-                      : "bg-transparent"
-                  }`}
+                  className="agent-acc-hdr w-full"
                 >
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${allDone ? "bg-emerald-400" : sc.dot}`} />
-                  <span className="agent-acc-title">
-                    {section.label}
-                  </span>
-                  {!(isCollapsed && allDone) && <div className="flex-1 h-px bg-white/30" />}
-                  {isCollapsed && allDone && <div className="flex-1" />}
-                  <span className="agent-badge">
-                    {allDone ? "All done" : `${sectionDone}/${allInSection.length}`}
-                  </span>
-                  <svg
-                    className={`w-3.5 h-3.5 text-slate-900/30 group-hover:text-slate-900/60 transition-transform flex-shrink-0 ${isCollapsed ? "" : "rotate-180"}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${allDone ? "bg-emerald-400" : sc.dot}`} />
+                    <span className="agent-acc-title">{section.label}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="agent-badge">{allDone ? "All done" : `${sectionDone}/${allInSection.length}`}</span>
+                    <svg
+                      className={`w-3.5 h-3.5 text-slate-900/30 transition-transform flex-shrink-0 ${isCollapsed ? "" : "rotate-180"}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
                 </button>
 
-                <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
+                <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
                   <div className="agent-acc-in">
                     {rows.length > 0 ? (
-                      <div className="glass-card relative mt-1 rounded-[12px] overflow-hidden">
-                        <div className="absolute left-[26px] top-6 bottom-6 w-px bg-white/30" />
-                        {rows.map((def) => (
-                          <MilestoneRow
-                            key={def.id}
-                            def={def}
-                            transactionId={transactionId}
-                            onConfirmStart={() => handleConfirmStart(def.id, def.code)}
-                            optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
-                            optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
-                            onNRStart={() => handleNRStart(def.id, def.code)}
-                            onUndoStart={() => handleUndoStart(def.id, def.code)}
-                            counterpartNotice={getCounterpartNotice(def.code)}
-                          />
-                        ))}
-                      </div>
+                      rows.map((def) => (
+                        <MilestoneRow
+                          key={def.id}
+                          def={def}
+                          transactionId={transactionId}
+                          onConfirmStart={() => handleConfirmStart(def.id, def.code)}
+                          optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                          optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                          onNRStart={() => handleNRStart(def.id, def.code)}
+                          onUndoStart={() => handleUndoStart(def.id, def.code)}
+                          counterpartNotice={getCounterpartNotice(def.code)}
+                        />
+                      ))
                     ) : allInSection.length > 0 ? (
-                      <div className="mt-1 px-4 py-3 glass-subtle rounded-xl text-xs text-slate-900/40 italic">
+                      <div className="px-4 py-3 text-xs text-slate-900/40 italic">
                         All steps in this section are skipped
                       </div>
                     ) : null}
@@ -382,33 +306,33 @@ export function MilestonePanel({
             );
           })}
 
-          {/* ── Not required section ──────────────────────────────────── */}
+          {/* ── Skipped / Not-required section ──────────────────────────────── */}
           {nrMilestones.length > 0 && (
-            <div>
+            <div className="glass-card overflow-hidden rounded-[12px]">
               <button
                 type="button"
                 onClick={() => setNrCollapsed((p) => !p)}
-                className="w-full flex items-center gap-2.5 transition-all group glass-subtle agent-acc-hdr"
+                className="agent-acc-hdr w-full"
               >
-                <div className="w-2 h-2 rounded-full bg-slate-900/20 flex-shrink-0" />
-                <span className="agent-acc-title">Skipped</span>
-                <span className="agent-badge">{nrMilestones.length}</span>
-                <div className="flex-1" />
-                <svg
-                  className={`w-3.5 h-3.5 text-slate-900/30 group-hover:text-slate-900/60 transition-transform flex-shrink-0 ${nrCollapsed ? "" : "rotate-180"}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="w-2 h-2 rounded-full bg-slate-900/20 flex-shrink-0" />
+                  <span className="agent-acc-title">Skipped</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="agent-badge">{nrMilestones.length}</span>
+                  <svg
+                    className={`w-3.5 h-3.5 text-slate-900/30 transition-transform flex-shrink-0 ${nrCollapsed ? "" : "rotate-180"}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </div>
               </button>
-
-              <div className={`agent-acc ${!nrCollapsed ? "open" : ""}`}>
+              <div className={`agent-acc${!nrCollapsed ? " open" : ""}`}>
                 <div className="agent-acc-in">
-                  <div className="glass-card mt-1 rounded-[12px] overflow-hidden">
-                    {nrMilestones.map((def) => (
-                      <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
-                    ))}
-                  </div>
+                  {nrMilestones.map((def) => (
+                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} />
+                  ))}
                 </div>
               </div>
             </div>

@@ -11,13 +11,36 @@ export function EmptyState({
   action,
   icon,
   iconBg,
+  compact,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   icon?: React.ReactNode;
   iconBg?: string;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 text-center px-6">
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
+          style={{
+            background: iconBg ?? "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+            boxShadow: "0 1px 3px rgba(59,130,246,0.12), 0 4px 12px rgba(59,130,246,0.08)",
+          }}
+        >
+          {icon ?? DEFAULT_ICON}
+        </div>
+        <p className="text-xs font-semibold text-slate-900/70">{title}</p>
+        {description && (
+          <p className="text-xs text-slate-900/40 mt-1 max-w-xs leading-relaxed">{description}</p>
+        )}
+        {action && <div className="mt-3">{action}</div>}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-6">
       <div

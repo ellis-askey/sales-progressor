@@ -84,7 +84,7 @@ function classifyActive(log: ReminderLog, today: Date): UrgencyGroup {
   return "upcoming";
 }
 
-function RowSnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId: string, hours: number) => void }) {
+function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: string; onSnooze: (logId: string, taskId: string, hours: number) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -106,7 +106,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId
       {open && (
         <div className="absolute bottom-full mb-1 right-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { onSnooze(taskId, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
         </div>
       )}
@@ -114,7 +114,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: { taskId: string; onSnooze: (taskId
   );
 }
 
-function SideSnoozeMenu({ taskIds, onSnooze, disabled }: { taskIds: string[]; onSnooze: (taskId: string, hours: number) => void; disabled: boolean }) {
+function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: string[]; taskIds: string[]; onSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void; disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -136,7 +136,7 @@ function SideSnoozeMenu({ taskIds, onSnooze, disabled }: { taskIds: string[]; on
       {open && (
         <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { taskIds.forEach((id) => onSnooze(id, opt.hours)); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
         </div>
       )}
@@ -166,8 +166,10 @@ function ColumnSection({
   propertyAddress,
   contacts,
   loading,
+  exitingIds,
   handleComplete,
   handleSnooze,
+  handleSnoozeAll,
   handleChased,
 }: {
   logs: ReminderLog[];
@@ -176,8 +178,10 @@ function ColumnSection({
   propertyAddress: string;
   contacts: Contact[];
   loading: string | null;
-  handleComplete: (taskId: string) => void;
-  handleSnooze: (taskId: string, hours: number) => void;
+  exitingIds: Set<string>;
+  handleComplete: (logId: string, taskId: string) => void;
+  handleSnooze: (logId: string, taskId: string, hours: number) => void;
+  handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleChased: (taskId: string) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -202,6 +206,7 @@ function ColumnSection({
 
   const maxChaseCount = milestones.length > 0 ? Math.max(...milestones.map((m) => m.chaseCount)) : 0;
   const allTaskIds = openTasks.map(({ task }) => task.id);
+  const allLogIds  = openTasks.map(({ log })  => log.id);
   const chaseContacts = contacts.filter((c) =>
     isSeller
       ? ["vendor", "solicitor"].includes(c.roleType)
@@ -240,6 +245,7 @@ function ColumnSection({
           return (
             <div
               key={log.id}
+              className={exitingIds.has(log.id) ? "agent-row-exit" : ""}
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid rgba(15,23,42,0.06)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -250,10 +256,10 @@ function ColumnSection({
               </div>
               {task && (
                 <>
-                  <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+                  <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
-                    onClick={() => handleComplete(task.id)}
-                    disabled={loading === task.id}
+                    onClick={() => handleComplete(log.id, task.id)}
+                    disabled={loading === task.id || exitingIds.has(log.id)}
                     title="Confirm milestone done"
                     style={{ fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.45)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)", background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
@@ -275,7 +281,7 @@ function ColumnSection({
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
           </button>
-          <SideSnoozeMenu taskIds={allTaskIds} onSnooze={handleSnooze} disabled={loading !== null} />
+          <SideSnoozeMenu logIds={allLogIds} taskIds={allTaskIds} onSnoozeAll={handleSnoozeAll} disabled={loading !== null} />
         </div>
       )}
 
@@ -308,6 +314,7 @@ export function RemindersSection({
   const pathname = usePathname();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     escalated: false,
     overdue: false,
@@ -342,9 +349,50 @@ export function RemindersSection({
     });
   }
 
-  function handleComplete(taskId: string) { act(taskId, () => completeTaskAction(taskId, pathname)); }
-  function handleSnooze(taskId: string, hours: number) { act(taskId, () => snoozeTaskAction(taskId, hours, pathname)); }
-  function handleWakeup(logId: string) { act(logId, () => wakeupReminderAction(logId, pathname)); }
+  function handleComplete(logId: string, taskId: string) {
+    setExitingIds((prev) => new Set([...prev, logId]));
+    setTimeout(() => {
+      setLoading(taskId);
+      startTransition(async () => {
+        try { await completeTaskAction(taskId, pathname); }
+        finally { setLoading(null); setExitingIds(new Set()); }
+      });
+    }, 150);
+  }
+
+  function handleSnooze(logId: string, taskId: string, hours: number) {
+    setExitingIds((prev) => new Set([...prev, logId]));
+    setTimeout(() => {
+      setLoading(taskId);
+      startTransition(async () => {
+        try { await snoozeTaskAction(taskId, hours, pathname); }
+        finally { setLoading(null); setExitingIds(new Set()); }
+      });
+    }, 150);
+  }
+
+  function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
+    setExitingIds(new Set(logIds));
+    setTimeout(() => {
+      setLoading(taskIds[0] ?? "");
+      startTransition(async () => {
+        try { await Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, pathname))); }
+        finally { setLoading(null); setExitingIds(new Set()); }
+      });
+    }, 150);
+  }
+
+  function handleWakeup(logId: string) {
+    setExitingIds((prev) => new Set([...prev, logId]));
+    setTimeout(() => {
+      setLoading(logId);
+      startTransition(async () => {
+        try { await wakeupReminderAction(logId, pathname); }
+        finally { setLoading(null); setExitingIds(new Set()); }
+      });
+    }, 150);
+  }
+
   function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, pathname)); }
 
   async function runEngine() {
@@ -406,7 +454,7 @@ export function RemindersSection({
                 <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
                 <span className="agent-badge">{logs.length}</span>
               </div>
-              <button onClick={() => toggleCollapse(groupKey)} className="text-[10px] agent-link agent-link-muted">
+              <button onClick={() => toggleCollapse(groupKey)} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
                 {isCollapsed ? "Show" : "Hide"}
               </button>
             </div>
@@ -414,10 +462,10 @@ export function RemindersSection({
               <div className="agent-acc-in">
                 <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
                   {sellerLogs.length > 0
-                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
                     : <EmptyColumn side="seller" />}
                   {buyerLogs.length > 0
-                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleChased={handleChased} />
+                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
                     : <EmptyColumn side="buyer" />}
                 </div>
               </div>
@@ -434,7 +482,7 @@ export function RemindersSection({
               <span className="agent-acc-title text-purple-700">Snoozed</span>
               <span className="agent-badge">{snoozedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("snoozed")} className="text-[10px] agent-link agent-link-muted">
+            <button onClick={() => toggleCollapse("snoozed")} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
               {collapsed.snoozed ? "Show" : "Hide"}
             </button>
           </div>
@@ -442,7 +490,7 @@ export function RemindersSection({
             <div className="agent-acc-in">
               <div className="space-y-1.5 p-4">
                 {snoozedLogs.map((log) => (
-                  <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3">
+                  <div key={log.id} className={`glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3 ${exitingIds.has(log.id) ? "agent-row-exit" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-slate-900/80 truncate">
                         {stripChase(log.reminderRule.name)}
@@ -455,7 +503,7 @@ export function RemindersSection({
                     </div>
                     <button
                       onClick={() => handleWakeup(log.id)}
-                      disabled={loading === log.id}
+                      disabled={loading === log.id || exitingIds.has(log.id)}
                       className="text-[10px] agent-link"
                     >
                       Wake up
@@ -476,7 +524,7 @@ export function RemindersSection({
               <span className="agent-acc-title text-slate-900/50">Completed</span>
               <span className="agent-badge">{completedLogs.length}</span>
             </div>
-            <button onClick={() => toggleCollapse("completed")} className="text-[10px] agent-link agent-link-muted">
+            <button onClick={() => toggleCollapse("completed")} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
               {collapsed.completed ? "Show" : "Hide"}
             </button>
           </div>

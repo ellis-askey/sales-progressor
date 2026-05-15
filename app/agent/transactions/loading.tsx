@@ -1,16 +1,26 @@
 /* Loading skeleton for /agent/transactions.
  * Added during transaction-list Stage 2 (work-queue loading.tsx as reference).
  * Mirrors the final layout: PageHeader shape + status tab strip + filter bar
- * + 6 row skeletons inside the agent-glass-strong table. */
-
-import { PageHeader } from "@/components/layout/PageHeader";
+ * + 6 row skeletons inside the agent-glass-strong table.
+ *
+ * Title + subtitle rendered as skeleton placeholders (not hardcoded strings) —
+ * the title is role-dependent ("All Files" director / "My Files" negotiator)
+ * and we can't determine role at skeleton render time. Avoids the flash that
+ * would otherwise occur for negotiators ("All Files" → "My Files"). */
 
 export default function TransactionListLoading() {
   return (
     <>
-      <PageHeader title="All Files" subtitle="Every file across the agency.">
+      <div className="agent-page-header" style={{
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+        padding: "20px 32px 16px", gap: 16, flexWrap: "wrap",
+      }}>
+        <div>
+          <div className="agent-skeleton" style={{ height: 22, width: 110, borderRadius: 6, marginBottom: 6 }} />
+          <div className="agent-skeleton" style={{ height: 12, width: 220, borderRadius: 6 }} />
+        </div>
         <div className="agent-skeleton" style={{ height: 32, width: 96, borderRadius: 8 }} />
-      </PageHeader>
+      </div>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
         {/* Status tab strip skeleton */}

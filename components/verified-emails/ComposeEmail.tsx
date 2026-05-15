@@ -58,13 +58,13 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   if (verifiedEmails.length === 0) {
     if (noEmailDismissed) return null;
     return (
-      <div className="agent-reveal-in flex items-center justify-between px-4 py-4 rounded-[10px]"
-           style={{ background: "var(--agent-warning-bg)", border: "0.5px solid var(--agent-warning-border)" }}>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-amber-800">No verified sending address</p>
-          <p className="text-xs text-amber-700 mt-0.5">
+      <div className="agent-reveal-in"
+           style={{ background: "rgba(255,255,255,0.88)", border: "0.5px solid rgba(201,125,26,0.40)", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>No verified sending address</p>
+          <p style={{ fontSize: 11, color: "var(--agent-warning)", marginTop: 2 }}>
             Go to{" "}
-            <a href="/agent/settings" className="agent-link">Settings → Sending addresses</a>
+            <a href="/agent/settings" className="agent-link" style={{ fontSize: 11, color: "var(--agent-warning)", textDecoration: "underline", textUnderlineOffset: 2 }}>Settings → Sending addresses</a>
             {" "}to verify a work email address before sending.
           </p>
         </div>

@@ -38,7 +38,7 @@ function ReminderGroupSkeleton({ rows, urgencyColor }: { rows: number; urgencyCo
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="glass-card"
+          className="agent-glass-strong"
           style={{ borderRadius: 20, borderLeft: `4px solid ${urgencyColor}`, overflow: "hidden", opacity: i > 0 ? 0.7 : 1 }}
         >
           <div style={{ padding: "6px 16px", background: "rgba(255,255,255,0.20)", borderBottom: "0.5px solid rgba(255,255,255,0.30)" }}>

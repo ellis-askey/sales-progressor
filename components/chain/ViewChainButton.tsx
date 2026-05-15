@@ -30,9 +30,10 @@ export function ViewChainButton({ transactionId, currentUserId }: Props) {
     <>
       <button
         onClick={() => setDrawerOpen(true)}
-        className="text-xs agent-link"
+        className="agent-link"
+        style={{ fontSize: 11 }}
       >
-        View Chain
+        View Chain →
       </button>
 
       {drawerOpen && (
