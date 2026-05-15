@@ -14,31 +14,12 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, childre
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.55)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        border: "0.5px solid rgba(255,255,255,0.65)",
-      }}
-    >
-      {/* Header */}
+    <div className="agent-glass-strong overflow-hidden">
       <button
         type="button"
+        className="agent-acc-hdr w-full"
         onClick={() => setExpanded((e) => !e)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 18px",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          borderBottom: expanded ? "0.5px solid rgba(15,23,42,0.07)" : "none",
-          transition: "border-bottom 150ms",
-        }}
+        aria-expanded={expanded}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -52,12 +33,13 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, childre
         }
       </button>
 
-      {/* Body */}
-      {expanded && (
-        <div style={{ padding: "16px 18px" }}>
-          {children}
+      <div className={`agent-acc${expanded ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          <div className="agent-acc-body">
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
