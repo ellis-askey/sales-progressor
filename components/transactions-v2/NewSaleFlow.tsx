@@ -471,7 +471,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       const mosDraftInput = buildDraftInput(newFields, data, undefined);
       saveDraftAction(mosDraftInput).then((result) => {
         setCurrentDraftId(result.id);
-        setDrafts((prev) => prev.some((d) => d.id === result.id) ? prev : [{ id: result.id, propertyAddress: mosDraftInput.propertyAddress, tenure: null, purchaseType: null, purchasePrice: null, createdAt: new Date().toISOString(), notes: null, agentFeeAmount: null, agentFeePercent: null, agentFeeIsVatInclusive: null, vendors: [], purchasers: [], vendorSolicitor: null, purchaserSolicitor: null, referredFirmId: null, referralFee: null, mosStoragePath: null, mosFileSize: null, mosMimeType: null, mosFilename: null, progressedBy: "agent", chainStubs: [] }, ...prev]);
+        upsertDraftInList(result.id, mosDraftInput.propertyAddress, {
+          tenure: newFields.tenure || null,
+          purchaseType: newFields.purchaseType || null,
+          purchasePrice: newFields.purchasePricePence,
+          vendors: newFields.vendors.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || null, email: v.email.trim() || null })),
+          purchasers: newFields.purchasers.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || null, email: p.email.trim() || null })),
+          progressedBy: newFields.progressedBy,
+          // vendorSolicitor / purchaserSolicitor are null here — autofill runs after this
+        });
       }).catch(() => {});
 
       // Solicitor autofill — non-blocking, runs after state update
@@ -543,12 +551,34 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Draft helpers ─────────────────────────────────────────────────────────
 
-  function upsertDraftInList(id: string, address: string) {
+  function upsertDraftInList(id: string, address: string, extra: Partial<DraftEntry> = {}) {
     setDrafts((prev) => {
       if (prev.some((d) => d.id === id)) {
         return prev.map((d) => (d.id === id ? { ...d, propertyAddress: address } : d));
       }
-      return [{ id, propertyAddress: address, tenure: null, purchaseType: null, purchasePrice: null, createdAt: new Date().toISOString(), notes: null, agentFeeAmount: null, agentFeePercent: null, agentFeeIsVatInclusive: null, vendors: [], purchasers: [], vendorSolicitor: null, purchaserSolicitor: null, referredFirmId: null, referralFee: null, mosStoragePath: null, mosFileSize: null, mosMimeType: null, mosFilename: null, progressedBy: "agent", chainStubs: [] }, ...prev];
+      return [{
+        id, propertyAddress: address,
+        tenure: extra.tenure ?? null,
+        purchaseType: extra.purchaseType ?? null,
+        purchasePrice: extra.purchasePrice ?? null,
+        createdAt: new Date().toISOString(),
+        notes: extra.notes ?? null,
+        agentFeeAmount: extra.agentFeeAmount ?? null,
+        agentFeePercent: extra.agentFeePercent ?? null,
+        agentFeeIsVatInclusive: extra.agentFeeIsVatInclusive ?? null,
+        vendors: extra.vendors ?? [],
+        purchasers: extra.purchasers ?? [],
+        vendorSolicitor: extra.vendorSolicitor ?? null,
+        purchaserSolicitor: extra.purchaserSolicitor ?? null,
+        referredFirmId: extra.referredFirmId ?? null,
+        referralFee: extra.referralFee ?? null,
+        mosStoragePath: extra.mosStoragePath ?? null,
+        mosFileSize: extra.mosFileSize ?? null,
+        mosMimeType: extra.mosMimeType ?? null,
+        mosFilename: extra.mosFilename ?? null,
+        progressedBy: extra.progressedBy ?? "agent",
+        chainStubs: extra.chainStubs ?? [],
+      }, ...prev];
     });
   }
 
@@ -558,7 +588,23 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       const input = buildDraftInput(formFields, extractedData, currentDraftId ?? undefined);
       const result = await saveDraftAction(input);
       setCurrentDraftId(result.id);
-      upsertDraftInList(result.id, input.propertyAddress);
+      upsertDraftInList(result.id, input.propertyAddress, {
+        tenure: formFields.tenure || null,
+        purchaseType: formFields.purchaseType || null,
+        purchasePrice: formFields.purchasePricePence,
+        notes: formFields.notes.trim() || null,
+        agentFeeAmount: formFields.agentFeeType === "amount" ? formFields.agentFeeAmount : null,
+        agentFeePercent: formFields.agentFeeType === "percent" ? (parseFloat(formFields.agentFeePercentStr) || null) : null,
+        agentFeeIsVatInclusive: formFields.agentFeeVat === "inclusive",
+        vendors: formFields.vendors.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), phone: v.phone.trim() || null, email: v.email.trim() || null })),
+        purchasers: formFields.purchasers.filter((p) => p.name.trim()).map((p) => ({ name: p.name.trim(), phone: p.phone.trim() || null, email: p.email.trim() || null })),
+        vendorSolicitor: formFields.vendorSolicitor,
+        purchaserSolicitor: formFields.purchaserSolicitor,
+        referredFirmId: input.referredFirmId ?? null,
+        referralFee: formFields.referralFee,
+        progressedBy: formFields.progressedBy,
+        chainStubs: formFields.chainStubs as DraftEntry["chainStubs"],
+      });
       addToast("Draft saved", "success");
     } catch {
       addToast("Couldn't save draft. Try again.", "error");
