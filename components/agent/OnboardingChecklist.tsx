@@ -170,8 +170,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 16px",
-            borderBottom: "0.5px solid rgba(255,255,255,0.40)",
-            background: "rgba(255,255,255,0.40)",
+            borderBottom: "0.5px solid var(--agent-border-default)",
+            background: "var(--agent-surface-glass)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ListChecks size={16} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />
@@ -239,8 +239,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
                         fontSize: 11, fontWeight: 500,
                         color: "var(--agent-text-muted)",
                         padding: "2px 7px", borderRadius: 5,
-                        border: "0.5px solid rgba(15,23,42,0.12)",
-                        background: "rgba(255,255,255,0.55)",
+                        border: "0.5px solid var(--agent-border-default)",
+                        background: "var(--agent-surface-glass)",
                         cursor: "pointer", flexShrink: 0,
                         lineHeight: 1.6,
                       }}
@@ -263,8 +263,8 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
             gap: 8,
             padding: "10px 14px",
             borderRadius: "var(--agent-radius-lg)",
-            border: "0.5px solid rgba(255,255,255,0.60)",
-            background: "rgba(255,255,255,0.72)",
+            border: "0.5px solid var(--agent-border-default)",
+            background: "var(--agent-surface-glass)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
             boxShadow: "0 4px 16px rgba(0,0,0,0.10)",

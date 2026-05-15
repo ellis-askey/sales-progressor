@@ -11,7 +11,7 @@ import type { MonthlyActivityBucket } from "@/lib/services/analytics";
 function TooltipShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.97)",
+      background: "var(--agent-surface-elevated)",
       border: "1px solid rgba(var(--agent-coral-base-rgb),0.25)",
       borderRadius: 8, padding: "5px 10px", fontSize: 12,
       color: "var(--agent-text-primary)",

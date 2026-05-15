@@ -41,7 +41,7 @@ function BrokerCard({
     <div style={{
       borderRadius: 14,
       border: "1px solid rgba(99,102,241,0.18)",
-      background: "linear-gradient(160deg, rgba(99,102,241,0.06) 0%, rgba(255,255,255,0.30) 100%)",
+      background: "linear-gradient(160deg, rgba(99,102,241,0.06) 0%, var(--agent-surface-glass) 100%)",
       overflow: "hidden",
     }}>
       {/* Firm header */}
@@ -110,7 +110,7 @@ function BrokerCard({
           allowNegative={false}
           inputMode="decimal"
           placeholder="£—"
-          style={{ width: 90, padding: "4px 8px", fontSize: 13, borderRadius: 8, border: "1px solid rgba(99,102,241,0.20)", background: "rgba(255,255,255,0.60)", color: "var(--agent-text-primary)", outline: "none" }}
+          style={{ width: 90, padding: "4px 8px", fontSize: 13, borderRadius: 8, border: "1px solid rgba(99,102,241,0.20)", background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)", outline: "none" }}
         />
         {saving && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Saving…</span>}
         <div style={{ flex: 1 }} />
@@ -120,7 +120,7 @@ function BrokerCard({
         >
           Edit
         </button>
-        <span style={{ color: "rgba(15,23,42,0.15)", fontSize: 12 }}>·</span>
+        <span style={{ color: "var(--agent-text-tertiary)", fontSize: 12 }}>·</span>
         <button
           onClick={onRemove}
           disabled={removing}
@@ -196,7 +196,7 @@ function BrokerForm({
     fontSize: 13,
     borderRadius: 9,
     border: "1px solid rgba(99,102,241,0.20)",
-    background: "rgba(255,255,255,0.65)",
+    background: "var(--agent-surface-glass)",
     color: "var(--agent-text-primary)",
     outline: "none",
     boxSizing: "border-box",
@@ -229,7 +229,7 @@ function BrokerForm({
           />
         </div>
         <div>
-          <label style={labelStyle}>Website <span style={{ color: "rgba(15,23,42,0.30)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+          <label style={labelStyle}>Website <span style={{ color: "var(--agent-text-tertiary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
           <input
             type="url"
             value={firmWebsite}

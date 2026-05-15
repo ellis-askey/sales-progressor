@@ -123,8 +123,8 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                   style={{
                     background: isDone   ? "var(--agent-success)" :
                                 isActive ? "var(--agent-info)"    :
-                                "rgba(255,255,255,0.30)",
-                    color: isDone || isActive ? "#fff" : "rgba(15,23,42,0.50)",
+                                "var(--agent-surface-glass)",
+                    color: isDone || isActive ? "#fff" : "var(--agent-text-muted)",
                   }}
                 >
                   {isDone ? "✓" : s}

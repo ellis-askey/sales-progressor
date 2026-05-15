@@ -296,7 +296,7 @@ export function ChaseDrawer({
         {/* ── Header ─────────────────────────────────────────────── */}
         <div style={{
           padding: "18px 20px 16px",
-          background: "rgba(255,255,255,0.55)",
+          background: "var(--agent-surface-glass)",
           borderBottom: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
           position: "relative", overflow: "hidden",
         }}>
@@ -334,7 +334,7 @@ export function ChaseDrawer({
         {/* ── Property + contact card ─────────────────────────────── */}
         <div style={{ padding: "12px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
           <div style={{
-            background: "rgba(255,255,255,0.75)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
+            background: "var(--agent-surface-glass)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
             borderRadius: 14, padding: "10px 14px",
             display: "flex", alignItems: "center", gap: 12,
             boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
@@ -376,7 +376,7 @@ export function ChaseDrawer({
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: channel === "email" ? "1.5px solid var(--agent-coral-deep)" : "0.5px solid var(--agent-border-subtle)",
-                  background: channel === "email" ? "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))" : "rgba(255,255,255,0.60)",
+                  background: channel === "email" ? "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))" : "var(--agent-surface-glass)",
                   color: channel === "email" ? "white" : "var(--agent-text-muted)",
                   cursor: "pointer", transition: "all 150ms",
                   boxShadow: channel === "email" ? "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)" : "none",
@@ -391,7 +391,7 @@ export function ChaseDrawer({
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                   border: channel === "whatsapp" ? "1.5px solid #22c55e" : "0.5px solid var(--agent-border-subtle)",
-                  background: channel === "whatsapp" ? "linear-gradient(135deg, #22c55e, #4ade80)" : "rgba(255,255,255,0.60)",
+                  background: channel === "whatsapp" ? "linear-gradient(135deg, #22c55e, #4ade80)" : "var(--agent-surface-glass)",
                   color: channel === "whatsapp" ? "white" : "var(--agent-text-muted)",
                   cursor: "pointer", transition: "all 150ms",
                   boxShadow: channel === "whatsapp" ? "0 4px 16px rgba(34,197,94,0.25)" : "none",
@@ -411,7 +411,7 @@ export function ChaseDrawer({
                   marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "8px 12px", borderRadius: 10,
                   border: ccSolicitor ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "0.5px solid var(--agent-border-subtle)",
-                  background: ccSolicitor ? "rgba(var(--agent-coral-rgb), 0.05)" : "rgba(255,255,255,0.40)",
+                  background: ccSolicitor ? "rgba(var(--agent-coral-rgb), 0.05)" : "var(--agent-surface-glass)",
                   cursor: "pointer", transition: "all 140ms",
                 }}
               >
@@ -446,7 +446,7 @@ export function ChaseDrawer({
                         display: "flex", alignItems: "center", gap: 10,
                         padding: "8px 12px", borderRadius: 10, textAlign: "left",
                         border: selectedWaId === c.id ? "1.5px solid #22c55e" : "0.5px solid var(--agent-border-subtle)",
-                        background: selectedWaId === c.id ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.50)",
+                        background: selectedWaId === c.id ? "rgba(34,197,94,0.06)" : "var(--agent-surface-glass)",
                         cursor: "pointer", transition: "all 140ms",
                       }}
                     >
@@ -484,7 +484,7 @@ export function ChaseDrawer({
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
-                  background: "rgba(255,255,255,0.65)", cursor: "pointer", transition: "border-color 140ms",
+                  background: "var(--agent-surface-glass)", cursor: "pointer", transition: "border-color 140ms",
                 }}
               >
                 <TonePill tone={tone} />
@@ -495,7 +495,7 @@ export function ChaseDrawer({
               {toneMenuOpen && (
                 <div className="agent-dropdown-in" style={{
                   position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 20,
-                  background: "rgba(255,251,248,0.98)", backdropFilter: "blur(20px)",
+                  background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
                   borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
                   boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
                 }}>
@@ -562,7 +562,7 @@ export function ChaseDrawer({
                 width: "100%", boxSizing: "border-box", resize: "none",
                 padding: "12px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
                 border: "0.5px solid var(--agent-border-subtle)", outline: "none",
-                background: "rgba(255,255,255,0.75)",
+                background: "var(--agent-surface-glass)",
                 color: "var(--agent-text-primary)",
                 fontFamily: "inherit",
                 transition: "border-color 140ms",
@@ -585,7 +585,7 @@ export function ChaseDrawer({
         <div style={{
           padding: "14px 20px 18px",
           borderTop: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-          background: "rgba(255,255,255,0.55)",
+          background: "var(--agent-surface-glass)",
         }}>
           <button
             onClick={handleSend}

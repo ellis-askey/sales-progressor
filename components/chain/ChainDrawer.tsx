@@ -170,11 +170,11 @@ export function ChainDrawer({
         aria-label="Chain progress"
         className="relative z-10 w-full sm:max-w-[480px] flex flex-col h-full"
         style={{
-          background: "rgba(255,255,255,0.92)",
-          backdropFilter: "blur(32px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(32px) saturate(1.8)",
+          background: "var(--agent-surface-elevated)",
+          backdropFilter: "blur(32px)",
+          WebkitBackdropFilter: "blur(32px)",
           borderTop: "2px solid var(--agent-coral-deep)",
-          borderLeft: "1px solid rgba(255,255,255,0.5)",
+          borderLeft: "1px solid var(--agent-border-default)",
           boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
           animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}

@@ -103,7 +103,7 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
         >
           <div className="glass-card" style={{
             width: "100%", maxWidth: 440, padding: 28,
-            background: "rgba(255,255,255,0.97)",
+            background: "var(--agent-surface-elevated)",
             boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
           }}>
             <h2 className="text-base font-bold text-slate-900/90 mb-2">Delete account</h2>
