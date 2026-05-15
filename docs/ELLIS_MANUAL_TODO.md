@@ -108,6 +108,7 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 
 ## Quick wins (under 10 minutes each)
 
+- [ ] **EPC API credentials** — EPC data shows "currently unavailable" on all property files because `EPC_API_EMAIL` and `EPC_API_KEY` are not set. Register a free account at https://epc.opendatacommunities.org/ → then go to Settings → API access to get your email and key. Add both as Vercel environment variables (Production + Preview), redeploy. Also add to local `.env` for dev. Once set, the EPC section on every property file will start showing the certificate data, rating badge, and a direct "View on GOV.UK" link to the actual certificate.
 - [ ] **TOTP activation** — visit `/command/setup-2fa`, scan QR with authenticator app, enter code. Without this, `/command/*` is unreachable.
 - [ ] **Replicate signup + API token** — sign up at replicate.com, create an API token, add `REPLICATE_API_TOKEN` to Vercel production env vars. Unblocks AI image generation in `/command/content`.
 - [ ] **Verify the test email actually arrived** — check `inbox@thesalesprogressor.co.uk` for the SendGrid-delivered batch email from 2026-05-03 08:11 UTC. SendGrid says delivered; confirm it actually reached the inbox.
