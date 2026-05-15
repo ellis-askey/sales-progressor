@@ -37,6 +37,7 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
     >
       {open && (
         <div
+          className="v2-draft-panel"
           style={{
             width: 272,
             borderRadius: 16,

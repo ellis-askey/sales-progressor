@@ -631,6 +631,9 @@ select {
   .v2-modal-footer { flex-direction: column-reverse !important; }
   .v2-modal-footer > * { width: 100% !important; flex: none !important; justify-content: center !important; }
 
+  /* DraftPanel — full-bleed width (minus 24px margin each side) on mobile */
+  .v2-draft-panel { width: calc(100% - 48px) !important; }
+
   /* Reminders page — work queue mobile */
   .reminders-page-pad { padding: 16px 16px !important; }
 

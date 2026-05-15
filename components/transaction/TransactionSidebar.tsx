@@ -168,7 +168,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     <div className="space-y-4">
 
       {/* Progress card */}
-      <div className="glass-card p-4">
+      <div className="glass-card rounded-[12px] p-4">
         <p className="agent-sidebar-label mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
@@ -187,7 +187,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
       {/* Time on file card */}
       {fileTime && fileTime.totalSeconds > 0 && (
-        <div className="glass-card p-4">
+        <div className="glass-card rounded-[12px] p-4">
           <p className="agent-sidebar-label mb-3">Time on file</p>
 
           {/* Headline total */}
@@ -233,7 +233,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       )}
 
       {/* Exchange dates card */}
-      <div className="glass-card px-4 py-3">
+      <div className="glass-card rounded-[12px] px-4 py-3">
         <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
@@ -309,7 +309,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
       {/* Agent card */}
       {agentUser && (
-        <div className="glass-card p-5">
+        <div className="glass-card rounded-[12px] p-5">
           <p className="agent-sidebar-label mb-3">Agent</p>
           <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
           {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
@@ -318,7 +318,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       )}
 
       {/* Price & fees card */}
-      <div className="glass-card px-4 py-3">
+      <div className="glass-card rounded-[12px] px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <p className="agent-sidebar-label">Fee Breakdown</p>
           <button
