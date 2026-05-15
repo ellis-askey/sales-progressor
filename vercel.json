@@ -62,7 +62,7 @@
     },
     {
       "path": "/api/cron/file-time-close",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
