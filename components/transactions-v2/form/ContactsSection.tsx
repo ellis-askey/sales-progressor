@@ -1,10 +1,32 @@
 "use client";
 
-import { Check, Link as LinkIcon } from "@phosphor-icons/react";
+import { CheckCircle, Link as LinkIcon } from "@phosphor-icons/react";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 import { titleCase } from "@/lib/utils";
-import { cleanPhone } from "@/lib/utils/address";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
+
+function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
+  if (level === 0) return null;
+  const dot = (filled: boolean) => (
+    <span style={{
+      width: 7, height: 7, borderRadius: "50%",
+      background: filled
+        ? level === 3 ? "#059669" : "var(--agent-coral-deep)"
+        : "rgba(15,23,42,0.12)",
+      transition: "background 250ms",
+      display: "inline-block",
+      flexShrink: 0,
+    }} />
+  );
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {dot(level >= 1)}
+      {dot(level >= 2)}
+      {dot(level === 3)}
+    </div>
+  );
+}
 
 export function ContactCard({
   contact,
@@ -28,25 +50,43 @@ export function ContactCard({
   onEdit: () => void;
 }) {
   const numbered = `${label} ${index + 1}`;
-  const hasName = contact.name.trim().length > 0;
-  const hasContact = contact.phone.trim().length > 0 || contact.email.trim().length > 0;
+  const hasName  = contact.name.trim().length > 0;
+  const hasPhone = contact.phone.trim().length > 0;
+  const hasEmail = contact.email.trim().length > 0;
   const mode = progressedBy ?? "agent";
+
+  const healthLevel: 0 | 1 | 2 | 3 =
+    !hasName              ? 0 :
+    !hasPhone && !hasEmail ? 1 :
+    !hasPhone || !hasEmail ? 2 :
+    3;
+
+  const isComplete = healthLevel === 3;
 
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.45)",
+        background: isComplete ? "rgba(5,150,105,0.04)" : "rgba(255,255,255,0.45)",
         borderRadius: 12,
-        border: "0.5px solid rgba(15,23,42,0.08)",
+        border: isComplete
+          ? "0.5px solid rgba(5,150,105,0.22)"
+          : "0.5px solid rgba(15,23,42,0.08)",
         padding: "14px 14px 12px",
         display: "flex",
         flexDirection: "column",
         gap: 10,
+        transition: "background 300ms, border-color 300ms",
       }}
     >
-      {canRemove && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(15,23,42,0.40)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{numbered}</span>
+      {/* Header row: label + dots + remove */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {canRemove && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(15,23,42,0.40)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{numbered}</span>
+          )}
+          <HealthDots level={healthLevel} />
+        </div>
+        {canRemove && (
           <button
             type="button"
             onClick={onRemove}
@@ -54,8 +94,8 @@ export function ContactCard({
           >
             Remove
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Name */}
       <div>
@@ -81,6 +121,10 @@ export function ContactCard({
               className="agent-input"
               value={contact.phone}
               onChange={(e) => { onChange("phone", cleanPhone(e.target.value)); onEdit(); }}
+              onBlur={(e) => {
+                const formatted = formatUKPhone(e.target.value);
+                if (formatted !== e.target.value) onChange("phone", formatted);
+              }}
               placeholder="07700 900000"
               maxLength={20}
               type="tel"
@@ -105,27 +149,46 @@ export function ContactCard({
         )}
       </div>
 
-      {/* Per-row validation / portal-invite hint */}
-      {mode === "progressor" && hasName && hasContact && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <Check size={12} weight="bold" color="#059669" />
-          <span style={{ fontSize: 10, fontWeight: 500, color: "#059669" }}>
-            We can reach this {label.toLowerCase()}
+      {/* Bottom hint */}
+      {isComplete ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 5,
+          background: "rgba(5,150,105,0.08)",
+          border: "0.5px solid rgba(5,150,105,0.22)",
+          borderRadius: 100,
+          padding: "4px 10px",
+          alignSelf: "flex-start",
+          marginTop: 2,
+        }}>
+          <CheckCircle size={12} weight="fill" color="#059669" />
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#059669" }}>
+            {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
           </span>
         </div>
-      )}
-      {mode === "progressor" && hasName && !hasContact && (
-        <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 500, color: "#92400e" }}>
-          Add a phone or email so we can reach them
-        </p>
-      )}
-      {mode === "agent" && hasName && hasContact && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <LinkIcon size={12} color="var(--agent-coral-deep)" />
-          <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-coral-deep)" }}>
-            Eligible for portal invite
-          </span>
-        </div>
+      ) : (
+        <>
+          {mode === "progressor" && hasName && (hasPhone || hasEmail) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+              <CheckCircle size={12} weight="fill" color="#059669" />
+              <span style={{ fontSize: 10, fontWeight: 500, color: "#059669" }}>
+                We can reach this {label.toLowerCase()}
+              </span>
+            </div>
+          )}
+          {mode === "progressor" && hasName && !hasPhone && !hasEmail && (
+            <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 500, color: "#92400e" }}>
+              Add a phone or email so we can reach them
+            </p>
+          )}
+          {mode === "agent" && hasName && (hasPhone || hasEmail) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+              <LinkIcon size={12} color="var(--agent-coral-deep)" />
+              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-coral-deep)" }}>
+                Eligible for portal invite
+              </span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -209,7 +272,7 @@ export function ContactGroup({
         ))}
       </div>
 
-      <FieldHint source={memoSource} failedText="We couldn't read this — please add contact details" />
+      <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
     </div>
   );
 }

@@ -291,13 +291,13 @@ export function Stage1Fields({
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Pill
             label="Mortgage"
-            note="All mortgage milestones apply"
+            note="All mortgage steps apply"
             selected={purchaseType === "mortgage"}
             onClick={() => { onPurchaseTypeChange("mortgage"); onEdit("purchaseType"); }}
           />
           <Pill
             label="Cash"
-            note="Mortgage milestones not required"
+            note="Mortgage steps not required"
             selected={purchaseType === "cash_buyer"}
             onClick={() => { onPurchaseTypeChange("cash_buyer"); onEdit("purchaseType"); }}
           />

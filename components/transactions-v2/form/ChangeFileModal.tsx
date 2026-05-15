@@ -61,7 +61,7 @@ export function ChangeFileModal({ onConfirm, onCancel }: Props) {
         {/* Body */}
         <div style={{ padding: "14px 20px 4px" }}>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", lineHeight: 1.6, margin: 0 }}>
-            Changing the memo will reset any edits you&apos;ve made. The form will be re-populated from the new document.
+            This will replace your edits with data from the new memo.
           </p>
         </div>
 

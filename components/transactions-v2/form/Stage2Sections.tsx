@@ -60,7 +60,7 @@ function priceSummary(fields: FormFields): string {
 
 function notesSummary(notes: string): string {
   const trimmed = notes.trim();
-  if (!trimmed) return "Add any context about this transaction";
+  if (!trimmed) return "Add any notes about this sale";
   return trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed;
 }
 
@@ -110,6 +110,13 @@ export function Stage2Sections({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+
+      {/* Optional umbrella note — self-progress only */}
+      {!isOutsourced && (
+        <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(15,23,42,0.40)", fontStyle: "italic" }}>
+          Fill in what you have — you can add the rest after creating the file.
+        </p>
+      )}
 
       {/* Outsourced banner (progressor mode only) */}
       {isOutsourced && (

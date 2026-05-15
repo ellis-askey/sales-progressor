@@ -9,8 +9,8 @@ type Props = {
   notOnMemosText?: string;
 };
 
-export function FieldIndicator({ source }: { source: MemoSource }) {
-  if (source === "extracted") {
+export function FieldIndicator({ source, valid }: { source: MemoSource; valid?: boolean }) {
+  if (source === "extracted" || valid) {
     return (
       <CheckCircle
         size={14}
@@ -41,7 +41,7 @@ export function FieldIndicator({ source }: { source: MemoSource }) {
 
 export function FieldHint({
   source,
-  failedText = "We couldn't read this — please add",
+  failedText = "Couldn't read this — add it manually.",
   notOnMemosText = "Not on memos — please complete",
 }: Props) {
   if (source === "failed") {

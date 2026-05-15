@@ -803,7 +803,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       if (error.message === "DUPLICATE_ADDRESS") {
         setDuplicateInfo({ id: error.duplicateId ?? "", assignedTo: error.assignedTo ?? null });
       } else {
-        addToast("Something went wrong — your file wasn't created. Try again or contact support.", "error");
+        addToast("The file didn't save. Try again or contact support.", "error");
       }
     }
   }
@@ -826,7 +826,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     if (!formFields.tenure && !formFields.purchaseType) return "Select tenure and purchase type";
     if (!formFields.tenure) return "Select tenure to continue";
     if (!formFields.purchaseType) return "Select purchase type to continue";
-    if (!isOutsourced || outsourcedReady) return "Create transaction";
+    if (!isOutsourced || outsourcedReady) return "Create file";
     if (!vendorHasName) return "Add 1 vendor to continue";
     if (!hasValidVendor) return "Add a contact method to continue";
     if (!purchaserHasName) return "Add 1 purchaser to continue";

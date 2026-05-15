@@ -182,7 +182,7 @@ export function MemoStatusBar({
           </div>
           {isSlow && (
             <p style={{ margin: "12px 0 0", fontSize: 12, color: "rgba(15,23,42,0.45)" }}>
-              Taking longer than expected —{" "}
+              This is taking a while —{" "}
               <button
                 className="agent-link-muted"
                 onClick={onCancel}
@@ -190,7 +190,7 @@ export function MemoStatusBar({
               >
                 cancel and fill manually
               </button>
-              ?
+              {" "}instead.
             </p>
           )}
         </>

@@ -15,7 +15,7 @@ export function NotesSection({ notes, onNotesChange }: Props) {
         className="agent-textarea"
         value={notes}
         onChange={(e) => onNotesChange(e.target.value)}
-        placeholder="Any context about this transaction…"
+        placeholder="Any context about this sale…"
         rows={3}
         style={{ resize: "vertical" }}
       />

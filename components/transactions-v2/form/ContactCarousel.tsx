@@ -227,7 +227,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           filled={false}
         />
         <EmptyStateCard progressedBy={progressedBy} label={label} />
-        <FieldHint source={memoSource} failedText="We couldn't read this — please add contact details" />
+        <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
       </div>
     );
   }
@@ -265,7 +265,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           onRemove={() => {}}
           onEdit={onEdit}
         />
-        <FieldHint source={memoSource} failedText="We couldn't read this — please add contact details" />
+        <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
       </div>
     );
   }
@@ -444,7 +444,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
 
       </div>
 
-      <FieldHint source={memoSource} failedText="We couldn't read this — please add contact details" />
+      <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />
     </div>
   );
 }
