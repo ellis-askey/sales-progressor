@@ -1,15 +1,17 @@
 "use client";
 
 import { Headset } from "@phosphor-icons/react";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 export function OutsourcedBanner() {
+  const isSolid = useSolidMode();
   return (
     <div style={{
       display: "flex",
       alignItems: "flex-start",
       gap: 12,
-      background: "rgba(var(--agent-coral-base-rgb), 0.05)",
-      border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
+      background: isSolid ? "rgba(var(--agent-coral-base-rgb), 0.10)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
+      border: isSolid ? "1px solid rgba(var(--agent-coral-base-rgb), 0.28)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
       borderRadius: 14,
       padding: "12px 16px",
     }}>
@@ -28,10 +30,10 @@ export function OutsourcedBanner() {
       </div>
       <div>
         <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
-          Outsourced — our team will progress this file
+          Our team is handling this file
         </p>
         <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.52)", lineHeight: 1.55 }}>
-          We&apos;ll need at least one vendor and one purchaser with a name and contact method so we can reach out from day one.
+          Add at least one seller and one buyer with a name and a phone number or email.
         </p>
       </div>
     </div>

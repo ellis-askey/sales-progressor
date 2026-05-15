@@ -73,7 +73,7 @@ function EmptyStateCard({ progressedBy, label }: { progressedBy: "agent" | "prog
           Add a {singular}
         </p>
         <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.48)" }}>
-          We need a name and a phone or email to reach them.
+          Add a name and a phone number or email.
         </p>
       </div>
     );
@@ -248,7 +248,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         />
         {isOutsourced && (
           <p style={{ margin: "0 0 10px", fontSize: 11, color: "#d97706" }}>
-            At least one {singular} with name and contact method required
+            Add at least one {singular} with a name and a way to contact them
           </p>
         )}
         {error && (

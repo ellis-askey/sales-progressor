@@ -153,7 +153,7 @@ export function Stage1Fields({
           />
           <Pill
             label="Send to us"
-            note="Hand off to the progression team"
+            note="Our team takes it from here"
             selected={progressedBy === "progressor"}
             onClick={() => { onProgressedByChange("progressor"); onEdit("progressedBy"); }}
           />
@@ -284,9 +284,6 @@ export function Stage1Fields({
       <div>
         <SectionLabel>
           Purchase type
-          <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 400, color: "rgba(15,23,42,0.38)", textTransform: "none", letterSpacing: 0 }}>
-            not on memos
-          </span>
         </SectionLabel>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Pill
@@ -314,7 +311,7 @@ export function Stage1Fields({
       {showContinueButton && (
         <div style={{ paddingTop: 4 }}>
           <p style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(15,23,42,0.38)", textAlign: "center", lineHeight: 1.5 }}>
-            That&rsquo;s enough to create the file — continue to add contacts and details
+            Address, tenure and purchase type are set — add contacts and details
           </p>
           <button
             type="button"

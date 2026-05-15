@@ -729,14 +729,14 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         (v) => v.name.trim() && (v.phone.trim() || v.email.trim()),
       );
       if (!hasValidVendor) {
-        setOutsourcedError({ field: "vendors", message: "Add at least one vendor with a name and a contact method (phone or email)" });
+        setOutsourcedError({ field: "vendors", message: "Add at least one seller with a name and a phone number or email" });
         return;
       }
       const hasValidPurchaser = formFields.purchasers.some(
         (p) => p.name.trim() && (p.phone.trim() || p.email.trim()),
       );
       if (!hasValidPurchaser) {
-        setOutsourcedError({ field: "purchasers", message: "Add at least one purchaser with a name and a contact method (phone or email)" });
+        setOutsourcedError({ field: "purchasers", message: "Add at least one buyer with a name and a phone number or email" });
         return;
       }
     }
@@ -827,10 +827,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     if (!formFields.tenure) return "Select tenure to continue";
     if (!formFields.purchaseType) return "Select purchase type to continue";
     if (!isOutsourced || outsourcedReady) return "Create file";
-    if (!vendorHasName) return "Add 1 vendor to continue";
-    if (!hasValidVendor) return "Add a contact method to continue";
-    if (!purchaserHasName) return "Add 1 purchaser to continue";
-    return "Add a contact method to continue";
+    if (!vendorHasName) return "Add a seller to continue";
+    if (!hasValidVendor) return "Add a phone number or email for the seller";
+    if (!purchaserHasName) return "Add a buyer to continue";
+    return "Add a phone number or email for the buyer";
   })();
 
   const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady;
@@ -1023,11 +1023,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                       <button
                         type="button"
                         onClick={() => setStage1Expanded(false)}
-                        style={{
-                          display: "block", width: "100%", marginTop: 6, marginBottom: 2,
-                          padding: "6px", background: "none", border: "none", cursor: "pointer",
-                          fontSize: 11, fontWeight: 600, color: "rgba(15,23,42,0.38)", textAlign: "center",
-                        }}
+                        className="agent-btn agent-btn-secondary agent-btn-sm"
+                        style={{ display: "block", width: "100%", marginTop: 8, marginBottom: 2 }}
                       >
                         ↑ Done editing
                       </button>

@@ -114,9 +114,9 @@ export default async function AgentNewSaleV2Page() {
 
   return (
     <>
-      <PageHeader title="New Sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
+      <PageHeader title="New sale" subtitle="Drop your memo of sale to get started, or fill in manually." />
 
-      <div className="px-4 md:px-8 py-2 md:py-4">
+      <div className="px-4 md:px-8 pt-2 pb-8">
         <NewSaleFlow
           recommendedFirms={recommendedFirms}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

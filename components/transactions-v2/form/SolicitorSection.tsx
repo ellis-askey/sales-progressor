@@ -109,7 +109,7 @@ function PopulatedCard({
         padding: "8px 10px",
       }}>
         <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)" }}>
-          {solicitor.contactName ?? "No case handler selected"}
+          {solicitor.contactName ?? "No contact selected"}
         </p>
         {contactLine && (
           <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>
@@ -180,7 +180,7 @@ export function SolicitorSection({
         {isFillingVendor ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--agent-coral-deep)", borderTopColor: "transparent", display: "inline-block", animation: "agent-spin 0.7s linear infinite" }} />
-            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching for solicitor…</span>
+            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching…</span>
           </div>
         ) : vendorSolicitor?.contactId ? (
           <PopulatedCard
@@ -205,7 +205,7 @@ export function SolicitorSection({
         {!isFillingVendor && !vendorSolicitor && vendorHint && (
           <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
-            We found <strong style={{ fontWeight: 600 }}>{vendorHint}</strong> on the memo — search above to add
+            <strong style={{ fontWeight: 600 }}>{vendorHint}</strong> is in the memo — search above to add
           </p>
         )}
         <FieldHint source={!vendorHint && !isFillingVendor ? vendorMemoSource : null} />
@@ -223,7 +223,7 @@ export function SolicitorSection({
         {isFillingPurchaser ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--agent-coral-deep)", borderTopColor: "transparent", display: "inline-block", animation: "agent-spin 0.7s linear infinite" }} />
-            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching for solicitor…</span>
+            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching…</span>
           </div>
         ) : purchaserSolicitor?.contactId ? (
           <PopulatedCard
@@ -248,7 +248,7 @@ export function SolicitorSection({
         {!isFillingPurchaser && !purchaserSolicitor && purchaserHint && (
           <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
-            We found <strong style={{ fontWeight: 600 }}>{purchaserHint}</strong> on the memo — search above to add
+            <strong style={{ fontWeight: 600 }}>{purchaserHint}</strong> is in the memo — search above to add
           </p>
         )}
         <FieldHint source={!purchaserHint && !isFillingPurchaser ? purchaserMemoSource : null} />
@@ -260,9 +260,6 @@ export function SolicitorSection({
       <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.07)", paddingTop: 16 }}>
         <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.42)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
           Mortgage broker
-          <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(15,23,42,0.32)", background: "rgba(15,23,42,0.06)", borderRadius: 4, padding: "2px 5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Optional
-          </span>
           {broker?.firmId && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
           )}
