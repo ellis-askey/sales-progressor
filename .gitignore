@@ -45,3 +45,13 @@ e2e/.auth/
 /CC_PROMPT_*.md
 /PACKAGE_D_SCOPE.md
 /ELLIS_MANUAL_TODO.md
+.env*.local
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+
+# Claude Code tool artifacts
+.claude/scheduled_tasks.lock
+
+# Playwright screenshots (ephemeral test output)
+e2e/screenshots/
