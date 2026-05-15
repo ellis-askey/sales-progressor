@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Link as LinkIcon } from "@phosphor-icons/react";
+import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 const STORAGE_KEY = "portal-invite-prompt-dismissed";
 
 export function PortalInvitePrompt() {
+  const isSolid = useSolidMode();
   const [dismissed, setDismissed] = useState(false);
   const [exiting, setExiting] = useState(false);
 
@@ -24,12 +26,12 @@ export function PortalInvitePrompt() {
   if (dismissed) return null;
 
   return (
-    <div className={exiting ? "agent-reveal-out" : "agent-reveal-in"} style={{
+    <div className={`v2-portal-invite${exiting ? " agent-reveal-out" : " agent-reveal-in"}`} style={{
       display: "flex",
       alignItems: "flex-start",
       gap: 12,
-      background: "rgba(255,255,255,0.72)",
-      border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+      background: isSolid ? "#ffffff" : "rgba(255,255,255,0.85)",
+      border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 14,
       padding: "12px 16px",
     }}>

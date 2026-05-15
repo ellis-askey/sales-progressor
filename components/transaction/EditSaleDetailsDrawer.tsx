@@ -562,6 +562,7 @@ export function EditSaleDetailsDrawer({
       <div
         role="dialog"
         aria-label="Edit sale details"
+        className="v2-drawer-panel"
         style={{
           position: "relative", zIndex: 1, height: "100%", width: 460, maxWidth: "100vw",
           background: "rgba(255,255,255,0.92)",
@@ -617,7 +618,7 @@ export function EditSaleDetailsDrawer({
               )}
               Property
             </p>
-            <div style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="v2-drawer-section" style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
 
               {/* Address */}
               <div>
@@ -745,7 +746,7 @@ export function EditSaleDetailsDrawer({
               )}
               Price &amp; Fees
             </p>
-            <div style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="v2-drawer-section" style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
 
               {/* Purchase price */}
               <div>
@@ -827,7 +828,7 @@ export function EditSaleDetailsDrawer({
               )}
               Timeline
             </p>
-            <div style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="v2-drawer-section" style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
 
               {/* Expected exchange date */}
               <div>

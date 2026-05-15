@@ -70,7 +70,7 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
   const purchasers = fields.purchasers.filter((p) => p.name.trim());
 
   return (
-    <div style={{
+    <div className="v2-file-preview" style={{
       position: "sticky",
       top: 24,
       borderRadius: 18,
@@ -131,7 +131,7 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
             {(["Vendors", "Purchasers"] as const).map((label, i) => {
               const list = i === 0 ? vendors : purchasers;
               return (
-                <div key={label} style={{ background: "rgba(255,255,255,0.5)", borderRadius: 10, border: "0.5px solid rgba(15,23,42,0.07)", padding: "8px 10px" }}>
+                <div key={label} className="v2-file-preview-tile" style={{ background: "rgba(255,255,255,0.5)", borderRadius: 10, border: "0.5px solid rgba(15,23,42,0.07)", padding: "8px 10px" }}>
                   <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "rgba(15,23,42,0.35)" }}>{label}</p>
                   {list.length > 0 ? list.map((c, ci) => (
                     <p key={ci} style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.72)", lineHeight: 1.5 }}>{c.name}</p>
@@ -148,7 +148,7 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
         <div>
           <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.38)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Price & Fees</p>
           {priceStr ? (
-            <p style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 700, color: "rgba(15,23,42,0.88)", letterSpacing: "-0.02em", lineHeight: 1 }}>{priceStr}</p>
+            <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 700, color: "rgba(15,23,42,0.88)", letterSpacing: "-0.02em", lineHeight: 1 }}>{priceStr}</p>
           ) : (
             <p style={{ margin: "0 0 2px", fontSize: 13, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>No price set</p>
           )}
