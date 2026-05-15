@@ -111,6 +111,14 @@ One button in inventory-touched components still uses raw `bg-blue-500` instead 
 - **U1** — Clicking milestones rapidly fires multiple pop-ups. Lower priority; milestone `loading` state already guards within a single row.
 - **M5** — Upload memo of sale with auto-populate. Complex feature, lowest priority.
 
+### Duplicate UK phone formatters — consolidation required
+
+`lib/utils.ts::normalizePhone()` and `lib/utils/address.ts::formatUKPhone()` implement similar UK phone formatting with different output formats. The first produces E.164 (`+44xxxxxxxxxx`, no spaces) for mobiles; the second produces space-separated (`+44 xxxx xxxxxx`). Both are actively imported by different callers, so the same phone number can render in two different formats depending on the page.
+
+Consolidate into a single formatter. Agree on canonical output format (likely the space-separated human-readable format for display, with a separate `parseUKPhone` helper for storage normalisation if needed). Update all callers.
+
+Surfaced during local-vs-production drift audit on 2026-05-15.
+
 ### C1 — completeMilestone server action: defensive Prisma `connect` syntax
 `completeMilestone` (and related milestone actions) set `completedById: input.completedById` directly. If the user ID from the JWT doesn't exist in the connected database (stale session after a DB re-seed or env switch), the FK constraint fires as a raw Prisma error with an opaque constraint name (`MilestoneCompletion_completedById_fkey`), not a readable message.
 
