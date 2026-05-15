@@ -99,12 +99,12 @@ function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: str
       <button
         onClick={() => setOpen((p) => !p)}
         title="Snooze this reminder"
-        style={{ fontSize: 10, color: "rgba(15,23,42,0.40)", padding: "3px 7px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)", background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
+        style={{ fontSize: 10, color: "var(--agent-text-muted)", padding: "3px 7px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
       >
         🕐
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 right-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
+        <div className="absolute bottom-full mb-1 right-0 z-30 agent-dropdown-in" style={{ background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
@@ -134,7 +134,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
         🕐 Snooze all
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)", minWidth: 110 }}>
+        <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110 }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
@@ -249,7 +249,7 @@ function ColumnSection({
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid rgba(15,23,42,0.06)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.80)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
                 {urgencyLabel && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
                 )}
@@ -261,7 +261,7 @@ function ColumnSection({
                     onClick={() => handleComplete(log.id, task.id)}
                     disabled={loading === task.id || exitingIds.has(log.id)}
                     title="Confirm milestone done"
-                    style={{ fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.45)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid rgba(15,23,42,0.12)", background: "rgba(255,255,255,0.60)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
                     ✓ Done
                   </button>

@@ -136,7 +136,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
         <span className="reminder-btn-label">Snooze</span>
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 130, background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 130, background: "var(--agent-surface-elevated)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid var(--agent-border-default)" }}>
           {SNOOZE_OPTIONS.map((opt) => (
             <button
               key={opt.hours}
@@ -153,7 +153,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
               className="w-full text-left px-4 py-2 text-xs text-slate-900/70 hover:bg-white/40 transition-colors disabled:opacity-40 flex items-center gap-2"
             >
               {loadingHours === opt.hours && (
-                <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.25)", borderTopColor: "rgba(15,23,42,0.65)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
+                <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--agent-border-strong)", borderTopColor: "var(--agent-text-secondary)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
               )}
               {opt.label}
             </button>
@@ -202,7 +202,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   }
 
   const spinnerEl = (
-    <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.25)", borderTopColor: "rgba(15,23,42,0.65)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
+    <div style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid var(--agent-border-strong)", borderTopColor: "var(--agent-text-secondary)", animation: "agent-spin 700ms linear infinite", flexShrink: 0 }} />
   );
 
   return (
@@ -223,7 +223,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
         ⋯
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
-        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 160, background: "rgba(255,255,255,0.97)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, transform: pos.above ? "translateY(-100%) translateY(-4px)" : "none", zIndex: 9999, minWidth: 160, background: "var(--agent-surface-elevated)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)", border: "1px solid var(--agent-border-default)" }}>
           {onManualChase && (
             <button
               disabled={loadingAction !== null}
