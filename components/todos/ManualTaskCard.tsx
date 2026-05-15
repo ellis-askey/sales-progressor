@@ -30,61 +30,87 @@ export function ManualTaskCard({
   task,
   onToggle,
   onDelete,
+  isNew,
 }: {
   task: ManualTaskWithRelations;
   onToggle: (id: string, status: "open" | "done") => void;
   onDelete: (id: string) => void;
+  isNew?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [progressorNote, setProgressorNote] = useState(task.progressorNote ?? "");
+  const [exiting, setExiting] = useState(false);
+  const [rowFlash, setRowFlash] = useState(false);
+  const [checkPopped, setCheckPopped] = useState(false);
   const isDone = task.status === "done";
 
   async function handleProgressorNoteBlur() {
     const trimmed = progressorNote.trim();
     const current = task.progressorNote ?? "";
     if (trimmed === current) return;
-    await fetch(`/api/manual-tasks/${task.id}`, {
+    const res = await fetch(`/api/manual-tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ progressorNote: trimmed || null }),
     });
+    if (res.ok) {
+      setRowFlash(true);
+      setTimeout(() => setRowFlash(false), 700);
+    }
   }
 
   async function handleToggle() {
     setBusy(true);
-    await onToggle(task.id, isDone ? "open" : "done");
+    const completing = !isDone;
+    if (completing) {
+      setRowFlash(true);
+      setCheckPopped(true);
+      setTimeout(() => setRowFlash(false), 700);
+      setTimeout(() => setCheckPopped(false), 360);
+    }
+    await onToggle(task.id, completing ? "done" : "open");
     setBusy(false);
   }
 
   async function handleDelete() {
     if (!confirm("Delete this task?")) return;
-    onDelete(task.id);
+    setExiting(true);
+    setTimeout(() => onDelete(task.id), 150);
   }
 
   const due = task.dueDate ? formatDue(task.dueDate) : null;
 
   return (
-    <div className={`px-4 py-2.5 flex items-start gap-3 transition-opacity ${isDone ? "opacity-60" : ""}`}>
-
-      {/* Checkbox */}
-      <button
-        onClick={handleToggle}
-        disabled={busy}
-        className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-          isDone ? "bg-emerald-500 border-emerald-500" : "border-white/40 hover:border-blue-400"
-        }`}
-      >
-        {isDone && (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-          </svg>
-        )}
-      </button>
+    <div
+      className={`px-4 py-2.5 flex items-start gap-3 transition-opacity ${isDone ? "opacity-60" : ""} ${isNew ? "agent-reveal-in" : ""} ${rowFlash ? "agent-row-flash" : ""} ${exiting ? "agent-row-exit" : ""}`}
+      style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+    >
+      {/* Native checkbox — coral accent, ms-pop wrapper for completion bounce */}
+      <div className={checkPopped ? "ms-pop" : ""} style={{ flexShrink: 0, marginTop: 2 }}>
+        <input
+          type="checkbox"
+          checked={isDone}
+          onChange={handleToggle}
+          disabled={busy}
+          style={{
+            width: 14, height: 14,
+            accentColor: "var(--agent-coral)",
+            cursor: busy ? "wait" : "pointer",
+            display: "block",
+          }}
+        />
+      </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2 flex-wrap">
-          <p className={`text-sm font-medium text-slate-900/80 leading-snug ${isDone ? "line-through text-slate-900/40" : ""}`}>
+          <p style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: isDone ? "var(--agent-text-muted)" : "var(--agent-text-primary)",
+            textDecoration: isDone ? "line-through" : "none",
+            lineHeight: 1.4,
+          }}>
             {task.title}
           </p>
           {task.isAgentRequest && (
@@ -96,18 +122,18 @@ export function ManualTaskCard({
 
         {/* Agent's creation note (read-only) */}
         {task.notes && (
-          <div className="mt-2 space-y-0.5">
-            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide">
+          <div className="mt-1.5 space-y-0.5">
+            <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {task.createdBy.name} · {timeAgo(task.createdAt)}
             </p>
-            <p className="text-xs text-slate-900/50 leading-relaxed">{task.notes}</p>
+            <p style={{ fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>{task.notes}</p>
           </div>
         )}
 
-        {/* Progressor response (editable) */}
-        <div className="mt-2">
+        {/* Progressor response (editable inline) */}
+        <div className="mt-1.5">
           {task.progressorNote && (
-            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide mb-0.5">
+            <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
               Your response · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
             </p>
           )}
@@ -117,11 +143,13 @@ export function ManualTaskCard({
             onChange={(e) => setProgressorNote(e.target.value)}
             onBlur={handleProgressorNoteBlur}
             placeholder={task.isAgentRequest ? "Add a response…" : "Add a note…"}
-            className="w-full text-xs text-slate-900/50 bg-transparent border-b border-dashed border-slate-200/70 focus:border-blue-300/70 focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
+            className="w-full text-xs bg-transparent border-b border-dashed focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
+            style={{ borderColor: "rgba(15,23,42,0.12)", color: "var(--agent-text-secondary)" }}
           />
         </div>
 
-        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+        {/* Due date / transaction link */}
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           {task.transaction && (
             <Link
               href={`/transactions/${task.transactionId}`}
@@ -131,10 +159,10 @@ export function ManualTaskCard({
             </Link>
           )}
           {task.assignedTo && (
-            <span className="text-xs text-slate-900/40">{task.assignedTo.name}</span>
+            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{task.assignedTo.name}</span>
           )}
           {due && (
-            <span className={`text-xs font-medium ${due.overdue ? "text-red-500" : "text-slate-900/40"}`}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: due.overdue ? "#ef4444" : "var(--agent-text-muted)" }}>
               {due.label}
             </span>
           )}
@@ -144,7 +172,8 @@ export function ManualTaskCard({
       {/* Delete */}
       <button
         onClick={handleDelete}
-        className="agent-icon-btn agent-icon-btn-sm flex-shrink-0 mt-0.5"
+        className="agent-icon-btn agent-icon-btn-sm flex-shrink-0"
+        style={{ marginTop: 1 }}
       >
         ×
       </button>

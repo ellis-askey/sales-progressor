@@ -22,45 +22,51 @@ function timeAgo(date: Date): string {
 function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
   const isDone = task.status === "done";
   return (
-    <div className={`px-4 py-2.5 flex items-start gap-3 ${isDone ? "opacity-75" : ""}`}>
-      <div className={`mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
-        isDone ? "bg-emerald-500" : "border-2 border-amber-300 bg-amber-50"
+    <div
+      className={`px-4 py-2.5 flex items-start gap-3 ${isDone ? "opacity-70" : ""}`}
+      style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+    >
+      <div className={`mt-0.5 w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center ${
+        isDone ? "bg-emerald-500" : "bg-amber-100 border border-amber-300"
       }`}>
         {isDone ? (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         ) : (
-          <div className="w-2 h-2 rounded-full bg-amber-400" />
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-slate-900/35" : "text-slate-900/80"}`}>
+        <p style={{
+          fontSize: 12, fontWeight: 600,
+          color: isDone ? "var(--agent-text-muted)" : "var(--agent-text-primary)",
+          textDecoration: isDone ? "line-through" : "none",
+          lineHeight: 1.4,
+        }}>
           {task.title}
         </p>
 
-        {/* Agent's own creation note */}
         {task.notes && (
-          <div className="mt-2 space-y-0.5">
-            <p className="text-[10px] font-medium text-slate-900/35 uppercase tracking-wide">
+          <div className="mt-1.5 space-y-0.5">
+            <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Your note · {timeAgo(task.createdAt)}
             </p>
-            <p className="text-xs text-slate-900/50 leading-relaxed">{task.notes}</p>
+            <p style={{ fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>{task.notes}</p>
           </div>
         )}
 
-        {/* Progressor's response */}
         {task.progressorNote && (
-          <div className="mt-2 space-y-0.5">
-            <p className="text-[10px] font-medium text-emerald-600/70 uppercase tracking-wide">
+          <div className="mt-1.5 space-y-0.5">
+            <p style={{ fontSize: 10, fontWeight: 600, color: "#059669", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Sales Progressor · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
             </p>
-            <p className="text-xs text-slate-900/55 leading-relaxed">{task.progressorNote}</p>
+            <p style={{ fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>{task.progressorNote}</p>
           </div>
         )}
 
         {isDone && !task.progressorNote && (
-          <p className="text-xs text-emerald-600 font-medium mt-1">✓ Taken care of</p>
+          <p style={{ fontSize: 11, color: "#059669", fontWeight: 500, marginTop: 4 }}>✓ Taken care of</p>
         )}
       </div>
     </div>
@@ -153,7 +159,7 @@ export function ManualTaskList({
     toast.success("To-do removed");
   }
 
-  const myTasks   = tasks.filter((t) => !t.isAgentRequest);
+  const myTasks    = tasks.filter((t) => !t.isAgentRequest);
   const agentTasks = tasks.filter((t) => t.isAgentRequest);
 
   const myOpen  = myTasks.filter((t) => t.status === "open");
@@ -167,9 +173,12 @@ export function ManualTaskList({
     <div className="space-y-4">
       {/* ── My to-dos ── */}
       <div className="glass-card overflow-hidden rounded-[12px]">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+        >
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-slate-900/70">To-Do</h3>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>To-Do</h3>
             {myOpen.length > 0 && <span className="agent-badge">{myOpen.length}</span>}
           </div>
           <AddManualTaskForm
@@ -181,17 +190,21 @@ export function ManualTaskList({
         </div>
 
         {myVisible.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-slate-900/30">
-            {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
+          <div style={{ padding: "28px 16px", textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
+              {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-white/15">
+          <div>
             {myOpen.map((task) => (
-              <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+              <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
             ))}
             <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
               <div className="agent-acc-in">
-                <div className="text-xs text-slate-900/30 font-medium px-4 pt-2 pb-1">Done</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
+                  Done
+                </div>
                 {myDone.map((task) => (
                   <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
                 ))}
@@ -201,10 +214,11 @@ export function ManualTaskList({
         )}
 
         {showDone && myDone.length > 0 && (
-          <div className="px-4 py-2">
+          <div style={{ padding: "8px 16px", borderTop: myVisible.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
             <button
               onClick={() => setFilter(filter === "open" ? "all" : "open")}
-              className="agent-link-muted text-xs"
+              className="agent-link agent-link-muted"
+              style={{ fontSize: 11 }}
             >
               {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
             </button>
@@ -215,9 +229,12 @@ export function ManualTaskList({
       {/* ── Agent requests / With Sales Progressor ── */}
       {agentTasks.length > 0 && (
         <div className="glass-card overflow-hidden rounded-[12px]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+          >
             <div className="flex items-center gap-2">
-              <h3 className="text-xs font-semibold text-slate-900/70">
+              <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
                 {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
               </h3>
               {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
@@ -225,13 +242,15 @@ export function ManualTaskList({
             {agentDone.length > 0 && (
               <button
                 onClick={() => setShowAgentDone((v) => !v)}
-                className="agent-link-muted text-xs"
+                className="agent-link agent-link-muted"
+                style={{ fontSize: 11 }}
               >
                 {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
               </button>
             )}
           </div>
-          <div className="divide-y divide-white/15">
+
+          <div>
             {agentOpen.map((task) => (
               perspective === "agent"
                 ? <AgentRequestRow key={task.id} task={task} />
@@ -239,7 +258,9 @@ export function ManualTaskList({
             ))}
             {showAgentDone && agentDone.length > 0 && (
               <>
-                <div className="text-xs text-slate-900/30 font-medium px-4 pt-2 pb-1">Resolved</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
+                  Resolved
+                </div>
                 {agentDone.map((task) => (
                   perspective === "agent"
                     ? <AgentRequestRow key={task.id} task={task} />
@@ -248,8 +269,10 @@ export function ManualTaskList({
               </>
             )}
             {agentOpen.length === 0 && !showAgentDone && (
-              <div className="px-4 py-4 text-center text-sm text-slate-900/30">
-                {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
+              <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+                  {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
+                </p>
               </div>
             )}
           </div>

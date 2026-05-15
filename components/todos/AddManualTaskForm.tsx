@@ -85,20 +85,8 @@ export function AddManualTaskForm({
 
   if (!open) {
     return (
-      <button
-        onClick={handleOpen}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          fontSize: 12, fontWeight: 600,
-          padding: "7px 14px", borderRadius: 8,
-          border: "1px solid rgba(15,23,42,0.12)",
-          background: "rgba(255,255,255,0.60)",
-          color: "rgba(15,23,42,0.55)",
-          cursor: "pointer",
-          transition: "border-color 150ms, background 150ms",
-        }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <button onClick={handleOpen} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
         Add to-do
@@ -109,7 +97,7 @@ export function AddManualTaskForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="glass-card border border-blue-200/60 p-4 space-y-3"
+      className="glass-card p-4 space-y-3"
     >
       {transactionAddress && (
         <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>
@@ -171,18 +159,10 @@ export function AddManualTaskForm({
           {dateError && <p className="text-xs text-red-500 mt-0.5">{dateError}</p>}
         </div>
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="text-xs text-slate-900/40 hover:text-slate-900/70"
-        >
+        <button type="button" onClick={handleCancel} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={saving || !title.trim()}
-          className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-xs font-medium text-white transition-colors"
-        >
+        <button type="submit" disabled={saving || !title.trim()} className="agent-btn agent-btn-sm agent-btn-primary">
           {saving ? "Saving…" : "Add"}
         </button>
       </div>
