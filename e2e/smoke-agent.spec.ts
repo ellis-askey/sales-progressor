@@ -56,7 +56,7 @@ test.describe.serial("Agent app smoke tests (negotiator)", () => {
   })
 
   test("new transaction form loads", async () => {
-    await expectPageOk(agentPage, "/agent/transactions/new")
+    await expectPageOk(agentPage, "/agent/transactions/new-v2")
   })
 
   test("transaction detail loads (first in list)", async () => {

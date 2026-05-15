@@ -37,7 +37,7 @@ export function WelcomeModal({ name }: { name: string }) {
 
   function handleAddSale() {
     setVisible(false);
-    router.push("/agent/transactions/new");
+    router.push("/agent/transactions/new-v2");
   }
 
   if (!mounted || !visible) return null;
@@ -84,7 +84,7 @@ export function WelcomeModal({ name }: { name: string }) {
             onClose={close}
             onFinish={() => {
               setVisible(false);
-              router.push("/agent/transactions/new");
+              router.push("/agent/transactions/new-v2");
             }}
           />
         ) : (

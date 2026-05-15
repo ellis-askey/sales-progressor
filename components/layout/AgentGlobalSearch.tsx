@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { label: "My Files",     href: "/agent/transactions",     sub: "All your property files"       },
   { label: "Updates",      href: "/agent/comms",            sub: "Portal activity"               },
   { label: "Analytics",    href: "/agent/analytics",        sub: "Pipeline and fee data"         },
-  { label: "New sale",     href: "/agent/transactions/new", sub: "Register a new property"       },
+  { label: "New sale",     href: "/agent/transactions/new-v2", sub: "Register a new property"       },
 ];
 
 export function AgentGlobalSearch() {
@@ -128,16 +128,16 @@ export function AgentGlobalSearch() {
         style={{
           position: "relative", width: "100%", maxWidth: 560, margin: "0 16px",
           borderRadius: 18, overflow: "hidden",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(255,107,74,0.15)",
-          background: "rgba(255,250,246,0.98)", backdropFilter: "blur(24px)",
-          border: "0.5px solid rgba(255,138,101,0.25)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(var(--agent-coral-rgb), 0.15)",
+          background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
+          border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Input row */}
         <div style={{
           display: "flex", alignItems: "center", gap: 12,
-          padding: "14px 16px", borderBottom: "0.5px solid rgba(255,138,101,0.15)",
+          padding: "14px 16px", borderBottom: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
         }}>
           <svg style={{ width: 18, height: 18, color: "var(--agent-coral)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
@@ -185,7 +185,7 @@ export function AgentGlobalSearch() {
                 />
               ))}
             </SearchSection>
-            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(255,138,101,0.10)" }}>
+            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
               ↑↓ navigate · ↵ go · Esc close · type to search
             </p>
           </>
@@ -234,7 +234,7 @@ export function AgentGlobalSearch() {
                 ))}
               </SearchSection>
             )}
-            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(255,138,101,0.10)" }}>
+            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", padding: "10px 16px", borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)" }}>
               ↑↓ navigate · ↵ open · Esc close
             </p>
           </>
@@ -258,8 +258,8 @@ function SearchSection({ label, children }: { label: string; children: React.Rea
       <p style={{
         fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
         color: "var(--agent-text-muted)", padding: "8px 16px 6px",
-        borderTop: "0.5px solid rgba(255,138,101,0.10)",
-        background: "rgba(255,245,236,0.60)",
+        borderTop: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.10)",
+        background: "rgba(var(--agent-coral-base-rgb), 0.06)",
         margin: 0,
       }}>
         {label}
@@ -281,7 +281,7 @@ function SearchRow({
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 12,
         padding: "10px 16px", border: "none", cursor: "pointer", textAlign: "left",
-        background: selected ? "rgba(255,138,101,0.10)" : "transparent",
+        background: selected ? "var(--agent-coral-bg-tint)" : "transparent",
         transition: "background 80ms",
         borderLeft: selected ? "2px solid var(--agent-coral)" : "2px solid transparent",
       }}

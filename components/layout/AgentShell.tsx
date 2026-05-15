@@ -58,84 +58,107 @@ function UserDropdown({ session, isDirector }: { session: Session; isDirector: b
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  // 34px pill height (26px avatar + 4+4px padding) → effective clamped radius = 17px
+  const PILL_R = 17;
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          display: "flex", alignItems: "center", gap: 7,
-          background: "white", border: "0.5px solid rgba(0,0,0,0.12)",
-          borderRadius: 999, padding: "4px 10px 4px 4px",
-          cursor: "pointer", transition: "background 150ms, box-shadow 150ms",
-        }}
-        className="hover:bg-black/[0.04]"
-        aria-label="User menu"
-        aria-expanded={open}
-      >
-        <UserAvatar user={{ name: session.user.name ?? "" }} size={26} />
-        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+
+      {/* Invisible spacer — keeps the header flex layout sized correctly */}
+      <div aria-hidden style={{
+        visibility: "hidden", pointerEvents: "none",
+        display: "flex", alignItems: "center", gap: 7,
+        padding: "4px 10px 4px 4px",
+      }}>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 500, maxWidth: 120, overflow: "hidden", whiteSpace: "nowrap" }}>
           {session.user.name}
         </span>
-        <CaretDown
-          weight="bold"
-          style={{
-            width: 11, height: 11, color: "var(--agent-text-muted)", flexShrink: 0,
-            transition: "transform 150ms",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          }}
-        />
-      </button>
+        <div style={{ width: 11, height: 11, flexShrink: 0 }} />
+      </div>
 
-      {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 6px)", right: 0,
-          minWidth: 200, borderRadius: 12, overflow: "hidden",
-          background: "rgba(255,255,255,0.96)",
-          backdropFilter: "blur(40px)",
-          border: "0.5px solid var(--agent-glass-border)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
-          zIndex: 200,
-        }}>
-          <div style={{ padding: "12px 14px 10px" }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-              {session.user.name}
-            </p>
-            <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>
-              {isDirector ? "Director" : "Negotiator"}
-            </p>
-          </div>
-          <div style={{ height: "0.5px", background: "var(--agent-border-subtle)" }} />
-          <div style={{ padding: "6px 6px" }}>
-            <Link
-              href="/agent/settings"
-              onClick={() => setOpen(false)}
-              style={{
-                display: "flex", alignItems: "center", gap: 9,
-                padding: "8px 10px", borderRadius: 8,
-                textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
-                transition: "background 150ms",
-              }}
-              className="hover:bg-black/[0.05]"
-            >
-              <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
-              Settings
-            </Link>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              style={{
-                display: "flex", width: "100%", alignItems: "center", gap: 9,
-                padding: "8px 10px", borderRadius: 8, textAlign: "left",
-                background: "none", border: "none", cursor: "pointer",
-                color: "var(--agent-text-secondary)", fontSize: 13,
-                transition: "background 150ms",
-              }}
-              className="hover:bg-black/[0.05]"
-            >
-              Sign out
-            </button>
+      {/* Floating card — single container, fixed radius, grows downward */}
+      <div style={{
+        position: "absolute", top: 0, right: 0, minWidth: "100%",
+        background: "white",
+        border: "0.5px solid rgba(0,0,0,0.12)",
+        borderRadius: PILL_R,
+        overflow: "hidden",
+        zIndex: 200,
+        boxShadow: open
+          ? "0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05)"
+          : "none",
+        transition: "box-shadow 200ms",
+      }}>
+
+        {/* Trigger row */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            display: "flex", alignItems: "center", gap: 7, width: "100%",
+            background: "none", border: "none",
+            padding: "4px 10px 4px 4px",
+            cursor: "pointer",
+          }}
+          className="hover:bg-black/[0.04]"
+          aria-label="User menu"
+          aria-expanded={open}
+        >
+          <UserAvatar user={{ name: session.user.name ?? "" }} size={26} />
+          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, textAlign: "left", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {session.user.name}
+          </span>
+          <CaretDown
+            weight="bold"
+            style={{
+              width: 11, height: 11, color: "var(--agent-text-muted)", flexShrink: 0,
+              transition: "transform 150ms",
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          />
+        </button>
+
+        {/* Animated menu content — grid-rows 0fr → 1fr */}
+        <div className={`agent-acc${open ? " open" : ""}`}>
+          <div className="agent-acc-in">
+            <div style={{ height: "0.5px", background: "var(--agent-border-subtle)" }} />
+            <div style={{ padding: "5px 6px 8px" }}>
+              <p style={{ margin: "4px 10px 6px", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                {isDirector ? "Director" : "Negotiator"}
+              </p>
+              <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
+              <Link
+                href="/agent/settings"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 9,
+                  padding: "8px 10px", borderRadius: 8,
+                  textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
+                  transition: "background 150ms",
+                }}
+                className="hover:bg-black/[0.05]"
+              >
+                <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
+                Settings
+              </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                style={{
+                  display: "flex", width: "100%", alignItems: "center", gap: 9,
+                  padding: "8px 10px", borderRadius: 8, textAlign: "left",
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--agent-text-secondary)", fontSize: 13,
+                  transition: "background 150ms",
+                }}
+                className="hover:bg-black/[0.05]"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
-      )}
+
+      </div>
     </div>
   );
 }
@@ -278,10 +301,10 @@ export function AgentShell({ children, session, showWelcome, theme }: { children
         <nav style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
           {/* New sale CTA */}
           {(() => {
-            const isNewSale = pathname.startsWith("/agent/transactions/new");
+            const isNewSale = pathname.startsWith("/agent/transactions/new-v2");
             return (
               <Link
-                href="/agent/transactions/new"
+                href="/agent/transactions/new-v2"
                 onClick={() => setMobileOpen(false)}
                 className={isNewSale ? "agent-nav-item agent-nav-item-active" : undefined}
                 style={isNewSale ? { marginBottom: 6, fontWeight: 600 } : {

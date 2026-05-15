@@ -105,7 +105,7 @@ export default async function HubPreviewPage() {
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
         <PageHeader title={greeting} subtitle="Here's what matters today.">
-          <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+          <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
             <Plus size={14} weight="bold" />
             New sale
           </Link>
@@ -134,7 +134,7 @@ export default async function HubPreviewPage() {
               </p>
             </div>
             <Link
-              href="/agent/transactions/new"
+              href="/agent/transactions/new-v2"
               className="agent-btn agent-btn-primary agent-btn-md"
               style={{ textDecoration: "none", flexShrink: 0 }}
             >
@@ -234,7 +234,7 @@ export default async function HubPreviewPage() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
       <PageHeader title={greeting} subtitle="Here's what matters today.">
-        <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+        <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
           <Plus size={14} weight="bold" />
           New sale
         </Link>

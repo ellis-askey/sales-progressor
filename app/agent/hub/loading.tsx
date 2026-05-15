@@ -13,7 +13,7 @@ export default function HubLoading() {
 
       <PageHeader title={loadingGreeting()} subtitle="Here's what matters today.">
         <Link
-          href="/agent/transactions/new"
+          href="/agent/transactions/new-v2"
           className="agent-btn agent-btn-primary agent-btn-sm"
           style={{ textDecoration: "none" }}
         >

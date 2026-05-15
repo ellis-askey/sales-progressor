@@ -105,7 +105,7 @@ export default async function AgentAnalyticsPage({
               Once your first file is submitted, you&apos;ll see pipeline value, fee tracking, conversion rates, and monthly trends.
             </p>
             <Link
-              href="/agent/transactions/new"
+              href="/agent/transactions/new-v2"
               className="agent-btn agent-btn-primary"
               style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
             >

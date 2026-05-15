@@ -123,7 +123,7 @@ export default async function AllTransactionsPage({
         subtitle={isDirector ? "Every file across the agency." : "Files assigned to you."}
       >
         <Link
-          href="/agent/transactions/new"
+          href="/agent/transactions/new-v2"
           className="agent-btn agent-btn-primary agent-btn-sm"
           style={{ textDecoration: "none" }}
         >
@@ -242,7 +242,7 @@ export default async function AllTransactionsPage({
               and progress to exchange.
             </p>
             <Link
-              href="/agent/transactions/new"
+              href="/agent/transactions/new-v2"
               className="agent-btn agent-btn-primary agent-btn-md"
               style={{ textDecoration: "none" }}
             >
