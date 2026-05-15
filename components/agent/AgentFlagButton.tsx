@@ -24,8 +24,14 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
 
   if (sent) {
     return (
-      <div className="text-xs font-semibold text-emerald-600 px-3 py-1.5 bg-emerald-50/60 rounded-lg">
-        Sent!
+      <div style={{
+        fontSize: 12, fontWeight: 600,
+        color: "var(--agent-success)",
+        background: "var(--agent-success-bg)",
+        border: "1px solid var(--agent-success-border)",
+        padding: "4px 12px", borderRadius: 8,
+      }}>
+        Sent
       </div>
     );
   }
@@ -34,7 +40,7 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
     return (
       <button
         onClick={() => setOpen(true)}
-        className="agent-btn agent-btn-md"
+        className="agent-btn agent-btn-sm"
         style={{ background: "white", border: "0.5px solid rgba(0,0,0,0.15)", boxShadow: "none", backdropFilter: "none" }}
       >
         {label ?? "Flag to progressor"}
@@ -43,8 +49,10 @@ export function AgentFlagButton({ transactionId, address, label }: { transaction
   }
 
   return (
-    <div className="flex-shrink-0 w-60" onClick={(e) => e.stopPropagation()}>
-      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", marginBottom: 6 }}>Flag for: {address.substring(0, 30)}…</p>
+    <div className="agent-reveal-in" style={{ flexShrink: 0, width: 240 }} onClick={(e) => e.stopPropagation()}>
+      {transactionId !== null && (
+        <p style={{ fontSize: 11, color: "var(--agent-text-muted)", marginBottom: 6 }}>About: {address.substring(0, 30)}{address.length > 30 ? "…" : ""}</p>
+      )}
       <textarea
         autoFocus
         value={message}

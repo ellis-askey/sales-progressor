@@ -336,7 +336,7 @@ function ActivityFilterChip({ selected, onToggle, onClear }: {
     <div ref={ref} className="relative">
       <button
         onClick={openDropdown}
-        className={`agent-segment-pill agent-segment-pill-sm${isActive ? " on" : ""}`}
+        className={`agent-tab tl-bar-chip${isActive ? " on" : ""}`}
         aria-haspopup="menu"
         aria-expanded={open}
         style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
