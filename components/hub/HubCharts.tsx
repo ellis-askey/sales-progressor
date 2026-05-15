@@ -104,7 +104,7 @@ function ForecastTooltip({ active, payload }: TooltipProps) {
   const { label, count } = payload[0].payload;
   return (
     <div style={{
-      background: "rgba(255,255,255,0.88)",
+      background: "var(--agent-surface-elevated)",
       border: "0.5px solid var(--agent-glass-border)",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",

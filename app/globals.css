@@ -1036,3 +1036,75 @@ select {
     flex-shrink: 0;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Night mode — global class overrides for ≤1024px dark palette.
+   Comes last so it wins the cascade. Desktop (>1024px) is unaffected.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Glass cards */
+  .agent-shell-root[data-night] .glass-card {
+    background:
+      linear-gradient(180deg, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.92) 100%) padding-box,
+      linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 50%, rgba(80,100,140,0.10) 100%) border-box;
+    box-shadow:
+      0 1px 1px rgba(0,0,0,0.12),
+      0 4px 16px rgba(0,0,0,0.28),
+      0 16px 40px rgba(0,0,0,0.18),
+      inset 2px 2px 12px rgba(255,255,255,0.02),
+      inset -1px -1px 3px rgba(0,0,0,0.20);
+  }
+
+  /* Sidebar */
+  .agent-shell-root[data-night] .glass-sidebar {
+    background: rgba(13, 20, 33, 0.96);
+  }
+
+  /* Glass panel */
+  .agent-shell-root[data-night] .glass-panel {
+    background:
+      linear-gradient(180deg, rgba(30,41,59,0.78) 0%, rgba(15,23,42,0.85) 100%) padding-box,
+      linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%) border-box;
+  }
+
+  /* Tab bar */
+  .agent-shell-root[data-night] .glass-tab-bar {
+    background: rgba(15, 23, 42, 0.88);
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  /* Glass inputs */
+  .agent-shell-root[data-night] .glass-input {
+    background: rgba(30, 41, 59, 0.70);
+    color: #EFF6FF;
+    border-color: rgba(255,255,255,0.10);
+  }
+  .agent-shell-root[data-night] .glass-input:hover {
+    background: rgba(30, 41, 59, 0.85);
+  }
+  .agent-shell-root[data-night] .glass-input:focus {
+    background: rgba(30, 41, 59, 0.95);
+  }
+
+  /* Topbar */
+  .agent-shell-root[data-night] .agent-topbar {
+    background: rgba(13, 20, 33, 0.92);
+    box-shadow: 0 0 0 0.5px rgba(255,255,255,0.07), 0 2px 12px rgba(0,0,0,0.30);
+  }
+
+  /* Reminder snooze button */
+  .agent-shell-root[data-night] .reminder-snooze-btn {
+    background: rgba(30, 41, 59, 0.60);
+    border-color: rgba(255,255,255,0.12);
+    color: #94A3B8;
+  }
+  .agent-shell-root[data-night] .reminder-snooze-btn:hover {
+    background: rgba(30, 41, 59, 0.85);
+  }
+
+  /* Mobile alert banner */
+  .agent-shell-root[data-night] .mobile-alert-banner {
+    background: rgba(15, 23, 42, 0.97);
+    color: #EFF6FF;
+  }
+}

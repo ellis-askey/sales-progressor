@@ -1630,3 +1630,69 @@
     outline: none;
     box-shadow: inset 0 0 0 1.5px var(--agent-border-focus), inset 0 0 12px rgba(var(--agent-coral-rgb), 0.06);
   }
+
+/* ── Night mode component overrides ─────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .agent-shell-root[data-night] .agent-glass-light {
+    background: rgba(30, 41, 59, 0.55);
+  }
+
+  .agent-shell-root[data-night] .agent-segment-pill {
+    background: rgba(30, 41, 59, 0.65);
+    border-color: rgba(255,255,255,0.10);
+    color: #94A3B8;
+  }
+  .agent-shell-root[data-night] .agent-segment-pill:hover {
+    background: var(--agent-coral-bg-tint);
+    border-color: var(--agent-coral);
+    color: var(--agent-coral);
+  }
+  .agent-shell-root[data-night] .agent-segment-pill.on {
+    background: rgba(255,107,74,0.12);
+    border-color: var(--agent-coral-deep);
+    color: var(--agent-coral-deep);
+  }
+
+  .agent-shell-root[data-night] .agent-input,
+  .agent-shell-root[data-night] .agent-textarea {
+    background: rgba(30, 41, 59, 0.70);
+    color: #EFF6FF;
+    border-color: rgba(255,255,255,0.10);
+  }
+  .agent-shell-root[data-night] .agent-input:focus,
+  .agent-shell-root[data-night] .agent-textarea:focus {
+    background: rgba(30, 41, 59, 0.92);
+  }
+  .agent-shell-root[data-night] .agent-input::placeholder,
+  .agent-shell-root[data-night] .agent-textarea::placeholder {
+    color: #475569;
+  }
+
+  .agent-shell-root[data-night] .agent-toast {
+    background: rgba(22, 33, 52, 0.97);
+    color: #EFF6FF;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.40), inset 1px 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .agent-shell-root[data-night] .work-queue-row:hover {
+    background: rgba(30, 41, 59, 0.70);
+  }
+
+  .agent-shell-root[data-night] .agent-chain-callout-btn {
+    background: rgba(30, 41, 59, 0.70);
+    color: #94A3B8;
+    border-color: rgba(255,255,255,0.10);
+  }
+  .agent-shell-root[data-night] .agent-chain-callout-btn:hover {
+    background: rgba(30, 41, 59, 0.92);
+  }
+
+  .agent-shell-root[data-night] .price-hero-input,
+  .agent-shell-root[data-night] .price-hero-input-native {
+    color: rgba(239, 246, 255, 0.88);
+  }
+  .agent-shell-root[data-night] .price-hero-input-native::placeholder {
+    color: rgba(239, 246, 255, 0.30);
+  }
+}
