@@ -16,28 +16,39 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
 
   const isRed = overdueCount > 0 && isBehind;
 
+  const dangerColor = isRed ? "var(--agent-danger)" : "var(--agent-warning)";
+  const borderColor = isRed ? "rgba(199,62,62,0.40)" : "rgba(201,125,26,0.40)";
+
   return (
-    <div className={`agent-reveal-in rounded-xl border px-4 py-3 flex items-center justify-between ${
-      isRed
-        ? "bg-[var(--agent-danger-bg)] border-[var(--agent-danger-border)]"
-        : "bg-[var(--agent-warning-bg)] border-[var(--agent-warning-border)]"
-    }`}>
-      <div className="flex flex-col gap-0.5">
+    <div
+      className="agent-reveal-in"
+      style={{
+        background: "rgba(255,255,255,0.88)",
+        border: `1px solid ${borderColor}`,
+        borderRadius: 10,
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {overdueCount > 0 && (
-          <p className={`text-xs font-semibold ${isRed ? "text-red-700" : "text-amber-700"}`}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: dangerColor }}>
             {overdueCount} reminder{overdueCount !== 1 ? "s" : ""} overdue
-          </p>
+          </span>
         )}
         {isBehind && (
-          <p className={`text-xs ${isRed ? "text-red-600" : "text-amber-600"}`}>
+          <span style={{ fontSize: 12, color: dangerColor }}>
             File may be behind schedule
-          </p>
+          </span>
         )}
       </div>
       {overdueCount > 0 && (
         <button
           onClick={() => setActiveTab("reminders")}
-          className="agent-link text-xs font-medium flex-shrink-0"
+          className="agent-link"
+          style={{ fontSize: 12, flexShrink: 0 }}
         >
           View reminders →
         </button>

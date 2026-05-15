@@ -16,12 +16,13 @@ type Props = {
   children: React.ReactNode[];
   sidebar: React.ReactNode;
   initialTab?: string;
+  heroConnected?: boolean;
 };
 
 // Module-scoped: persists across SPA navigations for the browser session
 let _sessionSidebarOpen = false;
 
-export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props) {
+export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected }: Props) {
   const [active, setActive] = useState(() => {
     if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
     return tabs[0].key;
@@ -49,14 +50,47 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
 
   useEffect(() => {
     const onScroll = () => {
-      const t = Math.min(window.scrollY / 40, 1);
+      const scrollY = window.scrollY;
+      const t = Math.min(scrollY / 40, 1);
       const blur = 20 + t * 12;
-      tabBarRef.current?.style.setProperty("--tab-bar-blur", `${blur}px`);
+      const el = tabBarRef.current;
+      if (!el) return;
+      el.style.setProperty("--tab-bar-blur", `${blur}px`);
+
+      if (heroConnected) {
+        // Switch when the tab bar actually reaches the top of the viewport (sticky kicks in)
+        const stuck = el.getBoundingClientRect().top <= 0;
+        if (!stuck) {
+          el.classList.remove("glass-nav");
+          el.style.background = "rgba(255,255,255,0.72)";
+          el.style.backdropFilter = "blur(24px) saturate(180%)";
+          el.style.setProperty("-webkit-backdrop-filter", "blur(24px) saturate(180%)");
+          el.style.borderTop = "0.5px solid var(--agent-border-default)";
+          el.style.borderLeft = "0.5px solid var(--agent-border-default)";
+          el.style.borderRight = "0.5px solid var(--agent-border-default)";
+          el.style.borderBottom = "0.5px solid var(--agent-border-default)";
+          el.style.borderRadius = "0 0 14px 14px";
+          el.style.overflow = "hidden";
+          el.style.boxShadow = "none";
+        } else {
+          el.classList.add("glass-nav");
+          el.style.background = "";
+          el.style.backdropFilter = "";
+          el.style.setProperty("-webkit-backdrop-filter", "");
+          el.style.borderTop = "";
+          el.style.borderLeft = "";
+          el.style.borderRight = "";
+          el.style.borderBottom = "";
+          el.style.borderRadius = "";
+          el.style.overflow = "";
+          el.style.boxShadow = "";
+        }
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [heroConnected]);
 
   useEffect(() => {
     const el = scrollRef.current?.querySelector('[data-active="true"]') as HTMLElement | null;
@@ -66,8 +100,8 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
   return (
     <TabContext.Provider value={{ setActiveTab: setActive }}>
       <TabBadgeContext.Provider value={updateBadge}>
-        <div ref={tabBarRef} className="sticky top-0 z-20 glass-nav">
-          <div ref={scrollRef} className="px-4 md:px-8 agent-tab-bar overflow-x-auto scrollbar-hide">
+        <div ref={tabBarRef} className={`sticky top-0 z-20${heroConnected ? "" : " glass-nav"}`}>
+          <div ref={scrollRef} className={`${heroConnected ? "" : "px-4 md:px-8 "}agent-tab-bar overflow-x-auto scrollbar-hide`}>
             {/* Sliding underline indicator */}
             {ind && (
               <div
@@ -118,7 +152,7 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
         <div className="lg:hidden border-b border-white/20">
           <button
             onClick={toggleSidebar}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors"
+            className={`w-full flex items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 hover:bg-white/10 transition-colors`}
           >
             <span>File details</span>
             <ChevronDown
@@ -126,14 +160,14 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab }: Props)
             />
           </button>
           {sidebarOpen && (
-            <div className="px-4 pb-5">
+            <div className={`${heroConnected ? "" : "px-4 "}pb-5`}>
               {sidebar}
             </div>
           )}
         </div>
 
         {/* Tab content + desktop sidebar */}
-        <div className="px-4 lg:px-8 py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 lg:items-start">
+        <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}py-5 lg:py-7 flex flex-col lg:flex-row gap-5 lg:gap-7 lg:items-start`}>
           <div className="flex-1 min-w-0 relative">
             {tabs.map((tab, i) => (
               <div
