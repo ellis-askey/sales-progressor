@@ -1205,4 +1205,20 @@ select {
 
   /* ── Purple (snoozed) ── */
   .agent-shell-root[data-night] .text-purple-700     { color: #C4B5FD; }
+
+  /* ── Transaction list cards ── */
+  .agent-shell-root[data-night] .tl-card {
+    background: rgba(30, 41, 59, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .agent-shell-root[data-night] .tl-card-search {
+    background: rgba(22, 33, 52, 0.85);
+  }
+
+  /* ── Work queue urgency bars ── */
+  .agent-shell-root[data-night] .wq-urgency-bar-escalated { background: rgba(220, 38,  38,  0.12); border-color: rgba(220, 38,  38,  0.25); }
+  .agent-shell-root[data-night] .wq-urgency-bar-overdue   { background: rgba(234, 88,  12,  0.12); border-color: rgba(234, 88,  12,  0.25); }
+  .agent-shell-root[data-night] .wq-urgency-bar-due-today { background: rgba(217, 119, 6,   0.12); border-color: rgba(217, 119, 6,   0.25); }
+  .agent-shell-root[data-night] .wq-urgency-bar-coming-up { background: rgba(30,  41,  59,  0.50); border-color: rgba(255, 255, 255, 0.08); }
 }
