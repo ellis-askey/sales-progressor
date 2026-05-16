@@ -1226,6 +1226,7 @@ select {
   .agent-shell-root[data-night] .bg-emerald-50        { background-color: rgba(16,185,129,0.10); }
   .agent-shell-root[data-night] .bg-emerald-100       { background-color: rgba(16,185,129,0.15); }
   .agent-shell-root[data-night] .bg-green-50          { background-color: rgba(34,197,94,0.10); }
+  .agent-shell-root[data-night] .bg-green-50\/30      { background-color: rgba(34,197,94,0.06); }
   .agent-shell-root[data-night] .bg-green-100         { background-color: rgba(34,197,94,0.15); }
   .agent-shell-root[data-night] .text-emerald-700     { color: #6EE7B7; }
   .agent-shell-root[data-night] .text-emerald-600     { color: #34D399; }
@@ -1238,6 +1239,7 @@ select {
   .agent-shell-root[data-night] .bg-violet-50         { background-color: rgba(139,92,246,0.10); }
   .agent-shell-root[data-night] .bg-violet-100        { background-color: rgba(139,92,246,0.15); }
   .agent-shell-root[data-night] .bg-indigo-50         { background-color: rgba(99,102,241,0.10); }
+  .agent-shell-root[data-night] .bg-indigo-50\/70     { background-color: rgba(99,102,241,0.12); }
   .agent-shell-root[data-night] .text-violet-600      { color: #A78BFA; }
   .agent-shell-root[data-night] .text-indigo-500      { color: #818CF8; }
   .agent-shell-root[data-night] .border-violet-200    { border-color: rgba(139,92,246,0.25); }
