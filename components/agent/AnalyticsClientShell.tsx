@@ -344,7 +344,7 @@ export function AnalyticsClientShell({
                 cursor: "pointer", transition: "all 0.15s", border: "none",
                 ...(active
                   ? { background: "rgba(var(--agent-coral-base-rgb),0.15)", color: "var(--agent-coral-deep)", outline: "1px solid rgba(var(--agent-coral-base-rgb),0.30)" }
-                  : { background: "rgba(255,255,255,0.40)", color: "var(--agent-text-muted)", outline: "1px solid rgba(180,130,90,0.18)" }
+                  : { background: "var(--agent-surface-glass)", color: "var(--agent-text-muted)", outline: "1px solid var(--agent-border-default)" }
                 ),
               }}
             >

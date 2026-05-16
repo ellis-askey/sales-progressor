@@ -167,8 +167,8 @@ export default async function AgentAnalyticsPage({
               display: "inline-flex", alignItems: "center", gap: 4,
               fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 8,
               color: "var(--agent-text-secondary)",
-              background: "rgba(255,255,255,0.50)",
-              border: "1px solid rgba(180,130,90,0.18)",
+              background: "var(--agent-surface-glass)",
+              border: "1px solid var(--agent-border-default)",
               textDecoration: "none", whiteSpace: "nowrap",
             }}
           >

@@ -152,7 +152,7 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
       {/* Firm header */}
       <div style={{
         padding: "14px 20px",
-        borderBottom: "0.5px solid rgba(255,255,255,0.40)",
+        borderBottom: "0.5px solid var(--agent-border-default)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -193,7 +193,7 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
           {firm.contacts.map((contact, i) => (
             <div key={contact.id} style={{
               padding: "14px 20px",
-              borderBottom: i < firm.contacts.length - 1 ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+              borderBottom: i < firm.contacts.length - 1 ? "0.5px solid var(--agent-border-default)" : "none",
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ minWidth: 0 }}>
@@ -239,8 +239,8 @@ function FirmCard({ firm }: { firm: SolicitorFirmWithStats }) {
                         display: "inline-flex", alignItems: "center", gap: 5,
                         padding: "3px 9px", borderRadius: 6,
                         fontSize: 11, color: "var(--agent-text-secondary)",
-                        background: "rgba(255,255,255,0.45)",
-                        border: "1px solid rgba(255,255,255,0.50)",
+                        background: "var(--agent-surface-glass)",
+                        border: "1px solid var(--agent-border-default)",
                         transition: "background 120ms",
                       }}
                         className="solicitor-file-chip"

@@ -93,9 +93,9 @@ export function PropertyHero({
 
     return (
       <div className="property-hero-glass" style={{
-        background: "rgba(255,255,255,0.72)",
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        background: "var(--agent-surface-elevated)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         borderTop: "0.5px solid var(--agent-border-default)",
         borderLeft: "0.5px solid var(--agent-border-default)",
         borderRight: "0.5px solid var(--agent-border-default)",

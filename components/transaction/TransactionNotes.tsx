@@ -87,15 +87,15 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
                 <div
                   style={{
                     padding: "8px 10px",
-                    background: "rgba(255,255,255,0.5)",
+                    background: "var(--agent-surface-glass)",
                     borderRadius: 8,
                     border: "0.5px solid var(--agent-border-default)",
                     position: "relative",
                     opacity: isOptimistic ? 0.65 : 1,
                     transition: "background 150ms",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.72)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.5)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-glass-bg-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "var(--agent-surface-glass)"; }}
                 >
                   <p style={{ fontSize: 12, color: "var(--agent-text-primary)", marginRight: 24 }}>
                     {note.content}
