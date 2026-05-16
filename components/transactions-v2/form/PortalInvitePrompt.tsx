@@ -30,8 +30,11 @@ export function PortalInvitePrompt() {
       display: "flex",
       alignItems: "flex-start",
       gap: 12,
-      background: isSolid ? "#ffffff" : "rgba(255,255,255,0.85)",
-      border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+      /* isSolid:true branch unreachable in night-mode-eligible contexts
+         as of 2026-05-16; if solid mode is scoped to include <1024px,
+         this branch needs --nv2-surface-solid treatment */
+      background: isSolid ? "#ffffff" : "var(--nv2-surface-glass)",
+      border: isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 14,
       padding: "12px 16px",
     }}>
@@ -49,17 +52,17 @@ export function PortalInvitePrompt() {
         <LinkIcon size={14} color="var(--agent-coral-deep)" />
       </div>
       <div style={{ flex: 1 }}>
-        <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.78)", lineHeight: 1.4 }}>
+        <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--nv2-text-primary)", lineHeight: 1.4 }}>
           Want to invite the buyer or seller to the client portal?
         </p>
-        <p style={{ margin: "0 0 8px", fontSize: 11, color: "rgba(15,23,42,0.48)", lineHeight: 1.55 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
           Add their contact details below and you can send portal invites once the file&apos;s created.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
             type="button"
             onClick={handleDismiss}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.38)", padding: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "var(--nv2-text-muted)", padding: 0 }}
           >
             Skip — I won&apos;t be using the portal
           </button>

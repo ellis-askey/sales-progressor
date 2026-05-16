@@ -43,9 +43,12 @@ function Pill({
           : hovered
           ? "2px solid var(--agent-coral)"
           : "2px solid var(--agent-border-default)",
+        /* isSolid:true branch unreachable in night-mode-eligible contexts
+           as of 2026-05-16; if solid mode is scoped to include <1024px,
+           this branch needs --nv2-surface-solid treatment */
         background: selected || hovered
           ? "var(--agent-coral-bg-tint)"
-          : (isSolid ? "#ffffff" : "rgba(255,255,255,0.50)"),
+          : (isSolid ? "#ffffff" : "var(--nv2-surface-glass)"),
         color: selected ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
         fontWeight: 600,
         fontSize: 13,
@@ -71,7 +74,7 @@ function Pill({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
       {children}
     </p>
   );
@@ -131,10 +134,10 @@ export function Stage1Fields({
       className="v2-stage1-card"
       style={{
         borderRadius: 16,
-        background: "rgba(255,255,255,0.55)",
+        background: "var(--nv2-surface-glass)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        border: "0.5px solid rgba(255,255,255,0.65)",
+        border: "0.5px solid var(--nv2-border-glass)",
         padding: "18px",
         display: "flex",
         flexDirection: "column",
@@ -163,7 +166,7 @@ export function Stage1Fields({
       {/* Address */}
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Property address
           </p>
           {onLookup && (
@@ -177,7 +180,7 @@ export function Stage1Fields({
                 background: "none", border: "none", padding: 0,
                 cursor: isLookupReady(postcode) ? "pointer" : "default",
                 fontSize: 11, fontWeight: 600,
-                color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "rgba(15,23,42,0.25)",
+                color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
               }}
             >
               <MagnifyingGlass size={11} weight="bold" />
@@ -188,7 +191,7 @@ export function Stage1Fields({
 
         {/* Street address */}
         <div style={{ marginBottom: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
+          <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
             Street address
             <FieldIndicator source={memoSources.streetAddress} valid={streetValid} />
           </label>
@@ -209,7 +212,7 @@ export function Stage1Fields({
         {/* City + Postcode */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
               City / Town
               <FieldIndicator source={memoSources.city} valid={cityValid} />
             </label>
@@ -227,7 +230,7 @@ export function Stage1Fields({
             <FieldHint source={memoSources.city} />
           </div>
           <div>
-            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
               Postcode
               <FieldIndicator source={memoSources.postcode} valid={postcodeValid} />
             </label>
@@ -310,7 +313,7 @@ export function Stage1Fields({
       {/* Continue button — manual mode only, shows when Stage 1 is valid */}
       {showContinueButton && (
         <div style={{ paddingTop: 4 }}>
-          <p style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(15,23,42,0.38)", textAlign: "center", lineHeight: 1.5 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--nv2-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
             Address, tenure and purchase type are set — add contacts and details
           </p>
           <button

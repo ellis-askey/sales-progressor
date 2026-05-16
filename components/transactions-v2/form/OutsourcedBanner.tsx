@@ -10,6 +10,9 @@ export function OutsourcedBanner() {
       display: "flex",
       alignItems: "flex-start",
       gap: 12,
+      /* isSolid:true branch unreachable in night-mode-eligible contexts
+         as of 2026-05-16; if solid mode is scoped to include <1024px,
+         this branch needs --nv2-surface-solid treatment */
       background: isSolid ? "rgba(var(--agent-coral-base-rgb), 0.10)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
       border: isSolid ? "1px solid rgba(var(--agent-coral-base-rgb), 0.28)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
       borderRadius: 14,
@@ -32,7 +35,7 @@ export function OutsourcedBanner() {
         <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
           Our team is handling this file
         </p>
-        <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.52)", lineHeight: 1.55 }}>
+        <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
           Add at least one seller and one buyer with a name and a phone number or email.
         </p>
       </div>

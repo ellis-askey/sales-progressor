@@ -13,7 +13,7 @@ function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
       width: 7, height: 7, borderRadius: "50%",
       background: filled
         ? level === 3 ? "#059669" : "var(--agent-coral-deep)"
-        : "rgba(15,23,42,0.12)",
+        : "var(--nv2-border-medium)",
       transition: "background 250ms",
       display: "inline-block",
       flexShrink: 0,
@@ -66,11 +66,11 @@ export function ContactCard({
   return (
     <div
       style={{
-        background: isComplete ? "rgba(5,150,105,0.04)" : "rgba(255,255,255,0.45)",
+        background: isComplete ? "rgba(5,150,105,0.04)" : "var(--nv2-surface-glass)",
         borderRadius: 12,
         border: isComplete
           ? "0.5px solid rgba(5,150,105,0.22)"
-          : "0.5px solid rgba(15,23,42,0.08)",
+          : "0.5px solid var(--nv2-border-dark)",
         padding: "14px 14px 12px",
         display: "flex",
         flexDirection: "column",
@@ -82,7 +82,7 @@ export function ContactCard({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {canRemove && (
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(15,23,42,0.40)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{numbered}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{numbered}</span>
           )}
           <HealthDots level={healthLevel} />
         </div>
@@ -90,7 +90,7 @@ export function ContactCard({
           <button
             type="button"
             onClick={onRemove}
-            style={{ fontSize: 11, color: "rgba(15,23,42,0.35)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            style={{ fontSize: 11, color: "var(--nv2-text-ghost)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
             Remove
           </button>
@@ -99,7 +99,7 @@ export function ContactCard({
 
       {/* Name */}
       <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.55)", marginBottom: 5 }}>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>
           Full name{isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2 }}>*</span>}
         </label>
         <input
@@ -116,7 +116,7 @@ export function ContactCard({
       <div>
         <div className="contact-detail-grid">
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.55)", marginBottom: 5 }}>Phone</label>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>Phone</label>
             <input
               className="agent-input"
               value={contact.phone}
@@ -131,7 +131,7 @@ export function ContactCard({
             />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.55)", marginBottom: 5 }}>Email</label>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>Email</label>
             <input
               className="agent-input"
               value={contact.email}
@@ -143,7 +143,7 @@ export function ContactCard({
           </div>
         </div>
         {isOutsourced && (
-          <p style={{ margin: "5px 0 0", fontSize: 11, color: "rgba(15,23,42,0.38)" }}>
+          <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--nv2-text-muted)" }}>
             At least one required
           </p>
         )}
@@ -226,7 +226,7 @@ export function ContactGroup({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isOutsourced ? 4 : 10 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
           <FieldIndicator source={memoSource} />
@@ -300,10 +300,10 @@ export function ContactsSection({
       className="contacts-section-grid"
       style={{
         borderRadius: 16,
-        background: "rgba(255,255,255,0.55)",
+        background: "var(--nv2-surface-glass)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        border: "0.5px solid rgba(255,255,255,0.65)",
+        border: "0.5px solid var(--nv2-border-glass)",
         padding: "18px",
       }}
     >
@@ -316,7 +316,7 @@ export function ContactsSection({
         onChange={onVendorsChange}
         onEdit={() => onEdit("vendors")}
       />
-      <div className="contacts-section-divider" style={{ width: "0.5px", background: "rgba(15,23,42,0.08)", alignSelf: "stretch" }} />
+      <div className="contacts-section-divider" style={{ width: "0.5px", background: "var(--nv2-border-dark)", alignSelf: "stretch" }} />
       <ContactGroup
         label="Purchasers"
         contacts={purchasers}

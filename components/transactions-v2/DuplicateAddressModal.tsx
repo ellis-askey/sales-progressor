@@ -18,7 +18,7 @@ export function DuplicateAddressModal({
   onClose: () => void;
   onForceCreate: () => void;
 }) {
-  const theme = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -31,6 +31,8 @@ export function DuplicateAddressModal({
   return createPortal(
     <div
       data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      className="nv2-night"
       style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px" }}
     >
       {/* Backdrop */}
@@ -47,9 +49,9 @@ export function DuplicateAddressModal({
           width: "100%",
           maxWidth: 420,
           borderRadius: 20,
-          background: "rgba(255,255,255,0.98)",
+          background: "var(--nv2-surface-modal)",
           borderTop: "3px solid var(--agent-coral-deep)",
-          boxShadow: "0 24px 64px rgba(15,23,42,0.18), 0 8px 24px rgba(15,23,42,0.08)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.08)",
           overflow: "hidden",
           animation: "agent-modal-in 280ms cubic-bezier(0.16,1,0.3,1) both",
         }}
@@ -59,7 +61,7 @@ export function DuplicateAddressModal({
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
             Address already exists
           </p>
-          <p style={{ margin: 0, fontSize: 13, color: "rgba(15,23,42,0.58)", lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--nv2-text-reading)", lineHeight: 1.6 }}>
             There&apos;s already an active file for{" "}
             <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{address}</strong>.
             {assignedTo && ` Assigned to ${assignedTo}.`}
@@ -89,12 +91,12 @@ export function DuplicateAddressModal({
             style={{
               padding: "11px 16px", borderRadius: 12, fontWeight: 500, fontSize: 14,
               background: "transparent",
-              border: "1.5px solid rgba(15,23,42,0.15)",
+              border: "1.5px solid var(--nv2-border-strong)",
               cursor: "pointer",
-              color: "rgba(15,23,42,0.65)",
+              color: "var(--nv2-text-reading)",
               transition: "background 150ms",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             Create anyway

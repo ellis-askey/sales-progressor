@@ -1279,3 +1279,59 @@ select {
   .agent-shell-root[data-night] .bg-slate-200         { background-color: rgba(30,41,59,0.80); }
   .agent-shell-root[data-night] .bg-slate-100\/60     { background-color: rgba(30,41,59,0.40); }
 }
+
+/* ============================================
+   NEW-V2 FORM — scoped variables for dark-mode
+   parity without disturbing light-mode appearance.
+   Used by components/transactions-v2/* only.
+   ============================================ */
+
+/* Light mode — values match source rgba exactly (byte-identical) */
+.nv2-night {
+  --nv2-text-primary:    rgba(15,23,42,0.80);  /* 0.72–0.90 range */
+  --nv2-text-reading:    rgba(15,23,42,0.65);  /* 0.58–0.72 range */
+  --nv2-text-secondary:  rgba(15,23,42,0.52);  /* 0.45–0.58 range */
+  --nv2-text-muted:      rgba(15,23,42,0.42);  /* 0.35–0.50 range */
+  --nv2-text-faint:      rgba(15,23,42,0.32);  /* 0.25–0.38 range */
+  --nv2-text-ghost:      rgba(15,23,42,0.22);  /* ≤0.28 range */
+  --nv2-surface-glass:   rgba(255,255,255,0.52); /* 0.40–0.65 range */
+  --nv2-surface-raised:  rgba(255,255,255,0.88); /* 0.70–0.92 range */
+  --nv2-surface-modal:   rgba(255,255,255,0.98); /* modals */
+  --nv2-surface-subtle:  rgba(255,255,255,0.32); /* <0.40 range */
+  --nv2-border-glass:    rgba(255,255,255,0.70); /* white glass borders */
+  --nv2-border-dark:     rgba(15,23,42,0.08);    /* dark subtle border 0.05–0.10 */
+  --nv2-border-medium:   rgba(15,23,42,0.12);    /* medium dark border */
+  --nv2-border-strong:   rgba(15,23,42,0.15);    /* stronger dark border */
+  --nv2-bg-hover:        rgba(15,23,42,0.04);    /* light hover tint */
+}
+
+/* Night mode overrides — fires for elements inside agent-shell-root[data-night]
+   AND for portalled elements that carry data-night directly on the wrapper */
+.agent-shell-root[data-night] .nv2-night,
+.nv2-night[data-night] {
+  --nv2-text-primary:    #EFF6FF;
+  --nv2-text-reading:    #CBD5E1;
+  --nv2-text-secondary:  #94A3B8;
+  --nv2-text-muted:      #64748B;
+  --nv2-text-faint:      #475569;
+  --nv2-text-ghost:      #374151;
+  --nv2-surface-glass:   rgba(30,41,59,0.65);
+  --nv2-surface-raised:  rgba(30,41,59,0.90);
+  --nv2-surface-modal:   rgba(22,33,52,0.98);
+  --nv2-surface-subtle:  rgba(30,41,59,0.35);
+  --nv2-border-glass:    rgba(255,255,255,0.08);
+  --nv2-border-dark:     rgba(255,255,255,0.06);
+  --nv2-border-medium:   rgba(255,255,255,0.10);
+  --nv2-border-strong:   rgba(255,255,255,0.14);
+  --nv2-bg-hover:        rgba(255,255,255,0.06);
+}
+
+/* Tailwind class overrides for portalled modals carrying data-night directly.
+   The .agent-shell-root[data-night] selectors above don't reach portal content
+   in document.body — these selectors handle AddFirmModal and similar. */
+.nv2-night[data-night] .text-slate-900\/90  { color: rgba(239,246,255,0.90); }
+.nv2-night[data-night] .text-slate-900\/65  { color: rgba(148,163,184,0.90); }
+.nv2-night[data-night] .text-slate-900\/50  { color: rgba(148,163,184,0.85); }
+.nv2-night[data-night] .hover\:text-slate-900\/80:hover { color: rgba(239,246,255,0.90); }
+.nv2-night[data-night] .border-white\/20    { border-color: rgba(255,255,255,0.07); }
+.nv2-night[data-night] .hover\:bg-white\/20:hover { background-color: rgba(30,41,59,0.35); }

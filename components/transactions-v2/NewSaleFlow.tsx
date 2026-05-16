@@ -878,7 +878,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   } as const;
 
   return (
-    <div>
+    <div className="nv2-night">
 
       {/* ── Two-column layout — all states ─────────────────────────────────── */}
       <div className="new-sale-two-col">

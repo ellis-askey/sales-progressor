@@ -93,7 +93,7 @@ function PopulatedCard({
             border: "none",
             cursor: "pointer",
             fontSize: 11,
-            color: "rgba(15,23,42,0.35)",
+            color: "var(--nv2-text-ghost)",
             padding: 0,
           }}
         >
@@ -103,8 +103,8 @@ function PopulatedCard({
 
       {/* Handler sub-card */}
       <div style={{
-        background: "rgba(255,255,255,0.75)",
-        border: "0.5px solid rgba(15,23,42,0.08)",
+        background: "var(--nv2-surface-glass)",
+        border: "0.5px solid var(--nv2-border-dark)",
         borderRadius: 8,
         padding: "8px 10px",
       }}>
@@ -140,9 +140,9 @@ function EmptyPickerWrap({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       borderRadius: 10,
-      border: "1.5px dashed rgba(15,23,42,0.12)",
+      border: "1.5px dashed var(--nv2-border-medium)",
       padding: "12px",
-      background: "rgba(255,255,255,0.30)",
+      background: "var(--nv2-surface-subtle)",
     }}>
       {children}
     </div>
@@ -170,7 +170,7 @@ export function SolicitorSection({
 
       {/* Seller's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Seller&rsquo;s solicitor
           {vendorSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -180,7 +180,7 @@ export function SolicitorSection({
         {isFillingVendor ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--agent-coral-deep)", borderTopColor: "transparent", display: "inline-block", animation: "agent-spin 0.7s linear infinite" }} />
-            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching…</span>
+            <span style={{ fontSize: 12, color: "var(--nv2-text-faint)" }}>Searching…</span>
           </div>
         ) : vendorSolicitor?.contactId ? (
           <PopulatedCard
@@ -213,7 +213,7 @@ export function SolicitorSection({
 
       {/* Buyer's solicitor */}
       <div>
-        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.60)", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
           Buyer&rsquo;s solicitor
           {purchaserSolicitor && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -223,7 +223,7 @@ export function SolicitorSection({
         {isFillingPurchaser ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid var(--agent-coral-deep)", borderTopColor: "transparent", display: "inline-block", animation: "agent-spin 0.7s linear infinite" }} />
-            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.45)" }}>Searching…</span>
+            <span style={{ fontSize: 12, color: "var(--nv2-text-faint)" }}>Searching…</span>
           </div>
         ) : purchaserSolicitor?.contactId ? (
           <PopulatedCard
@@ -257,8 +257,8 @@ export function SolicitorSection({
     </div>{/* end two-column solicitor grid */}
 
       {/* Broker — full width below solicitors */}
-      <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.07)", paddingTop: 16 }}>
-        <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.42)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ borderTop: "0.5px solid var(--nv2-border-dark)", paddingTop: 16 }}>
+        <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
           Mortgage broker
           {broker?.firmId && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />

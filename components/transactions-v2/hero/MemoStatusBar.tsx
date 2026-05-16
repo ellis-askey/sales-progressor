@@ -67,7 +67,7 @@ function Spinner() {
       width="14" height="14" viewBox="0 0 14 14" fill="none"
       style={{ animation: "memo-spin 0.8s linear infinite", flexShrink: 0 }}
     >
-      <circle cx="7" cy="7" r="5.5" stroke="rgba(15,23,42,0.18)" strokeWidth="2" />
+      <circle cx="7" cy="7" r="5.5" stroke="var(--nv2-border-medium)" strokeWidth="2" />
       <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="var(--agent-coral-deep)" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
@@ -132,8 +132,8 @@ export function MemoStatusBar({
       style={{
         borderRadius: "var(--agent-radius-xl)",
         background: "var(--agent-glass-bg-strong)",
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         border: "0.5px solid var(--agent-glass-border)",
         borderTop: `2px solid ${topBorderColor}`,
         boxShadow: "var(--agent-glass-shadow)",
@@ -152,7 +152,7 @@ export function MemoStatusBar({
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <Spinner />
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
               Reading your memo…
             </p>
           </div>
@@ -169,11 +169,11 @@ export function MemoStatusBar({
                     ? isActive
                       ? <Spinner />
                       : <span style={{ width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(15,23,42,0.20)", display: "inline-block" }} />
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--nv2-text-ghost)", display: "inline-block" }} />
                         </span>
                     : <span style={{ width: 14, height: 14, flexShrink: 0 }} />
                   }
-                  <span style={{ fontSize: 12, color: isVisible ? "rgba(15,23,42,0.65)" : "rgba(15,23,42,0.25)" }}>
+                  <span style={{ fontSize: 12, color: isVisible ? "var(--nv2-text-reading)" : "var(--nv2-text-ghost)" }}>
                     {field.label}
                   </span>
                 </div>
@@ -181,7 +181,7 @@ export function MemoStatusBar({
             })}
           </div>
           {isSlow && (
-            <p style={{ margin: "12px 0 0", fontSize: 12, color: "rgba(15,23,42,0.45)" }}>
+            <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--nv2-text-muted)" }}>
               This is taking a while —{" "}
               <button
                 className="agent-link-muted"
@@ -200,7 +200,7 @@ export function MemoStatusBar({
       {status === "error" && (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
             {errorMessage ?? "Couldn't read the memo — fill in the form below"}
           </p>
         </div>
@@ -211,7 +211,7 @@ export function MemoStatusBar({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" style={{ flexShrink: 0 }} />
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
               Memo read · all fields filled
             </p>
           </div>
@@ -231,7 +231,7 @@ export function MemoStatusBar({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.80)" }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
                 Memo read · {missingPills.length} {missingPills.length === 1 ? "field needs" : "fields need"} attention
               </p>
             </div>

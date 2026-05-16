@@ -32,8 +32,8 @@ function Pill({
 
   const variantStyles: Record<string, React.CSSProperties> = {
     default: {
-      background: "rgba(15,23,42,0.06)",
-      color: "rgba(15,23,42,0.55)",
+      background: "var(--nv2-bg-hover)",
+      color: "var(--nv2-text-secondary)",
     },
     green: {
       background: "var(--agent-success-bg)",

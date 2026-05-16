@@ -132,3 +132,17 @@ Prisma will throw a typed `P2025 Record not found` error rather than a raw FK vi
 
 **Affects:** `lib/services/` — verify exact file path before applying (likely `milestone-service.ts` or inline in `app/actions/milestones.ts`).
 **No urgency.** The user-facing fix is Option A (clear cookies, re-login). This is an observability improvement only.
+
+### C2 — isSolid + night-mode tablet overlap (768–1024px)
+
+`useSolidMode` activates the `SolidModeToggle` at `≥768px` (the toggle is `hidden md:block`). Night mode activates via `@media (max-width: 1024px)`. These two ranges overlap at 768–1024px: a user on a large tablet can have solid mode ON while night mode CSS is also applied, resulting in white-background components receiving night-mode variable overrides (dark text tokens on a white surface — generally legible but not designed for this combination).
+
+**Scope:** Pre-existing at time of Commit D (2026-05-16). All `isSolid` glass branches in new-v2 carry an inline comment documenting this. Not fixed because solid mode at the tablet breakpoint is itself a low-traffic edge case.
+
+**Fix when addressed:** Scope `useSolidMode` to `≥1024px` only (remove the 768–1024px overlap), or add a third CSS selector branch for `isSolid+night`. Whichever is chosen, remove the inline comments.
+
+### C3 — new-v2 box shadows not night-mode-aware (Category E, deferred)
+
+Several components in `components/transactions-v2/` use `box-shadow` values with dark rgba (`rgba(15,23,42,...)`) hardcoded. On a dark background these appear as dark-on-dark and render invisible. Examples: `HeroCard` box shadow, `DraftPanel` box shadow.
+
+**Deferred reason:** Box shadows on glassmorphic surfaces are a visual-polish concern only. Dark-on-dark shadows are simply invisible (not wrong), so the UI is usable. The correct fix is a Category E token (`--nv2-shadow-*`) that inverts to a glowing-outward shadow in night mode. Deferred until the new-v2 form ships and night-mode fidelity becomes a priority.

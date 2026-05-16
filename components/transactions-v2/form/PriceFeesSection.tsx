@@ -31,7 +31,10 @@ function SegmentToggle({
       gap: 2,
       padding: 2,
       borderRadius: sm ? 6 : 8,
-      background: isSolid ? "rgba(15,23,42,0.05)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
+      /* isSolid:true branch unreachable in night-mode-eligible contexts
+       as of 2026-05-16; if solid mode is scoped to include <1024px,
+       this branch needs --nv2-surface-solid treatment */
+    background: isSolid ? "rgba(15,23,42,0.05)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
       border: isSolid ? "0.5px solid rgba(15,23,42,0.12)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)",
       flexShrink: 0,
     }}>
@@ -52,11 +55,11 @@ function SegmentToggle({
               borderRadius: sm ? 4 : 6,
               border: "none",
               background: active
-                ? "rgba(255,255,255,0.92)"
-                : hoveredInactive ? "rgba(255,255,255,0.65)" : "transparent",
+                ? "var(--nv2-surface-raised)"
+                : hoveredInactive ? "var(--nv2-border-glass)" : "transparent",
               color: active
                 ? "var(--agent-coral-deep)"
-                : hoveredInactive ? "var(--agent-text-primary)" : "rgba(15,23,42,0.42)",
+                : hoveredInactive ? "var(--agent-text-primary)" : "var(--nv2-text-muted)",
               cursor: "pointer",
               boxShadow: active ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
               transition: "background 130ms, color 130ms, box-shadow 130ms",
@@ -79,7 +82,10 @@ function HeroInputWrap({ children, row = false, isSolid = false }: { children: R
       display: row ? "flex" : "block",
       alignItems: row ? "center" : undefined,
       gap: row ? 10 : undefined,
-      background: isSolid ? "#ffffff" : "rgba(var(--agent-coral-base-rgb), 0.04)",
+      /* isSolid:true branch unreachable in night-mode-eligible contexts
+       as of 2026-05-16; if solid mode is scoped to include <1024px,
+       this branch needs --nv2-surface-solid treatment */
+    background: isSolid ? "#ffffff" : "rgba(var(--agent-coral-base-rgb), 0.04)",
       border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "1px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 12,
       padding: "10px 14px",
@@ -187,7 +193,7 @@ export function PriceFeesSection({
 
       {/* G5.1 — Sale price */}
       <div onBlur={handlePriceBlur}>
-        <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.42)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
           Sale price
           <FieldIndicator source={priceMemoSource} />
         </p>
@@ -211,9 +217,9 @@ export function PriceFeesSection({
       <div>
         {/* Label row + mode toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.42)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
             Agent fee
-            <span style={{ fontSize: 9, fontWeight: 400, color: "rgba(15,23,42,0.28)", textTransform: "none", letterSpacing: 0 }}>not on memos</span>
+            <span style={{ fontSize: 9, fontWeight: 400, color: "var(--nv2-text-ghost)", textTransform: "none", letterSpacing: 0 }}>not on memos</span>
             <FieldIndicator source={agentFeeMemoSource} />
           </p>
           <SegmentToggle
@@ -250,7 +256,7 @@ export function PriceFeesSection({
                   min="0"
                   max="10"
                 />
-                <span style={{ fontSize: 20, fontWeight: 600, color: "rgba(15,23,42,0.45)", flexShrink: 0 }}>%</span>
+                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--nv2-text-faint)", flexShrink: 0 }}>%</span>
               </div>
             )}
           </div>
@@ -268,7 +274,7 @@ export function PriceFeesSection({
 
         {/* Live calc line */}
         {calcLine && (
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(15,23,42,0.40)", textAlign: "right", lineHeight: 1.4 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--nv2-text-muted)", textAlign: "right", lineHeight: 1.4 }}>
             {calcLine}
           </p>
         )}
@@ -286,22 +292,22 @@ export function PriceFeesSection({
         borderRadius: 8,
         padding: "8px 12px",
         fontSize: 12,
-        color: "rgba(15,23,42,0.58)",
+        color: "var(--nv2-text-reading)",
         lineHeight: 1.4,
       }}>
         <span style={{ fontWeight: 500 }}>Net to agency: </span>
         {!purchasePricePence ? (
-          <span style={{ color: "rgba(15,23,42,0.35)" }}>— Add a sale price to calculate</span>
+          <span style={{ color: "var(--nv2-text-ghost)" }}>— Add a sale price to calculate</span>
         ) : netPence == null ? (
-          <span style={{ color: "rgba(15,23,42,0.35)" }}>— Add an agent fee to calculate</span>
+          <span style={{ color: "var(--nv2-text-ghost)" }}>— Add an agent fee to calculate</span>
         ) : (
           <>
-            <strong style={{ color: "rgba(15,23,42,0.78)" }}>{fmt(netPence)}</strong>
-            <span style={{ color: "rgba(15,23,42,0.38)", fontSize: 11 }}>
+            <strong style={{ color: "var(--nv2-text-primary)" }}>{fmt(netPence)}</strong>
+            <span style={{ color: "var(--nv2-text-muted)", fontSize: 11 }}>
               {agentFeeVat === "exclusive" ? " inc VAT" : " (fee inc VAT)"}
             </span>
             {" on a "}
-            <strong style={{ color: "rgba(15,23,42,0.78)" }}>{fmt(purchasePricePence!)}</strong>
+            <strong style={{ color: "var(--nv2-text-primary)" }}>{fmt(purchasePricePence!)}</strong>
             {" sale"}
             {solicitorReferralIncome > 0 && (
               <span style={{ color: "rgba(16,185,129,0.75)", fontSize: 11 }}>

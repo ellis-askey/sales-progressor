@@ -124,7 +124,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
         <MagnifyingGlass
           size={14}
           weight="bold"
-          color="rgba(15,23,42,0.35)"
+          color="var(--nv2-text-ghost)"
           style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
         />
         {canSearch && (

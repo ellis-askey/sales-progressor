@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
-  const theme = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -26,6 +26,8 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
   return createPortal(
     <div
       data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      className="nv2-night"
       style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}
     >
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={onStay} />
@@ -34,7 +36,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
         style={{
           position: "relative",
           zIndex: 1,
-          background: "rgba(255,255,255,0.98)",
+          background: "var(--nv2-surface-modal)",
           borderRadius: 20,
           borderTop: "2px solid #f59e0b",
           width: "100%",
@@ -45,15 +47,15 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--nv2-text-primary)", margin: 0 }}>
             Save your draft?
           </p>
           <button
             onClick={onStay}
             aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "var(--nv2-text-muted)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <X size={16} weight="bold" />
@@ -62,7 +64,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
 
         {/* Body */}
         <div style={{ padding: "14px 20px 4px" }}>
-          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", lineHeight: 1.6, margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--nv2-text-secondary)", lineHeight: 1.6, margin: 0 }}>
             You have unsaved changes. Save them as a draft to come back later.
           </p>
         </div>
@@ -73,11 +75,11 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
             onClick={onDiscard}
             style={{
               flex: 1, padding: "10px 8px", borderRadius: 12,
-              background: "transparent", color: "rgba(15,23,42,0.60)",
-              fontWeight: 500, fontSize: 13, border: "1px solid rgba(15,23,42,0.15)",
+              background: "transparent", color: "var(--nv2-text-reading)",
+              fontWeight: 500, fontSize: 13, border: "1px solid var(--nv2-border-strong)",
               cursor: "pointer", transition: "background 150ms",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             Discard changes

@@ -74,10 +74,10 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
       position: "sticky",
       top: 24,
       borderRadius: 18,
-      background: "rgba(255,255,255,0.62)",
-      backdropFilter: "blur(20px) saturate(160%)",
-      WebkitBackdropFilter: "blur(20px) saturate(160%)",
-      border: "0.5px solid rgba(255,255,255,0.75)",
+      background: "var(--nv2-surface-glass)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      border: "0.5px solid var(--nv2-border-glass)",
       boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
       overflow: "hidden",
     }}>
@@ -86,11 +86,11 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "13px 16px 12px",
-        borderBottom: "0.5px solid rgba(15,23,42,0.07)",
+        borderBottom: "0.5px solid var(--nv2-border-dark)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <Eye size={14} weight="duotone" color="var(--agent-coral-deep)" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.75)" }}>File Preview</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-primary)" }}>File Preview</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(5,150,105,0.08)", border: "0.5px solid rgba(5,150,105,0.2)", borderRadius: 100, padding: "3px 8px" }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#059669", display: "inline-block", animation: "agent-pulse-dot 2s ease-in-out infinite" }} />
@@ -102,41 +102,41 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
 
         {/* Property */}
         <div>
-          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.38)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Property</p>
+          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Property</p>
           {hasAddress ? (
-            <p style={{ margin: "0 0 7px", fontSize: 13, fontWeight: 600, color: "rgba(15,23,42,0.85)", lineHeight: 1.4 }}>{address}</p>
+            <p style={{ margin: "0 0 7px", fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)", lineHeight: 1.4 }}>{address}</p>
           ) : (
-            <p style={{ margin: "0 0 7px", fontSize: 12, color: "rgba(15,23,42,0.35)", fontStyle: "italic" }}>No address yet</p>
+            <p style={{ margin: "0 0 7px", fontSize: 12, color: "var(--nv2-text-faint)", fontStyle: "italic" }}>No address yet</p>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {fields.tenure ? (
               <span style={{ fontSize: 10, fontWeight: 600, background: "rgba(var(--agent-coral-base-rgb),0.10)", color: "var(--agent-coral-deep)", borderRadius: 100, padding: "3px 8px", textTransform: "capitalize" }}>{fields.tenure}</span>
             ) : (
-              <span style={{ fontSize: 10, color: "rgba(15,23,42,0.28)", borderRadius: 100, border: "0.5px dashed rgba(15,23,42,0.18)", padding: "3px 8px" }}>Tenure?</span>
+              <span style={{ fontSize: 10, color: "var(--nv2-text-ghost)", borderRadius: 100, border: "0.5px dashed var(--nv2-border-medium)", padding: "3px 8px" }}>Tenure?</span>
             )}
             {fields.purchaseType ? (
-              <span style={{ fontSize: 10, fontWeight: 600, background: "rgba(15,23,42,0.06)", color: "rgba(15,23,42,0.55)", borderRadius: 100, padding: "3px 8px" }}>
+              <span style={{ fontSize: 10, fontWeight: 600, background: "var(--nv2-bg-hover)", color: "var(--nv2-text-secondary)", borderRadius: 100, padding: "3px 8px" }}>
                 {purchaseTypeLabel(fields.purchaseType)}
               </span>
             ) : (
-              <span style={{ fontSize: 10, color: "rgba(15,23,42,0.28)", borderRadius: 100, border: "0.5px dashed rgba(15,23,42,0.18)", padding: "3px 8px" }}>Purchase type?</span>
+              <span style={{ fontSize: 10, color: "var(--nv2-text-ghost)", borderRadius: 100, border: "0.5px dashed var(--nv2-border-medium)", padding: "3px 8px" }}>Purchase type?</span>
             )}
           </div>
         </div>
 
         {/* Parties */}
         <div>
-          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.38)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Parties</p>
+          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Parties</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {(["Vendors", "Purchasers"] as const).map((label, i) => {
               const list = i === 0 ? vendors : purchasers;
               return (
-                <div key={label} className="v2-file-preview-tile" style={{ background: "rgba(255,255,255,0.5)", borderRadius: 10, border: "0.5px solid rgba(15,23,42,0.07)", padding: "8px 10px" }}>
-                  <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "rgba(15,23,42,0.35)" }}>{label}</p>
+                <div key={label} className="v2-file-preview-tile" style={{ background: "var(--nv2-surface-glass)", borderRadius: 10, border: "0.5px solid var(--nv2-border-dark)", padding: "8px 10px" }}>
+                  <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--nv2-text-faint)" }}>{label}</p>
                   {list.length > 0 ? list.map((c, ci) => (
-                    <p key={ci} style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "rgba(15,23,42,0.72)", lineHeight: 1.5 }}>{c.name}</p>
+                    <p key={ci} style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--nv2-text-reading)", lineHeight: 1.5 }}>{c.name}</p>
                   )) : (
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>None</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-ghost)", fontStyle: "italic" }}>None</p>
                   )}
                 </div>
               );
@@ -146,31 +146,31 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
 
         {/* Price & Fees */}
         <div>
-          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.38)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Price & Fees</p>
+          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Price & Fees</p>
           {priceStr ? (
-            <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 700, color: "rgba(15,23,42,0.88)", letterSpacing: "-0.02em", lineHeight: 1 }}>{priceStr}</p>
+            <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 700, color: "var(--nv2-text-primary)", letterSpacing: "-0.02em", lineHeight: 1 }}>{priceStr}</p>
           ) : (
-            <p style={{ margin: "0 0 2px", fontSize: 13, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>No price set</p>
+            <p style={{ margin: "0 0 2px", fontSize: 13, color: "var(--nv2-text-ghost)", fontStyle: "italic" }}>No price set</p>
           )}
           {fee && (
-            <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(15,23,42,0.55)" }}>{fee}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--nv2-text-secondary)" }}>{fee}</p>
           )}
         </div>
 
         {/* Milestones preview */}
         {isStage1Done && milestones.length > 0 && (
           <div>
-            <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "rgba(15,23,42,0.38)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Milestones ({milestones.length})</p>
+            <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Milestones ({milestones.length})</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               {visibleMs.map((m) => (
                 <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 14, height: 14, borderRadius: "50%", border: "1.5px solid rgba(15,23,42,0.18)", flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "rgba(15,23,42,0.60)", flex: 1, lineHeight: 1.3 }}>{m.name}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(15,23,42,0.28)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{m.side === "vendor" ? "V" : "P"}</span>
+                  <span style={{ width: 14, height: 14, borderRadius: "50%", border: "1.5px solid var(--nv2-border-medium)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "var(--nv2-text-reading)", flex: 1, lineHeight: 1.3 }}>{m.name}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--nv2-text-ghost)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{m.side === "vendor" ? "V" : "P"}</span>
                 </div>
               ))}
               {remaining > 0 && (
-                <p style={{ margin: "2px 0 0 22px", fontSize: 10, color: "rgba(15,23,42,0.38)" }}>+ {remaining} more</p>
+                <p style={{ margin: "2px 0 0 22px", fontSize: 10, color: "var(--nv2-text-faint)" }}>+ {remaining} more</p>
               )}
             </div>
           </div>

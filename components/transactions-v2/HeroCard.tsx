@@ -46,8 +46,8 @@ function DraftRow({ draft, onLoad, onDelete }: {
           alignItems: "center",
           padding: "8px 12px",
           borderRadius: 10,
-          background: "rgba(255,255,255,0.48)",
-          border: "0.5px solid rgba(255,255,255,0.70)",
+          background: "var(--nv2-surface-glass)",
+          border: "0.5px solid var(--nv2-border-glass)",
           gap: 8,
           opacity: removing ? 0 : 1,
           transition: "opacity 160ms",
@@ -199,12 +199,15 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         borderRadius: 20,
         background: dragOver
           ? "rgba(var(--agent-coral-base-rgb), 0.06)"
-          : isSolid ? "#ffffff" : "rgba(255,255,255,0.52)",
-        backdropFilter: isSolid ? "none" : "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: isSolid ? "none" : "blur(24px) saturate(180%)",
+          : isSolid ? "#ffffff" : "var(--nv2-surface-glass)",
+        backdropFilter: isSolid ? "none" : "blur(24px)",
+        WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
+        /* isSolid:true branch unreachable in night-mode-eligible contexts
+           as of 2026-05-16; if solid mode is scoped to include <1024px,
+           this branch needs --nv2-surface-solid treatment */
         border: dragOver
           ? "2px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
-          : isSolid ? "1px solid rgba(30,20,10,0.09)" : "0.5px solid rgba(255,255,255,0.70)",
+          : isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
         boxShadow: isSolid
           ? "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04)"
           : "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",

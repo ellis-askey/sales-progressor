@@ -14,7 +14,7 @@ const MESSAGES = [
 ];
 
 export function SubmissionOverlay({ isVisible }: { isVisible: boolean }) {
-  const theme = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [mounted, setMounted] = useState(false);
   const [msgIndex, setMsgIndex] = useState(0);
 
@@ -34,6 +34,8 @@ export function SubmissionOverlay({ isVisible }: { isVisible: boolean }) {
   return createPortal(
     <div
       data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      className="nv2-night"
       style={{
         position: "fixed",
         inset: 0,
@@ -43,7 +45,7 @@ export function SubmissionOverlay({ isVisible }: { isVisible: boolean }) {
         alignItems: "center",
         justifyContent: "center",
         gap: 18,
-        background: "rgba(255,255,255,0.70)",
+        background: "var(--nv2-surface-raised)",
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
         animation: "agent-backdrop-in 250ms ease both",
@@ -54,7 +56,7 @@ export function SubmissionOverlay({ isVisible }: { isVisible: boolean }) {
         style={{ borderColor: "rgba(var(--agent-coral-base-rgb), 0.18)", borderTopColor: "var(--agent-coral-deep)" }}
       />
       <div key={msgIndex} style={{ animation: "agent-reveal-in 300ms ease both", textAlign: "center" }}>
-        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--nv2-text-primary)", letterSpacing: "-0.01em" }}>
           {MESSAGES[msgIndex]}
         </p>
       </div>

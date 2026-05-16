@@ -22,14 +22,14 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, childre
         aria-expanded={expanded}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             {title}
           </span>
           {badge}
         </div>
         {expanded
-          ? <CaretUp size={14} weight="bold" color="rgba(15,23,42,0.35)" />
-          : <CaretDown size={14} weight="bold" color="rgba(15,23,42,0.35)" />
+          ? <CaretUp size={14} weight="bold" color="var(--nv2-text-ghost)" />
+          : <CaretDown size={14} weight="bold" color="var(--nv2-text-ghost)" />
         }
       </button>
 

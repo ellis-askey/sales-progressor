@@ -69,10 +69,10 @@ function EmptyStateCard({ progressedBy, label }: { progressedBy: "agent" | "prog
         border: "0.5px dashed rgba(245,158,11,0.30)",
         borderRadius: 12,
       }}>
-        <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 500, color: "rgba(15,23,42,0.72)" }}>
+        <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-primary)" }}>
           Add a {singular}
         </p>
-        <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.48)" }}>
+        <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-secondary)" }}>
           Add a name and a phone number or email.
         </p>
       </div>
@@ -86,7 +86,7 @@ function EmptyStateCard({ progressedBy, label }: { progressedBy: "agent" | "prog
       border: "0.5px dashed rgba(var(--agent-coral-base-rgb), 0.20)",
       borderRadius: 12,
     }}>
-      <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.42)" }}>
+      <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-muted)" }}>
         No {label.toLowerCase()} added · you can add them later
       </p>
     </div>
@@ -107,7 +107,7 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
   const singular = label.slice(0, -1).toLowerCase();
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isOutsourced ? 4 : 10 }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
         {label}
         {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
         <SectionPill progressedBy={progressedBy} filled={filled} />
@@ -279,7 +279,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
     <div onKeyDown={handleKeyDown}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
           <SectionPill progressedBy={progressedBy} filled={filled} />
@@ -295,7 +295,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           style={{
             display: "flex", alignItems: "center", gap: 3,
             fontSize: 11, fontWeight: 600,
-            color: canAdd ? undefined : "rgba(15,23,42,0.22)",
+            color: canAdd ? undefined : "var(--nv2-text-ghost)",
             background: "none", border: "none",
             cursor: canAdd ? "pointer" : "not-allowed",
             padding: 0,
@@ -386,13 +386,13 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           aria-label="Previous"
           style={{
             width: 24, height: 24, borderRadius: 6, flexShrink: 0,
-            background: isFirst ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.70)",
-            border: "0.5px solid rgba(15,23,42,0.08)",
+            background: isFirst ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
+            border: "0.5px solid var(--nv2-border-dark)",
             cursor: isFirst ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <CaretLeft size={11} weight="bold" color={isFirst ? "rgba(15,23,42,0.18)" : "rgba(15,23,42,0.55)"} />
+          <CaretLeft size={11} weight="bold" color={isFirst ? "var(--nv2-text-ghost)" : "var(--nv2-text-secondary)"} />
         </button>
 
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
@@ -433,13 +433,13 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           aria-label="Next"
           style={{
             width: 24, height: 24, borderRadius: 6, flexShrink: 0,
-            background: isLast ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.70)",
-            border: "0.5px solid rgba(15,23,42,0.08)",
+            background: isLast ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
+            border: "0.5px solid var(--nv2-border-dark)",
             cursor: isLast ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <CaretRight size={11} weight="bold" color={isLast ? "rgba(15,23,42,0.18)" : "rgba(15,23,42,0.55)"} />
+          <CaretRight size={11} weight="bold" color={isLast ? "var(--nv2-text-ghost)" : "var(--nv2-text-secondary)"} />
         </button>
 
       </div>

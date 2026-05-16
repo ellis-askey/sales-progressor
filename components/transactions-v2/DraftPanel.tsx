@@ -41,16 +41,19 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
           style={{
             width: 272,
             borderRadius: 16,
-            background: isSolid ? "#ffffff" : "rgba(255,255,255,0.90)",
-            backdropFilter: isSolid ? "none" : "blur(32px) saturate(180%)",
-            WebkitBackdropFilter: isSolid ? "none" : "blur(32px) saturate(180%)",
-            border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(255,255,255,0.80)",
+            background: isSolid ? "#ffffff" : "var(--nv2-surface-raised)",
+            backdropFilter: isSolid ? "none" : "blur(32px)",
+            WebkitBackdropFilter: isSolid ? "none" : "blur(32px)",
+            /* isSolid:true branch unreachable in night-mode-eligible contexts
+               as of 2026-05-16; if solid mode is scoped to include <1024px,
+               this branch needs --nv2-surface-solid treatment */
+            border: isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
             boxShadow: "0 16px 48px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.06)",
             overflow: "hidden",
           }}
         >
-          <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid rgba(15,23,42,0.07)" }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.40)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          <div style={{ padding: "12px 14px 10px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Saved drafts
             </p>
           </div>
@@ -61,7 +64,7 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
                 className="agent-hover-row"
                 style={{
                   padding: "10px 14px",
-                  borderBottom: "0.5px solid rgba(15,23,42,0.05)",
+                  borderBottom: "0.5px solid var(--nv2-border-dark)",
                   display: "flex", alignItems: "flex-start", gap: 8,
                   background: draft.id === currentDraftId
                     ? "rgba(var(--agent-coral-base-rgb),0.06)"
@@ -76,7 +79,7 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
                   <p style={{ margin: "0 0 2px", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {draft.propertyAddress || "Unnamed draft"}
                   </p>
-                  <p style={{ margin: 0, fontSize: 11, color: "rgba(15,23,42,0.40)" }}>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-muted)" }}>
                     {relativeTime(draft.createdAt)}
                   </p>
                 </button>
@@ -103,14 +106,17 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
           padding: "7px 14px", borderRadius: 20,
           background: isSolid
             ? (pillHovered ? "rgba(15,23,42,0.03)" : "#ffffff")
-            : "rgba(255,255,255,0.90)",
+            : "var(--nv2-surface-raised)",
           backdropFilter: isSolid ? "none" : "blur(24px)",
           WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
+          /* isSolid:true branch unreachable in night-mode-eligible contexts
+             as of 2026-05-16; if solid mode is scoped to include <1024px,
+             this branch needs --nv2-surface-solid treatment */
           border: pillHovered
             ? "1px solid var(--agent-border-strong)"
-            : isSolid ? "1px solid rgba(15,23,42,0.09)" : "0.5px solid rgba(255,255,255,0.80)",
+            : isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
           boxShadow: "0 4px 16px rgba(15,23,42,0.10)",
-          fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.60)",
+          fontSize: 12, fontWeight: 600, color: "var(--nv2-text-reading)",
           cursor: "pointer",
           display: "flex", alignItems: "center", gap: 6,
           transition: "background 150ms, border-color 150ms",

@@ -54,7 +54,7 @@ export function FieldHint({
   }
   if (source === "not_on_memos") {
     return (
-      <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(15,23,42,0.38)" }}>
+      <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--nv2-text-muted)" }}>
         {notOnMemosText}
       </p>
     );

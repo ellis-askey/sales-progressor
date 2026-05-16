@@ -22,18 +22,18 @@ export function CollapsibleSection({ title, summary, defaultOpen = false, childr
         aria-expanded={open}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(15,23,42,0.45)", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
             {title}
           </span>
           {!open && summary && (
-            <span style={{ fontSize: 12, color: "rgba(15,23,42,0.40)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 12, color: "var(--nv2-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {summary}
             </span>
           )}
         </div>
         {open
-          ? <CaretUp size={14} weight="bold" color="rgba(15,23,42,0.35)" style={{ flexShrink: 0 }} />
-          : <CaretDown size={14} weight="bold" color="rgba(15,23,42,0.35)" style={{ flexShrink: 0 }} />
+          ? <CaretUp size={14} weight="bold" color="var(--nv2-text-ghost)" style={{ flexShrink: 0 }} />
+          : <CaretDown size={14} weight="bold" color="var(--nv2-text-ghost)" style={{ flexShrink: 0 }} />
         }
       </button>
 

@@ -48,8 +48,8 @@ function Tile({
     <div style={{
       padding: "10px 12px",
       borderRadius: 10,
-      background: accent ? "var(--agent-success-bg)" : "rgba(255,255,255,0.45)",
-      border: `1px solid ${accent ? "var(--agent-success-border)" : "rgba(255,255,255,0.65)"}`,
+      background: accent ? "var(--agent-success-bg)" : "var(--nv2-surface-glass)",
+      border: `1px solid ${accent ? "var(--agent-success-border)" : "var(--nv2-border-glass)"}`,
     }}>
       <p style={{
         margin: "0 0 4px",
@@ -76,8 +76,8 @@ function SaleRow({ address, price, date }: { address: string; price: number; dat
       gap: 8,
       padding: "7px 10px",
       borderRadius: 8,
-      background: "rgba(255,255,255,0.45)",
-      border: "1px solid rgba(255,255,255,0.65)",
+      background: "var(--nv2-surface-glass)",
+      border: "1px solid var(--nv2-border-glass)",
     }}>
       <span style={{
         fontSize: 12,

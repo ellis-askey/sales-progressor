@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
-  const theme = usePortalTheme();
+  const { theme, isNight } = usePortalTheme();
   const [firmName, setFirmName] = useState(prefillName);
   const [handlerName, setHandlerName] = useState("");
   const [handlerPhone, setHandlerPhone] = useState("");
@@ -126,6 +126,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
   return createPortal(
     <div
       data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      className="nv2-night"
       style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
       <div className="fixed inset-0 agent-backdrop-overlay" />
@@ -135,8 +137,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
         style={{
           position: "relative",
           zIndex: 1,
-          background: "#ffffff",
-          border: "1px solid rgba(15,23,42,0.08)",
+          background: "var(--nv2-surface-modal)",
+          border: "1px solid var(--nv2-border-dark)",
           borderTop: "2px solid var(--agent-coral-deep)",
           animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
         }}
@@ -150,8 +152,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
               type="button"
               onClick={onClose}
               aria-label="Close"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "var(--nv2-text-muted)", cursor: "pointer" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <X size={16} weight="bold" />
