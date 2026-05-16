@@ -410,31 +410,29 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {/* Top row: compact ring + pill + weeks dots column + chevron */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ProgressRing percent={progress.percent} size={44} strokeWidth={4} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`}>
-                {TRACK_LABEL[progress.onTrack]}
-              </span>
-              <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`} style={{ flexShrink: 0 }}>
+              {TRACK_LABEL[progress.onTrack]}
+            </span>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: "var(--agent-text-muted)" }} />
+                <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
+                  {progress.weeksElapsed} wk{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
+                </span>
+              </div>
+              {progress.weeksRemaining !== null && (
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: "var(--agent-text-muted)" }} />
+                  <span style={{
+                    width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                    background: progress.onTrack === "on_track" ? "var(--agent-success)"
+                      : progress.onTrack === "at_risk" ? "var(--agent-warning)"
+                      : "var(--agent-danger)",
+                  }} />
                   <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
-                    {progress.weeksElapsed} wk{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
+                    ~{progress.weeksRemaining} wk{progress.weeksRemaining !== 1 ? "s" : ""} to exchange
                   </span>
                 </div>
-                {progress.weeksRemaining !== null && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{
-                      width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
-                      background: progress.onTrack === "on_track" ? "var(--agent-success)"
-                        : progress.onTrack === "at_risk" ? "var(--agent-warning)"
-                        : "var(--agent-danger)",
-                    }} />
-                    <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
-                      ~{progress.weeksRemaining} wk{progress.weeksRemaining !== 1 ? "s" : ""} to exchange
-                    </span>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
             <svg
               style={{
