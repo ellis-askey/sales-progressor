@@ -152,6 +152,14 @@
  * Plain CSS (no @layer) — processed cleanly when imported in layout.tsx.
  * ─────────────────────────────────────────────────────────────────────────── */
 
+  /* ── Custom property extensions ──────────────────────────────────────────── */
+  /* --agent-surface-overlay: near-zero tint for containers that sit above the
+   * background without being a full glass surface (e.g. filter-strip segmented
+   * control). Extends --agent-surface-* family. Night-mode override below. */
+  .agent-shell-root {
+    --agent-surface-overlay: rgba(0, 0, 0, 0.05);
+  }
+
   /* ── Background ─────────────────────────────────────────────────────────── */
 
   .agent-bg {
@@ -1634,6 +1642,10 @@
 /* ── Night mode component overrides ─────────────────────────────────────────── */
 
 @media (max-width: 1024px) {
+  .agent-shell-root[data-night] {
+    --agent-surface-overlay: rgba(255, 255, 255, 0.05);
+  }
+
   .agent-shell-root[data-night] .agent-glass-light {
     background: rgba(30, 41, 59, 0.55);
   }
