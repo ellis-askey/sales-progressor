@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 
@@ -122,31 +123,28 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
           </svg>
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
           <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-            Jot down your next steps, or send a request to your progressor.
+            Add a task or send your progressor a request.
           </p>
         </div>
 
-        {/* Ghost to-do section preview */}
-        <div style={{ opacity: 0.3, pointerEvents: "none" }}>
+        {/* Ghost to-do section preview — abstract skeleton bars only, no fake content */}
+        <div style={{ opacity: 0.35, pointerEvents: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 12 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>My to-dos</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)", background: "rgba(0,0,0,0.07)", borderRadius: 99, padding: "1px 7px" }}>2</span>
+            <div className="agent-skeleton" style={{ width: 60, height: 13, borderRadius: 4 }} />
+            <div className="agent-skeleton" style={{ width: 20, height: 18, borderRadius: 99 }} />
           </div>
           <div className="glass-card" style={{ overflow: "hidden" }}>
-            <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>14 Maple Close, Birmingham</p>
+            <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+              <div className="agent-skeleton" style={{ width: 150, height: 13, borderRadius: 4 }} />
             </div>
-            {[
-              { text: "Chase vendor solicitor for draft contracts", date: "Today" },
-              { text: "Request mortgage offer from broker", date: "Tomorrow" },
-            ].map(({ text, date }, i) => (
+            {[100, 140].map((w, i) => (
               <div key={i} style={{
-                display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 16px",
-                borderBottom: i === 0 ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+                display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                borderBottom: i === 0 ? "0.5px solid var(--agent-border-subtle)" : "none",
               }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", border: "1.5px solid var(--agent-text-muted)", flexShrink: 0, marginTop: 2 }} />
-                <p style={{ flex: 1, margin: 0, fontSize: 13, color: "var(--agent-text-primary)" }}>{text}</p>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 2 }}>{date}</p>
+                <div className="agent-skeleton" style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0 }} />
+                <div className="agent-skeleton" style={{ flex: 1, height: 13, borderRadius: 4, maxWidth: w }} />
+                <div className="agent-skeleton" style={{ width: 36, height: 11, borderRadius: 4, flexShrink: 0 }} />
               </div>
             ))}
           </div>
@@ -211,15 +209,6 @@ function Section({
 
   const hasOpen = overdueGroups.length > 0 || openGroups.length > 0;
 
-  const sectionHasRedOverdue = overdueGroups.some((g) =>
-    g.tasks.some((t) => {
-      if (!t.dueDate) return false;
-      const due = new Date(t.dueDate); due.setHours(0, 0, 0, 0);
-      const now = new Date(); now.setHours(0, 0, 0, 0);
-      return Math.floor((now.getTime() - due.getTime()) / 86400000) >= 4;
-    })
-  );
-
   return (
     <div id={id} className="space-y-3">
       {/* Section header */}
@@ -235,9 +224,9 @@ function Section({
         {openCount > 0 && (
           <span style={{
             fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 20,
-            background: progressor ? "var(--agent-warning-bg)" : "rgba(37,99,235,0.08)",
-            color: progressor ? "var(--agent-warning)" : "#2563eb",
-            border: `1px solid ${progressor ? "var(--agent-warning-border)" : "rgba(37,99,235,0.20)"}`,
+            background: progressor ? "var(--agent-warning-bg)" : "var(--agent-info-bg)",
+            color: progressor ? "var(--agent-warning)" : "var(--agent-info)",
+            border: `1px solid ${progressor ? "var(--agent-warning-border)" : "var(--agent-info-border)"}`,
           }}>
             {openCount}
           </span>
@@ -246,15 +235,10 @@ function Section({
 
       {/* Overdue sub-group */}
       {overdueGroups.length > 0 && (
-        <div style={{ marginBottom: openGroups.length > 0 ? 8 : 0 }}>
-          <p style={{ margin: "0 0 6px 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: sectionHasRedOverdue ? "#dc2626" : "var(--agent-warning)" }}>
-            Overdue
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {overdueGroups.map((group) => (
-              <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} />
-            ))}
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: openGroups.length > 0 ? 8 : 0 }}>
+          {overdueGroups.map((group) => (
+            <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} overdue />
+          ))}
         </div>
       )}
 
@@ -262,15 +246,9 @@ function Section({
       {!hasOpen ? (
         <div className="glass-card" style={{ padding: "28px 20px", textAlign: "center" }}>
           {progressor ? (
-            <>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>No pending requests.</p>
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-disabled)" }}>Anything you send to your progressor will appear here.</p>
-            </>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All caught up.</p>
           ) : (
-            <>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All clear.</p>
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-disabled)" }}>Use the button above to add a to-do or send a request.</p>
-            </>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All clear.</p>
           )}
         </div>
       ) : openGroups.length > 0 ? (
@@ -286,44 +264,36 @@ function Section({
         <div style={{ marginTop: 16 }}>
           <button
             onClick={onToggleShowDone}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              fontSize: 12, color: "var(--agent-text-muted)",
-              padding: "4px 0", display: "flex", alignItems: "center", gap: 6,
-            }}
+            className="agent-link agent-link-muted"
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12 }}
           >
-            <span style={{
-              display: "inline-block", width: 16, height: 16,
-              border: "1px solid var(--agent-text-muted)", borderRadius: 4,
-              lineHeight: "14px", textAlign: "center", fontSize: 10,
-            }}>
-              {showDone ? "▲" : "▼"}
-            </span>
-            {showDone ? "Hide resolved" : `Show ${doneCount} resolved`}
+            <CaretDown size={12} style={{ transition: "transform 200ms", transform: showDone ? "rotate(180deg)" : "rotate(0deg)" }} />
+            {showDone ? "Hide completed" : `Show ${doneCount} completed`}
           </button>
 
-          {showDone && (
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className={`agent-acc${showDone ? " open" : ""}`}>
+            <div className="agent-acc-in" style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 10 }}>
               {doneGroups.map((group) => (
                 <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} />
               ))}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function TaskGroup({ group, onToggle, dimmed = false, progressor = false }: {
+function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdue = false }: {
   group: Group;
   onToggle: (id: string, status: "open" | "done") => void;
   dimmed?: boolean;
   progressor?: boolean;
+  overdue?: boolean;
 }) {
   return (
-    <div className="glass-card" style={{ overflow: "hidden", opacity: dimmed ? 0.7 : 1 }}>
-      <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
+    <div className="glass-card" style={{ overflow: "hidden", opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
+      <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         {group.transactionId ? (
           <Link
             href={`/agent/transactions/${group.transactionId}`}
@@ -371,18 +341,18 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
     <div style={{
       display: "flex", alignItems: "flex-start", gap: 12,
       padding: "12px 16px",
-      borderBottom: hasBorder ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+      borderBottom: hasBorder ? "0.5px solid var(--agent-border-subtle)" : "none",
     }}>
       {/* Toggle — wrapper div expands tap area to ≥44px without changing visual size */}
       <div style={{ flexShrink: 0, marginTop: 2 }}>
         <button
           onClick={toggle}
           disabled={loading}
-          aria-label={isDone ? "Mark as open" : "Mark as done"}
+          aria-label={isDone ? "Reopen" : "Mark as done"}
           className="p-2 -m-2"
           style={{
             width: 18, height: 18, borderRadius: "50%",
-            border: isDone && !loading ? "none" : `1.5px solid ${loading ? "var(--agent-border-default)" : progressor ? "var(--agent-warning)" : "rgba(37,99,235,0.40)"}`,
+            border: isDone && !loading ? "none" : `1.5px solid ${loading ? "var(--agent-border-default)" : progressor ? "var(--agent-warning)" : "var(--agent-info-border)"}`,
             background: isDone && !loading ? "var(--agent-success)" : "transparent",
             cursor: loading ? "wait" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -416,11 +386,11 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
         )}
         {/* Progressor response — shown for open tasks (fix) and done tasks (resolved display) */}
         {task.progressorNote && (
-          <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "rgba(180,87,9,0.06)", borderLeft: "2px solid rgba(180,87,9,0.28)" }}>
-            <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(180,87,9,0.65)" }}>
-              Progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
+          <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-warning-bg)", borderLeft: "2px solid var(--agent-warning-border)" }}>
+            <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-warning)" }}>
+              Your progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#b45309", lineHeight: "1.4" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", lineHeight: "1.4" }}>
               {task.progressorNote}
             </p>
           </div>

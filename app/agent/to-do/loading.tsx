@@ -12,9 +12,8 @@ export default function TodoLoading() {
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
           {/* Add task form skeleton */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <div className="agent-skeleton" style={{ flex: 1, height: 40, borderRadius: 8 }} />
-            <div className="agent-skeleton" style={{ height: 40, width: 88, borderRadius: 8, flexShrink: 0 }} />
+          <div>
+            <div className="agent-skeleton" style={{ width: 96, height: 30, borderRadius: 20 }} />
           </div>
 
           {/* "My to-dos" section */}
@@ -29,14 +28,14 @@ export default function TodoLoading() {
               { addrW: 160, rows: 1 },
             ].map(({ addrW, rows }, gi) => (
               <div key={gi} className="glass-card" style={{ overflow: "hidden" }}>
-                <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
+                <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
                   <div className="agent-skeleton" style={{ height: 13, width: addrW, borderRadius: 6 }} />
                 </div>
                 {Array.from({ length: rows }).map((_, ri) => (
                   <div key={ri} style={{
                     display: "flex", alignItems: "flex-start", gap: 12,
                     padding: "12px 16px",
-                    borderBottom: ri < rows - 1 ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+                    borderBottom: ri < rows - 1 ? "0.5px solid var(--agent-border-subtle)" : "none",
                   }}>
                     <div className="agent-skeleton" style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2 }} />
                     <div style={{ flex: 1 }}>
@@ -57,14 +56,14 @@ export default function TodoLoading() {
             </div>
 
             <div className="glass-card" style={{ overflow: "hidden" }}>
-              <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.35)" }}>
+              <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
                 <div className="agent-skeleton" style={{ height: 13, width: 185, borderRadius: 6 }} />
               </div>
               {[220, 150].map((w, ri) => (
                 <div key={ri} style={{
                   display: "flex", alignItems: "flex-start", gap: 12,
                   padding: "12px 16px",
-                  borderBottom: ri === 0 ? "0.5px solid rgba(255,255,255,0.25)" : "none",
+                  borderBottom: ri === 0 ? "0.5px solid var(--agent-border-subtle)" : "none",
                 }}>
                   <div className="agent-skeleton" style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1 }}>

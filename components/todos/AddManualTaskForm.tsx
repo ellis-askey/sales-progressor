@@ -97,7 +97,7 @@ export function AddManualTaskForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="glass-card p-4 space-y-3"
+      className="glass-card p-4 space-y-3 agent-reveal-in"
     >
       {transactionAddress && (
         <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>
@@ -121,28 +121,20 @@ export function AddManualTaskForm({
       {showOwnership && (
         <div>
           <p className="text-xs text-slate-900/40 mb-1.5">Who&apos;s responsible?</p>
-          <div className="inline-flex items-center gap-0.5 bg-white/40 rounded-lg p-0.5">
+          <div style={{ display: "flex", gap: 4 }}>
             <button
               type="button"
               onClick={() => setOwner("mine")}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                owner === "mine"
-                  ? "bg-white shadow-sm text-slate-900/80"
-                  : "text-slate-900/40 hover:text-slate-900/60"
-              }`}
+              className={`agent-segment-pill agent-segment-pill-sm${owner === "mine" ? " on" : ""}`}
             >
               Mine
             </button>
             <button
               type="button"
               onClick={() => setOwner("progressor")}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                owner === "progressor"
-                  ? "bg-white shadow-sm text-amber-700"
-                  : "text-slate-900/40 hover:text-slate-900/60"
-              }`}
+              className={`agent-segment-pill agent-segment-pill-sm${owner === "progressor" ? " on" : ""}`}
             >
-              Sales Progressor
+              Your progressor
             </button>
           </div>
         </div>
