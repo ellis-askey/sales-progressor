@@ -20,9 +20,6 @@ const MOCK_FILE: CompletionFileRow = {
   completionDateIso: SIX_DAYS_FROM_NOW,
   vendorSolicitorName: "Smith & Jones LLP",
   purchaserSolicitorName: "Gordon & Co Solicitors",
-  daysRel: 6,
-  daysLabel: "in 6 days",
-  daysColor: "rgba(15,23,42,0.4)",
 };
 
 const s = GROUP_STYLES["this_week"];

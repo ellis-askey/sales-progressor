@@ -80,21 +80,9 @@ export default async function AgentCompletionsPage() {
     const groupFeeTotal   = group.reduce((sum, f) => sum + (f.agentFeeAmount ?? 0), 0);
     const missingFeeCount = group.filter((f) => !f.agentFeeAmount).length;
 
-    const fileRows: CompletionFileRow[] = group.map((f) => {
-      const daysRel = f.completionDate
-        ? Math.round((new Date(f.completionDate).setHours(0, 0, 0, 0) - today.getTime()) / 86400000)
-        : null;
-
-      let daysLabel = "";
-      let daysColor = "rgba(15,23,42,0.4)";
-      if (daysRel !== null) {
-        if (daysRel < 0)        { daysLabel = `${Math.abs(daysRel)} days overdue`; daysColor = "#dc2626"; }
-        else if (daysRel === 0) { daysLabel = "today";    daysColor = "#d97706"; }
-        else if (daysRel === 1) { daysLabel = "tomorrow"; }
-        else                    { daysLabel = `in ${daysRel} days`; }
-      }
-
-      return {
+    /* OLD: server computed daysRel, daysLabel, daysColor (hex strings) and serialised into row.
+       Now computed client-side in CompletionFileRowView via computeDays() using CSS var tokens. */
+    const fileRows: CompletionFileRow[] = group.map((f) => ({
         id:                    f.id,
         propertyAddress:       f.propertyAddress,
         purchasePrice:         f.purchasePrice ?? null,
@@ -105,18 +93,15 @@ export default async function AgentCompletionsPage() {
         completionDateIso:     f.completionDate ? new Date(f.completionDate).toISOString() : null,
         vendorSolicitorName:   f.vendorSolicitorName ?? null,
         purchaserSolicitorName: f.purchaserSolicitorName ?? null,
-        daysRel,
-        daysLabel,
-        daysColor,
-      };
-    });
+      }));
 
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
   });
 
   return (
     <>
-      <PageHeader title="Completions" subtitle="Files that have exchanged and are heading to completion.">
+      {/* OLD subtitle: "Files that have exchanged and are heading to completion." */}
+      <PageHeader title="Completions" subtitle="Exchanged files, tracking to completion.">
         {statSegments.map(s => (
           <StatPill key={s.key} href={s.anchor} label={s.label} color={s.pillColor} />
         ))}
@@ -128,57 +113,72 @@ export default async function AgentCompletionsPage() {
         {/* Empty state */}
         {files.length === 0 && (
           <>
-            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
-              <ClockCountdown size={32} weight="regular" style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
+            <div className="glass-card px-6 py-12" style={{ textAlign: "center" }}>
+              <ClockCountdown
+                size={32}
+                weight="regular"
+                style={{ color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }}
+              />
+              {/* OLD: "No files awaiting completion" */}
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                No files awaiting completion
+                No completions
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 Once a file exchanges, it&apos;ll appear here as it heads toward completion.
               </p>
             </div>
 
-            {/* Ghost urgency groups preview */}
-            <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
-              {[
-                { color: "#dc2626", label: "Overdue", files: ["14 Maple Close, Birmingham", "8 The Crescent, Bristol"] },
-                { color: "#d97706", label: "Completing this week", files: ["22 Victoria Road, Manchester"] },
-              ].map(({ color, label, files: ghostFiles }) => (
-                <div key={label}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, background: "rgba(0,0,0,0.04)", marginBottom: 8 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, borderRadius: 99, padding: "1px 7px" }}>{ghostFiles.length}</span>
+            {/* Ghost — abstract agent-skeleton bars in urgency-group shape.
+                OLD: fake real-looking content (addresses, solicitor names, hardcoded hex colours).
+                Per polish-pass standard: no fake copy, no hardcoded hex, opacity 0.35. */}
+            <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Ghost group 1 — overdue shape */}
+              <div className="agent-glass" style={{ overflow: "hidden" }}>
+                <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                    <div className="agent-skeleton" style={{ width: 10, height: 10, borderRadius: "50%" }} />
+                    <div className="agent-skeleton" style={{ height: 11, width: 80, borderRadius: 4 }} />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                    {ghostFiles.map((addr, i) => (
-                      <div key={i} style={{
-                        padding: "12px 16px",
-                        border: "0.5px solid var(--agent-border-subtle)",
-                        borderRadius: i === 0 ? (ghostFiles.length === 1 ? 8 : "8px 8px 0 0") : "0 0 8px 8px",
-                        borderTop: i > 0 ? "none" : undefined,
-                        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                        background: "rgba(255,255,255,0.55)",
-                      }}>
-                        <div>
-                          <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{addr}</p>
-                          <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>Smith & Smith Solicitors</p>
-                        </div>
-                        <div style={{ flexShrink: 0, fontSize: 12, fontWeight: 500, color, background: `${color}15`, borderRadius: 99, padding: "3px 10px" }}>
-                          {label === "Overdue" ? (i === 0 ? "3 days overdue" : "1 day overdue") : "in 4 days"}
-                        </div>
+                  <div className="agent-skeleton" style={{ height: 11, width: 64, borderRadius: 4 }} />
+                </div>
+                <div className="agent-acc open">
+                  <div className="agent-acc-in">
+                    <div className="agent-acc-body">
+                      <div className="space-y-2">
+                        {[200, 240].map((w, i) => (
+                          <div key={i} className="glass-card overflow-hidden">
+                            <div className="px-5 py-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+                              <div>
+                                <div className="agent-skeleton" style={{ height: 13, width: w, borderRadius: 6, marginBottom: 5 }} />
+                                <div className="agent-skeleton" style={{ height: 11, width: 110, borderRadius: 6 }} />
+                              </div>
+                              <div className="agent-skeleton" style={{ height: 22, width: 52, borderRadius: 99 }} />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+              {/* Ghost group 2 — this-week shape (collapsed) */}
+              <div className="agent-glass" style={{ overflow: "hidden" }}>
+                <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                    <div className="agent-skeleton" style={{ width: 10, height: 10, borderRadius: "50%" }} />
+                    <div className="agent-skeleton" style={{ height: 11, width: 140, borderRadius: 4 }} />
+                  </div>
+                  <div className="agent-skeleton" style={{ height: 11, width: 56, borderRadius: 4 }} />
+                </div>
+              </div>
             </div>
           </>
         )}
 
         {/* Pipeline summary — numbers prominent, descriptors muted */}
+        {/* OLD: color: "rgba(15,23,42,0.40)" */}
         {files.length > 0 && (
-          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.40)", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--agent-text-muted)", margin: 0 }}>
             <span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{files.length}</span>
             {" "}{files.length !== 1 ? "files" : "file"}
             {filesWithFee > 0 && (

@@ -3,57 +3,60 @@ import { PageHeader } from "@/components/layout/PageHeader";
 export default function CompletionsLoading() {
   return (
     <>
-      <PageHeader title="Completions" subtitle="Files that have exchanged and are heading to completion.">
+      {/* OLD subtitle: "Files that have exchanged and are heading to completion." */}
+      <PageHeader title="Completions" subtitle="Exchanged files, tracking to completion.">
         <div className="agent-skeleton" style={{ height: 22, width: 68, borderRadius: 99 }} />
         <div className="agent-skeleton" style={{ height: 22, width: 82, borderRadius: 99 }} />
         <div className="agent-skeleton" style={{ height: 22, width: 74, borderRadius: 99 }} />
       </PageHeader>
 
+      {/* OLD: group headers were pill-shaped inline-flex containers with hardcoded hex dot colours.
+              File rows were flat bordered divs with rgba(255,255,255,0.55) background.
+              Now: agent-glass + agent-acc-hdr structure matching real group shape. */}
       <div className="px-4 md:px-8 py-2 md:py-4" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
         {/* Pipeline summary line */}
         <div className="agent-skeleton" style={{ height: 13, width: 240, borderRadius: 6 }} />
 
-        {/* Group skeletons */}
+        {/* Group skeletons — agent-glass + agent-acc-hdr, mirrors real group structure */}
         {[
-          { color: "#dc2626", label: 90 },
-          { color: "#d97706", label: 130 },
-          { color: "#3b82f6", label: 150 },
-        ].map(({ color, label }, gi) => (
-          <div key={gi}>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              padding: "6px 14px", borderRadius: 99,
-              background: "rgba(0,0,0,0.04)",
-              marginBottom: 8,
-            }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, opacity: 0.4 }} />
-              <div className="agent-skeleton" style={{ height: 12, width: label, borderRadius: 6 }} />
-              <div className="agent-skeleton" style={{ height: 18, width: 24, borderRadius: 99 }} />
+          { labelW: 80,  valueW: 64,  open: true  },
+          { labelW: 140, valueW: 80,  open: false },
+          { labelW: 110, valueW: 56,  open: false },
+        ].map(({ labelW, valueW, open }, i) => (
+          <div key={i} className="agent-glass" style={{ overflow: "hidden" }}>
+            <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <div className="agent-skeleton" style={{ width: 10, height: 10, borderRadius: "50%" }} />
+                <div className="agent-skeleton" style={{ height: 11, width: labelW, borderRadius: 4 }} />
+              </div>
+              <div className="agent-skeleton" style={{ height: 11, width: valueW, borderRadius: 4 }} />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {[0, 1].map((ri) => (
-                <div key={ri} style={{
-                  padding: "12px 16px",
-                  borderTop: ri > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                  border: "0.5px solid var(--agent-border-subtle)",
-                  borderRadius: ri === 0 ? "8px 8px 0 0" : "0 0 8px 8px",
-                  borderBottom: ri === 1 ? "0.5px solid var(--agent-border-subtle)" : "none",
-                  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                  background: "rgba(255,255,255,0.55)",
-                }}>
-                  <div>
-                    <div className="agent-skeleton" style={{ height: 13, width: 200, borderRadius: 6, marginBottom: 5 }} />
-                    <div className="agent-skeleton" style={{ height: 11, width: 130, borderRadius: 6 }} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                    <div className="agent-skeleton" style={{ height: 11, width: 60, borderRadius: 6 }} />
-                    <div className="agent-skeleton" style={{ height: 22, width: 52, borderRadius: 99 }} />
+            {open && (
+              <div className="agent-acc open">
+                <div className="agent-acc-in">
+                  <div className="agent-acc-body">
+                    <div className="space-y-2">
+                      {[200, 240].map((addrW, ri) => (
+                        <div key={ri} className="glass-card overflow-hidden">
+                          <div className="px-5 py-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+                            <div>
+                              <div className="agent-skeleton" style={{ height: 13, width: addrW, borderRadius: 6, marginBottom: 5 }} />
+                              <div className="agent-skeleton" style={{ height: 11, width: 130, borderRadius: 6 }} />
+                            </div>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                              <div className="agent-skeleton" style={{ height: 11, width: 60, borderRadius: 6 }} />
+                              <div className="agent-skeleton" style={{ height: 22, width: 52, borderRadius: 99 }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         ))}
 
