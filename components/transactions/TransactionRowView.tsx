@@ -86,9 +86,9 @@ function relTime(date: Date): string {
 }
 
 const ACTIVITY_TONE: Record<ActivityState, { bg: string; fg: string; dot: string }> = {
-  moving:  { bg: "rgba(16,185,129,0.10)", fg: "#059669", dot: "#10b981" },
-  stalled: { bg: "rgba(245,158,11,0.12)", fg: "#b45309", dot: "#f59e0b" },
-  stale:   { bg: "rgba(239,68,68,0.10)",  fg: "#dc2626", dot: "#ef4444" },
+  moving:  { bg: "rgba(var(--agent-success-rgb), 0.10)", fg: "var(--agent-success)",  dot: "var(--agent-success)"  },
+  stalled: { bg: "rgba(var(--agent-warning-rgb), 0.12)", fg: "var(--agent-warning)",  dot: "var(--agent-warning)"  },
+  stale:   { bg: "rgba(var(--agent-danger-rgb),  0.10)", fg: "var(--agent-danger)",   dot: "var(--agent-danger)"   },
 };
 
 /* ActivityVerbChip — Variant B headline cell. Verb + relative time + colour
@@ -198,7 +198,7 @@ function VendorBuyerLine({ contacts }: { contacts?: { name: string; roleType: st
   const vendor = contacts?.find((c) => c.roleType === "vendor");
   const buyer  = contacts?.find((c) => c.roleType === "purchaser");
   if (!vendor && !buyer) {
-    return <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(180,87,9,0.40)" }}>Names not set</p>;
+    return <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(var(--agent-warning-rgb), 0.40)" }}>Names not set</p>;
   }
   return (
     <p className="text-xs text-slate-900/40 mt-0.5 truncate">
@@ -212,29 +212,22 @@ function VendorBuyerLine({ contacts }: { contacts?: { name: string; roleType: st
 
 export function TransactionRowView({
   tx,
-  showOwner = false,
   basePath = "/agent/transactions",
   isLast = false,
 }: {
   tx: TransactionRow;
-  showOwner?: boolean;
   basePath?: string;
   isLast?: boolean;
 }) {
-  // Variant B column order (2026-05-13): Property | Assigned-to | [Owner] |
-  // Last activity (verb chip) | Exchange target | Status | Risk
-  // gridCols widths chosen so the verb chip cell can fit a reasonable
-  // "<verb> · Nd ago" string without truncation in the common case.
-  const gridCols = showOwner
-    ? "4px minmax(0,1fr) 160px 130px 220px 160px 110px 120px"
-    : "4px minmax(0,1fr) 160px 220px 160px 110px 120px";
+  // Column order: Property | Last activity | Exchange target | Status | Assigned-to | Risk
+  const gridCols = "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
 
   const { line, location } = splitAddress(tx.propertyAddress);
   const initials = tx.assignedUser?.name
     .split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   const health = tx.health ?? null;
 
-  const riskStripe = tx.health
+  const riskStripeColor = tx.health
     ? (() => {
         const r = calculateRiskScore({
           onTrack: tx.health.onTrack ?? "unknown",
@@ -245,9 +238,9 @@ export function TransactionRowView({
             : null,
           daysStuckOnMilestone: tx.health.daysStuckOnMilestone,
         });
-        return r.level === "high" ? "bg-red-500" : r.level === "medium" ? "bg-amber-400" : "bg-emerald-500";
+        return r.level === "high" ? "var(--agent-danger)" : r.level === "medium" ? "var(--agent-warning)" : "var(--agent-success)";
       })()
-    : "bg-emerald-500";
+    : "var(--agent-success)";
 
   const serviceTag = tx.serviceType ? (
     <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
@@ -274,7 +267,7 @@ export function TransactionRowView({
         className="flex md:hidden agent-hover-row"
         style={{ textDecoration: "none", borderBottom: divider }}
       >
-        <div className={`w-1 self-stretch flex-shrink-0 ${riskStripe}`} />
+        <div style={{ width: 4, alignSelf: "stretch", flexShrink: 0, background: riskStripeColor }} />
         <div className="flex-1 px-4 py-4 min-w-0 space-y-2">
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
@@ -309,28 +302,21 @@ export function TransactionRowView({
             </p>
             {serviceTag && <div className="mt-1">{serviceTag}</div>}
           </div>
-          {showOwner && tx.agentUser && (
-            <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-secondary)" }}>
-              Owner: {tx.agentUser.name}
-              {tx.agentUser.role && ` · ${ROLE_LABEL[tx.agentUser.role] ?? tx.agentUser.role}`}
-            </p>
-          )}
         </div>
       </Link>
 
       {/* ── Desktop row (hidden below md) ─────────────────────────
-       * Column order (Variant B, 2026-05-13):
-       *   [stripe] Property | Assigned-to | [Owner] | Last activity (verb chip) |
-       *   Exchange target | Status | Risk
-       * Row link = entire row navigates (legacy behaviour). Activity chip's
-       * popover is pointer-events:none so it does not intercept the row link.
+       * Column order: [stripe] Property | Last activity | Exchange target |
+       *   Status | Assigned-to | Risk
+       * Row link = entire row navigates. Activity chip's popover is
+       * pointer-events:none so it does not intercept the row link.
        */}
       <Link
         href={`${basePath}/${tx.id}`}
         className="hidden md:grid items-center agent-hover-row group"
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
-        <div className={`self-stretch ${riskStripe}`} />
+        <div style={{ alignSelf: "stretch", background: riskStripeColor }} />
 
         {/* Property */}
         <div className="px-4 py-3.5 min-w-0">
@@ -344,6 +330,25 @@ export function TransactionRowView({
               → {health.nextActionLabel}
             </p>
           )}
+        </div>
+
+        {/* Last activity — verb chip */}
+        <div className="px-4 py-3.5">
+          <ActivityVerbChip tx={tx} />
+        </div>
+
+        {/* Exchange target */}
+        <div className="px-4 py-3.5">
+          <ExchangeTargetCell
+            transactionId={tx.id}
+            expectedExchangeDate={tx.expectedExchangeDate}
+            createdAt={tx.createdAt}
+          />
+        </div>
+
+        {/* Status */}
+        <div className="px-4 py-3.5">
+          <StatusBadge status={tx.status} />
         </div>
 
         {/* Assigned-to */}
@@ -363,43 +368,6 @@ export function TransactionRowView({
             <span style={{ fontSize: 13, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Unassigned</span>
           )}
           {serviceTag && <div className="mt-1">{serviceTag}</div>}
-        </div>
-
-        {/* Owner — director only */}
-        {showOwner && (
-          <div className="px-4 py-3.5">
-            {tx.agentUser ? (
-              <>
-                <span style={{ display: "block", fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
-                {tx.agentUser.role && (
-                  <span style={{ display: "block", marginTop: 2, fontSize: 10, color: "var(--agent-text-muted)" }}>
-                    {ROLE_LABEL[tx.agentUser.role] ?? tx.agentUser.role}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>
-            )}
-          </div>
-        )}
-
-        {/* Last activity — verb chip (Variant B headline) */}
-        <div className="px-4 py-3.5">
-          <ActivityVerbChip tx={tx} />
-        </div>
-
-        {/* Exchange target */}
-        <div className="px-4 py-3.5">
-          <ExchangeTargetCell
-            transactionId={tx.id}
-            expectedExchangeDate={tx.expectedExchangeDate}
-            createdAt={tx.createdAt}
-          />
-        </div>
-
-        {/* Status */}
-        <div className="px-4 py-3.5">
-          <StatusBadge status={tx.status} />
         </div>
 
         {/* Risk */}

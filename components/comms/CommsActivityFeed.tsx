@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown, CaretUp } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -69,10 +69,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
               <span className="agent-acc-title">{label}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="agent-acc-summary">{countLabel}</span>
-                {open
-                  ? <CaretUp style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                  : <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-                }
+                <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
               </div>
             </div>
 
@@ -87,24 +84,25 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                       >
                         <p className="text-xs font-semibold text-slate-900/70 truncate">{tx.transactionAddress}</p>
                       </Link>
-                      <div className="divide-y divide-white/15">
-                        {tx.milestones.map((m) => (
-                          <div key={m.id} className="flex items-start gap-3 px-4 py-3">
-                            <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${m.confirmedByPortal ? "bg-violet-100" : "bg-emerald-100"}`}>
-                              <svg className={`w-3 h-3 ${m.confirmedByPortal ? "text-violet-600" : "text-emerald-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <div>
+                        {tx.milestones.map((m, mi) => (
+                          <div key={m.id} className="flex items-start gap-3 px-4 py-3" style={{ borderTop: mi > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
+                            <div className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: m.confirmedByPortal ? "rgba(var(--agent-info-rgb), 0.12)" : "rgba(var(--agent-success-rgb), 0.12)" }}>
+                              <svg className="w-3 h-3" style={{ color: m.confirmedByPortal ? "var(--agent-info)" : "var(--agent-success)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                               </svg>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-medium text-slate-900/80">{m.milestoneName}</span>
-                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                                  m.side === "vendor" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-700"
-                                }`}>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{
+                                  background: m.side === "vendor" ? "rgba(var(--agent-warning-rgb), 0.08)" : "rgba(var(--agent-success-rgb), 0.08)",
+                                  color: m.side === "vendor" ? "var(--agent-warning)" : "var(--agent-success)",
+                                }}>
                                   {m.side === "vendor" ? "Vendor" : "Purchaser"}
                                 </span>
                                 {m.confirmedByPortal && (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-200">
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(var(--agent-info-rgb), 0.08)", color: "var(--agent-info)", border: "0.5px solid rgba(var(--agent-info-rgb), 0.2)" }}>
                                     Client confirmed
                                   </span>
                                 )}

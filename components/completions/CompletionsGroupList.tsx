@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown, CaretUp } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import {
   CompletionFileRowView,
   GROUP_STYLES,
@@ -55,7 +55,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
             >
               {/* Left: dot + urgency label */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                <div style={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0, background: s.dotColor }} />
                 <span className={`text-xs font-bold uppercase tracking-[0.07em] truncate ${s.label}`}>
                   {label} ({files.length})
                 </span>
@@ -69,10 +69,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                   /* OLD: <p className="text-xs text-slate-900/40 font-medium tabular-nums">{fmt(groupValue / 100)}</p> */
                   <span className="agent-acc-summary">{fmt(groupValue / 100)}</span>
                 ) : null}
-                {isOpen
-                  ? <CaretUp className="w-3.5 h-3.5 flex-shrink-0 text-slate-900/40" />
-                  : <CaretDown className="w-3.5 h-3.5 flex-shrink-0 text-slate-900/40" />
-                }
+                <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
               </div>
             </div>
 
@@ -92,7 +89,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                       <Link
                         key={f.id}
                         href={`/agent/transactions/${f.id}`}
-                        className={`glass-card block px-5 py-4 border ${s.border} hover:shadow-md transition-shadow`}
+                        className={`glass-card agent-hover-row block px-5 py-4 border ${s.border}`}
                         style={{ textDecoration: "none" }}
                       >
                         <CompletionFileRowView file={f} groupKey={key} />

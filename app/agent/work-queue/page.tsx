@@ -87,7 +87,7 @@ export default async function WorkQueuePage() {
             {/* Ghost reminder groups preview — skeleton lines, not mock data.
              * Keeps group headers + row count to convey the structure agents will see;
              * replaces hardcoded addresses/reminders/tags with .agent-skeleton shapes. */}
-            <div style={{ opacity: 0.5, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
+            <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
               {[
                 { groupLabel: "Overdue",   rows: 2 },
                 { groupLabel: "Due today", rows: 1 },

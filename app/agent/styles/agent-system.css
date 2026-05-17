@@ -1201,6 +1201,13 @@
   .agent-hover-row { transition: background-color 150ms ease; }
   .agent-hover-row:hover { background-color: var(--agent-hover-tint); }
 
+  /* Note item surface — replaces onMouseEnter/onMouseLeave in TransactionNotes.tsx */
+  .agent-note-item { background: var(--agent-surface-glass); transition: background 150ms; }
+  .agent-note-item:hover { background: var(--agent-glass-bg-hover); }
+
+  /* Circle toggle button focus ring — task completion circles in AgentTodoList */
+  .agent-circle-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
+
   /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */
   .agent-hover-row-warning { transition: background-color 150ms ease; }
   .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }

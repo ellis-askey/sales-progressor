@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretDown, CaretUp } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 
 type Props = {
   title: string;
@@ -27,10 +27,12 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, childre
           </span>
           {badge}
         </div>
-        {expanded
-          ? <CaretUp size={14} weight="bold" color="var(--nv2-text-ghost)" />
-          : <CaretDown size={14} weight="bold" color="var(--nv2-text-ghost)" />
-        }
+        <CaretDown
+          size={14}
+          weight="bold"
+          color="var(--nv2-text-ghost)"
+          style={{ transition: "transform 200ms", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
       </button>
 
       <div className={`agent-acc${expanded ? " open" : ""}`}>

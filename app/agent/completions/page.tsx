@@ -113,7 +113,7 @@ export default async function AgentCompletionsPage() {
         {/* Empty state */}
         {files.length === 0 && (
           <>
-            <div className="glass-card px-6 py-12" style={{ textAlign: "center" }}>
+            <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ClockCountdown
                 size={32}
                 weight="regular"

@@ -144,7 +144,7 @@ export default async function HubPreviewPage() {
           </div>
 
           {/* Ghost pipeline health + momentum */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.3, pointerEvents: "none" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
               <p className="agent-eyebrow" style={{ marginBottom: 20 }}>Pipeline health</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
@@ -171,7 +171,7 @@ export default async function HubPreviewPage() {
           {/* Ghost attention */}
           <div
             className="agent-glass-strong"
-            style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", opacity: 0.3, pointerEvents: "none" }}
+            style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", opacity: 0.35, pointerEvents: "none" }}
           >
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -201,7 +201,7 @@ export default async function HubPreviewPage() {
           </div>
 
           {/* Ghost exchange forecast + service split */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, opacity: 0.3, pointerEvents: "none" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
             <div className="agent-glass" style={{ padding: "20px 24px" }}>
               <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Exchange forecast</p>
               <div style={{ display: "flex", gap: 3, alignItems: "flex-end", marginBottom: 10 }}>

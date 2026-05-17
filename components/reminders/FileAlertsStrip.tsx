@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Warning } from "@phosphor-icons/react";
+import { CaretDown, Warning } from "@phosphor-icons/react";
 import { ALERT_CONFIG } from "@/lib/services/work-queue";
 import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue";
 
@@ -66,9 +66,10 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
         <button
           onClick={() => setCollapsed((p) => !p)}
           className="agent-link agent-link-muted"
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
         >
           {collapsed ? "Show" : "Hide"}
+          <CaretDown size={10} style={{ transition: "transform 200ms", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
         </button>
       </div>
 

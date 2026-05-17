@@ -31,11 +31,11 @@ function computeDays(iso: string | null): { label: string; color: string } {
 }
 
 export const GROUP_STYLES = {
-  overdue:   { dot: "bg-red-500",   label: "text-red-600",      border: "border-red-200/40"   },
-  this_week: { dot: "bg-amber-500", label: "text-amber-600",    border: "border-amber-200/40" },
-  next_week: { dot: "bg-blue-500",  label: "text-blue-600",     border: "border-blue-200/40"  },
-  later:     { dot: "bg-slate-400", label: "text-slate-900/60", border: "border-white/20"      },
-  no_date:   { dot: "bg-slate-300", label: "text-slate-900/40", border: "border-white/15"      },
+  overdue:   { dotColor: "var(--agent-danger)",  label: "text-red-600",      border: "border-red-200/40"   },
+  this_week: { dotColor: "var(--agent-warning)", label: "text-amber-600",    border: "border-amber-200/40" },
+  next_week: { dotColor: "var(--agent-info)",    label: "text-blue-600",     border: "border-blue-200/40"  },
+  later:     { dotColor: "#94a3b8",              label: "text-slate-900/60", border: "border-white/20"      },
+  no_date:   { dotColor: "#cbd5e1",              label: "text-slate-900/40", border: "border-white/15"      },
 } as const;
 
 const SET_DATE_STYLE = {

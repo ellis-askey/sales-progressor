@@ -73,16 +73,16 @@ export default async function AgentCommsPage({
       {/* OLD subtitle: "Milestone activity across all your files." */}
       <PageHeader title="Updates" subtitle="What's happened across your files.">
         {/* OLD filter strip: <Link> with inline rgba(0,0,0,0.05) container, rgba(255,255,255,0.9) active pill, rgba(0,0,0,0.08) shadow */}
-        <div className="comms-filter-bar">
+        <div style={{ display: "flex", gap: 4 }}>
           <Link
             href={filterBase}
-            className={`comms-filter-pill${!portalOnly ? " on" : ""}`}
+            className={`agent-segment-pill agent-segment-pill-sm${!portalOnly ? " on" : ""}`}
           >
             All milestones
           </Link>
           <Link
             href={`${filterBase}?filter=portal`}
-            className={`comms-filter-pill${portalOnly ? " on" : ""}`}
+            className={`agent-segment-pill agent-segment-pill-sm${portalOnly ? " on" : ""}`}
           >
             Client confirmations
           </Link>
@@ -93,7 +93,7 @@ export default async function AgentCommsPage({
 
         {milestones.length === 0 && (
           <>
-            <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                 {/* OLD: portalOnly ? "No client confirmations yet" : "No milestone activity yet" */}
@@ -111,7 +111,7 @@ export default async function AgentCommsPage({
 
             {/* Ghost day-bucket preview — abstract agent-skeleton bars, filter-neutral.
                 OLD: fake content (14 Maple Close, coral icon, hardcoded milestone names). */}
-            <div style={{ opacity: 0.4, pointerEvents: "none" }}>
+            <div style={{ opacity: 0.35, pointerEvents: "none" }}>
               <div className="agent-glass" style={{ overflow: "hidden" }}>
                 <div className="agent-acc-hdr">
                   <div className="agent-skeleton" style={{ width: 56, height: 11, borderRadius: 4 }} />
@@ -121,7 +121,7 @@ export default async function AgentCommsPage({
                   <div className="agent-acc-in">
                     <div className="agent-acc-body">
                       <div className="glass-card overflow-hidden">
-                        <div className="px-4 py-2.5 border-b border-white/20">
+                        <div className="px-4 py-2.5" style={{ borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
                           <div className="agent-skeleton" style={{ width: 156, height: 10, borderRadius: 4 }} />
                         </div>
                         {([148, 190] as const).map((w, i) => (

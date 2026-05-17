@@ -116,7 +116,7 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
     return (
       <div className="space-y-8">
         <AddManualTaskForm showOwnership onAdd={handleAdd} />
-        <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+        <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -297,8 +297,8 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
         {group.transactionId ? (
           <Link
             href={`/agent/transactions/${group.transactionId}`}
-            style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textDecoration: "none" }}
-            className="hover:underline"
+            className="agent-link"
+            style={{ fontSize: 13, fontWeight: 600 }}
           >
             {group.address ?? "Unknown address"}
           </Link>
@@ -349,7 +349,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
           onClick={toggle}
           disabled={loading}
           aria-label={isDone ? "Reopen" : "Mark as done"}
-          className="p-2 -m-2"
+          className="p-2 -m-2 agent-circle-btn"
           style={{
             width: 18, height: 18, borderRadius: "50%",
             border: isDone && !loading ? "none" : `1.5px solid ${loading ? "var(--agent-border-default)" : progressor ? "var(--agent-warning)" : "var(--agent-info-border)"}`,

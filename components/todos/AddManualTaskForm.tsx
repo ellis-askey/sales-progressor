@@ -139,7 +139,7 @@ export function AddManualTaskForm({
           </div>
         </div>
       )}
-      <div className="flex items-center gap-3 pt-1 border-t border-white/20">
+      <div className="flex items-center gap-3 pt-1" style={{ borderTop: "0.5px solid var(--agent-border-subtle)" }}>
         <div>
           <input
             type="date"

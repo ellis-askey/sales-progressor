@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Clock } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
@@ -63,10 +63,10 @@ function groupByFile(logs: AgentReminderLog[]): { txId: string; address: string;
 
 // Group border colours matching ReminderCard left-border colours
 const GROUP_LEFT_BORDER: Record<UrgencyGroup | "snoozed", string> = {
-  escalated: "#dc2626",
+  escalated: "var(--agent-danger)",
   overdue:   "#ea580c",
-  due_today: "#d97706",
-  upcoming:  "rgba(148,163,184,0.35)",
+  due_today: "var(--agent-warning)",
+  upcoming:  "var(--agent-border-subtle)",
   snoozed:   "rgba(168,85,247,0.5)",
 };
 
@@ -84,15 +84,18 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const theme = usePortalTheme();
 
+  function close() { setClosing(true); setOpen(false); }
+
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    function handleScroll() { setOpen(false); }
+    function handleScroll() { close(); }
     document.addEventListener("mousedown", handle);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
@@ -105,11 +108,11 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
     <div className="relative" ref={ref}>
       <button
         onClick={() => {
-          if (!open && ref.current) {
+          if (!open && !closing && ref.current) {
             const r = ref.current.getBoundingClientRect();
             setPos({ top: r.top - 4, left: r.left });
           }
-          setOpen((p) => !p);
+          if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         disabled={disabled}
         className="agent-btn agent-btn-sm agent-btn-ghost"
@@ -117,10 +120,11 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
       >
         <Clock size={12} weight="regular" /> Snooze all
       </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
           data-theme={theme}
-          className="agent-dropdown-in"
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, left: pos.left,
             transform: "translateY(-100%)",
@@ -135,7 +139,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
               key={opt.hours}
               onClick={() => {
                 onSnoozeAll(logIds, taskIds, opt.hours);
-                setOpen(false);
+                close();
               }}
               className="agent-dropdown-item"
             >
@@ -154,15 +158,18 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
   onSnooze: (taskId: string, hours: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const theme = usePortalTheme();
 
+  function close() { setClosing(true); setOpen(false); }
+
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
-    function handleScroll() { setOpen(false); }
+    function handleScroll() { close(); }
     document.addEventListener("mousedown", handle);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
@@ -175,11 +182,11 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
     <div className="relative" ref={ref}>
       <button
         onClick={() => {
-          if (!open && ref.current) {
+          if (!open && !closing && ref.current) {
             const r = ref.current.getBoundingClientRect();
             setPos({ top: r.top - 4, right: window.innerWidth - r.right });
           }
-          setOpen((p) => !p);
+          if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         title="Snooze"
         className="agent-btn agent-btn-sm agent-btn-secondary"
@@ -187,10 +194,11 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
       >
         <Clock size={12} weight="regular" />
       </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         <div
           data-theme={theme}
-          className="agent-dropdown-in"
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, right: pos.right,
             transform: "translateY(-100%)",
@@ -205,7 +213,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
               key={opt.hours}
               onClick={() => {
                 onSnooze(taskId, opt.hours);
-                setOpen(false);
+                close();
               }}
               className="agent-dropdown-item"
             >
@@ -247,9 +255,9 @@ function SideColumn({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isSeller = side === "seller";
-  const dotColor = isSeller ? "#ea580c" : "#3b82f6";
-  const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
-  const labelColor = isSeller ? "#ea580c" : "#3b82f6";
+  const dotColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
+  const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
+  const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
 
   const openTasks = logs.flatMap((log) => {
     const task = log.chaseTasks.find((t) => t.status === "pending");
@@ -278,14 +286,14 @@ function SideColumn({
       style={{
         flex: 1, minWidth: 0, borderRadius: 14,
         background: columnBg,
-        border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`,
+        border: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.14)" : "rgba(var(--agent-info-rgb), 0.14)"}`,
         display: "flex", flexDirection: "column",
       }}
     >
       {/* Column header */}
       <div style={{
         padding: "8px 12px",
-        borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`,
+        borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
         display: "flex", alignItems: "center", gap: 6,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
@@ -293,7 +301,7 @@ function SideColumn({
           {isSeller ? "Seller" : "Buyer"}
         </span>
         {/* OLD: "{N} item / items" — Rule 3: "item" is generic; "reminder" matches the page's primary noun */}
-        <span style={{ fontSize: 10, color: "rgba(15,23,42,0.35)", marginLeft: "auto" }}>
+        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>
           {logs.length} {logs.length === 1 ? "reminder" : "reminders"}
         </span>
       </div>
@@ -307,10 +315,10 @@ function SideColumn({
           const isOverdue = dueDate < today;
           const isDueToday = dueDate.getTime() === today.getTime();
           const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
-          const urgencyColor = task.priority === "escalated" ? "#dc2626"
+          const urgencyColor = task.priority === "escalated" ? "var(--agent-danger)"
             : isOverdue ? "#ea580c"
-            : isDueToday ? "#d97706"
-            : "rgba(15,23,42,0.35)";
+            : isDueToday ? "var(--agent-warning)"
+            : "var(--agent-text-muted)";
           const urgencyLabel = task.priority === "escalated" ? "Escalated"
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
@@ -323,7 +331,7 @@ function SideColumn({
               className={isExiting ? "agent-row-exit" : (loading === task.id ? "agent-row-flash" : undefined)}
               style={{
                 padding: "7px 12px",
-                borderTop: i > 0 ? `0.5px solid rgba(15,23,42,0.06)` : undefined,
+                borderTop: i > 0 ? `0.5px solid var(--agent-border-subtle)` : undefined,
                 display: "flex", alignItems: "center", gap: 8,
               }}
             >
@@ -357,7 +365,7 @@ function SideColumn({
       {openTasks.length > 0 && (
         <div style={{
           padding: "8px 12px",
-          borderTop: `0.5px solid rgba(15,23,42,0.06)`,
+          borderTop: `0.5px solid var(--agent-border-subtle)`,
           display: "flex", gap: 6, alignItems: "center",
         }}>
           <button
@@ -399,22 +407,22 @@ function SideColumn({
 
 function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
   const isSeller = side === "seller";
-  const dotColor = isSeller ? "#ea580c" : "#3b82f6";
-  const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
-  const labelColor = isSeller ? "#ea580c" : "#3b82f6";
+  const dotColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
+  const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
+  const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
 
   return (
     <div
       style={{
         flex: 1, minWidth: 0, borderRadius: 14,
         background: columnBg,
-        border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`,
+        border: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.14)" : "rgba(var(--agent-info-rgb), 0.14)"}`,
         display: "flex", flexDirection: "column",
       }}
     >
       <div style={{
         padding: "8px 12px",
-        borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`,
+        borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
         display: "flex", alignItems: "center", gap: 6,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
@@ -423,7 +431,7 @@ function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
         </span>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
-        <span style={{ fontSize: 11, color: "rgba(15,23,42,0.28)", fontStyle: "italic" }}>
+        <span style={{ fontSize: 11, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>
           {isSeller ? "Seller" : "Buyer"} is all up to date
         </span>
       </div>
@@ -751,9 +759,10 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
               <button
                 onClick={() => toggleCollapse(groupKey)}
                 className="agent-link agent-link-muted"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
               >
                 {isCollapsed ? "Show" : "Hide"}
+                <CaretDown size={10} style={{ transition: "transform 200ms", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
               </button>
             </div>
             {/* agent-acc / agent-acc-in: mounted always, animated height transition */}
