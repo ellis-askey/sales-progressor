@@ -531,7 +531,7 @@ test.describe.serial("Stage 2 gate — completions", () => {
   // ──────────────────────────────────────────────────────────────────────────
   // CG4 — "Set date →" badge renders in no_date group (completions-specific)
   // ──────────────────────────────────────────────────────────────────────────
-  test("CG4: 'Set date →' badge appears in no_date group file cards when expanded", async () => {
+  test("CG4: 'Set date' badge appears in no_date group file cards when expanded", async () => {
     await page.goto(PAGE_URL);
     await page.waitForSelector(".agent-acc-hdr", { timeout: 15000 });
 
@@ -540,9 +540,9 @@ test.describe.serial("Stage 2 gate — completions", () => {
     await noDateGlass.locator(".agent-acc-hdr").click();
     await page.waitForTimeout(250);
 
-    // "Set date →" badge must be visible
-    const setDateBadge = noDateGlass.locator("text=Set date →").first();
-    await expect(setDateBadge, "'Set date →' badge must be visible in no_date group when expanded").toBeVisible();
+    // "Set date" badge must be visible (arrow dropped at Stage 3 voice pass)
+    const setDateBadge = noDateGlass.locator("text=Set date").first();
+    await expect(setDateBadge, "'Set date' badge must be visible in no_date group when expanded").toBeVisible();
 
     await ss(page, "CG4-set-date-badge");
 
