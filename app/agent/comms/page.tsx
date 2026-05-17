@@ -70,73 +70,76 @@ export default async function AgentCommsPage({
 
   return (
     <>
-      <PageHeader title="Updates" subtitle="Milestone activity across all your files.">
-        <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.05)", borderRadius: 10, padding: 3 }}>
+      {/* OLD subtitle: "Milestone activity across all your files." */}
+      <PageHeader title="Updates" subtitle="What's happened across your files.">
+        {/* OLD filter strip: <Link> with inline rgba(0,0,0,0.05) container, rgba(255,255,255,0.9) active pill, rgba(0,0,0,0.08) shadow */}
+        <div className="comms-filter-bar">
           <Link
             href={filterBase}
-            style={{
-              fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 7,
-              textDecoration: "none", transition: "background 150ms",
-              background: !portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
-              color: !portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
-              boxShadow: !portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-            }}
+            className={`comms-filter-pill${!portalOnly ? " on" : ""}`}
           >
             All milestones
           </Link>
           <Link
             href={`${filterBase}?filter=portal`}
-            style={{
-              fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 7,
-              textDecoration: "none", transition: "background 150ms",
-              background: portalOnly ? "rgba(255,255,255,0.9)" : "transparent",
-              color: portalOnly ? "var(--agent-text-primary)" : "var(--agent-text-secondary)",
-              boxShadow: portalOnly ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-            }}
+            className={`comms-filter-pill${portalOnly ? " on" : ""}`}
           >
             Client confirmations
           </Link>
         </div>
       </PageHeader>
 
-      <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">
+      <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
         {milestones.length === 0 && (
           <>
             <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                {portalOnly ? "No client confirmations yet" : "No milestone activity yet"}
+                {/* OLD: portalOnly ? "No client confirmations yet" : "No milestone activity yet" */}
+                {portalOnly ? "No client confirmations yet" : "No completed steps yet"}
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                {portalOnly
+                {/* OLD: portalOnly
                   ? "Client confirmations will appear here when clients confirm their milestones via the portal."
-                  : "Completed milestones across your files will appear here."}
+                  : "Completed milestones across your files will appear here." */}
+                {portalOnly
+                  ? "When clients confirm steps themselves, they'll appear here."
+                  : "Confirmed steps appear here as they happen."}
               </p>
             </div>
 
-            {/* Ghost day-bucket preview */}
-            <div style={{ opacity: 0.3, pointerEvents: "none" }}>
-              <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Today</p>
-              <div className="agent-glass-strong" style={{ borderRadius: 16, overflow: "hidden" }}>
-                <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>14 Maple Close, Birmingham</p>
+            {/* Ghost day-bucket preview — abstract agent-skeleton bars, filter-neutral.
+                OLD: fake content (14 Maple Close, coral icon, hardcoded milestone names). */}
+            <div style={{ opacity: 0.4, pointerEvents: "none" }}>
+              <div className="agent-glass" style={{ overflow: "hidden" }}>
+                <div className="agent-acc-hdr">
+                  <div className="agent-skeleton" style={{ width: 56, height: 11, borderRadius: 4 }} />
+                  <div className="agent-skeleton" style={{ width: 68, height: 11, borderRadius: 4 }} />
                 </div>
-                {[
-                  { text: "Mortgage offer received", time: "9:41 am" },
-                  { text: "Search results obtained", time: "8:15 am" },
-                ].map(({ text, time }, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
-                    borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                  }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb), 0.12)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="var(--agent-coral)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <div className="agent-acc open">
+                  <div className="agent-acc-in">
+                    <div className="agent-acc-body">
+                      <div className="glass-card overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-white/20">
+                          <div className="agent-skeleton" style={{ width: 156, height: 10, borderRadius: 4 }} />
+                        </div>
+                        {([148, 190] as const).map((w, i) => (
+                          <div key={i} className="flex items-start gap-3 px-4 py-3" style={{
+                            borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
+                          }}>
+                            <div className="agent-skeleton mt-0.5 w-5 h-5 flex-shrink-0" style={{ borderRadius: "50%" }} />
+                            <div className="flex-1 space-y-2">
+                              <div className="agent-skeleton h-3" style={{ maxWidth: w, borderRadius: 4 }} />
+                              <div className="agent-skeleton h-2.5" style={{ maxWidth: 52, borderRadius: 4 }} />
+                            </div>
+                            <div className="agent-skeleton h-2.5 w-8 flex-shrink-0" style={{ borderRadius: 4 }} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <p style={{ flex: 1, margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{text}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>{time}</p>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           </>

@@ -146,3 +146,9 @@ Prisma will throw a typed `P2025 Record not found` error rather than a raw FK vi
 Several components in `components/transactions-v2/` use `box-shadow` values with dark rgba (`rgba(15,23,42,...)`) hardcoded. On a dark background these appear as dark-on-dark and render invisible. Examples: `HeroCard` box shadow, `DraftPanel` box shadow.
 
 **Deferred reason:** Box shadows on glassmorphic surfaces are a visual-polish concern only. Dark-on-dark shadows are simply invisible (not wrong), so the UI is usable. The correct fix is a Category E token (`--nv2-shadow-*`) that inverts to a glowing-outward shadow in night mode. Deferred until the new-v2 form ships and night-mode fidelity becomes a priority.
+
+### Polish — "Updates" → "Activity" page rename (comms page, deferred 2026-05-17)
+
+The `/agent/comms` page is titled "Updates" (matching the AgentShell sidebar nav label at `AgentShell.tsx:44`). "Activity" is more precise — the feed shows completed steps only, not general updates. Rename deferred because it requires a simultaneous change to the sidebar nav label; touching AgentShell is outside the comms polish pass scope.
+
+**Fix when addressed:** Change `PageHeader title` in `app/agent/comms/page.tsx` from `"Updates"` to `"Activity"`, and update `{ href: "/agent/comms", label: "Updates" }` → `label: "Activity"` in `components/layout/AgentShell.tsx`. Two-line change.

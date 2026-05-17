@@ -558,3 +558,17 @@ Implemented in [app/agent/polish/comms/page.tsx](app/agent/polish/comms/page.tsx
 **A3 — 2026-05-17 (Stage 2) — agent-acc deferred to Stage 4**
 
 Day bucket expand/collapse animation (`agent-acc`) deferred to Stage 4. `CommsActivityFeed` imported as real component in the test page — the component's internal hard conditional render is unchanged. Stage 4 adds `agent-acc` to `components/comms/CommsActivityFeed.tsx`. Polish Gate item 8.
+
+**A4 — 2026-05-17 (Stage 3) — Actor line on milestone row: conditional render**
+
+Stage 3 voice pass decision: the actor `<p>` line on milestone rows is omitted when (a) `confirmedByPortal: true` or (b) `completedByName` is null. Replaces the previous `"Client"` and `"unknown"` fallback strings (both removed).
+
+Stage 4 structural change required: wrap the actor `<p>` in `components/comms/CommsActivityFeed.tsx` with `{!m.confirmedByPortal && m.completedByName && ...}`. The `<p>` renders only when a real agent name is available for a non-portal entry. Affects Section 7 (copy inventory) and Section 13 (milestone row spec).
+
+**A5 — 2026-05-17 (Stage 4) — A2 closed: single filter-neutral ghost**
+
+A2 left the ghost-variant question open ("Stage 2 decides: two ghost variants vs single neutral ghost"). Stage 2 resolved it as a single filter-neutral `CommsGhost` with abstract `agent-skeleton` bars — no fake content, no entry-type icon colouring. Decision made during Stage 2 build; this amendment records the closed decision retrospectively. Affects Section 13 (ghost preview spec).
+
+**A6 — 2026-05-17 (Stage 4) — Section 4 correction: loading.tsx existed**
+
+Phase 1 audit correction: Section 4 stated "No loading.tsx file in app/agent/comms/". A `loading.tsx` file does exist at `app/agent/comms/loading.tsx` but its structure diverged from the polish page's `CommsSkeleton` (used `agent-glass-strong` + free-floating label instead of `agent-glass` + `agent-acc-hdr`). Stage 4 rewrites the file rather than creates it. Outcome unchanged. Affects Section 4, Section 13.
