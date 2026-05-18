@@ -1,17 +1,33 @@
 import type { Page } from "@playwright/test"
 import { expect } from "@playwright/test"
 
-export const PASSWORD = process.env.TEST_PASSWORD ?? ""
+// ── Passwords ─────────────────────────────────────────────────────────────────
+// Most accounts share TEST_PASSWORD. Per-account overrides for accounts that
+// have their own credentials (director, superadmin, zero-file progressor).
+
+export const PASSWORDS = {
+  default:       process.env.TEST_PASSWORD ?? "",
+  director:      process.env.TEST_DIRECTOR_PASSWORD      ?? process.env.TEST_PASSWORD ?? "",
+  superadmin:    process.env.TEST_SUPERADMIN_PASSWORD    ?? process.env.TEST_PASSWORD ?? "",
+  zeroProgressor: process.env.TEST_PROGRESSOR_ZERO_PASSWORD ?? "password",
+}
+
+// ── Accounts ──────────────────────────────────────────────────────────────────
 
 export const USERS = {
-  admin: "ellisaskey@googlemail.com",
-  negotiator: "tom@whitfieldhunt.co.uk",
-  director: "rachel@whitfieldhunt.co.uk",
-  progressor: "ellis@thesalesprogressor.co.uk",
-  // Package D / WS2 additions
-  progressorWithFiles: "james@hartwellpartners.co.uk",   // Sales Progressor with assigned files
-  progressorZeroFiles: null as string | null,            // No seeded account yet — Cases 5/6 skip
+  // Internal staff (production accounts)
+  admin:               "ellisaskey@googlemail.com",
+  progressor:          "ellis@thesalesprogressor.co.uk",   // sales_progressor with assigned files
+  progressorWithFiles: "ellis@thesalesprogressor.co.uk",   // alias — same account
+  progressorZeroFiles: process.env.TEST_PROGRESSOR_ZERO_EMAIL ?? "ellis+zero@thesalesprogressor.co.uk",
+  superadmin:          process.env.TEST_SUPERADMIN_EMAIL   ?? null as string | null,
+
+  // Agent accounts (customer agencies)
+  director:   process.env.TEST_DIRECTOR_EMAIL   ?? "taylor@akeman-residential.co.uk",
+  negotiator: process.env.TEST_NEGOTIATOR_EMAIL ?? null as string | null,  // deferred
 }
+
+// ── Login helper ──────────────────────────────────────────────────────────────
 
 export async function dismissCookieBanner(page: Page) {
   const banner = page.getByRole("button", { name: "Essential only" })
@@ -20,15 +36,17 @@ export async function dismissCookieBanner(page: Page) {
   }
 }
 
-export async function login(page: Page, email: string) {
+export async function login(page: Page, email: string | null, password: string = PASSWORDS.default) {
+  if (!email) throw new Error("login called with null email — set the relevant TEST_*_EMAIL env var in .env.test")
   await page.goto("/login")
   await dismissCookieBanner(page)
   await page.fill('input[type="email"]', email)
-  await page.fill('input[type="password"]', PASSWORD)
+  await page.fill('input[type="password"]', password)
   await page.click('button[type="submit"]')
 }
 
-// Asserts a page loaded without crashing — not on login, no error boundary.
+// ── Asserts a page loaded without crashing — not on login, no error boundary ─
+
 export async function expectPageOk(page: Page, url: string) {
   await page.goto(url, { waitUntil: "commit" })
   await page.waitForLoadState("domcontentloaded")

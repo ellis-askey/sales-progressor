@@ -15,7 +15,28 @@ Requires the dev server running on `localhost:3000`:
 npm run dev
 ```
 
-Environment: copy `.env` to `.env.test.local` (or ensure `TEST_PASSWORD` is set).
+---
+
+## Credential Setup
+
+1. Copy `.env.test.example` to `.env.test` at the repo root:
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+2. Fill in the values:
+
+   ```
+   TEST_PASSWORD=<shared password for admin + progressor accounts>
+   TEST_DIRECTOR_PASSWORD=<director account password>
+   TEST_PROGRESSOR_ZERO_PASSWORD=password   # already seeded with this password
+   ```
+
+3. Optional accounts (their tests skip if the env var is empty):
+   - `TEST_SUPERADMIN_EMAIL` / `TEST_SUPERADMIN_PASSWORD` — enables WS2-6
+   - `TEST_NEGOTIATOR_EMAIL` / `TEST_NEGOTIATOR_PASSWORD` — enables negotiator variants of PD-8/9
+
+`.env.test` is gitignored. Never commit it.
 
 ---
 
@@ -24,11 +45,27 @@ Environment: copy `.env` to `.env.test.local` (or ensure `TEST_PASSWORD` is set)
 | Account | Email | Role | Cases |
 |---|---|---|---|
 | Admin (Ellis) | `ellisaskey@googlemail.com` | admin | PD-1/2, WS2-2/4/7 |
-| Sales Progressor with files | `james@hartwellpartners.co.uk` | sales_progressor | PD-3/4, WS2-1/3 |
-| Director | `rachel@whitfieldhunt.co.uk` | director | PD-8/9, WS2-5 |
-| Negotiator | `tom@whitfieldhunt.co.uk` | negotiator | PD-8/9, WS2-5 |
+| Sales Progressor with files | `ellis@thesalesprogressor.co.uk` | sales_progressor | PD-3/4, WS2-1/3 |
+| Sales Progressor zero files | `ellis+zero@thesalesprogressor.co.uk` | sales_progressor | PD-5/6 |
+| Director | `taylor@akeman-residential.co.uk` | director | PD-8/9, WS2-5 |
+| Negotiator | *(set `TEST_NEGOTIATOR_EMAIL`)* | negotiator | PD-8/9, WS2-5b |
+| Superadmin | *(set `TEST_SUPERADMIN_EMAIL`)* | superadmin | WS2-6 |
 
-All share the same password (`TEST_PASSWORD` env var, default `Hartwell2024!`).
+Admin and Sales Progressor accounts share `TEST_PASSWORD`.
+Director uses `TEST_DIRECTOR_PASSWORD` (falls back to `TEST_PASSWORD` if not set).
+Zero-file progressor uses `TEST_PROGRESSOR_ZERO_PASSWORD` (default: `password`).
+
+---
+
+## Seeding the Zero-File Progressor Account
+
+The `ellis+zero@thesalesprogressor.co.uk` account was seeded with:
+
+```bash
+npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/seed-test-accounts.ts
+```
+
+Script is idempotent — safe to re-run. If the account already exists it skips creation.
 
 ---
 
@@ -36,34 +73,32 @@ All share the same password (`TEST_PASSWORD` env var, default `Hartwell2024!`).
 
 | Case | Status | Reason |
 |---|---|---|
-| PD-5 | SKIP | No zero-files sales_progressor account seeded. Create one with no `assignedUserId` files and set `USERS.progressorZeroFiles` in `e2e/helpers.ts`. |
-| PD-6 | SKIP | Same as PD-5. |
-| PD-7 | SKIP | Requires an agency whose outsourced files are all pre-completion (none post-exchange). Set up manually and test against that admin account. |
-| WS2-6 | SKIP | No superadmin test account. Verify manually: superadmin login → should land on `/command/overview`, not `/agent/hub`. |
+| PD-7 | PERMANENT SKIP | Admin has `scope: "all"` globally — can't isolate to a zero-outsourced agency on production. Verify manually on a clean test agency. |
+| WS2-6 | SKIP if not configured | Set `TEST_SUPERADMIN_EMAIL` + `TEST_SUPERADMIN_PASSWORD` in `.env.test` to enable. Verify manually: superadmin login → should land on `/command/overview`, not `/agent/hub`. |
+| WS2-5b / PD-8/9 negotiator | SKIP if not configured | Set `TEST_NEGOTIATOR_EMAIL` + `TEST_NEGOTIATOR_PASSWORD` in `.env.test` to enable. |
+
+PD-5 and PD-6 are now enabled (zero-file progressor account seeded).
 
 ---
 
-## To enable PD-5 and PD-6
+## Screenshot Privacy
 
-1. Create a sales_progressor account in the test DB with no assigned transactions.
-2. Set their email in `e2e/helpers.ts`:
-   ```ts
-   progressorZeroFiles: "zero-progressor@example.com",
-   ```
-3. Re-run the suite — Cases 5 and 6 will no longer skip.
+**Screenshots contain real production data: customer file addresses, names, fees.**
 
----
+- `e2e/screenshots/` is gitignored — files stay local on the runner only
+- Do not share screenshots externally without redacting PII first
+- Do not upload to CI artefact stores unless specifically anonymised
 
-## Screenshot Locations
-
-All screenshots land in `e2e/screenshots/package-d-ws2/`. Created automatically on first run.
+Screenshots land in `e2e/screenshots/package-d-ws2/`. Created automatically on first run.
 
 | File | What it shows |
 |---|---|
-| `package-d-case-1-admin-dashboard.png` | Admin on /dashboard with forecast + post-exchange strips |
+| `package-d-case-1-admin-dashboard.png` | Admin on /agent/hub with forecast + post-exchange strips |
 | `package-d-case-2-admin-completing.png` | Admin on /completing with grouped files |
-| `package-d-case-3-progressor-dashboard.png` | Progressor on /dashboard (scoped to their files) |
+| `package-d-case-3-progressor-dashboard.png` | Progressor on /agent/hub (scoped to their files) |
 | `package-d-case-4-progressor-completing.png` | Progressor on /completing (scoped) |
+| `package-d-case-5-zero-progressor-hub.png` | Zero-file progressor on /agent/hub — empty state |
+| `package-d-case-6-zero-progressor-completing.png` | Zero-file progressor on /completing — empty state |
 | `package-d-case-8-{director\|negotiator}-transactions.png` | Agent transaction list |
 | `package-d-case-9-{director\|negotiator}-tab-{name}.png` | Agent transaction detail per tab |
 | `ws2-case-1-progressor-lands-agent-hub.png` | Progressor post-login URL = /agent/hub |
@@ -84,3 +119,17 @@ Cases PD-8 and PD-9 are partially covered by automation (load, tab clicks, no co
 Estimated time: 10 minutes.
 
 Automation is the gate. Human walkthrough is the final confidence check.
+
+---
+
+## No-Mutations Contract
+
+Every test in this suite is read-only. Tests log in, navigate, assert render, and screenshot — nothing else.
+
+**Tests must never:**
+- Click "Confirm" on milestones
+- Click "Mark complete" on chase tasks
+- Click "Save" on any form
+- Trigger any server action
+
+If a test fails because it needed to mutate state to verify something, the test design is wrong — not the app.
