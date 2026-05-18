@@ -410,6 +410,7 @@ export function TransactionListWithSearch({
   statusFilter,
   statusCounts,
   showStatusTabs = true,
+  showAgencyColumn = false,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
@@ -417,6 +418,7 @@ export function TransactionListWithSearch({
   statusFilter?: StatusValue;
   statusCounts?: { all: number; active: number; on_hold: number; completed: number; withdrawn: number };
   showStatusTabs?: boolean;
+  showAgencyColumn?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -682,7 +684,7 @@ export function TransactionListWithSearch({
           )}
         </div>
       ) : (
-        <TransactionTable transactions={filtered} basePath={basePath} />
+        <TransactionTable transactions={filtered} basePath={basePath} showAgencyColumn={showAgencyColumn} />
       )}
     </div>
   );

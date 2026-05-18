@@ -39,6 +39,9 @@ export type TransactionRow = {
   serviceType?: "self_managed" | "outsourced" | null;
   agentUser?: { id: string; name: string; role?: UserRole } | null;
   contacts?: { id: string; name: string; roleType: string }[];
+  // Agency name shown for internal staff (admin / sales_progressor). Optional —
+  // only present when listTransactions is called with a scope param.
+  agency?: { id: string; name: string } | null;
 };
 
 function splitAddress(address: string): { line: string; location: string } {
@@ -214,13 +217,18 @@ export function TransactionRowView({
   tx,
   basePath = "/agent/transactions",
   isLast = false,
+  showAgencyColumn = false,
 }: {
   tx: TransactionRow;
   basePath?: string;
   isLast?: boolean;
+  showAgencyColumn?: boolean;
 }) {
-  // Column order: Property | Last activity | Exchange target | Status | Assigned-to | Risk
-  const gridCols = "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
+  // Column order: [stripe] Property | Last activity | Exchange target | Status | Assigned-to | [Agency] | Risk
+  // Agency column added additively for internal staff — agent rows use the original 7-column grid.
+  const gridCols = showAgencyColumn
+    ? "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px"
+    : "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
 
   const { line, location } = splitAddress(tx.propertyAddress);
   const initials = tx.assignedUser?.name
@@ -369,6 +377,15 @@ export function TransactionRowView({
           )}
           {serviceTag && <div className="mt-1">{serviceTag}</div>}
         </div>
+
+        {/* Agency — additive column for internal staff; not rendered for agents */}
+        {showAgencyColumn && (
+          <div className="px-4 py-3.5">
+            <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+              {tx.agency?.name ?? "—"}
+            </span>
+          </div>
+        )}
 
         {/* Risk */}
         <div className="px-4 py-3.5">

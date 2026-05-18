@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { resolveAgentVisibility } from "@/lib/services/agent";
+import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
 import { getHubFilteredIds, getMonthExchangingIds, type HubFilter } from "@/lib/services/hub";
 import { TransactionListWithSearch } from "@/components/transactions/TransactionListWithSearch";
@@ -75,9 +76,17 @@ export default async function AllTransactionsPage({
   const session = await requireSession();
   const { filter, exchanging } = await searchParams;
 
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const opts = vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
-  const agentId = vis.seeAll ? undefined : session.user.id;
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const txScope = isInternalStaff ? getAccessScope(session) : null;
+
+  // Internal staff use resolveInternalVisibility (for hub-filtered ID queries).
+  // Agent callers use the original resolver unchanged.
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, session.user.role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
+
+  const opts = !isInternalStaff && vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
+  const agentId = !isInternalStaff && !vis.seeAll ? session.user.id : undefined;
   const isDirector = session.user.role === "director";
 
   // Three-way filter priority: hubFilter → monthFilter → statusFilter.
@@ -89,9 +98,9 @@ export default async function AllTransactionsPage({
     : "active";
 
   const [allTransactions, counts, forecastMonths] = await Promise.all([
-    listTransactions(session.user.agencyId, agentId, opts),
-    countTransactionsByStatus(session.user.agencyId, agentId, opts),
-    getExchangeForecast(session.user.agencyId, agentId, opts).catch(() => []),
+    listTransactions(session.user.agencyId, agentId, opts, txScope ?? undefined),
+    countTransactionsByStatus(session.user.agencyId, agentId, opts, txScope ?? undefined),
+    getExchangeForecast(session.user.agencyId, agentId, opts, txScope ?? undefined).catch(() => []),
   ]);
 
   // Fetch IDs from the same DB query as the Hub / month helper so counts match exactly
@@ -119,21 +128,29 @@ export default async function AllTransactionsPage({
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
        * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
       <PageHeader
-        title={isDirector ? "All Files" : "My Files"}
-        subtitle={isDirector ? "Every file across the agency." : "Files assigned to you."}
+        title={isDirector || session.user.role === "admin" ? "All Files" : "My Files"}
+        subtitle={
+          session.user.role === "admin"     ? "Every file across the platform." :
+          isDirector                         ? "Every file across the agency." :
+          session.user.role === "sales_progressor" ? "Files assigned to you." :
+          "Files assigned to you."
+        }
       >
-        <Link
-          href="/agent/transactions/new-v2"
-          className="agent-btn agent-btn-primary agent-btn-sm"
-          style={{ textDecoration: "none" }}
-        >
-          <Plus size={14} weight="bold" />
-          New sale
-        </Link>
-        {/* Added during /agent/dashboard merge (2026-05-12). Canonical label per
-            VOICE_GUIDELINES.md translation table — dashboard's old "Send note to
-            progressor" is dropped in favour of "Send a note to our team". */}
-        <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+        {/* "New sale" — available to agents and admin; hidden for sales_progressor */}
+        {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
+          <Link
+            href="/agent/transactions/new-v2"
+            className="agent-btn agent-btn-primary agent-btn-sm"
+            style={{ textDecoration: "none" }}
+          >
+            <Plus size={14} weight="bold" />
+            New sale
+          </Link>
+        )}
+        {/* AgentFlagButton — agent-only (internal staff don't flag to themselves) */}
+        {!isInternalStaff && (
+          <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+        )}
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-5">
@@ -336,6 +353,7 @@ export default async function AllTransactionsPage({
                   withdrawn: counts.withdrawn,
                 }}
                 showStatusTabs={!hubFilter && !monthFilter}
+                showAgencyColumn={isInternalStaff}
               />
             )}
           </div>

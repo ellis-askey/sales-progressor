@@ -7,25 +7,31 @@ import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/
 export async function listTransactions(
   agencyId: string,
   agentUserId?: string,
-  opts?: { allAgentFiles?: boolean; firmName?: string | null }
+  opts?: { allAgentFiles?: boolean; firmName?: string | null },
+  scope?: AccessScope
 ) {
   const now = new Date();
   const totalMilestones = await prisma.milestoneDefinition.count();
   let whereClause: Record<string, unknown>;
-  if (opts?.allAgentFiles) {
+  // Internal staff path: scope overrides all agencyId-based filtering.
+  // Agent callers pass no scope — they hit the existing branches below unchanged.
+  if (scope) {
+    whereClause = { ...scopeTransactionWhere(scope), status: { not: "draft" } };
+  } else if (opts?.allAgentFiles) {
     whereClause = opts.firmName
       ? { agencyId, agentUser: { firmName: opts.firmName } }
       : { agencyId, agentUserId: { not: null } };
+    whereClause = { ...whereClause, status: { not: "draft" } };
   } else if (agentUserId) {
-    whereClause = { agencyId, agentUserId };
+    whereClause = { agencyId, agentUserId, status: { not: "draft" } };
   } else {
-    whereClause = { agencyId, progressedBy: "progressor" };
+    whereClause = { agencyId, progressedBy: "progressor", status: { not: "draft" } };
   }
-  whereClause = { ...whereClause, status: { not: "draft" } };
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
+      agency: { select: { id: true, name: true } },
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
@@ -186,19 +192,22 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
 export async function countTransactionsByStatus(
   agencyId: string,
   agentUserId?: string,
-  opts?: { allAgentFiles?: boolean; firmName?: string | null }
+  opts?: { allAgentFiles?: boolean; firmName?: string | null },
+  scope?: AccessScope
 ) {
   let whereClause: Record<string, unknown>;
-  if (opts?.allAgentFiles) {
+  if (scope) {
+    whereClause = { ...scopeTransactionWhere(scope), status: { not: "draft" } };
+  } else if (opts?.allAgentFiles) {
     whereClause = opts.firmName
       ? { agencyId, agentUser: { firmName: opts.firmName } }
       : { agencyId, agentUserId: { not: null } };
+    whereClause = { ...whereClause, status: { not: "draft" } };
   } else if (agentUserId) {
-    whereClause = { agencyId, agentUserId };
+    whereClause = { agencyId, agentUserId, status: { not: "draft" } };
   } else {
-    whereClause = { agencyId, progressedBy: "progressor" };
+    whereClause = { agencyId, progressedBy: "progressor", status: { not: "draft" } };
   }
-  whereClause = { ...whereClause, status: { not: "draft" } };
   const counts = await prisma.propertyTransaction.groupBy({
     by: ["status"],
     where: whereClause,
