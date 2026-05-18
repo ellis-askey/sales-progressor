@@ -120,6 +120,15 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 
 ---
 
+## FU-19 — Admin analytics: per-agency drill-down (deferred arc)
+
+**Source:** /agent/analytics inventory (WS3 arc completion)  
+**Summary:** Admin currently sees a flat cross-platform aggregated view in `/agent/analytics` (all agencies combined, no breakdown). Ellis confirmed this is wanted functionality, not cancelled. Needs its own inventory to scope which metrics break down by agency (totals, trends, exchange stats, fees, time-to-exchange, fee forecast, leaderboard by agency?) and what the URL/state model looks like.  
+**Implementation:** New service function for per-agency aggregation + agency selector UI (dropdown or tabs) on the analytics page + scoped re-fetch or client-side filtering. Medium complexity — reuses existing chart components, new data layer.  
+**When to revisit:** After WS3 end-of-arc walkthrough ships clean. Run as its own arc — Stage 1 inventory first.
+
+---
+
 ## FU-16 — `showManagedByFilter`/`showUserFilter` use negotiator path for admin
 
 **Source:** /agent/transactions list inventory  
