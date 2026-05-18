@@ -404,6 +404,7 @@ export async function saveAgentFeeAction(input: {
   agentFeeIsVatInclusive: boolean;
 }) {
   const session = await requireSession();
+  if (session.user.role === "sales_progressor") throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
@@ -515,6 +516,7 @@ export async function saveReferralAction(
   data: { referredFirmId: string | null; referralFee: number | null; referralFeeReceived: boolean }
 ) {
   const session = await requireSession();
+  if (session.user.role === "sales_progressor") throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
@@ -541,6 +543,7 @@ export async function saveBrokerReferralAction(
   data: { brokerFirmId: string | null; brokerContactId: string | null; brokerReferralFee: number | null; brokerReferralFeeReceived: boolean }
 ) {
   const session = await requireSession();
+  if (session.user.role === "sales_progressor") throw new Error("Forbidden: sales_progressor cannot edit commercial fee data");
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
