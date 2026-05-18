@@ -164,6 +164,16 @@ During completions Stage 3 voice pass (2026-05-17), `sales_progressor` in a card
 
 ---
 
+### Polish — Analytics "All-time" referral section headings under period filter (theoretical)
+
+Two sections — "Referral income · Conveyancers" and "Referral income · Brokers" — display all-time totals regardless of which period tab is active. Their headings say "All-time solicitor referral fees by firm" and "All-time mortgage broker referral fees" which is accurate but potentially confusing when the user is looking at "This week" data everywhere else on the page.
+
+Classified **theoretical** — no user has flagged this as confusing. No copy change warranted until confirmed real.
+
+**Fix if confirmed real:** Change headings to include an explicit scope annotation, e.g. "Referral income · Conveyancers — all time" or add a parenthetical "(lifetime total, not filtered by period)". Two-character copy change per heading, no structural shift.
+
+---
+
 ### Polish — empty-state ghost convention (document as structural standard)
 
 The polish pass has established a pattern across comms (Stage 2, 2026-05-17) and completions (Stage 2, applied by precedent) but it isn't written down anywhere.
