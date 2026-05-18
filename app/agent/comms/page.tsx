@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { getAgentMilestoneActivity, resolveAgentVisibility } from "@/lib/services/agent";
+import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
@@ -28,7 +28,10 @@ export default async function AgentCommsPage({
   const { filter } = await searchParams;
   const portalOnly = filter === "portal";
 
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, session.user.role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const milestones = await getAgentMilestoneActivity(vis, portalOnly);
 
   // Group into day buckets, each day grouped by transaction
