@@ -29,6 +29,8 @@ export default async function AgentCommsPage({
   const portalOnly = filter === "portal";
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isProgressor = session.user.role === "sales_progressor";
+  const isAdmin = session.user.role === "admin";
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -74,7 +76,14 @@ export default async function AgentCommsPage({
   return (
     <>
       {/* OLD subtitle: "Milestone activity across all your files." */}
-      <PageHeader title="Updates" subtitle="What's happened across your files.">
+      <PageHeader
+        title="Updates"
+        subtitle={
+          isProgressor ? "What's happened on your assigned files." :
+          isAdmin      ? "What's happened across the platform." :
+                         "What's happened across your files."
+        }
+      >
         {/* OLD filter strip: <Link> with inline rgba(0,0,0,0.05) container, rgba(255,255,255,0.9) active pill, rgba(0,0,0,0.08) shadow */}
         <div style={{ display: "flex", gap: 4 }}>
           <Link
@@ -108,7 +117,11 @@ export default async function AgentCommsPage({
                   : "Completed milestones across your files will appear here." */}
                 {portalOnly
                   ? "When clients confirm steps themselves, they'll appear here."
-                  : "Confirmed steps appear here as they happen."}
+                  : isProgressor
+                    ? "Confirmed steps on your assigned files appear here."
+                    : isAdmin
+                      ? "Confirmed steps appear here as they happen across the platform."
+                      : "Confirmed steps appear here as they happen."}
               </p>
             </div>
 
