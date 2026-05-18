@@ -38,7 +38,7 @@ export default withAuth(
     if (pathname.startsWith("/command")) {
       // 1. Superadmin role required
       if (role !== "superadmin") {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        return NextResponse.redirect(new URL("/agent/hub", req.url));
       }
 
       // 2. IP allowlist (skipped when env var is empty)
@@ -156,10 +156,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
 
-    // Non-agent, non-admin users trying to access the agent area â†’ send to SP dashboard
-    if (!isAgentUser && role !== "admin" && pathname.startsWith("/agent")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
+    // All authenticated roles can access /agent/* — data scoping enforced per-query via access-scope.ts
 
     return res;
   },
