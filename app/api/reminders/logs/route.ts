@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { wakeUpReminderLog } from "@/lib/services/reminders";
+import { getAccessScope } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (action === "wakeup") {
-      await wakeUpReminderLog(logId, session.user.agencyId);
+      await wakeUpReminderLog(logId, getAccessScope(session));
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

@@ -12,7 +12,7 @@ export async function completeTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
   const { transactionId, reminderLogId, targetMilestoneCode } = await completeChaseTask(
     taskId,
-    session.user.agencyId || null,
+    getAccessScope(session),
   );
 
   if (targetMilestoneCode) {
@@ -47,19 +47,19 @@ export async function completeTaskAction(taskId: string, pathname: string) {
 
 export async function snoozeTaskAction(taskId: string, snoozeHours: number, pathname: string) {
   const session = await requireSession();
-  await snoozeReminderLog(taskId, snoozeHours, session.user.agencyId || null);
+  await snoozeReminderLog(taskId, snoozeHours, getAccessScope(session));
   revalidatePath(pathname, "page");
 }
 
 export async function wakeupReminderAction(logId: string, pathname: string) {
   const session = await requireSession();
-  await wakeUpReminderLog(logId, session.user.agencyId || null);
+  await wakeUpReminderLog(logId, getAccessScope(session));
   revalidatePath(pathname, "page");
 }
 
 export async function advanceChaseTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
-  await advanceChaseTask(taskId, session.user.agencyId || null);
+  await advanceChaseTask(taskId, getAccessScope(session));
   revalidatePath(pathname, "page");
 }
 

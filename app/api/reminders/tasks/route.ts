@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { completeChaseTask, snoozeReminderLog } from "@/lib/services/reminders";
+import { getAccessScope } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -14,12 +15,12 @@ export async function POST(req: NextRequest) {
 
   try {
     if (action === "complete") {
-      await completeChaseTask(taskId, session.user.agencyId);
+      await completeChaseTask(taskId, getAccessScope(session));
     } else if (action === "snooze") {
       if (!snoozeHours || typeof snoozeHours !== "number") {
         return NextResponse.json({ error: "snoozeHours required" }, { status: 400 });
       }
-      await snoozeReminderLog(taskId, snoozeHours, session.user.agencyId);
+      await snoozeReminderLog(taskId, snoozeHours, getAccessScope(session));
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }

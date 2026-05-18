@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma, ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
-import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -487,9 +487,9 @@ async function deactivateLog(
 
 // ─── Task actions ─────────────────────────────────────────────────────────────
 
-export async function advanceChaseTask(taskId: string, agencyId: string | null) {
+export async function advanceChaseTask(taskId: string, scope: AccessScope) {
   const task = await prisma.chaseTask.findFirst({
-    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
+    where: scopeChaseTaskWhere(scope, taskId),
     select: {
       id: true,
       chaseCount: true,
@@ -526,10 +526,10 @@ export async function advanceChaseTask(taskId: string, agencyId: string | null) 
 
 export async function completeChaseTask(
   taskId: string,
-  agencyId: string | null,
+  scope: AccessScope,
 ): Promise<{ transactionId: string; reminderLogId: string; targetMilestoneCode: string | null }> {
   const task = await prisma.chaseTask.findFirst({
-    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
+    where: scopeChaseTaskWhere(scope, taskId),
     select: {
       id: true,
       reminderLogId: true,
@@ -573,9 +573,9 @@ export async function cancelChaseTask(taskId: string, agencyId: string) {
   });
 }
 
-export async function snoozeReminderLog(taskId: string, snoozeHours: number, agencyId: string | null) {
+export async function snoozeReminderLog(taskId: string, snoozeHours: number, scope: AccessScope) {
   const task = await prisma.chaseTask.findFirst({
-    where: agencyId ? { id: taskId, transaction: { agencyId } } : { id: taskId },
+    where: scopeChaseTaskWhere(scope, taskId),
     select: { id: true, reminderLogId: true },
   });
   if (!task) throw new Error("Task not found");
@@ -593,9 +593,9 @@ export async function snoozeReminderLog(taskId: string, snoozeHours: number, age
   });
 }
 
-export async function wakeUpReminderLog(logId: string, agencyId: string | null) {
+export async function wakeUpReminderLog(logId: string, scope: AccessScope) {
   const log = await prisma.reminderLog.findFirst({
-    where: agencyId ? { id: logId, transaction: { agencyId } } : { id: logId },
+    where: scopeReminderLogWhere(scope, logId),
     select: { id: true },
   });
   if (!log) throw new Error("Reminder log not found");
