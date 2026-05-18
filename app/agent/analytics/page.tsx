@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
-import { resolveAgentVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
+import { resolveAgentVisibility, resolveInternalVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
 import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, getReferralStats, getBrokerReferralStats } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { AnalyticsClientShell } from "@/components/agent/AnalyticsClientShell";
@@ -53,12 +53,15 @@ export default async function AgentAnalyticsPage({
   const session = await requireSession();
   const { user: filterUserId, period: rawPeriod } = await searchParams;
   const isDirector = session.user.role === "director";
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
 
   const period = (["week", "month", "year", "all"] as string[]).includes(rawPeriod ?? "")
     ? rawPeriod!
     : "month";
 
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, session.user.role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const effectiveVis = isDirector && filterUserId
     ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }
     : vis;
@@ -104,13 +107,15 @@ export default async function AgentAnalyticsPage({
             <p style={{ margin: "0 auto 20px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
               Once your first file is submitted, you&apos;ll see pipeline value, fee tracking, conversion rates, and monthly trends.
             </p>
-            <Link
-              href="/agent/transactions/new-v2"
-              className="agent-btn agent-btn-primary"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
-            >
-              + Submit your first sale
-            </Link>
+            {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
+              <Link
+                href="/agent/transactions/new-v2"
+                className="agent-btn agent-btn-primary"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 22px", fontSize: 13 }}
+              >
+                + Submit your first sale
+              </Link>
+            )}
           </div>
 
           {/* Ghost analytics preview */}
