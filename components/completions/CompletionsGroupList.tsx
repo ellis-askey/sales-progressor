@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { saveCompletionDateAction } from "@/app/actions/transactions";
 import { CaretDown } from "@phosphor-icons/react";
 import {
   CompletionFileRowView,
@@ -25,6 +27,11 @@ export type CompletionGroup = {
 export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) {
   /* OLD: const [collapsed, setCollapsed] = useState(Object.fromEntries(groups.map(g => [g.key, true]))) */
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openDatePickerId, setOpenDatePickerId] = useState<string | null>(null);
+  const [dateValue, setDateValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const today = new Date().toISOString().split("T")[0];
 
   function toggle(key: string) {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -86,14 +93,54 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                   )}
                   <div className="space-y-2">
                     {files.map((f) => (
-                      <Link
-                        key={f.id}
-                        href={`/agent/transactions/${f.id}`}
-                        className={`glass-card agent-hover-row block px-5 py-4 border ${s.border}`}
-                        style={{ textDecoration: "none" }}
-                      >
-                        <CompletionFileRowView file={f} groupKey={key} />
-                      </Link>
+                      <div key={f.id}>
+                        <Link
+                          href={`/agent/transactions/${f.id}`}
+                          className={`glass-card agent-hover-row block px-5 py-4 border ${s.border}`}
+                          style={{ textDecoration: "none" }}
+                        >
+                          <CompletionFileRowView
+                            file={f}
+                            groupKey={key}
+                            onSetDate={() => { setOpenDatePickerId(f.id); setDateValue(""); }}
+                          />
+                        </Link>
+                        {openDatePickerId === f.id && (
+                          <div
+                            className="agent-reveal-in"
+                            style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+                          >
+                            <input
+                              type="date"
+                              className="glass-input px-2 py-1.5 text-sm"
+                              min={today}
+                              value={dateValue}
+                              onChange={(e) => setDateValue(e.target.value)}
+                              autoFocus
+                            />
+                            <button
+                              className="agent-btn agent-btn-sm agent-btn-primary"
+                              disabled={!dateValue || isPending}
+                              onClick={() => {
+                                startTransition(async () => {
+                                  await saveCompletionDateAction(f.id, dateValue);
+                                  setOpenDatePickerId(null);
+                                  router.refresh();
+                                });
+                              }}
+                            >
+                              {isPending ? "Saving…" : "Set date"}
+                            </button>
+                            <button
+                              className="agent-link agent-link-muted"
+                              style={{ fontSize: 11 }}
+                              onClick={() => setOpenDatePickerId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

@@ -799,8 +799,16 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
       {statusFilter === "snoozed" && (
         filteredSnoozed.length === 0 ? (
           <div className="agent-glass-strong" style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-            {/* OLD: "No snoozed reminders matching filter." — Rule 3 smoother active phrasing — Stage 3 voice review */}
             <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>{q ? "No matching snoozed reminders." : "No snoozed reminders."}</p>
+            {!q && (
+              <button
+                className="agent-link agent-link-muted"
+                onClick={() => setStatusFilter("active")}
+                style={{ fontSize: 12, marginTop: 10 }}
+              >
+                ← Back to active reminders
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">

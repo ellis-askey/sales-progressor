@@ -40,7 +40,7 @@
      --agent-danger, --agent-danger-bg, --agent-danger-border
 
    Semantic — info:
-     --agent-info, --agent-info-bg, --agent-info-border
+     --agent-info, --agent-info-bg, --agent-info-border, --agent-info-rgb
 
    Semantic — snoozed (theme-locked, like warning/danger/success/info):
      --agent-snoozed, --agent-snoozed-bg, --agent-snoozed-border,
@@ -250,6 +250,7 @@
     --agent-success-rgb:     31, 138, 74;    /* semantic success */
     --agent-danger-rgb:      199, 62, 62;    /* danger tints */
     --agent-warning-rgb:     201, 125, 26;   /* warning tints */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     255, 245, 236;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -419,6 +420,7 @@
     --agent-success-rgb:     31, 138, 74;    /* semantic success — locked */
     --agent-danger-rgb:      199, 62, 62;    /* semantic danger — locked */
     --agent-warning-rgb:     201, 125, 26;   /* semantic warning — locked */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     219, 234, 240;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -588,6 +590,7 @@
     --agent-success-rgb:     31, 138, 74;    /* semantic success — locked */
     --agent-danger-rgb:      199, 62, 62;    /* semantic danger — locked */
     --agent-warning-rgb:     201, 125, 26;   /* semantic warning — locked */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     220, 231, 248;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -757,6 +760,7 @@
     --agent-success-rgb:     31, 138, 74;    /* semantic success — locked */
     --agent-danger-rgb:      199, 62, 62;    /* semantic danger — locked */
     --agent-warning-rgb:     201, 125, 26;   /* semantic warning — locked */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     229, 235, 239;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -926,6 +930,7 @@
     --agent-success-rgb:     31, 138, 74;    /* semantic success — locked */
     --agent-danger-rgb:      199, 62, 62;    /* semantic danger — locked */
     --agent-warning-rgb:     201, 125, 26;   /* semantic warning — locked */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     219, 237, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -1096,6 +1101,7 @@
     --agent-danger-rgb:      199, 62, 62;    /* semantic danger — locked (similar hue
                                                 to brand but preserves recognition) */
     --agent-warning-rgb:     201, 125, 26;   /* semantic warning — locked */
+    --agent-info-rgb:        61, 122, 184;   /* info tints — locked */
     --agent-bg-base-rgb:     245, 222, 223;  /* bg-base — sticky surface backdrops */
 
     /* ── Hover and interactive state tints ──────────────────────────────── */
@@ -1549,7 +1555,9 @@
     --agent-success: #34D399;
     --agent-warning: #FBBF24;
     --agent-danger:  #F87171;
-    --agent-info:    #60A5FA;
+    --agent-info:        #60A5FA;
+    --agent-info-bg:     rgba(96, 165, 250, 0.12);
+    --agent-info-border: rgba(96, 165, 250, 0.30);
 
     /* ── Glass / surfaces ─────────────────────────────────────────────────── */
     --agent-surface-elevated: rgba(30, 41, 59, 0.95);
@@ -1585,6 +1593,7 @@
     --agent-coral-base-rgb: 255, 107, 74;
     --agent-bloom-gold-rgb: 251, 191, 36;
     --agent-bg-base-rgb:    17, 24, 39;
+    --agent-info-rgb:       96, 165, 250;
 
     /* ── Avatar ───────────────────────────────────────────────────────────── */
     --agent-avatar-user-start: #1E3A5F;

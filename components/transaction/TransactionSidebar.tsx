@@ -175,6 +175,19 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       ? `${Number(transaction.agentFeePercent).toFixed(2)}%${transaction.agentFeeIsVatInclusive === false ? " + VAT" : ""}${transaction.purchasePrice ? ` = ${formatFee(Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100))}` : ""}`
       : "—";
 
+  const VAT = 1.2;
+  const referrals = (transaction.referralFee ?? 0) + (transaction.brokerReferralFee ?? 0);
+  const grossTotalPence: number | null =
+    agentFeeCalcPence != null && transaction.agentFeeIsVatInclusive != null
+      ? transaction.agentFeeIsVatInclusive
+        ? agentFeeCalcPence + referrals - progressorFeePence
+        : Math.round(agentFeeCalcPence * VAT) + referrals - progressorFeePence
+      : null;
+  const netTotalPence: number =
+    transaction.agentFeeIsVatInclusive === true && agentFeeCalcPence != null
+      ? Math.round(agentFeeCalcPence / VAT) + referrals - progressorFeePence
+      : totalFeesPence;
+
   return (
     <>
     {/* ── Desktop card stack — ≥768px ──────────────────────────────────────── */}
@@ -379,13 +392,16 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
 
           {hasTotal && (
             <div className="pt-2.5 mt-1" style={{ borderTop: "1px solid var(--agent-border-default)" }}>
+              {grossTotalPence != null && (
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-xs text-slate-900/40 max-w-[60%]">Gross income</p>
+                  <p className="text-xs font-semibold text-slate-900/50">{formatFee(grossTotalPence)}</p>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <p className="text-xs text-slate-900/40 max-w-[60%]">Net income</p>
-                <p className="text-sm font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
+                <p className="text-sm font-bold text-emerald-700">{formatFee(netTotalPence)}</p>
               </div>
-              {transaction.agentFeeIsVatInclusive === false && (
-                <p className="text-xs text-slate-900/40 mt-0.5">Agent fee excludes VAT</p>
-              )}
             </div>
           )}
         </div>
@@ -619,13 +635,16 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                 )}
                 {hasTotal && (
                   <div style={{ paddingTop: 8, marginTop: 4, borderTop: "0.5px solid var(--agent-border-default)" }}>
+                    {grossTotalPence != null && (
+                      <div className="flex justify-between items-center mb-1">
+                        <p className="text-xs text-slate-900/40 max-w-[60%]">Gross income</p>
+                        <p className="text-xs font-semibold text-slate-900/50">{formatFee(grossTotalPence)}</p>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
                       <p className="text-xs text-slate-900/40 max-w-[60%]">Net income</p>
-                      <p className="text-sm font-bold text-emerald-700">{formatFee(totalFeesPence)}</p>
+                      <p className="text-sm font-bold text-emerald-700">{formatFee(netTotalPence)}</p>
                     </div>
-                    {transaction.agentFeeIsVatInclusive === false && (
-                      <p className="text-xs text-slate-900/40 mt-0.5">Agent fee excludes VAT</p>
-                    )}
                   </div>
                 )}
               </div>

@@ -224,9 +224,9 @@ function Section({
         {openCount > 0 && (
           <span style={{
             fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 20,
-            background: progressor ? "var(--agent-warning-bg)" : "var(--agent-info-bg)",
+            background: progressor ? "rgba(var(--agent-warning-rgb), 0.15)" : "rgba(var(--agent-info-rgb), 0.15)",
             color: progressor ? "var(--agent-warning)" : "var(--agent-info)",
-            border: `1px solid ${progressor ? "var(--agent-warning-border)" : "var(--agent-info-border)"}`,
+            border: `1.5px solid ${progressor ? "rgba(var(--agent-warning-rgb), 0.35)" : "rgba(var(--agent-info-rgb), 0.35)"}`,
           }}>
             {openCount}
           </span>
@@ -329,6 +329,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
 }) {
   const isDone = task.status === "done";
   const [loading, setLoading] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
 
   async function toggle() {
@@ -338,25 +339,30 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
   }
 
   return (
-    <div style={{
-      display: "flex", alignItems: "flex-start", gap: 12,
-      padding: "12px 16px",
-      borderBottom: hasBorder ? "0.5px solid var(--agent-border-subtle)" : "none",
-    }}>
-      {/* Toggle — wrapper div expands tap area to ≥44px without changing visual size */}
-      <div style={{ flexShrink: 0, marginTop: 2 }}>
+    <div
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 12,
+        padding: "12px 16px",
+        borderBottom: hasBorder ? "0.5px solid var(--agent-border-subtle)" : "none",
+      }}
+    >
+      {/* Toggle — wrapper div aligns circle with first text line */}
+      <div style={{ flexShrink: 0, marginTop: 0 }}>
         <button
           onClick={toggle}
           disabled={loading}
           aria-label={isDone ? "Reopen" : "Mark as done"}
-          className="p-2 -m-2 agent-circle-btn"
+          className="agent-circle-btn"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{
             width: 18, height: 18, borderRadius: "50%",
-            border: isDone && !loading ? "none" : `1.5px solid ${loading ? "var(--agent-border-default)" : progressor ? "var(--agent-warning)" : "var(--agent-info-border)"}`,
+            border: isDone && !loading ? "none" : `1.5px solid ${loading ? "var(--agent-border-default)" : hovered && !isDone ? "var(--agent-success)" : progressor ? "var(--agent-warning)" : "var(--agent-info-border)"}`,
             background: isDone && !loading ? "var(--agent-success)" : "transparent",
             cursor: loading ? "wait" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "background 150ms",
+            position: "relative",
           }}
         >
           {loading ? (
@@ -365,7 +371,17 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-          ) : null}
+          ) : (
+            <svg
+              className={`todo-hover-tick${hovered ? " todo-hover-tick-show" : ""}`}
+              width="10" height="10" viewBox="0 0 24 24"
+              fill="none" stroke="var(--agent-success)"
+              strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"
+              style={{ position: "absolute" }}
+            >
+              <polyline className="todo-tick-path" points="20 6 9 17 4 12" />
+            </svg>
+          )}
         </button>
       </div>
 

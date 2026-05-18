@@ -302,9 +302,16 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
           >
             <span style={{ opacity: 0.5, flexShrink: 0 }}>Resume</span>
             <span style={{ fontWeight: 500 }}>
-              {mostRecentDraft.propertyAddress.length > 20
-                ? mostRecentDraft.propertyAddress.slice(0, 20) + "…"
-                : mostRecentDraft.propertyAddress}
+              <span className="hidden sm:inline">
+                {mostRecentDraft.propertyAddress.length > 40
+                  ? mostRecentDraft.propertyAddress.slice(0, 40) + "…"
+                  : mostRecentDraft.propertyAddress}
+              </span>
+              <span className="sm:hidden">
+                {mostRecentDraft.propertyAddress.length > 20
+                  ? mostRecentDraft.propertyAddress.slice(0, 20) + "…"
+                  : mostRecentDraft.propertyAddress}
+              </span>
             </span>
             <span style={{ opacity: 0.5, flexShrink: 0 }}>{relativeTime(mostRecentDraft.createdAt)}</span>
           </button>

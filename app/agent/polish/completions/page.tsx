@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown, CaretUp, ClockCountdown } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
@@ -492,10 +492,7 @@ function UrgencyGroup({ g, open, onToggle, rm }: {
           ) : g.groupValue > 0 ? (
             <span className="agent-acc-summary">{fmt(g.groupValue)}</span>
           ) : null}
-          {open
-            ? <CaretUp style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-            : <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-          }
+          <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
         </div>
       </div>
 

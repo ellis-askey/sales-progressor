@@ -64,9 +64,11 @@ export type CompletionFileRow = {
 export function CompletionFileRowView({
   file,
   groupKey,
+  onSetDate,
 }: {
   file: CompletionFileRow;
   groupKey: keyof typeof GROUP_STYLES;
+  onSetDate?: () => void;
 }) {
   const s = GROUP_STYLES[groupKey];
   const isNoDate = groupKey === "no_date";
@@ -76,8 +78,12 @@ export function CompletionFileRowView({
 
   const DateBlock = () =>
     isNoDate ? (
-      /* OLD: "Set date →" */
-      <span style={SET_DATE_STYLE}>Set date</span>
+      <button
+        style={{ ...SET_DATE_STYLE, cursor: "pointer", background: "none" }}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onSetDate?.(); }}
+      >
+        Set date
+      </button>
     ) : (
       <div className="text-right">
         <p className={`text-sm font-bold mb-0.5 ${s.label}`}>{fmtDate(file.completionDateIso)}</p>

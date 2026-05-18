@@ -45,7 +45,6 @@ export function TransactionRowHelpExample(_props: Record<string, string>) {
     >
       <TransactionRowView
         tx={MOCK_TX}
-        showOwner={false}
         basePath="/agent/transactions"
         isLast={true}
       />

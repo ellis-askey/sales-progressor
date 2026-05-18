@@ -150,7 +150,6 @@ export const TRANSACTION_STATUSES: { value: TransactionStatus; label: string }[]
 export const CONTACT_ROLES: { value: ContactRole; label: string }[] = [
   { value: "vendor",    label: "Vendor" },
   { value: "purchaser", label: "Purchaser" },
-  { value: "solicitor", label: "Solicitor" },
   { value: "broker",    label: "Broker / IFA" },
   { value: "other",     label: "Other" },
 ];

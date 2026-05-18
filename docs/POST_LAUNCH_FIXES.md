@@ -103,6 +103,9 @@ One button in inventory-touched components still uses raw `bg-blue-500` instead 
 
 **No urgency.** This is a deliberate parking of a feature, not a bug. The data integrity is intact; only the UI affordance is paused.
 
+### Token system — `--agent-info-rgb` missing in all themes (2026-05-17)
+The `--agent-info` family header comment in `app/agent/styles/themes.css` listed `--agent-info`, `--agent-info-bg`, `--agent-info-border` but omitted `--agent-info-rgb`. The value was never defined in any theme block (light or night), meaning any `rgba(var(--agent-info-rgb), X)` usage would fail silently. Discovered during to-do polish Stage 2. Fixed in the same commit: added `--agent-info-rgb: 61, 122, 184;` to all 6 light theme rgb blocks and `--agent-info-rgb: 96, 165, 250;` to the night base block; also added `--agent-info-bg` and `--agent-info-border` to night (previously only `--agent-info` existed there). **Follow-up audit:** check other `--*-rgb` tokens listed in family header comments to confirm all are actually defined in every theme block.
+
 ### Data consistency
 - **D2** — Self-managed files appear in main pipeline analytics. Should be fully separated. (Requires analytics query audit — lower priority.)
 
@@ -152,3 +155,19 @@ Several components in `components/transactions-v2/` use `box-shadow` values with
 The `/agent/comms` page is titled "Updates" (matching the AgentShell sidebar nav label at `AgentShell.tsx:44`). "Activity" is more precise — the feed shows completed steps only, not general updates. Rename deferred because it requires a simultaneous change to the sidebar nav label; touching AgentShell is outside the comms polish pass scope.
 
 **Fix when addressed:** Change `PageHeader title` in `app/agent/comms/page.tsx` from `"Updates"` to `"Activity"`, and update `{ href: "/agent/comms", label: "Updates" }` → `label: "Activity"` in `components/layout/AgentShell.tsx`. Two-line change.
+
+### Polish — VOICE_GUIDELINES.md translation table: context-specific sales_progressor mapping
+
+During completions Stage 3 voice pass (2026-05-17), `sales_progressor` in a card-meta context was rendered as "Handled by: [name]" rather than the table's current "Progressor / Our team". The table entry is context-dependent but doesn't document the card-label variant.
+
+**Fix when addressed:** Add a second row (or sub-note) to the `sales_progressor` translation table entry in `docs/polish-pass/VOICE_GUIDELINES.md`: `sales_progressor (with name on a card)` → `"Handled by [name]"`. Deferred until two or more additional pages surface a similar context-specific pattern — abstract once there's enough surface to nail the wording.
+
+---
+
+### Polish — empty-state ghost convention (document as structural standard)
+
+The polish pass has established a pattern across comms (Stage 2, 2026-05-17) and completions (Stage 2, applied by precedent) but it isn't written down anywhere.
+
+**Convention:** Empty-state ghosts use abstract `.agent-skeleton` bars in the same structural shape as a real entry group — no fake addresses, no fake copy, no hardcoded hex colours. Opacity 0.3–0.4, `pointerEvents: "none"`. The ghost conveys "content will live here" without inventing real-looking fake data.
+
+**Fix when addressed:** Write up as an explicit standard — either a new `§6` in `docs/polish-pass/ANIMATION_STANDARDS.md` or a new `docs/polish-pass/STRUCTURAL_STANDARDS.md` for non-animation conventions. Wait for at least one more page to apply the pattern before abstracting (three instances gives enough surface to nail the wording). Until then the precedent lives in the comms and completions ghost blocks.

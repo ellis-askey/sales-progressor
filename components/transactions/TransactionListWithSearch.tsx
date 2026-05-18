@@ -682,7 +682,7 @@ export function TransactionListWithSearch({
           )}
         </div>
       ) : (
-        <TransactionTable transactions={filtered} basePath={basePath} showOwner={isDirector && selectedUserId === null} />
+        <TransactionTable transactions={filtered} basePath={basePath} />
       )}
     </div>
   );

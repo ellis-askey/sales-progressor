@@ -76,11 +76,9 @@ function SortChevron({ col, active, dir }: { col: SortKey; active: SortKey; dir:
 export function TransactionTable({
   transactions,
   basePath = "/transactions",
-  showOwner = false,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
-  showOwner?: boolean;
 }) {
   // Variant B default sort (2026-05-13): Last activity desc — most recent
   // first. asc on the same column = "stalled first" (oldest activity first).
@@ -101,11 +99,9 @@ export function TransactionTable({
 
   const sorted = sortTransactions(transactions, sortKey, sortDir);
 
-  // Column widths match TransactionRowView (Variant B):
-  //   [stripe] Property | Assigned | [Owner] | Last activity | Exchange | Status | Risk
-  const gridCols = showOwner
-    ? "4px minmax(0,1fr) 160px 130px 220px 160px 110px 120px"
-    : "4px minmax(0,1fr) 160px 220px 160px 110px 120px";
+  // Column widths match TransactionRowView:
+  //   [stripe] Property | Last activity | Exchange | Status | Assigned | Risk
+  const gridCols = "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
 
   return (
     <div
@@ -126,15 +122,11 @@ export function TransactionTable({
         <div />
         {(
           [
-            // Variant B column order (2026-05-13).
             { label: "Property",         key: "property"   as SortKey | null },
-            { label: "Assigned to",      key: null },
-            ...(showOwner ? [{ label: "Owner", key: null as SortKey | null }] : []),
-            // Last activity is the Variant B headline column. Default sort
-            // desc (most recent first); asc surfaces stalled-first.
             { label: "Last activity",    key: "lastActive" as SortKey | null },
             { label: "Exchange target",  key: "exchange"   as SortKey | null },
             { label: "Status",           key: "status"     as SortKey | null },
+            { label: "Assigned to",      key: null },
             { label: "Risk",             key: "risk"       as SortKey | null },
           ] as { label: string; key: SortKey | null }[]
         ).map(({ label, key }) =>
@@ -179,7 +171,6 @@ export function TransactionTable({
         <TransactionRowView
           key={tx.id}
           tx={tx}
-          showOwner={showOwner}
           basePath={basePath}
           isLast={i === sorted.length - 1}
         />

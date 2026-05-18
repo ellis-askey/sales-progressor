@@ -1208,6 +1208,12 @@
   /* Circle toggle button focus ring — task completion circles in AgentTodoList */
   .agent-circle-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
 
+  /* Hover tick draw-in animation for incomplete task circle */
+  .todo-hover-tick { opacity: 0; pointer-events: none; transition: opacity 80ms; }
+  .todo-tick-path  { stroke-dasharray: 22; stroke-dashoffset: 22; transition: stroke-dashoffset 220ms ease; }
+  .todo-hover-tick-show           { opacity: 1; }
+  .todo-hover-tick-show .todo-tick-path { stroke-dashoffset: 0; }
+
   /* Warning/attention row hover — for items flagging an issue (stalled files, overdue, etc.) */
   .agent-hover-row-warning { transition: background-color 150ms ease; }
   .agent-hover-row-warning:hover { background-color: var(--agent-hover-tint-warning); }

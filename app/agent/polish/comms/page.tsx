@@ -27,7 +27,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown, CaretUp, ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 /* ─── Types (mirrored from CommsActivityFeed — Stage 4 keeps in sync) ───── */
@@ -486,10 +486,7 @@ function DayGroup({ bucket, open, onToggle, rm }: {
         <span className="agent-acc-title">{bucket.label}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="agent-acc-summary">{countLabel}</span>
-          {open
-            ? <CaretUp style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-            : <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0 }} />
-          }
+          <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
         </div>
       </div>
 

@@ -94,6 +94,8 @@ Every Stage 2 test page must clear all ten of the following before sign-off is r
 9. Loading skeleton (where applicable) matches the production page layout — not generic bars. **Verified by:** visual comparison against a screenshot of the production loading state.
 10. Mobile view documented and verified at 375px — layout, stacking order, and interactive states all checked. **Verified by:** viewing the 375px frame on the test page and confirming hierarchy and touch targets are correct.
 
+11. **PATTERN_EMERGENCE.md compliance** — every entry in `docs/polish-pass/PATTERN_EMERGENCE.md` has been checked against this page's polish build. For each pattern, state: *applied*, *not applicable*, or *drift found and fixed*. This step is mandatory before posting the gate confirmation — patterns logged here are not optional hints; they are page-independent standards that every subsequent page inherits. If a new violation is found during this step, fix it, log it, and note it in the gate confirmation. **Verified by:** reading every row in PATTERN_EMERGENCE.md and tracing each pattern's structural requirement against the built page (not just its classes).
+
 This gate was first established during new-v2 Stage 2/3 (2026-05-11). It applies to all remaining agent pages.
 
 **Updated 2026-05-11 (v2):** Playwright-verified evidence is now mandatory for all assertable gate items. "Observed in browser" language is retired — the format is now "Playwright assertion" (with test name + pass/fail + screenshot) or "requires Ellis browser walkthrough" (with specific check). Gate items without one of these two forms are blockers, not deferrals.
