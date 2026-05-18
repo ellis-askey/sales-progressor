@@ -537,13 +537,23 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
-  // Initial collapse state: Escalated + Overdue expanded by default (act-now categories);
-  // Due Today + Coming Up collapsed (scan-when-time-permits). Matches the urgency-colour
-  // hierarchy and the agent's natural priority sweep. Locked 2026-05-12 per Ellis.
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: false, overdue: false, due_today: true, upcoming: true });
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ escalated: true, overdue: true, due_today: true, upcoming: true });
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
+
+  // Pill nav: clicking a summary pill anchor-scrolls here and expands the matching section
+  useEffect(() => {
+    function handleHash() {
+      const key = window.location.hash.replace("#section-", "");
+      if (key === "escalated" || key === "overdue" || key === "due_today" || key === "upcoming") {
+        setCollapsed((prev) => ({ ...prev, [key]: false }));
+      }
+    }
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
 
   useEffect(() => {
     runReminderEngineAction("/agent/work-queue")
