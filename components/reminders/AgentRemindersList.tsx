@@ -265,6 +265,9 @@ function SideColumn({
     return [{ log, task }];
   });
 
+  // Logs with no pending task yet — upcoming state, show name + due date only
+  const scheduledLogs = logs.filter((log) => !log.chaseTasks.find((t) => t.status === "pending"));
+
   const milestones = openTasks.map(({ log, task }) => ({
     chaseTaskId: task.id,
     name: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
@@ -356,6 +359,30 @@ function SideColumn({
               >
                 <CheckCircle size={12} weight="fill" /> Done
               </button>
+            </div>
+          );
+        })}
+        {scheduledLogs.map((log, i) => {
+          const name = log.reminderRule.name.replace(/^Chase:\s*/i, "");
+          const dueDate = new Date(log.nextDueDate);
+          const dueDateLabel = dueDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+          return (
+            <div
+              key={log.id}
+              style={{
+                padding: "7px 12px",
+                borderTop: (i > 0 || openTasks.length > 0) ? `0.5px solid var(--agent-border-subtle)` : undefined,
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+                  {name}
+                </p>
+                <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>
+                  Due {dueDateLabel}
+                </p>
+              </div>
             </div>
           );
         })}
