@@ -6,6 +6,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { ContactRole } from "@prisma/client";
+import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 
 export type CreateContactInput = {
   propertyTransactionId: string;
@@ -17,14 +18,11 @@ export type CreateContactInput = {
 
 /**
  * Add a contact to a transaction.
- * agencyId is used to verify the transaction belongs to the user's agency
- * before writing — never skip this check.
+ * scope enforces ownership: assignedUserId for SP, agencyId for agents, bare id for admin.
  */
-export async function createContact(input: CreateContactInput, agencyId: string | null) {
+export async function createContact(input: CreateContactInput, scope: AccessScope) {
   const transaction = await prisma.propertyTransaction.findFirst({
-    where: agencyId
-      ? { id: input.propertyTransactionId, agencyId }
-      : { id: input.propertyTransactionId },
+    where: scopeOwnershipWhere(scope, input.propertyTransactionId),
     select: { id: true },
   });
 
@@ -44,14 +42,13 @@ export async function createContact(input: CreateContactInput, agencyId: string 
   });
 }
 
-/** Delete a contact (agency-scoped via transaction join) */
-export async function deleteContact(contactId: string, agencyId: string | null) {
-  const contact = await prisma.contact.findFirst({
-    where: agencyId
-      ? { id: contactId, transaction: { agencyId } }
-      : { id: contactId },
-    select: { id: true },
-  });
+/** Delete a contact (scope-verified via transaction join) */
+export async function deleteContact(contactId: string, scope: AccessScope) {
+  const where =
+    scope.kind === "all"      ? { id: contactId } :
+    scope.kind === "assigned" ? { id: contactId, transaction: { assignedUserId: scope.userId } } :
+                                { id: contactId, transaction: { agencyId: scope.agencyIds[0] } };
+  const contact = await prisma.contact.findFirst({ where, select: { id: true } });
 
   if (!contact) {
     throw new Error("Contact not found or access denied");

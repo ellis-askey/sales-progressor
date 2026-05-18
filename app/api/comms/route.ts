@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createCommunicationRecord, deleteCommunicationRecord } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
+import { getAccessScope } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
       wasEdited: wasEdited ?? false,
       visibleToClient: visibleToClient ?? false,
       createdById: session.user.id,
-      agencyId: session.user.agencyId,
+      scope: getAccessScope(session),
     });
     if (type === "outbound") {
       console.log(`[AUDIT] communication_sent transactionId=${transactionId} method=${method ?? "unknown"} sentByUserId=${session.user.id} agencyId=${session.user.agencyId}`);
@@ -73,7 +74,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   try {
-    await deleteCommunicationRecord(id, session.user.agencyId);
+    await deleteCommunicationRecord(id, getAccessScope(session));
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

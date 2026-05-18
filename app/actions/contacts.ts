@@ -22,7 +22,8 @@ export async function createContactAction(input: {
   roleType: ContactRole;
 }) {
   const session = await requireSession();
-  const contact = await createContact(input, session.user.agencyId || null);
+  const scope = getAccessScope(session);
+  const contact = await createContact(input, scope);
   await logActivity(
     input.propertyTransactionId,
     `${session.user.name} added contact: ${input.name} (${input.roleType.replace(/_/g, " ")})`,
@@ -68,7 +69,7 @@ export async function deleteContactAction(contactId: string, transactionId: stri
     where: { id: contactId, transaction: txWhere },
     select: { name: true },
   });
-  await deleteContact(contactId, session.user.agencyId || null);
+  await deleteContact(contactId, scope);
   if (contact) {
     await logActivity(transactionId, `${session.user.name} removed contact: ${contact.name}`, session.user.id);
   }

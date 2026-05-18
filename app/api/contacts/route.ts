@@ -9,6 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { ContactRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const contact = await createContact(
       { propertyTransactionId, name, phone, email, roleType },
-      session.user.agencyId
+      getAccessScope(session)
     );
     return NextResponse.json(contact, { status: 201 });
   } catch (err: unknown) {
@@ -82,7 +83,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    await deleteContact(contactId, session.user.agencyId);
+    await deleteContact(contactId, getAccessScope(session));
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to delete contact";

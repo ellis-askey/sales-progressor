@@ -9,6 +9,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
+import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,14 +127,14 @@ export type CreateCommInput = {
   isAutomated?: boolean;
   visibleToClient?: boolean;
   createdById: string;
-  agencyId: string | null;
+  // scope replaces agencyId — use getAccessScope(session) at the call site.
+  // scopeOwnershipWhere enforces assignedUserId for SP, agencyId for agents, bare id for admin.
+  scope: AccessScope;
 };
 
 export async function createCommunicationRecord(input: CreateCommInput) {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: input.agencyId
-      ? { id: input.transactionId, agencyId: input.agencyId }
-      : { id: input.transactionId },
+    where: scopeOwnershipWhere(input.scope, input.transactionId),
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -222,11 +223,13 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
   }));
 }
 
-export async function deleteCommunicationRecord(id: string, agencyId: string | null) {
-  const comm = await prisma.outboundMessage.findFirst({
-    where: agencyId ? { id, transaction: { agencyId } } : { id },
-    select: { id: true },
-  });
+export async function deleteCommunicationRecord(id: string, scope: AccessScope) {
+  // Verify the comm's transaction is in scope before deleting.
+  const where =
+    scope.kind === "all"      ? { id } :
+    scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+                                { id, transaction: { agencyId: scope.agencyIds[0] } };
+  const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true } });
   if (!comm) throw new Error("Not found");
   return prisma.outboundMessage.delete({ where: { id } });
 }

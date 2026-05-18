@@ -9,6 +9,7 @@ function revalidateTx(id: string) {
 import { requireSession } from "@/lib/session";
 import { createCommunicationRecord, deleteCommunicationRecord } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -20,7 +21,7 @@ export async function addNoteAction(transactionId: string, content: string) {
     contactIds: [],
     content,
     createdById: session.user.id,
-    agencyId: session.user.agencyId || null,
+    scope: getAccessScope(session),
   });
   void trackServerEvent(session.user.id, ANALYTICS_EVENTS.NOTE_ADDED, {
     transactionId,
@@ -31,7 +32,7 @@ export async function addNoteAction(transactionId: string, content: string) {
 
 export async function deleteCommAction(id: string, transactionId: string) {
   const session = await requireSession();
-  await deleteCommunicationRecord(id, session.user.agencyId || null);
+  await deleteCommunicationRecord(id, getAccessScope(session));
   revalidateTx(transactionId);
 }
 
@@ -52,7 +53,7 @@ export async function logCommAction(input: {
     content: input.content,
     visibleToClient: input.visibleToClient,
     createdById: session.user.id,
-    agencyId: session.user.agencyId || null,
+    scope: getAccessScope(session),
   });
   revalidateTx(input.transactionId);
 }
