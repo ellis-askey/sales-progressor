@@ -15,6 +15,10 @@ const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
 
 // Matches the established pattern from listTransactions (dashboard)
 function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
+  // Internal staff paths — checked first; agent callers have internalMode undefined and skip these.
+  if (vis.internalMode === "admin_all") return {};
+  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  // Agent paths (director / negotiator) — unchanged.
   if (vis.seeAll) {
     return vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
@@ -25,6 +29,10 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
 
 // Nested filter for relations (no agencyId — already on the parent model)
 function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
+  // Internal staff paths.
+  if (vis.internalMode === "admin_all") return {};
+  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  // Agent paths — unchanged.
   if (vis.seeAll) {
     return vis.firmName
       ? { agentUser: { firmName: vis.firmName } }
@@ -485,10 +493,18 @@ export async function getHubAttentionItems(
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const txNested = buildTxNested(vis);
 
+  // Build the transaction filter for reminderLog.where.transaction.
+  // Agent path: includes agencyId: vis.agencyId (unchanged).
+  // Internal paths: internalMode branches in buildTxNested already handle scoping — no agencyId needed.
+  const txLogFilter: Prisma.PropertyTransactionWhereInput =
+    vis.internalMode
+      ? { status: "active", ...txNested }
+      : { agencyId: vis.agencyId, status: "active", ...txNested };
+
   // Due today or overdue, not snoozed — scoped to this agent/firm
   const logs = await prisma.reminderLog.findMany({
     where: {
-      transaction: { agencyId: vis.agencyId, status: "active", ...txNested },
+      transaction: txLogFilter,
       status: "active",
       OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
       nextDueDate: { lte: today },

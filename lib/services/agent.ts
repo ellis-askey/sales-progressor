@@ -9,6 +9,10 @@ export type AgentVisibility = {
   agencyId: string;
   seeAll: boolean;
   firmName: string | null;
+  // Internal staff modes — undefined for all agent (director/negotiator) callers.
+  // "admin_all": see every transaction on the platform (admin role).
+  // "assigned": see only transactions where assignedUserId = userId (sales_progressor).
+  internalMode?: "admin_all" | "assigned";
 };
 
 /** Resolve how much of the agency a user can see based on role + canViewAllFiles. */
@@ -22,6 +26,22 @@ export async function resolveAgentVisibility(
   });
   const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
   return { userId, agencyId, seeAll, firmName: user?.firmName ?? null };
+}
+
+/**
+ * Resolve visibility for internal staff (admin, sales_progressor, viewer).
+ * Synchronous — reads only from the session, no DB query.
+ * admin → "admin_all": sees every transaction across all agencies.
+ * sales_progressor / viewer → "assigned": sees transactions where assignedUserId = userId.
+ */
+export function resolveInternalVisibility(userId: string, role: string): AgentVisibility {
+  return {
+    userId,
+    agencyId: "",
+    seeAll: false,
+    firmName: null,
+    internalMode: role === "admin" ? "admin_all" : "assigned",
+  };
 }
 
 /** Build the Prisma `where` clause for PropertyTransaction based on visibility. */

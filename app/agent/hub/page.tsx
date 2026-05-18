@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 import { requireSession } from "@/lib/session";
-import { resolveAgentVisibility } from "@/lib/services/agent";
+import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
@@ -75,7 +75,16 @@ function timeAgo(date: Date): string {
 
 export default async function HubPreviewPage() {
   const session = await requireSession();
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const role = session.user.role;
+  const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
+  const isProgressor    = role === "sales_progressor";
+  const canCreateSale   = role === "director" || role === "negotiator" || role === "admin";
+
+  // Internal staff use a separate visibility resolver (no DB query, scope set by role).
+  // Agent callers (director/negotiator) use the original resolver unchanged.
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems] =
     await Promise.all([
@@ -105,11 +114,15 @@ export default async function HubPreviewPage() {
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
         <PageHeader title={greeting} subtitle="Here's what matters today.">
-          <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
-            <Plus size={14} weight="bold" />
-            New sale
-          </Link>
-          <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+          {canCreateSale && (
+            <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+              <Plus size={14} weight="bold" />
+              New sale
+            </Link>
+          )}
+          {!isInternalStaff && (
+            <AgentFlagButton transactionId={null} address="general" label="Send a note to our team" />
+          )}
         </PageHeader>
 
         {/* Content: welcome card + ghost cards */}
@@ -127,20 +140,24 @@ export default async function HubPreviewPage() {
                 color: "var(--agent-text-primary)",
                 letterSpacing: "var(--agent-tracking-tight)",
               }}>
-                Your pipeline starts here.
+                {isProgressor ? "No assigned files yet." : "Your pipeline starts here."}
               </p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-                Add your first sale. Track each one from offer through to completion.
+                {isProgressor
+                  ? "Files assigned to you will appear here."
+                  : "Add your first sale. Track each one from offer through to completion."}
               </p>
             </div>
-            <Link
-              href="/agent/transactions/new-v2"
-              className="agent-btn agent-btn-primary agent-btn-md"
-              style={{ textDecoration: "none", flexShrink: 0 }}
-            >
-              <Plus size={16} weight="bold" />
-              Add a sale
-            </Link>
+            {canCreateSale && (
+              <Link
+                href="/agent/transactions/new-v2"
+                className="agent-btn agent-btn-primary agent-btn-md"
+                style={{ textDecoration: "none", flexShrink: 0 }}
+              >
+                <Plus size={16} weight="bold" />
+                Add a sale
+              </Link>
+            )}
           </div>
 
           {/* Ghost pipeline health + momentum */}
@@ -234,15 +251,19 @@ export default async function HubPreviewPage() {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
       <PageHeader title={greeting} subtitle="Here's what matters today.">
-        <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
-          <Plus size={14} weight="bold" />
-          New sale
-        </Link>
-        <AgentFlagButton
-          transactionId={null}
-          address="general"
-          label="Send a note to our team"
-        />
+        {canCreateSale && (
+          <Link href="/agent/transactions/new-v2" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
+            <Plus size={14} weight="bold" />
+            New sale
+          </Link>
+        )}
+        {!isInternalStaff && (
+          <AgentFlagButton
+            transactionId={null}
+            address="general"
+            label="Send a note to our team"
+          />
+        )}
       </PageHeader>
 
       {/* ── Content ────────────────────────────────────────────────────────────── */}
@@ -560,7 +581,8 @@ export default async function HubPreviewPage() {
         </div>
 
         {/* ── 4. Exchange forecast + Service split ───────────────────────────────── */}
-        <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Service split is hidden for sales_progressor (all their files are outsourced by definition) */}
+        <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: isProgressor ? "1fr" : "1fr 1fr", gap: 16 }}>
 
           {/* Exchange forecast */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
@@ -631,8 +653,8 @@ export default async function HubPreviewPage() {
             </div>
           </div>
 
-          {/* Service split */}
-          <div className="agent-glass" style={{ padding: "20px 24px" }}>
+          {/* Service split — hidden for sales_progressor */}
+          {!isProgressor && <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Who&apos;s managing</p>
               <p className="agent-card-subtitle">Files you manage and files our team handles.</p>
@@ -710,7 +732,7 @@ export default async function HubPreviewPage() {
                 </p>
               )}
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* ── 5. Activity ribbon ─────────────────────────────────────────────────── */}

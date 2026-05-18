@@ -9,9 +9,13 @@ import { getAgentTheme, getMobileAgentTheme, getNightMode } from "@/lib/agent/th
 import "./styles/themes.css";
 import "./styles/agent-system.css";
 
+// Roles permitted on the /agent/* surface.
+// superadmin is excluded — they land on /command/overview.
+const AGENT_ROLES = new Set(["director", "negotiator", "admin", "sales_progressor", "viewer"]);
+
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  if (session.user.role !== "negotiator" && session.user.role !== "director") {
+  if (!AGENT_ROLES.has(session.user.role)) {
     redirect("/dashboard");
   }
 
@@ -20,7 +24,9 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     select: { hasSeenAgentWelcome: true, agentPreferences: true },
   });
 
-  const showWelcome = !userRecord?.hasSeenAgentWelcome;
+  // Welcome modal is agent-onboarding-specific — suppress for internal staff.
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const showWelcome = isInternalStaff ? false : !userRecord?.hasSeenAgentWelcome;
   const theme = getAgentTheme(userRecord?.agentPreferences);
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
