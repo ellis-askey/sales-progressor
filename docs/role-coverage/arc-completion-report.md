@@ -159,9 +159,28 @@ Verified by: tsc clean after every commit; no regressions in agent render paths.
 |---|---|---|
 | FU-09 | `deleteCommAction` — no UI role gate; SP/admin can delete any visible comm. Backend enforcement unknown. | Medium |
 | FU-10 | `confirmMilestoneAction` — no UI gate needed (SP/admin both have legitimate need), but backend auth must be verified. | Low |
-| FU-11 | `saveAgentFeeAction` etc. — UI gate shipped (edit button hidden for SP). Backend server actions must check role. | Medium |
+| FU-11 | `saveAgentFeeAction` etc. — UI gate shipped (edit button now shows drawer with commercial fields hidden for SP). Backend server actions must check role. | Medium |
 | FU-14 | SP transaction detail access: `getTransactionByScope` must reject unassigned files for SP. Verify enforcement is strict. | Medium |
 | FU-17 | `/api/chase/send-email` (404) and `/api/ai/generate-chase` (403) fail for SP/admin — raw `agencyId` equality. Chase CTA hidden (interim). Fix: `agencyId ? { id, agencyId } : { id }` bypass. | High |
+
+### Post-audit methodology finding — SP permission model is assignment-first, not role-gating
+
+During the Arc A implementation pass (2026-05-18), SP-05 through SP-08 were verified against the code
+and found to be **already unrestricted**. The audit had assumed these actions might be role-gated;
+they are not.
+
+**What the audit found:** File status changes (`changeStatusAction`), portal access management
+(`generatePortalTokenAction`, contact CRUD), and comm note logging (`logCommAction`) all use
+`scopeOwnershipWhere(scope, transactionId)` — an assignment-based guard, not a role-based one.
+SP is blocked from unassigned files, not from the actions themselves on assigned files.
+
+**Implication:** The agent app's permission model is more SP-friendly by default than expected.
+The only two genuinely over-restricted SP capabilities are:
+- **SP-01 (Chase):** Hidden because `/api/chase/send-email` and `/api/ai/generate-chase` fail for SP — backend fix needed (FU-17)
+- **SP-03 (ComposeEmail):** Hidden for all internal staff via `{!isInternal && <ComposeEmail />}` — un-hide pending FU-17 fix and FU-14 FROM identity
+
+Both blockers are backend API gaps, not UI design decisions. When the permissions audit arc fixes the
+API routes, both Chase and ComposeEmail can be un-hidden for SP in a single follow-up commit.
 
 Full detail: `docs/role-coverage/internal-staff-permissions-audit.md`
 

@@ -85,11 +85,12 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 
 ---
 
-## FU-11 — `EditSaleDetailsDrawer` exposes agent fee editing to SP
+## FU-11 — `EditSaleDetailsDrawer` fee fields hidden for SP (UI gate shipped; backend pending)
 
 **Source:** /agent/transactions/[id] inventory  
-**Summary:** `TransactionSidebar` contains an edit button that opens `EditSaleDetailsDrawer`, which includes `saveAgentFeeAction`, `savePriceAction`, `saveReferralAction`, and others. SP editing the customer agency's agent fee or referral fee is likely wrong. Open question for Ellis: hide the edit drawer entirely for SP, or hide only the fee sections within it? Recommend: hide the edit button for SP entirely in TransactionSidebar (`isInternal` or `isProgressor` guard). Admin keeps full access.  
-**When to revisit:** On Ellis's answer to Open Question 4 in transaction-detail.md inventory.
+**Status (2026-05-18):** UI gate shipped in commit `d90705e`. SP sees the "Edit price" button and can edit address, tenure, purchase type, purchase price, and timeline dates. Agent fee and referral fee sections are hidden via `hideCommercialFields` prop.  
+**Remaining:** Backend server actions (`saveAgentFeeAction`, `saveReferralAction`) must verify the caller's role before applying fee changes. SP hitting these actions directly (e.g. via API client) should be rejected at the server. Belongs to the permissions audit arc.  
+**When to revisit:** Permissions audit arc.
 
 ---
 
