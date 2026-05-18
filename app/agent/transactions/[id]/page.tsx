@@ -364,7 +364,7 @@ export default async function AgentTransactionDetailPage({
         percent={progress.percent}
         onTrack={progress.onTrack}
         serviceType={transaction.serviceType}
-        hideServiceTypeBadge={isProgressor}
+        hideServiceTypeBadge={false}
         backHref="/agent/transactions"
         assignedUserName={assignedDisplayName}
         weeksActive={weeksActive}
