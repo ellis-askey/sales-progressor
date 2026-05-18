@@ -37,6 +37,7 @@ function classifyForStats(log: AgentLog, today: Date): "overdue" | "due_today" |
 export default async function WorkQueuePage() {
   const session = await requireSession();
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isProgressor = session.user.role === "sales_progressor";
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -66,7 +67,12 @@ export default async function WorkQueuePage() {
 
   return (
     <>
-      <PageHeader title="Reminders" subtitle="What needs chasing, today and ahead.">
+      <PageHeader
+        title="Reminders"
+        subtitle={isProgressor
+          ? "What needs chasing across your assigned files."
+          : "What needs chasing, today and ahead."}
+      >
         {statSegments.map(seg => (
           <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
         ))}
@@ -79,11 +85,13 @@ export default async function WorkQueuePage() {
             <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
               <Bell weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                Your reminders will appear here
+                {isProgressor ? "No files assigned yet" : "Your reminders will appear here"}
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {/* OLD: "Once you create a sale, we'll surface chases and follow-ups as files progress." — Rule 1 (VOICE_GUIDELINES.md pre-catalogued) */}
-                Chases and follow-ups appear here as your files move forward.
+                {isProgressor
+                  ? "Reminders for your assigned files will appear here."
+                  : "Chases and follow-ups appear here as your files move forward."}
               </p>
             </div>
 
@@ -119,7 +127,7 @@ export default async function WorkQueuePage() {
             </div>
           </>
         ) : (
-          <AgentRemindersList logs={reminderLogs} />
+          <AgentRemindersList logs={reminderLogs} hideChase={isInternalStaff} />
         )}
       </div>
     </>

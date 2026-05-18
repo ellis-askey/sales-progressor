@@ -31,6 +31,31 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 
 ---
 
+## FU-17 — `/api/chase/send-email` and `/api/ai/generate-chase` fail for SP/admin
+
+**Source:** /agent/work-queue inventory  
+**Summary:** Two Chase API routes use hard `agencyId` equality that breaks for internal staff (agencyId = null/""):
+
+`/api/chase/send-email` (route.ts line 24):
+```ts
+where: { id: transactionId, agencyId: session.user.agencyId }
+```
+SP/admin: `agencyId = null/""`→ `findFirst` returns `null` → **404 "Transaction not found"**.
+
+`/api/ai/generate-chase` (route.ts lines 114, 147):
+```ts
+if (primaryTask.transaction.agencyId !== session.user.agencyId) { return 403 }
+```
+SP/admin: `customerAgencyId !== null` → always **403 Forbidden**.
+
+**Fix:** Apply `agencyId ? { id, agencyId } : { id }` bypass in send-email; replace strict equality with `agencyId && primaryTask.transaction.agencyId !== session.user.agencyId` in generate-chase.
+
+**Interim mitigation:** Chase CTA hidden for all internal staff via `hideChase={isInternalStaff}` prop (shipped in role-coverage pass). SP cannot trigger broken path from UI.
+
+**When to revisit:** Before SP Chase workflow is unblocked. Both routes need the agencyId bypass + role authorisation (SP should only chase on their assigned files).
+
+---
+
 ## FU-14 — Service type / file ownership gate for SP on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  

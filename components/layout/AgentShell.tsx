@@ -37,7 +37,7 @@ function formatAgentTime(d: Date): string {
 function buildNavGroups(role: UserRole) {
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
-    { href: "/agent/work-queue",  label: "Reminders",   Icon: Tray          },
+    ...(role !== "admin" ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },

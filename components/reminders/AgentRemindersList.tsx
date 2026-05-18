@@ -239,6 +239,7 @@ function SideColumn({
   handleSnooze,
   handleSnoozeAll,
   handleChased,
+  hideChase,
 }: {
   logs: AgentReminderLog[];
   side: "seller" | "buyer";
@@ -251,6 +252,7 @@ function SideColumn({
   handleSnooze: (taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleChased: (taskId: string) => void;
+  hideChase?: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -389,7 +391,7 @@ function SideColumn({
       </div>
 
       {/* Column footer: Chase + Snooze */}
-      {openTasks.length > 0 && (
+      {openTasks.length > 0 && !hideChase && (
         <div style={{
           padding: "8px 12px",
           borderTop: `0.5px solid var(--agent-border-subtle)`,
@@ -479,6 +481,7 @@ function SplitFileCard({
   handleEscalate,
   handleManualChase,
   handleChased,
+  hideChase,
 }: {
   txId: string;
   address: string;
@@ -492,6 +495,7 @@ function SplitFileCard({
   handleEscalate: (taskId: string) => void;
   handleManualChase: (taskId: string) => void;
   handleChased: (taskId: string) => void;
+  hideChase?: boolean;
 }) {
   const leftBorder = GROUP_LEFT_BORDER[groupKey];
 
@@ -547,17 +551,17 @@ function SplitFileCard({
        * wq-split-body class enables mobile stacking via @media in globals.css. */}
       <div className="wq-split-body" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
         {effectiveSellerLogs.length > 0
-          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+          ? <SideColumn logs={effectiveSellerLogs} side="seller" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
           : <EmptyColumn side="seller" />}
         {buyerLogs.length > 0
-          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+          ? <SideColumn logs={buyerLogs} side="buyer" txId={txId} address={address} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} hideChase={hideChase} />
           : <EmptyColumn side="buyer" />}
       </div>
     </div>
   );
 }
 
-export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
+export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog[]; hideChase?: boolean }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
@@ -822,6 +826,7 @@ export function AgentRemindersList({ logs }: { logs: AgentReminderLog[] }) {
                         handleEscalate={handleEscalate}
                         handleManualChase={handleManualChase}
                         handleChased={handleChased}
+                        hideChase={hideChase}
                       />
                     );
                   })}

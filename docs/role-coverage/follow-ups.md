@@ -101,6 +101,25 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 
 ---
 
+## FU-17 — `/api/chase/send-email` and `/api/ai/generate-chase` fail for SP/admin
+
+**Source:** /agent/work-queue inventory  
+**Summary:** `send-email` route line 24: `where: { id: transactionId, agencyId: session.user.agencyId }` — SP/admin `agencyId = null/""`→ 404 "Transaction not found". `generate-chase` route lines 114/147: strict `transaction.agencyId !== session.user.agencyId` equality check → always 403 for SP/admin.  
+**Effect:** Chase drawer renders but both primary actions fail silently for SP. Chase CTA hidden for internal staff (interim fix shipped in role-coverage pass).  
+**Fix:** Apply same `agencyId ? { id, agencyId } : { id }` bypass as server actions. → `internal-staff-permissions-audit.md`  
+**When to revisit:** When SP Chase workflow is unblocked — backend API permissions pass.
+
+---
+
+## FU-18 — `runReminderEngineAction` for SP runs platform-wide
+
+**Source:** /agent/work-queue inventory  
+**Summary:** `app/actions/tasks.ts` line ~106: `runReminderEngine(session.user.agencyId || undefined)` → for SP: `undefined` → engine runs on all active transactions platform-wide, not just SP's assigned files. Harmless correctness-wise (creates tasks for all files that need them), but wasteful at scale.  
+**Fix:** Scope to SP's assigned transaction IDs, or build a scoped reminder engine call.  
+**When to revisit:** When SP workflow scales and platform-wide engine runs become a performance concern.
+
+---
+
 ## FU-16 — `showManagedByFilter`/`showUserFilter` use negotiator path for admin
 
 **Source:** /agent/transactions list inventory  
