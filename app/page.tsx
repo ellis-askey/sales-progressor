@@ -19,7 +19,7 @@ export default async function RootPage() {
       case "sales_progressor":
       case "viewer":
       default:
-        redirect("/dashboard");
+        redirect("/agent/hub");
     }
   }
   redirect("/login");
