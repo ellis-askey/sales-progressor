@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
 
 export type SearchResult = {
   transactions: { id: string; address: string; status: string; assignedName: string | null }[];
@@ -16,12 +17,13 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json({ transactions: [], contacts: [], solicitors: [] });
 
-  const agencyId = session.user.agencyId;
+  const scope = getAccessScope(session);
+  const txScopeWhere = scopeTransactionWhere(scope);
 
   const [transactions, contacts, solicitors] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: {
-        agencyId,
+        ...txScopeWhere,
         propertyAddress: { contains: q, mode: "insensitive" },
       },
       orderBy: { updatedAt: "desc" },
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     prisma.contact.findMany({
       where: {
-        transaction: { agencyId },
+        transaction: txScopeWhere,
         name: { contains: q, mode: "insensitive" },
       },
       orderBy: { createdAt: "desc" },

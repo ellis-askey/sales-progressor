@@ -403,8 +403,10 @@ export async function createInitialRemindersInline(
   });
 }
 
-export async function runReminderEngine(agencyId?: string) {
-  const where = agencyId
+export async function runReminderEngine(agencyId?: string, assignedUserId?: string) {
+  const where = assignedUserId
+    ? { status: "active" as const, assignedUserId }
+    : agencyId
     ? { status: "active" as const, agencyId }
     : { status: "active" as const };
 

@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getVerifiedEmailForSending } from "@/lib/services/verified-emails";
 import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -30,6 +31,16 @@ export async function POST(req: NextRequest) {
       { error: "Your domain is no longer authenticated. Please check your DNS settings in Settings." },
       { status: 403 }
     );
+  }
+
+  // Verify transaction access before sending — prevents comm log being written to an unscoped tx
+  if (transactionId) {
+    const scope = getAccessScope(session);
+    const txExists = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, transactionId),
+      select: { id: true },
+    });
+    if (!txExists) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
   }
 
   await sendFromVerifiedAddress({

@@ -99,7 +99,14 @@ export async function POST(req: NextRequest) {
     }>;
   };
 
-  const chain = await createChain(session.user.agencyId, name ?? null);
+  const legacyScope = getAccessScope(session);
+  const legacyTxn = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(legacyScope, transactionId),
+    select: { id: true, agencyId: true },
+  });
+  if (!legacyTxn) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const chain = await createChain(legacyTxn.agencyId, name ?? null);
   for (const link of links) {
     await upsertChainLink(chain.id, link.position, {
       transactionId: link.transactionId ?? null,

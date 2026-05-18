@@ -103,7 +103,11 @@ export async function escalateTaskAction(taskId: string, pathname: string) {
 
 export async function runReminderEngineAction(pathname: string) {
   const session = await requireSession();
-  await runReminderEngine(session.user.agencyId || undefined);
+  if (session.user.role === "sales_progressor") {
+    await runReminderEngine(undefined, session.user.id);
+  } else {
+    await runReminderEngine(session.user.agencyId || undefined);
+  }
   revalidatePath(pathname, "page");
 }
 
