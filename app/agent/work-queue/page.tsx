@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { resolveAgentVisibility } from "@/lib/services/agent";
+import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getWorkQueueItems, txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
 import { AgentRemindersList } from "@/components/reminders/AgentRemindersList";
@@ -36,7 +36,10 @@ function classifyForStats(log: AgentLog, today: Date): "overdue" | "due_today" |
 
 export default async function WorkQueuePage() {
   const session = await requireSession();
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, session.user.role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [items, reminderLogs, activeFileCount] = await Promise.all([
     getWorkQueueItems(vis),
     getAgentReminderLogs(vis),

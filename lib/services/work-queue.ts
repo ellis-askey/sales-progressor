@@ -31,6 +31,10 @@ export const ALERT_CONFIG: Record<AlertType, { label: string; color: string; bg:
 };
 
 export function txWhereWorkQueue(vis: AgentVisibility) {
+  // Internal staff paths — checked first; agent callers have internalMode undefined.
+  if (vis.internalMode === "admin_all") return {};
+  if (vis.internalMode === "assigned")  return { assignedUserId: vis.userId };
+  // Agent paths — unchanged.
   if (vis.seeAll) {
     if (vis.firmName) {
       return { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } };

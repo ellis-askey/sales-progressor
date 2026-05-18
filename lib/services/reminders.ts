@@ -94,12 +94,21 @@ export async function getReminderLogsForTransaction(
 }
 
 export async function getAgentReminderLogs(vis: AgentVisibility) {
-  const baseTxWhere = { agencyId: vis.agencyId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
-  const txWhere = vis.seeAll
-    ? vis.firmName
-      ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }
-      : baseTxWhere
-    : { ...baseTxWhere, agentUserId: vis.userId };
+  // Internal staff paths: no agencyId filter; serviceType filter reversed (their files are outsourced).
+  // Agent paths: existing agencyId + serviceType (self_managed only) logic unchanged.
+  let txWhere: Record<string, unknown>;
+  if (vis.internalMode === "admin_all") {
+    txWhere = { status: { in: ["active" as const, "on_hold" as const] } };
+  } else if (vis.internalMode === "assigned") {
+    txWhere = { assignedUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: "outsourced" as const };
+  } else {
+    const baseTxWhere = { agencyId: vis.agencyId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
+    txWhere = vis.seeAll
+      ? vis.firmName
+        ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }
+        : baseTxWhere
+      : { ...baseTxWhere, agentUserId: vis.userId };
+  }
 
   const logs = await prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
