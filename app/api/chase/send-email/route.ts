@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendEmail, parseEmailMessage } from "@/lib/email";
+import { sendEmail, parseEmailMessage, resolveSenderForTransaction } from "@/lib/email";
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
@@ -33,8 +33,10 @@ export async function POST(req: NextRequest) {
     ? subject
     : `${subject} — ${tx.propertyAddress}`;
 
+  const { from, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
+
   try {
-    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body });
+    await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body, from, replyTo });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
     await prisma.outboundMessage.create({

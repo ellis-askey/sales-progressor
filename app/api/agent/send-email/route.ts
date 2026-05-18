@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { getVerifiedEmailForSending } from "@/lib/services/verified-emails";
 import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
+import { resolveSenderForTransaction } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-
-const FALLBACK_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -19,9 +18,6 @@ export async function POST(req: NextRequest) {
     session.user.role === "sales_progressor" || session.user.role === "admin";
 
   // ── Internal staff path (SP / admin) ─────────────────────────────────
-  // SP/admin have no UserVerifiedEmail. Resolve sender from the file's agency
-  // domain instead: use SP's verified email at that domain (happy path) or
-  // fall back to the platform sender (updates@thesalesprogressor.co.uk).
   if (isInternalStaff) {
     if (!transactionId) {
       return NextResponse.json({ error: "transactionId required" }, { status: 400 });
@@ -30,34 +26,11 @@ export async function POST(req: NextRequest) {
     const scope = getAccessScope(session);
     const tx = await prisma.propertyTransaction.findFirst({
       where: scopeOwnershipWhere(scope, transactionId),
-      select: { id: true, agencyId: true },
+      select: { id: true },
     });
     if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
-    let resolvedFrom = FALLBACK_FROM;
-    let replyTo = session.user.email!;
-
-    if (tx.agencyId) {
-      const domain = await prisma.verifiedDomain.findFirst({
-        where: { agencyId: tx.agencyId, status: "verified" },
-        select: { id: true },
-      });
-      if (domain) {
-        const userEmail = await prisma.userVerifiedEmail.findFirst({
-          where: {
-            userId: session.user.id,
-            verifiedDomainId: domain.id,
-            status: { in: ["verified", "legacy_single_sender"] },
-          },
-          select: { email: true },
-        });
-        if (userEmail) {
-          resolvedFrom = `${session.user.name} <${userEmail.email}>`;
-          replyTo = userEmail.email;
-        }
-      }
-    }
-
+    const { from: resolvedFrom, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
     await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body, replyTo });
 
     await prisma.outboundMessage.create({
@@ -76,6 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Agent path (director / negotiator) ───────────────────────────────
+  // User explicitly picked fromEmail via the ComposeEmail picker — validate it.
   if (!fromEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }

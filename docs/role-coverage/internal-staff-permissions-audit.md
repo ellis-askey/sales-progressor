@@ -56,6 +56,19 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 
 ---
 
+## FU-21 — Chase send route hardcodes DEFAULT_FROM for all roles
+
+**Source:** /api/chase/send-email route audit  
+**Status:** ✅ RESOLVED — `resolveSenderForTransaction` helper extracted to `lib/email.ts`. Handles both paths:  
+- Agent (director/negotiator): auto-selects most-recently-used verified email at their agency domain; falls back to DEFAULT_FROM  
+- SP/admin: looks up SP's verified email at the file's agency domain (same logic as FU-14); falls back to DEFAULT_FROM with Reply-To = session.user.email  
+
+Chase route now passes `{ from, replyTo }` from the helper to `sendEmail`. Agents who've completed `/agent/settings` domain verification now see their personal sender on outbound chases.  
+`/api/agent/send-email` internal staff branch also refactored to use the helper (no behaviour change for ComposeEmail agent path — user-picked fromEmail validation unchanged).  
+**Files:** `lib/email.ts`, `app/api/chase/send-email/route.ts`, `app/api/agent/send-email/route.ts`
+
+---
+
 ## FU-20 — SP file ownership gate on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  
