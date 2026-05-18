@@ -44,6 +44,8 @@ const ALL_GROUPS = [
 export default async function AgentCompletionsPage() {
   const session = await requireSession();
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isProgressor = session.user.role === "sales_progressor";
+  const isAdmin = session.user.role === "admin";
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -96,6 +98,7 @@ export default async function AgentCompletionsPage() {
         completionDateIso:     f.completionDate ? new Date(f.completionDate).toISOString() : null,
         vendorSolicitorName:   f.vendorSolicitorName ?? null,
         purchaserSolicitorName: f.purchaserSolicitorName ?? null,
+        agencyName:            isInternalStaff ? (f.agencyName ?? null) : undefined,
       }));
 
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
@@ -104,7 +107,14 @@ export default async function AgentCompletionsPage() {
   return (
     <>
       {/* OLD subtitle: "Files that have exchanged and are heading to completion." */}
-      <PageHeader title="Completions" subtitle="Exchanged files, tracking to completion.">
+      <PageHeader
+        title="Completions"
+        subtitle={
+          isProgressor ? "Your assigned outsourced files, tracking to completion." :
+          isAdmin      ? "All exchanged files across the platform." :
+                         "Exchanged files, tracking to completion."
+        }
+      >
         {statSegments.map(s => (
           <StatPill key={s.key} href={s.anchor} label={s.label} color={s.pillColor} />
         ))}
@@ -127,7 +137,9 @@ export default async function AgentCompletionsPage() {
                 No completions
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                Once a file exchanges, it&apos;ll appear here as it heads toward completion.
+                {isProgressor
+                  ? "Once a file is assigned to you and exchanges, it'll appear here."
+                  : "Once a file exchanges, it'll appear here as it heads toward completion."}
               </p>
             </div>
 

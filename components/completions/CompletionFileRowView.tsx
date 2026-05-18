@@ -59,6 +59,7 @@ export type CompletionFileRow = {
   completionDateIso: string | null;
   vendorSolicitorName: string | null;
   purchaserSolicitorName: string | null;
+  agencyName?: string | null;
 };
 
 export function CompletionFileRowView({
@@ -104,6 +105,7 @@ export function CompletionFileRowView({
             {file.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {file.purchasers.join(", ")}</span>}
             {/* OLD: "Progressor: {file.assignedUserName}" */}
             {file.assignedUserName && <span className="text-sm text-slate-900/50">Handled by: {file.assignedUserName}</span>}
+            {file.agencyName && <span className="text-sm text-slate-900/50">Agency: {file.agencyName}</span>}
           </div>
           {/* OLD: <p className="text-xs text-slate-900/40 mb-0.5">{timeSinceExchange(file.exchangedAtIso)}</p> — always rendered */}
           {exchangeLine && <p className="text-xs text-slate-900/40 mb-0.5">{exchangeLine}</p>}
@@ -133,6 +135,7 @@ export function CompletionFileRowView({
           {file.purchasers.length > 0 && <span className="text-sm text-slate-900/50">Purchaser: {file.purchasers.join(", ")}</span>}
           {/* OLD: "Progressor: {file.assignedUserName}" */}
           {file.assignedUserName && <span className="text-sm text-slate-900/50">Handled by: {file.assignedUserName}</span>}
+          {file.agencyName && <span className="text-sm text-slate-900/50">Agency: {file.agencyName}</span>}
         </div>
         {/* OLD: <p className="text-xs text-slate-900/40">{timeSinceExchange(file.exchangedAtIso)}</p> — always rendered */}
         {exchangeLine && <p className="text-xs text-slate-900/40">{exchangeLine}</p>}
