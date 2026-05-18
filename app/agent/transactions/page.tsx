@@ -88,6 +88,7 @@ export default async function AllTransactionsPage({
   const opts = !isInternalStaff && vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
   const agentId = !isInternalStaff && !vis.seeAll ? session.user.id : undefined;
   const isDirector = session.user.role === "director";
+  const isProgressor = session.user.role === "sales_progressor";
   // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
   // their own name, which is redundant. Directors and internal staff see files belonging to multiple
   // people, so the column is meaningful for them.
@@ -239,37 +240,35 @@ export default async function AllTransactionsPage({
                 opacity: 0.45,
               }}
             />
-            <p
-              style={{
-                margin: "0 0 6px",
-                fontSize: 15,
-                fontWeight: 600,
-                color: "var(--agent-text-primary)",
-              }}
-            >
-              Create your first sale
-            </p>
-            {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
-            <p
-              style={{
-                margin: "0 auto 24px",
-                fontSize: 13,
-                color: "var(--agent-text-muted)",
-                maxWidth: 340,
-                lineHeight: 1.5,
-              }}
-            >
-              Sales appear here once you submit one. Track milestones, manage chases,
-              and progress to exchange.
-            </p>
-            <Link
-              href="/agent/transactions/new-v2"
-              className="agent-btn agent-btn-primary agent-btn-md"
-              style={{ textDecoration: "none" }}
-            >
-              <Plus size={16} weight="bold" />
-              New sale
-            </Link>
+            {isProgressor ? (
+              <>
+                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                  No files assigned yet
+                </p>
+                <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 300, lineHeight: 1.5 }}>
+                  Files assigned to you will appear here.
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                  Create your first sale
+                </p>
+                {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
+                <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
+                  Sales appear here once you submit one. Track milestones, manage chases,
+                  and progress to exchange.
+                </p>
+                <Link
+                  href="/agent/transactions/new-v2"
+                  className="agent-btn agent-btn-primary agent-btn-md"
+                  style={{ textDecoration: "none" }}
+                >
+                  <Plus size={16} weight="bold" />
+                  New sale
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-5">

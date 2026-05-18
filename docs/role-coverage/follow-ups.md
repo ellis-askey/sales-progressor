@@ -98,3 +98,11 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 **Source:** /agent/transactions/[id] inventory  
 **Summary:** `ComposeEmail` component is visible on the Activity tab for all roles. SP accounts almost certainly have no verified SendGrid sender identity configured. Component will render but email send fails at API level (no verified email returned from `/api/agent/verified-emails`). Not a crash, but SP sees a dead-end compose UI. Ops fix (configure SP verified sender) OR code fix (hide `ComposeEmail` for SP if no verified emails exist). Recommend code fix: already check verified emails at render time, or gate entirely for `isInternal`.  
 **When to revisit:** When SP workflow goes live and SP starts managing outsourced files.
+
+---
+
+## FU-16 — `showManagedByFilter`/`showUserFilter` use negotiator path for admin
+
+**Source:** /agent/transactions list inventory  
+**Summary:** `TransactionListWithSearch` uses `isDirector` to branch between "show chip when any files exist" (director) vs "show chip when >1 type/user exists" (everyone else). Admin falls into the "everyone else" path. In practice the platform always has files from multiple agents and both service types, so the chips always render for admin — the visible bug is zero. But if the platform were fresh (only one service type, or only one agent), admin would incorrectly not see the chips. The fix is to treat admin like director in these guards (pass an additional `isAdminLike` prop or replace `isDirector` with `showFiltersWhenAnyExist`). Low risk until then.  
+**When to revisit:** General chip/filter cleanup pass post-launch.

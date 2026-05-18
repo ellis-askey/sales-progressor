@@ -256,15 +256,25 @@ export function TransactionRowView({
       })()
     : "var(--agent-success)";
 
-  const serviceTag = tx.serviceType ? (
-    <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-      tx.serviceType === "outsourced"
-        ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
-        : "bg-slate-100/60 text-slate-400 border-slate-200/40"
-    }`}>
-      {tx.serviceType === "outsourced" ? "Our team" : "You"}
-    </span>
-  ) : null;
+  // SP: showAgencyColumn=true, showAssignedToColumn=false → hide tag (all rows are outsourced, tag is noise)
+  // Admin: showAgencyColumn=true, showAssignedToColumn=true → neutral platform labels
+  // Agent: showAgencyColumn=false → original agent-centric labels
+  const serviceTag = (() => {
+    if (!tx.serviceType) return null;
+    if (showAgencyColumn && !showAssignedToColumn) return null;
+    const label = (showAgencyColumn && showAssignedToColumn)
+      ? (tx.serviceType === "outsourced" ? "Outsourced" : "Self-managed")
+      : (tx.serviceType === "outsourced" ? "Our team" : "You");
+    return (
+      <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+        tx.serviceType === "outsourced"
+          ? "bg-indigo-50/70 text-indigo-500 border-indigo-100"
+          : "bg-slate-100/60 text-slate-400 border-slate-200/40"
+      }`}>
+        {label}
+      </span>
+    );
+  })();
 
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
 
@@ -286,6 +296,9 @@ export function TransactionRowView({
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{line}</p>
             {location && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{location}</p>}
+            {showAgencyColumn && tx.agency?.name && (
+              <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>{tx.agency.name}</p>
+            )}
             <VendorBuyerLine contacts={tx.contacts} />
           </div>
 

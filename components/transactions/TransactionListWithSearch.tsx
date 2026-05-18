@@ -237,24 +237,30 @@ function RiskChip({ selected, onToggle, onClear }: {
   );
 }
 
-function ManagedByChip({ value, onChange }: {
+function ManagedByChip({ value, onChange, variant = "agent" }: {
   value: "all" | "self_managed" | "outsourced";
   onChange: (v: "all" | "self_managed" | "outsourced") => void;
+  variant?: "agent" | "admin";
 }) {
   const { open, closing, pos, ref, popoverRef, theme, openDropdown, close, onClosedAnim } = useChipDropdown();
   const isActive = value !== "all";
-  // Voice fix (Stage 3, pre-flagged 3 + 4): translation table per VOICE_GUIDELINES.md
-  //   OLD: "Self-progressed" → "Managed by you"
-  //   OLD: "With progressor" → "Our team is handling"
-  const label = value === "self_managed" ? "Managed by you"
-    : value === "outsourced" ? "Our team is handling"
-    : "Managed by";
 
-  const opts: { value: "all" | "self_managed" | "outsourced"; label: string }[] = [
-    { value: "all",          label: "All" },
-    { value: "self_managed", label: "Managed by you" },
-    { value: "outsourced",   label: "Our team is handling" },
-  ];
+  const opts: { value: "all" | "self_managed" | "outsourced"; label: string }[] = variant === "admin"
+    ? [
+        { value: "all",          label: "All" },
+        { value: "self_managed", label: "Self-managed" },
+        { value: "outsourced",   label: "Outsourced to us" },
+      ]
+    : [
+        { value: "all",          label: "All" },
+        { value: "self_managed", label: "Managed by you" },
+        { value: "outsourced",   label: "Our team is handling" },
+      ];
+
+  const inactiveLabel = variant === "admin" ? "Service type" : "Managed by";
+  const label = isActive
+    ? (opts.find((o) => o.value === value)?.label ?? inactiveLabel)
+    : inactiveLabel;
 
   return (
     <div ref={ref} className="relative">
@@ -606,7 +612,11 @@ export function TransactionListWithSearch({
               onClear={() => setActivityFilter(new Set())}
             />
             {showManagedByFilter && (
-              <ManagedByChip value={managedByFilter} onChange={setManagedByFilter} />
+              <ManagedByChip
+                value={managedByFilter}
+                onChange={setManagedByFilter}
+                variant={showAgencyColumn && showAssignedToColumn ? "admin" : "agent"}
+              />
             )}
             {anyFilterActive && (
               <button
