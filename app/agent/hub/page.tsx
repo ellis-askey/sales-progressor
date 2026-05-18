@@ -78,6 +78,7 @@ export default async function HubPreviewPage() {
   const role = session.user.role;
   const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
   const isProgressor    = role === "sales_progressor";
+  const isAdmin         = role === "admin";
   const canCreateSale   = role === "director" || role === "negotiator" || role === "admin";
 
   // Internal staff use a separate visibility resolver (no DB query, scope set by role).
@@ -332,7 +333,9 @@ export default async function HubPreviewPage() {
             <div className="agent-card-hdr-internal" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
                 <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
-                <p className="agent-card-subtitle">Where your business stands today.</p>
+                <p className="agent-card-subtitle">
+                  {isProgressor ? "Your assigned files at a glance." : isAdmin ? "Platform-wide pipeline at a glance." : "Where your business stands today."}
+                </p>
               </div>
             </div>
 
@@ -588,7 +591,9 @@ export default async function HubPreviewPage() {
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
-              <p className="agent-card-subtitle">When your files are due to exchange.</p>
+              <p className="agent-card-subtitle">
+                {isProgressor ? "Exchange forecast for your assigned files." : isAdmin ? "Platform-wide exchange forecast." : "When your files are due to exchange."}
+              </p>
             </div>
 
             {next30Days === 0 ? (
@@ -653,11 +658,11 @@ export default async function HubPreviewPage() {
             </div>
           </div>
 
-          {/* Service split — hidden for sales_progressor */}
+          {/* Service split — hidden for sales_progressor; relabelled for admin */}
           {!isProgressor && <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
-              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Who&apos;s managing</p>
-              <p className="agent-card-subtitle">Files you manage and files our team handles.</p>
+              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who’s managing"}</p>
+              <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : "Files you manage and files our team handles."}</p>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>
@@ -669,8 +674,8 @@ export default async function HubPreviewPage() {
                 {(() => {
                   const total = serviceSplit.selfManaged + serviceSplit.outsourced;
                   return [
-                    { label: "Managed by you", count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
-                    { label: "Our team",        count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
+                    { label: isAdmin ? "Self-managed" : "Managed by you", count: serviceSplit.selfManaged, color: "var(--agent-coral)" },
+                    { label: isAdmin ? "Outsourced to us" : "Our team",   count: serviceSplit.outsourced,  color: "var(--agent-warning)" },
                   ].map(({ label, count, color }) => {
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
@@ -713,22 +718,32 @@ export default async function HubPreviewPage() {
                   margin: 0, fontSize: 12,
                   color: "var(--agent-text-secondary)", lineHeight: 1.6,
                 }}>
-                  Our team is handling{" "}
-                  <strong style={{ color: "var(--agent-text-primary)" }}>
-                    {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
-                  </strong>
-                  {savedHours > 0 && (
-                    <> — saving you around{" "}
-                      <strong style={{ color: "var(--agent-coral-deep)" }}>
-                        {savedHours} hours
-                      </strong>{" "}
-                      this week
+                  {isAdmin ? (
+                    <>Our team is actively progressing{" "}
+                      <strong style={{ color: "var(--agent-text-primary)" }}>
+                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                      </strong>
+                      {" "}across all client agencies.
+                    </>
+                  ) : (
+                    <>Our team is handling{" "}
+                      <strong style={{ color: "var(--agent-text-primary)" }}>
+                        {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
+                      </strong>
+                      {savedHours > 0 && (
+                        <> — saving you around{" "}
+                          <strong style={{ color: "var(--agent-coral-deep)" }}>
+                            {savedHours} hours
+                          </strong>{" "}
+                          this week
+                        </>
+                      )}
                     </>
                   )}
                 </p>
               ) : (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
-                  All files are self-managed.
+                  {isAdmin ? "All files are self-managed by their agencies." : "All files are self-managed."}
                 </p>
               )}
             </div>

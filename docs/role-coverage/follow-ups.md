@@ -28,6 +28,30 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 
 ---
 
+## FU-05 — `getHubFlags` latent agencyId bug
+
+**Source:** /agent/hub inventory  
+**Summary:** `lib/services/hub.ts:343` — `getHubFlags(vis)` queries `{ agencyId: vis.agencyId, ... }`. For internal staff, `vis.agencyId = ""` so this returns empty. The function is **not called from the hub page** (page uses `getHubAttentionItems`), so no production impact today. If ever wired up for internal staff, it will silently return empty. Needs the same `internalMode` branching as other hub functions.  
+**When to revisit:** When/if `getHubFlags` is wired up to a page internal staff can access.
+
+---
+
+## FU-06 — Momentum ring for SP: metric validity
+
+**Source:** /agent/hub inventory  
+**Summary:** SP momentum (`getHubMomentum`) counts exchanges in assigned files this month vs last. If SP is new or assigned to files with few exchanges, `percent = null` → ring doesn't render. Technically correct but visually confusing. Consider a different SP-relevant metric (e.g. files with outstanding reminders vs files clear) once SP workflow matures.  
+**When to revisit:** Post-launch when SP workflow is operational and we have real usage to assess.
+
+---
+
+## FU-07 — loading.tsx role-conditional elements (hub)
+
+**Source:** /agent/hub inventory  
+**Summary:** `app/agent/hub/loading.tsx` always renders the "New sale" button and flag-button skeleton regardless of role. SP sees "New sale" for ~1s before data loads (then disappears). Not fixable without adding session to loading.tsx, which defeats the skeleton's purpose. Accepted limitation.  
+**When to revisit:** If loading skeletons get a more thorough role-aware treatment across the app.
+
+---
+
 ## FU-04 — Admin to-do page (URL still live, no nav entry)
 
 **Source:** /agent/to-do inventory, Q2 answer  
