@@ -7,9 +7,8 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 ## FU-09 — `deleteCommAction` has no UI role gate on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  
-**Summary:** `ActivityTimeline.tsx` renders a delete button on every communication entry for any authenticated user with file access. SP and admin can delete any comm on any file they can view. Backend `deleteCommAction` server action must enforce role/ownership restriction.  
-**Recommendation:** SP can delete their own logged comms only; admin can delete any. UI: hide the delete button for SP on entries they don't own.  
-**When to revisit:** Security/permissions audit pass.
+**Status:** ✅ RESOLVED `fe01c26` — `deleteCommunicationRecord` now uses `scope: AccessScope` with `scopeOwnershipWhere`. SP can only delete comms on their assigned files. UI gate (hide delete button for SP entries they don't own) is still desirable defence-in-depth but is no longer a security gap.  
+**Remaining:** UI-only polish — hide delete button for SP on comms they didn't create. Not a security issue.
 
 ---
 
@@ -25,34 +24,27 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 ## FU-11 — `EditSaleDetailsDrawer` exposes agent fee editing to SP
 
 **Source:** /agent/transactions/[id] inventory  
-**Status:** UI gate shipped in role-coverage pass — edit button hidden for SP via `canEditSaleDetails={!isProgressor}`. Backend enforcement TBD.  
-**Remaining gap:** `saveAgentFeeAction`, `savePriceAction`, `saveReferralAction` server actions must check that the caller is not a `sales_progressor`. UI gate is defence-in-depth only.  
-**When to revisit:** Backend permissions audit.
+**Status:** ✅ RESOLVED `c7f971f` — `saveAgentFeeAction`, `saveReferralAction`, `saveBrokerReferralAction` now throw `Forbidden` if `session.user.role === "sales_progressor"`. UI gate (`hideCommercialFields={isProgressor}`) remains as defence-in-depth.  
+**Remaining:** None. Both UI and backend are gated.
 
 ---
 
 ## FU-17 — `/api/chase/send-email` and `/api/ai/generate-chase` fail for SP/admin
 
 **Source:** /agent/work-queue inventory  
-**Summary:** Two Chase API routes use hard `agencyId` equality that breaks for internal staff (agencyId = null/""):
+**Status:** ✅ RESOLVED `0561d04` — both routes now use scope-based ownership checks:
 
-`/api/chase/send-email` (route.ts line 24):
-```ts
-where: { id: transactionId, agencyId: session.user.agencyId }
-```
-SP/admin: `agencyId = null/""`→ `findFirst` returns `null` → **404 "Transaction not found"**.
+- `/api/chase/send-email`: `scopeOwnershipWhere(scope, transactionId)` — SP can send on assigned files
+- `/api/ai/generate-chase`: `canReadTransaction(scope, task.transaction)` — SP can generate on assigned files
 
-`/api/ai/generate-chase` (route.ts lines 114, 147):
-```ts
-if (primaryTask.transaction.agencyId !== session.user.agencyId) { return 403 }
-```
-SP/admin: `customerAgencyId !== null` → always **403 Forbidden**.
+**Next step:** Un-hide Chase CTA for SP on work-queue page (separate atomic commit — `hideChase={isInternalStaff}` can now be removed).
 
-**Fix:** Apply `agencyId ? { id, agencyId } : { id }` bypass in send-email; replace strict equality with `agencyId && primaryTask.transaction.agencyId !== session.user.agencyId` in generate-chase.
+---
 
-**Interim mitigation:** Chase CTA hidden for all internal staff via `hideChase={isInternalStaff}` prop (shipped in role-coverage pass). SP cannot trigger broken path from UI.
+## FU-18 — `runReminderEngineAction` for SP runs platform-wide
 
-**When to revisit:** Before SP Chase workflow is unblocked. Both routes need the agencyId bypass + role authorisation (SP should only chase on their assigned files).
+**Source:** /agent/work-queue inventory  
+**Status:** ✅ RESOLVED `c751d25` — `runReminderEngine` now accepts an optional `assignedUserId` param. `runReminderEngineAction` passes `session.user.id` for SP, scoping the engine run to SP's assigned transactions only. Agent and admin paths unchanged.
 
 ---
 
