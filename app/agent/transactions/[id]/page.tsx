@@ -342,7 +342,7 @@ export default async function AgentTransactionDetailPage({
       exchangeConfirmed={exchangeConfirmed}
       fileTime={fileTime}
       isInternal={isInternal}
-      canEditSaleDetails={!isProgressor}
+      hideCommercialFields={isProgressor}
     />
   );
 

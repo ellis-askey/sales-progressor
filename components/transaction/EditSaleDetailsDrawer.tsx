@@ -179,6 +179,7 @@ type Props = {
   predictedExchangeDate: Date | null;
   completionDate: Date | null;
   exchangeConfirmed: boolean;
+  hideCommercialFields?: boolean;
   isTopmost?: boolean;
   onClose: () => void;
 };
@@ -201,6 +202,7 @@ export function EditSaleDetailsDrawer({
   predictedExchangeDate,
   completionDate,
   exchangeConfirmed,
+  hideCommercialFields = false,
   isTopmost = true,
   onClose,
 }: Props) {
@@ -289,7 +291,7 @@ export function EditSaleDetailsDrawer({
   const anyDirty = propHasChanges || priceFeeHasChanges || timelineHasChanges;
   const dirtySections: string[] = [];
   if (propHasChanges) dirtySections.push("Property");
-  if (priceFeeHasChanges) dirtySections.push("Price & Fees");
+  if (priceFeeHasChanges) dirtySections.push(hideCommercialFields ? "Price" : "Price & Fees");
   if (timelineHasChanges) dirtySections.push("Timeline");
   const dirtyCount = dirtySections.length;
 
@@ -744,7 +746,7 @@ export function EditSaleDetailsDrawer({
               {priceFeeHasChanges && (
                 <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", marginRight: 6, verticalAlign: "middle" }} />
               )}
-              Price &amp; Fees
+              {hideCommercialFields ? "Price" : "Price & Fees"}
             </p>
             <div className="v2-drawer-section" style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -755,6 +757,7 @@ export function EditSaleDetailsDrawer({
               </div>
 
               {/* Agent fee */}
+              {!hideCommercialFields && (
               <div>
                 <p className="text-xs text-slate-900/40 mb-1.5">Agent fee</p>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -778,9 +781,10 @@ export function EditSaleDetailsDrawer({
                   <button onClick={() => setFeeVatInput("inclusive")} style={pill(feeVatInput === "inclusive")} disabled={priceFeeStage === "saving"}>Inc VAT</button>
                 </div>
               </div>
+              )}
 
               {/* Referral fee */}
-              {showReferralSection && recommendedFirms && recommendedFirms.length > 0 && (
+              {!hideCommercialFields && showReferralSection && recommendedFirms && recommendedFirms.length > 0 && (
                 <div>
                   <p className="text-xs text-slate-900/40 mb-1.5">Referral fee</p>
                   <select

@@ -42,6 +42,7 @@ type Props = {
   fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
   isInternal?: boolean;
   canEditSaleDetails?: boolean;
+  hideCommercialFields?: boolean;
 };
 
 function fmtTime(seconds: number): string {
@@ -131,7 +132,7 @@ function ProgressRing({ percent, size = 72, strokeWidth = 6 }: { percent: number
   );
 }
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true, hideCommercialFields = false }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -350,7 +351,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               onClick={() => setShowEditDrawer(true)}
               className="text-xs agent-link"
             >
-              Edit details
+              {hideCommercialFields ? "Edit price" : "Edit details"}
             </button>
           )}
         </div>
@@ -601,7 +602,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                 <p className="agent-sidebar-label">Fee Breakdown</p>
                 {canEditSaleDetails && (
                   <button onClick={() => setShowEditDrawer(true)} className="text-xs agent-link">
-                    Edit details
+                    {hideCommercialFields ? "Edit price" : "Edit details"}
                   </button>
                 )}
               </div>
@@ -679,6 +680,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         predictedExchangeDate={progress.predictedExchangeDate ?? null}
         completionDate={transaction.completionDate ?? null}
         exchangeConfirmed={exchangeConfirmed}
+        hideCommercialFields={hideCommercialFields}
         onClose={() => setShowEditDrawer(false)}
       />
     )}
