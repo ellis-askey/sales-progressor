@@ -31,8 +31,8 @@ export default async function DashboardPage({
     listTransactionsByScope(scope),
     countTransactionsByScope(scope),
     getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
-    getExchangeForecast(session.user.agencyId).catch(() => []),
-    getExchangedNotCompleting(session.user.agencyId).catch(() => []),
+    getExchangeForecast(session.user.agencyId, undefined, undefined, scope).catch(() => []),
+    getExchangedNotCompleting(session.user.agencyId, undefined, undefined, scope).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
     getActiveFlags(session.user.agencyId).catch(() => []),
   ]);

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma, ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@prisma/client";
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
+import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,9 +151,9 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
   return logs;
 }
 
-export async function getChaseTasksForTransaction(transactionId: string, agencyId: string) {
+export async function getChaseTasksForTransaction(transactionId: string, scope: AccessScope) {
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");

@@ -325,16 +325,16 @@ export type ForecastMonth = {
   transactions: { id: string; propertyAddress: string; forecastDate: Date; serviceType: "self_managed" | "outsourced" | null }[];
 };
 
-export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<ForecastMonth[]> {
+export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }, scope?: AccessScope): Promise<ForecastMonth[]> {
   let agentFilter: Record<string, unknown>;
   if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
   else if (agentUserId) agentFilter = { agentUserId };
   else agentFilter = { progressedBy: "progressor" };
+  const baseWhere = scope ? scopeTransactionWhere(scope) : { agencyId, ...agentFilter };
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
-      agencyId,
+      ...baseWhere,
       status: "active",
-      ...agentFilter,
       OR: [
         { overridePredictedDate: { not: null } },
         { expectedExchangeDate: { not: null } },
@@ -411,7 +411,7 @@ export type PostExchangeGroup = {
   transactions: PostExchangeTransaction[];
 };
 
-export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }): Promise<PostExchangeGroup[]> {
+export async function getExchangedNotCompleting(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }, scope?: AccessScope): Promise<PostExchangeGroup[]> {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM19", "PM26", "VM20", "PM27"] } },
     select: { id: true, code: true },
@@ -424,12 +424,12 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
   if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
   else if (agentUserId) agentFilter = { agentUserId };
   else agentFilter = { progressedBy: "progressor" };
+  const baseWhere = scope ? scopeTransactionWhere(scope) : { agencyId, ...agentFilter };
 
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
-      agencyId,
+      ...baseWhere,
       status: "active",
-      ...agentFilter,
       milestoneCompletions: {
         some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
@@ -507,7 +507,7 @@ export type PostExchangeGroupDetailed = {
   transactions: PostExchangeTransactionDetailed[];
 };
 
-export async function getCompletingFilesDetailed(agencyId: string): Promise<PostExchangeGroupDetailed[]> {
+export async function getCompletingFilesDetailed(scope: AccessScope): Promise<PostExchangeGroupDetailed[]> {
   const defs = await prisma.milestoneDefinition.findMany({
     where: { code: { in: ["VM19", "PM26", "VM20", "PM27"] } },
     select: { id: true, code: true },
@@ -518,7 +518,7 @@ export async function getCompletingFilesDetailed(agencyId: string): Promise<Post
 
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
-      agencyId,
+      ...scopeTransactionWhere(scope),
       status: "active",
       progressedBy: "progressor",
       milestoneCompletions: {

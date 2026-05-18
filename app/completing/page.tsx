@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getCompletingFilesDetailed } from "@/lib/services/transactions";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { getWorkQueueCounts } from "@/lib/services/tasks";
 import { countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { AppShell } from "@/components/layout/AppShell";
@@ -98,8 +99,9 @@ function CompletingGroup({ group }: { group: PostExchangeGroupDetailed }) {
 
 export default async function CompletingPage() {
   const session = await requireSession();
+  const scope = getAccessScope(session);
   const [groups, taskCounts, todoCount] = await Promise.all([
-    getCompletingFilesDetailed(session.user.agencyId),
+    getCompletingFilesDetailed(scope),
     getWorkQueueCounts(session.user.agencyId, session.user.id).catch(() => null),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
   ]);
