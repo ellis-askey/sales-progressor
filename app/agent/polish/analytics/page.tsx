@@ -16,6 +16,19 @@
  * Used for Recharts JS-prop colour values. SVG fill/stroke attrs accept var() directly.
  * Stage 4: call getThemeColor inside useMemo keyed to theme to re-resolve on theme switch.
  *
+ * Chart animation policy:
+ *   KpiSparkline:    isAnimationActive={false} is DELIBERATE — 3 simultaneous sparkline
+ *                    animations on every period-tab change would be visually noisy/janky.
+ *                    No value in animating compact 28px lines. Keep as-is at Stage 4.
+ *   VolumeBarChart:  animation ON (Recharts default). Single chart; bar draw-in on mount
+ *                    feels alive. Keep as-is.
+ *   MonthlyMixChart: animation ON (Recharts default). Same reasoning. Keep as-is.
+ *
+ * KpiSparkline zero-data behaviour: when all data values are 0, renders an invisible 28px
+ * spacer. This does NOT look broken — the number stands alone with adequate breathing room
+ * and the absence of a line implicitly signals "no trend data yet". No fix needed at Stage 4.
+ * Toggle "zero-spark" in pp-controls to verify this visually.
+ *
  * Chart tokenisation (Stage 4 applies to source components):
  *   SubmissionFunnel:  STAGE_COLORS.completed.bar/dot = "#16A34A" → "var(--agent-success)"
  *   SpeedGauge:        track gradient #16A34A/#C97D1A/#D94F4F → var(--agent-success/warning/danger)
@@ -29,7 +42,7 @@
  *   Missing fees acc:  agent-acc — canonical per ANIMATION_STANDARDS.md §1
  *   REFERENCE mobile:  hidden md:block wrapper — matches completions/comms precedent
  *   Ghost opacity:     0.35 — canonical per POST_LAUNCH_FIXES.md ghost convention
- *   Director mock:     isDirector=true shows leaderboard, team filter pill, referral sections
+ *   Director mock:     isDirector=true shows leaderboard, team filter, referral sections
  *   All-time referral: not filtered by period — classified theoretical (docs/POST_LAUNCH_FIXES.md)
  */
 
@@ -48,9 +61,10 @@ import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
-type ThemeName = "sunset" | "coastal" | "heritage" | "slate" | "emerald" | "claret";
-type ViewState  = "populated" | "empty" | "loading";
-type Period     = "week" | "month" | "year" | "all";
+type ThemeName     = "sunset" | "coastal" | "heritage" | "slate" | "emerald" | "claret";
+type ViewState     = "populated" | "partial-empty" | "empty" | "loading";
+type Period        = "week" | "month" | "year" | "all";
+type SolicitorMode = "none" | "single" | "multi";
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -93,6 +107,13 @@ const MOCK_KPI = {
   submittedValue: [42, 56, 28, 70, 42, 84, 56, 70, 42, 98, 70, 56].map((v) => v * 100_000_00),
 };
 
+const MOCK_KPI_ZERO = {
+  submitted:      new Array(12).fill(0) as number[],
+  exchanged:      new Array(12).fill(0) as number[],
+  completed:      new Array(12).fill(0) as number[],
+  submittedValue: new Array(12).fill(0) as number[],
+};
+
 const MOCK_FUNNEL: SubmissionFunnelData = {
   stages: [
     { key: "submitted", label: "Submitted", count: 12 },
@@ -108,27 +129,18 @@ const MOCK_FUNNEL: SubmissionFunnelData = {
 const MOCK_SPEED_DAYS = 82;
 
 const MOCK_VOLUME_BARS: VolumeEntry[] = [
-  { label: "Nov 24", count: 3 },
-  { label: "Dec 24", count: 2 },
-  { label: "Jan 25", count: 5 },
-  { label: "Feb 25", count: 4 },
-  { label: "Mar 25", count: 7 },
-  { label: "Apr 25", count: 4 },
+  { label: "Nov 24", count: 3 }, { label: "Dec 24", count: 2 },
+  { label: "Jan 25", count: 5 }, { label: "Feb 25", count: 4 },
+  { label: "Mar 25", count: 7 }, { label: "Apr 25", count: 4 },
 ];
 
 const MOCK_MONTHLY_MIX = [
-  { month: "Jun", created: 2, exchanged: 1 },
-  { month: "Jul", created: 3, exchanged: 2 },
-  { month: "Aug", created: 1, exchanged: 1 },
-  { month: "Sep", created: 4, exchanged: 3 },
-  { month: "Oct", created: 3, exchanged: 2 },
-  { month: "Nov", created: 3, exchanged: 2 },
-  { month: "Dec", created: 2, exchanged: 1 },
-  { month: "Jan", created: 5, exchanged: 3 },
-  { month: "Feb", created: 4, exchanged: 3 },
-  { month: "Mar", created: 7, exchanged: 5 },
-  { month: "Apr", created: 4, exchanged: 3 },
-  { month: "May", created: 4, exchanged: 0 },
+  { month: "Jun", created: 2, exchanged: 1 }, { month: "Jul", created: 3, exchanged: 2 },
+  { month: "Aug", created: 1, exchanged: 1 }, { month: "Sep", created: 4, exchanged: 3 },
+  { month: "Oct", created: 3, exchanged: 2 }, { month: "Nov", created: 3, exchanged: 2 },
+  { month: "Dec", created: 2, exchanged: 1 }, { month: "Jan", created: 5, exchanged: 3 },
+  { month: "Feb", created: 4, exchanged: 3 }, { month: "Mar", created: 7, exchanged: 5 },
+  { month: "Apr", created: 4, exchanged: 3 }, { month: "May", created: 4, exchanged: 0 },
 ];
 
 const MOCK_SOLICITOR_STATS = [
@@ -145,9 +157,15 @@ const MOCK_MISSING_FEES = [
   { id: "m5", address: "8 Victoria Road, Brighton, BN1 1XZ",    ownerLine: "Tom Wallace · Negotiator" },
 ];
 
-const MOCK_FILES_AT_RISK: FilesAtRiskData = {
+const MOCK_FILES_AT_RISK_ISSUES: FilesAtRiskData = {
   overdueChases:    { count: 2, transactionIds: ["tx1", "tx2"] },
   stalled:          { count: 1, transactionIds: ["tx3"] },
+  missingEventDate: { count: 0, transactionIds: [] },
+};
+
+const MOCK_FILES_AT_RISK_CLEAR: FilesAtRiskData = {
+  overdueChases:    { count: 0, transactionIds: [] },
+  stalled:          { count: 0, transactionIds: [] },
   missingEventDate: { count: 0, transactionIds: [] },
 };
 
@@ -176,26 +194,29 @@ const CSS = `
   .pp-pill.on { background: #1E2D4A; color: white; border-color: #1E2D4A; }
 
   [data-rm="1"] *, [data-rm="1"] *::before, [data-rm="1"] *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    animation-delay: 0ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important; transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
   }
-  [data-rm="1"] .agent-acc,
-  [data-rm="1"] .agent-acc.open { transition: none !important; }
+  [data-rm="1"] .agent-acc, [data-rm="1"] .agent-acc.open { transition: none !important; }
 `;
 
 /* ─── Main page ───────────────────────────────────────────────────────────── */
 
 export default function AnalyticsPolishPage() {
-  const [viewState,      setViewState]      = useState<ViewState>("populated");
-  const [period,         setPeriod]         = useState<Period>("month");
-  const [isDirector,     setIsDirector]     = useState(true);
-  const [theme,          setTheme]          = useState<ThemeName>("sunset");
-  const [night,          setNight]          = useState(false);
-  const [rm,             setRm]             = useState(false);
-  const [missingFeesOpen, setMissingFeesOpen] = useState(false);
+  const [viewState,       setViewState]       = useState<ViewState>("populated");
+  const [period,          setPeriod]          = useState<Period>("month");
+  const [isDirector,      setIsDirector]      = useState(true);
+  const [solicitorMode,   setSolicitorMode]   = useState<SolicitorMode>("multi");
+  const [hasConvRefs,     setHasConvRefs]     = useState(true);
+  const [hasBrokerRefs,   setHasBrokerRefs]   = useState(true);
+  const [hasRiskIssues,   setHasRiskIssues]   = useState(true);
+  const [hasMissingFees,  setHasMissingFees]  = useState(true);
+  const [zeroSparklines,  setZeroSparklines]  = useState(false);
+  const [theme,           setTheme]           = useState<ThemeName>("sunset");
+  const [night,           setNight]           = useState(false);
+  const [rm,              setRm]              = useState(false);
+  const [feesOpen,        setFeesOpen]        = useState(false);
 
   useEffect(() => {
     const shell = document.querySelector<HTMLElement>(".agent-shell-root");
@@ -205,22 +226,29 @@ export default function AnalyticsPolishPage() {
     return () => { shell.removeAttribute("data-night"); };
   }, [night]);
 
-  const periodLabel  = PERIODS.find((p) => p.key === period)?.label ?? "Month";
-  const periodWord   = period === "week" ? "week" : period === "month" ? "month" : "year";
-  const chartTitle   =
-    period === "week"  ? "Files submitted — last 7 days"     :
-    period === "month" ? "Files submitted — last 6 months"   :
-    period === "year"  ? "Files submitted — last 12 months"  :
+  const isPartialEmpty = viewState === "partial-empty";
+  const showMainContent = viewState === "populated" || isPartialEmpty;
+
+  const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? "Month";
+  const periodWord  = period === "week" ? "week" : period === "month" ? "month" : "year";
+  const chartTitle  =
+    period === "week"  ? "Files submitted — last 7 days"   :
+    period === "month" ? "Files submitted — last 6 months" :
+    period === "year"  ? "Files submitted — last 12 months":
                          "Files submitted — all time";
   const thisMonthLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const badge = speedBadge(MOCK_SPEED_DAYS);
 
-  const coralColor   = getThemeColor("--agent-coral",   "var(--agent-coral)");
-  const successColor = getThemeColor("--agent-success", "var(--agent-success)");
-  const mutedColor   = getThemeColor("--agent-text-secondary", "var(--agent-text-secondary)");
+  const useZeroKpi = zeroSparklines || isPartialEmpty;
+  const kpiData    = useZeroKpi ? MOCK_KPI_ZERO : MOCK_KPI;
 
-  const showLeaderboard = isDirector;
-  const showReferrals   = isDirector;
+  const coralColor   = getThemeColor("--agent-coral",         "var(--agent-coral)");
+  const successColor = getThemeColor("--agent-success",       "var(--agent-success)");
+  const mutedColor   = getThemeColor("--agent-text-secondary","var(--agent-text-secondary)");
+
+  const badge         = speedBadge(MOCK_SPEED_DAYS);
+  const riskData      = hasRiskIssues ? MOCK_FILES_AT_RISK_ISSUES : MOCK_FILES_AT_RISK_CLEAR;
+  const solicitorRows = solicitorMode === "none" ? [] : solicitorMode === "single" ? [MOCK_SOLICITOR_STATS[0]] : MOCK_SOLICITOR_STATS;
+  const showLeaderboard = isDirector && viewState !== "empty";
 
   return (
     <>
@@ -231,16 +259,18 @@ export default function AnalyticsPolishPage() {
         padding: "10px 16px",
         borderBottom: "1px solid rgba(30,45,74,0.08)",
         background: "rgba(30,45,74,0.03)",
-        display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap",
+        display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap",
       }}>
         <span className="pp-bar-label" style={{ fontWeight: 600 }}>analytics — Stage 2</span>
+
         <div className="pp-bar">
           <span className="pp-bar-label">state</span>
-          {(["populated", "empty", "loading"] as ViewState[]).map((s) => (
+          {(["populated", "partial-empty", "empty", "loading"] as ViewState[]).map((s) => (
             <button key={s} type="button" className={`pp-pill${viewState === s ? " on" : ""}`}
               onClick={() => setViewState(s)}>{s}</button>
           ))}
         </div>
+
         <div className="pp-bar">
           <span className="pp-bar-label">role</span>
           <button type="button" className={`pp-pill${isDirector ? " on" : ""}`}
@@ -248,6 +278,32 @@ export default function AnalyticsPolishPage() {
           <button type="button" className={`pp-pill${!isDirector ? " on" : ""}`}
             onClick={() => setIsDirector(false)}>negotiator</button>
         </div>
+
+        {/* Conditional sections — on=present, off=absent/zero. Solicitor: radio for count. */}
+        <div className="pp-bar">
+          <span className="pp-bar-label">solicitors</span>
+          <button type="button" className={`pp-pill${solicitorMode === "none" ? " on" : ""}`}
+            onClick={() => setSolicitorMode("none")}>none</button>
+          <button type="button" className={`pp-pill${solicitorMode === "single" ? " on" : ""}`}
+            onClick={() => setSolicitorMode("single")}>1</button>
+          <button type="button" className={`pp-pill${solicitorMode === "multi" ? " on" : ""}`}
+            onClick={() => setSolicitorMode("multi")}>3</button>
+        </div>
+
+        <div className="pp-bar">
+          <span className="pp-bar-label">sections</span>
+          <button type="button" className={`pp-pill${hasConvRefs ? " on" : ""}`}
+            onClick={() => setHasConvRefs((v) => !v)}>conv-refs</button>
+          <button type="button" className={`pp-pill${hasBrokerRefs ? " on" : ""}`}
+            onClick={() => setHasBrokerRefs((v) => !v)}>broker-refs</button>
+          <button type="button" className={`pp-pill${hasRiskIssues ? " on" : ""}`}
+            onClick={() => setHasRiskIssues((v) => !v)}>risk</button>
+          <button type="button" className={`pp-pill${hasMissingFees ? " on" : ""}`}
+            onClick={() => setHasMissingFees((v) => !v)}>fees</button>
+          <button type="button" className={`pp-pill${zeroSparklines ? " on" : ""}`}
+            onClick={() => setZeroSparklines((v) => !v)}>zero-spark</button>
+        </div>
+
         <div className="pp-bar">
           <span className="pp-bar-label">theme</span>
           {THEME_NAMES.map((t) => (
@@ -255,6 +311,7 @@ export default function AnalyticsPolishPage() {
               onClick={() => setTheme(t)}>{t}</button>
           ))}
         </div>
+
         <div className="pp-bar">
           <span className="pp-bar-label">opts</span>
           <button type="button" className={`pp-pill${night ? " on" : ""}`}
@@ -268,13 +325,9 @@ export default function AnalyticsPolishPage() {
       <div className="agent-bg" data-theme={theme} data-rm={rm ? "1" : "0"}>
 
         <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline.">
-          {/* Director: mock team filter pill (AnalyticsFilterClient → glass-input select in Stage 4) */}
-          {isDirector && viewState === "populated" && (
-            <select
-              className="glass-input"
-              style={{ fontSize: 12, padding: "5px 10px" }}
-              defaultValue=""
-            >
+          {/* Director: mock team filter — negotiator sees nothing here */}
+          {isDirector && showMainContent && (
+            <select className="glass-input" style={{ fontSize: 12, padding: "5px 10px" }} defaultValue="">
               <option value="">All team</option>
               {MOCK_LEADERBOARD.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
@@ -288,10 +341,9 @@ export default function AnalyticsPolishPage() {
           {/* ── Loading ───────────────────────────────────────────────────── */}
           {viewState === "loading" && <AnalyticsSkeleton />}
 
-          {/* ── Empty ─────────────────────────────────────────────────────── */}
+          {/* ── Empty (zero transactions ever) ────────────────────────────── */}
           {viewState === "empty" && (
             <>
-              {/* Empty state card — agent-glass-strong (production fix: was glass-card) */}
               <div
                 className="agent-glass-strong"
                 style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
@@ -317,17 +369,15 @@ export default function AnalyticsPolishPage() {
                   + Submit your first sale
                 </a>
               </div>
-
-              {/* Ghost — abstract skeleton shapes, opacity 0.35 (production fix: was 0.3) */}
               <AnalyticsGhost />
             </>
           )}
 
-          {/* ── Populated ─────────────────────────────────────────────────── */}
-          {viewState === "populated" && (
+          {/* ── Populated + Partial-empty (share one render path) ─────────── */}
+          {showMainContent && (
             <>
 
-              {/* Period tabs — agent-segment-pill (production fix: replace custom inline button styles) */}
+              {/* Period tabs */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto",
                 WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>
                 {PERIODS.map(({ key, label }) => (
@@ -342,145 +392,168 @@ export default function AnalyticsPolishPage() {
                 ))}
               </div>
 
-              {/* Counts ──────────────────────────────────────────────────── */}
+              {/* Partial-empty banner — transactions exist but selected period is empty */}
+              {isPartialEmpty && (
+                <div style={{
+                  background: "rgba(var(--agent-coral-base-rgb),0.06)",
+                  border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)",
+                  borderRadius: 10, padding: "10px 16px",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                    No activity {period === "week" ? "this week" : period === "month" ? "this month" : period === "year" ? "this year" : "in this period"}. Try changing the period.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPeriod("all")}
+                    className="agent-link"
+                    style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                  >
+                    All time →
+                  </button>
+                </div>
+              )}
+
+              {/* Counts — zeros in partial-empty; zero-spark toggles KpiSparkline data */}
               <div className="agent-glass" style={{ padding: "16px 20px" }}>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Submitted</p>
                     <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                      12
+                      {isPartialEmpty ? "0" : "12"}
                     </p>
                     {/* Stage 4: color={getThemeColor("--agent-coral", "#FF8A65")} */}
-                    <KpiSparkline data={MOCK_KPI.submitted} labels={MOCK_KPI.labels} color={coralColor} />
-                    <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 3 vs last {periodWord}</p>
+                    <KpiSparkline data={kpiData.submitted} labels={MOCK_KPI.labels} color={coralColor} />
+                    {!isPartialEmpty && (
+                      <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 3 vs last {periodWord}</p>
+                    )}
                   </div>
                   <div>
                     <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Exchanged</p>
                     <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-success)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                      8
+                      {isPartialEmpty ? "0" : "8"}
                     </p>
-                    <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>67% of submitted</p>
+                    {!isPartialEmpty && <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>67% of submitted</p>}
                     {/* Stage 4: color={getThemeColor("--agent-success", "#1F8A4A")} */}
-                    <KpiSparkline data={MOCK_KPI.exchanged} labels={MOCK_KPI.labels} color={successColor} />
-                    <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 2 vs last {periodWord}</p>
+                    <KpiSparkline data={kpiData.exchanged} labels={MOCK_KPI.labels} color={successColor} />
+                    {!isPartialEmpty && (
+                      <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 2 vs last {periodWord}</p>
+                    )}
                   </div>
                   <div>
                     <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Completed</p>
                     <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                      5
+                      {isPartialEmpty ? "0" : "5"}
                     </p>
-                    <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>63% of exchanged</p>
-                    {/* Stage 4: color={getThemeColor("--agent-text-secondary", "rgba(15,23,42,0.6)")} */}
-                    <KpiSparkline data={MOCK_KPI.completed} labels={MOCK_KPI.labels} color={mutedColor} />
-                    <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 2 vs last {periodWord}</p>
+                    {!isPartialEmpty && <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>63% of exchanged</p>}
+                    {/* Stage 4: color={getThemeColor("--agent-text-secondary", ...)} */}
+                    <KpiSparkline data={kpiData.completed} labels={MOCK_KPI.labels} color={mutedColor} />
+                    {!isPartialEmpty && (
+                      <p style={{ margin: "4px 0 0", fontSize: 12, fontWeight: 700, color: "var(--agent-success)" }}>↑ 2 vs last {periodWord}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Funnel + Speed ─────────────────────────────────────────── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* SubmissionFunnel — PRIMARY: works at 375px */}
-                <div className="agent-glass" style={{ padding: "16px 20px" }}>
-                  <p className="agent-eyebrow" style={{ marginBottom: 12 }}>
-                    Conversion funnel — {periodLabel.toLowerCase()}
-                  </p>
-                  <SubmissionFunnel data={MOCK_FUNNEL} />
+              {/* Funnel + Speed — absent in partial-empty (no period activity) */}
+              {!isPartialEmpty && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* SubmissionFunnel — PRIMARY: works at 375px */}
+                  <div className="agent-glass" style={{ padding: "16px 20px" }}>
+                    <p className="agent-eyebrow" style={{ marginBottom: 12 }}>
+                      Conversion funnel — {periodLabel.toLowerCase()}
+                    </p>
+                    <SubmissionFunnel data={MOCK_FUNNEL} />
+                  </div>
+                  {/* SpeedGauge — PRIMARY: works at 375px */}
+                  <div className="agent-glass" style={{ padding: "16px 20px" }}>
+                    <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Speed to exchange</p>
+                    <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                      {MOCK_SPEED_DAYS} days
+                    </p>
+                    <p style={{ margin: "4px 0 8px", fontSize: 10, color: "var(--agent-text-muted)" }}>
+                      avg from instruction · 8 files exchanged
+                    </p>
+                    <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, color: badge.color, background: badge.bg, border: `1px solid ${badge.border}` }}>
+                      {badge.label}
+                    </span>
+                    <SpeedGauge avgDays={MOCK_SPEED_DAYS} />
+                  </div>
                 </div>
-                {/* SpeedGauge — PRIMARY: works at 375px */}
-                <div className="agent-glass" style={{ padding: "16px 20px" }}>
-                  <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Speed to exchange</p>
-                  <p style={{ margin: 0, fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                    {MOCK_SPEED_DAYS} days
-                  </p>
-                  <p style={{ margin: "4px 0 8px", fontSize: 10, color: "var(--agent-text-muted)" }}>
-                    avg from instruction · 8 files exchanged
-                  </p>
-                  <span style={{ display: "inline-block", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, color: badge.color, background: badge.bg, border: `1px solid ${badge.border}` }}>
-                    {badge.label}
-                  </span>
-                  <SpeedGauge avgDays={MOCK_SPEED_DAYS} />
-                </div>
-              </div>
+              )}
 
-              {/* Values ─────────────────────────────────────────────────── */}
+              {/* Values */}
               <div className="agent-glass" style={{ padding: "16px 20px" }}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Pipeline value</p>
                     <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                      £2.40m
+                      {isPartialEmpty ? "£0" : "£2.40m"}
                     </p>
                     <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Purchase prices</p>
                     {/* ValueHeatTiles — REFERENCE: hidden below 768px */}
                     <div className="hidden md:block">
-                      <ValueHeatTiles data={MOCK_KPI.submittedValue} labels={MOCK_KPI.labels} />
+                      <ValueHeatTiles data={kpiData.submittedValue} labels={MOCK_KPI.labels} />
                     </div>
                   </div>
                   <div>
                     <p className="agent-eyebrow" style={{ marginBottom: 4 }}>Value exchanged</p>
                     <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                      £1.60m
+                      {isPartialEmpty ? "£0" : "£1.60m"}
                     </p>
                     <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
-                    <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 700, color: "var(--agent-success)" }}>
-                      ↑ £400,000 vs last {periodWord}
-                    </p>
+                    {!isPartialEmpty && (
+                      <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 700, color: "var(--agent-success)" }}>
+                        ↑ £400,000 vs last {periodWord}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Fees ───────────────────────────────────────────────────── */}
+              {/* Fees */}
               <div className="agent-glass" style={{ padding: "16px 20px" }}>
                 <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Fee pipeline</p>
-                    <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT where set</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                      {fmtGBP(1_440_000)}
-                    </p>
-                    <a href="#missing-fees" style={{ display: "inline-block", marginTop: 4, fontSize: 10, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none" }}>
-                      {MOCK_MISSING_FEES.length} need fee →
-                    </a>
-                  </div>
-                  <div>
-                    <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Locked in</p>
-                    <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Exchanged files</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                      {fmtGBP(960_000)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="agent-eyebrow" style={{ marginBottom: 3 }}>Average fee</p>
-                    <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>Inc. VAT per file</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                      {fmtGBP(120_000)}
-                    </p>
-                  </div>
+                  {[
+                    { label: "Fee pipeline",  sub: "Inc. VAT where set", val: isPartialEmpty ? "—" : fmtGBP(1_440_000), color: "var(--agent-text-primary)" },
+                    { label: "Locked in",     sub: "Exchanged files",    val: isPartialEmpty ? "—" : fmtGBP(960_000),   color: "var(--agent-success)"      },
+                    { label: "Average fee",   sub: "Inc. VAT per file",  val: isPartialEmpty ? "—" : fmtGBP(120_000),   color: "var(--agent-text-primary)" },
+                  ].map(({ label, sub, val, color }) => (
+                    <div key={label}>
+                      <p className="agent-eyebrow" style={{ marginBottom: 3 }}>{label}</p>
+                      <p style={{ margin: "0 0 3px", fontSize: 10, color: "var(--agent-text-muted)" }}>{sub}</p>
+                      <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{val}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Fee forecast ───────────────────────────────────────────── */}
+              {/* Fee forecast */}
               <div className="agent-glass" style={{ padding: "18px 22px" }}>
                 <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Fee forecast</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Predicted for {thisMonthLabel}</p>
-                    <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>
-                      {fmtGBP(360_000)}
-                    </p>
-                    <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>3 files · inc. VAT where set</p>
+                    {isPartialEmpty ? (
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>No exchanges predicted this month</p>
+                    ) : (
+                      <>
+                        <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>{fmtGBP(360_000)}</p>
+                        <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>3 files · inc. VAT where set</p>
+                      </>
+                    )}
                   </div>
                   <div>
                     <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--agent-text-muted)" }}>Locked in already</p>
                     <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "-0.02em" }}>
-                      {fmtGBP(960_000)}
+                      {isPartialEmpty ? "—" : fmtGBP(960_000)}
                     </p>
                     <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>from exchanged files</p>
                   </div>
                 </div>
               </div>
 
-              {/* REFERENCE charts — hidden below 768px ─────────────────── */}
+              {/* REFERENCE charts — hidden below 768px */}
               <div className="hidden md:grid grid-cols-2 gap-3">
                 <div className="agent-glass" style={{ padding: "18px 22px" }}>
                   <p className="agent-eyebrow" style={{ marginBottom: 14 }}>{chartTitle}</p>
@@ -502,33 +575,35 @@ export default function AnalyticsPolishPage() {
                 </div>
               </div>
 
-              {/* Solicitor exchange performance ─────────────────────────── */}
-              <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-                <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Solicitor exchange performance</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Average days from instruction to exchange · fastest first</p>
-                </div>
-                {MOCK_SOLICITOR_STATS.map((s, i) => {
-                  const sb = speedBadge(s.avgDaysToExchange);
-                  return (
-                    <div
-                      key={s.firmId}
-                      className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
-                      style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
-                    >
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{s.firmName}</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                        <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{s.exchangeCount} exchanges</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: sb.bg, color: sb.color, border: `1px solid ${sb.border}` }}>{sb.label}</span>
+              {/* Solicitor exchange performance — absent when solicitorMode="none" */}
+              {solicitorRows.length > 0 && (
+                <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Solicitor exchange performance</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Average days from instruction to exchange · fastest first</p>
+                  </div>
+                  {solicitorRows.map((s, i) => {
+                    const sb = speedBadge(s.avgDaysToExchange);
+                    return (
+                      <div
+                        key={s.firmId}
+                        className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                        style={{ padding: "11px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                      >
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>{s.firmName}</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                          <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{s.exchangeCount} exchange{s.exchangeCount !== 1 ? "s" : ""}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 64, textAlign: "right" }}>{s.avgDaysToExchange} days</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: sb.bg, color: sb.color, border: `1px solid ${sb.border}` }}>{sb.label}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
-              {/* Referral income · Conveyancers — director only (all-time, not period-filtered) */}
-              {showReferrals && (
+              {/* Referral income · Conveyancers — director only, all-time, conv-refs toggle */}
+              {isDirector && hasConvRefs && (
                 <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
                   <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
@@ -559,8 +634,8 @@ export default function AnalyticsPolishPage() {
                 </div>
               )}
 
-              {/* Referral income · Brokers — director only (all-time, not period-filtered) */}
-              {showReferrals && (
+              {/* Referral income · Brokers — director only, all-time, broker-refs toggle */}
+              {isDirector && hasBrokerRefs && (
                 <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
                   <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
@@ -592,7 +667,7 @@ export default function AnalyticsPolishPage() {
               )}
 
               {/* Referral income — period (director only, period-filtered) */}
-              {showReferrals && (
+              {isDirector && !isPartialEmpty && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <p className="agent-eyebrow" style={{ paddingLeft: 2 }}>Referral income — {periodLabel.toLowerCase()}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -612,67 +687,52 @@ export default function AnalyticsPolishPage() {
                 </div>
               )}
 
-              {/* Files missing a fee — agent-acc (production fix: replace plain setState toggle) */}
-              <div id="missing-fees" className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-                {/* Header: always-visible summary */}
-                <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Files missing a fee</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Set the agent fee to include these files in your pipeline total.</p>
-                </div>
-                {/* First 3 rows always visible */}
-                {MOCK_MISSING_FEES.slice(0, 3).map((f, i) => (
-                  <div
-                    key={f.id}
-                    style={{ padding: "10px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.address}</p>
-                      {f.ownerLine && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>{f.ownerLine}</p>}
-                    </div>
-                    <a href="#" onClick={(e) => e.preventDefault()} style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none", flexShrink: 0 }}>
-                      Set fee →
-                    </a>
+              {/* Files missing a fee — absent when hasMissingFees=false */}
+              {hasMissingFees && (
+                <div id="missing-fees" className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Files missing a fee</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Set the agent fee to include these files in your pipeline total.</p>
                   </div>
-                ))}
-                {/* Overflow rows in agent-acc (production fix: replace plain setState toggle in MissingFeesList) */}
-                <div className={`agent-acc${missingFeesOpen ? " open" : ""}`} style={rm ? { transition: "none" } : undefined}>
-                  <div className="agent-acc-in">
-                    {MOCK_MISSING_FEES.slice(3).map((f, i) => (
-                      <div
-                        key={f.id}
-                        style={{ padding: "10px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-                      >
-                        <div style={{ minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.address}</p>
-                          {f.ownerLine && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>{f.ownerLine}</p>}
-                        </div>
-                        <a href="#" onClick={(e) => e.preventDefault()} style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none", flexShrink: 0 }}>
-                          Set fee →
-                        </a>
+                  {MOCK_MISSING_FEES.slice(0, 3).map((f, i) => (
+                    <div key={f.id} style={{ padding: "10px 20px", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.address}</p>
+                        {f.ownerLine && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>{f.ownerLine}</p>}
                       </div>
-                    ))}
+                      <a href="#" onClick={(e) => e.preventDefault()} style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none", flexShrink: 0 }}>Set fee →</a>
+                    </div>
+                  ))}
+                  {/* Overflow rows in agent-acc */}
+                  <div className={`agent-acc${feesOpen ? " open" : ""}`} style={rm ? { transition: "none" } : undefined}>
+                    <div className="agent-acc-in">
+                      {MOCK_MISSING_FEES.slice(3).map((f) => (
+                        <div key={f.id} style={{ padding: "10px 20px", borderTop: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.address}</p>
+                            {f.ownerLine && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>{f.ownerLine}</p>}
+                          </div>
+                          <a href="#" onClick={(e) => e.preventDefault()} style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", textDecoration: "none", flexShrink: 0 }}>Set fee →</a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", padding: "10px 20px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setFeesOpen((v) => !v)}
+                      className="agent-link agent-link-muted"
+                      style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12 }}
+                    >
+                      {feesOpen ? "Show less" : `Show all (${MOCK_MISSING_FEES.length})`}
+                      <CaretDown style={{ width: 12, height: 12, flexShrink: 0, transition: "transform 200ms", transform: feesOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                    </button>
                   </div>
                 </div>
-                {/* Show all / show less toggle with caret */}
-                <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", padding: "10px 20px" }}>
-                  <button
-                    type="button"
-                    onClick={() => setMissingFeesOpen((v) => !v)}
-                    className="agent-link agent-link-muted"
-                    style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12 }}
-                  >
-                    {missingFeesOpen ? "Show less" : `Show all (${MOCK_MISSING_FEES.length})`}
-                    <CaretDown style={{
-                      width: 12, height: 12, flexShrink: 0,
-                      transition: "transform 200ms",
-                      transform: missingFeesOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    }} />
-                  </button>
-                </div>
-              </div>
+              )}
 
-              {/* Files at risk */}
-              <FilesAtRiskPanel data={MOCK_FILES_AT_RISK} />
+              {/* Files at risk — always shown; hasRiskIssues toggles issues vs clear */}
+              <FilesAtRiskPanel data={riskData} />
 
               {/* Team leaderboard — director only */}
               {showLeaderboard && (
@@ -683,11 +743,7 @@ export default function AnalyticsPolishPage() {
                       Performance by team member · {periodLabel.toLowerCase()}
                     </p>
                   </div>
-                  <LeaderboardTable
-                    rows={MOCK_LEADERBOARD}
-                    currentUserId="u3"
-                    period={period}
-                  />
+                  <LeaderboardTable rows={MOCK_LEADERBOARD} currentUserId="u3" period={period} />
                 </div>
               )}
 
@@ -697,26 +753,18 @@ export default function AnalyticsPolishPage() {
         </div>
 
         {/* ── Mobile 375px frame ────────────────────────────────────────── */}
-        <div style={{
-          borderTop: "1px solid rgba(30,45,74,0.08)",
-          marginTop: 8,
-          padding: "20px 16px 32px",
-        }}>
-          <p className="pp-bar-label" style={{ fontWeight: 600, marginBottom: 12 }}>Mobile — 375px (PRIMARY charts only)</p>
-          <div style={{
-            width: 375, maxWidth: "100%",
-            border: "1px solid rgba(30,45,74,0.12)",
-            borderRadius: 12, overflow: "hidden",
-          }}>
-            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ borderTop: "1px solid rgba(30,45,74,0.08)", marginTop: 8, padding: "20px 16px 32px" }}>
+          <p className="pp-bar-label" style={{ fontWeight: 600, marginBottom: 12 }}>Mobile — 375px (PRIMARY charts · period tabs · partial-empty banner)</p>
+          <div style={{ width: 375, maxWidth: "100%", border: "1px solid rgba(30,45,74,0.12)", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
 
               {viewState === "loading" && <AnalyticsSkeleton compact />}
 
               {viewState === "empty" && <AnalyticsGhost />}
 
-              {viewState === "populated" && (
+              {showMainContent && (
                 <>
-                  {/* Period tabs — horizontal scroll on mobile */}
+                  {/* Period tabs — sm variant scrollable */}
                   <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
                     {PERIODS.map(({ key, label }) => (
                       <button
@@ -730,13 +778,24 @@ export default function AnalyticsPolishPage() {
                       </button>
                     ))}
                   </div>
-                  {/* Counts — compact */}
+                  {/* Partial-empty banner on mobile */}
+                  {isPartialEmpty && (
+                    <div style={{ background: "rgba(var(--agent-coral-base-rgb),0.06)", border: "1px solid rgba(var(--agent-coral-base-rgb),0.20)", borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)" }}>
+                        No activity {period === "week" ? "this week" : period === "month" ? "this month" : "this year"}.
+                      </p>
+                      <button type="button" onClick={() => setPeriod("all")} className="agent-link" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+                        All time →
+                      </button>
+                    </div>
+                  )}
+                  {/* Counts compact */}
                   <div className="agent-glass" style={{ padding: "12px 14px" }}>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { label: "Submitted", value: "12", color: "var(--agent-coral)" },
-                        { label: "Exchanged", value: "8",  color: "var(--agent-success)" },
-                        { label: "Completed", value: "5",  color: "var(--agent-text-primary)" },
+                        { label: "Submitted", value: isPartialEmpty ? "0" : "12", color: "var(--agent-coral)"       },
+                        { label: "Exchanged", value: isPartialEmpty ? "0" : "8",  color: "var(--agent-success)"     },
+                        { label: "Completed", value: isPartialEmpty ? "0" : "5",  color: "var(--agent-text-primary)"},
                       ].map(({ label, value, color }) => (
                         <div key={label}>
                           <p className="agent-eyebrow" style={{ fontSize: 9, marginBottom: 3 }}>{label}</p>
@@ -745,20 +804,22 @@ export default function AnalyticsPolishPage() {
                       ))}
                     </div>
                   </div>
-                  {/* Funnel — PRIMARY */}
-                  <div className="agent-glass" style={{ padding: "14px 16px" }}>
-                    <p className="agent-eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>Conversion funnel</p>
-                    <SubmissionFunnel data={MOCK_FUNNEL} />
-                  </div>
-                  {/* Speed gauge — PRIMARY */}
-                  <div className="agent-glass" style={{ padding: "14px 16px" }}>
-                    <p className="agent-eyebrow" style={{ marginBottom: 8, fontSize: 10 }}>Speed to exchange</p>
-                    <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
-                      {MOCK_SPEED_DAYS} days
-                    </p>
-                    <SpeedGauge avgDays={MOCK_SPEED_DAYS} />
-                  </div>
-                  {/* Note: VolumeBarChart, MonthlyMixChart, ValueHeatTiles hidden on mobile */}
+                  {/* PRIMARY charts — shown on mobile */}
+                  {!isPartialEmpty && (
+                    <>
+                      <div className="agent-glass" style={{ padding: "14px 16px" }}>
+                        <p className="agent-eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>Conversion funnel</p>
+                        <SubmissionFunnel data={MOCK_FUNNEL} />
+                      </div>
+                      <div className="agent-glass" style={{ padding: "14px 16px" }}>
+                        <p className="agent-eyebrow" style={{ marginBottom: 8, fontSize: 10 }}>Speed to exchange</p>
+                        <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                          {MOCK_SPEED_DAYS} days
+                        </p>
+                        <SpeedGauge avgDays={MOCK_SPEED_DAYS} />
+                      </div>
+                    </>
+                  )}
                   <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-disabled)", fontFamily: "monospace", textAlign: "center" }}>
                     VolumeBarChart · MonthlyMixChart · ValueHeatTiles hidden below 768px
                   </p>
@@ -777,10 +838,8 @@ export default function AnalyticsPolishPage() {
 /* ─── Loading skeleton ────────────────────────────────────────────────────── */
 
 function AnalyticsSkeleton({ compact = false }: { compact?: boolean }) {
-  const gap = compact ? 12 : 18;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap }}>
-      {/* Period tabs skeleton */}
+    <div style={{ display: "flex", flexDirection: "column", gap: compact ? 12 : 18 }}>
       {!compact && (
         <div style={{ display: "flex", gap: 6 }}>
           {[72, 88, 72, 68].map((w, i) => (
@@ -788,7 +847,6 @@ function AnalyticsSkeleton({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
       )}
-      {/* Counts card skeleton */}
       <div className="agent-glass" style={{ padding: "16px 20px" }}>
         <div className="grid grid-cols-3 gap-3">
           {[0, 1, 2].map((i) => (
@@ -800,30 +858,16 @@ function AnalyticsSkeleton({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
       </div>
-      {/* Funnel + Speed skeleton */}
       {!compact && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[["Pipeline funnel", [85, 55, 35]], ["Speed to exchange", [40, 80, 0]]].map(([title, widths]) => (
-            <div key={title as string} className="agent-glass" style={{ padding: "16px 20px" }}>
+          {[[85, 55, 35], [40, 80]].map((widths, ci) => (
+            <div key={ci} className="agent-glass" style={{ padding: "16px 20px" }}>
               <div className="agent-skeleton" style={{ height: 9, width: 120, borderRadius: 3, marginBottom: 16 }} />
-              {(widths as number[]).map((w, j) => (
-                w > 0 && <div key={j} className="agent-skeleton" style={{ height: 9, width: `${w}%`, borderRadius: 3, marginBottom: 10 }} />
+              {widths.map((w, j) => (
+                <div key={j} className="agent-skeleton" style={{ height: 9, width: `${w}%`, borderRadius: 3, marginBottom: 10 }} />
               ))}
             </div>
           ))}
-        </div>
-      )}
-      {/* Values + Fees skeleton */}
-      {!compact && (
-        <div className="agent-glass" style={{ padding: "16px 20px" }}>
-          <div className="grid grid-cols-2 gap-4">
-            {[0, 1].map((i) => (
-              <div key={i}>
-                <div className="agent-skeleton" style={{ height: 9, width: 72, borderRadius: 3, marginBottom: 6 }} />
-                <div className="agent-skeleton" style={{ height: 24, width: 96, borderRadius: 4 }} />
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
@@ -835,13 +879,11 @@ function AnalyticsSkeleton({ compact = false }: { compact?: boolean }) {
 function AnalyticsGhost() {
   return (
     <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Period tabs ghost */}
       <div style={{ display: "flex", gap: 6 }}>
         {[72, 88, 72, 68].map((w, i) => (
           <div key={i} className="agent-skeleton" style={{ height: 34, width: w, borderRadius: 99 }} />
         ))}
       </div>
-      {/* Counts card ghost */}
       <div className="agent-glass" style={{ padding: "16px 20px" }}>
         <div className="grid grid-cols-3 gap-3">
           {[0, 1, 2].map((i) => (
@@ -852,7 +894,6 @@ function AnalyticsGhost() {
           ))}
         </div>
       </div>
-      {/* Funnel + speed ghost */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[[85, 55, 35], [70, 45]].map((widths, ci) => (
           <div key={ci} className="agent-glass" style={{ padding: "16px 20px" }}>
@@ -863,7 +904,6 @@ function AnalyticsGhost() {
           </div>
         ))}
       </div>
-      {/* Charts ghost */}
       <div className="agent-glass" style={{ padding: "16px 20px" }}>
         <div className="agent-skeleton" style={{ height: 9, width: 140, borderRadius: 3, marginBottom: 14 }} />
         <div className="agent-skeleton" style={{ height: 120, width: "100%", borderRadius: 4 }} />
