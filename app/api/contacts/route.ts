@@ -51,8 +51,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const scope = getAccessScope(session);
+  const contactWhere =
+    scope.kind === "all"      ? { id } :
+    scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const existing = await prisma.contact.findFirst({
-    where: { id, transaction: { agencyId: session.user.agencyId } },
+    where: contactWhere,
     select: { id: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });

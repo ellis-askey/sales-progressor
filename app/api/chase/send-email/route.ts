@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, parseEmailMessage } from "@/lib/email";
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,8 +21,9 @@ export async function POST(req: NextRequest) {
   }
   const validCcEmails: string[] = Array.isArray(ccEmails) ? ccEmails.filter(Boolean) : [];
 
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { propertyAddress: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNote, deleteNote } from "@/lib/services/transaction-notes";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -13,8 +14,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true, agentUserId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
@@ -42,13 +44,16 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
+  const scope = getAccessScope(session);
+  const noteWhere =
+    scope.kind === "all"      ? { id } :
+    scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const note = await prisma.transactionNote.findFirst({
-    where: { id },
-    select: { transaction: { select: { agencyId: true } } },
+    where: noteWhere,
+    select: { id: true },
   });
-  if (!note || note.transaction.agencyId !== session.user.agencyId) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  if (!note) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await deleteNote(id);
   return NextResponse.json({ ok: true });

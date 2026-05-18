@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function PATCH(
   req: NextRequest,
@@ -13,9 +14,10 @@ export async function PATCH(
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
+  const scope = getAccessScope(session);
 
   const existing = await prisma.propertyTransaction.findFirst({
-    where: { id, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, id),
     select: { id: true, agentUserId: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });

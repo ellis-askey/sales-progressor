@@ -11,11 +11,13 @@ import {
   reverseMilestoneWithCascade,
   bulkCompleteMilestones,
 } from "@/lib/services/milestones";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
+  const scope = getAccessScope(session);
   const body = await req.json();
   const { action, transactionId, milestoneDefinitionId, eventDate, reason, impliedIds, downstreamIds, purchaseType, newPurchaseType } = body;
 
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const tx = await prisma.propertyTransaction.findFirst({
-    where: { id: transactionId, agencyId: session.user.agencyId },
+    where: scopeOwnershipWhere(scope, transactionId),
     select: { id: true, agentUserId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });

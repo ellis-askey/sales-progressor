@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
+import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
 
 // Prompt strings are verbatim from PROMPT_SPEC.md §5 and §6 — do not edit here; edit the spec first.
 
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
+  const scope = getAccessScope(session);
 
   const rateLimit = await checkAiLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 30 }));
   if (!rateLimit.success) {
@@ -111,7 +113,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Chase task not found" }, { status: 404 });
   }
 
-  if (primaryTask.transaction.agencyId !== session.user.agencyId) {
+  if (!canReadTransaction(scope, primaryTask.transaction)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
       : [];
 
   for (const t of extraTasks) {
-    if (t.transaction.agencyId !== session.user.agencyId) {
+    if (!canReadTransaction(scope, t.transaction)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
