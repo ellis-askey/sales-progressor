@@ -127,7 +127,7 @@ export default async function WorkQueuePage() {
             </div>
           </>
         ) : (
-          <AgentRemindersList logs={reminderLogs} hideChase={isInternalStaff} />
+          <AgentRemindersList logs={reminderLogs} hideChase={session.user.role === "admin"} />
         )}
       </div>
     </>
