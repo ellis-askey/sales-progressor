@@ -143,6 +143,58 @@ export async function listAllTasksForAgent(userId: string, agencyId: string) {
   }) as Promise<ManualTaskWithRelations[]>;
 }
 
+/** Agent requests visible to a sales_progressor — open-only, v1. */
+export async function listProgressorInboxTasks(progressorId: string) {
+  return prisma.manualTask.findMany({
+    where: {
+      isAgentRequest: true,
+      status: "open",
+      transaction: { assignedUserId: progressorId },
+    },
+    orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
+/** Update a task owned by a sales_progressor (own note OR agent inbox request). */
+export async function updateManualTaskAsProgressor(
+  id: string,
+  progressorId: string,
+  data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null }>
+) {
+  const task = await prisma.manualTask.findFirst({
+    where: {
+      id,
+      OR: [
+        { createdById: progressorId, isAgentRequest: false },
+        { isAgentRequest: true, transaction: { assignedUserId: progressorId } },
+      ],
+    },
+  });
+  if (!task) throw new Error("Task not found");
+
+  const updated = await prisma.manualTask.update({
+    where: { id },
+    data: {
+      ...(data.status    !== undefined && { status: data.status }),
+      ...(data.title     !== undefined && { title: data.title }),
+      ...(data.notes     !== undefined && { notes: data.notes }),
+      ...(data.dueDate   !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
+    },
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  });
+  if (task.transactionId) touchLastActivity(task.transactionId).catch(() => {});
+  return updated;
+}
+
 export async function countManualTasksDueToday(agencyId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

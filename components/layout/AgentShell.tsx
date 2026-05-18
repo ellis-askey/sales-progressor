@@ -35,23 +35,33 @@ function formatAgentTime(d: Date): string {
 }
 
 function buildNavGroups(role: UserRole) {
+  const main = [
+    { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
+    { href: "/agent/work-queue",  label: "Reminders",   Icon: Tray          },
+    { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
+    ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare }] : []),
+    { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
+    { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
+    { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
+  ];
   return {
-    main: [
-      { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
-      { href: "/agent/work-queue",  label: "Reminders",   Icon: Tray          },
-      { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
-      { href: "/agent/to-do",       label: "To-Do",       Icon: CheckSquare   },
-      { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
-      { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
-      { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
-    ],
+    main,
     secondary: [
       { href: "/agent/partners",    label: "Partners",    Icon: Buildings     },
     ],
   };
 }
 
-function UserDropdown({ session, isDirector }: { session: Session; isDirector: boolean }) {
+const ROLE_LABEL: Record<UserRole, string> = {
+  superadmin:       "Super Admin",
+  admin:            "Admin",
+  sales_progressor: "Sales Progressor",
+  director:         "Director",
+  negotiator:       "Negotiator",
+  viewer:           "Viewer",
+};
+
+function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -130,7 +140,7 @@ function UserDropdown({ session, isDirector }: { session: Session; isDirector: b
             <div style={{ height: "0.5px", background: "var(--agent-border-subtle)" }} />
             <div style={{ padding: "5px 6px 8px" }}>
               <p style={{ margin: "4px 10px 6px", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                {isDirector ? "Director" : "Negotiator"}
+                {ROLE_LABEL[role]}
               </p>
               <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
               <Link
@@ -259,7 +269,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </button>
           <div className="hidden md:block"><SolidModeToggle /></div>
           <AgentBell userKey={session.user.email ?? session.user.id} />
-          <div className="hidden md:block"><UserDropdown session={session} isDirector={isDirector} /></div>
+          <div className="hidden md:block"><UserDropdown session={session} role={role} /></div>
         </div>
       </header>
 
@@ -458,7 +468,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
                 {session.user.name}
               </p>
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                {isDirector ? "Director" : "Negotiator"}
+                {ROLE_LABEL[role]}
               </p>
             </div>
           </div>

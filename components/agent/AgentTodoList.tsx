@@ -63,7 +63,8 @@ function groupByTransaction(tasks: Task[]): Group[] {
   });
 }
 
-export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
+export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; role?: string }) {
+  const isProgressor = role === "sales_progressor";
   const [tasks, setTasks] = useState(initialTasks);
   const [showOwnDone, setShowOwnDone] = useState(false);
   const [showProgDone, setShowProgDone] = useState(false);
@@ -115,7 +116,7 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
   if (tasks.length === 0) {
     return (
       <div className="space-y-8">
-        <AddManualTaskForm showOwnership onAdd={handleAdd} />
+        <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
         <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -123,7 +124,9 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
           </svg>
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
           <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-            Add a task or send your progressor a request.
+            {isProgressor
+              ? "Your personal notes and agent requests will appear here."
+              : "Add a task or send your progressor a request."}
           </p>
         </div>
 
@@ -155,12 +158,12 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
 
   return (
     <div className="space-y-8">
-      <AddManualTaskForm showOwnership onAdd={handleAdd} />
+      <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
 
-      {/* ── My to-dos ── */}
+      {/* ── My to-dos / My notes ── */}
       <Section
         id="section-mine"
-        title="My to-dos"
+        title={isProgressor ? "My notes" : "My to-dos"}
         overdueGroups={groupByTransaction(ownOverdue)}
         openGroups={groupByTransaction(ownUpcoming)}
         doneGroups={groupByTransaction(ownDone)}
@@ -168,13 +171,14 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
         showDone={showOwnDone}
         onToggleShowDone={() => setShowOwnDone((v) => !v)}
         onToggle={handleToggle}
+        isProgressorView={isProgressor}
       />
 
-      {/* ── With your progressor ── */}
+      {/* ── With your progressor / From agents ── */}
       {progTasks.length > 0 && (
         <Section
           id="section-progressor"
-          title="With your progressor"
+          title={isProgressor ? "From agents" : "With your progressor"}
           overdueGroups={groupByTransaction(progOverdue)}
           openGroups={groupByTransaction(progUpcoming)}
           doneGroups={groupByTransaction(progDone)}
@@ -183,6 +187,8 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
           onToggleShowDone={() => setShowProgDone((v) => !v)}
           onToggle={handleToggle}
           progressor
+          isProgressorView={isProgressor}
+          emptyText={isProgressor ? "No pending requests from agents." : undefined}
         />
       )}
     </div>
@@ -191,7 +197,7 @@ export function AgentTodoList({ initialTasks }: { initialTasks: Task[] }) {
 
 function Section({
   id, title, overdueGroups, openGroups, doneGroups, doneCount, showDone,
-  onToggleShowDone, onToggle, progressor = false,
+  onToggleShowDone, onToggle, progressor = false, isProgressorView = false, emptyText,
 }: {
   id: string;
   title: string;
@@ -203,6 +209,8 @@ function Section({
   onToggleShowDone: () => void;
   onToggle: (id: string, status: "open" | "done") => void;
   progressor?: boolean;
+  isProgressorView?: boolean;
+  emptyText?: string;
 }) {
   const openCount = overdueGroups.reduce((n, g) => n + g.tasks.length, 0)
     + openGroups.reduce((n, g) => n + g.tasks.length, 0);
@@ -237,7 +245,7 @@ function Section({
       {overdueGroups.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: openGroups.length > 0 ? 8 : 0 }}>
           {overdueGroups.map((group) => (
-            <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} overdue />
+            <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} overdue isProgressorView={isProgressorView} />
           ))}
         </div>
       )}
@@ -245,16 +253,14 @@ function Section({
       {/* Upcoming / open groups */}
       {!hasOpen ? (
         <div className="glass-card" style={{ padding: "28px 20px", textAlign: "center" }}>
-          {progressor ? (
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All caught up.</p>
-          ) : (
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All clear.</p>
-          )}
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>
+            {emptyText ?? (progressor ? "All caught up." : "All clear.")}
+          </p>
         </div>
       ) : openGroups.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {openGroups.map((group) => (
-            <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} />
+            <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} progressor={progressor} isProgressorView={isProgressorView} />
           ))}
         </div>
       ) : null}
@@ -274,7 +280,7 @@ function Section({
           <div className={`agent-acc${showDone ? " open" : ""}`}>
             <div className="agent-acc-in" style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 10 }}>
               {doneGroups.map((group) => (
-                <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} />
+                <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} isProgressorView={isProgressorView} />
               ))}
             </div>
           </div>
@@ -284,12 +290,13 @@ function Section({
   );
 }
 
-function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdue = false }: {
+function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdue = false, isProgressorView = false }: {
   group: Group;
   onToggle: (id: string, status: "open" | "done") => void;
   dimmed?: boolean;
   progressor?: boolean;
   overdue?: boolean;
+  isProgressorView?: boolean;
 }) {
   return (
     <div className="glass-card" style={{ overflow: "hidden", opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
@@ -314,6 +321,7 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
             onToggle={onToggle}
             hasBorder={i < group.tasks.length - 1}
             progressor={progressor}
+            isProgressorView={isProgressorView}
           />
         ))}
       </div>
@@ -321,11 +329,12 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
   );
 }
 
-function TaskRow({ task, onToggle, hasBorder, progressor }: {
+function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = false }: {
   task: Task;
   onToggle: (id: string, status: "open" | "done") => void;
   hasBorder: boolean;
   progressor: boolean;
+  isProgressorView?: boolean;
 }) {
   const isDone = task.status === "done";
   const [loading, setLoading] = useState(false);
@@ -400,8 +409,8 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
             {task.notes}
           </p>
         )}
-        {/* Progressor response — shown for open tasks (fix) and done tasks (resolved display) */}
-        {task.progressorNote && (
+        {/* Progressor response — shown for agents only (SP viewing their own to-do list doesn't need to see this) */}
+        {task.progressorNote && !isProgressorView && (
           <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-warning-bg)", borderLeft: "2px solid var(--agent-warning-border)" }}>
             <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-warning)" }}>
               Your progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
@@ -420,7 +429,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor }: {
             <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>
               {dueStatus.label}
             </span>
-            {progressor && dueStatus.reassure && (
+            {progressor && dueStatus.reassure && !isProgressorView && (
               <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
                 Our team is on it
               </p>
