@@ -88,6 +88,10 @@ export default async function AllTransactionsPage({
   const opts = !isInternalStaff && vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
   const agentId = !isInternalStaff && !vis.seeAll ? session.user.id : undefined;
   const isDirector = session.user.role === "director";
+  // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
+  // their own name, which is redundant. Directors and internal staff see files belonging to multiple
+  // people, so the column is meaningful for them.
+  const showAssignedToColumn = session.user.role !== "negotiator" && session.user.role !== "sales_progressor";
 
   // Three-way filter priority: hubFilter → monthFilter → statusFilter.
   // Only the highest-priority filter that resolves is used.
@@ -354,6 +358,7 @@ export default async function AllTransactionsPage({
                 }}
                 showStatusTabs={!hubFilter && !monthFilter}
                 showAgencyColumn={isInternalStaff}
+                showAssignedToColumn={showAssignedToColumn}
               />
             )}
           </div>

@@ -218,17 +218,23 @@ export function TransactionRowView({
   basePath = "/agent/transactions",
   isLast = false,
   showAgencyColumn = false,
+  showAssignedToColumn = true,
 }: {
   tx: TransactionRow;
   basePath?: string;
   isLast?: boolean;
   showAgencyColumn?: boolean;
+  showAssignedToColumn?: boolean;
 }) {
-  // Column order: [stripe] Property | Last activity | Exchange target | Status | Assigned-to | [Agency] | Risk
-  // Agency column added additively for internal staff — agent rows use the original 7-column grid.
-  const gridCols = showAgencyColumn
-    ? "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px"
-    : "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
+  // Column order: [stripe] Property | Last activity | Exchange target | Status | [Assigned-to] | [Agency] | Risk
+  // showAssignedToColumn=false for negotiator/sales_progressor (they only see their own files).
+  // showAgencyColumn=true for internal staff only.
+  const gridCols = (() => {
+    if (showAgencyColumn  && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px";
+    if (showAgencyColumn  && !showAssignedToColumn) return "4px minmax(0,1fr) 220px 160px 110px 140px 120px";
+    if (!showAgencyColumn && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
+    return                                                  "4px minmax(0,1fr) 220px 160px 110px 120px";
+  })();
 
   const { line, location } = splitAddress(tx.propertyAddress);
   const initials = tx.assignedUser?.name
@@ -359,24 +365,26 @@ export function TransactionRowView({
           <StatusBadge status={tx.status} />
         </div>
 
-        {/* Assigned-to */}
-        <div className="px-4 py-3.5">
-          {tx.assignedUser ? (
-            <div className="flex items-center gap-2">
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "white" }}>{initials}</span>
+        {/* Assigned-to — hidden for roles that only see their own files (negotiator, sales_progressor) */}
+        {showAssignedToColumn && (
+          <div className="px-4 py-3.5">
+            {tx.assignedUser ? (
+              <div className="flex items-center gap-2">
+                <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "white" }}>{initials}</span>
+                </div>
+                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.assignedUser.name}</span>
               </div>
-              <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.assignedUser.name}</span>
-            </div>
-          ) : tx.serviceType === "outsourced" ? (
-            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>Awaiting assignment</span>
-          ) : tx.agentUser ? (
-            <span style={{ fontSize: 13, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
-          ) : (
-            <span style={{ fontSize: 13, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Unassigned</span>
-          )}
-          {serviceTag && <div className="mt-1">{serviceTag}</div>}
-        </div>
+            ) : tx.serviceType === "outsourced" ? (
+              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>Awaiting assignment</span>
+            ) : tx.agentUser ? (
+              <span style={{ fontSize: 13, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.agentUser.name}</span>
+            ) : (
+              <span style={{ fontSize: 13, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Unassigned</span>
+            )}
+            {serviceTag && <div className="mt-1">{serviceTag}</div>}
+          </div>
+        )}
 
         {/* Agency — additive column for internal staff; not rendered for agents */}
         {showAgencyColumn && (

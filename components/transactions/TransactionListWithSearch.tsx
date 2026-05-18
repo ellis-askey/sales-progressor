@@ -411,6 +411,7 @@ export function TransactionListWithSearch({
   statusCounts,
   showStatusTabs = true,
   showAgencyColumn = false,
+  showAssignedToColumn = true,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
@@ -419,6 +420,7 @@ export function TransactionListWithSearch({
   statusCounts?: { all: number; active: number; on_hold: number; completed: number; withdrawn: number };
   showStatusTabs?: boolean;
   showAgencyColumn?: boolean;
+  showAssignedToColumn?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -684,7 +686,7 @@ export function TransactionListWithSearch({
           )}
         </div>
       ) : (
-        <TransactionTable transactions={filtered} basePath={basePath} showAgencyColumn={showAgencyColumn} />
+        <TransactionTable transactions={filtered} basePath={basePath} showAgencyColumn={showAgencyColumn} showAssignedToColumn={showAssignedToColumn} />
       )}
     </div>
   );

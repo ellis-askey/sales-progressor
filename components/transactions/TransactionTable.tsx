@@ -77,10 +77,12 @@ export function TransactionTable({
   transactions,
   basePath = "/transactions",
   showAgencyColumn = false,
+  showAssignedToColumn = true,
 }: {
   transactions: TransactionRow[];
   basePath?: string;
   showAgencyColumn?: boolean;
+  showAssignedToColumn?: boolean;
 }) {
   // Variant B default sort (2026-05-13): Last activity desc — most recent
   // first. asc on the same column = "stalled first" (oldest activity first).
@@ -101,10 +103,13 @@ export function TransactionTable({
 
   const sorted = sortTransactions(transactions, sortKey, sortDir);
 
-  // Column widths mirror TransactionRowView — must stay in sync when showAgencyColumn changes.
-  const gridCols = showAgencyColumn
-    ? "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px"
-    : "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
+  // Column widths mirror TransactionRowView — must stay in sync.
+  const gridCols = (() => {
+    if (showAgencyColumn  && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 140px 120px";
+    if (showAgencyColumn  && !showAssignedToColumn) return "4px minmax(0,1fr) 220px 160px 110px 140px 120px";
+    if (!showAgencyColumn && showAssignedToColumn)  return "4px minmax(0,1fr) 220px 160px 110px 160px 120px";
+    return                                                  "4px minmax(0,1fr) 220px 160px 110px 120px";
+  })();
 
   return (
     <div
@@ -129,8 +134,9 @@ export function TransactionTable({
             { label: "Last activity",    key: "lastActive" as SortKey | null },
             { label: "Exchange target",  key: "exchange"   as SortKey | null },
             { label: "Status",           key: "status"     as SortKey | null },
-            { label: "Assigned to",      key: null },
-            // Agency column — additive for internal staff, omitted for agents.
+            // Assigned-to — hidden for roles that only see their own files (negotiator, sales_progressor).
+            ...(showAssignedToColumn ? [{ label: "Assigned to", key: null as SortKey | null }] : []),
+            // Agency — additive for internal staff, omitted for agents.
             ...(showAgencyColumn ? [{ label: "Agency", key: null as SortKey | null }] : []),
             { label: "Risk",             key: "risk"       as SortKey | null },
           ] as { label: string; key: SortKey | null }[]
@@ -179,6 +185,7 @@ export function TransactionTable({
           basePath={basePath}
           isLast={i === sorted.length - 1}
           showAgencyColumn={showAgencyColumn}
+          showAssignedToColumn={showAssignedToColumn}
         />
       ))}
     </div>
