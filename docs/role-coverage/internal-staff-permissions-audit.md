@@ -48,7 +48,15 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 
 ---
 
-## FU-14 — Service type / file ownership gate for SP on transaction detail
+## FU-14 — ComposeEmail FROM identity routing for SP
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** When SP composes an outbound email from a transaction, the FROM address must not default to the file's agent's verified sender. SP has no verified sender on the customer's SendGrid account. Options: (a) SP sends from a shared Sales Progressor verified address; (b) SP cannot compose email and sees a notice instead; (c) email compose is hidden for SP entirely. Unblocks SP-01 full email compose (Chase email is already unblocked via FU-17).  
+**When to revisit:** Before SP email compose is surfaced. Requires verified sender provisioning decision.
+
+---
+
+## FU-20 — SP file ownership gate on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  
 **Summary:** SP accessing transaction detail can view all sections of a file — including files they are not assigned to if they know the ID. `getTransactionByScope` with `kind: "assigned"` should reject unassigned files for SP. Verify `getTransactionByScope` enforcement is strict.  
