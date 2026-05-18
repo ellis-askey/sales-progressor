@@ -173,7 +173,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
     include: {
       agency: { select: { id: true, name: true } },
       assignedUser: { select: { id: true, name: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, createdAt: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getTransaction } from "@/lib/services/transactions";
+import { getTransaction, getTransactionByScope } from "@/lib/services/transactions";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
@@ -47,8 +48,15 @@ export default async function AgentTransactionDetailPage({
   const [{ id }, { tab: initialTab }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
 
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const txScope = isInternalStaff ? getAccessScope(session) : null;
+
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks] = await Promise.all([
-    getTransaction(id, session.user.agencyId),
+    // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
+    // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
+    isInternalStaff
+      ? getTransactionByScope(id, txScope!)
+      : getTransaction(id, session.user.agencyId),
     getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
     getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
     getActivityTimeline(id, session.user.agencyId).catch(() => []),
@@ -58,7 +66,9 @@ export default async function AgentTransactionDetailPage({
 
   if (!transaction) notFound();
   const isDirectorRole = session.user.role === "director";
-  if (!isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
+  // Agent ownership check: director sees all; negotiator only sees their own files.
+  // Internal staff bypass: getTransactionByScope already enforces access scope above.
+  if (!isInternalStaff && !isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
   // MOS document signed URL (if uploaded during file creation)
   const mosDoc = await prisma.transactionDocument.findFirst({
@@ -286,7 +296,9 @@ export default async function AgentTransactionDetailPage({
 
   const brokerRow = await Promise.resolve().then(() =>
     prisma.propertyTransaction.findFirst({
-      where: { id, agencyId: session.user.agencyId },
+      // Internal staff: fetch by id only (agencyId not applicable).
+      // Agents: filter by agencyId to enforce ownership.
+      where: isInternalStaff ? { id } : { id, agencyId: session.user.agencyId },
       select: {
         brokerFirmId: true,
         brokerContactId: true,
@@ -320,7 +332,7 @@ export default async function AgentTransactionDetailPage({
         serviceType: transaction.serviceType ?? null,
       }}
       recommendedFirms={recommendedFirms}
-      showOurFee={session.user.role === "director"}
+      showOurFee={session.user.role === "director" || session.user.role === "admin"}
       assignedUser={assignedUser}
       agentUser={agentUser}
       progress={progress}
