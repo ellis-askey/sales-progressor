@@ -91,6 +91,34 @@ export default async function AgentTransactionDetailPage({
       })
     : null;
 
+  // Resolve sender identity for SP/admin: look for their verified email at the
+  // file's agency domain; fall back to the platform sender.
+  let spSenderIdentity: { name: string; email: string } | undefined;
+  if (isInternalStaff && (isProgressor || isAdminRole)) {
+    const agencyId = (transaction as { agencyId?: string | null }).agencyId;
+    if (agencyId) {
+      const domain = await prisma.verifiedDomain.findFirst({
+        where: { agencyId, status: "verified" },
+        select: { id: true },
+      });
+      const userEmail = domain
+        ? await prisma.userVerifiedEmail.findFirst({
+            where: {
+              userId: session.user.id,
+              verifiedDomainId: domain.id,
+              status: { in: ["verified", "legacy_single_sender"] },
+            },
+            select: { email: true },
+          })
+        : null;
+      spSenderIdentity = userEmail
+        ? { name: session.user.name!, email: userEmail.email }
+        : { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
+    } else {
+      spSenderIdentity = { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
+    }
+  }
+
   const allMilestones = [
     ...(milestoneData?.vendor ?? []),
     ...(milestoneData?.purchaser ?? []),
@@ -491,7 +519,9 @@ export default async function AgentTransactionDetailPage({
             mosDocUrl={mosDocUrl}
             beforeEntries={<CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />}
           />
-          {!isInternal && <ComposeEmail transactionId={transaction.id} />}
+          {(!isInternal || spSenderIdentity !== undefined) && (
+            <ComposeEmail transactionId={transaction.id} senderIdentity={spSenderIdentity} />
+          )}
         </div>
       </PropertyFileTabs>
     </div>

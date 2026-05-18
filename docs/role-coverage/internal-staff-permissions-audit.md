@@ -51,8 +51,8 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 ## FU-14 — ComposeEmail FROM identity routing for SP
 
 **Source:** /agent/transactions/[id] inventory  
-**Summary:** When SP composes an outbound email from a transaction, the FROM address must not default to the file's agent's verified sender. SP has no verified sender on the customer's SendGrid account. Options: (a) SP sends from a shared Sales Progressor verified address; (b) SP cannot compose email and sees a notice instead; (c) email compose is hidden for SP entirely. Unblocks SP-01 full email compose (Chase email is already unblocked via FU-17).  
-**When to revisit:** Before SP email compose is surfaced. Requires verified sender provisioning decision.
+**Status:** ✅ RESOLVED — SP/admin ComposeEmail now resolves sender from the file's agency domain. Happy path: SP's `UserVerifiedEmail` at the agency's `VerifiedDomain` (`"Name <sp@agency.co.uk>"`). Fallback: platform sender (`"Sales Progressor <updates@thesalesprogressor.co.uk>"`), Reply-To = `session.user.email`. ComposeEmail un-hidden for SP/admin on transaction detail when `spSenderIdentity` is resolved. Chase path unchanged (always uses `updates@...` for all roles via `lib/email.ts`).  
+**Files:** `app/api/agent/send-email/route.ts`, `components/verified-emails/ComposeEmail.tsx`, `app/agent/transactions/[id]/page.tsx`
 
 ---
 

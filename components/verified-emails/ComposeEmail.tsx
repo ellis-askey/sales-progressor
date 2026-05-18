@@ -11,12 +11,13 @@ type Props = {
   defaultTo?: string;
   onSent?: () => void;
   onCancel?: () => void;
+  senderIdentity?: { name: string; email: string };
 };
 
-export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }: Props) {
+export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, senderIdentity }: Props) {
   const { toast } = useAgentToast();
   const [verifiedEmails, setVerifiedEmails] = useState<VerifiedEmail[]>([]);
-  const [fromEmail, setFromEmail] = useState("");
+  const [fromEmail, setFromEmail] = useState(senderIdentity?.email ?? "");
   const [to, setTo] = useState(defaultTo);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -26,6 +27,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
   const [noEmailDismissed, setNoEmailDismissed] = useState(false);
 
   useEffect(() => {
+    if (senderIdentity) return;
     fetch("/api/agent/verified-emails")
       .then((r) => r.json())
       .then((data: VerifiedEmail[]) => {
@@ -55,7 +57,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
     }
   }
 
-  if (verifiedEmails.length === 0) {
+  if (!senderIdentity && verifiedEmails.length === 0) {
     if (noEmailDismissed) return null;
     return (
       <div className="agent-reveal-in mobile-alert-banner mobile-alert-banner--warning"
@@ -95,7 +97,11 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel }
       {/* From */}
       <div>
         <label className="agent-label">From</label>
-        {verifiedEmails.length === 1 ? (
+        {senderIdentity ? (
+          <p className="text-sm text-slate-900/70 px-3 py-2 agent-input agent-input-sm">
+            Sending as {senderIdentity.email}
+          </p>
+        ) : verifiedEmails.length === 1 ? (
           <p className="text-sm text-slate-900/70 px-3 py-2 agent-input agent-input-sm">{verifiedEmails[0].email}</p>
         ) : (
           <div className="relative">
