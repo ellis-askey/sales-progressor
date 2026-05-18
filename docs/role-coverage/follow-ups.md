@@ -58,3 +58,43 @@ Items surfaced during inventory/implementation that are out of scope for the cur
 **Decision:** To-Do removed from admin sidebar nav. Page at `/agent/to-do` remains live at the URL (additive discipline — no removal of existing code paths).  
 **If admin navigates directly:** They see their own null-agencyId tasks in "My notes" with correct copy. The page is functional; it just isn't surfaced in nav.  
 **When to revisit:** If admin use of the to-do page becomes a real workflow need.
+
+---
+
+## FU-08 — Sub-fetch agencyId fragility on transaction detail
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** `app/agent/transactions/[id]/page.tsx` lines 60–64 pass `session.user.agencyId` (= `""` for internal staff) to five service functions. Works today because `""` is falsy and service functions use `agencyId ? {...} : {...}` guards. Fragile: any change making internal `agencyId` truthy would silently return empty data for all sub-fetches. Correct call would pass `null` explicitly for internal staff.  
+**When to revisit:** When doing a general service-function cleanup pass. Low risk until then.
+
+---
+
+## FU-09 — `deleteCommAction` has no UI role gate on transaction detail
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** `ActivityTimeline.tsx` renders a delete button on every communication entry for any authenticated user with file access. SP and admin can delete any comm on any file they can view. Backend `deleteCommAction` server action must enforce role/ownership restriction. Recommend: SP can delete their own logged comms only; admin can delete any. Current backend enforcement state unknown.  
+**When to revisit:** Security/permissions audit pass.
+
+---
+
+## FU-10 — `confirmMilestoneAction` has no UI role gate
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** `NextMilestoneWidget` and `MilestonePanel` expose milestone confirm buttons to all roles. SP managing their assigned outsourced files SHOULD confirm milestones (that's their job). Admin confirming is acceptable as override access. Backend action must check auth. No UI gating needed if backend is correct — verify backend enforces auth.  
+**When to revisit:** Security audit pass. Likely not a bug in practice since SP and admin both have legitimate need.
+
+---
+
+## FU-11 — `EditSaleDetailsDrawer` exposes agent fee editing to SP
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** `TransactionSidebar` contains an edit button that opens `EditSaleDetailsDrawer`, which includes `saveAgentFeeAction`, `savePriceAction`, `saveReferralAction`, and others. SP editing the customer agency's agent fee or referral fee is likely wrong. Open question for Ellis: hide the edit drawer entirely for SP, or hide only the fee sections within it? Recommend: hide the edit button for SP entirely in TransactionSidebar (`isInternal` or `isProgressor` guard). Admin keeps full access.  
+**When to revisit:** On Ellis's answer to Open Question 4 in transaction-detail.md inventory.
+
+---
+
+## FU-12 — `ComposeEmail` for SP: no verified sender configured
+
+**Source:** /agent/transactions/[id] inventory  
+**Summary:** `ComposeEmail` component is visible on the Activity tab for all roles. SP accounts almost certainly have no verified SendGrid sender identity configured. Component will render but email send fails at API level (no verified email returned from `/api/agent/verified-emails`). Not a crash, but SP sees a dead-end compose UI. Ops fix (configure SP verified sender) OR code fix (hide `ComposeEmail` for SP if no verified emails exist). Recommend code fix: already check verified emails at render time, or gate entirely for `isInternal`.  
+**When to revisit:** When SP workflow goes live and SP starts managing outsourced files.

@@ -49,6 +49,8 @@ export default async function AgentTransactionDetailPage({
   const session = await requireSession();
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isProgressor = session.user.role === "sales_progressor";
+  const isAdminRole  = session.user.role === "admin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks] = await Promise.all([
@@ -340,6 +342,7 @@ export default async function AgentTransactionDetailPage({
       exchangeConfirmed={exchangeConfirmed}
       fileTime={fileTime}
       isInternal={isInternal}
+      canEditSaleDetails={!isProgressor}
     />
   );
 
@@ -361,6 +364,7 @@ export default async function AgentTransactionDetailPage({
         percent={progress.percent}
         onTrack={progress.onTrack}
         serviceType={transaction.serviceType}
+        hideServiceTypeBadge={isProgressor}
         backHref="/agent/transactions"
         assignedUserName={assignedDisplayName}
         weeksActive={weeksActive}
@@ -474,8 +478,8 @@ export default async function AgentTransactionDetailPage({
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
             showDone
-            showOwnership={transaction.serviceType === "outsourced"}
-            perspective="agent"
+            showOwnership={transaction.serviceType === "outsourced" && !isProgressor && !isAdminRole}
+            perspective={isProgressor ? "progressor" : "agent"}
           />
         </div>
 
@@ -487,7 +491,7 @@ export default async function AgentTransactionDetailPage({
             mosDocUrl={mosDocUrl}
             beforeEntries={<CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />}
           />
-          <ComposeEmail transactionId={transaction.id} />
+          {!isInternal && <ComposeEmail transactionId={transaction.id} />}
         </div>
       </PropertyFileTabs>
     </div>

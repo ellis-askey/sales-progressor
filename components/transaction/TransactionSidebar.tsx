@@ -41,6 +41,7 @@ type Props = {
   showOurFee?: boolean;
   fileTime?: { agentSeconds: number; teamSeconds: number; totalSeconds: number; lastActiveAt: Date | null; hasLiveSession: boolean };
   isInternal?: boolean;
+  canEditSaleDetails?: boolean;
 };
 
 function fmtTime(seconds: number): string {
@@ -130,7 +131,7 @@ function ProgressRing({ percent, size = 72, strokeWidth = 6 }: { percent: number
   );
 }
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -223,7 +224,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {isInternal && (
             <div style={{ borderTop: "1px solid var(--agent-border-default)", paddingTop: 8, marginBottom: 8, display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="flex justify-between items-center">
-                <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>You</p>
+                <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>Agent</p>
                 <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
                   {fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "—"}
                 </p>
@@ -344,12 +345,14 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
       <div className="glass-card rounded-[12px] px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <p className="agent-sidebar-label">Fee Breakdown</p>
-          <button
-            onClick={() => setShowEditDrawer(true)}
-            className="text-xs agent-link"
-          >
-            Edit details
-          </button>
+          {canEditSaleDetails && (
+            <button
+              onClick={() => setShowEditDrawer(true)}
+              className="text-xs agent-link"
+            >
+              Edit details
+            </button>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -479,7 +482,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                 {isInternal && (
                   <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingTop: 6, marginTop: 4, marginBottom: 6, display: "flex", flexDirection: "column", gap: 5 }}>
                     <div className="flex justify-between items-center">
-                      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>You</p>
+                      <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>Agent</p>
                       <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
                         {fileTime.agentSeconds > 0 ? fmtTime(fileTime.agentSeconds) : "—"}
                       </p>
@@ -596,9 +599,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             <div style={{ padding: "14px 16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <p className="agent-sidebar-label">Fee Breakdown</p>
-                <button onClick={() => setShowEditDrawer(true)} className="text-xs agent-link">
-                  Edit details
-                </button>
+                {canEditSaleDetails && (
+                  <button onClick={() => setShowEditDrawer(true)} className="text-xs agent-link">
+                    Edit details
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div className="flex justify-between items-center">

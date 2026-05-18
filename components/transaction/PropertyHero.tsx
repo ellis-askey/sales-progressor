@@ -20,6 +20,7 @@ type Props = {
   assignedUserName?: string | null;
   weeksActive?: number | null;
   transactionId?: string;
+  hideServiceTypeBadge?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -71,7 +72,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, weeksActive, transactionId,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, weeksActive, transactionId, hideServiceTypeBadge = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -133,12 +134,12 @@ export function PropertyHero({
                   {formatPurchaseType(purchaseType)}
                 </span>
               )}
-              {serviceType === "self_managed" && (
+              {!hideServiceTypeBadge && serviceType === "self_managed" && (
                 <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
                   Self-managed
                 </span>
               )}
-              {serviceType === "outsourced" && (
+              {!hideServiceTypeBadge && serviceType === "outsourced" && (
                 <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-coral)", background: "rgba(var(--agent-coral-rgb), 0.1)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
                   With progressor
                 </span>
@@ -221,12 +222,12 @@ export function PropertyHero({
                   {formatPurchaseType(purchaseType)}
                 </span>
               )}
-              {serviceType === "outsourced" && (
+              {!hideServiceTypeBadge && serviceType === "outsourced" && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 ring-1 ring-blue-400/30">
                   Outsourced to us
                 </span>
               )}
-              {serviceType === "self_managed" && (
+              {!hideServiceTypeBadge && serviceType === "self_managed" && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/30">
                   Self-managed
                 </span>
