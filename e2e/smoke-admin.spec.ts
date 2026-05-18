@@ -8,7 +8,7 @@ test.describe.serial("Admin/dashboard smoke tests", () => {
     const context = await browser.newContext()
     adminPage = await context.newPage()
     await login(adminPage, USERS.admin)
-    await adminPage.waitForURL(/\/dashboard/, { timeout: 20000 })
+    await adminPage.waitForURL(/\/agent\/hub/, { timeout: 20000 })
   })
 
   test.afterAll(async () => {

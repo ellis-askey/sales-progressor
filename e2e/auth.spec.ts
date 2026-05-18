@@ -27,10 +27,10 @@ test.describe("Login redirects", () => {
     await page.context().clearCookies()
   })
 
-  test("admin lands on /dashboard after login", async ({ page }) => {
+  test("admin lands on /agent/hub after login", async ({ page }) => {
     await login(page, ADMIN_EMAIL, PASSWORD)
-    await page.waitForURL(/\/dashboard/, { timeout: 20000 })
-    await expect(page).toHaveURL(/\/dashboard/)
+    await page.waitForURL(/\/agent\/hub/, { timeout: 20000 })
+    await expect(page).toHaveURL(/\/agent\/hub/)
   })
 
   test("negotiator lands on /agent after login", async ({ page }) => {
@@ -39,10 +39,10 @@ test.describe("Login redirects", () => {
     await expect(page).toHaveURL(/\/agent/)
   })
 
-  test("sales progressor lands on /dashboard after login", async ({ page }) => {
+  test("sales progressor lands on /agent/hub after login", async ({ page }) => {
     await login(page, PROGRESSOR_EMAIL, PASSWORD)
-    await page.waitForURL(/\/dashboard/, { timeout: 20000 })
-    await expect(page).toHaveURL(/\/dashboard/)
+    await page.waitForURL(/\/agent\/hub/, { timeout: 20000 })
+    await expect(page).toHaveURL(/\/agent\/hub/)
   })
 
   test("wrong password shows error message", async ({ page }) => {

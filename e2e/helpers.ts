@@ -8,6 +8,9 @@ export const USERS = {
   negotiator: "tom@whitfieldhunt.co.uk",
   director: "rachel@whitfieldhunt.co.uk",
   progressor: "ellis@thesalesprogressor.co.uk",
+  // Package D / WS2 additions
+  progressorWithFiles: "james@hartwellpartners.co.uk",   // Sales Progressor with assigned files
+  progressorZeroFiles: null as string | null,            // No seeded account yet — Cases 5/6 skip
 }
 
 export async function dismissCookieBanner(page: Page) {
