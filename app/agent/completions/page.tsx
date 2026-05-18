@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
-import { getAgentCompletions, resolveAgentVisibility } from "@/lib/services/agent";
+import { getAgentCompletions, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   CompletionsGroupList,
   type CompletionGroup,
@@ -43,7 +43,10 @@ const ALL_GROUPS = [
 
 export default async function AgentCompletionsPage() {
   const session = await requireSession();
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const vis = isInternalStaff
+    ? resolveInternalVisibility(session.user.id, session.user.role)
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const files = await getAgentCompletions(vis);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
