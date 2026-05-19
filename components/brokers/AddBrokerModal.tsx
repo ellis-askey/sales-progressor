@@ -86,12 +86,12 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create brokerage");
+      if (!res.ok) throw new Error(data.error ?? "Couldn't create brokerage");
 
       const handler: Handler | null = data.handlers?.[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong — try again");
       setLoading(false);
     }
   }

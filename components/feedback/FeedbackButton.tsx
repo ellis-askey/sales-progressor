@@ -97,7 +97,7 @@ export function FeedbackButton() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
-                <p className="text-base font-semibold text-slate-900/80">Thanks for your feedback!</p>
+                <p className="text-base font-semibold text-slate-900/80">Thanks for your feedback</p>
                 <p className="text-sm text-slate-900/40 mt-1">We'll review it shortly.</p>
               </div>
             ) : (

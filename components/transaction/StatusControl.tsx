@@ -19,7 +19,7 @@ const FALL_THROUGH_REASONS = [
   "Buyer withdrew",
   "Seller withdrew",
   "Chain broke",
-  "Mortgage / finance issue",
+  "Mortgage or finance issue",
   "Survey issues",
   "Gazundering (price chipped)",
   "Gazumping",
@@ -81,7 +81,7 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
         if (msg.startsWith("Cannot mark as completed")) {
           toast.error(msg);
         } else {
-          toast.error("Couldn't update status — please try again");
+          toast.error("Couldn't update status — try again");
         }
       } finally {
         setSaving(false);
@@ -167,13 +167,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">Mark as Withdrawn</p>
-                <p className="text-xs text-slate-500">Record why this transaction fell through</p>
+                <p className="text-sm font-semibold text-slate-900">Mark as withdrawn</p>
+                <p className="text-xs text-slate-500">Record why this sale fell through</p>
               </div>
             </div>
 
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Reason
+              Specify
             </label>
             <div className="space-y-1.5 mb-4">
               {FALL_THROUGH_REASONS.map((r) => (
@@ -195,13 +195,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
             {reason === "Other" && (
               <div className="agent-reveal-in mb-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Specify reason
+                  Specify
                 </label>
                 <input
                   type="text"
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
-                  placeholder="Enter the reason…"
+                  placeholder="What happened?"
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
                   autoFocus
                 />

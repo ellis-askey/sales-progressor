@@ -60,7 +60,7 @@ export function DuplicateAddressModal({
         {/* Header — X present, 2b dismissible */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
           <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-            Address already exists
+            Address already on file
           </p>
           <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
             <X size={16} weight="bold" />

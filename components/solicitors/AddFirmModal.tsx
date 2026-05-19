@@ -44,7 +44,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
     const formatted = handlerEmail.trim().toLowerCase();
     setHandlerEmail(formatted);
     if (formatted && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formatted)) {
-      setErrors((prev) => ({ ...prev, handlerEmail: "Email address doesn't look right" }));
+      setErrors((prev) => ({ ...prev, handlerEmail: "That email address doesn't look right" }));
     } else if (formatted) {
       clearFieldError("handlerEmail");
     }
@@ -77,16 +77,16 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
     if (!firmName.trim()) e.firmName = "Enter the firm name";
     if (!handlerName.trim()) e.handlerName = "Enter the case handler's name";
     if (!handlerPhone.trim()) {
-      e.handlerPhone = "Enter a direct line number";
+      e.handlerPhone = "Enter a direct line";
     } else {
       const norm = normalizePhone(handlerPhone);
       const digits = norm.replace(/\D/g, "");
-      if (digits.length < 10) e.handlerPhone = "Phone number doesn't look right";
+      if (digits.length < 10) e.handlerPhone = "That phone number doesn't look right";
     }
     if (!handlerEmail.trim()) {
       e.handlerEmail = "Enter an email address";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(handlerEmail.trim())) {
-      e.handlerEmail = "Email address doesn't look right";
+      e.handlerEmail = "That email address doesn't look right";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -118,7 +118,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
       const handler: Handler | null = data.handlers?.[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong — try again");
       setLoading(false);
     }
   }

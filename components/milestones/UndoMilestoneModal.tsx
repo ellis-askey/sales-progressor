@@ -85,8 +85,8 @@ export function UndoMilestoneModal({
             <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
             <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
               {hasCascade
-                ? `${milestoneName} — what would you like to do?`
-                : `Are you sure you want to undo "${milestoneName}"?`}
+                ? `${milestoneName} — what next?`
+                : `Undo "${milestoneName}"?`}
             </p>
           </div>
           <button
@@ -145,8 +145,7 @@ export function UndoMilestoneModal({
                       Progress: <span style={{ fontWeight: 500 }}>{undoData.currentPercent}% → {undoData.targetOnlyPercent}%</span>
                     </p>
                     <p style={{ fontSize: 12, color: "#ea580c", marginTop: 6, marginBottom: 0 }}>
-                      Note: {undoData.cascade.length} downstream step{undoData.cascade.length !== 1 ? "s are" : " is"} complete.{" "}
-                      {undoData.cascade.length !== 1 ? "They" : "It"} will stay complete and may need re-checking later if this step is permanently undone.
+                      {undoData.cascade.length} linked step{undoData.cascade.length !== 1 ? "s" : ""} stayed complete — you may want to re-check them later.
                     </p>
                   </div>
                 </div>
@@ -182,7 +181,7 @@ export function UndoMilestoneModal({
                           </span>
                           {item.reconciledAtExchange && (
                             <span style={{ fontSize: 10, color: "#7c3aed", background: "#f5f3ff", border: "0.5px solid #ede9fe", borderRadius: 4, padding: "2px 4px", flexShrink: 0 }}>
-                              reconciled
+                              confirmed at exchange
                             </span>
                           )}
                         </div>
@@ -201,7 +200,7 @@ export function UndoMilestoneModal({
                       const rc = undoData.cascade.filter((m) => m.reconciledAtExchange).length;
                       return rc > 0 ? (
                         <p style={{ fontSize: 12, color: "rgba(15,23,42,0.40)", marginTop: 8, marginBottom: 0 }}>
-                          Note: {rc} step{rc !== 1 ? "s" : ""} confirmed during exchange reconciliation will also be reversed.
+                          {rc} step{rc !== 1 ? "s" : ""} confirmed at exchange will also be undone.
                         </p>
                       ) : null;
                     })()}

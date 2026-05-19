@@ -106,10 +106,10 @@ export function WelcomeModal({ name }: { name: string }) {
                   style={{ background: "none", border: "none", cursor: "pointer", textAlign: "center", textUnderlineOffset: 2, padding: "2px 0" }}
                   className="text-sm text-slate-900/60 hover:text-slate-900/85 hover:underline transition-colors"
                 >
-                  Explore a quick tour
+                  Take a quick tour
                 </button>
                 <p style={{ textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)", margin: "4px 0 0" }}>
-                  You can always add files any time from the dashboard.
+                  You can add files any time from the dashboard.
                 </p>
               </div>
             </div>

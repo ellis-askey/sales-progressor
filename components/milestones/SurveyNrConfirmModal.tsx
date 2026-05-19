@@ -43,14 +43,14 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
         {/* Header — no X, 2a non-dismissible */}
         <div style={{ padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
           <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
-            No private survey required?
+            Skip the private survey?
           </p>
         </div>
 
         {/* Body */}
         <div style={{ padding: "16px 20px" }}>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", lineHeight: 1.6, margin: 0 }}>
-            Please confirm the buyer does not require a private Level 2 or Level 3 survey. The survey report step will also be skipped.
+            Confirm the buyer isn&apos;t getting a private Level 2 or Level 3 survey. The survey report step is also skipped.
           </p>
         </div>
 

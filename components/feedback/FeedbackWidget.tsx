@@ -125,7 +125,7 @@ function ScreenshotUpload({ value, onChange }: { value: Screenshot | null; onCha
 
   function handleFile(file: File) {
     setErr("");
-    if (!ALLOWED.includes(file.type)) { setErr("Only PNG, JPG, GIF or WebP accepted."); return; }
+    if (!ALLOWED.includes(file.type)) { setErr("Only PNG, JPG, GIF or WebP."); return; }
     if (file.size > 5 * 1024 * 1024) { setErr("Max 5 MB."); return; }
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -346,7 +346,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#16a34a" }}>
             <IconCheck />
           </div>
-          <p style={{ fontSize: 18, fontWeight: 600, color: "#111827", margin: "0 0 8px" }}>Thanks!</p>
+          <p style={{ fontSize: 18, fontWeight: 600, color: "#111827", margin: "0 0 8px" }}>Thanks</p>
           <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 24px" }}>We'll get back to you within 1 business day.</p>
           <button onClick={close} style={{ padding: "9px 28px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Done</button>
         </div>
@@ -360,7 +360,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             <IconWarning />
           </div>
           <p style={{ fontSize: 16, fontWeight: 600, color: "#111827", margin: "0 0 8px" }}>Couldn't send your message</p>
-          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 24px" }}>Please check your connection and try again.</p>
+          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 24px" }}>Check your connection and try again.</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
             <button onClick={() => setStage("form")} style={{ padding: "9px 20px", background: "#f97316", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Try again</button>
             <button onClick={close} style={{ padding: "9px 20px", background: "none", color: "#6b7280", border: "0.5px solid #e5e7eb", borderRadius: 10, fontSize: 13, cursor: "pointer" }}>Cancel</button>
@@ -374,7 +374,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         <>
           <div style={{ padding: "18px 20px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>Support &amp; Feedback</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>Support &amp; feedback</p>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>How can we help today?</p>
             </div>
             <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
@@ -394,7 +394,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
                     <IconBook />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>Browse Help</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1f2937" }}>Browse help</p>
                     <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>Articles and guides</p>
                   </div>
                   <span style={{ color: "#f97316", flexShrink: 0 }}><IconChevron /></span>
@@ -420,7 +420,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             </button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#111827" }}>{meta.title}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>Please provide details to help us understand</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>A few details help us understand</p>
             </div>
             <button ref={closeRef} onClick={close} aria-label="Close feedback panel"
               style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#9ca3af", borderRadius: 6, flexShrink: 0 }}>
@@ -502,7 +502,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         <button
           ref={triggerRef}
           onClick={isOpen ? close : open}
-          aria-label="Open feedback widget"
+          aria-label="Open help and feedback"
           aria-expanded={isOpen}
           style={{
             display: "inline-flex",

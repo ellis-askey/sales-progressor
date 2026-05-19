@@ -39,7 +39,7 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
       URL.revokeObjectURL(url);
       toast.success("Export downloaded");
     } catch {
-      toast.error("Export failed — please try again");
+      toast.error("Export failed — try again");
     } finally {
       setIsExporting(false);
     }
@@ -129,7 +129,7 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
             </div>
             <div style={{ padding: 24 }}>
             <p className="text-sm text-slate-900/60 mb-5 leading-relaxed">
-              This will permanently delete your account and all associated data. This cannot be undone.
+              This permanently deletes your account and all associated data. This cannot be undone.
             </p>
 
             <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
