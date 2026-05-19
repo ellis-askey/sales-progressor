@@ -929,7 +929,7 @@ export function EditSaleDetailsDrawer({
       {propStage === "addr_modal" && addrConsequences && (
         <div style={{ position: "fixed", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)" }} onClick={() => setPropStage("idle")} />
-          <div style={{ position: "relative", zIndex: 1, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", borderRadius: 16, maxWidth: 380, width: "100%", padding: "24px", borderTop: "2px solid var(--agent-coral-deep)", boxShadow: "0 20px 60px rgba(0,0,0,0.22)", animation: "agent-modal-in 200ms ease-out both" }}>
+          <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 380, width: "100%", padding: "24px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Change address?</h3>
               <button onClick={() => setPropStage("idle")} className="agent-icon-btn agent-icon-btn-sm">

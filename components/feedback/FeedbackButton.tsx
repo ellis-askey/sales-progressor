@@ -14,7 +14,7 @@ const TYPE_OPTIONS: { value: FeedbackType; label: string; sub: string }[] = [
 ];
 
 export function FeedbackButton() {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>("general");
   const [message, setMessage] = useState("");
@@ -82,10 +82,12 @@ export function FeedbackButton() {
 
           {/* Card */}
           <div
-            className="glass-card-strong relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-sm rounded-2xl overflow-hidden"
             style={{
-              borderTop: "2px solid var(--agent-coral-deep)",
-              animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+              background: "var(--agent-surface-elevated)",
+              border: "0.5px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
             }}
           >
             {done ? (
@@ -107,9 +109,7 @@ export function FeedbackButton() {
                     type="button"
                     onClick={() => setOpen(false)}
                     aria-label="Close"
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    className="agent-icon-btn agent-icon-btn-md"
                   >
                     <X size={16} weight="bold" />
                   </button>
