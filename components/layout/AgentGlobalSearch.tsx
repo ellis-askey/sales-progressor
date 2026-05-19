@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { AgentSearchResult } from "@/app/api/agent/search/route";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
 ];
 
 export function AgentGlobalSearch() {
+  const { theme } = usePortalTheme();
   const [open, setOpen]         = useState(false);
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<AgentSearchResult | null>(null);
@@ -117,6 +119,7 @@ export function AgentGlobalSearch() {
 
   return createPortal(
     <div
+      data-theme={theme}
       style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh" }}
       onClick={() => setOpen(false)}
     >
