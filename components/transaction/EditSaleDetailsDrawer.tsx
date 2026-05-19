@@ -25,7 +25,7 @@ import type { Tenure, PurchaseType } from "@prisma/client";
 const PURCHASE_TYPE_LABELS: Record<PurchaseType, string> = {
   mortgage: "Mortgage",
   cash_buyer: "Cash buyer",
-  cash_from_proceeds: "Cash from Proceeds",
+  cash_from_proceeds: "Cash from proceeds",
 };
 const TENURE_LABELS: Record<Tenure, string> = {
   leasehold: "Leasehold",
@@ -121,7 +121,7 @@ function UnsavedChangesModal({ sections, onSaveAll, onDiscard, onKeepEditing }: 
       <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 360, width: "100%", padding: "24px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: "0 0 8px" }}>Unsaved changes</h3>
         <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", marginBottom: 12, lineHeight: 1.5 }}>
-          {sections.length === 1 ? "The following section has unsaved changes:" : "The following sections have unsaved changes:"}
+          {sections.length === 1 ? "This section has unsaved changes:" : "These sections have unsaved changes:"}
         </p>
         <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", display: "flex", flexDirection: "column", gap: 6 }}>
           {sections.map((s) => (
@@ -289,7 +289,7 @@ export function EditSaleDetailsDrawer({
   const anyDirty = propHasChanges || priceFeeHasChanges || timelineHasChanges;
   const dirtySections: string[] = [];
   if (propHasChanges) dirtySections.push("Property");
-  if (priceFeeHasChanges) dirtySections.push(hideCommercialFields ? "Price" : "Price & Fees");
+  if (priceFeeHasChanges) dirtySections.push(hideCommercialFields ? "Price" : "Price & fees");
   if (timelineHasChanges) dirtySections.push("Timeline");
   const dirtyCount = dirtySections.length;
 
@@ -380,7 +380,7 @@ export function EditSaleDetailsDrawer({
         setAddrConsequences(consequences);
         setPropStage("addr_modal");
       } catch (err) {
-        setPropError(err instanceof Error ? err.message : "Failed to load address info");
+        setPropError(err instanceof Error ? err.message : "Couldn't load address info");
         setPropStage("idle");
       }
     } else {
@@ -399,7 +399,7 @@ export function EditSaleDetailsDrawer({
         setPropStage("idle");
       }
     } catch (err) {
-      setPropError(err instanceof Error ? err.message : "Failed to save address");
+      setPropError(err instanceof Error ? err.message : "Couldn't save address");
       setPropStage("idle");
     }
   }
@@ -421,7 +421,7 @@ export function EditSaleDetailsDrawer({
         setPropStage("tenure_preview");
       }
     } catch (err) {
-      setPropError(err instanceof Error ? err.message : "Failed to load preview");
+      setPropError(err instanceof Error ? err.message : "Couldn't load preview");
       setPropStage("idle");
     }
   }
@@ -435,7 +435,7 @@ export function EditSaleDetailsDrawer({
       setPropDelta(null);
       setPropStage("idle");
     } catch (err) {
-      setPropError(err instanceof Error ? err.message : "Failed to save sale details");
+      setPropError(err instanceof Error ? err.message : "Couldn't save sale details");
       setPropStage("idle");
     }
   }
@@ -480,7 +480,7 @@ export function EditSaleDetailsDrawer({
       }
       setPriceFeeStage("idle");
     } catch (err) {
-      setPriceFeeError(err instanceof Error ? err.message : "Save failed — tap Save again to retry");
+      setPriceFeeError(err instanceof Error ? err.message : "Couldn't save — tap Save again to retry");
       setPriceFeeStage("idle");
     }
   }
@@ -512,7 +512,7 @@ export function EditSaleDetailsDrawer({
       }
       setTimelineStage("idle");
     } catch (err) {
-      setTimelineError(err instanceof Error ? err.message : "Save failed — tap Save again to retry");
+      setTimelineError(err instanceof Error ? err.message : "Couldn't save — tap Save again to retry");
       setTimelineStage("idle");
     }
   }
@@ -554,7 +554,7 @@ export function EditSaleDetailsDrawer({
 
   const outOfViewChips = [
     { key: "prop", label: "Property", dirty: propHasChanges, inView: propInView, ref: propSectionRef },
-    { key: "fees", label: "Price & Fees", dirty: priceFeeHasChanges, inView: priceFeesInView, ref: priceFeesSectionRef },
+    { key: "fees", label: "Price & fees", dirty: priceFeeHasChanges, inView: priceFeesInView, ref: priceFeesSectionRef },
     { key: "timeline", label: "Timeline", dirty: timelineHasChanges, inView: timelineInView, ref: timelineSectionRef },
   ].filter((c) => c.dirty && !c.inView);
 
@@ -681,8 +681,8 @@ export function EditSaleDetailsDrawer({
               {/* Fix 8 delta preview — only in tenure_preview */}
               {propStage === "tenure_preview" && propDelta && (
                 <div className="agent-reveal-in" style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12 }}>
-                  <DeltaList label="Steps that will be skipped" items={propDelta.becomingNr} color="red" />
-                  <DeltaList label="Steps that will be re-activated" items={propDelta.becomingRequired} color="green" />
+                  <DeltaList label="These steps will be skipped" items={propDelta.becomingNr} color="red" />
+                  <DeltaList label="These steps will be re-activated" items={propDelta.becomingRequired} color="green" />
                   {(propDelta.becomingNr.length > 0 || propDelta.becomingRequired.length > 0) && (
                     <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 flex items-center gap-4">
                       <div className="text-center">
@@ -747,7 +747,7 @@ export function EditSaleDetailsDrawer({
               {priceFeeHasChanges && (
                 <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", marginRight: 6, verticalAlign: "middle" }} />
               )}
-              {hideCommercialFields ? "Price" : "Price & Fees"}
+              {hideCommercialFields ? "Price" : "Price & fees"}
             </p>
             <div className="v2-drawer-section" style={{ borderRadius: 12, background: "rgba(255,255,255,0.40)", border: "0.5px solid rgba(255,255,255,0.50)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
 
@@ -779,7 +779,7 @@ export function EditSaleDetailsDrawer({
                 )}
                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                   <button onClick={() => setFeeVatInput("exclusive")} style={pill(feeVatInput === "exclusive")} disabled={priceFeeStage === "saving"}>+ VAT</button>
-                  <button onClick={() => setFeeVatInput("inclusive")} style={pill(feeVatInput === "inclusive")} disabled={priceFeeStage === "saving"}>Inc VAT</button>
+                  <button onClick={() => setFeeVatInput("inclusive")} style={pill(feeVatInput === "inclusive")} disabled={priceFeeStage === "saving"}>Inc. VAT</button>
                 </div>
               </div>
               )}
@@ -837,11 +837,11 @@ export function EditSaleDetailsDrawer({
 
               {/* Expected exchange date */}
               <div>
-                <p className="text-xs text-slate-900/40 mb-1">Expected exchange date</p>
+                <p className="text-xs text-slate-900/40 mb-1">Expected exchange</p>
                 {!showOverrideInput ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <p className="text-sm text-slate-900/70">
-                      Algorithm predicts:{" "}
+                      Predicted:{" "}
                       <span className="font-semibold">{predictedExchangeDate ? fmt(predictedExchangeDate) : "—"}</span>
                     </p>
                     <button onClick={() => setShowOverrideInput(true)} disabled={timelineStage === "saving"}
@@ -861,11 +861,11 @@ export function EditSaleDetailsDrawer({
                         onClick={() => { setShowOverrideInput(false); setOverrideInput(""); }}
                         disabled={timelineStage === "saving"}
                         className="text-xs text-slate-900/40 hover:text-red-500 transition-colors flex-shrink-0">
-                        Clear override
+                        Clear
                       </button>
                     </div>
                     {predictedExchangeDate && (
-                      <p className="text-[11px] text-slate-900/35">(algorithm: {fmtShort(predictedExchangeDate)})</p>
+                      <p className="text-[11px] text-slate-900/35">(predicted: {fmtShort(predictedExchangeDate)})</p>
                     )}
                   </div>
                 )}
@@ -873,7 +873,7 @@ export function EditSaleDetailsDrawer({
 
               {/* Completion date */}
               <div>
-                <p className="text-xs text-slate-900/40 mb-1">Completion date</p>
+                <p className="text-xs text-slate-900/40 mb-1">Completion</p>
                 {!exchangeConfirmed ? (
                   <p className="text-sm text-slate-900/30 italic">Set once exchange is confirmed</p>
                 ) : (
@@ -938,8 +938,8 @@ export function EditSaleDetailsDrawer({
             </div>
             {(() => {
               const { commCount, milestoneCount } = addrConsequences;
-              const commStr = commCount > 0 ? `${commCount} communication${commCount !== 1 ? "s" : ""}` : null;
-              const msStr = milestoneCount > 0 ? `${milestoneCount} completed milestone${milestoneCount !== 1 ? "s" : ""}` : null;
+              const commStr = commCount > 0 ? `${commCount} comm${commCount !== 1 ? "s" : ""}` : null;
+              const msStr = milestoneCount > 0 ? `${milestoneCount} completed step${milestoneCount !== 1 ? "s" : ""}` : null;
               const ps: React.CSSProperties = { fontSize: 13, color: "rgba(15,23,42,0.60)", marginBottom: 20, lineHeight: 1.6 };
               return commStr || msStr ? (
                 <p style={ps}>
@@ -947,11 +947,11 @@ export function EditSaleDetailsDrawer({
                   {commStr && <strong>{commStr}</strong>}
                   {commStr && msStr && " and "}
                   {msStr && <strong>{msStr}</strong>}
-                  {" "}logged against the current address. These records will keep their references to the old address for audit purposes.
+                  {" "}logged at the current address. They&apos;ll keep references to the old address for the audit trail.
                 </p>
               ) : (
                 <p style={ps}>
-                  The current address will be updated. Any historical records will keep their references to the old address for audit purposes.
+                  The address will update. Any historical records keep their references to the old address for the audit trail.
                 </p>
               );
             })()}

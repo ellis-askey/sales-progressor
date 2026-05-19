@@ -87,7 +87,7 @@ export function ChainDrawer({
         toast.success("1 invite sent");
         await fetchChain();
       } else {
-        toast.error("Failed to send invite");
+        toast.error("Couldn't send invite");
       }
     } finally {
       setSendingInvites(null);
@@ -103,7 +103,7 @@ export function ChainDrawer({
     if (res.ok) {
       await fetchChain();
     } else {
-      toast.error("Failed to remove");
+      toast.error("Couldn't remove");
     }
   }
 
@@ -192,7 +192,7 @@ export function ChainDrawer({
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chain progress</p>
-            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>Track every linked sale</p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>Every linked sale, in one place</p>
           </div>
           <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
             <X size={14} weight="bold" />
@@ -235,7 +235,7 @@ export function ChainDrawer({
             <EmptyState
               icon={<ChainIcon />}
               title="Chain created — add the first sale"
-              description="Add the sale above or below this one to start tracking the chain together."
+              description="Add the sale above or below this one to start tracking together."
               action={
                 onOpenAddNode ? (
                   <div className="flex gap-2 justify-center">
@@ -275,12 +275,12 @@ export function ChainDrawer({
                 <div key={link.id}>
                   {confirmingDeleteId === link.id ? (
                     <div className="rounded-xl bg-white/40 border border-white/30 px-4 py-3 flex items-center gap-3">
-                      <p className="flex-1 text-sm text-slate-900/70">Delete this node?</p>
+                      <p className="flex-1 text-sm text-slate-900/70">Remove this link?</p>
                       <button
                         onClick={() => { void doDeleteConfirmed(link.id); }}
                         className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
                       >
-                        Confirm
+                        Remove
                       </button>
                       <button
                         onClick={() => setConfirmingDeleteId(null)}

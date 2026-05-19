@@ -25,6 +25,15 @@ const TONE_META: Record<Tone, { pill: string; dot: string }> = {
   "Final Reminder":  { pill: "#fecaca", dot: "#991b1b" },
 };
 
+const TONE_DISPLAY: Record<Tone, string> = {
+  "Friendly":        "Friendly",
+  "Professional":    "Professional",
+  "Polite Yet Firm": "Polite yet firm",
+  "Chase Up":        "Chase up",
+  "Urgent":          "Urgent",
+  "Final Reminder":  "Final reminder",
+};
+
 interface MilestoneRef {
   chaseTaskId: string;
   name: string;
@@ -62,7 +71,7 @@ function TonePill({ tone }: { tone: Tone }) {
       background: pill, color: "#1a1a1a",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
-      {tone}
+      {TONE_DISPLAY[tone]}
     </span>
   );
 }
@@ -181,14 +190,14 @@ export function ChaseDrawer({
       });
       const data = await res.json();
       if (generationIdRef.current !== genId) return;
-      if (res.status === 429) { setError(data.message ?? "Too many requests — please wait a few minutes and try again."); return; }
-      if (!res.ok) { setError(data.error ?? "Generation failed"); return; }
+      if (res.status === 429) { setError(data.message ?? "Too many requests — wait a few minutes and try again."); return; }
+      if (!res.ok) { setError(data.error ?? "Couldn't generate — try again"); return; }
       setGeneratedText(data.generated);
       setMessage(data.generated);
       setGeneratedContext(data.context);
     } catch {
       if (generationIdRef.current !== genId) return;
-      setError("Something went wrong. Please try again.");
+      setError("Something went wrong — try again.");
     } finally {
       if (generationIdRef.current === genId) setIsGenerating(false);
     }
@@ -196,9 +205,9 @@ export function ChaseDrawer({
 
   async function handleSend(): Promise<void> {
     if (!message.trim()) return;
-    if (needsWaPick) { setError("Please select which contact to WhatsApp."); return; }
+    if (needsWaPick) { setError("Choose a contact to WhatsApp."); return; }
     if (channel === "email" && !(clientContact ?? solicitorContact ?? contacts.find((c) => c.email))) {
-      setError("No email address on file — add one to a contact before sending.");
+      setError("No email address on file — add one to a contact first.");
       return;
     }
     setIsSending(true);
@@ -230,7 +239,7 @@ export function ChaseDrawer({
         });
         if (!commRes.ok) {
           const err = await commRes.json();
-          setError(err.error ?? "Failed to log communication");
+          setError(err.error ?? "Couldn't log this — try again");
           setIsSending(false);
           return;
         }
@@ -254,8 +263,8 @@ export function ChaseDrawer({
           const emailData: SendResult = await emailRes.json();
           if (!emailRes.ok) {
             const msg = emailRes.status === 429
-              ? (emailData as { message?: string }).message ?? "Too many emails sent — please wait before sending more."
-              : `Logged but email delivery failed: ${emailData.error ?? "unknown error"}`;
+              ? (emailData as { message?: string }).message ?? "Too many emails sent — wait a few minutes before sending more."
+              : `Logged — but email didn't send: ${emailData.error ?? "unknown error"}`;
             setError(msg);
             onSent();
             onClose();
@@ -275,7 +284,7 @@ export function ChaseDrawer({
       onSent();
       onClose();
     } catch {
-      setError("Send failed. Please try again.");
+      setError("Couldn't send — try again.");
     } finally {
       setIsSending(false);
     }
@@ -307,7 +316,7 @@ export function ChaseDrawer({
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {isMulti ? `Chase all · ${milestones!.length} milestones` : milestoneName}
+              {isMulti ? `Chase all · ${milestones!.length} steps` : milestoneName}
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", display: "flex", alignItems: "center", gap: 5 }}>
               <span>Chase #{nextChaseNumber}</span>
@@ -465,7 +474,7 @@ export function ChaseDrawer({
           <div style={{ padding: "12px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <p className="agent-section-label" style={{ margin: 0 }}>Tone</p>
-              <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)" }}>Auto-selected · override if needed</span>
+              <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)" }}>Auto-selected — change if needed</span>
             </div>
             <div style={{ position: "relative" }}>
               <button
@@ -535,7 +544,7 @@ export function ChaseDrawer({
 
             {generatedContext?.primaryContact && (
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>
-                Drafted for <span style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>{generatedContext.primaryContact.name}</span>
+                For <span style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>{generatedContext.primaryContact.name}</span>
                 <span style={{ color: "var(--agent-text-tertiary)" }}> ({generatedContext.primaryContact.role})</span>
               </p>
             )}
@@ -545,7 +554,7 @@ export function ChaseDrawer({
               className="agent-focus"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={channel === "email" ? "Generate a message above, or type your own…" : "Generate a WhatsApp message above, or type your own…"}
+              placeholder={channel === "email" ? "Generate a message or type your own…" : "Generate a WhatsApp message or type your own…"}
               rows={11}
               style={{
                 width: "100%", boxSizing: "border-box", resize: "none",
@@ -559,7 +568,7 @@ export function ChaseDrawer({
             />
 
             {generatedText && message !== generatedText && message.length > 0 && (
-              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>✏️ Message edited from generated version</p>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>Edited</p>
             )}
 
             {error && (
@@ -609,11 +618,11 @@ export function ChaseDrawer({
           <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
             {channel === "whatsapp"
               ? needsWaPick
-                ? "↑ Select a contact above to send"
+                ? "Select a contact to send"
                 : "We'll log this and open WhatsApp"
               : (() => {
                   const rec = clientContact ?? solicitorContact ?? contacts.find((c) => c.email);
-                  if (!rec?.email) return "No email on file — will be logged only";
+                  if (!rec?.email) return "No email on file — this will be logged, not sent";
                   const ccPart = effectiveCc.length ? ` · CC: ${effectiveCc[0]}` : "";
                   return `To: ${rec.email}${ccPart}`;
                 })()}

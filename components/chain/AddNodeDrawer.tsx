@@ -200,10 +200,10 @@ export function AddNodeDrawer({
 
   function helperText(): string {
     if (!requiredFilled) return "Property address and agency name are required";
-    if (!form.stubAgentEmail.trim()) return "No invite will be sent — you can add an email later";
+    if (!form.stubAgentEmail.trim()) return "No invite sent — you can add an email later";
     if (!hasValidEmail) return "Enter a valid email address";
-    if (isExistingChain) return "Invite will be sent now";
-    return "Invite will be sent when you save the chain";
+    if (isExistingChain) return "Invite sent on save";
+    return "Invite sent when you save the chain";
   }
 
   async function handleSave() {
@@ -244,7 +244,7 @@ export function AddNodeDrawer({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        setServerError(data.error ?? "Something went wrong. Please try again.");
+        setServerError(data.error ?? "Something went wrong — try again.");
         return;
       }
 
@@ -341,7 +341,7 @@ export function AddNodeDrawer({
           <div>
             <SectionLabel>
               Agent contact{" "}
-              <span className="normal-case font-normal">(optional — add email to send invite)</span>
+              <span className="normal-case font-normal">(optional)</span>
             </SectionLabel>
             <div className="rounded-xl agent-chain-callout px-4 py-3 space-y-3">
               <Field
@@ -363,6 +363,7 @@ export function AddNodeDrawer({
                   className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
                 />
                 {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                {!form.stubAgentEmail.trim() && !emailError && <p className="text-xs text-slate-900/40">Add an email to send them an invite</p>}
               </div>
               <Field
                 label="Contact number"
@@ -384,7 +385,7 @@ export function AddNodeDrawer({
                 label=""
                 value={form.stubNotes}
                 onChange={update("stubNotes")}
-                placeholder="Any context about this link…"
+                placeholder="Anything useful about this link…"
                 rows={3}
                 maxLength={1000}
               />

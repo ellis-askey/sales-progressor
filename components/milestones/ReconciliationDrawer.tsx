@@ -109,7 +109,7 @@ export function ReconciliationDrawer({
               {title}
             </p>
             <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-              {isExchangeFlow ? "Exchange date + outstanding milestones" : "Completion date + outstanding milestones"}
+              {isExchangeFlow ? "Exchange date + outstanding steps" : "Completion date + outstanding steps"}
             </p>
           </div>
           <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
@@ -133,12 +133,12 @@ export function ReconciliationDrawer({
                 className="agent-focus"
                 style={{ border: "0.5px solid rgba(15,23,42,0.15)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: "white", color: "rgba(15,23,42,0.85)" }}
               />
-              <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginTop: 4, marginBottom: 0 }}>Pre-filled with today — change if it was different</p>
+              <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginTop: 4, marginBottom: 0 }}>Filled with today&apos;s date — change if it was different</p>
             </div>
             {isExchangeFlow && (
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(15,23,42,0.60)", marginBottom: 6 }}>
-                  Expected completion date{" "}
+                  Expected completion{" "}
                   <span style={{ fontWeight: 400, color: "rgba(15,23,42,0.40)" }}>(optional)</span>
                 </label>
                 <input
@@ -187,8 +187,7 @@ export function ReconciliationDrawer({
                     {item.eventDateRequired && reconciledIds.has(item.id) && (
                       <div style={{ marginTop: 8, marginLeft: 26 }}>
                         <label style={{ display: "block", fontSize: 11, color: "rgba(15,23,42,0.50)", marginBottom: 4 }}>
-                          {getEventDateLabel(item.code)}{" "}
-                          <span style={{ color: "rgba(15,23,42,0.35)" }}>(blank = exclude)</span>
+                          {getEventDateLabel(item.code)} — leave blank to exclude
                         </label>
                         <input
                           type="date"
