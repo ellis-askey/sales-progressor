@@ -165,6 +165,12 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     off_track: "agent-pill-withdrawn",
     unknown:   "",
   };
+  const PHASE_LABELS: Record<string, string> = {
+    onboarding:   "Onboarding",
+    conveyancing: "Conveyancing",
+    pre_exchange: "Exchange",
+    post_exchange: "Exchanged",
+  };
   const TRACK_LABEL: Record<string, string> = {
     on_track:  "On track",
     at_risk:   "At risk",
@@ -219,6 +225,12 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             </p>
           </div>
         </div>
+
+        {progress.fileLevelPhase && (
+          <p style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 10 }}>
+            Transaction stage: <span style={{ fontWeight: 600 }}>{PHASE_LABELS[progress.fileLevelPhase]}</span>
+          </p>
+        )}
       </div>
 
       {/* Time on file card */}
@@ -495,6 +507,15 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         {/* Zone 2 — Accordion content */}
         <div className={`agent-acc${mobileOpen ? " open" : ""}`}>
           <div className="agent-acc-in">
+
+            {/* Transaction stage */}
+            {progress.fileLevelPhase && (
+              <div style={{ padding: "14px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
+                <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>
+                  Transaction stage: <span style={{ fontWeight: 600 }}>{PHASE_LABELS[progress.fileLevelPhase]}</span>
+                </p>
+              </div>
+            )}
 
             {/* Time on file */}
             {fileTime && fileTime.totalSeconds > 0 && (

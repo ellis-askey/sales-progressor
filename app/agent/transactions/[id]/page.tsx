@@ -8,7 +8,7 @@ import { getActivityTimeline } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
-import { calculateProgress } from "@/lib/services/fees";
+import { calculateProgress, detectPhase } from "@/lib/services/fees";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { StatusControl } from "@/components/transaction/StatusControl";
@@ -145,6 +145,9 @@ export default async function AgentTransactionDetailPage({
       isShareOfFreehold: transaction.isShareOfFreehold,
     } : undefined,
   );
+  if (milestoneData) {
+    progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
+  }
 
   const exchangeConfirmed = allMilestones.some(
     (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete

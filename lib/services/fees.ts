@@ -65,6 +65,7 @@ export type ProgressResult = {
   isEarlyEstimate: boolean; // true when still in Phase A (onboarding) and prediction is the 12-week target
   weeksElapsed: number;
   weeksRemaining: number | null;
+  fileLevelPhase?: FileLevelPhase | null;
 };
 
 // ─── Phase-aware exchange forecast (Arc 2) ────────────────────────────────────
@@ -117,6 +118,7 @@ export function detectPhase(completedCodes: Set<string>): DetectedPhase {
 
   const fileLevelPhase: FileLevelPhase =
     (completedCodes.has("VM19") || completedCodes.has("PM26")) ? "post_exchange" :
+    completedCodes.has("PM20")                                  ? "pre_exchange" :
     (completedCodes.has("VM4") && completedCodes.has("PM4"))   ? "conveyancing" :
     "onboarding";
 
