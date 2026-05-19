@@ -46,7 +46,7 @@ export function AgentGlobalSearch() {
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
-      setQuery(""); setResults(null); setSelected(0);
+      setQuery(""); setResults(null); setSelected(-1);
     }
   }, [open]);
 
@@ -84,7 +84,7 @@ export function AgentGlobalSearch() {
     if (!flat.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => Math.min(s + 1, flat.length - 1)); }
     if (e.key === "ArrowUp")   { e.preventDefault(); setSelected((s) => Math.max(s - 1, 0)); }
-    if (e.key === "Enter")     { e.preventDefault(); navigate(flat[selected].href); }
+    if (e.key === "Enter" && selected >= 0) { e.preventDefault(); navigate(flat[selected].href); }
   }
 
   const hasResults = results && (results.transactions.length + results.contacts.length + results.solicitors.length) > 0;
@@ -186,6 +186,7 @@ export function AgentGlobalSearch() {
                   sub={n.sub}
                   selected={selected === i}
                   onClick={() => navigate(n.href)}
+                  onMouseEnter={() => setSelected(i)}
                 />
               ))}
             </SearchSection>
@@ -208,6 +209,7 @@ export function AgentGlobalSearch() {
                     subColor={STATUS_COLORS[t.status]}
                     selected={selected === i}
                     onClick={() => navigate(`/agent/transactions/${t.id}`)}
+                    onMouseEnter={() => setSelected(i)}
                   />
                 ))}
               </SearchSection>
@@ -221,6 +223,7 @@ export function AgentGlobalSearch() {
                     sub={`${c.role} · ${c.address}`}
                     selected={selected === results!.transactions.length + i}
                     onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
+                    onMouseEnter={() => setSelected(results!.transactions.length + i)}
                   />
                 ))}
               </SearchSection>
@@ -234,6 +237,7 @@ export function AgentGlobalSearch() {
                     sub={`${s.fileCount} file${s.fileCount !== 1 ? "s" : ""} on record`}
                     selected={selected === results!.transactions.length + results!.contacts.length + i}
                     onClick={() => navigate(`/agent/solicitors`)}
+                    onMouseEnter={() => setSelected(results!.transactions.length + results!.contacts.length + i)}
                   />
                 ))}
               </SearchSection>
@@ -274,17 +278,18 @@ function SearchSection({ label, children }: { label: string; children: React.Rea
 }
 
 function SearchRow({
-  label, sub, subColor, selected, onClick,
+  label, sub, subColor, selected, onClick, onMouseEnter,
 }: {
-  label: string; sub: string; subColor?: string; selected: boolean; onClick: () => void;
+  label: string; sub: string; subColor?: string; selected: boolean; onClick: () => void; onMouseEnter: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 12,
-        padding: "10px 16px", border: "none", cursor: "pointer", textAlign: "left",
+        padding: "11px 16px", border: "none", cursor: "pointer", textAlign: "left",
         background: selected ? "var(--agent-coral-bg-tint)" : "transparent",
         transition: "background 80ms",
         borderLeft: selected ? "2px solid var(--agent-coral)" : "2px solid transparent",

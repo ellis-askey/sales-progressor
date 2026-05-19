@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
-import { resolveAgentVisibility } from "@/lib/services/agent";
+import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { prisma } from "@/lib/prisma";
 
 export type AgentSearchResult = {
@@ -9,18 +9,30 @@ export type AgentSearchResult = {
   solicitors:   { id: string; name: string; fileCount: number }[];
 };
 
+const INTERNAL_ROLES = ["admin", "superadmin", "sales_progressor"];
+
 export async function GET(req: NextRequest) {
   const session = await requireSession();
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json({ transactions: [], contacts: [], solicitors: [] });
 
-  const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const isInternal = INTERNAL_ROLES.includes(session.user.role ?? "");
+  const vis = isInternal
+    ? resolveInternalVisibility(session.user.id, session.user.role ?? "")
+    : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const txWhere = vis.seeAll
-    ? vis.firmName
+  let txWhere: Record<string, unknown>;
+  if (vis.internalMode === "admin_all") {
+    txWhere = {};
+  } else if (vis.internalMode === "assigned") {
+    txWhere = { assignedUserId: vis.userId };
+  } else if (vis.seeAll) {
+    txWhere = vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
-      : { agencyId: vis.agencyId, agentUserId: { not: null } }
-    : { agencyId: vis.agencyId, agentUserId: vis.userId };
+      : { agencyId: vis.agencyId };
+  } else {
+    txWhere = { agencyId: vis.agencyId, agentUserId: vis.userId };
+  }
 
   const [transactions, contacts, solicitors] = await Promise.all([
     prisma.propertyTransaction.findMany({
