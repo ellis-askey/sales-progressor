@@ -8,7 +8,7 @@ import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import type { ChainV2 } from "@/lib/services/chains";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
-import { useToast } from "@/components/ui/ToastContext";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type ChainDrawerProps = {
@@ -47,7 +47,7 @@ export function ChainDrawer({
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
-  const { addToast } = useToast();
+  const { toast } = useAgentToast();
 
   const fetchChain = useCallback(async () => {
     setLoading(true);
@@ -84,10 +84,10 @@ export function ChainDrawer({
         method: "POST",
       });
       if (res.ok) {
-        addToast("1 invite sent", "success");
+        toast.success("1 invite sent");
         await fetchChain();
       } else {
-        addToast("Failed to send invite", "error");
+        toast.error("Failed to send invite");
       }
     } finally {
       setSendingInvites(null);
@@ -103,7 +103,7 @@ export function ChainDrawer({
     if (res.ok) {
       await fetchChain();
     } else {
-      addToast("Failed to remove", "error");
+      toast.error("Failed to remove");
     }
   }
 
@@ -124,7 +124,7 @@ export function ChainDrawer({
       });
       if (res.ok) sent++;
     }
-    addToast(`${sent} invite${sent !== 1 ? "s" : ""} sent`, "success");
+    toast.success(`${sent} invite${sent !== 1 ? "s" : ""} sent`);
     setSendingInvites(null);
     await fetchChain();
   }

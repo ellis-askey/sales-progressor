@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { useToast } from "@/components/ui/ToastContext";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 export function NewTransactionToast() {
-  const { addToast } = useToast();
+  const { toast } = useAgentToast();
 
   useEffect(() => {
     const address = sessionStorage.getItem("newTransaction");
     if (address) {
       sessionStorage.removeItem("newTransaction");
-      addToast("File created", "success", address);
+      toast.success("File created", { description: address });
     }
-  }, [addToast]);
+  }, [toast]);
 
   return null;
 }

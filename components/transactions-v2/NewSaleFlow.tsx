@@ -27,7 +27,7 @@ import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
 import { cleanPhone, formatPostcode } from "@/lib/utils/address";
 import { titleCase } from "@/lib/utils";
-import { useToast } from "@/components/ui/ToastContext";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 const SLOW_THRESHOLD_MS = 15_000;
 
@@ -262,7 +262,7 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions }: Props) {
-  const { addToast } = useToast();
+  const { toast } = useAgentToast();
   const router = useRouter();
 
   // ── Flow state ────────────────────────────────────────────────────────────
@@ -676,9 +676,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         progressedBy: formFields.progressedBy,
         chainStubs: formFields.chainStubs as DraftEntry["chainStubs"],
       });
-      addToast("Draft saved", "success");
+      toast.success("Draft saved");
     } catch {
-      addToast("Couldn't save draft. Try again.", "error");
+      toast.error("Couldn't save draft. Try again.");
     } finally {
       setIsSavingDraft(false);
     }
@@ -705,7 +705,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setDrafts((prev) => prev.filter((d) => d.id !== draftId));
       if (currentDraftId === draftId) setCurrentDraftId(null);
     } catch {
-      addToast("Couldn't remove draft.", "error");
+      toast.error("Couldn't remove draft.");
     }
   }
 
@@ -714,13 +714,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
     if (!formFields.tenure || !formFields.purchaseType) {
       setStage1Expanded(true);
-      addToast(
+      toast.error(
         !formFields.tenure && !formFields.purchaseType
           ? "Select tenure and purchase type to continue"
           : !formFields.tenure
           ? "Select tenure to continue"
           : "Select purchase type to continue",
-        "error",
       );
       return;
     }
@@ -804,7 +803,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       if (error.message === "DUPLICATE_ADDRESS") {
         setDuplicateInfo({ id: error.duplicateId ?? "", assignedTo: error.assignedTo ?? null });
       } else {
-        addToast("The file didn't save. Try again or contact support.", "error");
+        toast.error("The file didn't save. Try again or contact support.");
       }
     }
   }

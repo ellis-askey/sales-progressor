@@ -24,7 +24,6 @@ import { MissingFeeRow } from "@/components/analytics/MissingFeeRow";
 import { SolicitorPicker } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker } from "@/components/brokers/BrokerPicker";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { ToastProvider, useToast } from "@/components/ui/ToastContext";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
@@ -1233,20 +1232,6 @@ function CategoryDropdowns({ decision, onPick }: { decision: Decision; onPick: (
   );
 }
 
-// ─── Legacy toast trigger (Current tab) ──────────────────────────────────────
-
-function LegacyToastTrigger() {
-  const { addToast } = useToast();
-  return (
-    <div className="oa-demo-row">
-      <span className="oa-label">ToastContext (legacy — retire)</span>
-      <Trig label="success" onClick={() => addToast("File saved successfully", "success")} />
-      <Trig label="error" onClick={() => addToast("Something went wrong", "error")} />
-      <span className="oa-note-pill">Decision 3 confirmed: retire in favour of AgentToaster</span>
-    </div>
-  );
-}
-
 function AgentToastTriggers() {
   const { toast } = useAgentToast();
   return (
@@ -1305,9 +1290,6 @@ function CategoryToasts({ decision, onPick }: { decision: Decision; onPick: (d: 
       {vkey === "current" && (
         <div className="oa-demo">
           <AgentToastTriggers />
-          <ToastProvider>
-            <LegacyToastTrigger />
-          </ToastProvider>
         </div>
       )}
 
