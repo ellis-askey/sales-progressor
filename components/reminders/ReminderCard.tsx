@@ -102,7 +102,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   const [pos, setPos] = useState<{ top: number; right: number; above: boolean } | null>(null);
   const [loadingHours, setLoadingHours] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -176,7 +176,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   const [pos, setPos] = useState<{ top: number; right: number; above: boolean } | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

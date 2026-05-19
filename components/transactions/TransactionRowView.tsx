@@ -102,7 +102,7 @@ function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?:
   const lastAt = tx.health?.lastActivityAt ?? null;
   const verb = tx.health?.lastActivityLabel ?? null;
   const state = activityStateFor(lastAt);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);

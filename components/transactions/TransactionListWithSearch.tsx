@@ -35,7 +35,7 @@ function useChipDropdown() {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   useEffect(() => {
     function handle(e: MouseEvent) {

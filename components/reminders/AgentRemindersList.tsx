@@ -87,7 +87,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
   const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   function close() { setClosing(true); setOpen(false); }
 
@@ -161,7 +161,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
   const [closing, setClosing] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   function close() { setClosing(true); setOpen(false); }
 

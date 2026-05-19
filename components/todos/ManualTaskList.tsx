@@ -169,114 +169,128 @@ export function ManualTaskList({
   const agentOpen = agentTasks.filter((t) => t.status === "open");
   const agentDone = agentTasks.filter((t) => t.status === "done");
 
-  return (
-    <div className="space-y-4">
-      {/* ── My to-dos ── */}
-      <div className="glass-card overflow-hidden rounded-[12px]">
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
-        >
-          <div className="flex items-center gap-2">
-            <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>To-Do</h3>
-            {myOpen.length > 0 && <span className="agent-badge">{myOpen.length}</span>}
-          </div>
-          <AddManualTaskForm
-            transactionId={transactionId}
-            transactionAddress={transactionAddress}
-            showOwnership={showOwnership}
-            onAdd={handleAdd}
-          />
+  const myTasksCard = (
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+      >
+        <div className="flex items-center gap-2">
+          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
+            {perspective === "progressor" ? "Agent's to-do" : "To-Do"}
+          </h3>
+          {myOpen.length > 0 && <span className="agent-badge">{myOpen.length}</span>}
         </div>
+        <AddManualTaskForm
+          transactionId={transactionId}
+          transactionAddress={transactionAddress}
+          showOwnership={showOwnership}
+          onAdd={handleAdd}
+        />
+      </div>
 
-        {myVisible.length === 0 ? (
-          <div style={{ padding: "28px 16px", textAlign: "center" }}>
-            <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
-              {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
-            </p>
-          </div>
-        ) : (
-          <div>
-            {myOpen.map((task) => (
-              <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
-            ))}
-            <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
-              <div className="agent-acc-in">
-                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
-                  Done
-                </div>
-                {myDone.map((task) => (
-                  <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
-                ))}
+      {myVisible.length === 0 ? (
+        <div style={{ padding: "28px 16px", textAlign: "center" }}>
+          <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
+            {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
+          </p>
+        </div>
+      ) : (
+        <div>
+          {myOpen.map((task) => (
+            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
+          ))}
+          <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
+            <div className="agent-acc-in">
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
+                Done
               </div>
+              {myDone.map((task) => (
+                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+              ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {showDone && myDone.length > 0 && (
-          <div style={{ padding: "8px 16px", borderTop: myVisible.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
-            <button
-              onClick={() => setFilter(filter === "open" ? "all" : "open")}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 11 }}
-            >
-              {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
-            </button>
-          </div>
+      {showDone && myDone.length > 0 && (
+        <div style={{ padding: "8px 16px", borderTop: myVisible.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
+          <button
+            onClick={() => setFilter(filter === "open" ? "all" : "open")}
+            className="agent-link agent-link-muted"
+            style={{ fontSize: 11 }}
+          >
+            {filter === "open" ? `Show ${myDone.length} done` : "Hide done"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const agentRequestsCard = agentTasks.length > 0 ? (
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+      >
+        <div className="flex items-center gap-2">
+          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
+            {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
+          </h3>
+          {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
+        </div>
+        {agentDone.length > 0 && (
+          <button
+            onClick={() => setShowAgentDone((v) => !v)}
+            className="agent-link agent-link-muted"
+            style={{ fontSize: 11 }}
+          >
+            {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
+          </button>
         )}
       </div>
 
-      {/* ── Agent requests / With Sales Progressor ── */}
-      {agentTasks.length > 0 && (
-        <div className="glass-card overflow-hidden rounded-[12px]">
-          <div
-            className="flex items-center justify-between px-4 py-3"
-            style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
-          >
-            <div className="flex items-center gap-2">
-              <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
-                {perspective === "agent" ? "With Sales Progressor" : "Agent requests"}
-              </h3>
-              {agentOpen.length > 0 && <span className="agent-badge">{agentOpen.length}</span>}
+      <div>
+        {agentOpen.map((task) => (
+          perspective === "agent"
+            ? <AgentRequestRow key={task.id} task={task} />
+            : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+        ))}
+        {showAgentDone && agentDone.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
+              Resolved
             </div>
-            {agentDone.length > 0 && (
-              <button
-                onClick={() => setShowAgentDone((v) => !v)}
-                className="agent-link agent-link-muted"
-                style={{ fontSize: 11 }}
-              >
-                {showAgentDone ? "Hide resolved" : `Show ${agentDone.length} resolved`}
-              </button>
-            )}
-          </div>
-
-          <div>
-            {agentOpen.map((task) => (
+            {agentDone.map((task) => (
               perspective === "agent"
                 ? <AgentRequestRow key={task.id} task={task} />
                 : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
             ))}
-            {showAgentDone && agentDone.length > 0 && (
-              <>
-                <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
-                  Resolved
-                </div>
-                {agentDone.map((task) => (
-                  perspective === "agent"
-                    ? <AgentRequestRow key={task.id} task={task} />
-                    : <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
-                ))}
-              </>
-            )}
-            {agentOpen.length === 0 && !showAgentDone && (
-              <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
-                  {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
-                </p>
-              </div>
-            )}
+          </>
+        )}
+        {agentOpen.length === 0 && !showAgentDone && (
+          <div style={{ padding: "24px 16px", textAlign: "center" }}>
+            <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+              {perspective === "agent" ? "Nothing pending with us." : "All agent requests resolved."}
+            </p>
           </div>
-        </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-4">
+      {perspective === "progressor" ? (
+        <>
+          {agentRequestsCard}
+          {myTasksCard}
+        </>
+      ) : (
+        <>
+          {myTasksCard}
+          {agentRequestsCard}
+        </>
       )}
     </div>
   );
