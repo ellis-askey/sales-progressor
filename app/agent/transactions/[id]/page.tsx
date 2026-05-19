@@ -415,6 +415,17 @@ export default async function AgentTransactionDetailPage({
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
+          <ContactsSection
+            transactionId={transaction.id}
+            contacts={transaction.contacts}
+            address={transaction.propertyAddress}
+            portalViewDates={Object.fromEntries(
+              transaction.contacts
+                .filter((c) => c.lastVisitedPortalAt)
+                .map((c) => [c.id, c.lastVisitedPortalAt as Date])
+            )}
+          />
+
           <NextMilestoneWidget
             transactionId={transaction.id}
             vendorSide={vendorSideState}
@@ -434,18 +445,6 @@ export default async function AgentTransactionDetailPage({
             </div>
           </div>
 
-          <RiskScoreWidget input={riskInput} />
-
-          <ContactsSection
-            transactionId={transaction.id}
-            contacts={transaction.contacts}
-            address={transaction.propertyAddress}
-            portalViewDates={Object.fromEntries(
-              transaction.contacts
-                .filter((c) => c.lastVisitedPortalAt)
-                .map((c) => [c.id, c.lastVisitedPortalAt as Date])
-            )}
-          />
           <SolicitorSection
             transactionId={transaction.id}
             vendor={{
@@ -474,6 +473,8 @@ export default async function AgentTransactionDetailPage({
               purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
             />
           )}
+
+          <RiskScoreWidget input={riskInput} />
 
           <PropertyIntelCard transactionId={transaction.id} />
           <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={session.user.name ?? ""} />
