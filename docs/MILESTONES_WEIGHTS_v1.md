@@ -31,13 +31,15 @@ The denominator is dynamic — it excludes any milestone marked Not required (wh
 
 ### 2.2 Overall calculation
 
-The overall progress percentage is a 50/50 blend of the two sides:
+The overall progress percentage is a single pooled ratio across all applicable milestones from both sides:
 
 ```
-overall_progress = (vendor_progress + purchaser_progress) / 2
+overall_progress = sum(weights of completed applicable milestones across both sides)
+                  / sum(weights of all applicable milestones across both sides)
+                  × 100
 ```
 
-This means each side has equal influence on the overall progress, regardless of how many milestones are on each side.
+Not-required milestones are excluded from the denominator on both sides before pooling. Each milestone contributes its weight to one shared denominator regardless of which side it belongs to. This means a heavier milestone (e.g. signed contracts, weight 8) influences the overall percentage more than a lighter one (e.g. memo issued, weight 3) regardless of which side it sits on.
 
 ### 2.3 Storage and display
 
@@ -153,8 +155,11 @@ The percentage jumped 1 point because the denominator shrunk. Intended behaviour
 
 ### 5.4 Both sides have progress
 
-Vendor side at 32%, Purchaser side at 47%.
-Overall = (32 + 47) / 2 = 39.5% → displays as `40%`.
+Vendor side: completed weight 32, applicable weight 100.
+Purchaser side: completed weight 47, applicable weight 100.
+Overall = (32 + 47) / (100 + 100) × 100 = 79 / 200 × 100 = 39.5% → displays as `40%`.
+
+(In this symmetric example the result is identical to the old 50/50 blend. The difference appears when the two sides have unequal applicable totals due to NR milestones.)
 
 ---
 

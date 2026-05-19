@@ -229,9 +229,12 @@ export function calculateProgress(
   const vendorRaw     = calcSideRaw(vendor);
   const purchaserRaw  = calcSideRaw(purchaser);
 
-  // 50/50 blend per spec: each side contributes equally regardless of milestone count.
-  // Pooling all milestones would skew the overall % when NR reduces one side heavily.
-  const overallRaw = (vendorRaw + purchaserRaw) / 2;
+  // Pooled weighted progress: single ratio across all applicable milestones.
+  // Each milestone contributes its weight to one shared denominator regardless of side.
+  const allApplicable       = [...vendor, ...purchaser].filter((m) => !m.isNotRequired);
+  const totalApplicable     = allApplicable.reduce((s, m) => s + m.weight, 0);
+  const totalCompleted      = allApplicable.filter((m) => m.isComplete).reduce((s, m) => s + m.weight, 0);
+  const overallRaw          = totalApplicable > 0 ? (totalCompleted / totalApplicable) * 100 : 100;
 
   const percent          = Math.round(overallRaw);
   const vendorPercent    = Math.round(vendorRaw);
