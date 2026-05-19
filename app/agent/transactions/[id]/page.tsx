@@ -160,6 +160,7 @@ export default async function AgentTransactionDetailPage({
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const now = new Date();
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
   const activeReminderCount = activeReminders.filter((l) =>
@@ -167,11 +168,11 @@ export default async function AgentTransactionDetailPage({
   ).length;
 
   const overdueCount = activeReminders.filter((l) => {
+    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
     const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
     return due <= today;
   }).length;
 
-  const now = new Date();
   const reminderBadgeCount = reminderLogs.filter((l) => {
     if (l.status !== "active") return false;
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
@@ -184,6 +185,7 @@ export default async function AgentTransactionDetailPage({
     id: l.id,
     ruleName: l.reminderRule.name,
     nextDueDate: l.nextDueDate,
+    snoozedUntil: l.snoozedUntil ?? null,
     pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
   }));
 

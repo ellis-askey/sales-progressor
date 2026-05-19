@@ -7,6 +7,7 @@ type ReminderItem = {
   id: string;
   ruleName: string;
   nextDueDate: Date | string;
+  snoozedUntil?: Date | string | null;
   pendingChaseCount: number;
 };
 
@@ -39,6 +40,18 @@ export function RemindersWidget({ reminders, totalActive }: Props) {
       ) : (
         <div>
           {reminders.map((r) => {
+            const isSnoozed = r.snoozedUntil && new Date(r.snoozedUntil) > new Date();
+            if (isSnoozed) {
+              return (
+                <div key={r.id} className="agent-hover-row" style={{ padding: "8px 16px", borderBottom: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: "rgba(15,23,42,0.18)" }} />
+                    <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--agent-text-muted)", flexShrink: 0, marginLeft: 8 }}>Snoozed until {formatDate(r.snoozedUntil!)}</span>
+                </div>
+              );
+            }
             const days = daysUntil(r.nextDueDate);
             const isOverdue = days < 0;
             const isToday = days === 0;

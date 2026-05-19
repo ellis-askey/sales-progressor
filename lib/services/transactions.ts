@@ -70,7 +70,7 @@ export async function listTransactions(
       communications: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { createdAt: true, channel: true, method: true, purpose: true, type: true },
+        select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true },
       },
     },
   });
@@ -105,12 +105,12 @@ export async function listTransactions(
       const name = lastMilestone?.milestoneDefinition?.name;
       lastActivityLabel = name ? `${name} confirmed` : "Step confirmed";
     } else if (commTs > 0 && lastComm) {
-      if (lastComm.purpose === "chase") {
-        lastActivityType = "chase"; lastActivityLabel = "Chase sent";
-      } else if (lastComm.type === "internal_note") {
+      if (lastComm.type === "internal_note") {
         lastActivityType = "note"; lastActivityLabel = "Note added";
       } else if (lastComm.type === "inbound") {
         lastActivityType = "inbound"; lastActivityLabel = "Reply received";
+      } else if (lastComm.purpose === "chase" && !lastComm.isAutomated) {
+        lastActivityType = "chase"; lastActivityLabel = "Chase sent";
       } else if (lastComm.method === "email" || lastComm.channel === "email") {
         lastActivityType = "email"; lastActivityLabel = "Email sent";
       } else if (lastComm.method === "sms" || lastComm.channel === "sms") {
