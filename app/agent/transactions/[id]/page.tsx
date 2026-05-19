@@ -171,6 +171,15 @@ export default async function AgentTransactionDetailPage({
     return due <= today;
   }).length;
 
+  const now = new Date();
+  const reminderBadgeCount = reminderLogs.filter((l) => {
+    if (l.status !== "active") return false;
+    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
+    if (l.chaseTasks.some((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")) return true;
+    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
+    return due <= today;
+  }).length;
+
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
     id: l.id,
     ruleName: l.reminderRule.name,
@@ -254,7 +263,7 @@ export default async function AgentTransactionDetailPage({
   const tabs = [
     { key: "overview",   label: "Overview" },
     { key: "milestones", label: "Steps" },
-    { key: "reminders",  label: "Reminders", badge: overdueCount },
+    { key: "reminders",  label: "Reminders", badge: reminderBadgeCount },
     { key: "todos",      label: "To-Do", badge: openTodoCount },
     { key: "activity",   label: "Activity" },
   ];
@@ -517,7 +526,18 @@ export default async function AgentTransactionDetailPage({
             entries={activityEntries}
             transactionId={transaction.id}
             mosDocUrl={mosDocUrl}
-            beforeEntries={<CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />}
+            beforeEntries={<CommsEntry
+              transactionId={transaction.id}
+              contacts={transaction.contacts}
+              solicitors={[
+                ...(transaction.vendorSolicitorContact
+                  ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor" }]
+                  : []),
+                ...(transaction.purchaserSolicitorContact
+                  ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor" }]
+                  : []),
+              ]}
+            />}
             currentUserId={isProgressor ? session.user.id : undefined}
           />
           {(!isInternal || spSenderIdentity !== undefined) && (

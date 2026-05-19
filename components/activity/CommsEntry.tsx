@@ -10,10 +10,12 @@ import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Contact = { id: string; name: string; roleType: string };
+type Solicitor = { id: string; name: string; role: string };
 
 type Props = {
   transactionId: string;
   contacts: Contact[];
+  solicitors?: Solicitor[];
 };
 
 type CommType = "internal_note" | "outbound" | "inbound";
@@ -28,7 +30,7 @@ const METHODS: { value: CommMethod; label: string; color: string; icon: string }
   { value: "post",      label: "Post",      color: "bg-white/30 text-slate-900/70 border-white/30",   icon: "📮" },
 ];
 
-export function CommsEntry({ transactionId, contacts }: Props) {
+export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -198,6 +200,9 @@ export function CommsEntry({ transactionId, contacts }: Props) {
               <span className="text-xs text-slate-900/40">→</span>
               <p className="text-xs font-medium text-slate-900/50">Who was involved?</p>
             </div>
+            {solicitors && solicitors.length > 0 && (
+              <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: "0 0 6px" }}>Clients</p>
+            )}
             <div className="flex flex-wrap gap-2 mb-3">
               {contacts.map((c) => {
                 const selected = selectedContacts.includes(c.id);
@@ -217,6 +222,33 @@ export function CommsEntry({ transactionId, contacts }: Props) {
                 );
               })}
             </div>
+            {solicitors && solicitors.length > 0 && (
+              <>
+                <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: "0 0 6px" }}>Solicitors</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {solicitors.map((s) => {
+                    const selected = selectedContacts.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => toggleContact(s.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                          selected
+                            ? "bg-blue-50/60 border-blue-300/60 text-blue-700 font-medium"
+                            : "border-white/30 text-slate-900/60 hover:bg-white/20"
+                        }`}
+                      >
+                        <ContactAvatar
+                          contact={{ name: s.name, roleType: s.role === "Vendor solicitor" ? "vendor" : "purchaser" }}
+                          size={20}
+                        />
+                        {s.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
             <button
               onClick={() => setStep(4)}
               className="agent-btn agent-btn-sm agent-btn-primary"
