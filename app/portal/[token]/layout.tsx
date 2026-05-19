@@ -3,6 +3,9 @@ import type { Metadata, Viewport } from "next";
 import { getPortalData, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
+import { prisma } from "@/lib/prisma";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -53,8 +56,29 @@ export default async function PortalLayout({
 
   const { contact, transaction } = data;
 
-  // Log portal view (fire-and-forget — never blocks render)
+  // Log portal view and update last-visited timestamp (fire-and-forget — never blocks render)
+  // Both run from layout so they fire on every sub-page (progress, updates, etc.), not just root.
   logPortalView(token).catch(() => {});
+  void (async () => {
+    const row = await prisma.contact.findUnique({
+      where: { id: contact.id },
+      select: { lastVisitedPortalAt: true },
+    }).catch(() => null);
+    const now = new Date();
+    const msSinceLastVisit = row?.lastVisitedPortalAt
+      ? now.getTime() - row.lastVisitedPortalAt.getTime()
+      : Infinity;
+    if (msSinceLastVisit > 5 * 60 * 1000) {
+      await prisma.contact.update({
+        where: { id: contact.id },
+        data:  { lastVisitedPortalAt: now },
+      }).catch(() => {});
+      void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_VISITED, {
+        contactId:     contact.id,
+        transactionId: transaction.id,
+      });
+    }
+  })();
 
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 

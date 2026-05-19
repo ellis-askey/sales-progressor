@@ -2,9 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
-import { prisma } from "@/lib/prisma";
-import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
@@ -37,28 +34,7 @@ export default async function PortalHomePage({
 
   const { contact, transaction } = data;
 
-  // Record portal visit — throttled to once per 5 minutes to avoid excessive writes
-  void (async () => {
-    const row = await prisma.contact.findUnique({
-      where: { id: contact.id },
-      select: { lastVisitedPortalAt: true },
-    }).catch(() => null);
-    const now = new Date();
-    const msSinceLastVisit = row?.lastVisitedPortalAt
-      ? now.getTime() - row.lastVisitedPortalAt.getTime()
-      : Infinity;
-    if (msSinceLastVisit > 5 * 60 * 1000) {
-      await prisma.contact.update({
-        where: { id: contact.id },
-        data:  { lastVisitedPortalAt: now },
-      }).catch(() => {});
-      void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_VISITED, {
-        contactId:     contact.id,
-        transactionId: transaction.id,
-      });
-    }
-  })();
-  const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
+const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const otherSide = side === "vendor" ? "purchaser" : "vendor";
   const saleWord  = side === "vendor" ? "sale" : "purchase";
 

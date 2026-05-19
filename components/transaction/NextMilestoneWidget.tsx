@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { useTabContext } from "./TabContext";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
 
 type NextMilestone = {
@@ -34,9 +34,12 @@ function MilestoneSideRow({
   transactionId: string;
 }) {
   const { toast } = useAgentToast();
-  const { setActiveTab } = useTabContext();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [flashed, setFlashed] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+  const [desktopValuation, setDesktopValuation] = useState(false);
 
   const rowStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 12,
@@ -91,24 +94,7 @@ function MilestoneSideRow({
 
   // side.state === "hasNext"
   const { milestone } = side;
-
-  if (milestone.eventDateRequired) {
-    return (
-      <div className="agent-hover-row" style={rowStyle}>
-        <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-200 flex-shrink-0" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{milestone.name}</p>
-        </div>
-        <button
-          onClick={() => setActiveTab("milestones")}
-          className="text-xs agent-link-primary font-medium flex-shrink-0 transition-colors"
-        >
-          Complete →
-        </button>
-      </div>
-    );
-  }
+  const isPM6 = milestone.code === "PM6";
 
   async function handleClick() {
     setLoading(true);
@@ -128,20 +114,88 @@ function MilestoneSideRow({
     }
   }
 
+  async function handleDateConfirm() {
+    setLoading(true);
+    try {
+      await confirmMilestoneAction({
+        transactionId,
+        milestoneDefinitionId: milestone.id,
+        eventDate: desktopValuation ? null : eventDate || null,
+      });
+      setShowDatePicker(false);
+      setEventDate("");
+      setDesktopValuation(false);
+      setFlashed(true);
+      setTimeout(() => setFlashed(false), 600);
+      toast.success(milestone.name);
+      router.refresh();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to complete milestone";
+      toast.error("Couldn't complete milestone", { description: message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className={`agent-hover-row${flashed ? " agent-row-flash" : ""}`} style={rowStyle}>
+    <div
+      className={`agent-hover-row${flashed ? " agent-row-flash" : ""}`}
+      style={{ ...rowStyle, flexWrap: "wrap" }}
+    >
       <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", margin: 0 }}>{label}</p>
         <p style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{milestone.name}</p>
       </div>
-      <button
-        onClick={handleClick}
-        disabled={loading}
-        className="agent-btn agent-btn-xs agent-btn-primary"
-      >
-        {loading ? "…" : "Complete"}
-      </button>
+      {!showDatePicker && (
+        <button
+          onClick={milestone.eventDateRequired ? () => setShowDatePicker(true) : handleClick}
+          disabled={loading}
+          className="agent-btn agent-btn-xs agent-btn-primary"
+        >
+          {loading ? "…" : "Complete"}
+        </button>
+      )}
+      {showDatePicker && (
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8, marginTop: 4, paddingLeft: 32 }}>
+          <input
+            type="date"
+            value={eventDate}
+            disabled={isPM6 && desktopValuation}
+            onChange={(e) => setEventDate(e.target.value)}
+            className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
+          />
+          {isPM6 && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--agent-text-primary)", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={desktopValuation}
+                onChange={(e) => {
+                  setDesktopValuation(e.target.checked);
+                  if (e.target.checked) setEventDate("");
+                }}
+              />
+              Desktop valuation — no date
+            </label>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleDateConfirm}
+              disabled={loading || (!eventDate && !(isPM6 && desktopValuation))}
+              className="agent-btn agent-btn-xs agent-btn-primary"
+            >
+              {loading ? "…" : "Confirm"}
+            </button>
+            <button
+              onClick={() => { setShowDatePicker(false); setEventDate(""); setDesktopValuation(false); }}
+              disabled={loading}
+              className="agent-btn agent-btn-xs"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

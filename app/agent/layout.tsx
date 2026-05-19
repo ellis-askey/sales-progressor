@@ -35,7 +35,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     <div data-theme={theme} style={{ display: "contents" }}>
       <AgentToaster>
         <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref}>{children}</AgentShell>
-        <FeedbackWidget checklistAware userId={session.user.id} />
+        {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
         <AgentInstallPrompt />
       </AgentToaster>
     </div>

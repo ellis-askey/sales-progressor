@@ -30,13 +30,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
+  const isInternalStaff = session?.user?.role === "admin" || session?.user?.role === "sales_progressor" || session?.user?.role === "superadmin";
 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
           <PostHogProvider>
-            <CookieConsentBanner />
+            {!isInternalStaff && <CookieConsentBanner />}
             {children}
           </PostHogProvider>
         </SessionProvider>

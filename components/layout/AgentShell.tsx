@@ -182,8 +182,9 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
 export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null }) {
   const pathname    = usePathname();
   const router      = useRouter();
-  const role        = session.user.role as UserRole;
-  const isDirector  = role === "director";
+  const role            = session.user.role as UserRole;
+  const isInternalStaff = role === "admin" || role === "sales_progressor";
+  const isDirector      = role === "director";
   const navGroups   = buildNavGroups(role);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
@@ -510,7 +511,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
       </main>
 
       {showWelcome && <WelcomeModal name={session.user.name ?? ""} />}
-      <OnboardingChecklist userId={session.user.id} />
+      {!isInternalStaff && <OnboardingChecklist userId={session.user.id} />}
     </div>
   );
 }

@@ -354,7 +354,7 @@ export async function logPortalMilestoneConfirm(
     const formattedPortalEventDate = eventDate
       ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
       : null;
-    const portalEventDateVar = formattedPortalEventDate ? `, booked for ${formattedPortalEventDate}` : "";
+    const portalEventDateVar = formattedPortalEventDate ? ` — ${formattedPortalEventDate}` : "";
     const portalEventDateClause = formattedPortalEventDate
       ? `booked for ${formattedPortalEventDate}`
       : milestoneCode === "PM6" ? "being conducted as a desktop valuation — no physical visit is required" : "";
@@ -787,7 +787,7 @@ async function sendRichMilestoneEmails(
     ? new Date(eventDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : null;
   // {eventDate} — " on Monday, 7 May 2026" prefix or "" (used in PM9 opening/whatHappened)
-  const eventDateVar = formattedEventDate ? `, booked for ${formattedEventDate}` : "";
+  const eventDateVar = formattedEventDate ? ` — ${formattedEventDate}` : "";
   // {eventDateClause} — full descriptive clause for PM6 (physical vs desktop valuation)
   const eventDateClause = formattedEventDate
     ? `booked for ${formattedEventDate}`
