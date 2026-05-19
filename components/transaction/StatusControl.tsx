@@ -119,8 +119,15 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
           <>
             <div className="fixed inset-0" style={{ zIndex: 1499 }} onClick={() => setOpen(false)} />
             <div
-              className="fixed agent-dropdown-in bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden min-w-[140px]"
-              style={{ zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left }}
+              className="fixed agent-dropdown-in rounded-xl overflow-hidden min-w-[140px]"
+              style={{
+                zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left,
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                border: "0.5px solid rgba(255,255,255,0.60)",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
+              }}
             >
               {STATUSES.map(({ value, label }) => (
                 <button
@@ -149,7 +156,8 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
         <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowModal(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            className="relative bg-white rounded-2xl w-full max-w-sm p-6"
+            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">

@@ -194,14 +194,19 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
           {mounted && open && !isMobile && popoverPos && createPortal(
             <div
               ref={panelRef}
+              className="agent-dropdown-in"
               style={{
                 position: "fixed",
                 top: popoverPos.top - 8,
                 right: popoverPos.right,
                 transform: "translateY(-100%)",
                 zIndex: 1500,
-                background: "white", borderRadius: 12,
-                boxShadow: "0 8px 30px rgba(0,0,0,0.13)", border: "1px solid rgba(0,0,0,0.07)",
+                background: "rgba(255,255,255,0.72)",
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                borderRadius: 12,
+                boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
+                border: "0.5px solid rgba(255,255,255,0.60)",
                 padding: 14, width: 230,
               }}
             >

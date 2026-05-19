@@ -24,7 +24,7 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
   const ref = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   function scheduleClose() {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -108,11 +108,13 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
             top: pos.top, left: pos.left,
             transform: pos.above ? "translateY(-100%)" : "none",
             zIndex: 9999,
-            background: "rgba(255,255,255,0.97)",
+            background: "rgba(255,255,255,0.72)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
             borderRadius: 12,
             padding: 12,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07)",
-            border: "1px solid rgba(0,0,0,0.07)",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
+            border: "0.5px solid rgba(255,255,255,0.60)",
             minWidth: 230, maxWidth: 270,
           }}
         >

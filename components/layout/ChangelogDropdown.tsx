@@ -57,13 +57,13 @@ export function ChangelogDropdown() {
 
       {open && (
         <div
-          className="absolute right-0 top-9 w-72 rounded-2xl z-50 overflow-hidden"
+          className="absolute right-0 top-9 w-72 rounded-2xl z-50 overflow-hidden agent-dropdown-in"
           style={{
-            background: "rgba(255,255,255,0.94)",
-            backdropFilter: "blur(24px) saturate(1.6)",
-            WebkitBackdropFilter: "blur(24px) saturate(1.6)",
-            border: "1px solid rgba(255,255,255,0.6)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
+            background: "rgba(255,255,255,0.72)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "0.5px solid rgba(255,255,255,0.60)",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
           }}
         >
           <div className="px-4 py-3 border-b border-slate-100/80">

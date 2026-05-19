@@ -172,8 +172,13 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
         left: dropdownRect.left,
         width: dropdownRect.width,
         zIndex: 9999,
+        background: "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: "0.5px solid rgba(255,255,255,0.60)",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
       }}
-      className="bg-white/90 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg overflow-hidden"
+      className="agent-dropdown-in rounded-xl overflow-hidden"
     >
       {searchError ? (
         <div>
