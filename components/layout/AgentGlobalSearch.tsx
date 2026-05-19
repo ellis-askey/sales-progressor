@@ -121,23 +121,24 @@ export function AgentGlobalSearch() {
       onClick={() => setOpen(false)}
     >
       {/* Backdrop */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(15,5,0,0.45)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)", backdropFilter: "blur(8px)" }} />
 
       {/* Modal */}
       <div
         style={{
           position: "relative", width: "100%", maxWidth: 560, margin: "0 16px",
           borderRadius: 18, overflow: "hidden",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(var(--agent-coral-rgb), 0.15)",
-          background: "rgba(255,255,255,0.98)", backdropFilter: "blur(24px)",
-          border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.12)",
+          background: "var(--agent-surface-elevated)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Input row */}
         <div style={{
           display: "flex", alignItems: "center", gap: 12,
-          padding: "14px 16px", borderBottom: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+          padding: "14px 16px", borderBottom: "0.5px solid rgba(0,0,0,0.08)",
         }}>
           <svg style={{ width: 18, height: 18, color: "var(--agent-coral)", flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>

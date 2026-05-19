@@ -461,7 +461,7 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
         onClick={close}
         style={{
           position: "fixed", inset: 0, zIndex: 39,
-          background: "rgba(45,24,16,0.18)",
+          background: "rgba(0,0,0,0.28)",
           opacity: isOpen ? 1 : 0,
           transition: "opacity 200ms ease",
           pointerEvents: isOpen ? "auto" : "none",
