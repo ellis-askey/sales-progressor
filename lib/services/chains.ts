@@ -77,6 +77,12 @@ export type ChainV2 = {
   links: ChainLinkV2[];
 };
 
+// Derived at query time (Option B) — no schema change needed.
+// transaction.status is already fetched in LINK_V2_SELECT.
+export function isChainBroken(chain: ChainV2): boolean {
+  return chain.links.some((l) => l.transaction?.status === "withdrawn");
+}
+
 // ─── Legacy service functions ─────────────────────────────────────────────────
 
 export async function getChainForTransaction(transactionId: string): Promise<ChainData | null> {

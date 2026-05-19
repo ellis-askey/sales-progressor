@@ -12,6 +12,7 @@ import { evaluateTransactionReminders, createInitialRemindersInline } from "@/li
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
+import { notifyChainMatesOfWithdrawal } from "@/lib/chain/withdrawal";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
@@ -284,7 +285,7 @@ export async function changeStatusAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, status: true },
+    select: { id: true, status: true, chainLinkId: true },
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.status === status) return;
@@ -338,6 +339,11 @@ export async function changeStatusAction(
 
   if (status === "completed") {
     sendCompletionSurveys(transactionId).catch(console.error);
+  }
+
+  if (status === "withdrawn" && tx.chainLinkId) {
+    notifyChainMatesOfWithdrawal(transactionId, session.user.id, fallThroughReason ?? null)
+      .catch(console.error);
   }
 
   revalidateTx(transactionId);
