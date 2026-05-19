@@ -14,9 +14,7 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 ## FU-10 — `confirmMilestoneAction` has no UI role gate
 
 **Source:** /agent/transactions/[id] inventory  
-**Summary:** `NextMilestoneWidget` and `MilestonePanel` expose milestone confirm buttons to all roles. SP managing their assigned outsourced files SHOULD confirm milestones (that's their job). Admin confirming is acceptable as override access. Backend action must verify auth.  
-**Likely not a bug:** SP and admin both have legitimate need. Verify backend enforces auth regardless.  
-**When to revisit:** Security audit pass.
+**Status:** ✅ RESOLVED (already secure — no fix needed). `confirmMilestoneAction` (`app/actions/milestones.ts:51–57`) calls `getAccessScope(session)` then `scopeOwnershipWhere(scope, transactionId)` before any write. SP can only confirm milestones on their assigned files; admin sees all. Confirm button visible to both roles is correct — SP confirming is their job; admin confirming is valid override access.
 
 ---
 
