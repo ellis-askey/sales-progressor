@@ -567,6 +567,7 @@ model OutboundMessage {
 
   // Lifecycle
   createdById     String?
+  createdByRole   String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   scheduledFor    DateTime?
