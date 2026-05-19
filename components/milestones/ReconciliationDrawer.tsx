@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -36,7 +36,16 @@ export function ReconciliationDrawer({
   onConfirm,
   onCancel,
 }: ReconciliationDrawerProps) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+  function doClose() {
+    if (!closing) {
+      setClosing(true);
+      closeTimer.current = setTimeout(onCancel, 200);
+    }
+  }
 
   const [eventDate, setEventDate] = useState(initialEventDate);
   const [completionDate, setCompletionDate] = useState("");
@@ -48,11 +57,12 @@ export function ReconciliationDrawer({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") doClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleConfirm() {
     const effectiveIds = [...reconciledIds].filter((id) => {
@@ -82,32 +92,28 @@ export function ReconciliationDrawer({
       {/* Drawer panel */}
       <div
         style={{
-          position: "relative",
-          zIndex: 1,
-          height: "100%",
-          width: 460,
-          maxWidth: "100vw",
-          background: "rgba(255,250,247,0.98)",
-          borderTop: "2px solid var(--agent-coral-deep)",
-          borderLeft: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.12)",
-          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
+          position: "relative", zIndex: 1, height: "100%", width: 440, maxWidth: "100vw",
+          background: "var(--agent-surface-elevated)",
+          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
+          animation: closing
+            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
+          display: "flex", flexDirection: "column", overflow: "hidden",
         }}
       >
-        {/* Header — Variant A */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "0.5px solid rgba(15,23,42,0.08)", flexShrink: 0 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
-            {title}
-          </h3>
-          <button
-            onClick={onCancel}
-            aria-label="Close"
-            className="agent-icon-btn agent-icon-btn-md"
-          >
-            <X size={16} weight="bold" />
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              {title}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
+              {isExchangeFlow ? "Exchange date + outstanding milestones" : "Completion date + outstanding milestones"}
+            </p>
+          </div>
+          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+            <X size={14} weight="bold" />
           </button>
         </div>
 
@@ -213,7 +219,7 @@ export function ReconciliationDrawer({
         {/* Footer — paired drawer pattern */}
         <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid rgba(15,23,42,0.08)", display: "flex", gap: 12, flexShrink: 0 }}>
           <button
-            onClick={onCancel}
+            onClick={doClose}
             style={{
               width: 96,
               padding: "10px 0",

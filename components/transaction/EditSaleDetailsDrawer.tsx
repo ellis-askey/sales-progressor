@@ -180,7 +180,6 @@ type Props = {
   completionDate: Date | null;
   exchangeConfirmed: boolean;
   hideCommercialFields?: boolean;
-  isTopmost?: boolean;
   onClose: () => void;
 };
 
@@ -203,10 +202,12 @@ export function EditSaleDetailsDrawer({
   completionDate,
   exchangeConfirmed,
   hideCommercialFields = false,
-  isTopmost = true,
   onClose,
 }: Props) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   // ── Section 1: Property ──────────────────────────────────────────────────
 
@@ -283,9 +284,6 @@ export function EditSaleDetailsDrawer({
 
   // ── Address tag (header) ─────────────────────────────────────────────────
 
-  const rawFirstLine = savedAddress.split(",")[0].trim();
-  const addressTag = rawFirstLine.length > 24 ? rawFirstLine.slice(0, 24) + "…" : rawFirstLine;
-
   // ── Unsaved-changes tracking ─────────────────────────────────────────────
 
   const anyDirty = propHasChanges || priceFeeHasChanges || timelineHasChanges;
@@ -297,11 +295,18 @@ export function EditSaleDetailsDrawer({
 
   const [showClosePrompt, setShowClosePrompt] = useState(false);
 
+  function closeNow() {
+    if (!closing) {
+      setClosing(true);
+      closeTimer.current = setTimeout(onClose, 200);
+    }
+  }
+
   function handleClose() {
     if (anyDirty) {
       setShowClosePrompt(true);
     } else {
-      onClose();
+      closeNow();
     }
   }
 
@@ -564,33 +569,29 @@ export function EditSaleDetailsDrawer({
       <div
         role="dialog"
         aria-label="Edit sale details"
-        className="v2-drawer-panel"
         style={{
-          position: "relative", zIndex: 1, height: "100%", width: 460, maxWidth: "100vw",
-          background: "rgba(255,255,255,0.92)",
-          backdropFilter: "blur(32px) saturate(1.8)", WebkitBackdropFilter: "blur(32px) saturate(1.8)",
-          borderTop: isTopmost ? "2px solid var(--agent-coral-deep)" : "none",
-          borderLeft: "0.5px solid rgba(255,255,255,0.5)",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
-          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          position: "relative", zIndex: 1, height: "100%", width: 440, maxWidth: "100vw",
+          background: "var(--agent-surface-elevated)",
+          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
+          animation: closing
+            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
           display: "flex", flexDirection: "column", overflow: "hidden",
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "0.5px solid rgba(15,23,42,0.08)", flexShrink: 0, background: "rgba(255,255,255,0.20)" }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0, flexShrink: 0 }}>
-                Edit sale details
-              </h2>
-              <span className="agent-chain-callout" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 9999, whiteSpace: "nowrap" }}>
-                {addressTag}
-              </span>
-            </div>
-            <p style={{ fontSize: 12, color: "rgba(15,23,42,0.50)", margin: 0 }}>Changes save per section</p>
+        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              Edit sale details
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {propertyAddress}
+            </p>
           </div>
-          <button onClick={handleClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md" style={{ marginLeft: 12 }}>
-            <X size={16} weight="bold" />
+          <button onClick={handleClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+            <X size={14} weight="bold" />
           </button>
         </div>
 
@@ -974,7 +975,7 @@ export function EditSaleDetailsDrawer({
         <UnsavedChangesModal
           sections={dirtySections}
           onSaveAll={handleSaveAll}
-          onDiscard={onClose}
+          onDiscard={closeNow}
           onKeepEditing={() => setShowClosePrompt(false)}
         />
       )}

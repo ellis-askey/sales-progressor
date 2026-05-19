@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -33,7 +33,16 @@ export function ChainDrawer({
   onClose,
   onOpenAddNode,
 }: ChainDrawerProps) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+  function doClose() {
+    if (!closing) {
+      setClosing(true);
+      closeTimer.current = setTimeout(onClose, 200);
+    }
+  }
   const [chain, setChain] = useState<ChainV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
@@ -162,33 +171,31 @@ export function ChainDrawer({
   return createPortal(
     <div data-theme={theme} className="fixed inset-0 flex justify-end" style={{ zIndex: 1000 }}>
       {/* Backdrop */}
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} />
+      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
 
       {/* Panel */}
       <div
         role="dialog"
         aria-label="Chain progress"
-        className="relative z-10 w-full sm:max-w-[480px] flex flex-col h-full"
+        className="relative z-10 flex flex-col h-full"
         style={{
+          width: "min(440px, 100vw)",
           background: "var(--agent-surface-elevated)",
-          backdropFilter: "blur(32px)",
-          WebkitBackdropFilter: "blur(32px)",
-          borderTop: "2px solid var(--agent-coral-deep)",
-          borderLeft: "1px solid var(--agent-border-default)",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.20)",
-          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
+          animation: closing
+            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-white/40 bg-white/20 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900/90">Chain progress</h2>
-            <p className="text-xs text-slate-900/40 mt-0.5">
-              Track progress across every linked sale
-            </p>
+        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chain progress</p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>Track every linked sale</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
-            <X size={16} weight="bold" />
+          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+            <X size={14} weight="bold" />
           </button>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp } from "@phosphor-icons/react";
@@ -105,7 +105,7 @@ export function ChaseDrawer({
     contacts.find((c) => c.roleType === "solicitor") ??
     contacts[0] ?? null;
 
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   const [channel, setChannel] = useState<Channel>("email");
   const [tone, setTone] = useState<Tone>(autoTone(nextChaseNumber));
@@ -127,6 +127,17 @@ export function ChaseDrawer({
   // AI generation so its result is silently discarded rather than populating
   // the message field for the wrong channel.
   const generationIdRef = useRef(0);
+
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+
+  function doClose() {
+    if (!closing) {
+      setClosing(true);
+      closeTimer.current = setTimeout(onClose, 200);
+    }
+  }
 
   // Logic (validation/send) uses channel. Rendering of swappable content uses
   // displayChannel so the old content is still visible during fade-out.
@@ -272,63 +283,41 @@ export function ChaseDrawer({
 
   return createPortal(
     <div className="fixed inset-0 flex justify-end" data-theme={theme} style={{ zIndex: 1000 }}>
-      {/* Backdrop — standard values: 0.35 opacity, blur(4px) */}
+      {/* Backdrop */}
       <div
         className="absolute inset-0"
         style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)", animation: "agent-backdrop-in 200ms ease both" }}
-        onClick={onClose}
+        onClick={doClose}
       />
 
       {/* Panel */}
       <div
         className="relative z-10 flex flex-col h-full"
         style={{
-          width: "min(460px, 100vw)",
-          background: "rgba(255,250,247,0.98)",
-          backdropFilter: "blur(40px) saturate(1.9)",
-          WebkitBackdropFilter: "blur(40px) saturate(1.9)",
-          borderTop: "2px solid var(--agent-coral-deep)",
-          borderLeft: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-          boxShadow: "-16px 0 64px rgba(0,0,0,0.16), -1px 0 0 rgba(var(--agent-coral-rgb), 0.18)",
-          animation: "agent-drawer-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          width: "min(440px, 100vw)",
+          background: "var(--agent-surface-elevated)",
+          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
+          animation: closing
+            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div style={{
-          padding: "18px 20px 16px",
-          background: "var(--agent-surface-glass)",
-          borderBottom: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-          position: "relative", overflow: "hidden",
-        }}>
-          {/* Bloom */}
-          <div aria-hidden style={{ position: "absolute", top: -40, right: -30, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(var(--agent-coral-rgb), 0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
-                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb), 0.10)", padding: "2px 7px", borderRadius: 20 }}>
-                  {isMulti ? `Chase all · ${milestones!.length}` : "Chase"}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-tertiary)" }}>#{nextChaseNumber}</span>
-                <TonePill tone={tone} />
-              </div>
-              {isMulti ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {milestones!.map((m) => (
-                    <p key={m.chaseTaskId} style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>· {m.name}</p>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
-                  {milestoneName}
-                </p>
-              )}
-            </div>
-            {/* Close — ghost, no border */}
-            <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
-              <X size={14} weight="bold" />
-            </button>
+        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {isMulti ? `Chase all · ${milestones!.length} milestones` : milestoneName}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", display: "flex", alignItems: "center", gap: 5 }}>
+              <span>Chase #{nextChaseNumber}</span>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <TonePill tone={tone} />
+            </p>
           </div>
+          <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+            <X size={14} weight="bold" />
+          </button>
         </div>
 
         {/* ── Property + contact card ─────────────────────────────── */}
