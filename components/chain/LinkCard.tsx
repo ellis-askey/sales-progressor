@@ -151,6 +151,23 @@ export function LinkCard({
         </p>
       )}
 
+      {/* Withdrawn state — voice pass deferred */}
+      {link.transaction?.status === "withdrawn" && (
+        <span style={{
+          display: "inline-block",
+          marginTop: 6,
+          fontSize: 10,
+          fontWeight: 600,
+          color: "#dc2626",
+          background: "rgba(239,68,68,0.1)",
+          border: "0.5px solid rgba(239,68,68,0.2)",
+          borderRadius: 4,
+          padding: "2px 6px",
+        }}>
+          Withdrawn
+        </span>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-2 mt-2.5 flex-wrap">
         {/* "Your file" — open file link */}

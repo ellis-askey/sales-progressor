@@ -6,6 +6,7 @@ import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import type { ChainV2 } from "@/lib/services/chains";
+import { isChainBroken } from "@/lib/services/chains";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -260,6 +261,25 @@ export function ChainDrawer({
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
             <div className="space-y-0">
+              {/* Broken-chain banner — voice pass deferred */}
+              {isChainBroken(chain) && (
+                <div style={{
+                  marginBottom: 12,
+                  padding: "10px 12px",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "0.5px solid rgba(239,68,68,0.2)",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}>
+                  <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⚠</span>
+                  <p style={{ fontSize: 12, color: "var(--agent-danger)", margin: 0, lineHeight: 1.5 }}>
+                    A sale in this chain has withdrawn.
+                  </p>
+                </div>
+              )}
+
               {/* Add above button */}
               {showAddAbove && (
                 <button
