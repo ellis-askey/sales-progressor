@@ -169,6 +169,12 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
     off_track: "Off track",
     unknown:   "No data yet",
   };
+  const TRACK_TOOLTIP: Record<string, string> = {
+    on_track:  "You're ahead of the 12-week pace — based on steps completed",
+    at_risk:   "Behind the 12-week pace — based on steps completed",
+    off_track: "Well behind the 12-week pace — based on steps completed",
+    unknown:   "",
+  };
 
   // Shared fee rows used by both desktop and mobile layouts
   const agentFeeValue = transaction.agentFeeAmount
@@ -203,7 +209,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           <ProgressRing percent={progress.percent} />
 
           <div className="flex-1 space-y-2">
-            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`}>
+            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`} title={TRACK_TOOLTIP[progress.onTrack]}>
               {TRACK_LABEL[progress.onTrack]}
             </span>
             <p className="text-xs text-slate-900/40">
@@ -282,6 +288,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               )}
             </p>
           </div>
+          {progress.isEarlyEstimate && (
+            <p className="text-[10px] text-slate-900/30 italic text-right" style={{ marginTop: -4 }}>
+              Too early to predict — using your 12-week target
+            </p>
+          )}
 
           <div className="flex justify-between items-center">
             <p className="text-xs text-slate-900/40">Completion date</p>
@@ -430,7 +441,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
           {/* Top row: compact ring + pill + weeks dots column + chevron */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <ProgressRing percent={progress.percent} size={44} strokeWidth={4} />
-            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`} style={{ flexShrink: 0 }}>
+            <span className={`agent-pill ${TRACK_PILL[progress.onTrack]}`} style={{ flexShrink: 0 }} title={TRACK_TOOLTIP[progress.onTrack]}>
               {TRACK_LABEL[progress.onTrack]}
             </span>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -537,6 +548,11 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                     )}
                   </p>
                 </div>
+                {progress.isEarlyEstimate && (
+                  <p className="text-[10px] text-slate-900/30 italic text-right" style={{ marginTop: -4 }}>
+                    Too early to predict — using your 12-week target
+                  </p>
+                )}
                 <div className="flex justify-between items-center">
                   <p className="text-xs text-slate-900/40">Completion date</p>
                   {exchangeConfirmed ? (

@@ -61,6 +61,7 @@ export type ProgressResult = {
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
   twelveWeekTarget: Date | null;
   predictedExchangeDate: Date | null;
+  isEarlyEstimate: boolean; // true when file is <14 days old and prediction is just the 12-week target
   weeksElapsed: number;
   weeksRemaining: number | null;
 };
@@ -100,9 +101,17 @@ export function calculateProgress(
   const daysElapsed  = msElapsed / 86400000;
 
   let predictedExchangeDate: Date | null = null;
+  let isEarlyEstimate = false;
   if (overridePredictedDate) {
     predictedExchangeDate = overridePredictedDate;
-  } else if (percent > 0 && daysElapsed >= 1) {
+  } else if (daysElapsed < 28) {
+    // Linear velocity extrapolation from less than 4 weeks of data is dominated by
+    // the fast onboarding burst (welcome pack, money on account, instructing solicitors)
+    // and gives wildly optimistic dates. Use the 12-week target until there is enough
+    // history for the model to be meaningful.
+    predictedExchangeDate = twelveWeekTarget;
+    isEarlyEstimate = daysElapsed < 14;
+  } else if (percent > 0) {
     const effectiveWeeks = Math.max(daysElapsed / 7, 1 / 7);
     const weeksTo100 = (effectiveWeeks / percent) * 100;
     const predicted = new Date(createdAt);
@@ -112,7 +121,7 @@ export function calculateProgress(
     predictedExchangeDate = twelveWeekTarget;
   }
 
-  const msToExchange  = predictedExchangeDate.getTime() - now.getTime();
+  const msToExchange  = predictedExchangeDate!.getTime() - now.getTime();
   const weeksRemaining = Math.ceil(msToExchange / (7 * 86400000));
 
   let onTrack: ProgressResult["onTrack"] = "unknown";
@@ -131,6 +140,7 @@ export function calculateProgress(
     onTrack,
     twelveWeekTarget,
     predictedExchangeDate,
+    isEarlyEstimate,
     weeksElapsed,
     weeksRemaining,
   };
