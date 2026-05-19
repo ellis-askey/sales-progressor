@@ -603,6 +603,7 @@ export type CreateTransactionInput = {
   expectedExchangeDate?: Date | null;
   purchasePrice?: number | null;
   tenure?: Tenure | null;
+  isShareOfFreehold?: boolean;
   purchaseType?: PurchaseType | null;
   notes?: string | null;
   vendorSolicitorFirmId?: string | null;
@@ -639,6 +640,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       expectedExchangeDate: input.expectedExchangeDate ?? autoExchangeDate,
       purchasePrice: input.purchasePrice ?? null,
       tenure: input.tenure ?? null,
+      isShareOfFreehold: input.isShareOfFreehold ?? false,
       purchaseType: input.purchaseType ?? null,
       notes: input.notes ?? null,
       vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,

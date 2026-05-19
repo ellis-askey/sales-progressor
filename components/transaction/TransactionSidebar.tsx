@@ -17,6 +17,8 @@ type Props = {
     purchasePrice: number | null;
     tenure: Tenure | null;
     purchaseType: PurchaseType | null;
+    isShareOfFreehold: boolean;
+    chainLinkId?: string | null;
     overridePredictedDate: Date | null;
     completionDate: Date | null;
     agentFeeAmount: number | null;
@@ -325,6 +327,12 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             </div>
           )}
 
+          {transaction.chainLinkId && !exchangeConfirmed && (
+            <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 4 }}>
+              Chain not factored — prediction is for this sale alone.
+            </p>
+          )}
+
           {keyDates.length > 0 && (
             <div className="pt-3 border-t border-white/20">
               <p className="agent-sidebar-label mb-2">Key Dates</p>
@@ -586,6 +594,12 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                     </p>
                   </div>
                 )}
+                {transaction.chainLinkId && !exchangeConfirmed && (
+                  <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 4 }}>
+                    Chain not factored — prediction is for this sale alone.
+                  </p>
+                )}
+
                 {keyDates.length > 0 && (
                   <div style={{ paddingTop: 10, marginTop: 2, borderTop: "0.5px solid var(--agent-border-default)" }}>
                     <p className="agent-sidebar-label" style={{ marginBottom: 8 }}>Key Dates</p>
@@ -692,6 +706,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         propertyAddress={transaction.propertyAddress}
         tenure={transaction.tenure ?? null}
         purchaseType={transaction.purchaseType ?? null}
+        isShareOfFreehold={transaction.isShareOfFreehold}
         purchasePrice={transaction.purchasePrice ?? null}
         agentFeeAmount={transaction.agentFeeAmount ?? null}
         agentFeePercent={transaction.agentFeePercent ?? null}

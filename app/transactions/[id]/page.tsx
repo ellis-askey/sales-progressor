@@ -226,6 +226,7 @@ export default async function TransactionDetailPage({
           purchasePrice: transaction.purchasePrice ?? null,
           tenure: transaction.tenure ?? null,
           purchaseType: transaction.purchaseType ?? null,
+          isShareOfFreehold: transaction.isShareOfFreehold,
           overridePredictedDate: transaction.overridePredictedDate ?? null,
           completionDate: transaction.completionDate ?? null,
           agentFeeAmount: transaction.agentFeeAmount ?? null,

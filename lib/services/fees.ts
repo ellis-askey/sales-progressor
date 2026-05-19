@@ -3,6 +3,7 @@
 
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
+
 // ─── Fee calculation ──────────────────────────────────────────────────────────
 
 /**
@@ -61,10 +62,150 @@ export type ProgressResult = {
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
   twelveWeekTarget: Date | null;
   predictedExchangeDate: Date | null;
-  isEarlyEstimate: boolean; // true when file is <14 days old and prediction is just the 12-week target
+  isEarlyEstimate: boolean; // true when still in Phase A (onboarding) and prediction is the 12-week target
   weeksElapsed: number;
   weeksRemaining: number | null;
 };
+
+// ─── Phase-aware exchange forecast (Arc 2) ────────────────────────────────────
+// Critical-path model per docs/forecasting/phase-aware-model-proposal.md.
+// Conservative median durations — do not tighten until Level-3 data (50+ completed files).
+// Confirmed values (Ellis, May 2026): PM11 ~10d, PM13 ~21d, PM9 7–21d (median 14d).
+// All other values are range midpoints from the proposal doc.
+
+const MILESTONE_DURATION_MEDIANS: Record<string, number> = {
+  // Vendor side (20 milestones)
+  VM1: 1,  VM2: 1,  VM3: 3,  VM4: 8,  VM5: 2,  VM6: 17, VM7: 6,
+  VM8: 1,  /* VM9: see isShareOfFreehold logic below */
+  VM10: 14, VM11: 8,  VM12: 3,  VM13: 9,  VM14: 6,  VM15: 3,
+  VM16: 13, VM17: 8,  VM18: 2,  VM19: 0,  VM20: 17,
+  // Purchaser side (27 milestones)
+  PM1: 1,  PM2: 1,  PM3: 8,  PM4: 6,  PM5: 3,  PM6: 9,  PM7: 13,
+  PM8: 2,  PM9: 14, PM10: 14, PM11: 10, /* PM12: same as VM9 */
+  PM13: 21, PM14: 14, PM15: 13, PM16: 3,  PM17: 9,  PM18: 13, PM19: 3,
+  PM20: 2,  PM21: 6,  PM22: 3,  PM23: 8,  PM24: 3,  PM25: 2,  PM26: 0, PM27: 17,
+};
+
+export type PhaseAwareInput = {
+  completedMilestoneCodes: string[];
+  purchaseType: PurchaseType | null;
+  tenure: Tenure | null;
+  isShareOfFreehold: boolean;
+};
+
+export type FileLevelPhase = "onboarding" | "conveyancing" | "pre_exchange" | "post_exchange";
+export type SideLevelPhase = "onboarding" | "conveyancing" | "pre_exchange" | "post_exchange";
+
+export type DetectedPhase = {
+  fileLevelPhase: FileLevelPhase;
+  vendorPhase: SideLevelPhase;
+  purchaserPhase: SideLevelPhase;
+};
+
+export function detectPhase(completedCodes: Set<string>): DetectedPhase {
+  const vendorPhase: SideLevelPhase =
+    completedCodes.has("VM19") ? "post_exchange" :
+    completedCodes.has("VM17") ? "pre_exchange" :
+    completedCodes.has("VM4")  ? "conveyancing" :
+    "onboarding";
+
+  const purchaserPhase: SideLevelPhase =
+    completedCodes.has("PM26") ? "post_exchange" :
+    completedCodes.has("PM20") ? "pre_exchange" :
+    completedCodes.has("PM4")  ? "conveyancing" :
+    "onboarding";
+
+  const fileLevelPhase: FileLevelPhase =
+    (completedCodes.has("VM19") || completedCodes.has("PM26")) ? "post_exchange" :
+    (completedCodes.has("VM4") && completedCodes.has("PM4"))   ? "conveyancing" :
+    "onboarding";
+
+  return { fileLevelPhase, vendorPhase, purchaserPhase };
+}
+
+function vendorRemainingDays(
+  done: Set<string>,
+  tenure: Tenure | null,
+  isShareOfFreehold: boolean,
+  enquiryRounds: number,
+): number {
+  const d = (id: string): number => done.has(id) ? 0 : (MILESTONE_DURATION_MEDIANS[id] ?? 0);
+  const vm9Median = isShareOfFreehold ? 14 : 35;
+
+  // Sequential chain: VM1 → VM3 → VM4 → VM5 → VM6 → VM7
+  const toVM7 = d("VM1") + d("VM3") + d("VM4") + d("VM5") + d("VM6") + d("VM7");
+
+  // Enquiries track (parallel from VM7): VM10 → VM11 → VM12 [+ VM13–VM15 per extra round]
+  let enquiriesTrack = d("VM10") + d("VM11") + d("VM12");
+  if (enquiryRounds >= 2) enquiriesTrack += d("VM13") + d("VM14") + d("VM15");
+  if (enquiryRounds >= 3) enquiriesTrack += d("VM13") + d("VM14") + d("VM15");
+
+  // Contract track (parallel from VM7): VM16 → VM17
+  const contractTrack = d("VM16") + d("VM17");
+
+  // Leasehold track (parallel from file creation): VM8 → VM9
+  const leaseholdTrack = tenure === "leasehold"
+    ? d("VM8") + (done.has("VM9") ? 0 : vm9Median)
+    : 0;
+
+  return toVM7 + Math.max(enquiriesTrack, contractTrack, leaseholdTrack) + d("VM18");
+}
+
+function purchaserRemainingDays(
+  done: Set<string>,
+  purchaseType: PurchaseType | null,
+  tenure: Tenure | null,
+  isShareOfFreehold: boolean,
+  enquiryRounds: number,
+): number {
+  const d = (id: string): number => done.has(id) ? 0 : (MILESTONE_DURATION_MEDIANS[id] ?? 0);
+  const isCash = purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds";
+
+  // Sequential chain: PM1 → PM4 → PM7
+  const toPM7 = d("PM1") + d("PM4") + d("PM7");
+
+  // Mortgage track (parallel from PM5/PM7): PM6 → PM11
+  const mortgageTrack = isCash ? 0 : d("PM6") + d("PM11");
+
+  // Search track (parallel from PM8): PM8 → PM13
+  const searchTrack = d("PM8") + d("PM13");
+
+  // Enquiries track: PM14 → PM17 → PM18 → PM19 [+ repeat for leasehold round 3]
+  let enquiriesTrack = d("PM14") + d("PM17") + d("PM18") + d("PM19");
+  if (enquiryRounds >= 3) enquiriesTrack += d("PM17") + d("PM18") + d("PM19");
+  if (isCash) enquiriesTrack = Math.round(enquiriesTrack * 0.75);
+
+  const parallelEnd = Math.max(mortgageTrack, searchTrack, enquiriesTrack);
+
+  // Sequential pre-exchange chain: PM20 → PM21 → PM22 → PM23 → PM24 → PM25
+  const preExchange = d("PM20") + d("PM21") + d("PM22") + d("PM23") + d("PM24") + d("PM25");
+
+  return toPM7 + parallelEnd + preExchange;
+}
+
+export function calculatePhaseAwarePrediction(
+  input: PhaseAwareInput,
+  createdAt: Date,
+  overrideDate?: Date | null,
+): Date {
+  if (overrideDate) return overrideDate;
+
+  const now = new Date();
+  const twelveWeekTarget = new Date(createdAt);
+  twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
+
+  const done = new Set(input.completedMilestoneCodes);
+  const enquiryRounds = input.tenure === "leasehold" ? 3 : 2;
+
+  const vendorDays = vendorRemainingDays(done, input.tenure, input.isShareOfFreehold, enquiryRounds);
+  const purchaserDays = purchaserRemainingDays(done, input.purchaseType, input.tenure, input.isShareOfFreehold, enquiryRounds);
+
+  const predicted = new Date(now);
+  predicted.setDate(predicted.getDate() + Math.max(vendorDays, purchaserDays));
+
+  // Floor: never predict earlier than the 12-week target
+  return predicted > twelveWeekTarget ? predicted : twelveWeekTarget;
+}
 
 function calcSideRaw(milestones: MilestoneLite[]): number {
   const applicable = milestones.filter((m) => !m.isNotRequired);
@@ -78,7 +219,8 @@ export function calculateProgress(
   vendor: MilestoneLite[],
   purchaser: MilestoneLite[],
   createdAt: Date,
-  overridePredictedDate?: Date | null
+  overridePredictedDate?: Date | null,
+  phaseAware?: PhaseAwareInput,
 ): ProgressResult {
   const now = new Date();
 
@@ -102,13 +244,19 @@ export function calculateProgress(
 
   let predictedExchangeDate: Date | null = null;
   let isEarlyEstimate = false;
+
   if (overridePredictedDate) {
     predictedExchangeDate = overridePredictedDate;
+  } else if (phaseAware) {
+    // Arc 2: phase-aware critical path model (see docs/forecasting/phase-aware-model-proposal.md)
+    predictedExchangeDate = calculatePhaseAwarePrediction(phaseAware, createdAt);
+    // isEarlyEstimate: file is still in Phase A (both VM4 and PM4 not yet complete).
+    // Prediction will equal the 12-week target floor during this window.
+    const done = new Set(phaseAware.completedMilestoneCodes);
+    isEarlyEstimate = detectPhase(done).fileLevelPhase === "onboarding";
   } else if (daysElapsed < 28) {
-    // Linear velocity extrapolation from less than 4 weeks of data is dominated by
-    // the fast onboarding burst (welcome pack, money on account, instructing solicitors)
-    // and gives wildly optimistic dates. Use the 12-week target until there is enough
-    // history for the model to be meaningful.
+    // Arc 1 fallback (no milestone codes available): linear velocity extrapolation is
+    // dominated by the Phase A onboarding burst below 28 days — use the 12-week target.
     predictedExchangeDate = twelveWeekTarget;
     isEarlyEstimate = daysElapsed < 14;
   } else if (percent > 0) {

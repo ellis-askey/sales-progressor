@@ -95,6 +95,7 @@ type Props = {
   city: string;
   postcode: string;
   tenure: "freehold" | "leasehold" | "";
+  isShareOfFreehold: boolean;
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | "";
   progressedBy: "agent" | "progressor";
   memoSources: MemoSrc;
@@ -102,6 +103,7 @@ type Props = {
   onCityChange: (v: string) => void;
   onPostcodeChange: (v: string) => void;
   onTenureChange: (v: "freehold" | "leasehold") => void;
+  onIsShareOfFreeholdChange: (v: boolean) => void;
   onPurchaseTypeChange: (v: "mortgage" | "cash_buyer" | "cash_from_proceeds") => void;
   onProgressedByChange: (v: "agent" | "progressor") => void;
   onEdit: (field: string) => void;
@@ -113,10 +115,10 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function Stage1Fields({
-  streetAddress, city, postcode, tenure, purchaseType, progressedBy,
+  streetAddress, city, postcode, tenure, isShareOfFreehold, purchaseType, progressedBy,
   memoSources,
   onStreetAddressChange, onCityChange, onPostcodeChange,
-  onTenureChange, onPurchaseTypeChange, onProgressedByChange,
+  onTenureChange, onIsShareOfFreeholdChange, onPurchaseTypeChange, onProgressedByChange,
   onEdit,
   showContinueButton = false,
   onContinue,
@@ -281,6 +283,17 @@ export function Stage1Fields({
           />
         </div>
         <FieldHint source={memoSources.tenure} />
+        {tenure === "leasehold" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={isShareOfFreehold}
+              onChange={(e) => onIsShareOfFreeholdChange(e.target.checked)}
+              style={{ width: 14, height: 14, accentColor: "var(--nv2-coral)", cursor: "pointer", flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: "var(--nv2-text-primary)" }}>Share of freehold</span>
+          </label>
+        )}
       </div>
 
       {/* Purchase type */}

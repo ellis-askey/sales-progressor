@@ -129,11 +129,21 @@ export default async function AgentTransactionDetailPage({
     completedAt: m.completion?.completedAt ?? undefined,
   }));
 
+  const completedMilestoneCodes = allMilestones
+    .filter((m) => m.isComplete)
+    .map((m) => m.code);
+
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     transaction.createdAt,
-    transaction.overridePredictedDate ?? null
+    transaction.overridePredictedDate ?? null,
+    milestoneData ? {
+      completedMilestoneCodes,
+      purchaseType: transaction.purchaseType ?? null,
+      tenure: transaction.tenure ?? null,
+      isShareOfFreehold: transaction.isShareOfFreehold,
+    } : undefined,
   );
 
   const exchangeConfirmed = allMilestones.some(
@@ -362,6 +372,8 @@ export default async function AgentTransactionDetailPage({
         purchasePrice: transaction.purchasePrice ?? null,
         tenure: transaction.tenure ?? null,
         purchaseType: transaction.purchaseType ?? null,
+        isShareOfFreehold: transaction.isShareOfFreehold,
+        chainLinkId: transaction.chainLinkId ?? null,
         overridePredictedDate: transaction.overridePredictedDate ?? null,
         completionDate: transaction.completionDate ?? null,
         agentFeeAmount: transaction.agentFeeAmount ?? null,

@@ -159,6 +159,7 @@ model PropertyTransaction {
   purchasePrice                Int?
   tenure                       Tenure?
   purchaseType                 PurchaseType?
+  isShareOfFreehold            Boolean               @default(false)
   twelveWeekTarget             DateTime?
   predictedExchangeDate        DateTime?
   overridePredictedDate        DateTime?

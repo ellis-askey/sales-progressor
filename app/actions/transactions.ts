@@ -23,6 +23,7 @@ export async function createTransactionAction(input: {
   propertyAddress: string;
   purchasePrice: number | null;
   tenure: Tenure | null;
+  isShareOfFreehold?: boolean;
   purchaseType: PurchaseType | null;
   notes: string | null;
   progressedBy: "progressor" | "agent";
@@ -92,6 +93,7 @@ export async function createTransactionAction(input: {
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,
     tenure: input.tenure,
+    isShareOfFreehold: input.tenure === "leasehold" ? (input.isShareOfFreehold ?? false) : false,
     purchaseType: input.purchaseType,
     notes: input.notes,
     vendorSolicitorFirmId: input.vendorSolicitorFirmId,
@@ -603,6 +605,30 @@ export async function saveAddressAction(transactionId: string, newAddress: strin
   await logActivity(
     transactionId,
     `${session.user.name} updated property address to "${trimmed}"`,
+    session.user.id
+  );
+
+  revalidateTx(transactionId);
+}
+
+export async function saveIsShareOfFreeholdAction(transactionId: string, isShareOfFreehold: boolean): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, isShareOfFreehold: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.isShareOfFreehold === isShareOfFreehold) return;
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { isShareOfFreehold },
+  });
+
+  await logActivity(
+    transactionId,
+    `${session.user.name} set property type to ${isShareOfFreehold ? "share of freehold" : "standard leasehold"}`,
     session.user.id
   );
 

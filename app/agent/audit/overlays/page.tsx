@@ -873,7 +873,7 @@ function CategoryDrawers({ decision, onPick }: { decision: Decision; onPick: (d:
 
   const EDIT_SHARED = {
     transactionId: MOCK_TX_ID, propertyAddress: MOCK_ADDR, tenure: "freehold" as const,
-    purchaseType: "mortgage" as const, purchasePrice: 38500000, agentFeeAmount: null,
+    purchaseType: "mortgage" as const, isShareOfFreehold: false, purchasePrice: 38500000, agentFeeAmount: null,
     agentFeePercent: 1.5, agentFeeIsVatInclusive: false, referralFee: null,
     referredFirmName: null, referredFirmId: null, overridePredictedDate: null,
     predictedExchangeDate: new Date(Date.now() + 56 * 86400000), completionDate: null,

@@ -16,6 +16,7 @@ import {
   confirmSaleDetailsAction,
   getAddressConsequencesAction,
   saveAddressAction,
+  saveIsShareOfFreeholdAction,
 } from "@/app/actions/transactions";
 import type { SaleDetailsDelta, SaleDetailsDeltaItem } from "@/app/actions/transactions";
 import type { Tenure, PurchaseType } from "@prisma/client";
@@ -167,6 +168,7 @@ type Props = {
   propertyAddress: string;
   tenure: Tenure | null;
   purchaseType: PurchaseType | null;
+  isShareOfFreehold: boolean;
   purchasePrice: number | null;
   agentFeeAmount: number | null;
   agentFeePercent: number | null;
@@ -190,6 +192,7 @@ export function EditSaleDetailsDrawer({
   propertyAddress,
   tenure,
   purchaseType,
+  isShareOfFreehold,
   purchasePrice,
   agentFeeAmount,
   agentFeePercent,
@@ -222,6 +225,8 @@ export function EditSaleDetailsDrawer({
   const [savedPurchaseType, setSavedPurchaseType] = useState<PurchaseType | null>(purchaseType);
   const [tenureInput, setTenureInput] = useState<Tenure>(tenure ?? "freehold");
   const [purchaseTypeInput, setPurchaseTypeInput] = useState<PurchaseType>(purchaseType ?? "mortgage");
+  const [savedIsShareOfFreehold, setSavedIsShareOfFreehold] = useState(isShareOfFreehold);
+  const [isShareOfFreeholdInput, setIsShareOfFreeholdInput] = useState(isShareOfFreehold);
 
   const [propStage, setPropStage] = useState<PropSaveStage>("idle");
   const [addrConsequences, setAddrConsequences] = useState<{ commCount: number; milestoneCount: number } | null>(null);
@@ -232,7 +237,8 @@ export function EditSaleDetailsDrawer({
   const addrChanged = joinedAddr !== savedAddress;
   const tenureChanged = tenurePurchaseEditable && tenureInput !== savedTenure;
   const purchaseTypeChanged = tenurePurchaseEditable && purchaseTypeInput !== savedPurchaseType;
-  const propHasChanges = addrChanged || tenureChanged || purchaseTypeChanged;
+  const isShareOfFreeholdChanged = tenurePurchaseEditable && tenureInput === "leasehold" && isShareOfFreeholdInput !== savedIsShareOfFreehold;
+  const propHasChanges = addrChanged || tenureChanged || purchaseTypeChanged || isShareOfFreeholdChanged;
 
   // ── Section 2: Price & Fees ──────────────────────────────────────────────
 
@@ -393,7 +399,7 @@ export function EditSaleDetailsDrawer({
     try {
       await saveAddressAction(transactionId, joinedAddr);
       setSavedAddress(joinedAddr);
-      if (tenureChanged || purchaseTypeChanged) {
+      if (tenureChanged || purchaseTypeChanged || isShareOfFreeholdChanged) {
         await handleTenureCheck();
       } else {
         setPropStage("idle");
@@ -406,6 +412,16 @@ export function EditSaleDetailsDrawer({
 
   async function handleTenureCheck() {
     if (!tenurePurchaseEditable || (!tenureChanged && !purchaseTypeChanged)) {
+      // Only isShareOfFreehold changed — save it directly without the delta preview flow
+      if (isShareOfFreeholdChanged) {
+        setPropStage("tenure_saving");
+        try {
+          await saveIsShareOfFreeholdAction(transactionId, isShareOfFreeholdInput);
+          setSavedIsShareOfFreehold(isShareOfFreeholdInput);
+        } catch (err) {
+          setPropError(err instanceof Error ? err.message : "Couldn't save property type");
+        }
+      }
       setPropStage("idle");
       return;
     }
@@ -432,6 +448,10 @@ export function EditSaleDetailsDrawer({
       await confirmSaleDetailsAction({ transactionId, newPurchaseType: purchaseTypeInput, newTenure: tenureInput });
       setSavedTenure(tenureInput);
       setSavedPurchaseType(purchaseTypeInput);
+      if (isShareOfFreeholdChanged) {
+        await saveIsShareOfFreeholdAction(transactionId, isShareOfFreeholdInput);
+        setSavedIsShareOfFreehold(isShareOfFreeholdInput);
+      }
       setPropDelta(null);
       setPropStage("idle");
     } catch (err) {
@@ -447,6 +467,7 @@ export function EditSaleDetailsDrawer({
     setPostcode(orig.postcode);
     setTenureInput(savedTenure ?? "freehold");
     setPurchaseTypeInput(savedPurchaseType ?? "mortgage");
+    setIsShareOfFreeholdInput(savedIsShareOfFreehold);
     setPropDelta(null);
     setPropError(null);
     setPropStage("idle");
@@ -671,6 +692,23 @@ export function EditSaleDetailsDrawer({
                       ))}
                     </div>
                   </div>
+
+                  {/* Share of freehold toggle — leasehold files only */}
+                  {tenureInput === "leasehold" && propStage !== "tenure_preview" && (
+                    <label style={{
+                      display: "flex", alignItems: "center", gap: 8, cursor: propSaving ? "default" : "pointer",
+                      opacity: propSaving ? 0.5 : 1,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={isShareOfFreeholdInput}
+                        onChange={(e) => setIsShareOfFreeholdInput(e.target.checked)}
+                        disabled={propSaving}
+                        style={{ width: 14, height: 14, accentColor: "var(--agent-coral)", cursor: "pointer", flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: 12, color: "var(--agent-text-primary)" }}>Share of freehold</span>
+                    </label>
+                  )}
 
                   {propStage === "tenure_preview" && (
                     <p className="text-xs text-slate-900/40 italic" style={{ marginTop: -4 }}>Tap Back to change</p>

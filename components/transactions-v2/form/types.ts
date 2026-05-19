@@ -9,6 +9,7 @@ export type FormFields = {
   postcode: string;
   purchasePricePence: number | null;
   tenure: "freehold" | "leasehold" | "";
+  isShareOfFreehold: boolean;
   purchaseType: "mortgage" | "cash_buyer" | "cash_from_proceeds" | "";
   progressedBy: "agent" | "progressor";
   vendors: ContactEntry[];
@@ -37,6 +38,7 @@ export function defaultFormFields(): FormFields {
     postcode: "",
     purchasePricePence: null,
     tenure: "",
+    isShareOfFreehold: false,
     purchaseType: "",
     progressedBy: "agent",
     vendors: [{ name: "", phone: "", email: "" }],
