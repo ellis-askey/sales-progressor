@@ -21,6 +21,7 @@ export async function addNoteAction(transactionId: string, content: string) {
     contactIds: [],
     content,
     createdById: session.user.id,
+    createdByRole: session.user.role,
     scope: getAccessScope(session),
   });
   void trackServerEvent(session.user.id, ANALYTICS_EVENTS.NOTE_ADDED, {
@@ -53,6 +54,7 @@ export async function logCommAction(input: {
     content: input.content,
     visibleToClient: input.visibleToClient,
     createdById: session.user.id,
+    createdByRole: session.user.role,
     scope: getAccessScope(session),
   });
   revalidateTx(input.transactionId);

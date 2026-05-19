@@ -35,6 +35,7 @@ export type ActivityEntry =
       content: string;
       createdById: string | null;
       createdByName: string | null;
+      createdByRole: string | null;
       contactNames: string[];
       wasAiGenerated: boolean;
       isAutomated: boolean;
@@ -99,6 +100,7 @@ export async function getActivityTimeline(
     content: c.content,
     createdById: c.createdById ?? null,
     createdByName: c.createdBy?.name ?? null,
+    createdByRole: c.createdByRole ?? null,
     contactNames: c.contactIds
       .map((id) => contactMap.get(id))
       .filter(Boolean) as string[],
@@ -129,6 +131,7 @@ export type CreateCommInput = {
   isAutomated?: boolean;
   visibleToClient?: boolean;
   createdById: string;
+  createdByRole?: string | null;
   // scope replaces agencyId — use getAccessScope(session) at the call site.
   // scopeOwnershipWhere enforces assignedUserId for SP, agencyId for agents, bare id for admin.
   scope: AccessScope;
@@ -157,6 +160,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       isAutomated: input.isAutomated ?? false,
       visibleToClient: input.visibleToClient ?? false,
       createdById: input.createdById,
+      createdByRole: input.createdByRole ?? null,
     },
   });
 
