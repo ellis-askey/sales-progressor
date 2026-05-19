@@ -94,6 +94,12 @@ export function ManualTaskList({
   const updateBadge = useTabBadge();
   const { toast } = useAgentToast();
 
+  function countForBadge(all: ManualTaskWithRelations[]) {
+    return perspective === "progressor"
+      ? all.filter((t) => t.status === "open" && t.isAgentRequest).length
+      : all.filter((t) => t.status === "open").length;
+  }
+
   async function handleAdd(data: {
     title: string;
     notes?: string;
@@ -118,7 +124,7 @@ export function ManualTaskList({
       createdBy: { id: "", name: "" },
     };
     setTasks((prev) => [optimistic, ...prev]);
-    updateBadge?.("todos", tasks.filter((t) => t.status === "open").length + 1);
+    updateBadge?.("todos", countForBadge(tasks) + (data.isAgentRequest ? 1 : 0));
 
     const res = await fetch("/api/manual-tasks", {
       method: "POST",
@@ -128,7 +134,7 @@ export function ManualTaskList({
     if (!res.ok) {
       console.error("Failed to save to-do:", res.status, await res.text());
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
-      updateBadge?.("todos", tasks.filter((t) => t.status === "open").length);
+      updateBadge?.("todos", countForBadge(tasks));
       return;
     }
     const saved = await res.json();
@@ -146,7 +152,7 @@ export function ManualTaskList({
     const updated = await res.json();
     const newTasks = tasks.map((t) => (t.id === id ? updated : t));
     setTasks(newTasks);
-    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
+    updateBadge?.("todos", countForBadge(newTasks));
     if (newStatus === "done") toast.success("To-do completed");
   }
 
@@ -155,7 +161,7 @@ export function ManualTaskList({
     if (!res.ok) return;
     const newTasks = tasks.filter((t) => t.id !== id);
     setTasks(newTasks);
-    updateBadge?.("todos", newTasks.filter((t) => t.status === "open").length);
+    updateBadge?.("todos", countForBadge(newTasks));
     toast.success("To-do removed");
   }
 
@@ -181,12 +187,14 @@ export function ManualTaskList({
           </h3>
           {myOpen.length > 0 && <span className="agent-badge">{myOpen.length}</span>}
         </div>
-        <AddManualTaskForm
-          transactionId={transactionId}
-          transactionAddress={transactionAddress}
-          showOwnership={showOwnership}
-          onAdd={handleAdd}
-        />
+        {perspective !== "progressor" && (
+          <AddManualTaskForm
+            transactionId={transactionId}
+            transactionAddress={transactionAddress}
+            showOwnership={showOwnership}
+            onAdd={handleAdd}
+          />
+        )}
       </div>
 
       {myVisible.length === 0 ? (
@@ -198,7 +206,7 @@ export function ManualTaskList({
       ) : (
         <div>
           {myOpen.map((task) => (
-            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
+            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
           ))}
           <div className={`agent-acc ${filter === "all" && myDone.length > 0 ? "open" : ""}`}>
             <div className="agent-acc-in">
@@ -206,7 +214,7 @@ export function ManualTaskList({
                 Done
               </div>
               {myDone.map((task) => (
-                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} readOnly={perspective === "progressor"} />
               ))}
             </div>
           </div>

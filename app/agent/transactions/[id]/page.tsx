@@ -233,7 +233,9 @@ export default async function AgentTransactionDetailPage({
     ? computeMilestoneSideState(milestoneData.purchaser)
     : { state: "allComplete" };
 
-  const openTodoCount = manualTasks.filter((t) => t.status === "open").length;
+  const openTodoCount = isInternalStaff
+    ? manualTasks.filter((t) => t.status === "open" && t.isAgentRequest).length
+    : manualTasks.filter((t) => t.status === "open").length;
 
   const escalatedCount = reminderLogs.flatMap((l) =>
     l.chaseTasks.filter((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")
@@ -519,7 +521,7 @@ export default async function AgentTransactionDetailPage({
             transactionAddress={transaction.propertyAddress}
             showDone
             showOwnership={transaction.serviceType === "outsourced" && !isProgressor && !isAdminRole}
-            perspective={isProgressor ? "progressor" : "agent"}
+            perspective={isInternalStaff ? "progressor" : "agent"}
           />
         </div>
 

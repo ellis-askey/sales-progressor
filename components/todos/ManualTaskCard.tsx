@@ -31,11 +31,13 @@ export function ManualTaskCard({
   onToggle,
   onDelete,
   isNew,
+  readOnly = false,
 }: {
   task: ManualTaskWithRelations;
   onToggle: (id: string, status: "open" | "done") => void;
   onDelete: (id: string) => void;
   isNew?: boolean;
+  readOnly?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [progressorNote, setProgressorNote] = useState(task.progressorNote ?? "");
@@ -86,20 +88,22 @@ export function ManualTaskCard({
       style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
     >
       {/* Native checkbox — coral accent, ms-pop wrapper for completion bounce */}
-      <div className={checkPopped ? "ms-pop" : ""} style={{ flexShrink: 0, marginTop: 2 }}>
-        <input
-          type="checkbox"
-          checked={isDone}
-          onChange={handleToggle}
-          disabled={busy}
-          style={{
-            width: 14, height: 14,
-            accentColor: "var(--agent-coral)",
-            cursor: busy ? "wait" : "pointer",
-            display: "block",
-          }}
-        />
-      </div>
+      {!readOnly && (
+        <div className={checkPopped ? "ms-pop" : ""} style={{ flexShrink: 0, marginTop: 2 }}>
+          <input
+            type="checkbox"
+            checked={isDone}
+            onChange={handleToggle}
+            disabled={busy}
+            style={{
+              width: 14, height: 14,
+              accentColor: "var(--agent-coral)",
+              cursor: busy ? "wait" : "pointer",
+              display: "block",
+            }}
+          />
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
@@ -130,23 +134,25 @@ export function ManualTaskCard({
           </div>
         )}
 
-        {/* Progressor response (editable inline) */}
-        <div className="mt-1.5">
-          {task.progressorNote && (
-            <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
-              Your response · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
-            </p>
-          )}
-          <input
-            type="text"
-            value={progressorNote}
-            onChange={(e) => setProgressorNote(e.target.value)}
-            onBlur={handleProgressorNoteBlur}
-            placeholder={task.isAgentRequest ? "Add a response…" : "Add a note…"}
-            className="w-full text-xs bg-transparent border-b border-dashed focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
-            style={{ borderColor: "var(--agent-border-default)", color: "var(--agent-text-secondary)" }}
-          />
-        </div>
+        {/* Progressor response (editable inline, hidden when read-only) */}
+        {!readOnly && (
+          <div className="mt-1.5">
+            {task.progressorNote && (
+              <p style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                Your response · {task.progressorNoteAt ? timeAgo(task.progressorNoteAt) : ""}
+              </p>
+            )}
+            <input
+              type="text"
+              value={progressorNote}
+              onChange={(e) => setProgressorNote(e.target.value)}
+              onBlur={handleProgressorNoteBlur}
+              placeholder={task.isAgentRequest ? "Add a response…" : "Add a note…"}
+              className="w-full text-xs bg-transparent border-b border-dashed focus:outline-none placeholder-slate-300 py-0.5 leading-relaxed"
+              style={{ borderColor: "var(--agent-border-default)", color: "var(--agent-text-secondary)" }}
+            />
+          </div>
+        )}
 
         {/* Due date / transaction link */}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
@@ -170,13 +176,15 @@ export function ManualTaskCard({
       </div>
 
       {/* Delete */}
-      <button
-        onClick={handleDelete}
-        className="agent-icon-btn agent-icon-btn-sm flex-shrink-0"
-        style={{ marginTop: 1 }}
-      >
-        ×
-      </button>
+      {!readOnly && (
+        <button
+          onClick={handleDelete}
+          className="agent-icon-btn agent-icon-btn-sm flex-shrink-0"
+          style={{ marginTop: 1 }}
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }
