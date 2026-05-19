@@ -11,6 +11,7 @@ type Props = {
   transactionId: string;
   mosDocUrl?: string | null;
   beforeEntries?: React.ReactNode;
+  currentUserId?: string;
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
@@ -77,7 +78,7 @@ function CommPill({ entry }: { entry: Extract<ActivityEntry, { kind: "comm" }> }
   );
 }
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId] = useState<string | null>(null);
@@ -272,15 +273,17 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>
                         {entry.createdByName ? extractFirstName(entry.createdByName) : "System"} · {formatDate(entry.at)}
                       </p>
-                      <button
-                        onClick={() => deleteComm(entry.id)}
-                        disabled={deletingId === entry.id || isPending || exitingId === entry.id}
-                        className="agent-icon-btn agent-icon-btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ position: "absolute", top: 8, right: 10 }}
-                        aria-label="Delete"
-                      >
-                        ×
-                      </button>
+                      {(!currentUserId || entry.createdById === currentUserId) && (
+                        <button
+                          onClick={() => deleteComm(entry.id)}
+                          disabled={deletingId === entry.id || isPending || exitingId === entry.id}
+                          className="agent-icon-btn agent-icon-btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ position: "absolute", top: 8, right: 10 }}
+                          aria-label="Delete"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

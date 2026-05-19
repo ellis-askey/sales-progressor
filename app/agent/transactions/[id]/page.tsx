@@ -518,6 +518,7 @@ export default async function AgentTransactionDetailPage({
             transactionId={transaction.id}
             mosDocUrl={mosDocUrl}
             beforeEntries={<CommsEntry transactionId={transaction.id} contacts={transaction.contacts} />}
+            currentUserId={isProgressor ? session.user.id : undefined}
           />
           {(!isInternal || spSenderIdentity !== undefined) && (
             <ComposeEmail transactionId={transaction.id} senderIdentity={spSenderIdentity} />

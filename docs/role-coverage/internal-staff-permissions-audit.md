@@ -7,8 +7,7 @@ Items surfaced during the `/agent/transactions/[id]` role-coverage pass that req
 ## FU-09 — `deleteCommAction` has no UI role gate on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  
-**Status:** ✅ RESOLVED `fe01c26` — `deleteCommunicationRecord` now uses `scope: AccessScope` with `scopeOwnershipWhere`. SP can only delete comms on their assigned files. UI gate (hide delete button for SP entries they don't own) is still desirable defence-in-depth but is no longer a security gap.  
-**Remaining:** UI-only polish — hide delete button for SP on comms they didn't create. Not a security issue.
+**Status:** ✅ RESOLVED. Backend (`fe01c26`): `deleteCommunicationRecord` uses `scope: AccessScope` with `scopeOwnershipWhere` — SP can only delete comms on their assigned files. UI (`ActivityTimeline.tsx`): delete button gated by `entry.createdById === currentUserId` for SP; agents and admin unaffected. `createdById` added to `ActivityEntry` comm type and query mapping in `lib/services/comms.ts`.
 
 ---
 
@@ -72,5 +71,4 @@ Chase route now passes `{ from, replyTo }` from the helper to `sendEmail`. Agent
 ## FU-20 — SP file ownership gate on transaction detail
 
 **Source:** /agent/transactions/[id] inventory  
-**Summary:** SP accessing transaction detail can view all sections of a file — including files they are not assigned to if they know the ID. `getTransactionByScope` with `kind: "assigned"` should reject unassigned files for SP. Verify `getTransactionByScope` enforcement is strict.  
-**When to revisit:** Access scope audit, post-Package D.
+**Status:** ✅ RESOLVED (already secure — no fix needed). `getTransactionByScope` calls `scopeOwnershipWhere(scope, id)`; for SP (`kind: "assigned"`) this produces `{ id, assignedUserId: scope.userId }`. If SP is not assigned, `findFirst` returns `null` and the page calls `notFound()`. Confirmed in `lib/security/access-scope.ts:71` and `lib/services/transactions.ts:177`.

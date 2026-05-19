@@ -33,6 +33,7 @@ export type ActivityEntry =
       type: CommType;
       method: CommMethod | null;
       content: string;
+      createdById: string | null;
       createdByName: string | null;
       contactNames: string[];
       wasAiGenerated: boolean;
@@ -96,6 +97,7 @@ export async function getActivityTimeline(
     type: c.type,
     method: c.method,
     content: c.content,
+    createdById: c.createdById ?? null,
     createdByName: c.createdBy?.name ?? null,
     contactNames: c.contactIds
       .map((id) => contactMap.get(id))
