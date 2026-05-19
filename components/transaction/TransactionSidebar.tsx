@@ -268,31 +268,35 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
         <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-slate-900/40">12-week target</p>
-            <p className="text-xs font-semibold text-slate-900/90">
-              {progress.twelveWeekTarget
-                ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                : "—"}
-            </p>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-slate-900/40">Expected exchange</p>
-            <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
-              {progress.predictedExchangeDate
-                ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                : "—"}
-              {transaction.overridePredictedDate && (
-                <span className="ml-1 text-xs text-blue-500">(overridden)</span>
-              )}
-            </p>
-          </div>
-          {progress.isEarlyEstimate && (
-            <p className="text-[10px] text-slate-900/30 italic text-right" style={{ marginTop: -4 }}>
-              Too early to predict — using your 12-week target
-            </p>
+          {!progress.isEarlyEstimate && (
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-slate-900/40">12-week target</p>
+              <p className="text-xs font-semibold text-slate-900/90">
+                {progress.twelveWeekTarget
+                  ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                  : "—"}
+              </p>
+            </div>
           )}
+
+          <div className="flex justify-between items-start">
+            <p className="text-xs text-slate-900/40">Expected exchange</p>
+            <div className="text-right">
+              <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
+                {progress.predictedExchangeDate
+                  ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                  : "—"}
+                {transaction.overridePredictedDate && (
+                  <span className="ml-1 text-xs text-blue-500">(overridden)</span>
+                )}
+              </p>
+              {progress.isEarlyEstimate && (
+                <p className="text-[10px] text-slate-900/30 mt-0.5">
+                  Too early to predict — using your 12-week target
+                </p>
+              )}
+            </div>
+          </div>
 
           <div className="flex justify-between items-center">
             <p className="text-xs text-slate-900/40">Completion date</p>
@@ -529,30 +533,34 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             <div style={{ padding: "14px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
               <p className="agent-sidebar-label" style={{ marginBottom: 10 }}>Exchange Forecast</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-slate-900/40">12-week target</p>
-                  <p className="text-xs font-semibold text-slate-900/90">
-                    {progress.twelveWeekTarget
-                      ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                      : "—"}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-slate-900/40">Expected exchange</p>
-                  <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
-                    {progress.predictedExchangeDate
-                      ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                      : "—"}
-                    {transaction.overridePredictedDate && (
-                      <span className="ml-1 text-xs text-blue-500">(overridden)</span>
-                    )}
-                  </p>
-                </div>
-                {progress.isEarlyEstimate && (
-                  <p className="text-[10px] text-slate-900/30 italic text-right" style={{ marginTop: -4 }}>
-                    Too early to predict — using your 12-week target
-                  </p>
+                {!progress.isEarlyEstimate && (
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-slate-900/40">12-week target</p>
+                    <p className="text-xs font-semibold text-slate-900/90">
+                      {progress.twelveWeekTarget
+                        ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                        : "—"}
+                    </p>
+                  </div>
                 )}
+                <div className="flex justify-between items-start">
+                  <p className="text-xs text-slate-900/40">Expected exchange</p>
+                  <div className="text-right">
+                    <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
+                      {progress.predictedExchangeDate
+                        ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                        : "—"}
+                      {transaction.overridePredictedDate && (
+                        <span className="ml-1 text-xs text-blue-500">(overridden)</span>
+                      )}
+                    </p>
+                    {progress.isEarlyEstimate && (
+                      <p className="text-[10px] text-slate-900/30 mt-0.5">
+                        Too early to predict — using your 12-week target
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-between items-center">
                   <p className="text-xs text-slate-900/40">Completion date</p>
                   {exchangeConfirmed ? (
