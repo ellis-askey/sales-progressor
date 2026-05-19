@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 interface SurveyNrConfirmModalProps {
@@ -11,7 +10,7 @@ interface SurveyNrConfirmModalProps {
 }
 
 export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmModalProps) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -31,28 +30,21 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
         style={{
           position: "relative",
           zIndex: 1,
-          background: "rgba(255,255,255,0.98)",
+          background: "var(--agent-surface-elevated)",
           borderRadius: 20,
-          borderTop: "2px solid var(--agent-coral-deep)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
           width: "100%",
           maxWidth: 380,
           margin: "0 16px",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
+        {/* Header — no X, 2a non-dismissible */}
+        <div style={{ padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
           <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
             No private survey required?
           </p>
-          <button
-            onClick={onCancel}
-            aria-label="Close"
-            className="agent-icon-btn agent-icon-btn-md"
-          >
-            <X size={16} weight="bold" />
-          </button>
         </div>
 
         {/* Body */}
@@ -62,20 +54,27 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
           </p>
         </div>
 
-        {/* Footer — stacked */}
-        <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Footer — right-aligned row: Cancel left, Primary right */}
+        <div style={{ padding: "0 20px 20px", display: "flex", gap: 12 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              width: 96, padding: "10px 0", borderRadius: 12,
+              background: "transparent", color: "rgba(15,23,42,0.55)",
+              fontWeight: 500, fontSize: 14,
+              border: "1px solid rgba(15,23,42,0.15)", cursor: "pointer", transition: "background 150ms",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.04)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Cancel
+          </button>
           <button
             onClick={onConfirm}
             className="agent-btn-color-primary"
-            style={{ width: "100%", padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}
+            style={{ flex: 1, padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}
           >
             Yes, skip these
-          </button>
-          <button
-            onClick={onCancel}
-            className="agent-btn agent-btn-ghost-bordered w-full"
-          >
-            Cancel
           </button>
         </div>
       </div>

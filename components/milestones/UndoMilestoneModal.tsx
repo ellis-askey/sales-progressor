@@ -25,7 +25,7 @@ export function UndoMilestoneModal({
   onConfirm,
   onCancel,
 }: UndoMilestoneModalProps) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
   const [undoMode, setUndoMode] = useState<UndoMode>("target_only");
   const [cascadeExpanded, setCascadeExpanded] = useState(false);
 
@@ -67,13 +67,13 @@ export function UndoMilestoneModal({
         style={{
           position: "relative",
           zIndex: 1,
-          background: "rgba(255,255,255,0.98)",
+          background: "var(--agent-surface-elevated)",
           borderRadius: 20,
-          borderTop: "2px solid var(--agent-coral-deep)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
           width: "100%",
           maxWidth: 448,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
           maxHeight: "88vh",
           display: "flex",
           flexDirection: "column",
@@ -212,8 +212,15 @@ export function UndoMilestoneModal({
           )}
         </div>
 
-        {/* Footer — paired: orange Undo (semantic warning) + neutral Cancel */}
+        {/* Footer — Cancel left, Undo right (V1 right-aligned row) */}
         <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 12, flexShrink: 0 }}>
+          <button
+            onClick={onCancel}
+            disabled={isPending}
+            className="agent-btn agent-btn-ghost-bordered flex-1"
+          >
+            Cancel
+          </button>
           <button
             onClick={() => onConfirm(undoMode)}
             disabled={isPending}
@@ -238,13 +245,6 @@ export function UndoMilestoneModal({
               : undoMode === "cascade" && undoData.cascade.length > 0
               ? `Undo step and ${undoData.cascade.length} linked step${undoData.cascade.length !== 1 ? "s" : ""}`
               : "Undo step"}
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={isPending}
-            className="agent-btn agent-btn-ghost-bordered flex-1"
-          >
-            Cancel
           </button>
         </div>
       </div>

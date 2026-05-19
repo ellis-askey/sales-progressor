@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export function DuplicateAddressModal({
@@ -49,18 +50,25 @@ export function DuplicateAddressModal({
           width: "100%",
           maxWidth: 420,
           borderRadius: 20,
-          background: "var(--nv2-surface-modal)",
-          borderTop: "3px solid var(--agent-coral-deep)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.08)",
+          background: "var(--agent-surface-elevated)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           overflow: "hidden",
-          animation: "agent-modal-in 280ms cubic-bezier(0.16,1,0.3,1) both",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
-        {/* Body */}
-        <div style={{ padding: "22px 22px 16px" }}>
-          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+        {/* Header — X present, 2b dismissible */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
             Address already exists
           </p>
+          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "16px 22px 12px" }}>
           <p style={{ margin: 0, fontSize: 13, color: "var(--nv2-text-reading)", lineHeight: 1.6 }}>
             There&apos;s already an active file for{" "}
             <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{address}</strong>.

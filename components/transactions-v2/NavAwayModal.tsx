@@ -36,14 +36,14 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
         style={{
           position: "relative",
           zIndex: 1,
-          background: "var(--nv2-surface-modal)",
+          background: "var(--agent-surface-elevated)",
           borderRadius: 20,
-          borderTop: "2px solid #f59e0b",
+          border: "0.5px solid rgba(0,0,0,0.08)",
           width: "100%",
           maxWidth: 380,
           margin: "0 16px",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
         {/* Header */}
@@ -51,13 +51,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
           <p style={{ fontSize: 15, fontWeight: 600, color: "var(--nv2-text-primary)", margin: 0 }}>
             Save your draft?
           </p>
-          <button
-            onClick={onStay}
-            aria-label="Close"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "var(--nv2-text-muted)", cursor: "pointer", flexShrink: 0, marginLeft: 12 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--nv2-bg-hover)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
+          <button onClick={onStay} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
             <X size={16} weight="bold" />
           </button>
         </div>
