@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
   const [firmName, setFirmName] = useState(prefillName);
   const [handlerName, setHandlerName] = useState("");
   const [handlerPhone, setHandlerPhone] = useState("");
@@ -104,29 +104,22 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
       <div className="fixed inset-0 agent-backdrop-overlay" />
 
       <div
-        className="glass-card-strong rounded-2xl shadow-2xl w-full max-w-md"
+        className="rounded-2xl w-full max-w-md"
         style={{
           position: "relative",
           zIndex: 1,
-          borderTop: "2px solid var(--agent-coral-deep)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          background: "var(--agent-surface-elevated)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 pt-5 pb-4 border-b border-white/20">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900/90">Add mortgage broker</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 6, borderRadius: 8, border: "none", background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <X size={16} weight="bold" />
-            </button>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+          <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add mortgage broker</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
+            <X size={16} weight="bold" />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
@@ -210,18 +203,18 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
 
           <div className="flex gap-3 pt-1">
             <button
-              type="submit"
-              disabled={!firmName.trim() || loading}
-              className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Saving…" : "Save brokerage"}
-            </button>
-            <button
               type="button"
               onClick={onClose}
               className="px-4 py-2.5 text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 rounded-xl transition-colors"
             >
               Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!firmName.trim() || loading}
+              className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
+            >
+              {loading ? "Saving…" : "Save brokerage"}
             </button>
           </div>
         </form>

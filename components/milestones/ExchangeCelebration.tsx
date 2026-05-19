@@ -65,7 +65,7 @@ function startConfetti(canvas: HTMLCanvasElement): () => void {
 }
 
 export function ExchangeCelebration({ address, onDismiss }: Props) {
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -97,7 +97,6 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
       {/* Modal card */}
       <div
         className="relative z-10 bg-white rounded-3xl max-w-sm w-full px-8 py-10 shadow-2xl text-center agent-modal-in--celebrate"
-        style={{ borderTop: "2px solid var(--agent-coral-deep)" }}
       >
         {/* Star icon */}
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-lg">

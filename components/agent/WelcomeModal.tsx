@@ -11,7 +11,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 export function WelcomeModal({ name }: { name: string }) {
   const router = useRouter();
-  const theme = usePortalTheme();
+  const { theme } = usePortalTheme();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [showTour, setShowTour] = useState(false);
@@ -58,79 +58,60 @@ export function WelcomeModal({ name }: { name: string }) {
           maxWidth: showTour ? 540 : 460,
           width: "calc(100vw - 48px)",
           position: "relative",
-          borderTop: "2px solid var(--agent-coral-deep)",
-          animation: "agent-modal-in 280ms cubic-bezier(0.34,1.56,0.64,1) both",
+          padding: 0,
+          overflow: "hidden",
+          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button — ghost treatment */}
-        <button
-          onClick={close}
-          aria-label="Close"
-          style={{
-            position: "absolute", top: 16, right: 16, zIndex: 1,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 6, borderRadius: 8, border: "none",
-            background: "transparent", color: "rgba(15,23,42,0.40)", cursor: "pointer",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,23,42,0.06)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <X size={16} weight="bold" />
-        </button>
-
         {showTour ? (
-          <TourSlides
-            onClose={close}
-            onFinish={() => {
-              setVisible(false);
-              router.push("/agent/transactions/new-v2");
-            }}
-          />
+          /* TourSlides owns its header + X */
+          <div style={{ padding: 24 }}>
+            <TourSlides
+              onClose={close}
+              onFinish={() => {
+                setVisible(false);
+                router.push("/agent/transactions/new-v2");
+              }}
+            />
+          </div>
         ) : (
           <>
-            {/* Header gradient strip — theme-driven */}
-            <div style={{
-              margin: "-24px -24px 24px",
-              padding: "28px 24px 24px",
-              background: "linear-gradient(135deg, rgba(var(--agent-coral-base-rgb), 0.18) 0%, rgba(var(--agent-bloom-gold-rgb), 0.12) 100%)",
-              borderBottom: "0.5px solid rgba(255,255,255,0.50)",
-              borderRadius: "var(--agent-radius-xl) var(--agent-radius-xl) 0 0",
-            }}>
-              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--agent-coral-deep)", opacity: 0.7 }}>
-                Welcome
+            {/* V1 56px header */}
+            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+              <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                Welcome, {firstName}
               </p>
-              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-                Good to have you, {firstName}.
-              </h2>
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-                Let's get your first file set up — it takes less than a minute.
-              </p>
+              <button onClick={close} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
+                <X size={14} weight="bold" />
+              </button>
             </div>
 
-            {/* CTAs */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <button
-                onClick={handleAddSale}
-                className="agent-btn agent-btn-color-primary"
-                style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700 }}
-              >
-                <Lightning size={18} weight="fill" />
-                Add my first sale
-              </button>
-
-              {/* Secondary — text link, doesn't compete with primary */}
-              <button
-                onClick={() => setShowTour(true)}
-                style={{ background: "none", border: "none", cursor: "pointer", textAlign: "center", textUnderlineOffset: 2, padding: "2px 0" }}
-                className="text-sm text-slate-900/60 hover:text-slate-900/85 hover:underline transition-colors"
-              >
-                Explore a quick tour
-              </button>
-
-              <p style={{ textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)", margin: "4px 0 0" }}>
-                You can always add files any time from the dashboard.
+            {/* Body */}
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
+                Let&apos;s get your first file set up — it takes less than a minute.
               </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <button
+                  onClick={handleAddSale}
+                  className="agent-btn agent-btn-color-primary"
+                  style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700 }}
+                >
+                  <Lightning size={18} weight="fill" />
+                  Add my first sale
+                </button>
+                <button
+                  onClick={() => setShowTour(true)}
+                  style={{ background: "none", border: "none", cursor: "pointer", textAlign: "center", textUnderlineOffset: 2, padding: "2px 0" }}
+                  className="text-sm text-slate-900/60 hover:text-slate-900/85 hover:underline transition-colors"
+                >
+                  Explore a quick tour
+                </button>
+                <p style={{ textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)", margin: "4px 0 0" }}>
+                  You can always add files any time from the dashboard.
+                </p>
+              </div>
             </div>
           </>
         )}

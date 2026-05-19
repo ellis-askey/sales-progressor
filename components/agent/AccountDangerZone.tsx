@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { signOut } from "next-auth/react";
+import { X } from "@phosphor-icons/react";
 import { deleteMyAccount } from "@/app/actions/delete-my-account";
 import { exportMyData } from "@/app/actions/export-my-data";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -13,6 +14,16 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
   const [isPending, startTransition]    = useTransition();
   const [isExporting, setIsExporting]   = useState(false);
   const { toast } = useAgentToast();
+
+  useEffect(() => {
+    if (!showModal) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeModal();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal]);
 
   async function handleExport() {
     setIsExporting(true);
@@ -102,11 +113,21 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
           <div className="glass-card" style={{
-            width: "100%", maxWidth: 440, padding: 28,
+            width: "100%", maxWidth: 440, padding: 0,
             background: "var(--agent-surface-elevated)",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+            border: "0.5px solid rgba(0,0,0,0.08)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+            overflow: "hidden",
           }}>
-            <h2 className="text-base font-bold text-slate-900/90 mb-2">Delete account</h2>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+              <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)" }}>Delete account</p>
+              <button onClick={closeModal} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm" disabled={isPending}>
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+            <div style={{ padding: 24 }}>
             <p className="text-sm text-slate-900/60 mb-5 leading-relaxed">
               This will permanently delete your account and all associated data. This cannot be undone.
             </p>
@@ -132,19 +153,20 @@ export function AccountDangerZone({ userEmail }: { userEmail: string }) {
 
             <div className="flex gap-3">
               <button
-                onClick={handleDelete}
-                disabled={!emailMatches || isPending}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500 hover:bg-red-600 disabled:bg-red-200 disabled:cursor-not-allowed text-white transition-colors"
-              >
-                {isPending ? "Deleting…" : "Delete permanently"}
-              </button>
-              <button
                 onClick={closeModal}
                 disabled={isPending}
                 className="px-4 py-2 rounded-lg text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/40 transition-colors"
               >
                 Cancel
               </button>
+              <button
+                onClick={handleDelete}
+                disabled={!emailMatches || isPending}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500 hover:bg-red-600 disabled:bg-red-200 disabled:cursor-not-allowed text-white transition-colors"
+              >
+                {isPending ? "Deleting…" : "Delete permanently"}
+              </button>
+            </div>
             </div>
           </div>
         </div>
