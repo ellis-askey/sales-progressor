@@ -93,6 +93,7 @@ function AgentToastItem({
 }) {
   const [visible, setVisible]   = useState(false);
   const [exiting, setExiting]   = useState(false);
+  const [barPaused, setBarPaused] = useState(false);
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remainingMs = useRef(item.duration);
   const startedAt   = useRef<number>(Date.now());
@@ -134,8 +135,8 @@ function AgentToastItem({
     <div
       role={item.type === "error" || item.type === "warning" ? "alert" : "status"}
       aria-live={item.type === "error" || item.type === "warning" ? "assertive" : "polite"}
-      onMouseEnter={pauseTimer}
-      onMouseLeave={resumeTimer}
+      onMouseEnter={() => { pauseTimer(); setBarPaused(true);  }}
+      onMouseLeave={() => { resumeTimer(); setBarPaused(false); }}
       style={{
         transition: prefersReducedMotion
           ? "opacity 200ms var(--agent-ease)"
@@ -222,6 +223,18 @@ function AgentToastItem({
         >
           <X style={{ width: 13, height: 13 }} />
         </button>
+
+        {/* Progress bar */}
+        {item.duration > 0 && item.duration < 1e9 && (
+          <div
+            className="agent-toast-progress-bar"
+            style={{
+              animationDuration:  `${item.duration}ms`,
+              animationPlayState: barPaused ? "paused" : "running",
+              background: accentColor,
+            }}
+          />
+        )}
       </div>
     </div>
   );
