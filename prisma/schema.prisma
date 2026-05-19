@@ -805,7 +805,29 @@ model ChainLink {
   @@index([stubAgentEmail])
 }
 
-// â”€â”€â”€ DirectorInvitation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ChainNotificationQueue ───────────────────────────────────────────────────
+// Pending withdrawal notifications — records are created when a chain-linked
+// transaction is withdrawn. notifiedAt is null until the email channel fires.
+// Unique on (withdrawingTransactionId, recipientUserId) to prevent duplicate emails.
+
+model ChainNotificationQueue {
+  id                       String    @id @default(cuid())
+  chainId                  String
+  withdrawingTransactionId String
+  withdrawingUserId        String?
+  withdrawingReason        String?
+  recipientUserId          String
+  recipientLinkId          String
+  recipientEmail           String
+  createdAt                DateTime  @default(now())
+  notifiedAt               DateTime?
+
+  @@unique([withdrawingTransactionId, recipientUserId])
+  @@index([notifiedAt])
+  @@index([withdrawingTransactionId])
+}
+
+// ─── DirectorInvitation ───────────────────────────────────────────────────────
 
 model DirectorInvitation {
   id               String    @id @default(cuid())
