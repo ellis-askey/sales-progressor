@@ -13,6 +13,23 @@ export function formatDate(date: Date | string | null | undefined): string {
   }).format(new Date(date));
 }
 
+/** Format a Date with time — "Today, 14:32" / "19 May, 14:32" / "19 May 2026, 14:32" */
+export function formatTimestamp(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  const now = new Date();
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) return `Today, ${time}`;
+  const isThisYear = d.getFullYear() === now.getFullYear();
+  const datePart = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(isThisYear ? {} : { year: "numeric" }),
+  });
+  return `${datePart}, ${time}`;
+}
+
 /** Default exchange date: today + 12 months */
 export function defaultExchangeDate(): string {
   const d = new Date();

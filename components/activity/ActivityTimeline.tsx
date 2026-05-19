@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -16,23 +16,14 @@ type Props = {
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
 
-const METHOD_LABELS: Record<string, string> = {
-  email: "Email",
-  phone: "Phone",
-  sms: "SMS",
-  voicemail: "Voicemail",
-  whatsapp: "WhatsApp",
-  post: "Post",
-};
-
 type FilterKind = "all" | "milestones" | "comms" | "automated" | "notes";
 
 const FILTERS: { value: FilterKind; label: string }[] = [
-  { value: "all", label: "All" },
+  { value: "all",        label: "All" },
   { value: "milestones", label: "Steps" },
-  { value: "comms", label: "Comms" },
-  { value: "automated", label: "Automated" },
-  { value: "notes", label: "Notes" },
+  { value: "comms",      label: "Comms" },
+  { value: "automated",  label: "Automated" },
+  { value: "notes",      label: "Notes" },
 ];
 
 function isPortalView(entry: { kind: string; content?: string }) {
@@ -52,79 +43,102 @@ function dotColor(entry: ActivityEntry): string {
   return map[entry.type] ?? "rgba(30,45,74,0.22)";
 }
 
-function CommPill({ entry }: { entry: Extract<ActivityEntry, { kind: "comm" }> }) {
+// ─── Combined comm badge ───────────────────────────────────────────────────────
+
+type BadgeInfo = { label: string; icon: string; bg: string; color: string };
+
+const BADGE_LABELS: Record<string, [string, string]> = {
+  // [outbound, inbound]
+  email:     ["Outbound email",    "Inbound email"],
+  phone:     ["Outbound call",     "Inbound call"],
+  sms:       ["Outbound SMS",      "Inbound SMS"],
+  voicemail: ["Voicemail left",    "Voicemail received"],
+  whatsapp:  ["WhatsApp sent",     "WhatsApp received"],
+  post:      ["Letter sent",       "Letter received"],
+};
+
+const CHANNEL_ICONS: Record<string, string> = {
+  email: "✉", phone: "☎", sms: "💬", voicemail: "📱", whatsapp: "💚", post: "📮",
+};
+
+function getCommBadge(entry: Extract<ActivityEntry, { kind: "comm" }>): BadgeInfo {
   if (entry.isAutomated) {
-    return (
-      <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4, background: "rgba(99,102,241,0.1)", color: "#4f46e5" }}>
-        System email
-      </span>
-    );
+    return { label: "System email", icon: "✉", bg: "rgba(99,102,241,0.1)", color: "#4f46e5" };
   }
-  const styleMap: Record<string, { bg: string; color: string }> = {
-    internal_note: { bg: "rgba(217,119,6,0.1)",  color: "#d97706" },
-    outbound:      { bg: "rgba(255,107,74,0.1)", color: "var(--agent-coral)" },
-    inbound:       { bg: "rgba(16,185,129,0.1)", color: "#059669" },
-  };
-  const labels: Record<string, string> = {
-    internal_note: "Internal",
-    outbound: "→ Outbound",
-    inbound: "← Inbound",
-  };
-  const s = styleMap[entry.type] ?? { bg: "rgba(30,45,74,0.06)", color: "var(--agent-text-muted)" };
+  if (entry.type === "internal_note") {
+    return { label: "Internal note", icon: "📝", bg: "rgba(217,119,6,0.1)", color: "#d97706" };
+  }
+  const isOut = entry.type === "outbound";
+  const bg    = isOut ? "rgba(255,107,74,0.1)"  : "rgba(16,185,129,0.1)";
+  const color = isOut ? "var(--agent-coral)"    : "#059669";
+  const key   = entry.method ?? "email";
+  const [outLabel, inLabel] = BADGE_LABELS[key] ?? ["Outbound", "Inbound"];
+  return { label: isOut ? outLabel : inLabel, icon: CHANNEL_ICONS[key] ?? "•", bg, color };
+}
+
+// ─── Author pill ──────────────────────────────────────────────────────────────
+
+function AuthorPill({ name, role }: { name: string | null; role?: string | null }) {
+  const first = name ? extractFirstName(name) : "System";
+  const isSP = role === "sales_progressor" || role === "admin";
   return (
-    <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4, background: s.bg, color: s.color }}>
-      {labels[entry.type] ?? entry.type}
+    <span style={{
+      fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 10,
+      background: "rgba(15,23,42,0.08)", color: "var(--agent-text-muted)",
+    }}>
+      {isSP ? `${first} · SP` : first}
     </span>
   );
 }
 
+// ─── Contact pill ─────────────────────────────────────────────────────────────
+
+function ContactPill({ name }: { name: string }) {
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 500, padding: "1px 7px", borderRadius: 10,
+      background: "rgba(15,23,42,0.06)", color: "var(--agent-text-muted)",
+    }}>
+      {extractFirstName(name)}
+    </span>
+  );
+}
+
+// ─── Timeline ─────────────────────────────────────────────────────────────────
+
 export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [exitingId, setExitingId] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  const [filter, setFilter] = useState<FilterKind>("all");
-  const [search, setSearch] = useState("");
+  const [exitingId, setExitingId]   = useState<string | null>(null);
+  const [showAll, setShowAll]       = useState(false);
+  const [filter, setFilter]         = useState<FilterKind>("all");
+  const [search, setSearch]         = useState("");
   const [showPortalVisits, setShowPortalVisits] = useState(false);
   const [entriesKey, setEntriesKey] = useState(0);
 
   const portalViewCount = entries.filter(isPortalView).length;
 
   function handleFilter(f: FilterKind) {
-    setFilter(f);
-    setShowAll(false);
-    setEntriesKey((k) => k + 1);
+    setFilter(f); setShowAll(false); setEntriesKey((k) => k + 1);
   }
-
   function handleSearch(q: string) {
-    setSearch(q);
-    setShowAll(false);
-    setEntriesKey((k) => k + 1);
+    setSearch(q); setShowAll(false); setEntriesKey((k) => k + 1);
   }
 
   const filtered = entries.filter((entry) => {
     if (!showPortalVisits && isPortalView(entry)) return false;
-
     if (filter === "milestones" && entry.kind !== "milestone") return false;
-    if (filter === "comms" && (entry.kind !== "comm" || entry.type === "internal_note" || entry.isAutomated)) return false;
-    if (filter === "automated" && (entry.kind !== "comm" || !entry.isAutomated)) return false;
-    if (filter === "notes" && (entry.kind !== "comm" || entry.type !== "internal_note")) return false;
+    if (filter === "comms"      && (entry.kind !== "comm" || entry.type === "internal_note" || entry.isAutomated)) return false;
+    if (filter === "automated"  && (entry.kind !== "comm" || !entry.isAutomated)) return false;
+    if (filter === "notes"      && (entry.kind !== "comm" || entry.type !== "internal_note")) return false;
 
     if (search) {
       const q = search.toLowerCase();
       if (entry.kind === "milestone") {
-        return (
-          entry.milestoneName?.toLowerCase().includes(q) ||
-          (entry.summaryText?.toLowerCase().includes(q) ?? false)
-        );
-      } else {
-        return (
-          entry.content?.toLowerCase().includes(q) ||
-          entry.contactNames?.some((n) => n.toLowerCase().includes(q))
-        );
+        return entry.milestoneName?.toLowerCase().includes(q) || (entry.summaryText?.toLowerCase().includes(q) ?? false);
       }
+      return entry.content?.toLowerCase().includes(q) || entry.contactNames?.some((n) => n.toLowerCase().includes(q));
     }
-
     return true;
   });
 
@@ -192,13 +206,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         </div>
       ) : (
         <div key={entriesKey} className="relative agent-reveal-in">
-          {/* Vertical line — left: 3 centres on the 8px (w-2) dot */}
+          {/* Vertical line */}
           <div className="absolute top-2 bottom-2 w-px" style={{ left: 3, background: "var(--agent-border-default)" }} />
 
           <div className="space-y-2">
             {visible.map((entry, idx) => (
-              <div key={entry.id} className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : ""} ${showAll && idx >= 10 ? "agent-reveal-in" : ""}`}>
-                {/* 8px coloured dot */}
+              <div
+                key={entry.id}
+                className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : ""} ${showAll && idx >= 10 ? "agent-reveal-in" : ""}`}
+              >
+                {/* Coloured dot */}
                 <div className="flex-shrink-0 z-10 mt-3">
                   <div className="w-2 h-2 rounded-full" style={{ background: dotColor(entry) }} />
                 </div>
@@ -206,6 +223,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                 {/* Card */}
                 <div className="flex-1 min-w-0">
                   {entry.kind === "milestone" ? (
+                    // ── Milestone card (unchanged) ──────────────────────────
                     <div style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                         <div className="min-w-0">
@@ -215,11 +233,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               background: entry.isNotRequired ? "var(--agent-surface-glass)" : "rgba(16,185,129,0.1)",
                               color: entry.isNotRequired ? "var(--agent-text-muted)" : "#059669",
                             }}>
-                              {entry.isNotRequired
-                                ? "Skipped"
-                                : entry.confirmedByClient
-                                ? "Confirmed by client"
-                                : "Step confirmed"}
+                              {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
                             </span>
                           </div>
                           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>
@@ -250,41 +264,57 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       </div>
                     </div>
                   ) : (
-                    <div
-                      className="relative group"
-                      style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}
-                    >
-                      <div style={{ display: "flex", gap: 6, marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
-                        <CommPill entry={entry} />
-                        {entry.method && !entry.isAutomated && (
-                          <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-                            {METHOD_LABELS[entry.method] ?? entry.method}
-                          </span>
-                        )}
-                        {entry.contactNames.map((name) => (
-                          <span key={name} style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-                            {extractFirstName(name)}
-                          </span>
-                        ))}
-                      </div>
-                      <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                        {entry.content}
-                      </p>
-                      <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>
-                        {entry.createdByName ? extractFirstName(entry.createdByName) : "System"} · {formatDate(entry.at)}
-                      </p>
-                      {(!currentUserId || entry.createdById === currentUserId) && (
-                        <button
-                          onClick={() => deleteComm(entry.id)}
-                          disabled={deletingId === entry.id || isPending || exitingId === entry.id}
-                          className="agent-icon-btn agent-icon-btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ position: "absolute", top: 8, right: 10 }}
-                          aria-label="Delete"
+                    // ── Comm card ───────────────────────────────────────────
+                    (() => {
+                      const badge = getCommBadge(entry);
+                      return (
+                        <div
+                          className="relative group"
+                          style={{ padding: "10px 14px", background: "var(--agent-surface-glass)", borderRadius: 10, border: "0.5px solid var(--agent-border-default)" }}
                         >
-                          ×
-                        </button>
-                      )}
-                    </div>
+                          {/* Top row: badge + contact pills */}
+                          <div style={{ display: "flex", gap: 5, marginBottom: 5, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 10,
+                              background: badge.bg, color: badge.color,
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                            }}>
+                              <span>{badge.icon}</span>
+                              {badge.label}
+                            </span>
+                            {entry.contactNames.map((name) => (
+                              <ContactPill key={name} name={name} />
+                            ))}
+                          </div>
+
+                          {/* Content */}
+                          <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
+                            {entry.content}
+                          </p>
+
+                          {/* Footer: author pill + timestamp */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                            <AuthorPill name={entry.createdByName} role={entry.createdByRole} />
+                            <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+                              {formatTimestamp(entry.at)}
+                            </span>
+                          </div>
+
+                          {/* Delete */}
+                          {(!currentUserId || entry.createdById === currentUserId) && (
+                            <button
+                              onClick={() => deleteComm(entry.id)}
+                              disabled={deletingId === entry.id || isPending || exitingId === entry.id}
+                              className="agent-icon-btn agent-icon-btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ position: "absolute", top: 8, right: 10 }}
+                              aria-label="Delete"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               </div>
