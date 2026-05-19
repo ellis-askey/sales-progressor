@@ -96,7 +96,12 @@ export function ExchangeCelebration({ address, onDismiss }: Props) {
 
       {/* Modal card */}
       <div
-        className="relative z-10 bg-white rounded-3xl max-w-sm w-full px-8 py-10 shadow-2xl text-center agent-modal-in--celebrate"
+        className="relative z-10 rounded-3xl max-w-sm w-full px-8 py-10 text-center agent-modal-in--celebrate"
+        style={{
+          background: "var(--agent-surface-elevated)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+        }}
       >
         {/* Star icon */}
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shadow-lg">
