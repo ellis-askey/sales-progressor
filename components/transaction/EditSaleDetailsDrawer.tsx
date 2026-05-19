@@ -118,7 +118,7 @@ function UnsavedChangesModal({ sections, onSaveAll, onDiscard, onKeepEditing }: 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)" }} onClick={onKeepEditing} />
-      <div style={{ position: "relative", zIndex: 1, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 16, maxWidth: 360, width: "100%", padding: "24px", borderTop: "2px solid #f59e0b", boxShadow: "0 20px 60px rgba(0,0,0,0.22)", animation: "agent-modal-in 200ms ease-out both" }}>
+      <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 360, width: "100%", padding: "24px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: "0 0 8px" }}>Unsaved changes</h3>
         <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", marginBottom: 12, lineHeight: 1.5 }}>
           {sections.length === 1 ? "The following section has unsaved changes:" : "The following sections have unsaved changes:"}
@@ -561,7 +561,7 @@ export function EditSaleDetailsDrawer({
   // ── Render ───────────────────────────────────────────────────────────────
 
   return createPortal(
-    <div data-theme={theme} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", justifyContent: "flex-end" }}>
+    <div data-theme={theme} style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", justifyContent: "flex-end" }}>
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={handleClose} />
 
