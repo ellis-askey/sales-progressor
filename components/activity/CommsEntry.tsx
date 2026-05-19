@@ -113,6 +113,8 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
         {/* Note */}
         <button
           onClick={() => selectChannel("note")}
+          onMouseEnter={(e) => { if (channel !== "note") { e.currentTarget.style.color = "var(--agent-text-primary)"; e.currentTarget.style.background = "rgba(15,23,42,0.06)"; } }}
+          onMouseLeave={(e) => { if (channel !== "note") { e.currentTarget.style.color = "var(--agent-text-muted)"; e.currentTarget.style.background = "var(--agent-surface-glass)"; } }}
           style={{
             fontSize: 12, fontWeight: 600, padding: "4px 11px", borderRadius: 7,
             border: "none", cursor: "pointer",
@@ -132,6 +134,8 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
           <button
             key={ch.value}
             onClick={() => selectChannel(ch.value)}
+            onMouseEnter={(e) => { if (channel !== ch.value) { e.currentTarget.style.color = "var(--agent-text-primary)"; e.currentTarget.style.background = "rgba(15,23,42,0.06)"; } }}
+            onMouseLeave={(e) => { if (channel !== ch.value) { e.currentTarget.style.color = "var(--agent-text-muted)"; e.currentTarget.style.background = "var(--agent-surface-glass)"; } }}
             style={{
               fontSize: 12, fontWeight: 600, padding: "4px 11px", borderRadius: 7,
               border: "none", cursor: "pointer",
@@ -148,6 +152,8 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
         <div ref={overflowRef} style={{ position: "relative" }}>
           <button
             onClick={() => setShowOverflow((v) => !v)}
+            onMouseEnter={(e) => { if (channel !== "voicemail" && channel !== "post") { e.currentTarget.style.color = "var(--agent-text-primary)"; e.currentTarget.style.background = "rgba(15,23,42,0.06)"; } }}
+            onMouseLeave={(e) => { if (channel !== "voicemail" && channel !== "post") { e.currentTarget.style.color = "var(--agent-text-muted)"; e.currentTarget.style.background = "var(--agent-surface-glass)"; } }}
             style={{
               fontSize: 12, fontWeight: 500, padding: "4px 10px", borderRadius: 7,
               border: "none", cursor: "pointer",

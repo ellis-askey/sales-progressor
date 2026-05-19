@@ -38,6 +38,13 @@ async function logAutomatedEmail(
   subject: string,
   bodyPlain: string,
 ): Promise<void> {
+  const stripped = bodyPlain
+    .split("\n")
+    .filter((line) => !line.includes("/portal/"))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
   await prisma.outboundMessage.create({
     data: {
       transactionId,
@@ -45,7 +52,7 @@ async function logAutomatedEmail(
       method: "email",
       isAutomated: true,
       contactIds,
-      content: `Subject: ${subject}\n\n${bodyPlain}`,
+      content: `Subject: ${subject}\n\n${stripped}`,
       createdById: null,
     },
   });
