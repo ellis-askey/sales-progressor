@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
       inviteStatus: true,
       transactionId: true,
       stubPropertyAddress: true,
+      createdByUserId: true,
       chain: {
         select: {
           createdBy: { select: { name: true } },
@@ -60,6 +61,17 @@ export async function GET(req: NextRequest) {
     where: { id: link.id },
     data: { inviteStatus: "DECLINED", inviteDeclinedAt: new Date() },
   });
+
+  // Notify the originator via in-app notification field
+  if (link.createdByUserId) {
+    await prisma.user.update({
+      where: { id: link.createdByUserId },
+      data: {
+        chainDeclineNotificationAddress: link.stubPropertyAddress ?? "a sale",
+        chainDeclineNotificationAt: new Date(),
+      },
+    }).catch((err) => console.error("Failed to set chain decline notification:", err));
+  }
 
   const originatorName = link.chain.createdBy?.name ?? "the inviting agent";
 

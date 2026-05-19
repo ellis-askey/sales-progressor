@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
+import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
 import { getAgentTheme, getMobileAgentTheme, getNightMode } from "@/lib/agent/themes";
@@ -21,7 +22,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { hasSeenAgentWelcome: true, agentPreferences: true },
+    select: { hasSeenAgentWelcome: true, agentPreferences: true, chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
   });
 
   // Welcome modal is agent-onboarding-specific — suppress for internal staff.
@@ -31,10 +32,19 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
 
+  const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
+
   return (
     <div data-theme={theme} style={{ display: "contents" }}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref}>{children}</AgentShell>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref}>
+          {chainDeclineNotif && (
+            <div style={{ padding: "16px 24px 0" }}>
+              <ChainDeclineBanner address={chainDeclineNotif} />
+            </div>
+          )}
+          {children}
+        </AgentShell>
         {!isInternalStaff && <FeedbackWidget checklistAware userId={session.user.id} />}
         <AgentInstallPrompt />
       </AgentToaster>

@@ -84,6 +84,10 @@ model User {
   directorJoinedNotificationName String?
   directorJoinedNotificationAt   DateTime?
 
+  // In-app notification: originator sees this when a chain invite they sent is declined
+  chainDeclineNotificationAddress String?
+  chainDeclineNotificationAt      DateTime?
+
   emailVerified        DateTime?
   image                String?
   accounts             Account[]
