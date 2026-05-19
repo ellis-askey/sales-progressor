@@ -13,6 +13,7 @@ type LinkForInvite = {
   stubPropertyAddress: string | null;
   stubAgencyName: string | null;
   inviteStatus: string;
+  inviteResendCount: number;
   chain: {
     createdByUserId: string | null;
     links: Array<{
@@ -36,11 +37,15 @@ export async function sendChainInvite(input: SendChainInviteInput): Promise<void
   if (!link.stubAgentEmail) throw new Error("No email on stub — cannot send invite");
 
   const token = crypto.randomBytes(32).toString("hex");
+  const isResend = link.inviteResendCount > 0;
+  const expiryDays = isResend ? 14 : 7;
+  const inviteTokenExpiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
   await prisma.chainLink.update({
     where: { id: link.id },
     data: {
       inviteToken: token,
+      inviteTokenExpiresAt,
       inviteStatus: "SENT",
       inviteSentAt: new Date(),
       lastInviteSentByUserId: sentByUserId,

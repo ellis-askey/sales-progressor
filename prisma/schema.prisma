@@ -781,13 +781,14 @@ model ChainLink {
   stubNotes           String?
 
   // Invite tracking
-  inviteStatus           InviteStatus @default(NOT_SENT)
-  inviteToken            String?      @unique
-  inviteSentAt           DateTime?
-  inviteBouncedAt        DateTime?
-  inviteDeclinedAt       DateTime?
-  inviteResendCount      Int          @default(0)
-  lastInviteSentByUserId String?
+  inviteStatus            InviteStatus @default(NOT_SENT)
+  inviteToken             String?      @unique
+  inviteTokenExpiresAt    DateTime?
+  inviteSentAt            DateTime?
+  inviteBouncedAt         DateTime?
+  inviteDeclinedAt        DateTime?
+  inviteResendCount       Int          @default(0)
+  lastInviteSentByUserId  String?
 
   // Deferred (v1.1)
   withdrawalStatus      ChainWithdrawalStatus?

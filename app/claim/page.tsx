@@ -34,6 +34,7 @@ export default async function ClaimPage({
     select: {
       id: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
       transactionId: true,
       inviteSentAt: true,
       stubPropertyAddress: true,
@@ -62,6 +63,7 @@ export default async function ClaimPage({
   if (!link) return <ErrorPage title="Invalid link" body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite." />;
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED") return <ErrorPage title="Already claimed" body="This chain link has already been claimed. If you believe this is a mistake, contact support." />;
   if (link.inviteStatus === "DECLINED") return <ErrorPage title="Invite declined" body="This invite was declined. Contact the inviting agent if you'd like to be re-invited." />;
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) return <ErrorPage title="Invite expired" body="This invite link has expired. Contact the inviting agent to request a fresh invite." />;
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;

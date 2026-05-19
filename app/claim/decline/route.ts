@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
       transactionId: true,
       stubPropertyAddress: true,
       createdByUserId: true,
@@ -47,6 +48,13 @@ export async function GET(req: NextRequest) {
     return html(
       `<h1>Already claimed</h1><p>This chain link has already been claimed. If you believe this is a mistake, contact <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a></p>`,
       "Already claimed",
+    );
+  }
+
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) {
+    return html(
+      `<h1>Invite expired</h1><p>This invite link has expired. Contact the inviting agent to request a fresh invite.</p>`,
+      "Invite expired",
     );
   }
 

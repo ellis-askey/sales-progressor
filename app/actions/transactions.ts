@@ -205,6 +205,7 @@ export async function createTransactionAction(input: {
               stubPropertyAddress: link.stubPropertyAddress,
               stubAgencyName: link.stubAgencyName,
               inviteStatus: link.inviteStatus,
+              inviteResendCount: 0,
               chain: {
                 createdByUserId: createdChain.createdByUserId,
                 links: createdChain.links.map((l) => ({

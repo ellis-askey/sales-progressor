@@ -27,6 +27,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       stubPropertyAddress: true,
       stubAgencyName: true,
       inviteStatus: true,
+      inviteResendCount: true,
       chain: {
         select: {
           createdByUserId: true,
