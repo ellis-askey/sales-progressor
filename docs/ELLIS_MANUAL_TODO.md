@@ -8,6 +8,20 @@ Last updated: 2026-05-20
 
 ---
 
+## 🚨 BLOCKER — Email Arc production launch gate
+
+**`drain-outbound-email` cron MUST run at least hourly before the Email Arc goes live in production. Currently set to daily (`0 9 * * *`) as a temporary workaround for Vercel Hobby plan's daily-cron limitation. Daily drain delays exchange/completion/celebration emails by up to 23 hours from the milestone event, defeating the operational purpose of the arc.**
+
+Decision required before any production deploy of the Email Arc. Options:
+
+- **(a) Upgrade Vercel to Pro (~$20/mo)** — revert both crons in `vercel.json` to `0 * * * *`. Cleanest, native solution. **Recommended.**
+- **(b) External hourly cron service** (cron-job.org, EasyCron, or a GitHub Actions scheduled workflow) hitting `https://portal.thesalesprogressor.co.uk/api/cron/drain-outbound-email` with `Authorization: Bearer <CRON_SECRET>` once per hour. Free but adds an external dependency to a critical email pipeline.
+- **(c) Accept daily latency** — NOT recommended. A vendor exchanging contracts at 10am Monday wouldn't get their chain mates notified until 9am Tuesday. The arc's "operational visibility" promise is broken.
+
+This is a hard gate on the Email Arc going live in production, not a soft optimization. Withdrawal emails are unaffected (they fire synchronously at withdrawal time — the queue is only a fallback for them). Decline notifications are unaffected (also synchronous). Only exchange / completion / celebration emails are degraded by daily drain — and those are the most consequential of the six email types.
+
+---
+
 ## Email Arc — schema migration (apply before Commit 2 deploys)
 
 Migration file: `prisma/migrations/20260520000001_email_arc_schema/migration.sql`
