@@ -33,6 +33,7 @@ import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ChainClaimedNotice } from "@/components/transaction/ChainClaimedNotice";
+import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
@@ -43,7 +44,7 @@ export default async function AgentTransactionDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; chainSetupFailed?: string }>;
 }) {
   const [{ id }, { tab: initialTab }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
@@ -409,6 +410,7 @@ export default async function AgentTransactionDetailPage({
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ChainClaimedNotice /></Suspense>
+      <Suspense><ChainSetupFailedBanner /></Suspense>
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
@@ -452,7 +454,7 @@ export default async function AgentTransactionDetailPage({
           <RemindersWidget reminders={topReminders} totalActive={overdueCount} />
           <RecentActivityWidget entries={activityEntries} />
 
-          <div className="glass-card overflow-hidden rounded-[12px]">
+          <div id="chain-section" className="glass-card overflow-hidden rounded-[12px]">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
               <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
               <ViewChainButton

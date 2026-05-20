@@ -797,11 +797,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           : undefined,
       });
 
-      if (result.chainFailed) {
-        toast.warning("File saved — chain couldn't be set up. Open the file to add it.");
-      }
       const qs = result.mosAutoConfirmed ? "?mosConfirmed=1" : "?newFile=1";
-      router.push(`/agent/transactions/${result.id}${qs}`);
+      const chainParam = result.chainFailed ? "&chainSetupFailed=1" : "";
+      router.push(`/agent/transactions/${result.id}${qs}${chainParam}`);
     } catch (err) {
       setIsSubmitting(false);
       const error = err as Error & { duplicateId?: string; assignedTo?: string | null };
