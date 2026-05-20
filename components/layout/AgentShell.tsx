@@ -188,7 +188,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const navGroups   = buildNavGroups(role);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
-  const recentlyViewed = useRecentlyViewed(5);
+  const recentlyViewed = useRecentlyViewed(5, session.user.id);
   const { setNightMode } = useAgentNightMode();
   const [nightOn, setNightOn] = useState(() => nightModePref ?? isNightTimeNow());
 

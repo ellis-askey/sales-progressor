@@ -410,7 +410,7 @@ export default async function AgentTransactionDetailPage({
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
-      <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} />
+      <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
