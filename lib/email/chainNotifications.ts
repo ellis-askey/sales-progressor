@@ -397,6 +397,131 @@ export async function enqueueChainMilestoneNotifications(
   }
 }
 
+// ─── Celebration ──────────────────────────────────────────────────────────────
+
+export function buildCelebrationEmailPayload({
+  unsubscribeUrl,
+}: {
+  unsubscribeUrl: string;
+}): { subject: string; text: string; html: string } {
+  const subject = `Your chain has completed`;
+
+  const text = [
+    `Every sale in your chain has completed.`,
+    ``,
+    `—`,
+    `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
+    `Need help? support@thesalesprogressor.co.uk`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">Your chain has completed</h1>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0;">Every sale in your chain has completed.</p>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+// Checks if all claimed links in the chain have VM20 or PM27 complete, then
+// enqueues one celebration email per claimed agent (guarded by celebrationSentAt).
+// Called fire-and-forget from completeMilestone on VM20/PM27.
+export async function maybeEnqueueCelebration(transactionId: string): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLinkId: true },
+  });
+  if (!tx?.chainLinkId) return;
+
+  const thisLink = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { chainId: true },
+  });
+  if (!thisLink) return;
+
+  const chainId = thisLink.chainId;
+
+  // Guard: only send once per chain
+  const chain = await prisma.propertyChain.findUnique({
+    where: { id: chainId },
+    select: { celebrationSentAt: true },
+  });
+  if (chain?.celebrationSentAt != null) return;
+
+  // Check all claimed links have VM20 or PM27 complete
+  const claimedLinks = await prisma.chainLink.findMany({
+    where: { chainId, inviteStatus: "CLAIMED", transactionId: { not: null } },
+    select: {
+      claimedByUserId: true,
+      claimedBy: { select: { email: true } },
+      transaction: {
+        select: {
+          milestoneCompletions: {
+            where: {
+              state: "complete",
+              milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
+            },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (claimedLinks.length === 0) return;
+
+  const allCompleted = claimedLinks.every(
+    (l) => (l.transaction?.milestoneCompletions?.length ?? 0) > 0,
+  );
+  if (!allCompleted) return;
+
+  // Claim the celebrationSentAt guard atomically to prevent duplicate sends
+  const updated = await prisma.propertyChain.updateMany({
+    where: { id: chainId, celebrationSentAt: null },
+    data: { celebrationSentAt: new Date() },
+  });
+  if (updated.count === 0) return; // Another concurrent call already claimed it
+
+  // Enqueue one celebration email per claimed agent
+  const notifiable = claimedLinks.filter((l) => l.claimedByUserId && l.claimedBy?.email);
+
+  for (const link of notifiable) {
+    const suppressed = await isUserEmailSuppressed(link.claimedByUserId!);
+    if (suppressed) {
+      console.log(`[EMAIL_SKIP] type=CELEBRATION userId=${link.claimedByUserId} reason=unsubscribed`);
+      continue;
+    }
+
+    const unsubscribeUrl = buildUserUnsubscribeUrl(link.claimedByUserId!);
+    const payload = buildCelebrationEmailPayload({ unsubscribeUrl });
+
+    await enqueueEmail({
+      emailType: "CELEBRATION",
+      sourceId: chainId,
+      recipientEmail: link.claimedBy!.email!,
+      recipientUserId: link.claimedByUserId!,
+      payload: { ...payload, unsubscribeUrl },
+    });
+  }
+
+  console.log(`[CELEBRATION_QUEUED] chain=${chainId} recipients=${notifiable.length}`);
+}
+
 // ─── Decline notification ──────────────────────────────────────────────────────
 
 // Sends a decline notification to the chain originator. Called synchronously from the decline page.
