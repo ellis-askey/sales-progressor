@@ -8,6 +8,7 @@ import { getActivityTimeline } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
+import { toUKDateStr } from "@/lib/utils";
 import { calculateProgress, detectPhase } from "@/lib/services/fees";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
@@ -179,8 +180,8 @@ export default async function AgentTransactionDetailPage({
     }))
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
   const now = new Date();
+  const todayUKStr = toUKDateStr(now);
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
   const activeReminderCount = activeReminders.filter((l) =>
@@ -189,16 +190,14 @@ export default async function AgentTransactionDetailPage({
 
   const overdueCount = activeReminders.filter((l) => {
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
-    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due <= today;
+    return toUKDateStr(l.nextDueDate) <= todayUKStr;
   }).length;
 
   const reminderBadgeCount = reminderLogs.filter((l) => {
     if (l.status !== "active") return false;
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
     if (l.chaseTasks.some((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")) return true;
-    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due <= today;
+    return toUKDateStr(l.nextDueDate) <= todayUKStr;
   }).length;
 
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
@@ -236,8 +235,8 @@ export default async function AgentTransactionDetailPage({
     );
     if (completionMilestone) {
       if (transaction?.completionDate) {
-        const cd = new Date(transaction.completionDate); cd.setHours(0, 0, 0, 0);
-        if (cd > today) return { state: "completionPending", completionDate: cd };
+        const cd = new Date(transaction.completionDate);
+        if (toUKDateStr(cd) > todayUKStr) return { state: "completionPending", completionDate: cd };
       }
       return { state: "hasNext", milestone: { id: completionMilestone.id, name: completionMilestone.name, code: completionMilestone.code, eventDateRequired: completionMilestone.eventDateRequired } };
     }

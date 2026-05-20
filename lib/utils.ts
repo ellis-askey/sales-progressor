@@ -191,11 +191,14 @@ export function relativeDate(date: Date | string): string {
   return `${Math.floor(diffDays / 30)} months ago`;
 }
 
-/** Days until a future date (negative = past) */
+/** Returns "YYYY-MM-DD" in Europe/London timezone — timezone-safe for UK comparisons */
+export function toUKDateStr(date: Date | string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(date));
+}
+
+/** Days until a future date (negative = past), compared in Europe/London timezone */
 export function daysUntil(date: Date | string): number {
-  const now = new Date();
-  const d = new Date(date);
-  now.setHours(0, 0, 0, 0);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - now.getTime()) / 86400000);
+  const todayStr = toUKDateStr(new Date());
+  const dueStr = toUKDateStr(new Date(date));
+  return Math.round((new Date(dueStr).getTime() - new Date(todayStr).getTime()) / 86400000);
 }

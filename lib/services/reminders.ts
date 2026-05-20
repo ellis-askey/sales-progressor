@@ -6,6 +6,7 @@ import type { Prisma, ReminderLogStatus, ChaseTaskStatus, TaskPriority } from "@
 import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
+import { toUKDateStr } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,10 +75,9 @@ export async function getReminderLogsForTransaction(
     },
   }) as ReminderLogWithRule[];
 
-  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const todayUKStr = toUKDateStr(new Date());
   const dueWithNoTask = logs.filter((l) => {
-    const dueDay = new Date(l.nextDueDate); dueDay.setHours(0, 0, 0, 0);
-    return l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && dueDay <= todayMidnight;
+    return l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && toUKDateStr(l.nextDueDate) <= todayUKStr;
   });
   if (dueWithNoTask.length > 0) {
     await Promise.all(
@@ -141,10 +141,9 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     orderBy: { nextDueDate: "asc" },
   });
 
-  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const todayUKStr = toUKDateStr(new Date());
   const dueWithNoTask = logs.filter((l) => {
-    const dueDay = new Date(l.nextDueDate); dueDay.setHours(0, 0, 0, 0);
-    return l.chaseTasks.length === 0 && dueDay <= todayMidnight;
+    return l.chaseTasks.length === 0 && toUKDateStr(l.nextDueDate) <= todayUKStr;
   });
   if (dueWithNoTask.length > 0) {
     await Promise.all(
@@ -222,7 +221,8 @@ export async function evaluateTransactionReminders(transactionId: string) {
   });
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
+  const todayUKStr = toUKDateStr(today);
 
   for (const rule of rules) {
     // Exchange-gated: skip if not ready
@@ -322,8 +322,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
         });
       }
     } else {
-      const logDueDay = new Date(log.nextDueDate); logDueDay.setHours(0, 0, 0, 0);
-      if (logDueDay <= today) {
+      if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
         await prisma.chaseTask.create({
           data: {
             transactionId,
@@ -364,14 +363,11 @@ export async function createInitialRemindersInline(
 
   if (eligibleRules.length === 0) return;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   await prisma.reminderLog.createMany({
     data: eligibleRules.map((rule) => {
       const dueDate = new Date(createdAt);
       dueDate.setDate(dueDate.getDate() + rule.graceDays);
-      dueDate.setHours(0, 0, 0, 0);
+      dueDate.setUTCHours(0, 0, 0, 0);
       return {
         transactionId,
         reminderRuleId: rule.id,
@@ -387,7 +383,8 @@ export async function createInitialRemindersInline(
     select: { id: true, nextDueDate: true },
   });
 
-  const dueLogs = logs.filter((l) => l.nextDueDate <= today);
+  const nowUKStr = toUKDateStr(new Date());
+  const dueLogs = logs.filter((l) => toUKDateStr(l.nextDueDate) <= nowUKStr);
   if (dueLogs.length === 0) return;
 
   await prisma.chaseTask.createMany({
@@ -442,7 +439,7 @@ export async function runReminderEngine(agencyId?: string, assignedUserId?: stri
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
-  result.setHours(0, 0, 0, 0);
+  result.setUTCHours(0, 0, 0, 0);
   return result;
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toUKDateStr } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import type { Contact } from "@/components/reminders/ReminderCard";
@@ -74,13 +74,13 @@ function stripChase(name: string) {
   return name.replace(/^Chase:\s*/i, "");
 }
 
-function classifyActive(log: ReminderLog, today: Date): UrgencyGroup {
+function classifyActive(log: ReminderLog, todayStr: string): UrgencyGroup {
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
   if (openTask?.priority === "escalated") return "escalated";
-  const due = new Date(log.nextDueDate); due.setHours(0, 0, 0, 0);
-  const taskDue = openTask ? (() => { const d = new Date(openTask.dueDate); d.setHours(0, 0, 0, 0); return d; })() : null;
-  if (due < today || (taskDue && taskDue < today)) return "overdue";
-  if (due.getTime() === today.getTime()) return "due_today";
+  const dueStr = toUKDateStr(log.nextDueDate);
+  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
+  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
+  if (dueStr === todayStr) return "due_today";
   return "upcoming";
 }
 
@@ -325,7 +325,7 @@ export function RemindersSection({
   });
 
   const now = new Date();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(now);
 
   const activeLogs = reminderLogs.filter((l) =>
     l.status === "active" && !(l.snoozedUntil && new Date(l.snoozedUntil) > now)
@@ -339,7 +339,7 @@ export function RemindersSection({
 
   const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
   for (const log of activeLogs) {
-    grouped[classifyActive(log, today)].push(log);
+    grouped[classifyActive(log, todayStr)].push(log);
   }
 
   function act(id: string, fn: () => Promise<unknown>) {
