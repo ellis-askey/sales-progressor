@@ -79,6 +79,7 @@ model User {
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
 
   retentionEmailOptOut    Boolean   @default(false)
+  emailUnsubscribedAt     DateTime?
 
   // In-app notification: negotiator sees this when their invited director accepts
   directorJoinedNotificationName String?
@@ -749,6 +750,7 @@ model PropertyChain {
   createdByUserId String?
   status          ChainStatus      @default(ACTIVE)
   holdStatus      ChainHoldStatus?
+  celebrationSentAt DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -786,6 +788,7 @@ model ChainLink {
   inviteTokenExpiresAt    DateTime?
   inviteSentAt            DateTime?
   inviteBouncedAt         DateTime?
+  inviteUnsubscribedAt    DateTime?
   inviteDeclinedAt        DateTime?
   inviteResendCount       Int          @default(0)
   lastInviteSentByUserId  String?
@@ -830,6 +833,29 @@ model ChainNotificationQueue {
   @@unique([withdrawingTransactionId, recipientUserId])
   @@index([notifiedAt])
   @@index([withdrawingTransactionId])
+}
+
+// ─── OutboundEmailQueue ───────────────────────────────────────────────────────
+// Quiet-hours scheduling for milestone and celebration emails.
+// Records are enqueued with scheduledFor = now() (business hours) or next window.
+// Cron drain processes sentAt IS NULL AND scheduledFor <= now().
+// recipientUserId is required: only claimed agents receive these emails (Model A).
+
+model OutboundEmailQueue {
+  id              String    @id @default(cuid())
+  emailType       String    // "EXCHANGE" | "COMPLETION" | "CELEBRATION"
+  sourceId        String    // chainLinkId (exchange/completion) or chainId (celebration)
+  recipientEmail  String
+  recipientUserId String
+  payload         Json      // serialised at enqueue time; drain needs no extra DB queries
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  errorAt         DateTime?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+
+  @@unique([emailType, sourceId, recipientUserId])
+  @@index([sentAt, scheduledFor])
 }
 
 // ─── DirectorInvitation ───────────────────────────────────────────────────────

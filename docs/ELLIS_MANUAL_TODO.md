@@ -4,7 +4,46 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-10
+Last updated: 2026-05-20
+
+---
+
+## Email Arc — schema migration (apply before Commit 2 deploys)
+
+Migration file: `prisma/migrations/20260520000001_email_arc_schema/migration.sql`
+
+Adds four things: `User.emailUnsubscribedAt`, `ChainLink.inviteUnsubscribedAt`, `PropertyChain.celebrationSentAt`, and the new `OutboundEmailQueue` table. All additive, no data loss risk.
+
+```bash
+# Set DATABASE_URL to STAGING direct connection URL (not pooler)
+DATABASE_URL="postgres://postgres:..." npx prisma migrate deploy
+```
+
+Verify on staging:
+- [ ] `User` table has `emailUnsubscribedAt` column (nullable, no default)
+- [ ] `ChainLink` table has `inviteUnsubscribedAt` column (nullable, no default)
+- [ ] `PropertyChain` table has `celebrationSentAt` column (nullable, no default)
+- [ ] `OutboundEmailQueue` table exists with correct columns and indexes
+- [ ] No errors in Supabase SQL editor after running
+
+Once verified on staging, apply to production:
+```bash
+# Set DATABASE_URL to PRODUCTION direct connection URL
+DATABASE_URL="postgres://postgres:..." npx prisma migrate deploy
+```
+
+---
+
+## Email Arc — manual setup required before Stage 2 deploys
+
+These must be in place before Stage 2 (implementation) starts. Stage 2 references the SendGrid group ID and DNS records.
+
+- [ ] **SendGrid unsubscribe group** — log in to SendGrid → Email API → Unsubscribe Groups → Create Group. Name it "Sales Progressor chain emails". Copy the numeric Group ID and add it here: `SENDGRID_UNSUBSCRIBE_GROUP_ID=______`. Stage 2 needs this value as an env var.
+- [ ] **Authenticated sending domain (`mail.thesalesprogressor.co.uk`)** — in SendGrid: Settings → Sender Authentication → Authenticate a Domain → enter `mail.thesalesprogressor.co.uk`. SendGrid generates three CNAME records. Add all three at your DNS registrar.
+- [ ] **SPF record** — add `include:sendgrid.net` to the SPF record on `mail.thesalesprogressor.co.uk` (SendGrid's domain auth wizard generates the exact record).
+- [ ] **DMARC record** — add a TXT record to `_dmarc.thesalesprogressor.co.uk`: `v=DMARC1; p=none; rua=mailto:dmarc@thesalesprogressor.co.uk`. Also ensure `dmarc@thesalesprogressor.co.uk` routes to a monitored inbox (can be the same as `support@` initially). After 4 weeks of clean reports, escalate to `p=quarantine`.
+- [ ] **`UNSUBSCRIBE_SECRET` env var** — generate a random 32-byte secret (`openssl rand -base64 32`) and add as `UNSUBSCRIBE_SECRET` in Vercel production + staging + local `.env`. Stage 2 needs this for token signing.
+- [ ] **DNS propagation check** — after adding records, verify with `dig TXT _dmarc.thesalesprogressor.co.uk` and SendGrid's built-in domain verification. Do not deploy Stage 2 before SendGrid confirms domain authentication is active.
 
 ---
 
