@@ -156,3 +156,103 @@ export async function fireWithdrawalNotifications(): Promise<{
 
   return { sent, skipped, failed };
 }
+
+// ─── Decline notification ──────────────────────────────────────────────────────
+
+export function buildDeclineEmailPayload({
+  stubAgentEmail,
+  stubAddress,
+  originatorTransactionId,
+  unsubscribeUrl,
+}: {
+  stubAgentEmail: string;
+  stubAddress: string;
+  originatorTransactionId: string | null;
+  unsubscribeUrl: string;
+}): { subject: string; text: string; html: string } {
+  const subject = `${stubAgentEmail} declined your invite — ${stubAddress}`;
+  const ctaUrl = originatorTransactionId
+    ? `${portalBase()}/agent/transactions/${originatorTransactionId}`
+    : `${portalBase()}/agent/hub`;
+
+  const text = [
+    `The agent at ${stubAgentEmail} declined your invite for ${stubAddress}.`,
+    `Open the chain to update their details and resend, or remove them from the chain.`,
+    ``,
+    `Open chain: ${ctaUrl}`,
+    ``,
+    `—`,
+    `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
+    `Need help? support@thesalesprogressor.co.uk`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(stubAgentEmail)} declined your invite — ${escapeHtml(stubAddress)}</h1>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">The agent at ${escapeHtml(stubAgentEmail)} declined your invite for ${escapeHtml(stubAddress)}.</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to update their details and resend, or remove them from the chain.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+            <tr><td style="border-radius:8px;background:#FF6B4A;">
+              <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open chain</a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+// Sends a decline notification to the chain originator. Called synchronously from the decline page.
+// No queue — fire once, no retry.
+export async function fireDeclineNotification({
+  chainId,
+  createdByUserId,
+  stubAgentEmail,
+  stubAddress,
+}: {
+  chainId: string;
+  createdByUserId: string;
+  stubAgentEmail: string;
+  stubAddress: string;
+}): Promise<void> {
+  // Fetch originator user — check suppression and get their email
+  const originator = await prisma.user.findUnique({
+    where: { id: createdByUserId },
+    select: { email: true, emailUnsubscribedAt: true },
+  });
+  if (!originator?.email || originator.emailUnsubscribedAt != null) {
+    console.log(`[EMAIL_SKIP] type=DECLINE userId=${createdByUserId} reason=${originator?.emailUnsubscribedAt ? "unsubscribed" : "no-email"}`);
+    return;
+  }
+
+  // Find the originator's own transaction in this chain
+  const originatorLink = await prisma.chainLink.findFirst({
+    where: { chainId, claimedByUserId: createdByUserId, transactionId: { not: null } },
+    select: { transactionId: true },
+  });
+
+  const unsubscribeUrl = buildUserUnsubscribeUrl(createdByUserId);
+  const { subject, text, html } = buildDeclineEmailPayload({
+    stubAgentEmail,
+    stubAddress,
+    originatorTransactionId: originatorLink?.transactionId ?? null,
+    unsubscribeUrl,
+  });
+
+  await sendChainEmail({ to: originator.email, subject, text, html });
+  console.log(`[EMAIL_SENT] type=DECLINE to=${originator.email}`);
+}

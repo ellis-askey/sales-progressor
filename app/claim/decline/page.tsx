@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { fireDeclineNotification } from "@/lib/email/chainNotifications";
 import "../styles/claim-flow.css";
 
 // Performs the decline on page load (side effect in server component, mirrors
@@ -45,10 +46,12 @@ export default async function ClaimDeclinePage({
     where: { inviteToken: token },
     select: {
       id: true,
+      chainId: true,
       inviteStatus: true,
       inviteTokenExpiresAt: true,
       transactionId: true,
       stubPropertyAddress: true,
+      stubAgentEmail: true,
       createdByUserId: true,
       chain: {
         select: {
@@ -183,6 +186,15 @@ export default async function ClaimDeclinePage({
         },
       })
       .catch((err) => console.error("Failed to set chain decline notification:", err));
+
+    if (link.stubAgentEmail) {
+      await fireDeclineNotification({
+        chainId: link.chainId,
+        createdByUserId: link.createdByUserId,
+        stubAgentEmail: link.stubAgentEmail,
+        stubAddress: link.stubPropertyAddress ?? "a sale",
+      }).catch((err) => console.error("Failed to send decline notification email:", err));
+    }
   }
 
   const expiryDate = link.inviteTokenExpiresAt
