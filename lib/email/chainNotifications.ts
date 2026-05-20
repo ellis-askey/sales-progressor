@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, isUserEmailSuppressed } from "@/lib/email";
 import { buildUserUnsubscribeUrl } from "@/lib/email/unsubscribe";
+import { enqueueEmail } from "@/lib/email/outboundQueue";
 
 function escapeHtml(s: string): string {
   return s
@@ -215,6 +216,188 @@ export function buildDeclineEmailPayload({
 
   return { subject, text, html };
 }
+
+// ─── Exchange notification ─────────────────────────────────────────────────────
+
+export function buildExchangeEmailPayload({
+  exchangedAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: {
+  exchangedAddress: string;
+  recipientTransactionId: string | null;
+  unsubscribeUrl: string;
+}): { subject: string; text: string; html: string } {
+  const subject = `${exchangedAddress} has exchanged — chain update`;
+  const ctaUrl = recipientTransactionId
+    ? `${portalBase()}/agent/transactions/${recipientTransactionId}`
+    : `${portalBase()}/agent/hub`;
+
+  const text = [
+    `${exchangedAddress} has exchanged contracts.`,
+    `Open the chain to see what this means for yours.`,
+    ``,
+    `Open chain: ${ctaUrl}`,
+    ``,
+    `—`,
+    `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
+    `Need help? support@thesalesprogressor.co.uk`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(exchangedAddress)} has exchanged — chain update</h1>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(exchangedAddress)} has exchanged contracts.</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to see what this means for yours.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+            <tr><td style="border-radius:8px;background:#FF6B4A;">
+              <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open chain</a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+// ─── Completion notification ───────────────────────────────────────────────────
+
+export function buildCompletionEmailPayload({
+  completedAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: {
+  completedAddress: string;
+  recipientTransactionId: string | null;
+  unsubscribeUrl: string;
+}): { subject: string; text: string; html: string } {
+  const subject = `${completedAddress} has completed — chain update`;
+  const ctaUrl = recipientTransactionId
+    ? `${portalBase()}/agent/transactions/${recipientTransactionId}`
+    : `${portalBase()}/agent/hub`;
+
+  const text = [
+    `${completedAddress} has completed.`,
+    `Open the chain to see what's next.`,
+    ``,
+    `Open chain: ${ctaUrl}`,
+    ``,
+    `—`,
+    `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
+    `Need help? support@thesalesprogressor.co.uk`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(completedAddress)} has completed — chain update</h1>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(completedAddress)} has completed.</p>
+          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to see what&apos;s next.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+            <tr><td style="border-radius:8px;background:#FF6B4A;">
+              <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open chain</a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+        <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  return { subject, text, html };
+}
+
+// Enqueues exchange or completion notifications for all claimed chain-mates.
+// Called fire-and-forget from completeMilestone on VM19/PM26/VM20/PM27.
+// Dedup via OutboundEmailQueue unique constraint; business-hours scheduled via enqueueEmail.
+export async function enqueueChainMilestoneNotifications(
+  transactionId: string,
+  emailType: "EXCHANGE" | "COMPLETION",
+): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { propertyAddress: true, chainLinkId: true },
+  });
+  if (!tx?.chainLinkId) return;
+
+  const thisLink = await prisma.chainLink.findUnique({
+    where: { id: tx.chainLinkId },
+    select: { chainId: true },
+  });
+  if (!thisLink) return;
+
+  const mates = await prisma.chainLink.findMany({
+    where: {
+      chainId: thisLink.chainId,
+      inviteStatus: "CLAIMED",
+      transactionId: { not: null },
+      id: { not: tx.chainLinkId },
+    },
+    select: {
+      claimedByUserId: true,
+      claimedBy: { select: { email: true } },
+      transactionId: true,
+    },
+  });
+
+  const notifiable = mates.filter((m) => m.claimedByUserId && m.claimedBy?.email);
+
+  for (const mate of notifiable) {
+    const suppressed = await isUserEmailSuppressed(mate.claimedByUserId!);
+    if (suppressed) {
+      console.log(`[EMAIL_SKIP] type=${emailType} userId=${mate.claimedByUserId} reason=unsubscribed`);
+      continue;
+    }
+
+    const unsubscribeUrl = buildUserUnsubscribeUrl(mate.claimedByUserId!);
+    const payload =
+      emailType === "EXCHANGE"
+        ? buildExchangeEmailPayload({
+            exchangedAddress: tx.propertyAddress,
+            recipientTransactionId: mate.transactionId,
+            unsubscribeUrl,
+          })
+        : buildCompletionEmailPayload({
+            completedAddress: tx.propertyAddress,
+            recipientTransactionId: mate.transactionId,
+            unsubscribeUrl,
+          });
+
+    await enqueueEmail({
+      emailType,
+      sourceId: tx.chainLinkId,
+      recipientEmail: mate.claimedBy!.email!,
+      recipientUserId: mate.claimedByUserId!,
+      payload: { ...payload, unsubscribeUrl },
+    });
+  }
+}
+
+// ─── Decline notification ──────────────────────────────────────────────────────
 
 // Sends a decline notification to the chain originator. Called synchronously from the decline page.
 // No queue — fire once, no retry.

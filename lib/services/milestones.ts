@@ -1,6 +1,7 @@
 // lib/services/milestones.ts
 
 import { prisma } from "@/lib/prisma";
+import { enqueueChainMilestoneNotifications } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
@@ -553,6 +554,13 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   }
 
   touchLastActivity(input.transactionId).catch(() => {});
+
+  // Chain milestone notifications (fire-and-forget; deduped via OutboundEmailQueue)
+  if (def.code === "VM19" || def.code === "PM26") {
+    enqueueChainMilestoneNotifications(input.transactionId, "EXCHANGE").catch(console.error);
+  } else if (def.code === "VM20" || def.code === "PM27") {
+    enqueueChainMilestoneNotifications(input.transactionId, "COMPLETION").catch(console.error);
+  }
 
   return completion;
 }
