@@ -109,6 +109,8 @@ function mockLink(overrides: Partial<ChainLinkV2> & { id: string; position: numb
     inviteBouncedAt: null,
     inviteDeclinedAt: null,
     inviteResendCount: 0,
+    withdrawalStatus: null,
+    withdrawalRespondedAt: null,
     transaction: null,
     claimedBy: null,
     createdBy: { id: MOCK_USER_ID, name: "Sarah Hartwell" },

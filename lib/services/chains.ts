@@ -49,6 +49,8 @@ export type ChainLinkV2 = {
   inviteBouncedAt: Date | null;
   inviteDeclinedAt: Date | null;
   inviteResendCount: number;
+  withdrawalStatus: string | null;
+  withdrawalRespondedAt: Date | null;
   transaction: {
     id: string;
     propertyAddress: string;
@@ -158,6 +160,8 @@ const LINK_V2_SELECT = {
   inviteBouncedAt: true,
   inviteDeclinedAt: true,
   inviteResendCount: true,
+  withdrawalStatus: true,
+  withdrawalRespondedAt: true,
   transaction: {
     select: {
       id: true,

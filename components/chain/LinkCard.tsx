@@ -151,7 +151,7 @@ export function LinkCard({
         </p>
       )}
 
-      {/* Withdrawn state — voice pass deferred */}
+      {/* Withdrawn state */}
       {link.transaction?.status === "withdrawn" && (
         <span style={{
           display: "inline-block",
@@ -165,6 +165,38 @@ export function LinkCard({
           padding: "2px 6px",
         }}>
           Withdrawn
+        </span>
+      )}
+
+      {/* Withdrawal response status */}
+      {link.withdrawalStatus === "REMARKETING" && (
+        <span style={{
+          display: "inline-block",
+          marginTop: 6,
+          fontSize: 10,
+          fontWeight: 600,
+          color: "#7c3aed",
+          background: "rgba(124,58,237,0.08)",
+          border: "0.5px solid rgba(124,58,237,0.2)",
+          borderRadius: 4,
+          padding: "2px 6px",
+        }}>
+          Going back to market
+        </span>
+      )}
+      {link.withdrawalStatus === "WAITING" && (
+        <span style={{
+          display: "inline-block",
+          marginTop: 6,
+          fontSize: 10,
+          fontWeight: 600,
+          color: "#0369a1",
+          background: "rgba(3,105,161,0.08)",
+          border: "0.5px solid rgba(3,105,161,0.2)",
+          borderRadius: 4,
+          padding: "2px 6px",
+        }}>
+          Waiting for chain to reform
         </span>
       )}
 

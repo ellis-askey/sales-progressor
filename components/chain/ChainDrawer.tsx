@@ -50,10 +50,27 @@ export function ChainDrawer({
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [declineDismissed, setDeclineDismissed] = useState(false);
+  const [withdrawalResponse, setWithdrawalResponse] = useState<"REMARKETING" | "WAITING" | null>(null);
+  const [submittingResponse, setSubmittingResponse] = useState(false);
 
   async function dismissDecline() {
     setDeclineDismissed(true);
     await fetch("/api/chain/dismiss-decline", { method: "POST" }).catch(() => null);
+  }
+
+  async function submitWithdrawalResponse(chainId: string, linkId: string) {
+    if (!withdrawalResponse) return;
+    setSubmittingResponse(true);
+    try {
+      await fetch(`/api/chains/${chainId}/links/${linkId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: withdrawalResponse }),
+      });
+      await fetchChain();
+    } finally {
+      setSubmittingResponse(false);
+    }
   }
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { toast } = useAgentToast();
@@ -299,6 +316,61 @@ export function ChainDrawer({
                   </button>
                 </div>
               )}
+
+              {/* Withdrawal response picker — shown when chain-mate withdrew and user hasn't responded */}
+              {(() => {
+                const chainBroken = isChainBroken(chain);
+                if (!chainBroken || !userLink) return null;
+                const alreadyResponded = userLink.withdrawalStatus !== null;
+                if (alreadyResponded) return null;
+                return (
+                  <div style={{
+                    marginBottom: 12,
+                    padding: "12px 12px",
+                    background: "rgba(99,102,241,0.06)",
+                    border: "0.5px solid rgba(99,102,241,0.2)",
+                    borderRadius: 8,
+                  }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: "0 0 6px" }}>
+                      A sale in your chain has withdrawn. What's your plan?
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                      {(["REMARKETING", "WAITING"] as const).map((opt) => (
+                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                          <input
+                            type="radio"
+                            name="withdrawal-response"
+                            value={opt}
+                            checked={withdrawalResponse === opt}
+                            onChange={() => setWithdrawalResponse(opt)}
+                            style={{ accentColor: "#6366f1" }}
+                          />
+                          <span style={{ fontSize: 12, color: "var(--agent-text-primary)" }}>
+                            {opt === "REMARKETING" ? "Going back to market" : "Waiting for chain to reform"}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { if (userLink) void submitWithdrawalResponse(chain.id, userLink.id); }}
+                      disabled={!withdrawalResponse || submittingResponse}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: "6px 14px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#6366f1",
+                        color: "#fff",
+                        cursor: withdrawalResponse && !submittingResponse ? "pointer" : "not-allowed",
+                        opacity: withdrawalResponse && !submittingResponse ? 1 : 0.5,
+                      }}
+                    >
+                      {submittingResponse ? "Saving…" : "Save response"}
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Broken-chain banner — voice pass deferred */}
               {isChainBroken(chain) && (
