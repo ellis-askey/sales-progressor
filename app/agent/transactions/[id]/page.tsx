@@ -33,7 +33,8 @@ import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
-import { ChainClaimedNotice } from "@/components/transaction/ChainClaimedNotice";
+import { ClaimedToast } from "@/components/transaction/ClaimedToast";
+import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
@@ -45,9 +46,9 @@ export default async function AgentTransactionDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; chainSetupFailed?: string }>;
+  searchParams: Promise<{ tab?: string; chainSetupFailed?: string; newUser?: string }>;
 }) {
-  const [{ id }, { tab: initialTab }] = await Promise.all([params, searchParams]);
+  const [{ id }, { tab: initialTab, newUser }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
@@ -85,6 +86,14 @@ export default async function AgentTransactionDetailPage({
     const { getSignedUrl } = await import("@/lib/supabase-storage");
     mosDocUrl = await getSignedUrl(mosDoc.storagePath, 86400).catch(() => null);
   }
+
+  // Only fetch when the claim welcome modal actually needs it (newUser=1 param)
+  const originatorAgency = newUser === "1" && transaction.chainLinkId
+    ? await prisma.chainLink.findUnique({
+        where: { id: transaction.chainLinkId },
+        select: { createdBy: { select: { firmName: true } } },
+      }).then(l => l?.createdBy?.firmName ?? null).catch(() => null)
+    : null;
 
   const [assignedUser, currentUserNotifications] = await Promise.all([
     transaction.assignedUserId
@@ -414,7 +423,8 @@ export default async function AgentTransactionDetailPage({
       <FileTimeTracker transactionId={id} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
-      <Suspense><ChainClaimedNotice /></Suspense>
+      <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
+      <Suspense><ClaimWelcomeModal address={transaction.propertyAddress} originatorAgency={originatorAgency ?? undefined} /></Suspense>
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <PropertyHero
         address={transaction.propertyAddress}

@@ -733,3 +733,58 @@
   color: var(--claim-text-3);
 }
 .claim-error-support a { color: var(--claim-coral); }
+
+/* ─── Segment pills (tenure / purchase type pickers) ────────────────────── */
+.claim-segment-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.claim-segment-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: #FAFAFA;
+  border: 1px solid rgba(26,29,41,.14);
+  color: var(--claim-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  font-family: inherit;
+}
+.claim-segment-pill:hover:not(.on) {
+  background: rgba(255,107,74,.06);
+  border-color: var(--claim-coral);
+  color: var(--claim-coral);
+}
+.claim-segment-pill.on {
+  background: rgba(255,107,74,.08);
+  color: var(--claim-coral-dark);
+  border-color: var(--claim-coral-dark);
+  font-weight: 600;
+}
+.claim-sale-details {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(26,29,41,.08);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.claim-sale-details-note {
+  font-size: 12px;
+  color: var(--claim-text-3);
+  margin: 0 0 4px;
+}
+.claim-share-of-freehold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--claim-text-2);
+  cursor: pointer;
+}

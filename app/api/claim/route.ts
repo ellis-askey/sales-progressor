@@ -11,6 +11,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { initializeMilestoneCompletions } from "@/lib/services/milestones";
+import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -18,14 +20,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { token?: unknown; action?: unknown; existingTransactionId?: unknown };
+  let body: { token?: unknown; action?: unknown; existingTransactionId?: unknown; tenure?: unknown; purchaseType?: unknown; isShareOfFreehold?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { token, action, existingTransactionId } = body;
+  const { token, action, existingTransactionId, tenure, purchaseType, isShareOfFreehold } = body;
 
   if (typeof token !== "string" || !token) {
     return NextResponse.json({ error: "token is required" }, { status: 400 });
@@ -81,6 +83,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "create") {
+    const VALID_TENURES: Tenure[] = ["freehold", "leasehold"];
+    const VALID_PURCHASE_TYPES: PurchaseType[] = ["mortgage", "cash_buyer", "cash_from_proceeds"];
+    if (!tenure || !VALID_TENURES.includes(tenure as Tenure)) {
+      return NextResponse.json({ error: "tenure is required (freehold or leasehold)" }, { status: 400 });
+    }
+    if (!purchaseType || !VALID_PURCHASE_TYPES.includes(purchaseType as PurchaseType)) {
+      return NextResponse.json({ error: "purchaseType is required (mortgage or cash_buyer)" }, { status: 400 });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const newTxn = await tx.propertyTransaction.create({
         data: {
@@ -89,6 +100,9 @@ export async function POST(req: NextRequest) {
           agentUserId: session.user.id,
           progressedBy: "agent",
           serviceType: "self_managed",
+          tenure: tenure as Tenure,
+          purchaseType: purchaseType as PurchaseType,
+          isShareOfFreehold: isShareOfFreehold === true,
         },
       });
 
@@ -109,6 +123,14 @@ export async function POST(req: NextRequest) {
 
       return { transactionId: newTxn.id };
     });
+
+    // Initialize milestone completions outside the transaction (uses global prisma client)
+    await initializeMilestoneCompletions(
+      result.transactionId,
+      tenure as Tenure,
+      purchaseType as PurchaseType,
+      session.user.id,
+    );
 
     console.log(
       `[AUDIT] chain_link_claimed linkId=${link.id} userId=${session.user.id} action=create transactionId=${result.transactionId}`,

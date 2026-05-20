@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { markWelcomeSeenAction } from "@/app/actions/profile";
 
 type Props = {
   token: string;
@@ -15,8 +16,11 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
+  const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | null>(null);
+  const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
 
-  const canSubmit = password.length > 0;
+  const canSubmit = password.length > 0 && tenure !== null && purchaseType !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +43,7 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
     const claimRes = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, action: "create" }),
+      body: JSON.stringify({ token, action: "create", tenure, purchaseType, isShareOfFreehold }),
     });
 
     if (!claimRes.ok) {
@@ -50,6 +54,7 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
     }
 
     const { transactionId } = (await claimRes.json()) as { transactionId: string };
+    await markWelcomeSeenAction().catch(() => {});
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
   }
 
@@ -98,6 +103,31 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
             Reset it
           </a>
         </p>
+      </div>
+
+      {/* Sale details */}
+      <div className="claim-sale-details">
+        <p className="claim-sale-details-note">We need two quick details to set up your milestones.</p>
+        <div>
+          <label className="claim-field-label">Tenure</label>
+          <div className="claim-segment-pill-row">
+            <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
+            <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
+          </div>
+        </div>
+        <div>
+          <label className="claim-field-label">Purchase type</label>
+          <div className="claim-segment-pill-row">
+            <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
+            <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
+          </div>
+        </div>
+        {tenure === "leasehold" && (
+          <label className="claim-share-of-freehold">
+            <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
+            Share of freehold
+          </label>
+        )}
       </div>
 
       {error && (

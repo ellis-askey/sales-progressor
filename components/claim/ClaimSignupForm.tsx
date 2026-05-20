@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { markWelcomeSeenAction } from "@/app/actions/profile";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -23,12 +24,17 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
   const [firmName, setFirmName] = useState(toTitleCase(stubAgencyName));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
+  const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | null>(null);
+  const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
 
   const canSubmit =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     password.length >= 8 &&
-    firmName.trim().length > 0;
+    firmName.trim().length > 0 &&
+    tenure !== null &&
+    purchaseType !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +76,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
     const claimRes = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, action: "create" }),
+      body: JSON.stringify({ token, action: "create", tenure, purchaseType, isShareOfFreehold }),
     });
 
     if (!claimRes.ok) {
@@ -81,7 +87,8 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
     }
 
     const { transactionId } = (await claimRes.json()) as { transactionId: string };
-    router.push(`/agent/transactions/${transactionId}?claimed=1`);
+    await markWelcomeSeenAction().catch(() => {});
+    router.push(`/agent/transactions/${transactionId}?claimed=1&newUser=1`);
   }
 
   return (
@@ -167,6 +174,31 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
           autoComplete="organization"
           placeholder="Your estate agency"
         />
+      </div>
+
+      {/* Sale details */}
+      <div className="claim-sale-details">
+        <p className="claim-sale-details-note">We need two quick details to set up your milestones.</p>
+        <div>
+          <label className="claim-field-label">Tenure</label>
+          <div className="claim-segment-pill-row">
+            <button type="button" className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`} onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}>Freehold</button>
+            <button type="button" className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`} onClick={() => setTenure("leasehold")}>Leasehold</button>
+          </div>
+        </div>
+        <div>
+          <label className="claim-field-label">Purchase type</label>
+          <div className="claim-segment-pill-row">
+            <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
+            <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
+          </div>
+        </div>
+        {tenure === "leasehold" && (
+          <label className="claim-share-of-freehold">
+            <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => setIsShareOfFreehold(e.target.checked)} />
+            Share of freehold
+          </label>
+        )}
       </div>
 
       {error && (

@@ -15,6 +15,9 @@ type Props = {
   duplicates: DuplicateEntry[];
 };
 
+type Tenure = "freehold" | "leasehold";
+type PurchaseType = "mortgage" | "cash_buyer";
+
 export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -22,17 +25,32 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
   const [dupChoice, setDupChoice] = useState<"create" | "link">(
     duplicates.length > 0 ? "link" : "create"
   );
+  const [tenure, setTenure] = useState<Tenure | null>(null);
+  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(null);
+  const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
 
   const hasDuplicates = duplicates.length > 0;
+  const needsSaleDetails = !hasDuplicates || dupChoice === "create";
+
+  const canSubmit = needsSaleDetails
+    ? tenure !== null && purchaseType !== null && !loading
+    : !loading;
 
   async function claim(action: "create" | "link", existingTransactionId?: string) {
     setError(null);
     setLoading(true);
 
+    const body: Record<string, unknown> = { token, action, existingTransactionId };
+    if (needsSaleDetails) {
+      body.tenure = tenure;
+      body.purchaseType = purchaseType;
+      body.isShareOfFreehold = isShareOfFreehold;
+    }
+
     const res = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, action, existingTransactionId }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -54,9 +72,67 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
     }
   }
 
+  const saleDetailsSection = needsSaleDetails && (
+    <div className="claim-sale-details">
+      <p className="claim-sale-details-note">We need two quick details to set up your milestones.</p>
+
+      <div>
+        <label className="claim-field-label">Tenure</label>
+        <div className="claim-segment-pill-row">
+          <button
+            type="button"
+            className={`claim-segment-pill${tenure === "freehold" ? " on" : ""}`}
+            onClick={() => { setTenure("freehold"); setIsShareOfFreehold(false); }}
+          >
+            Freehold
+          </button>
+          <button
+            type="button"
+            className={`claim-segment-pill${tenure === "leasehold" ? " on" : ""}`}
+            onClick={() => setTenure("leasehold")}
+          >
+            Leasehold
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label className="claim-field-label">Purchase type</label>
+        <div className="claim-segment-pill-row">
+          <button
+            type="button"
+            className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`}
+            onClick={() => setPurchaseType("mortgage")}
+          >
+            Mortgage
+          </button>
+          <button
+            type="button"
+            className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`}
+            onClick={() => setPurchaseType("cash_buyer")}
+          >
+            Cash purchase
+          </button>
+        </div>
+      </div>
+
+      {tenure === "leasehold" && (
+        <label className="claim-share-of-freehold">
+          <input
+            type="checkbox"
+            checked={isShareOfFreehold}
+            onChange={(e) => setIsShareOfFreehold(e.target.checked)}
+          />
+          Share of freehold
+        </label>
+      )}
+    </div>
+  );
+
   if (!hasDuplicates) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {saleDetailsSection}
         {error && (
           <div
             style={{
@@ -66,6 +142,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
               border: "1px solid #fecaca",
               borderRadius: 8,
               padding: "10px 14px",
+              marginTop: 8,
             }}
           >
             {error}
@@ -73,8 +150,9 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
         )}
         <button
           onClick={handleClaim}
-          disabled={loading}
+          disabled={!canSubmit}
           className="claim-btn"
+          style={{ marginTop: 8 }}
         >
           {loading ? "Claiming…" : "Claim this sale"}
         </button>
@@ -121,6 +199,8 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
         </div>
       ))}
 
+      {saleDetailsSection}
+
       {error && (
         <div
           style={{
@@ -138,7 +218,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
 
       <button
         onClick={handleClaim}
-        disabled={loading}
+        disabled={!canSubmit}
         className="claim-btn"
         style={{ marginTop: 4 }}
       >
