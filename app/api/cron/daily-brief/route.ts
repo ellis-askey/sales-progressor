@@ -13,6 +13,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await runDailyBrief();
-  return NextResponse.json({ ok: true, ...result });
+  try {
+    const result = await runDailyBrief();
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("[cron/daily-brief] failed:", err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
 }

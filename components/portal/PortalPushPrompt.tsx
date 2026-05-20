@@ -54,11 +54,12 @@ export function PortalPushPrompt({ token, vapidPublicKey }: { token: string; vap
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
 
-      await fetch("/api/portal/push-subscribe", {
+      const pushRes = await fetch("/api/portal/push-subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, subscription: sub.toJSON() }),
       });
+      if (!pushRes.ok) throw new Error("subscribe-failed");
 
       localStorage.setItem(SUBSCRIBED_KEY, "1");
       setStatus("done");

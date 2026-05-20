@@ -96,7 +96,7 @@ export default async function PortalCompletePage({
   const milestones = await getPortalMilestones(transaction.id, side);
 
   const completionMilestone = milestones.find(
-    (m) => (m.code === "VM13" || m.code === "PM17") && m.isComplete
+    (m) => (m.code === "VM20" || m.code === "PM27") && m.isComplete
   );
   if (!completionMilestone) {
     // Not yet complete — redirect home

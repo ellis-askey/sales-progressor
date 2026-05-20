@@ -88,7 +88,7 @@ export default async function PortalExchangePage({
   const milestones = await getPortalMilestones(transaction.id, side);
 
   const hasExchanged = milestones.some(
-    (m) => (m.code === "VM12" || m.code === "PM16") && m.isComplete
+    (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete
   );
   if (!hasExchanged) {
     return (
