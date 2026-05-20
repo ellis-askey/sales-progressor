@@ -33,6 +33,61 @@ export async function sendEmail({
   });
 }
 
+// Platform-level chain notification emails (withdrawal, exchange, completion, celebration).
+// From: Sales Progressor <updates@thesalesprogressor.co.uk>
+// Reply-To: support@thesalesprogressor.co.uk
+// ASM unsubscribe group included when SENDGRID_UNSUBSCRIBE_GROUP_ID is set.
+// Set EMAIL_SANDBOX_MODE=true on staging to validate without delivering.
+export async function sendChainEmail({
+  to,
+  subject,
+  text,
+  html,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}): Promise<void> {
+  const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
+  const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
+    ? parseInt(process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID, 10)
+    : undefined;
+
+  if (isSandbox) {
+    console.log(`[EMAIL_SANDBOX] to=${to} subject="${subject}"`);
+  }
+
+  await sgMail.send({
+    to,
+    from: DEFAULT_FROM,
+    replyTo: "support@thesalesprogressor.co.uk",
+    subject,
+    text,
+    html: html ?? text.replace(/\n/g, "<br>"),
+    ...(asmGroupId ? { asm: { groupId: asmGroupId } } : {}),
+    mailSettings: { sandboxMode: { enable: isSandbox } },
+  });
+}
+
+// Returns true if this user has globally unsubscribed from all platform emails.
+export async function isUserEmailSuppressed(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { emailUnsubscribedAt: true },
+  });
+  return user?.emailUnsubscribedAt != null;
+}
+
+// Returns true if this chain link's invite has been unsubscribed (unclaimed agents only).
+export async function isInviteEmailSuppressed(chainLinkId: string): Promise<boolean> {
+  const link = await prisma.chainLink.findUnique({
+    where: { id: chainLinkId },
+    select: { inviteUnsubscribedAt: true },
+  });
+  return link?.inviteUnsubscribedAt != null;
+}
+
 export function parseEmailMessage(raw: string): { subject: string; body: string } {
   const lines = raw.trim().split("\n");
   const subjectLine = lines.find((l) => l.toLowerCase().startsWith("subject:"));
