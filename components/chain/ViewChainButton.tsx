@@ -8,9 +8,10 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 type Props = {
   transactionId: string;
   currentUserId: string;
+  declineNotification?: { address: string; at: string } | null;
 };
 
-export function ViewChainButton({ transactionId, currentUserId }: Props) {
+export function ViewChainButton({ transactionId, currentUserId, declineNotification }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addNode, setAddNode] = useState<{
     direction: "above" | "below";
@@ -42,6 +43,7 @@ export function ViewChainButton({ transactionId, currentUserId }: Props) {
           currentUserId={currentUserId}
           onClose={() => setDrawerOpen(false)}
           onOpenAddNode={handleOpenAddNode}
+          declineNotification={declineNotification}
         />
       )}
 

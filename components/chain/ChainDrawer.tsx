@@ -17,6 +17,7 @@ type ChainDrawerProps = {
   currentUserId: string;
   onClose: () => void;
   onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
+  declineNotification?: { address: string; at: string } | null;
 };
 
 function ChainIcon() {
@@ -33,6 +34,7 @@ export function ChainDrawer({
   currentUserId,
   onClose,
   onOpenAddNode,
+  declineNotification,
 }: ChainDrawerProps) {
   const { theme } = usePortalTheme();
   const [closing, setClosing] = useState(false);
@@ -47,6 +49,12 @@ export function ChainDrawer({
   const [chain, setChain] = useState<ChainV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
+  const [declineDismissed, setDeclineDismissed] = useState(false);
+
+  async function dismissDecline() {
+    setDeclineDismissed(true);
+    await fetch("/api/chain/dismiss-decline", { method: "POST" }).catch(() => null);
+  }
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { toast } = useAgentToast();
 
@@ -261,6 +269,37 @@ export function ChainDrawer({
           {/* Populated chain */}
           {!loading && chain && links.length > 0 && (
             <div className="space-y-0">
+              {/* Decline notification banner */}
+              {declineNotification && !declineDismissed && (
+                <div style={{
+                  marginBottom: 12,
+                  padding: "10px 12px",
+                  background: "rgba(245,158,11,0.08)",
+                  border: "0.5px solid rgba(245,158,11,0.25)",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}>
+                  <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>ℹ</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, color: "var(--agent-text-primary)", margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
+                      An agent declined your invite
+                    </p>
+                    <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>
+                      {declineNotification.address} · Resend the invite to add them again.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { void dismissDecline(); }}
+                    aria-label="Dismiss"
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1, color: "var(--agent-text-secondary)", padding: 0, flexShrink: 0 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               {/* Broken-chain banner — voice pass deferred */}
               {isChainBroken(chain) && (
                 <div style={{

@@ -85,12 +85,18 @@ export default async function AgentTransactionDetailPage({
     mosDocUrl = await getSignedUrl(mosDoc.storagePath, 86400).catch(() => null);
   }
 
-  const assignedUser = transaction.assignedUserId
-    ? await prisma.user.findUnique({
-        where: { id: transaction.assignedUserId },
-        select: { clientType: true, legacyFee: true },
-      })
-    : null;
+  const [assignedUser, currentUserNotifications] = await Promise.all([
+    transaction.assignedUserId
+      ? prisma.user.findUnique({
+          where: { id: transaction.assignedUserId },
+          select: { clientType: true, legacyFee: true },
+        })
+      : Promise.resolve(null),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
+    }),
+  ]);
 
   // Resolve sender identity for SP/admin: look for their verified email at the
   // file's agency domain; fall back to the platform sender.
@@ -460,6 +466,15 @@ export default async function AgentTransactionDetailPage({
               <ViewChainButton
                 transactionId={transaction.id}
                 currentUserId={session.user.id}
+                declineNotification={
+                  currentUserNotifications?.chainDeclineNotificationAddress &&
+                  currentUserNotifications?.chainDeclineNotificationAt
+                    ? {
+                        address: currentUserNotifications.chainDeclineNotificationAddress,
+                        at: currentUserNotifications.chainDeclineNotificationAt.toISOString(),
+                      }
+                    : null
+                }
               />
             </div>
           </div>
