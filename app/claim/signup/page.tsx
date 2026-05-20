@@ -1,21 +1,35 @@
 import { prisma } from "@/lib/prisma";
 import { ClaimSignupForm } from "@/components/claim/ClaimSignupForm";
+import "../styles/claim-flow.css";
 
-function ErrorPage({ title, body }: { title: string; body: string }) {
+function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", padding: "0 24px" }}>
-      <div style={{ maxWidth: 400, textAlign: "center" }}>
-        <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#FF6B4A" }}>The Sales Progressor</p>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 12px" }}>{title}</h1>
-        <p style={{ fontSize: 14, lineHeight: 1.7, color: "#4a5162", margin: "0 0 20px" }}>{body}</p>
-        <p style={{ margin: 0, fontSize: 12, color: "#8b91a3" }}>
-          Need help?{" "}
-          <a href="mailto:support@thesalesprogressor.co.uk" style={{ color: "#3b82f6" }}>
-            support@thesalesprogressor.co.uk
-          </a>
-        </p>
-      </div>
+    <div className="claim-page">
+      <header className="claim-header">
+        <span className="claim-wordmark">The Sales Progressor</span>
+      </header>
+      {children}
     </div>
+  );
+}
+
+function ClaimError({ title, body }: { title: string; body: string }) {
+  return (
+    <Shell>
+      <div className="claim-error-wrap">
+        <div className="claim-error-inner">
+          <p className="claim-error-eyebrow">The Sales Progressor</p>
+          <h1 className="claim-error-h1">{title}</h1>
+          <p className="claim-error-p">{body}</p>
+          <p className="claim-error-support">
+            Need help?{" "}
+            <a href="mailto:support@thesalesprogressor.co.uk">
+              support@thesalesprogressor.co.uk
+            </a>
+          </p>
+        </div>
+      </div>
+    </Shell>
   );
 }
 
@@ -26,9 +40,8 @@ export default async function ClaimSignupPage({
 }) {
   const { token } = await searchParams;
 
-  if (!token) {
-    return <ErrorPage title="Invalid link" body="This link is invalid or has expired." />;
-  }
+  if (!token)
+    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
 
   const link = await prisma.chainLink.findFirst({
     where: { inviteToken: token },
@@ -36,58 +49,217 @@ export default async function ClaimSignupPage({
       id: true,
       transactionId: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
+      inviteSentAt: true,
       stubAgentEmail: true,
       stubAgencyName: true,
       stubPropertyAddress: true,
+      chain: {
+        select: {
+          createdBy: { select: { name: true, firmName: true } },
+          agency: { select: { name: true } },
+          links: {
+            orderBy: { position: "asc" },
+            select: {
+              id: true,
+              position: true,
+              transactionId: true,
+              stubPropertyAddress: true,
+              claimedBy: { select: { firmName: true } },
+              transaction: { select: { propertyAddress: true } },
+            },
+          },
+        },
+      },
     },
   });
 
-  if (!link) {
+  if (!link)
     return (
-      <ErrorPage
+      <ClaimError
         title="Invalid link"
         body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
       />
     );
-  }
-  if (link.transactionId !== null || link.inviteStatus === "CLAIMED") {
+  if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
-      <ErrorPage
+      <ClaimError
         title="Already claimed"
         body="This chain link has already been claimed. If you believe this is a mistake, contact support."
       />
     );
-  }
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+    return (
+      <ClaimError
+        title="This invite has expired."
+        body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
+      />
+    );
+
+  const chainLinks = link.chain?.links ?? [];
+  const originatorName = link.chain?.createdBy?.name ?? "An agent";
+  const originatorAgency =
+    link.chain?.createdBy?.firmName ?? link.chain?.agency?.name ?? null;
+  const invitedDate = link.inviteSentAt
+    ? new Date(link.inviteSentAt).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const MAX_PANEL_LINKS = 4;
+  const panelLinks =
+    chainLinks.length <= MAX_PANEL_LINKS ? chainLinks : chainLinks.slice(0, MAX_PANEL_LINKS);
+  const panelGhostCount =
+    chainLinks.length > MAX_PANEL_LINKS ? chainLinks.length - MAX_PANEL_LINKS : 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "14px 24px" }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#FF6B4A" }}>The Sales Progressor</span>
-      </div>
+    <Shell>
+      <div className="claim-signup-grid">
+        {/* ── Left column — form ── */}
+        <div>
+          <h1 className="claim-sub-h1">Create your account</h1>
+          <p className="claim-sub-p">Join free — no card required.</p>
 
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "40px 24px 60px" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 8px", textAlign: "center" }}>
-          Create your free account to join this chain
-        </h1>
-        {link.stubPropertyAddress && (
-          <p style={{ fontSize: 14, color: "#8b91a3", textAlign: "center", margin: "0 0 28px" }}>
-            You&apos;re joining{" "}
-            <strong style={{ color: "#1a1d29" }}>{link.stubPropertyAddress}</strong>
+          <div className="claim-form-card">
+            <ClaimSignupForm
+              token={token}
+              stubEmail={link.stubAgentEmail ?? ""}
+              stubAgencyName={link.stubAgencyName ?? ""}
+            />
+          </div>
+
+          <p className="claim-link-row" style={{ marginTop: 16 }}>
+            Already have an account?{" "}
+            <a href={`/claim/login?token=${token}`}>Log in instead</a>
           </p>
-        )}
-
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <ClaimSignupForm
-            token={token}
-            stubEmail={link.stubAgentEmail ?? ""}
-            stubAgencyName={link.stubAgencyName ?? ""}
-          />
         </div>
 
-        <p style={{ margin: "20px 0 0", textAlign: "center", fontSize: 13, color: "#8b91a3" }}>
-          Takes 15 seconds · No card required
-        </p>
+        {/* ── Right column — chain panel ── */}
+        <div className="claim-panel">
+          <p className="claim-panel-eyebrow">You&apos;re joining</p>
+          <p className="claim-panel-address">
+            {link.stubPropertyAddress ?? "Your sale"}
+          </p>
+          <div className="claim-panel-rule" />
+
+          {/* Mini chain visual */}
+          <div className="claim-chain">
+            {panelLinks.map((cl, i) => {
+              const isYours = cl.id === link.id;
+              const isClaimed = cl.transactionId !== null;
+              const address = isClaimed
+                ? (cl.transaction?.propertyAddress ?? "")
+                : isYours
+                ? (link.stubPropertyAddress ?? "")
+                : "";
+              const agency = cl.claimedBy?.firmName ?? null;
+
+              return (
+                <div key={cl.id}>
+                  {i > 0 && (
+                    <div className="claim-chain-connector">
+                      <div className="claim-chain-connector-dot" />
+                      <div className="claim-chain-connector-line" />
+                      <div className="claim-chain-connector-dot" />
+                    </div>
+                  )}
+                  <div className="claim-chain-row">
+                    <div className="claim-chain-gutter">
+                      <span className="claim-chain-num">
+                        {String(cl.position).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <div
+                      className={`claim-chain-card ${
+                        isYours
+                          ? "claim-chain-card--yours"
+                          : isClaimed
+                          ? "claim-chain-card--claimed"
+                          : "claim-chain-card--pending"
+                      }`}
+                    >
+                      {isYours ? (
+                        <>
+                          <div className="claim-chain-head">
+                            <span className="claim-chain-address">
+                              {address || "Your sale"}
+                            </span>
+                            <span className="claim-chain-status">YOU</span>
+                          </div>
+                          <div className="claim-chain-inner">
+                            <span className="claim-chain-inner-text">Your sale</span>
+                          </div>
+                        </>
+                      ) : isClaimed ? (
+                        <>
+                          <div className="claim-chain-head">
+                            <span className="claim-chain-address">{address}</span>
+                            <span className="claim-chain-status">✓</span>
+                          </div>
+                          {agency && <div className="claim-chain-agency">{agency}</div>}
+                        </>
+                      ) : (
+                        <div className="claim-chain-head">
+                          <span
+                            className="claim-chain-address"
+                            style={{
+                              color: "rgba(255,255,255,.5)",
+                              fontStyle: "italic",
+                              fontWeight: 400,
+                            }}
+                          >
+                            Pending
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {panelGhostCount > 0 && (
+              <>
+                <div className="claim-chain-connector">
+                  <div className="claim-chain-connector-dot" />
+                  <div className="claim-chain-connector-line" />
+                  <div className="claim-chain-connector-dot" />
+                </div>
+                <div className="claim-chain-row">
+                  <div className="claim-chain-gutter">
+                    <span
+                      className="claim-chain-num"
+                      style={{ fontSize: 14, opacity: 0.5 }}
+                    >
+                      ··
+                    </span>
+                  </div>
+                  <div className="claim-chain-card claim-chain-card--ghost">
+                    <span
+                      className="claim-chain-address"
+                      style={{
+                        color: "rgba(255,255,255,.4)",
+                        fontSize: 11,
+                        fontWeight: 400,
+                      }}
+                    >
+                      — and {panelGhostCount} more —
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <p className="claim-panel-invite">
+            Invited by {originatorName}
+            {originatorAgency ? ` · ${originatorAgency}` : ""}
+            {invitedDate ? ` · ${invitedDate}` : ""}
+          </p>
+        </div>
       </div>
-    </div>
+    </Shell>
   );
 }

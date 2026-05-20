@@ -251,7 +251,7 @@
 .claim-btn {
   display: block;
   width: 100%;
-  padding: 14px 24px;
+  padding: 17px 24px;
   background: var(--claim-coral);
   color: #fff;
   font-size: 15px;
@@ -273,6 +273,12 @@
   background: var(--claim-coral-dark);
 }
 .claim-btn:active { transform: translateY(0); }
+.claim-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
 .claim-btn--ghost {
   background: transparent;
   color: var(--claim-coral);

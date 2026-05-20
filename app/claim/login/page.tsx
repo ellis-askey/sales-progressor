@@ -3,22 +3,36 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
+import "../styles/claim-flow.css";
 
-function ErrorPage({ title, body }: { title: string; body: string }) {
+function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", padding: "0 24px" }}>
-      <div style={{ maxWidth: 400, textAlign: "center" }}>
-        <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#FF6B4A" }}>The Sales Progressor</p>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 12px" }}>{title}</h1>
-        <p style={{ fontSize: 14, lineHeight: 1.7, color: "#4a5162", margin: "0 0 20px" }}>{body}</p>
-        <p style={{ margin: 0, fontSize: 12, color: "#8b91a3" }}>
-          Need help?{" "}
-          <a href="mailto:support@thesalesprogressor.co.uk" style={{ color: "#3b82f6" }}>
-            support@thesalesprogressor.co.uk
-          </a>
-        </p>
-      </div>
+    <div className="claim-page">
+      <header className="claim-header">
+        <span className="claim-wordmark">The Sales Progressor</span>
+      </header>
+      {children}
     </div>
+  );
+}
+
+function ClaimError({ title, body }: { title: string; body: string }) {
+  return (
+    <Shell>
+      <div className="claim-error-wrap">
+        <div className="claim-error-inner">
+          <p className="claim-error-eyebrow">The Sales Progressor</p>
+          <h1 className="claim-error-h1">{title}</h1>
+          <p className="claim-error-p">{body}</p>
+          <p className="claim-error-support">
+            Need help?{" "}
+            <a href="mailto:support@thesalesprogressor.co.uk">
+              support@thesalesprogressor.co.uk
+            </a>
+          </p>
+        </div>
+      </div>
+    </Shell>
   );
 }
 
@@ -29,9 +43,8 @@ export default async function ClaimLoginPage({
 }) {
   const { token } = await searchParams;
 
-  if (!token) {
-    return <ErrorPage title="Invalid link" body="This link is invalid or has expired." />;
-  }
+  if (!token)
+    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
 
   // Already logged in — go straight to confirm
   const session = await getServerSession(authOptions);
@@ -45,49 +58,65 @@ export default async function ClaimLoginPage({
       id: true,
       transactionId: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
     },
   });
 
-  if (!link) {
+  if (!link)
     return (
-      <ErrorPage
+      <ClaimError
         title="Invalid link"
         body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
       />
     );
-  }
-  if (link.transactionId !== null || link.inviteStatus === "CLAIMED") {
+  if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
-      <ErrorPage
+      <ClaimError
         title="Already claimed"
         body="This chain link has already been claimed. If you believe this is a mistake, contact support."
       />
     );
-  }
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+    return (
+      <ClaimError
+        title="This invite has expired."
+        body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
+      />
+    );
+
+  const stubEmail = link.stubAgentEmail ?? "";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "14px 24px" }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#FF6B4A" }}>The Sales Progressor</span>
-      </div>
+    <Shell>
+      <div className="claim-container--narrow">
+        <div className="claim-context-strip">
+          <a href={`/claim?token=${token}`} className="claim-context-back">
+            ← Back
+          </a>
+          <div className="claim-context-info">
+            <div className="claim-context-label">You&apos;re claiming</div>
+            <div className="claim-context-address">
+              {link.stubPropertyAddress ?? "Your sale"}
+            </div>
+          </div>
+        </div>
 
-      <div style={{ maxWidth: 420, margin: "0 auto", padding: "40px 24px 60px" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 8px", textAlign: "center" }}>
-          Welcome back
-        </h1>
-        <p style={{ fontSize: 14, color: "#8b91a3", textAlign: "center", margin: "0 0 28px" }}>
-          Log in to claim your position in this chain
+        <h1 className="claim-sub-h1">Log in to claim</h1>
+        <p className="claim-sub-p">
+          We found an account for <strong>{stubEmail}</strong>. Log in to link your sale.
         </p>
 
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <ClaimLoginForm
-            token={token}
-            stubEmail={link.stubAgentEmail ?? ""}
-          />
+        <div className="claim-form-card">
+          <ClaimLoginForm token={token} stubEmail={stubEmail} />
         </div>
+
+        <p className="claim-link-row" style={{ marginTop: 16 }}>
+          New agent?{" "}
+          <a href={`/claim/signup?token=${token}`}>Create an account instead</a>
+        </p>
       </div>
-    </div>
+    </Shell>
   );
 }

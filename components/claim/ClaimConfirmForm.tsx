@@ -19,6 +19,9 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dupChoice, setDupChoice] = useState<"create" | "link">(
+    duplicates.length > 0 ? "link" : "create"
+  );
 
   const hasDuplicates = duplicates.length > 0;
 
@@ -41,66 +44,73 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
 
     const { transactionId } = (await res.json()) as { transactionId: string };
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
-    // loading stays true — component unmounts on navigation
   }
 
-  const btnBase: React.CSSProperties = {
-    width: "100%",
-    padding: "13px",
-    borderRadius: 10,
-    fontSize: 15,
-    fontWeight: 700,
-    border: "none",
-    cursor: loading ? "not-allowed" : "pointer",
-    transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-    opacity: loading ? 0.6 : 1,
-  };
+  function handleClaim() {
+    if (!hasDuplicates || dupChoice === "create") {
+      claim("create");
+    } else {
+      claim("link", duplicates[0]!.transactionId);
+    }
+  }
 
   if (!hasDuplicates) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 14, color: "#4a5162", lineHeight: 1.6 }}>
-          A new transaction file will be created in your dashboard with the property address pre-filled.
-          You&apos;ll be able to add details after claiming.
-        </p>
-
         {error && (
-          <div style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px" }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: "#dc2626",
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: 8,
+              padding: "10px 14px",
+            }}
+          >
             {error}
           </div>
         )}
-
         <button
-          onClick={() => claim("create")}
+          onClick={handleClaim}
           disabled={loading}
-          style={{ ...btnBase, background: loading ? "#f1a591" : "#FF6B4A", color: "#fff", boxShadow: "0 4px 16px rgba(255,107,74,0.28)" }}
+          className="claim-btn"
         >
-          {loading ? "Claiming…" : "Claim and create file"}
+          {loading ? "Claiming…" : "Claim this sale"}
         </button>
-
-        <a
-          href={`/claim?token=${token}`}
-          style={{ display: "block", textAlign: "center", fontSize: 13, color: "#8b91a3", textDecoration: "none", marginTop: 4 }}
-        >
-          Cancel
-        </a>
       </div>
     );
   }
 
+  // Has duplicates — radio picker
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#4a5162" }}>What would you like to do?</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Create option */}
+      <div
+        className={`claim-dup-option${dupChoice === "create" ? " selected" : ""}`}
+        onClick={() => setDupChoice("create")}
+      >
+        <div className="claim-dup-radio" />
+        <div>
+          <p className="claim-dup-label">Create a new sale for this address</p>
+          <p className="claim-dup-sub">
+            Start a fresh file for {stubAddress || "this property"}
+          </p>
+        </div>
+      </div>
 
-      {/* Duplicate entries */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {duplicates.map((dup) => (
-          <div key={dup.transactionId} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px" }}>
-            <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: "#1a1d29" }}>
-              {dup.propertyAddress}
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#8b91a3" }}>
-              Created{" "}
+      {/* Link existing options */}
+      {duplicates.map((dup) => (
+        <div
+          key={dup.transactionId}
+          className={`claim-dup-option${dupChoice === "link" ? " selected" : ""}`}
+          onClick={() => setDupChoice("link")}
+        >
+          <div className="claim-dup-radio" />
+          <div>
+            <p className="claim-dup-label">Link my existing sale</p>
+            <p className="claim-dup-sub">
+              {dup.propertyAddress} — added{" "}
               {new Date(dup.createdAt).toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "long",
@@ -108,49 +118,36 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates }: Props) {
               })}
             </p>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
 
       {error && (
-        <div style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px" }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: "#dc2626",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+            padding: "10px 14px",
+          }}
+        >
           {error}
         </div>
       )}
 
-      {/* Link existing — recommended */}
-      <div style={{ border: "1px solid #d1fae5", borderRadius: 12, padding: "16px", background: "#f0fdf4" }}>
-        <button
-          onClick={() => claim("link", duplicates[0]!.transactionId)}
-          disabled={loading}
-          style={{ ...btnBase, background: loading ? "#6ee7b7" : "#10b981", color: "#fff" }}
-        >
-          {loading ? "Linking…" : "Link this file to the chain"}
-        </button>
-        <p style={{ margin: "8px 0 0", fontSize: 12, color: "#059669", lineHeight: 1.5 }}>
-          Recommended — your existing progress carries over and becomes visible to other chain agents
-        </p>
-      </div>
-
-      {/* Create new file */}
-      <div>
-        <button
-          onClick={() => claim("create")}
-          disabled={loading}
-          style={{ ...btnBase, background: "#f1f5f9", color: "#4a5162" }}
-        >
-          Create a separate new file
-        </button>
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8b91a3", lineHeight: 1.5 }}>
-          Use this if the invite is for a different property that happens to share an address
-        </p>
-      </div>
-
-      <a
-        href={`/claim?token=${token}`}
-        style={{ display: "block", textAlign: "center", fontSize: 13, color: "#8b91a3", textDecoration: "none", marginTop: 4 }}
+      <button
+        onClick={handleClaim}
+        disabled={loading}
+        className="claim-btn"
+        style={{ marginTop: 4 }}
       >
-        Cancel
-      </a>
+        {loading
+          ? "Claiming…"
+          : dupChoice === "link"
+          ? "Link this sale to the chain"
+          : "Claim this sale"}
+      </button>
     </div>
   );
 }

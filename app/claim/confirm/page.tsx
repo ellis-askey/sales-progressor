@@ -4,22 +4,36 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
+import "../styles/claim-flow.css";
 
-function ErrorPage({ title, body }: { title: string; body: string }) {
+function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", padding: "0 24px" }}>
-      <div style={{ maxWidth: 400, textAlign: "center" }}>
-        <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#FF6B4A" }}>The Sales Progressor</p>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 12px" }}>{title}</h1>
-        <p style={{ fontSize: 14, lineHeight: 1.7, color: "#4a5162", margin: "0 0 20px" }}>{body}</p>
-        <p style={{ margin: 0, fontSize: 12, color: "#8b91a3" }}>
-          Need help?{" "}
-          <a href="mailto:support@thesalesprogressor.co.uk" style={{ color: "#3b82f6" }}>
-            support@thesalesprogressor.co.uk
-          </a>
-        </p>
-      </div>
+    <div className="claim-page">
+      <header className="claim-header">
+        <span className="claim-wordmark">The Sales Progressor</span>
+      </header>
+      {children}
     </div>
+  );
+}
+
+function ClaimError({ title, body }: { title: string; body: string }) {
+  return (
+    <Shell>
+      <div className="claim-error-wrap">
+        <div className="claim-error-inner">
+          <p className="claim-error-eyebrow">The Sales Progressor</p>
+          <h1 className="claim-error-h1">{title}</h1>
+          <p className="claim-error-p">{body}</p>
+          <p className="claim-error-support">
+            Need help?{" "}
+            <a href="mailto:support@thesalesprogressor.co.uk">
+              support@thesalesprogressor.co.uk
+            </a>
+          </p>
+        </div>
+      </div>
+    </Shell>
   );
 }
 
@@ -30,9 +44,8 @@ export default async function ClaimConfirmPage({
 }) {
   const { token } = await searchParams;
 
-  if (!token) {
-    return <ErrorPage title="Invalid link" body="This link is invalid or has expired." />;
-  }
+  if (!token)
+    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -45,86 +58,107 @@ export default async function ClaimConfirmPage({
       id: true,
       transactionId: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
-      chain: { select: { createdByUserId: true } },
+      chain: {
+        select: {
+          createdByUserId: true,
+          createdBy: { select: { name: true, firmName: true } },
+          agency: { select: { name: true } },
+          links: {
+            select: { id: true, position: true },
+          },
+        },
+      },
     },
   });
 
-  if (!link) {
+  if (!link)
     return (
-      <ErrorPage
+      <ClaimError
         title="Invalid link"
         body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
       />
     );
-  }
-  if (link.transactionId !== null || link.inviteStatus === "CLAIMED") {
+  if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
-      <ErrorPage
+      <ClaimError
         title="Already claimed"
         body="This chain link has already been claimed. If you believe this is a mistake, contact support."
       />
     );
-  }
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
+    return (
+      <ClaimError
+        title="This invite has expired."
+        body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
+      />
+    );
 
   // Self-claim guard
-  if (link.chain.createdByUserId === session.user.id) {
+  if (link.chain.createdByUserId === session.user.id)
     return (
-      <ErrorPage
+      <ClaimError
         title="Can't claim your own invite"
         body="You created this chain. You can't claim an invite you sent."
       />
     );
-  }
 
-  // Email mismatch
+  // Email mismatch — wrong account warning
   const userEmail = session.user.email?.toLowerCase().trim();
   const stubEmail = link.stubAgentEmail?.toLowerCase().trim();
   const emailMismatch = !userEmail || !stubEmail || userEmail !== stubEmail;
 
   if (emailMismatch) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}>
-        <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "14px 24px" }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#FF6B4A" }}>The Sales Progressor</span>
-        </div>
-        <div style={{ maxWidth: 460, margin: "60px auto", padding: "0 24px", textAlign: "center" }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1a1d29", margin: "0 0 12px" }}>Wrong account</h1>
-          <p style={{ fontSize: 14, lineHeight: 1.7, color: "#4a5162", margin: "0 0 20px" }}>
-            This invite was sent to{" "}
-            <strong>{link.stubAgentEmail}</strong>. You&apos;re logged in as{" "}
-            <strong>{session.user.email}</strong>.
+      <Shell>
+        <div className="claim-container--narrow">
+          <div className="claim-context-strip">
+            <a href={`/claim?token=${token}`} className="claim-context-back">
+              ← Back
+            </a>
+            <div className="claim-context-info">
+              <div className="claim-context-label">You&apos;re claiming</div>
+              <div className="claim-context-address">
+                {link.stubPropertyAddress ?? "Your sale"}
+              </div>
+            </div>
+          </div>
+
+          <h1 className="claim-sub-h1">Wrong account</h1>
+          <p className="claim-sub-p">
+            This invite was sent to <strong>{link.stubAgentEmail}</strong>. You&apos;re logged
+            in as <strong>{session.user.email}</strong>.
           </p>
-          <p style={{ fontSize: 14, color: "#4a5162", margin: "0 0 24px", lineHeight: 1.7 }}>
-            If you should have received this invite at your account email, ask the inviting agent to resend the invite to{" "}
-            <strong>{session.user.email}</strong>.
-          </p>
-          <a
-            href="/api/auth/signout"
-            style={{ display: "inline-block", background: "#f1f5f9", color: "#4a5162", padding: "10px 20px", borderRadius: 8, textDecoration: "none", fontSize: 13, fontWeight: 600, marginRight: 8 }}
-          >
-            Log out and try a different account
+
+          <div className="claim-warn-card">
+            <p className="claim-warn-p">
+              Log out and sign in with <strong>{link.stubAgentEmail}</strong> to claim this
+              sale. If that address isn&apos;t yours, ask the inviting agent to resend the
+              invite to <strong>{session.user.email}</strong>.
+            </p>
+          </div>
+
+          <a href="/api/auth/signout" className="claim-btn">
+            Log out and use a different account
           </a>
-          <a
-            href={`/claim?token=${token}`}
-            style={{ display: "inline-block", fontSize: 13, color: "#8b91a3", textDecoration: "none", marginTop: 8 }}
-          >
+          <a href={`/claim?token=${token}`} className="claim-decline-link">
             Cancel
           </a>
         </div>
-      </div>
+      </Shell>
     );
   }
 
-  // Duplicate detection — only if stub has an address
+  // Duplicate detection
   const agencyId = session.user.agencyId;
   const stubAddress = link.stubPropertyAddress ?? "";
-  const duplicateMatches = stubAddress && agencyId
-    ? await findDuplicateTransactions(agencyId, stubAddress)
-    : [];
+  const duplicateMatches =
+    stubAddress && agencyId
+      ? await findDuplicateTransactions(agencyId, stubAddress)
+      : [];
 
-  // Enrich duplicates with created date
   type EnrichedMatch = { transactionId: string; propertyAddress: string; createdAt: Date };
   let enrichedMatches: EnrichedMatch[] = [];
   if (duplicateMatches.length > 0) {
@@ -139,43 +173,89 @@ export default async function ClaimConfirmPage({
     }));
   }
 
+  // Chain position
+  const stubLink = link.chain.links.find((l) => l.id === link.id);
+  const chainPosition = stubLink?.position ?? null;
+  const totalLinks = link.chain.links.length;
+
+  // Originator
+  const originatorName = link.chain.createdBy?.name ?? null;
+  const originatorAgency =
+    link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null;
+
   const hasDuplicates = enrichedMatches.length > 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "14px 24px" }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#FF6B4A" }}>The Sales Progressor</span>
-      </div>
-
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "40px 24px 60px" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1a1d29", margin: "0 0 8px", textAlign: "center" }}>
-          {hasDuplicates ? "You already have a file for this property" : "Claim this sale"}
-        </h1>
-        {!hasDuplicates && stubAddress && (
-          <p style={{ fontSize: 14, color: "#8b91a3", textAlign: "center", margin: "0 0 28px" }}>
-            You&apos;re claiming{" "}
-            <strong style={{ color: "#1a1d29" }}>{stubAddress}</strong>{" "}
-            as part of this chain.
-          </p>
-        )}
-        {hasDuplicates && (
-          <p style={{ fontSize: 14, color: "#4a5162", textAlign: "center", margin: "0 0 28px", lineHeight: 1.6 }}>
-            We found a transaction in your dashboard that matches the property address in this invite.
-          </p>
-        )}
-
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <ClaimConfirmForm
-            token={token}
-            stubAddress={stubAddress}
-            duplicates={enrichedMatches.map((m) => ({
-              transactionId: m.transactionId,
-              propertyAddress: m.propertyAddress,
-              createdAt: m.createdAt.toISOString(),
-            }))}
-          />
+    <Shell>
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 20px 64px" }}>
+        <div className="claim-context-strip">
+          <a href={`/claim?token=${token}`} className="claim-context-back">
+            ← Back
+          </a>
+          <div className="claim-context-info">
+            <div className="claim-context-label">You&apos;re claiming</div>
+            <div className="claim-context-address">
+              {link.stubPropertyAddress ?? "Your sale"}
+            </div>
+          </div>
         </div>
+
+        <h1 className="claim-confirm-h1">
+          {hasDuplicates ? "Is this already in your system?" : "Ready to join this chain"}
+        </h1>
+        <p className="claim-confirm-p">
+          {hasDuplicates
+            ? "We spotted a sale at the same address. Link the existing one or create a new file."
+            : "Confirm the details below and we’ll link your sale to the chain."}
+        </p>
+
+        {/* Summary card — shown when no duplicates */}
+        {!hasDuplicates && (
+          <div className="claim-summary">
+            {stubAddress && (
+              <div className="claim-summary-row">
+                <span className="claim-summary-label">Property</span>
+                <span className="claim-summary-value">{stubAddress}</span>
+              </div>
+            )}
+            {originatorName && (
+              <div className="claim-summary-row">
+                <span className="claim-summary-label">Invited by</span>
+                <span className="claim-summary-value">
+                  {originatorName}
+                  {originatorAgency ? ` · ${originatorAgency}` : ""}
+                </span>
+              </div>
+            )}
+            <div className="claim-summary-row">
+              <span className="claim-summary-label">Your account</span>
+              <span className="claim-summary-value">{session.user.email}</span>
+            </div>
+            {chainPosition !== null && (
+              <div className="claim-summary-row">
+                <span className="claim-summary-label">Chain position</span>
+                <span className="claim-summary-value">
+                  #{chainPosition} of {totalLinks}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <ClaimConfirmForm
+          token={token}
+          stubAddress={stubAddress}
+          duplicates={enrichedMatches.map((m) => ({
+            transactionId: m.transactionId,
+            propertyAddress: m.propertyAddress,
+            createdAt: m.createdAt.toISOString(),
+          }))}
+        />
+
+        <p className="claim-wrong-note">
+          Something wrong? <a href={`/claim?token=${token}`}>Back to invite</a>
+        </p>
       </div>
-    </div>
+    </Shell>
   );
 }
