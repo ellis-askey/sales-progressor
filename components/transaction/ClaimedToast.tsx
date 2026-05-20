@@ -14,8 +14,8 @@ export function ClaimedToast({ address }: { address: string }) {
   useEffect(() => {
     if (!fired.current && params.get("claimed") === "1" && params.get("newUser") !== "1") {
       fired.current = true;
-      toast.success(`Claimed: ${address}`, {
-        description: "Open the chain panel to see other agents in your chain.",
+      toast.success("You're in the chain", {
+        description: "Open the chain panel to see how the other sales are progressing.",
         duration: 5000,
       });
       router.replace(pathname, { scroll: false });

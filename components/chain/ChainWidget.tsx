@@ -87,9 +87,9 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
     <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
       <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900/90">Property chain</p>
+          <p className="text-sm font-semibold text-slate-900/90">Chain</p>
           <p className="text-xs text-slate-900/40 mt-0.5">
-            {chain ? "Weakest link highlighted" : "Add the chain to identify weak links"}
+            {chain ? "Weakest link" : "Add the chain to track each sale"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
 
         {!adding && !chain && (
           <p className="text-sm text-slate-900/30 italic text-center py-4">
-            No chain added yet. Click &ldquo;Add chain&rdquo; to map the links.
+            No chain added yet. Click &ldquo;Add chain&rdquo; to get started.
           </p>
         )}
 
@@ -186,7 +186,7 @@ export function ChainWidget({ transactionId }: { transactionId: string }) {
               onClick={addLink}
               className="w-full text-xs text-slate-900/40 hover:text-blue-500 border border-dashed border-white/30 rounded-lg py-2.5 transition-colors"
             >
-              + Add link
+              + Add sale
             </button>
 
             <div className="flex items-center gap-2 pt-1">

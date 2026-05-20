@@ -129,7 +129,7 @@ export function ChainDrawer({
     if (res.ok) {
       await fetchChain();
     } else {
-      toast.error("Couldn't remove");
+      toast.error("Couldn't remove this sale");
     }
   }
 
@@ -202,7 +202,7 @@ export function ChainDrawer({
       {/* Panel */}
       <div
         role="dialog"
-        aria-label="Chain progress"
+        aria-label="Chain"
         className="relative z-10 flex flex-col h-full"
         style={{
           width: "min(440px, 100vw)",
@@ -217,7 +217,7 @@ export function ChainDrawer({
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "1px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chain progress</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chain</p>
             <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>Every linked sale, in one place</p>
           </div>
           <button onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
@@ -243,7 +243,7 @@ export function ChainDrawer({
           {!loading && !chain && (
             <EmptyState
               icon={<ChainIcon />}
-              title="No chain linked to this sale"
+              title="No chain yet"
               description="Create a chain to track your sale's position and invite other agents to share updates."
               action={
                 <button
@@ -260,7 +260,7 @@ export function ChainDrawer({
           {!loading && chain && links.length === 0 && (
             <EmptyState
               icon={<ChainIcon />}
-              title="Chain created — add the first sale"
+              title="Chain started"
               description="Add the sale above or below this one to start tracking together."
               action={
                 onOpenAddNode ? (
@@ -332,7 +332,7 @@ export function ChainDrawer({
                     borderRadius: 8,
                   }}>
                     <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: "0 0 6px" }}>
-                      A sale in your chain has withdrawn. What's your plan?
+                      A sale in this chain has withdrawn. How do you want to proceed?
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                       {(["REMARKETING", "WAITING"] as const).map((opt) => (
@@ -366,7 +366,7 @@ export function ChainDrawer({
                         opacity: withdrawalResponse && !submittingResponse ? 1 : 0.5,
                       }}
                     >
-                      {submittingResponse ? "Saving…" : "Save response"}
+                      {submittingResponse ? "Saving…" : "Save"}
                     </button>
                   </div>
                 );
@@ -406,7 +406,7 @@ export function ChainDrawer({
                 <div key={link.id}>
                   {confirmingDeleteId === link.id ? (
                     <div className="rounded-xl bg-white/40 border border-white/30 px-4 py-3 flex items-center gap-3">
-                      <p className="flex-1 text-sm text-slate-900/70">Remove this link?</p>
+                      <p className="flex-1 text-sm text-slate-900/70">Remove this sale from the chain?</p>
                       <button
                         onClick={() => { void doDeleteConfirmed(link.id); }}
                         className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"

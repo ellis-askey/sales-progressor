@@ -37,10 +37,10 @@ export function ChainSetupFailedBanner() {
     >
       <div style={{ flex: 1 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#92400e" }}>
-          Chain setup didn&apos;t complete
+          Chain setup failed
         </p>
         <p style={{ margin: "2px 0 0", fontSize: 13, color: "#b45309" }}>
-          Your file was saved, but the chain link failed to create.{" "}
+          Your file was saved, but the chain wasn&apos;t linked.{" "}
           <button
             onClick={() => {
               document.getElementById("chain-section")?.scrollIntoView({ behavior: "smooth", block: "center" });

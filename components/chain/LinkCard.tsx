@@ -136,7 +136,7 @@ export function LinkCard({
       {/* Status descriptors for invited/bounced/declined */}
       {status.kind === "invited" && (
         <p className="text-xs text-slate-900/40 mt-1.5">
-          Awaiting agent · Sent {relativeTime(link.inviteSentAt)}
+          Invite sent · {relativeTime(link.inviteSentAt)}
         </p>
       )}
       {status.kind === "bounced" && (

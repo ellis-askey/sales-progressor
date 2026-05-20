@@ -37,7 +37,7 @@ export function ChainDeclineBanner({ address }: Props) {
           background: "#ef4444", flexShrink: 0,
         }} />
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
-          An agent declined your chain invite for <strong>{address}</strong>. Open their file to resend or update the contact.
+          An agent declined your invite for <strong>{address}</strong>. Open their file to resend or update the contact.
         </p>
       </div>
       <button

@@ -128,7 +128,7 @@ export function ChainSection({
 
   function handleCollapse() {
     if (stubs.length > 0) {
-      if (!confirm(`Discard chain and ${stubs.length} added node${stubs.length !== 1 ? "s" : ""}?`)) return;
+      if (!confirm(`Discard chain and ${stubs.length} added sale${stubs.length !== 1 ? "s" : ""}?`)) return;
     }
     setPosition("unknown");
     onCollapse();
@@ -136,11 +136,11 @@ export function ChainSection({
 
   function handleChangePosition(value: ChainPosition) {
     if (value === "top" && aboveStubs.length > 0) {
-      if (!confirm(`You've added ${aboveStubs.length} node${aboveStubs.length !== 1 ? "s" : ""} above. Remove them?`)) return;
+      if (!confirm(`You've added ${aboveStubs.length} sale${aboveStubs.length !== 1 ? "s" : ""} above. Remove them?`)) return;
       aboveStubs.forEach((s) => onRemoveStub(s.id));
     }
     if (value === "bottom" && belowStubs.length > 0) {
-      if (!confirm(`You've added ${belowStubs.length} node${belowStubs.length !== 1 ? "s" : ""} below. Remove them?`)) return;
+      if (!confirm(`You've added ${belowStubs.length} sale${belowStubs.length !== 1 ? "s" : ""} below. Remove them?`)) return;
       belowStubs.forEach((s) => onRemoveStub(s.id));
     }
     setPosition(value);

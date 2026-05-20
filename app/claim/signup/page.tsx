@@ -41,7 +41,7 @@ export default async function ClaimSignupPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
+    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const link = await prisma.chainLink.findFirst({
     where: { inviteToken: token },
@@ -77,15 +77,15 @@ export default async function ClaimSignupPage({
   if (!link)
     return (
       <ClaimError
-        title="Invalid link"
-        body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
+        title="Invite not found"
+        body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
         title="Already claimed"
-        body="This chain link has already been claimed. If you believe this is a mistake, contact support."
+        body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
   if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
@@ -138,7 +138,7 @@ export default async function ClaimSignupPage({
 
         {/* ── Right column — chain panel ── */}
         <div className="claim-panel">
-          <p className="claim-panel-eyebrow">You&apos;re joining</p>
+          <p className="claim-panel-eyebrow">You&apos;re joining the chain at</p>
           <p className="claim-panel-address">
             {link.stubPropertyAddress ?? "Your sale"}
           </p>

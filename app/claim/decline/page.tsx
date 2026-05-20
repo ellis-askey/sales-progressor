@@ -27,8 +27,8 @@ export default async function ClaimDeclinePage({
         <div className="claim-error-wrap">
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
-            <h1 className="claim-error-h1">Invalid link</h1>
-            <p className="claim-error-p">This link is invalid or has expired.</p>
+            <h1 className="claim-error-h1">Invalid invite link</h1>
+            <p className="claim-error-p">This link doesn&apos;t look right. Try copying it again, or ask the inviting agent for a new one.</p>
             <p className="claim-error-support">
               Need help?{" "}
               <a href="mailto:support@thesalesprogressor.co.uk">
@@ -64,9 +64,9 @@ export default async function ClaimDeclinePage({
         <div className="claim-error-wrap">
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
-            <h1 className="claim-error-h1">Invalid link</h1>
+            <h1 className="claim-error-h1">Invite not found</h1>
             <p className="claim-error-p">
-              This link is invalid or has already been used.
+              This invite has expired or been replaced. Ask the inviting agent for a new one.
             </p>
             <p className="claim-error-support">
               Need help?{" "}
@@ -201,7 +201,7 @@ export default async function ClaimDeclinePage({
           <h1 className="claim-decline-h1">All noted.</h1>
           <p className="claim-decline-sub">
             We&apos;ve let them know this isn&apos;t your sale. Estate agencies are busy —
-            thanks for letting us know.
+            that helps.
           </p>
           {expiryDate && (
             <div className="claim-nudge-card">

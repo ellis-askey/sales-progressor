@@ -199,7 +199,7 @@ export function AddNodeDrawer({
     !!form.stubAgentEmail.trim() && EMAIL_RE.test(form.stubAgentEmail.trim());
 
   function helperText(): string {
-    if (!requiredFilled) return "Property address and agency name are required";
+    if (!requiredFilled) return "Add a property address and agency name to continue.";
     if (!form.stubAgentEmail.trim()) return "No invite sent — you can add an email later";
     if (!hasValidEmail) return "Enter a valid email address";
     if (isExistingChain) return "Invite sent on save";

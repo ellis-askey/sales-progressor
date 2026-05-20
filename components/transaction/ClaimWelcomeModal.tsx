@@ -39,8 +39,8 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
   if (!mounted || !visible) return null;
 
   const chainDescription = originatorAgency
-    ? `Your file for ${address} is part of ${originatorAgency}'s chain. Other agents can see your position; you can see theirs.`
-    : `Your file for ${address} is part of the chain. Other agents can see your position; you can see theirs.`;
+    ? `Your sale at ${address} is now part of ${originatorAgency}'s chain. Everyone in it can see how each sale is progressing — including yours.`
+    : `Your sale at ${address} is now part of the chain. Everyone in it can see how each sale is progressing — including yours.`;
 
   return createPortal(
     <div
@@ -64,7 +64,7 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
           <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-            You&apos;re in the chain
+            You&apos;re in.
           </p>
           <button onClick={() => setVisible(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
             <X size={14} weight="bold" />
@@ -77,14 +77,14 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
             {chainDescription}
           </p>
           <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.65 }}>
-            Add your buyer&apos;s and seller&apos;s details when you&apos;re ready, and update milestones as the sale progresses.
+            When you&apos;re ready, add your buyer&apos;s and seller&apos;s details and tick off steps as they happen.
           </p>
           <button
             onClick={() => setVisible(false)}
             className="agent-btn agent-btn-color-primary"
             style={{ width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, fontWeight: 700, marginTop: 4 }}
           >
-            Take me in
+            Open my file
           </button>
         </div>
       </div>

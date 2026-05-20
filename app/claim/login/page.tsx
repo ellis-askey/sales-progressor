@@ -44,7 +44,7 @@ export default async function ClaimLoginPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
+    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   // Already logged in — go straight to confirm
   const session = await getServerSession(authOptions);
@@ -67,15 +67,15 @@ export default async function ClaimLoginPage({
   if (!link)
     return (
       <ClaimError
-        title="Invalid link"
-        body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
+        title="Invite not found"
+        body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
         title="Already claimed"
-        body="This chain link has already been claimed. If you believe this is a mistake, contact support."
+        body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
   if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
@@ -96,7 +96,7 @@ export default async function ClaimLoginPage({
             ← Back
           </a>
           <div className="claim-context-info">
-            <div className="claim-context-label">You&apos;re claiming</div>
+            <div className="claim-context-label">Claiming:</div>
             <div className="claim-context-address">
               {link.stubPropertyAddress ?? "Your sale"}
             </div>
@@ -105,7 +105,7 @@ export default async function ClaimLoginPage({
 
         <h1 className="claim-sub-h1">Log in to claim</h1>
         <p className="claim-sub-p">
-          We found an account for <strong>{stubEmail}</strong>. Log in to link your sale.
+          There&apos;s already an account for <strong>{stubEmail}</strong>. Log in to link your sale.
         </p>
 
         <div className="claim-form-card">

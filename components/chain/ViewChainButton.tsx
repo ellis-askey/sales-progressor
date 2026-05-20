@@ -34,7 +34,7 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
         className="agent-link"
         style={{ fontSize: 11 }}
       >
-        View Chain →
+        Open chain →
       </button>
 
       {drawerOpen && (

@@ -56,7 +56,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
       if (registerRes.status === 409) {
         setError("An account with this email already exists.");
       } else {
-        setError((data as { error?: string }).error ?? "Something went wrong. Please try again.");
+        setError((data as { error?: string }).error ?? "Something didn't work. Try again, or contact support if it keeps happening.");
       }
       return;
     }
@@ -82,7 +82,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
     if (!claimRes.ok) {
       const data = await claimRes.json().catch(() => ({}));
       setLoading(false);
-      setError((data as { error?: string }).error ?? "Claim failed. Please try again.");
+      setError((data as { error?: string }).error ?? "Couldn't link your sale. Try again, or contact support if it keeps happening.");
       return;
     }
 
@@ -178,7 +178,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName }: Props) {
 
       {/* Sale details */}
       <div className="claim-sale-details">
-        <p className="claim-sale-details-note">We need two quick details to set up your milestones.</p>
+        <p className="claim-sale-details-note">Two details to set up your file.</p>
         <div>
           <label className="claim-field-label">Tenure</label>
           <div className="claim-segment-pill-row">

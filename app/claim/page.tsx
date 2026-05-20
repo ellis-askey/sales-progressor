@@ -33,7 +33,7 @@ function ClaimError({
           {contact && (
             <div className="claim-warn-card" style={{ marginTop: 16 }}>
               <p className="claim-warn-p" style={{ margin: 0 }}>
-                <strong>Inviting agent:</strong> {contact.name}
+                <strong>Invited by:</strong> {contact.name}
                 {contact.agency ? ` — ${contact.agency}` : ""}
               </p>
             </div>
@@ -58,7 +58,7 @@ export default async function ClaimPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
+    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const link = await prisma.chainLink.findFirst({
     where: { inviteToken: token },
@@ -95,15 +95,15 @@ export default async function ClaimPage({
   if (!link)
     return (
       <ClaimError
-        title="Invalid link"
-        body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
+        title="Invite not found"
+        body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
         title="Already claimed"
-        body="This chain link has already been claimed. If you believe this is a mistake, contact support."
+        body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
   if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
@@ -124,7 +124,7 @@ export default async function ClaimPage({
     return (
       <ClaimError
         title="This chain has changed."
-        body="A sale in this chain has withdrawn. Ask the inviting agent to send a fresh invite once they've sorted out their chain."
+        body="A sale in this chain has withdrawn. Ask the inviting agent for a fresh invite once the chain has been resolved."
         contact={{ name: originatorContactName, agency: originatorContactAgency }}
       />
     );
@@ -240,7 +240,7 @@ export default async function ClaimPage({
                         <>
                           <div className="claim-chain-head">
                             <span className="claim-chain-address">{address}</span>
-                            <span className="claim-chain-status">✓ Tracking</span>
+                            <span className="claim-chain-status">✓ Joined</span>
                           </div>
                           {agency && (
                             <div className="claim-chain-agency">{agency}</div>
@@ -256,9 +256,9 @@ export default async function ClaimPage({
                               fontWeight: 400,
                             }}
                           >
-                            Pending sale
+                            Invite pending
                           </span>
-                          <span className="claim-chain-status">Invited</span>
+                          <span className="claim-chain-status">Invite sent</span>
                         </div>
                       )}
                     </div>

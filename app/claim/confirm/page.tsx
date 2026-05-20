@@ -45,7 +45,7 @@ export default async function ClaimConfirmPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid link" body="This link is invalid or has expired." />;
+    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -77,15 +77,15 @@ export default async function ClaimConfirmPage({
   if (!link)
     return (
       <ClaimError
-        title="Invalid link"
-        body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite."
+        title="Invite not found"
+        body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
         title="Already claimed"
-        body="This chain link has already been claimed. If you believe this is a mistake, contact support."
+        body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
   if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date())
@@ -119,7 +119,7 @@ export default async function ClaimConfirmPage({
               ← Back
             </a>
             <div className="claim-context-info">
-              <div className="claim-context-label">You&apos;re claiming</div>
+              <div className="claim-context-label">Claiming:</div>
               <div className="claim-context-address">
                 {link.stubPropertyAddress ?? "Your sale"}
               </div>
@@ -141,7 +141,7 @@ export default async function ClaimConfirmPage({
           </div>
 
           <a href="/api/auth/signout" className="claim-btn">
-            Log out and use a different account
+            Switch account
           </a>
           <a href={`/claim?token=${token}`} className="claim-decline-link">
             Cancel
@@ -201,11 +201,11 @@ export default async function ClaimConfirmPage({
         </div>
 
         <h1 className="claim-confirm-h1">
-          {hasDuplicates ? "Is this already in your system?" : "Ready to join this chain"}
+          {hasDuplicates ? "Looks like you already have this sale." : "Ready to join this chain"}
         </h1>
         <p className="claim-confirm-p">
           {hasDuplicates
-            ? "We spotted a sale at the same address. Link the existing one or create a new file."
+            ? "There's already a sale at this address in your files. Link it to this chain, or start a fresh file."
             : "Confirm the details below and we’ll link your sale to the chain."}
         </p>
 
@@ -253,7 +253,7 @@ export default async function ClaimConfirmPage({
         />
 
         <p className="claim-wrong-note">
-          Something wrong? <a href={`/claim?token=${token}`}>Back to invite</a>
+          Wrong invite? <a href={`/claim?token=${token}`}>Go back</a>
         </p>
       </div>
     </Shell>

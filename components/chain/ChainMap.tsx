@@ -66,17 +66,17 @@ function LinkCard({ link, isThis, isWeakest }: { link: ChainLinkData; isThis: bo
             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
               {stuck !== null && (
                 <span className={`text-xs ${stuck >= 21 ? "text-red-600 font-medium" : stuck >= 10 ? "text-amber-600" : "text-slate-900/40"}`}>
-                  {stuck === 0 ? "Active today" : `${stuck}d since last milestone`}
+                  {stuck === 0 ? "Active today" : `${stuck}d since last step`}
                 </span>
               )}
               {link.transaction.vendorSolicitorFirm && (
                 <span className="text-xs text-slate-900/40">
-                  V: {link.transaction.vendorSolicitorFirm.name}
+                  Vendor: {link.transaction.vendorSolicitorFirm.name}
                 </span>
               )}
               {link.transaction.purchaserSolicitorFirm && (
                 <span className="text-xs text-slate-900/40">
-                  P: {link.transaction.purchaserSolicitorFirm.name}
+                  Purchaser: {link.transaction.purchaserSolicitorFirm.name}
                 </span>
               )}
             </div>
@@ -119,11 +119,11 @@ export function ChainMap({ chain, currentTransactionId }: { chain: ChainData; cu
     <div className="space-y-0">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold text-slate-900/40 uppercase tracking-wide">
-          Chain · {links.length} link{links.length !== 1 ? "s" : ""}
+          Chain · {links.length} sale{links.length !== 1 ? "s" : ""}
         </p>
         {weakestId && (
           <p className="text-xs text-red-600 font-medium">
-            ⚠ Weakest link identified
+            ⚠ Weakest link
           </p>
         )}
       </div>
