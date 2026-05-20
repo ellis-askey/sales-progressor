@@ -46,19 +46,24 @@ export async function POST(req: NextRequest) {
   const base  = host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL ?? "http://localhost:3000");
   const resetUrl = `${base}/reset-password?token=${token}&email=${encodeURIComponent(normalised)}`;
 
-  await sendEmail({
-    to: normalised,
-    subject: "Reset your Sales Progressor password",
-    text: `Someone requested a password reset for this account. Click the link below to choose a new one — the link expires in 1 hour.\n\n${resetUrl}\n\nIf this wasn't you, you can safely ignore this email.`,
-    html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1A1D29">
+  try {
+    await sendEmail({
+      to: normalised,
+      subject: "Reset your Sales Progressor password",
+      text: `Someone requested a password reset for this account. Click the link below to choose a new one — the link expires in 1 hour.\n\n${resetUrl}\n\nIf this wasn't you, you can safely ignore this email.`,
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1A1D29">
       <h1 style="font-size:20px;font-weight:600;margin:0 0 8px">Reset your password</h1>
       <p style="font-size:14px;color:#4A5162;margin:0 0 24px">Someone requested a password reset for this account. Click the button below to choose a new one — the link expires in 1 hour.</p>
       <a href="${resetUrl}" style="display:inline-block;background:#3b82f6;color:white;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">Reset password</a>
       <p style="font-size:12px;color:#8B91A3;margin:24px 0 0">If this wasn't you, you can safely ignore this email.</p>
       <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
     </body></html>`,
-    from: user.agency ? agencyFrom(user.agency.name) : undefined,
-  });
+      from: user.agency ? agencyFrom(user.agency.name) : undefined,
+    });
+  } catch (err) {
+    console.error("[ERROR] forgot-password: sendEmail failed", err);
+    return NextResponse.json({ error: "Failed to send reset email" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
