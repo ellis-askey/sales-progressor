@@ -12,6 +12,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { handleBouncedInvite } from "@/lib/chain/invite";
+import { prisma } from "@/lib/prisma";
 
 type SendGridEvent = {
   event: string;
@@ -36,9 +37,21 @@ export async function POST(req: NextRequest) {
 
   for (const event of hardBounces) {
     if (typeof event.email === "string") {
+      // Invite bounce: marks ChainLink.inviteBouncedAt and notifies originator
       await handleBouncedInvite(event.email).catch(console.error);
+      // Operational email bounce: suppress the user globally
+      await suppressUserByEmail(event.email).catch(console.error);
     }
   }
 
   return NextResponse.json({ ok: true });
+}
+
+// Hard bounce on an operational email — suppress the account globally.
+// Sets emailUnsubscribedAt if the user exists and hasn't already opted out.
+async function suppressUserByEmail(email: string): Promise<void> {
+  await prisma.user.updateMany({
+    where: { email, emailUnsubscribedAt: null },
+    data: { emailUnsubscribedAt: new Date() },
+  });
 }

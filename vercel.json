@@ -67,6 +67,10 @@
     {
       "path": "/api/cron/drain-outbound-email",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/drain-withdrawal-notifications",
+      "schedule": "0 * * * *"
     }
   ]
 }

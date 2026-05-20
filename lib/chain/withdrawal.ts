@@ -1,8 +1,8 @@
 // lib/chain/withdrawal.ts
-// Withdrawal cascade — notification queue and link state changes.
-// Email send is deferred to Phase 2; this module builds the queue only.
+// Withdrawal cascade — notification queue, link state changes, and synchronous email fire.
 
 import { prisma } from "@/lib/prisma";
+import { fireWithdrawalNotifications } from "@/lib/email/chainNotifications";
 
 export async function notifyChainMatesOfWithdrawal(
   withdrawingTransactionId: string,
@@ -64,8 +64,11 @@ export async function notifyChainMatesOfWithdrawal(
   });
 
   console.log(
-    `[WITHDRAWAL_NOTIFICATION_PENDING] chain=${existingLink.chainId} ` +
+    `[WITHDRAWAL_NOTIFICATION_QUEUED] chain=${existingLink.chainId} ` +
     `withdrawing=${withdrawingTransactionId} recipients=${notifiable.length} ` +
     `reason=${fallThroughReason ? "present" : "absent"}`,
   );
+
+  // Fire synchronously — if send fails the records remain for the hourly cron fallback
+  await fireWithdrawalNotifications().catch(console.error);
 }
