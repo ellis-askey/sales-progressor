@@ -14,7 +14,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ClaimError({ title, body }: { title: string; body: string }) {
+function ClaimError({
+  title,
+  body,
+  contact,
+}: {
+  title: string;
+  body: string;
+  contact?: { name: string; agency: string | null } | null;
+}) {
   return (
     <Shell>
       <div className="claim-error-wrap">
@@ -22,6 +30,14 @@ function ClaimError({ title, body }: { title: string; body: string }) {
           <p className="claim-error-eyebrow">The Sales Progressor</p>
           <h1 className="claim-error-h1">{title}</h1>
           <p className="claim-error-p">{body}</p>
+          {contact && (
+            <div className="claim-warn-card" style={{ marginTop: 16 }}>
+              <p className="claim-warn-p" style={{ margin: 0 }}>
+                <strong>Inviting agent:</strong> {contact.name}
+                {contact.agency ? ` — ${contact.agency}` : ""}
+              </p>
+            </div>
+          )}
           <p className="claim-error-support">
             Need help?{" "}
             <a href="mailto:support@thesalesprogressor.co.uk">
@@ -66,8 +82,9 @@ export default async function ClaimPage({
               position: true,
               transactionId: true,
               stubPropertyAddress: true,
+              withdrawalStatus: true,
               claimedBy: { select: { firmName: true } },
-              transaction: { select: { propertyAddress: true } },
+              transaction: { select: { propertyAddress: true, status: true } },
             },
           },
         },
@@ -96,6 +113,22 @@ export default async function ClaimPage({
         body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
       />
     );
+
+  const chainBroken = link.chain.links.some(
+    (cl) => cl.transaction?.status === "withdrawn" || cl.withdrawalStatus === "WITHDRAWN",
+  );
+  if (chainBroken) {
+    const originatorContactName = link.chain.createdBy?.name ?? "The inviting agent";
+    const originatorContactAgency =
+      link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null;
+    return (
+      <ClaimError
+        title="This chain has changed."
+        body="A sale in this chain has withdrawn. Ask the inviting agent to send a fresh invite once they've sorted out their chain."
+        contact={{ name: originatorContactName, agency: originatorContactAgency }}
+      />
+    );
+  }
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;

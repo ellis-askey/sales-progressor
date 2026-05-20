@@ -45,7 +45,17 @@ export async function POST(req: NextRequest) {
       inviteTokenExpiresAt: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
-      chain: { select: { createdByUserId: true } },
+      chain: {
+        select: {
+          createdByUserId: true,
+          links: {
+            select: {
+              withdrawalStatus: true,
+              transaction: { select: { status: true } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -79,6 +89,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "No agency associated with your account" },
       { status: 403 },
+    );
+  }
+
+  // Race-safety: check for withdrawn chain between page load and submit
+  const chainBroken = link.chain.links.some(
+    (cl) => cl.transaction?.status === "withdrawn" || cl.withdrawalStatus === "WITHDRAWN",
+  );
+  if (chainBroken) {
+    return NextResponse.json(
+      {
+        error:
+          "This chain has changed — a sale in it has withdrawn. Ask the inviting agent to send a fresh invite once they've sorted out their chain.",
+      },
+      { status: 409 },
     );
   }
 
