@@ -12,6 +12,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
+  getHubUnassignedFiles,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -20,6 +21,7 @@ import {
   MomentumRing,
 } from "@/components/hub/HubCharts";
 import { AttentionListView } from "@/components/hub/AttentionListView";
+import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { AlertCircle, ChevronRight } from "lucide-react";
@@ -87,7 +89,7 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -96,6 +98,7 @@ export default async function HubPreviewPage() {
       getHubServiceSplit(vis),
       getHubRecentActivity(vis),
       getHubDiary(vis),
+      getHubUnassignedFiles(vis),
     ]);
 
   // Derived values
@@ -325,7 +328,10 @@ export default async function HubPreviewPage() {
         {/* ── 3. Needs your attention ───────────────────────────────────────────── */}
         <AttentionListView items={attentionItems} />
 
-        {/* ── 3. Pipeline health + Momentum ─────────────────────────────────────── */}
+        {/* ── 4. Unassigned outsourced files (admin only) ───────────────────────── */}
+        <UnassignedFilesView initialFiles={unassignedFiles} />
+
+        {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
 
           {/* Pipeline health card */}
