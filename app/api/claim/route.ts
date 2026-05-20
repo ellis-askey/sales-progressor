@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       id: true,
       transactionId: true,
       inviteStatus: true,
+      inviteTokenExpiresAt: true,
       stubAgentEmail: true,
       stubPropertyAddress: true,
       chain: { select: { createdByUserId: true } },
@@ -51,6 +52,9 @@ export async function POST(req: NextRequest) {
   }
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED") {
     return NextResponse.json({ error: "This invite has already been claimed" }, { status: 409 });
+  }
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) {
+    return NextResponse.json({ error: "This invite link has expired" }, { status: 410 });
   }
 
   // Email must match the stub

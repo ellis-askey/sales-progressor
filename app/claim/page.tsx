@@ -44,6 +44,7 @@ export default async function ClaimPage({
         select: {
           createdByUserId: true,
           createdBy: { select: { name: true, firmName: true } },
+          agency: { select: { name: true } },
           links: {
             orderBy: { position: "asc" },
             select: {
@@ -62,8 +63,7 @@ export default async function ClaimPage({
 
   if (!link) return <ErrorPage title="Invalid link" body="This link is invalid or has already been used. Contact the inviting agent for a fresh invite." />;
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED") return <ErrorPage title="Already claimed" body="This chain link has already been claimed. If you believe this is a mistake, contact support." />;
-  if (link.inviteStatus === "DECLINED") return <ErrorPage title="Invite declined" body="This invite was declined. Contact the inviting agent if you'd like to be re-invited." />;
-  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) return <ErrorPage title="Invite expired" body="This invite link has expired. Contact the inviting agent to request a fresh invite." />;
+  if (link.inviteTokenExpiresAt && link.inviteTokenExpiresAt < new Date()) return <ErrorPage title="This invite has expired." body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it." />;
 
   const session = await getServerSession(authOptions);
   const isLoggedIn = !!session?.user;
@@ -94,7 +94,7 @@ export default async function ClaimPage({
   const stubPosition = stubLinkIndex + 1;
   const totalLinks = chainLinks.length;
   const originatorName = link.chain.createdBy?.name ?? "An agent";
-  const originatorAgency = link.chain.createdBy?.firmName ?? "an estate agency";
+  const originatorAgency = link.chain.createdBy?.firmName ?? link.chain.agency?.name ?? null;
   const invitedDate = link.inviteSentAt
     ? new Date(link.inviteSentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
@@ -111,7 +111,7 @@ export default async function ClaimPage({
           You've been invited to join this chain
         </h1>
         <p style={{ fontSize: 14, color: "#8b91a3", textAlign: "center", margin: "0 0 32px", lineHeight: 1.6 }}>
-          {originatorName} at {originatorAgency} has linked your sale to theirs
+          {originatorAgency ? `${originatorName} at ${originatorAgency}` : originatorName} has linked your sale to theirs
         </p>
 
         {/* Chain teaser card */}
