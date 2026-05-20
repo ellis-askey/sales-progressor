@@ -413,7 +413,7 @@ export default function ChainWalkthroughPage() {
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 24px 80px" }}>
         <PageHeader
           title="Chain walkthrough"
-          subtitle="End-to-end demo of the chain system as it stands today."
+          subtitle="Chain system · v1 complete · All Phase 1 features shipped"
         />
 
         {/* Global controls */}
@@ -530,12 +530,10 @@ export default function ChainWalkthroughPage() {
           </div>
         </div>
 
-        <div style={{ marginTop: 16 }}>
-          <GapCallout
-            gap="Gap 3"
-            title="Token expiry — currently 90 days"
-            body="Email says '90 days'. Target is 7–14 days. Not yet enforced on the server — an expired token still works. Fix is: add expiresAt to ChainLink, check on claim, show 'This invite has expired' page."
-          />
+        <div style={{ marginTop: 16, padding: "10px 14px", background: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 8 }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#065f46", fontFamily: "monospace" }}>
+            ✓ SHIPPED — Gap 3: Token expiry. 7d initial / 14d resend enforced server-side. All 5 claim routes check expiry.
+          </p>
         </div>
 
         {/* ── SECTION 4: CLAIM FLOW ─────────────────────────────────────────── */}
@@ -611,39 +609,41 @@ export default function ChainWalkthroughPage() {
           }
         </div>
 
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ padding: "10px 14px", background: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 8 }}>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#065f46", fontFamily: "monospace" }}>
+              ✓ SHIPPED — Withdrawal response picker: chain-mates now see an in-app prompt in the real ChainDrawer (Going back to market / Waiting). Status shown per-link via REMARKETING/WAITING badges on LinkCard.
+            </p>
+          </div>
           <GapCallout
             gap="Phase 2 — deferred"
             title="Email notifications not yet wired"
-            body="ChainNotificationQueue rows are created on withdrawal (visible in DB). Email send is Phase 2 — queue processor and SendGrid template not yet built. Chain-mates see the drawer banner; no email arrives."
+            body="ChainNotificationQueue rows are created on withdrawal (visible in DB). Email send is Phase 2 — queue processor and SendGrid template not yet built. Response tokens + /claim/withdrawal-response also deferred to when email is wired."
           />
         </div>
 
         {/* ── SECTION 6: GAPS ───────────────────────────────────────────────── */}
         <SectionLabel
           id="s6"
-          title="§6 · Known gaps"
-          sub="Not yet fixed. Visible on this page where marked above. Full list:"
+          title="§6 · Phase 1 gap status"
+          sub="All Phase 1 gaps shipped. One Phase 2 item open."
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ padding: "10px 14px", background: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 8 }}>
+            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#065f46", fontFamily: "monospace" }}>✓ SHIPPED — Gap 1: Silent chain creation failure</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(30,45,74,.55)", fontFamily: "monospace", lineHeight: 1.6 }}>ChainSetupFailedBanner dismissible warning + scroll-to-chain CTA on transaction detail. chainSetupFailed=1 URL param set by NewSaleFlow on failure.</p>
+          </div>
+          <div style={{ padding: "10px 14px", background: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 8 }}>
+            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#065f46", fontFamily: "monospace" }}>✓ SHIPPED — Gap 3: Invite token expiry</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(30,45,74,.55)", fontFamily: "monospace", lineHeight: 1.6 }}>7d initial / 14d resend enforced. All 5 claim routes (/claim, /claim/signup, /claim/login, /claim/confirm, /claim/decline) check inviteTokenExpiresAt.</p>
+          </div>
+          <div style={{ padding: "10px 14px", background: "rgba(16,185,129,0.08)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 8 }}>
+            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#065f46", fontFamily: "monospace" }}>✓ SHIPPED — Gap 5: Decline notification</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(30,45,74,.55)", fontFamily: "monospace", lineHeight: 1.6 }}>Amber banner in ChainDrawer when an agent declined. Dismiss calls POST /api/chain/dismiss-decline to clear chainDeclineNotificationAddress + chainDeclineNotificationAt.</p>
+          </div>
           <GapCallout
-            gap="Gap 1"
-            title="Silent chain creation failure"
-            body="On the new-sale form, if the POST /api/chains request fails after submission, the transaction is created but the chain is silently dropped. No toast, no retry. User has no feedback that the chain wasn't saved."
-          />
-          <GapCallout
-            gap="Gap 3"
-            title="Invite token expiry — 90 days, target 7–14"
-            body="inviteToken has no expiry date stored. The claim landing page accepts any token indefinitely. Fix requires: expiresAt on ChainLink, server-side check on /claim, 'This invite has expired' error page."
-          />
-          <GapCallout
-            gap="Gap 5"
-            title="Decline notification missing"
-            body="When an external agent declines their invite, the originator gets no in-app notification or email. inviteStatus is set to DECLINED in the DB, and the ChainDrawer shows the Declined badge, but the originator only sees it if they open the drawer."
-          />
-          <GapCallout
-            gap="Gap 6"
+            gap="Gap 6 — Phase 2"
             title="No real-time broadcast to chain-mates"
             body="Chain state changes (withdrawal, milestone updates) are not pushed to other agents in real time. Chain-mates see stale data until they manually refresh. Phase 2 scope — requires server-sent events or polling."
           />
