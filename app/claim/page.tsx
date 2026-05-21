@@ -2,11 +2,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "./styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
+      <ClaimBackground />
       <header className="claim-header">
         <a
           href="https://www.thesalesprogressor.co.uk"

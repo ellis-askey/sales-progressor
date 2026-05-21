@@ -22,11 +22,58 @@
   --claim-r-sm:            8px;
 
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  background: var(--claim-bg);
+  background:
+    linear-gradient(135deg,
+      rgba(255,107,74,.45) 0%,
+      rgba(255,180,77,.45) 25%,
+      rgba(255,220,180,.32) 50%,
+      rgba(255,140,100,.45) 75%,
+      rgba(255,107,74,.45) 100%
+    ),
+    var(--claim-bg);
+  background-size: 400% 400%, auto;
+  animation: claim-mesh-shift 16s ease-in-out infinite;
   min-height: 100vh;
   color: var(--claim-text-1);
   position: relative;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Mesh-led background with faint ripple highlights.
+ * Content (header + page containers) sits at z-index 2 so it stays above
+ * the .claim-ripple spans which use position: fixed; z-index: 1.
+ * NB: selectors are explicit, not > *, so the .claim-ripple children of
+ * .claim-page (rendered by <ClaimBackground />) keep their fixed positioning. */
+@keyframes claim-mesh-shift {
+  0%   { background-position: 0% 0%, 0 0; }
+  50%  { background-position: 100% 100%, 0 0; }
+  100% { background-position: 0% 0%, 0 0; }
+}
+.claim-page > .claim-header,
+.claim-page > .claim-container,
+.claim-page > .claim-container--narrow,
+.claim-page > .claim-signup-grid,
+.claim-page > .claim-error-wrap,
+.claim-page > .claim-decline-wrap,
+.claim-page > .claim-confirm-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.claim-ripple {
+  position: fixed;
+  width: 40px; height: 40px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 50%;
+  transform: translate(-50%,-50%) scale(0);
+  pointer-events: none;
+  z-index: 1;
+  animation: claim-ripple-expand 6s ease-out infinite;
+}
+@keyframes claim-ripple-expand {
+  0%   { transform: translate(-50%,-50%) scale(0);  opacity: 0.7; }
+  100% { transform: translate(-50%,-50%) scale(12); opacity: 0; }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────────────────── */

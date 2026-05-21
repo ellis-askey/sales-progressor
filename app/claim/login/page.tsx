@@ -3,11 +3,13 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
+import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
+      <ClaimBackground />
       <header className="claim-header">
         <a
           href="https://www.thesalesprogressor.co.uk"

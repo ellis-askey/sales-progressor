@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
+import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { displayChainPosition } from "@/lib/chain/positions";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
+      <ClaimBackground />
       <header className="claim-header">
         <a
           href="https://www.thesalesprogressor.co.uk"

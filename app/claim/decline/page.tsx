@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { fireDeclineNotification } from "@/lib/email/chainNotifications";
+import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "../styles/claim-flow.css";
 
 // Performs the decline on page load (side effect in server component, mirrors
@@ -14,6 +15,7 @@ export default async function ClaimDeclinePage({
   function Shell({ children }: { children: React.ReactNode }) {
     return (
       <div className="claim-page">
+        <ClaimBackground />
         <header className="claim-header">
           <a
             href="https://www.thesalesprogressor.co.uk"

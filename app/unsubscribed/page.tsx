@@ -1,3 +1,4 @@
+import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import "../claim/styles/claim-flow.css";
 
 export default async function UnsubscribedPage({
@@ -10,6 +11,7 @@ export default async function UnsubscribedPage({
 
   return (
     <div className="claim-page">
+      <ClaimBackground />
       <header className="claim-header">
         <a
           href="https://www.thesalesprogressor.co.uk"
