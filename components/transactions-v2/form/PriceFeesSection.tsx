@@ -195,7 +195,7 @@ export function PriceFeesSection({
       <div onBlur={handlePriceBlur}>
         <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
           Sale price
-          <FieldIndicator source={priceMemoSource} />
+          <FieldIndicator source={priceMemoSource} valid={!!purchasePricePence && purchasePricePence > 0} />
         </p>
         <HeroInputWrap isSolid={isSolid}>
           <PriceInput
@@ -220,7 +220,7 @@ export function PriceFeesSection({
           <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 4 }}>
             Agent fee
             <span style={{ fontSize: 9, fontWeight: 400, color: "var(--nv2-text-ghost)", textTransform: "none", letterSpacing: 0 }}>not on memos</span>
-            <FieldIndicator source={agentFeeMemoSource} />
+            <FieldIndicator source={agentFeeMemoSource} valid={feeBaseP != null && feeBaseP > 0} />
           </p>
           <SegmentToggle
             options={[

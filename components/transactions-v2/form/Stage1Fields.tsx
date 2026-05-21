@@ -266,7 +266,7 @@ export function Stage1Fields({
       <div>
         <SectionLabel>
           Tenure
-          <FieldIndicator source={memoSources.tenure} />
+          <FieldIndicator source={memoSources.tenure} valid={!!tenure} />
         </SectionLabel>
         <div style={{ display: "flex", gap: 10 }}>
           <Pill
@@ -300,6 +300,7 @@ export function Stage1Fields({
       <div>
         <SectionLabel>
           Purchase type
+          <FieldIndicator source={memoSources.purchaseType} valid={!!purchaseType} />
         </SectionLabel>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Pill
