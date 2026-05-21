@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ReconcileMilestonePicker,
+  type MilestoneDefinitionLite,
+  type ReconciliationState,
+} from "@/components/milestones/ReconcileMilestonePicker";
 
 type DuplicateEntry = {
   transactionId: string;
   propertyAddress: string;
   createdAt: string; // ISO string
-};
-
-type MilestoneDefinitionLite = {
-  id: string;
-  code: string;
-  name: string;
-  side: "vendor" | "purchaser";
-  orderIndex: number;
 };
 
 type Props = {
@@ -28,23 +25,6 @@ type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer";
 
 type ReconciliationMode = "fresh" | "in_progress" | "later";
-
-// Auto-NR codes mirror initializeMilestoneCompletions in lib/services/milestones.ts.
-// Hidden from the reconciliation picker because they're not relevant for this tenure/purchase combo.
-function autoNrCodesFor(tenure: Tenure, purchaseType: PurchaseType): Set<string> {
-  const codes = new Set<string>();
-  if (tenure === "freehold") {
-    codes.add("VM8");
-    codes.add("VM9");
-    codes.add("PM12");
-  }
-  if (purchaseType === "cash_buyer") {
-    codes.add("PM5");
-    codes.add("PM6");
-    codes.add("PM11");
-  }
-  return codes;
-}
 
 export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefinitions }: Props) {
   const router = useRouter();
@@ -60,25 +40,10 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
   // Reconciliation state — only used when creating a new transaction (link path skips this)
   const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
   // Keyed by milestone DEFINITION ID. eventDate is YYYY-MM-DD string or null.
-  const [reconciledMilestones, setReconciledMilestones] = useState<
-    Record<string, { ticked: boolean; eventDate: string | null }>
-  >({});
+  const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
 
   const hasDuplicates = duplicates.length > 0;
   const needsSaleDetails = !hasDuplicates || dupChoice === "create";
-
-  // Filter milestone list to hide auto-NR codes for the chosen tenure/purchaseType.
-  // Only computed when both are selected. Sorted by side then orderIndex.
-  const filteredMilestones = useMemo(() => {
-    if (!tenure || !purchaseType) return [];
-    const autoNr = autoNrCodesFor(tenure, purchaseType);
-    return milestoneDefinitions
-      .filter((m) => !autoNr.has(m.code))
-      .sort((a, b) => {
-        if (a.side !== b.side) return a.side === "vendor" ? -1 : 1;
-        return a.orderIndex - b.orderIndex;
-      });
-  }, [tenure, purchaseType, milestoneDefinitions]);
 
   const canSubmit = needsSaleDetails
     ? tenure !== null && purchaseType !== null && reconciliationMode !== null && !loading
@@ -119,6 +84,16 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
     }
 
     const { transactionId } = (await res.json()) as { transactionId: string };
+    // If the agent chose "I'll set this up later", set a localStorage flag so the
+    // transaction page shows the reconcile-later banner. localStorage is intentional —
+    // banner is a per-device reminder, not server-persisted state.
+    if (reconciliationMode === "later" && typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(`reconcileLater:${transactionId}`, "1");
+      } catch {
+        // localStorage unavailable (private mode etc.) — banner just won't show. Not fatal.
+      }
+    }
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
   }
 
@@ -223,20 +198,13 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       </button>
 
       {reconciliationMode === "in_progress" && (
-        <div className="claim-reconcile-list">
-          <ReconcileMilestoneSection
-            title="Vendor milestones"
-            milestones={filteredMilestones.filter((m) => m.side === "vendor")}
-            state={reconciledMilestones}
-            onChange={setReconciledMilestones}
-          />
-          <ReconcileMilestoneSection
-            title="Purchaser milestones"
-            milestones={filteredMilestones.filter((m) => m.side === "purchaser")}
-            state={reconciledMilestones}
-            onChange={setReconciledMilestones}
-          />
-        </div>
+        <ReconcileMilestonePicker
+          milestoneDefinitions={milestoneDefinitions}
+          tenure={tenure}
+          purchaseType={purchaseType}
+          state={reconciledMilestones}
+          onChange={setReconciledMilestones}
+        />
       )}
     </div>
   );
@@ -346,60 +314,3 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
   );
 }
 
-// ─── Reconcile milestone section ─────────────────────────────────────────────
-// One side (vendor or purchaser). Each row: checkbox + name + (when ticked) date input.
-// Date is optional — agent leaves blank if they don't know the real-world event date.
-
-function ReconcileMilestoneSection({
-  title,
-  milestones,
-  state,
-  onChange,
-}: {
-  title: string;
-  milestones: MilestoneDefinitionLite[];
-  state: Record<string, { ticked: boolean; eventDate: string | null }>;
-  onChange: (next: Record<string, { ticked: boolean; eventDate: string | null }>) => void;
-}) {
-  if (milestones.length === 0) return null;
-
-  function setRow(id: string, patch: Partial<{ ticked: boolean; eventDate: string | null }>) {
-    const existing = state[id] ?? { ticked: false, eventDate: null };
-    onChange({ ...state, [id]: { ...existing, ...patch } });
-  }
-
-  return (
-    <div className="claim-reconcile-section">
-      <p className="claim-reconcile-section-title">{title}</p>
-      <ul className="claim-reconcile-rows">
-        {milestones.map((m) => {
-          const row = state[m.id] ?? { ticked: false, eventDate: null };
-          return (
-            <li key={m.id} className={`claim-reconcile-row${row.ticked ? " on" : ""}`}>
-              <label className="claim-reconcile-row-main">
-                <input
-                  type="checkbox"
-                  checked={row.ticked}
-                  onChange={(e) => setRow(m.id, { ticked: e.target.checked })}
-                />
-                <span className="claim-reconcile-row-code">{m.code}</span>
-                <span className="claim-reconcile-row-name">{m.name}</span>
-              </label>
-              {row.ticked && (
-                <input
-                  type="date"
-                  className="claim-reconcile-date"
-                  value={row.eventDate ?? ""}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setRow(m.id, { eventDate: e.target.value || null })}
-                  aria-label={`When did ${m.code} happen?`}
-                  placeholder="Date (optional)"
-                />
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}

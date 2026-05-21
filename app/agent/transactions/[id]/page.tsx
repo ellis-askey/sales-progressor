@@ -36,6 +36,7 @@ import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNot
 import { ClaimedToast } from "@/components/transaction/ClaimedToast";
 import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
+import { ReconcileLaterBanner } from "@/components/transaction/ReconcileLaterBanner";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
@@ -94,6 +95,16 @@ export default async function AgentTransactionDetailPage({
         select: { createdBy: { select: { firmName: true } } },
       }).then(l => l?.createdBy?.firmName ?? null).catch(() => null)
     : null;
+
+  // Milestone definitions for the reconcile-later banner. Only fetched for claimed
+  // files since the banner only fires when the agent chose "I'll set this up later"
+  // during the claim flow (localStorage flag set client-side).
+  const reconcileMilestoneDefinitions = transaction.chainLinkId
+    ? await prisma.milestoneDefinition.findMany({
+        orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+        select: { id: true, code: true, name: true, side: true, orderIndex: true },
+      }).catch(() => [])
+    : [];
 
   const [assignedUser, currentUserNotifications] = await Promise.all([
     transaction.assignedUserId
@@ -438,6 +449,14 @@ export default async function AgentTransactionDetailPage({
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
       <Suspense><ClaimWelcomeModal address={transaction.propertyAddress} originatorAgency={originatorAgency ?? undefined} /></Suspense>
       <Suspense><ChainSetupFailedBanner /></Suspense>
+      {transaction.chainLinkId && reconcileMilestoneDefinitions.length > 0 && (
+        <ReconcileLaterBanner
+          transactionId={id}
+          milestoneDefinitions={reconcileMilestoneDefinitions}
+          tenure={transaction.tenure ?? null}
+          purchaseType={transaction.purchaseType ?? null}
+        />
+      )}
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
