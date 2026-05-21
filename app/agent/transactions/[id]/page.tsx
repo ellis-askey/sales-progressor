@@ -102,7 +102,7 @@ export default async function AgentTransactionDetailPage({
   const reconcileMilestoneDefinitions = transaction.chainLinkId
     ? await prisma.milestoneDefinition.findMany({
         orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-        select: { id: true, code: true, name: true, side: true, orderIndex: true },
+        select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
       }).catch(() => [])
     : [];
 

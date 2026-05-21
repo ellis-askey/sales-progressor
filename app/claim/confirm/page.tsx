@@ -189,7 +189,7 @@ export default async function ClaimConfirmPage({
   // safe to fetch once per page render. Filtering for tenure/purchaseType happens client-side.
   const milestoneDefinitions = await prisma.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-    select: { id: true, code: true, name: true, side: true, orderIndex: true },
+    select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
   });
 
   return (

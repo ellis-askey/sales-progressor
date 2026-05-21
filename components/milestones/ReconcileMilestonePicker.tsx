@@ -24,6 +24,7 @@ export type MilestoneDefinitionLite = {
   name: string;
   side: "vendor" | "purchaser";
   orderIndex: number;
+  blocksExchange: boolean;
 };
 
 export type ReconciliationRow = {
@@ -59,6 +60,12 @@ export function autoNrCodesFor(tenure: Tenure, purchaseType: PurchaseType): Set<
 // chains exist pre-exchange. A claimed file by definition shouldn't have reached
 // exchange or completion yet (the originator wouldn't be inviting agents otherwise).
 const EXCHANGE_COMPLETION_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
+
+// Exchange-readiness gates — VM18 (vendor side) and PM25 (purchaser side). Each has
+// no direct predecessor in DIRECT_PREREQUISITES, but logically requires ALL
+// blocksExchange milestones on its own side to be done first. Mirrors the
+// EXCHANGE_GATE_CODES set used by lib/services/milestones.ts.
+const EXCHANGE_GATE_CODES = new Set(["VM18", "PM25"]);
 
 // Bilateral cross-side milestone pairs. Ticking one auto-fills the counterpart with
 // the same eventDate. Both directions defined so cascade works regardless of which
@@ -125,7 +132,27 @@ export function ReconcileMilestonePicker({
   // OR auto-NR for this tenure/purchaseType combo. Reuses the same map the
   // normal completeMilestone flow uses so reconciliation can't produce a
   // state the standard flow would reject.
+  //
+  // Special case: VM18 / PM25 are exchange-readiness gates. They have no
+  // direct predecessor in the prerequisite map, but they should only unlock
+  // when every blocksExchange milestone on their own side is ticked or NR.
+  // Without this, agents could tick "ready to exchange" without confirming
+  // any of the upstream work that the gate logically depends on.
   function isUnlocked(code: string): boolean {
+    if (EXCHANGE_GATE_CODES.has(code)) {
+      const def = milestoneDefinitions.find((m) => m.code === code);
+      if (!def) return true;
+      const sameSideBlockers = milestoneDefinitions.filter(
+        (m) =>
+          m.side === def.side &&
+          m.blocksExchange &&
+          m.code !== code &&
+          !EXCHANGE_COMPLETION_CODES.has(m.code),
+      );
+      return sameSideBlockers.every(
+        (blocker) => tickedCodes.has(blocker.code) || autoNr.has(blocker.code),
+      );
+    }
     const prereqs = DIRECT_PREREQUISITES[code] ?? [];
     return prereqs.every((p) => tickedCodes.has(p) || autoNr.has(p));
   }
