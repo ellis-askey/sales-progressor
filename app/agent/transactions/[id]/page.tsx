@@ -608,10 +608,10 @@ export default async function AgentTransactionDetailPage({
               contacts={transaction.contacts}
               solicitors={[
                 ...(transaction.vendorSolicitorContact
-                  ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor" }]
+                  ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }]
                   : []),
                 ...(transaction.purchaserSolicitorContact
-                  ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor" }]
+                  ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }]
                   : []),
               ]}
             />}

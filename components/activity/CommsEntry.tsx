@@ -7,9 +7,10 @@ import { logCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { PasteWhatsAppPanel, type ImportableContact } from "@/components/activity/PasteWhatsAppPanel";
 
-type Contact = { id: string; name: string; roleType: string };
-type Solicitor = { id: string; name: string; role: string };
+type Contact = { id: string; name: string; roleType: string; phone?: string | null };
+type Solicitor = { id: string; name: string; role: string; phone?: string | null };
 
 type Props = {
   transactionId: string;
@@ -41,8 +42,25 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
   const [visibleToClient, setVisibleToClient] = useState(false);
   const [showOverflow, setShowOverflow] = useState(false);
   const [loading, setLoading]         = useState(false);
+  const [isPasteMode, setIsPasteMode] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Build the flat contact list passed to PasteWhatsAppPanel (clients + solicitors)
+  const importableContacts: ImportableContact[] = [
+    ...contacts.map((c) => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone ?? null,
+      roleLabel: c.roleType === "vendor" ? "Vendor" : c.roleType === "purchaser" ? "Purchaser" : c.roleType,
+    })),
+    ...(solicitors ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      phone: s.phone ?? null,
+      roleLabel: s.role,
+    })),
+  ];
 
   // Close overflow on outside click
   useEffect(() => {
@@ -63,7 +81,18 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
     setContent("");
     setVisibleToClient(false);
     setShowOverflow(false);
+    setIsPasteMode(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
+  }
+
+  function openPasteMode() {
+    setChannel(null);
+    setDirection("outbound");
+    setSelected([]);
+    setContent("");
+    setVisibleToClient(false);
+    setShowOverflow(false);
+    setIsPasteMode(true);
   }
 
   function toggleContact(id: string) {
@@ -77,6 +106,7 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
     setContent("");
     setVisibleToClient(false);
     setShowOverflow(false);
+    setIsPasteMode(false);
   }
 
   function submit() {
@@ -192,12 +222,27 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
                   {ch.icon} {ch.label}
                 </button>
               ))}
+              <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
+              <button
+                onClick={openPasteMode}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%",
+                  padding: "7px 12px", fontSize: 12, fontWeight: 500,
+                  border: "none", background: "transparent", cursor: "pointer",
+                  borderRadius: 5, color: "var(--agent-text-primary)",
+                  transition: "background 80ms",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-surface-glass)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                📋 Paste chat
+              </button>
             </div>
           )}
         </div>
 
         {/* Cancel */}
-        {hasChannel && (
+        {(hasChannel || isPasteMode) && (
           <button
             onClick={cancel}
             className="agent-link agent-link-muted"
@@ -207,6 +252,15 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
           </button>
         )}
       </div>
+
+      {/* ── Paste WhatsApp panel — replaces standard body when active ────── */}
+      {isPasteMode && (
+        <PasteWhatsAppPanel
+          transactionId={transactionId}
+          contacts={importableContacts}
+          onClose={cancel}
+        />
+      )}
 
       {/* ── Expanded body — visible when channel is selected ─────────────── */}
       {hasChannel && (
