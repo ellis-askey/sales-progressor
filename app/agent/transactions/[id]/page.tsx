@@ -9,7 +9,7 @@ import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
 import { toUKDateStr } from "@/lib/utils";
-import { calculateProgress, detectPhase } from "@/lib/services/fees";
+import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { StatusControl } from "@/components/transaction/StatusControl";
@@ -150,6 +150,17 @@ export default async function AgentTransactionDetailPage({
     .filter((m) => m.isComplete)
     .map((m) => m.code);
 
+  // For claim-reconciled files, anchor prediction on the earliest reconciliation
+  // eventDate so the 12-week target + on-track classification reflect the real
+  // sale start, not the moment the agent claimed.
+  const allCompletions = [
+    ...(milestoneData?.vendor ?? []),
+    ...(milestoneData?.purchaser ?? []),
+  ]
+    .map((m) => m.completion)
+    .filter((c): c is NonNullable<typeof c> => c != null);
+  const effectiveStartDate = computeEffectiveStartDate(transaction.createdAt, allCompletions);
+
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
@@ -160,6 +171,7 @@ export default async function AgentTransactionDetailPage({
       purchaseType: transaction.purchaseType ?? null,
       tenure: transaction.tenure ?? null,
       isShareOfFreehold: transaction.isShareOfFreehold,
+      effectiveStartDate,
     } : undefined,
   );
   if (milestoneData) {

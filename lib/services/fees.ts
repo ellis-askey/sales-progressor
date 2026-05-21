@@ -92,6 +92,11 @@ export type PhaseAwareInput = {
   purchaseType: PurchaseType | null;
   tenure: Tenure | null;
   isShareOfFreehold: boolean;
+  // For claim-reconciled files: earliest non-null eventDate among reconciledAtClaim
+  // completions. Used as the 12-week-target floor anchor so prediction floors based
+  // on when the sale actually started, not when the agent claimed.
+  // If unset, falls back to createdAt.
+  effectiveStartDate?: Date;
 };
 
 export type FileLevelPhase = "onboarding" | "conveyancing" | "pre_exchange" | "post_exchange";
@@ -185,6 +190,29 @@ function purchaserRemainingDays(
   return toPM7 + parallelEnd + preExchange;
 }
 
+// Computes the effective sale-start date for prediction anchoring.
+//
+// For files where the agent reconciled milestones at claim with at least one
+// known eventDate, returns the earliest such eventDate (when the sale actually
+// began in the real world). For files with no claim-reconciliation, returns
+// createdAt. Used to anchor the 12-week target and elapsed-time calculations
+// in calculateProgress / calculatePhaseAwarePrediction.
+//
+// reconciledAtClaim completions with null eventDate are ignored — the agent
+// ticked them but didn't supply a date, so they can't contribute to the anchor.
+export function computeEffectiveStartDate(
+  createdAt: Date,
+  completions: { eventDate: Date | null; reconciledAtClaim: boolean }[],
+): Date {
+  const eventDates = completions
+    .filter((c) => c.reconciledAtClaim && c.eventDate)
+    .map((c) => c.eventDate as Date)
+    .sort((a, b) => a.getTime() - b.getTime());
+  const earliest = eventDates[0];
+  if (!earliest) return createdAt;
+  return earliest < createdAt ? earliest : createdAt;
+}
+
 export function calculatePhaseAwarePrediction(
   input: PhaseAwareInput,
   createdAt: Date,
@@ -193,7 +221,12 @@ export function calculatePhaseAwarePrediction(
   if (overrideDate) return overrideDate;
 
   const now = new Date();
-  const twelveWeekTarget = new Date(createdAt);
+  // 12-week target floor anchors on the real sale start, not the claim date.
+  // For claim-reconciled files, effectiveStartDate is the earliest eventDate provided
+  // by the agent (the real-world moment the sale began). For non-claimed files, falls
+  // back to createdAt. This stops claimed files predicting weeks too late.
+  const anchorDate = input.effectiveStartDate ?? createdAt;
+  const twelveWeekTarget = new Date(anchorDate);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
   const done = new Set(input.completedMilestoneCodes);
@@ -240,10 +273,15 @@ export function calculateProgress(
   const vendorPercent    = Math.round(vendorRaw);
   const purchaserPercent = Math.round(purchaserRaw);
 
-  const twelveWeekTarget = new Date(createdAt);
+  // Twelve-week target anchors on the real sale start when a claim-reconciliation
+  // effectiveStartDate is available (via phaseAware), else falls back to createdAt.
+  // Elapsed-time + on-track calculations use the same anchor so claimed files
+  // assess against the real timeline, not the moment the agent joined.
+  const anchorDate = phaseAware?.effectiveStartDate ?? createdAt;
+  const twelveWeekTarget = new Date(anchorDate);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  const msElapsed    = now.getTime() - createdAt.getTime();
+  const msElapsed    = now.getTime() - anchorDate.getTime();
   const weeksElapsed = Math.floor(msElapsed / (7 * 86400000));
   const daysElapsed  = msElapsed / 86400000;
 
@@ -267,7 +305,7 @@ export function calculateProgress(
   } else if (percent > 0) {
     const effectiveWeeks = Math.max(daysElapsed / 7, 1 / 7);
     const weeksTo100 = (effectiveWeeks / percent) * 100;
-    const predicted = new Date(createdAt);
+    const predicted = new Date(anchorDate);
     predicted.setDate(predicted.getDate() + Math.round(weeksTo100 * 7));
     predictedExchangeDate = predicted;
   } else {
