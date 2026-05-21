@@ -125,22 +125,22 @@ export default async function ClaimSignupPage({
       <div className="claim-signup-grid">
         {/* ── Left column — form ── */}
         <div>
-          <h1 className="claim-sub-h1">Create your account</h1>
-          <p className="claim-sub-p">Join free — no card required.</p>
-
           <div className="claim-form-card">
+            <h1 className="claim-sub-h1">Create your account</h1>
+            <p className="claim-sub-p">Join free — no card required.</p>
+
             <ClaimSignupForm
               token={token}
               stubEmail={link.stubAgentEmail ?? ""}
               stubAgencyName={link.stubAgencyName ?? ""}
               milestoneDefinitions={milestoneDefinitions}
             />
-          </div>
 
-          <p className="claim-link-row" style={{ marginTop: 16 }}>
-            Already have an account?{" "}
-            <a href={`/claim/login?token=${token}`}>Log in instead</a>
-          </p>
+            <p className="claim-link-row" style={{ marginTop: 16 }}>
+              Already have an account?{" "}
+              <a href={`/claim/login?token=${token}`}>Log in instead</a>
+            </p>
+          </div>
         </div>
 
         {/* ── Right column — chain panel ── */}

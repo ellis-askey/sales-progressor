@@ -108,23 +108,23 @@ export default async function ClaimLoginPage({
           </div>
         </div>
 
-        <h1 className="claim-sub-h1">Log in to claim</h1>
-        <p className="claim-sub-p">
-          There&apos;s already an account for <strong>{stubEmail}</strong>. Log in to link your sale.
-        </p>
-
         <div className="claim-form-card">
+          <h1 className="claim-sub-h1">Log in to claim</h1>
+          <p className="claim-sub-p">
+            There&apos;s already an account for <strong>{stubEmail}</strong>. Log in to link your sale.
+          </p>
+
           <ClaimLoginForm
             token={token}
             stubEmail={stubEmail}
             milestoneDefinitions={milestoneDefinitions}
           />
-        </div>
 
-        <p className="claim-link-row" style={{ marginTop: 16 }}>
-          New agent?{" "}
-          <a href={`/claim/signup?token=${token}`}>Create an account instead</a>
-        </p>
+          <p className="claim-link-row" style={{ marginTop: 16 }}>
+            New agent?{" "}
+            <a href={`/claim/signup?token=${token}`}>Create an account instead</a>
+          </p>
+        </div>
       </div>
     </Shell>
   );

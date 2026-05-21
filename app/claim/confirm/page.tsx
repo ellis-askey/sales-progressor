@@ -209,15 +209,6 @@ export default async function ClaimConfirmPage({
           </div>
         </div>
 
-        <h1 className="claim-confirm-h1">
-          {hasDuplicates ? "Looks like you already have this sale." : "Ready to join this chain"}
-        </h1>
-        <p className="claim-confirm-p">
-          {hasDuplicates
-            ? "There's already a sale at this address in your files. Link it to this chain, or start a fresh file."
-            : "Confirm the details below and we’ll link your sale to the chain."}
-        </p>
-
         {/* Summary card — shown when no duplicates */}
         {!hasDuplicates && (
           <div className="claim-summary">
@@ -251,20 +242,31 @@ export default async function ClaimConfirmPage({
           </div>
         )}
 
-        <ClaimConfirmForm
-          token={token}
-          stubAddress={stubAddress}
-          duplicates={enrichedMatches.map((m) => ({
-            transactionId: m.transactionId,
-            propertyAddress: m.propertyAddress,
-            createdAt: m.createdAt.toISOString(),
-          }))}
-          milestoneDefinitions={milestoneDefinitions}
-        />
+        <div className="claim-form-card">
+          <h1 className="claim-confirm-h1">
+            {hasDuplicates ? "Looks like you already have this sale." : "Ready to join this chain"}
+          </h1>
+          <p className="claim-confirm-p">
+            {hasDuplicates
+              ? "There's already a sale at this address in your files. Link it to this chain, or start a fresh file."
+              : "Confirm the details below and we’ll link your sale to the chain."}
+          </p>
 
-        <p className="claim-wrong-note">
-          Wrong invite? <a href={`/claim?token=${token}`}>Go back</a>
-        </p>
+          <ClaimConfirmForm
+            token={token}
+            stubAddress={stubAddress}
+            duplicates={enrichedMatches.map((m) => ({
+              transactionId: m.transactionId,
+              propertyAddress: m.propertyAddress,
+              createdAt: m.createdAt.toISOString(),
+            }))}
+            milestoneDefinitions={milestoneDefinitions}
+          />
+
+          <p className="claim-wrong-note">
+            Wrong invite? <a href={`/claim?token=${token}`}>Go back</a>
+          </p>
+        </div>
       </div>
     </Shell>
   );
