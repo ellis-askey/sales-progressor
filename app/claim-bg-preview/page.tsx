@@ -13,7 +13,8 @@ type Option =
   | "01" | "02" | "03" | "04" | "05" | "06"
   | "07" | "08" | "09" | "10" | "11" | "12"
   | "13" | "14" | "15" | "16" | "17" | "18"
-  | "19" | "20" | "21" | "22" | "23" | "24";
+  | "19" | "20" | "21" | "22" | "23" | "24"
+  | "25" | "26" | "27" | "28";
 
 const OPTIONS: { id: Option; name: string; note: string }[] = [
   { id: "01", name: "Mesh shift",         note: "Large gradient mesh — colors drift across the canvas" },
@@ -40,6 +41,10 @@ const OPTIONS: { id: Option; name: string; note: string }[] = [
   { id: "22", name: "Topo contours",      note: "Stacked elevation rings drifting outward" },
   { id: "23", name: "Hex flicker",        note: "Hex grid where individual tiles flicker on and off" },
   { id: "24", name: "Crystal facets",     note: "Geometric polygons rotating + morphing" },
+  { id: "25", name: "▸ Ripple+Mesh · balanced", note: "Refinement of 14: softer rings (45%) + mesh wash" },
+  { id: "26", name: "▸ Ripple+Mesh · mesh-led", note: "Mesh stronger, ripples faint hint only" },
+  { id: "27", name: "▸ Ripple+Mesh · slow",     note: "Both slowed, ripples sparser + larger" },
+  { id: "28", name: "▸ Ripple+Mesh · amber",    note: "Palette shifted amber/peach instead of coral" },
 ];
 
 const SCOPED_CSS = `
@@ -607,6 +612,141 @@ const SCOPED_CSS = `
   @keyframes bg-crystal-b { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(-50px,60px) rotate(-180deg); } }
   @keyframes bg-crystal-c { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(40px,-50px) rotate(90deg); } }
 
+  /* ═════════════════════════════════════════════════════════════════════════
+   * REFINEMENTS of #14 (Ripple pond) + #1 (Mesh shift)
+   * Combining ring expansion with drifting gradient mesh, four pacings.
+   * ═════════════════════════════════════════════════════════════════════════ */
+
+  /* ── 25 — Ripple + Mesh · balanced ──
+   * Mesh at medium opacity, ripples at 45% of original prominence.
+   * Both elements visible without competing. */
+  .claim-page.bg-25 {
+    background:
+      linear-gradient(135deg,
+        rgba(255,107,74,.28) 0%,
+        rgba(255,180,77,.28) 25%,
+        rgba(255,220,180,.20) 50%,
+        rgba(255,140,100,.28) 75%,
+        rgba(255,107,74,.28) 100%
+      ),
+      #FDF9F5;
+    background-size: 400% 400%, auto;
+    animation: bg-mesh-shift 22s ease-in-out infinite;
+    position: relative; overflow: hidden;
+  }
+  .claim-page.bg-25 > header,
+  .claim-page.bg-25 > .claim-container { position: relative; z-index: 2; }
+  .bg-ripple-25 {
+    position: fixed;
+    width: 40px; height: 40px;
+    border: 2px solid rgba(255,107,74,.55);
+    border-radius: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    pointer-events: none; z-index: 1;
+    animation: bg-ripple-25-expand 5s ease-out infinite;
+  }
+  @keyframes bg-ripple-25-expand {
+    0%   { transform: translate(-50%,-50%) scale(0);  opacity: 0.9; border-width: 2px; }
+    100% { transform: translate(-50%,-50%) scale(8);  opacity: 0;   border-width: 1px; }
+  }
+
+  /* ── 26 — Ripple + Mesh · mesh-led ──
+   * Mesh dominates. Ripples are a faint hint — almost subliminal. */
+  .claim-page.bg-26 {
+    background:
+      linear-gradient(135deg,
+        rgba(255,107,74,.45) 0%,
+        rgba(255,180,77,.45) 25%,
+        rgba(255,220,180,.32) 50%,
+        rgba(255,140,100,.45) 75%,
+        rgba(255,107,74,.45) 100%
+      ),
+      #FDF9F5;
+    background-size: 400% 400%, auto;
+    animation: bg-mesh-shift 16s ease-in-out infinite;
+    position: relative; overflow: hidden;
+  }
+  .claim-page.bg-26 > header,
+  .claim-page.bg-26 > .claim-container { position: relative; z-index: 2; }
+  .bg-ripple-26 {
+    position: fixed;
+    width: 40px; height: 40px;
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    pointer-events: none; z-index: 1;
+    animation: bg-ripple-26-expand 6s ease-out infinite;
+  }
+  @keyframes bg-ripple-26-expand {
+    0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.7; }
+    100% { transform: translate(-50%,-50%) scale(12); opacity: 0; }
+  }
+
+  /* ── 27 — Ripple + Mesh · slow ──
+   * Both slowed dramatically. Fewer ripples, each larger and more
+   * visible. Meditative. */
+  .claim-page.bg-27 {
+    background:
+      linear-gradient(135deg,
+        rgba(255,107,74,.32) 0%,
+        rgba(255,180,77,.32) 25%,
+        rgba(255,220,180,.22) 50%,
+        rgba(255,140,100,.32) 75%,
+        rgba(255,107,74,.32) 100%
+      ),
+      #FDF9F5;
+    background-size: 400% 400%, auto;
+    animation: bg-mesh-shift 36s ease-in-out infinite;
+    position: relative; overflow: hidden;
+  }
+  .claim-page.bg-27 > header,
+  .claim-page.bg-27 > .claim-container { position: relative; z-index: 2; }
+  .bg-ripple-27 {
+    position: fixed;
+    width: 50px; height: 50px;
+    border: 2.5px solid rgba(255,107,74,.60);
+    border-radius: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    pointer-events: none; z-index: 1;
+    animation: bg-ripple-27-expand 8s ease-out infinite;
+  }
+  @keyframes bg-ripple-27-expand {
+    0%   { transform: translate(-50%,-50%) scale(0);  opacity: 1;   border-width: 3px; }
+    100% { transform: translate(-50%,-50%) scale(11); opacity: 0;   border-width: 1px; }
+  }
+
+  /* ── 28 — Ripple + Mesh · amber ──
+   * Palette shifted away from coral toward amber/peach. Warmer, sunnier. */
+  .claim-page.bg-28 {
+    background:
+      linear-gradient(135deg,
+        rgba(255,180,77,.40) 0%,
+        rgba(255,210,130,.40) 25%,
+        rgba(255,235,180,.30) 50%,
+        rgba(255,190,100,.40) 75%,
+        rgba(255,180,77,.40) 100%
+      ),
+      #FDF9F5;
+    background-size: 400% 400%, auto;
+    animation: bg-mesh-shift 20s ease-in-out infinite;
+    position: relative; overflow: hidden;
+  }
+  .claim-page.bg-28 > header,
+  .claim-page.bg-28 > .claim-container { position: relative; z-index: 2; }
+  .bg-ripple-28 {
+    position: fixed;
+    width: 40px; height: 40px;
+    border: 2px solid rgba(255,180,77,.70);
+    border-radius: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    pointer-events: none; z-index: 1;
+    animation: bg-ripple-28-expand 5s ease-out infinite;
+  }
+  @keyframes bg-ripple-28-expand {
+    0%   { transform: translate(-50%,-50%) scale(0);  opacity: 1;   border-width: 2.5px; }
+    100% { transform: translate(-50%,-50%) scale(9);  opacity: 0;   border-width: 1px; }
+  }
+
   /* ─────────────────────────────────────────────────────────────────────────
    * Picker panel
    * ───────────────────────────────────────────────────────────────────────── */
@@ -765,6 +905,41 @@ const RIPPLES = (() => {
     left: 10 + rng() * 80,
     top: 10 + rng() * 80,
     delay: -rng() * 4,
+  }));
+})();
+
+// Ripple positions for each refinement variation. Different seeds so
+// the variations don't all look identical in spawn pattern.
+const RIPPLES_25 = (() => {
+  const rng = seededRand(25);
+  return Array.from({ length: 6 }, () => ({
+    left: 10 + rng() * 80,
+    top: 10 + rng() * 80,
+    delay: -rng() * 5,
+  }));
+})();
+const RIPPLES_26 = (() => {
+  const rng = seededRand(26);
+  return Array.from({ length: 8 }, () => ({
+    left: 10 + rng() * 80,
+    top: 10 + rng() * 80,
+    delay: -rng() * 6,
+  }));
+})();
+const RIPPLES_27 = (() => {
+  const rng = seededRand(27);
+  return Array.from({ length: 4 }, () => ({
+    left: 15 + rng() * 70,
+    top: 15 + rng() * 70,
+    delay: -rng() * 8,
+  }));
+})();
+const RIPPLES_28 = (() => {
+  const rng = seededRand(28);
+  return Array.from({ length: 6 }, () => ({
+    left: 10 + rng() * 80,
+    top: 10 + rng() * 80,
+    delay: -rng() * 5,
   }));
 })();
 
@@ -1035,6 +1210,18 @@ export default function ClaimBgPreviewPage() {
               animationDelay: `${c.delay}s`,
             }}
           />
+        ))}
+        {option === "25" && RIPPLES_25.map((r, i) => (
+          <span key={i} className="bg-ripple-25" style={{ left: `${r.left}%`, top: `${r.top}%`, animationDelay: `${r.delay}s` }} />
+        ))}
+        {option === "26" && RIPPLES_26.map((r, i) => (
+          <span key={i} className="bg-ripple-26" style={{ left: `${r.left}%`, top: `${r.top}%`, animationDelay: `${r.delay}s` }} />
+        ))}
+        {option === "27" && RIPPLES_27.map((r, i) => (
+          <span key={i} className="bg-ripple-27" style={{ left: `${r.left}%`, top: `${r.top}%`, animationDelay: `${r.delay}s` }} />
+        ))}
+        {option === "28" && RIPPLES_28.map((r, i) => (
+          <span key={i} className="bg-ripple-28" style={{ left: `${r.left}%`, top: `${r.top}%`, animationDelay: `${r.delay}s` }} />
         ))}
 
         <header className="claim-header">
