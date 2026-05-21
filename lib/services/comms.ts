@@ -94,7 +94,10 @@ export async function getActivityTimeline(
   const commEntries: ActivityEntry[] = comms.map((c) => ({
     kind: "comm",
     id: c.id,
-    at: c.createdAt,
+    // sentAt = actual message time (set on backdated WhatsApp imports);
+    // createdAt = row-logged time (the legacy default). Backfilled rows slot
+    // into chronological position by sentAt; normal rows keep createdAt.
+    at: c.sentAt ?? c.createdAt,
     type: c.type,
     method: c.method,
     content: c.content,
@@ -216,17 +219,20 @@ export async function getGlobalCommsLog(agencyId: string, limit = 150): Promise<
     },
   });
 
-  return records.map((r) => ({
-    id: r.id,
-    transactionId: r.transactionId!,
-    propertyAddress: r.transaction!.propertyAddress,
-    type: r.type,
-    method: r.method,
-    content: r.content,
-    createdByName: r.createdBy?.name ?? null,
-    wasAiGenerated: r.wasAiGenerated,
-    createdAt: r.createdAt,
-  }));
+  return records
+    .map((r) => ({
+      id: r.id,
+      transactionId: r.transactionId!,
+      propertyAddress: r.transaction!.propertyAddress,
+      type: r.type,
+      method: r.method,
+      content: r.content,
+      createdByName: r.createdBy?.name ?? null,
+      wasAiGenerated: r.wasAiGenerated,
+      // sentAt overrides createdAt for backdated import rows (see ActivityTimeline)
+      createdAt: r.sentAt ?? r.createdAt,
+    }))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 export async function deleteCommunicationRecord(id: string, scope: AccessScope) {
@@ -238,6 +244,191 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope) 
   const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true } });
   if (!comm) throw new Error("Not found");
   return prisma.outboundMessage.delete({ where: { id } });
+}
+
+// ─── WhatsApp chat bulk-import ────────────────────────────────────────────────
+// Takes parsed messages + a sender→identity mapping and inserts them as
+// individual OutboundMessage rows in a single transaction. Backdates the
+// actual message time onto `sentAt` (NOT createdAt — see plan / audit).
+
+export type SenderMapping = Record<
+  string,
+  { kind: "me" } | { kind: "contact"; contactId: string } | { kind: "skip" }
+>;
+
+export type ImportMessageInput = {
+  rawSender: string;
+  content: string;
+  whatsappTimestamp: Date;
+};
+
+export type ImportResult = {
+  inserted: number;
+  skipped: number;
+  importBatchId: string;
+};
+
+const UNDO_WINDOW_MS = 10 * 60 * 1000; // 10 minutes — defence in depth vs 5s client toast
+
+export async function importWhatsAppChat(
+  transactionId: string,
+  messages: ImportMessageInput[],
+  mapping: SenderMapping,
+  createdById: string,
+  createdByRole: string | null,
+  scope: AccessScope,
+): Promise<ImportResult> {
+  if (messages.length === 0) {
+    return { inserted: 0, skipped: 0, importBatchId: "" };
+  }
+  if (messages.length > 500) {
+    throw new Error("Too many messages — maximum per import is 500");
+  }
+
+  // Verify transaction is in scope + load contacts to validate mapping IDs.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: {
+      id: true,
+      agencyId: true,
+      contacts: { select: { id: true } },
+    },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  const validContactIds = new Set(tx.contacts.map((c) => c.id));
+
+  // Validate every unique sender has a mapping; every mapped contact belongs to this tx.
+  const uniqueSenders = Array.from(new Set(messages.map((m) => m.rawSender)));
+  for (const sender of uniqueSenders) {
+    const m = mapping[sender];
+    if (!m) throw new Error(`Sender "${sender}" is unmapped`);
+    if (m.kind === "contact" && !validContactIds.has(m.contactId)) {
+      throw new Error(`Contact ID for "${sender}" does not belong to this transaction`);
+    }
+  }
+
+  // Dedupe against existing whatsapp comms on this tx in last 30 days.
+  const sinceCutoff = new Date(Date.now() - 30 * 86_400_000);
+  const existing = await prisma.outboundMessage.findMany({
+    where: {
+      transactionId,
+      method: "whatsapp",
+      OR: [
+        { createdAt: { gte: sinceCutoff } },
+        { sentAt: { gte: sinceCutoff } },
+      ],
+    },
+    select: { content: true, sentAt: true, createdAt: true },
+  });
+  const existingHashes = new Set(
+    existing.map((e) => buildDedupeHash(e.content, e.sentAt ?? e.createdAt))
+  );
+
+  // Resolve mapping and filter
+  type ToInsert = {
+    type: "outbound" | "inbound";
+    contactIds: string[];
+    content: string;
+    sentAt: Date;
+    status: "sent" | "delivered";
+  };
+  const toInsert: ToInsert[] = [];
+  let dropped = 0;
+
+  for (const msg of messages) {
+    const m = mapping[msg.rawSender];
+    if (!m || m.kind === "skip") { dropped++; continue; }
+    if (existingHashes.has(buildDedupeHash(msg.content, msg.whatsappTimestamp))) {
+      dropped++;
+      continue;
+    }
+    if (m.kind === "me") {
+      toInsert.push({
+        type: "outbound",
+        contactIds: [],
+        content: msg.content,
+        sentAt: msg.whatsappTimestamp,
+        status: "sent",
+      });
+    } else {
+      toInsert.push({
+        type: "inbound",
+        contactIds: [m.contactId],
+        content: msg.content,
+        sentAt: msg.whatsappTimestamp,
+        status: "delivered",
+      });
+    }
+  }
+
+  if (toInsert.length === 0) {
+    return { inserted: 0, skipped: dropped, importBatchId: "" };
+  }
+
+  const importBatchId = crypto.randomUUID();
+
+  await prisma.$transaction(async (txDb) => {
+    for (const row of toInsert) {
+      await txDb.outboundMessage.create({
+        data: {
+          transactionId,
+          agencyId: tx.agencyId,
+          type: row.type,
+          method: "whatsapp",
+          channel: "other",         // explicit — no WhatsApp value in OutboundChannel
+          purpose: "other",         // manual log, not a chase
+          status: row.status,       // sent for outbound, delivered for inbound
+          contactIds: row.contactIds,
+          content: row.content,
+          // createdAt LEFT TO DEFAULT (now()) — this row was logged just now.
+          sentAt: row.sentAt,       // actual WhatsApp message time
+          createdById,
+          createdByRole,
+          importBatchId,
+        },
+      });
+    }
+  });
+
+  touchLastActivity(transactionId).catch(() => {});
+
+  return { inserted: toInsert.length, skipped: dropped, importBatchId };
+}
+
+export async function undoWhatsAppImport(
+  importBatchId: string,
+  scope: AccessScope,
+): Promise<{ deleted: number }> {
+  if (!importBatchId) return { deleted: 0 };
+  const cutoff = new Date(Date.now() - UNDO_WINDOW_MS);
+
+  // Verify scope — pick any one row from the batch and check ownership.
+  const sample = await prisma.outboundMessage.findFirst({
+    where: { importBatchId, createdAt: { gte: cutoff } },
+    select: { transactionId: true },
+  });
+  if (!sample?.transactionId) return { deleted: 0 };
+
+  const ownsTx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, sample.transactionId),
+    select: { id: true },
+  });
+  if (!ownsTx) throw new Error("Not authorised to undo this import");
+
+  const res = await prisma.outboundMessage.deleteMany({
+    where: { importBatchId, createdAt: { gte: cutoff } },
+  });
+
+  touchLastActivity(sample.transactionId).catch(() => {});
+
+  return { deleted: res.count };
+}
+
+/** Stable hash for dedupe: same minute + same normalised content = same message. */
+function buildDedupeHash(content: string, timestamp: Date): string {
+  const minuteBucket = Math.floor(timestamp.getTime() / 60_000);
+  const normalised = content.trim().replace(/\s+/g, " ");
+  return `${minuteBucket}:${normalised}`;
 }
 
 async function emailVisibleUpdateToClients(transactionId: string, content: string): Promise<void> {

@@ -7,7 +7,15 @@ function revalidateTx(id: string) {
   revalidatePath(`/agent/transactions/${id}`, "page");
 }
 import { requireSession } from "@/lib/session";
-import { createCommunicationRecord, deleteCommunicationRecord } from "@/lib/services/comms";
+import {
+  createCommunicationRecord,
+  deleteCommunicationRecord,
+  importWhatsAppChat,
+  undoWhatsAppImport,
+  type SenderMapping,
+  type ImportMessageInput,
+  type ImportResult,
+} from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -58,4 +66,32 @@ export async function logCommAction(input: {
     scope: getAccessScope(session),
   });
   revalidateTx(input.transactionId);
+}
+
+export async function importWhatsAppChatAction(input: {
+  transactionId: string;
+  messages: ImportMessageInput[];
+  mapping: SenderMapping;
+}): Promise<ImportResult> {
+  const session = await requireSession();
+  const result = await importWhatsAppChat(
+    input.transactionId,
+    input.messages,
+    input.mapping,
+    session.user.id,
+    session.user.role,
+    getAccessScope(session),
+  );
+  revalidateTx(input.transactionId);
+  return result;
+}
+
+export async function undoWhatsAppImportAction(
+  importBatchId: string,
+  transactionId: string,
+): Promise<{ deleted: number }> {
+  const session = await requireSession();
+  const result = await undoWhatsAppImport(importBatchId, getAccessScope(session));
+  revalidateTx(transactionId);
+  return result;
 }
