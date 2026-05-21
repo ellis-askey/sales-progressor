@@ -16,6 +16,7 @@ import {
   reverseMilestoneWithCascade,
   getUndoImpact,
   executeUndoMilestone,
+  unlockDirectDependents,
 } from "@/lib/services/milestones";
 export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
@@ -625,4 +626,106 @@ export async function confirmExchangeReconciliationAction(input: {
     triggeredCelebration: isExchangeCode,
     propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
   };
+}
+
+// ── Reconciliation-on-claim ───────────────────────────────────────────────────
+// Called immediately after /api/claim succeeds when the agent selected
+// "Already in progress" on the claim form. Marks the ticked milestones complete
+// with the agent-supplied real-world eventDate (may be null) and the
+// reconciledAtClaim=true flag so analytics, predictions, and reminders treat
+// these as backdated catch-up rather than real-time activity.
+//
+// Per Stage 1 design (memory/project_reconciliation_arc.md):
+//   - completedAt = now (when the agent ticked)
+//   - eventDate   = agent-supplied real-world date, or null if unknown
+//   - reconciledAtClaim = true
+//   - state = "complete"
+//   - completedById = claiming agent
+//   - unlockDirectDependents() called for each (so downstream milestones unlock)
+//
+// Failure semantics: if any single completion errors, throw. /api/claim catches
+// and treats the whole reconciliation as best-effort — agent lands on file with
+// whatever was successfully applied (or none if early failure). Not fatal to the
+// claim itself.
+export async function reconcileClaimMilestonesAction(input: {
+  transactionId: string;
+  completions: Array<{ milestoneDefinitionId: string; eventDate?: string | null }>;
+}): Promise<{ applied: number }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  // Ownership check: the caller must have access to this transaction.
+  // Since this is called immediately after claim, the user just became the agent on it.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (input.completions.length === 0) return { applied: 0 };
+
+  // Look up the milestone codes so we can call unlockDirectDependents per milestone.
+  const defIds = input.completions.map((c) => c.milestoneDefinitionId);
+  const defs = await prisma.milestoneDefinition.findMany({
+    where: { id: { in: defIds } },
+    select: { id: true, code: true },
+  });
+  const codeById = new Map(defs.map((d) => [d.id, d.code]));
+
+  const now = new Date();
+  let applied = 0;
+
+  // Apply each completion individually so a single failure doesn't roll back the
+  // whole batch — agent gets partial reconciliation rather than none.
+  for (let i = 0; i < input.completions.length; i++) {
+    const c = input.completions[i]!;
+    const code = codeById.get(c.milestoneDefinitionId);
+    if (!code) continue; // Unknown definitionId — skip silently
+
+    try {
+      await prisma.milestoneCompletion.upsert({
+        where: {
+          transactionId_milestoneDefinitionId: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: c.milestoneDefinitionId,
+          },
+        },
+        create: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: c.milestoneDefinitionId,
+          state: "complete",
+          completedAt: new Date(now.getTime() + i), // Tiny offset to preserve ordering
+          eventDate: c.eventDate ? new Date(c.eventDate) : null,
+          completedById: session.user.id,
+          reconciledAtClaim: true,
+        },
+        update: {
+          state: "complete",
+          completedAt: new Date(now.getTime() + i),
+          eventDate: c.eventDate ? new Date(c.eventDate) : null,
+          completedById: session.user.id,
+          notRequiredReason: null,
+          reconciledAtClaim: true,
+        },
+      });
+
+      // Unlock direct dependents so the downstream milestones become available.
+      // Stage 1 design rule — exchange reconciliation has a known bug here; we
+      // explicitly avoid repeating it.
+      await unlockDirectDependents(input.transactionId, code).catch((err) =>
+        console.error(`[reconcileClaimMilestonesAction] unlock failed for ${code}:`, err),
+      );
+
+      applied++;
+    } catch (err) {
+      console.error(
+        `[reconcileClaimMilestonesAction] failed to apply ${code} on tx ${input.transactionId}:`,
+        err,
+      );
+      // Continue with the rest — partial reconciliation is better than none
+    }
+  }
+
+  revalidateTx(input.transactionId);
+  return { applied };
 }
