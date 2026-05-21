@@ -39,8 +39,8 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
   if (!mounted || !visible) return null;
 
   const chainDescription = originatorAgency
-    ? `Your sale at ${address} is now part of ${originatorAgency}'s chain. Everyone in it can see how each sale is progressing — including yours.`
-    : `Your sale at ${address} is now part of the chain. Everyone in it can see how each sale is progressing — including yours.`;
+    ? `Your sale at ${address} is now part of ${originatorAgency}'s chain. Everyone in it can see how each sale is progressing, including yours.`
+    : `Your sale at ${address} is now part of the chain. Everyone in it can see how each sale is progressing, including yours.`;
 
   return createPortal(
     <div

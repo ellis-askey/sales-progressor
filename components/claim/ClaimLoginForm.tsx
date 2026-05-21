@@ -196,7 +196,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
           <p className="claim-field-label">Where is this sale up to?</p>
           <button type="button" className={`claim-reconcile-option${reconciliationMode === "fresh" ? " on" : ""}`} onClick={() => setReconciliationMode("fresh")}>
             <span className="claim-reconcile-option-title">Just starting</span>
-            <span className="claim-reconcile-option-sub">No work done yet — start with a clean file</span>
+            <span className="claim-reconcile-option-sub">No work done yet, start with a clean file</span>
           </button>
           <button type="button" className={`claim-reconcile-option${reconciliationMode === "in_progress" ? " on" : ""}`} onClick={() => setReconciliationMode("in_progress")}>
             <span className="claim-reconcile-option-title">Already in progress</span>

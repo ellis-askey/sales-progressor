@@ -205,7 +205,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
         onClick={() => setReconciliationMode("fresh")}
       >
         <span className="claim-reconcile-option-title">Just starting</span>
-        <span className="claim-reconcile-option-sub">No work done yet — start with a clean file</span>
+        <span className="claim-reconcile-option-sub">No work done yet, start with a clean file</span>
       </button>
 
       <button
@@ -324,7 +324,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
           <div>
             <p className="claim-dup-label">Link my existing sale</p>
             <p className="claim-dup-sub">
-              {dup.propertyAddress} — added{" "}
+              {dup.propertyAddress}, added{" "}
               {new Date(dup.createdAt).toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "long",

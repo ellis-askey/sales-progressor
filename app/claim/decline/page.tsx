@@ -90,7 +90,7 @@ export default async function ClaimDeclinePage({
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
             <h1 className="claim-error-h1">This sale has been claimed.</h1>
-            <p className="claim-error-p">No need to decline — someone has already joined.</p>
+            <p className="claim-error-p">No need to decline. Someone has already joined.</p>
           </div>
         </div>
       </Shell>
@@ -107,11 +107,11 @@ export default async function ClaimDeclinePage({
           <div className="claim-decline-body">
             <h1 className="claim-decline-h1">This invite has expired.</h1>
             <p className="claim-decline-sub">
-              The link was valid for 7 days. No action needed — we haven&apos;t notified anyone.
+              The link was valid for 7 days. No action needed. We haven&apos;t notified anyone.
             </p>
             <p className="claim-about">
               What is The Sales Progressor? Estate agents use it to track every sale in a chain
-              together — so everyone knows where the hold-up is before they pick up the phone.
+              together, so everyone knows where the hold-up is before they pick up the phone.
             </p>
             <p className="claim-support">
               Questions?{" "}
@@ -156,7 +156,7 @@ export default async function ClaimDeclinePage({
             )}
             <p className="claim-about">
               What is The Sales Progressor? Estate agents use it to track every sale in a chain
-              together — so everyone knows where the hold-up is before they pick up the phone.
+              together, so everyone knows where the hold-up is before they pick up the phone.
             </p>
             <p className="claim-support">
               Questions?{" "}
@@ -212,8 +212,8 @@ export default async function ClaimDeclinePage({
         <div className="claim-decline-body">
           <h1 className="claim-decline-h1">All noted.</h1>
           <p className="claim-decline-sub">
-            We&apos;ve let them know this isn&apos;t your sale. Estate agencies are busy —
-            that helps.
+            We&apos;ve let them know this isn&apos;t your sale. Estate agencies are busy,
+            and that helps.
           </p>
           {expiryDate && (
             <div className="claim-nudge-card">
@@ -227,7 +227,7 @@ export default async function ClaimDeclinePage({
           )}
           <p className="claim-about">
             What is The Sales Progressor? Estate agents use it to track every sale in a chain
-            together — so everyone knows where the hold-up is before they pick up the phone.
+            together, so everyone knows where the hold-up is before they pick up the phone.
           </p>
           <p className="claim-support">
             Questions?{" "}

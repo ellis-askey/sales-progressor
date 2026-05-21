@@ -35,7 +35,7 @@ function ClaimError({
             <div className="claim-warn-card" style={{ marginTop: 16 }}>
               <p className="claim-warn-p" style={{ margin: 0 }}>
                 <strong>Invited by:</strong> {contact.name}
-                {contact.agency ? ` — ${contact.agency}` : ""}
+                {contact.agency ? `, ${contact.agency}` : ""}
               </p>
             </div>
           )}
@@ -286,7 +286,7 @@ export default async function ClaimPage({
                       className="claim-chain-address"
                       style={{ color: "rgba(255,255,255,.4)", fontSize: 12, fontWeight: 400 }}
                     >
-                      — and {ghostCount} more —
+                      and {ghostCount} more
                     </span>
                   </div>
                 </div>
@@ -308,7 +308,7 @@ export default async function ClaimPage({
             <span style={{ fontSize: 11, color: "rgba(255,255,255,.60)" }}>
               Invited by:{" "}
               <strong style={{ color: "rgba(255,255,255,.85)" }}>{originatorName}</strong>
-              {originatorAgency ? ` — ${originatorAgency}` : ""}
+              {originatorAgency ? `, ${originatorAgency}` : ""}
             </span>
             {invitedDate && (
               <span style={{ fontSize: 11, color: "rgba(255,255,255,.50)" }}>
@@ -334,7 +334,7 @@ export default async function ClaimPage({
             <p className="claim-microcopy">Logged in as {session.user.email}</p>
           )}
           <a href={`/claim/decline?token=${token}`} className="claim-decline-link">
-            This isn&apos;t mine — decline invite
+            This isn&apos;t mine. Decline invite
           </a>
         </div>
       </div>

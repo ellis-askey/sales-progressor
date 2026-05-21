@@ -127,7 +127,7 @@ export default async function ClaimSignupPage({
         <div>
           <div className="claim-form-card">
             <h1 className="claim-sub-h1">Create your account</h1>
-            <p className="claim-sub-p">Join free — no card required.</p>
+            <p className="claim-sub-p">Join free, no card required.</p>
 
             <ClaimSignupForm
               token={token}
@@ -252,7 +252,7 @@ export default async function ClaimSignupPage({
                         fontWeight: 400,
                       }}
                     >
-                      — and {panelGhostCount} more —
+                      and {panelGhostCount} more
                     </span>
                   </div>
                 </div>
