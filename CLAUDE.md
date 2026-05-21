@@ -180,6 +180,7 @@ Before writing code that affects a documented system, read the relevant spec doc
 - Run relevant tests if they exist
 - Never say "shipped" or "done" without evidence: PR URL, file paths, test output, or screenshots
 - For visual changes, post a screenshot — visual quality cannot be verified by tsc
+- **Stage everything before commit.** Run `git add -u` (or `git add <explicit paths>`) before EVERY `git commit`. Never rely on `git mv` auto-staging to catch content edits made in the same session. The half-state where moves get committed but content edits don't is the worst failure mode for a revert: an `--undo` would unmove files while leaving sed-driven path updates pointing at the un-moved (now nonexistent) paths. Burned by this on 2026-05-21 during the docs reorg — the moves landed in `7351ef0` but the sed sweeps and CLAUDE.md updates were left unstaged, requiring a supplementary `6721aa7` to complete the arc.
 
 ### Rule 3 — Migrations to staging first
 
