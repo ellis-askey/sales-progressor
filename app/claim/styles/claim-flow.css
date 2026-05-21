@@ -876,6 +876,12 @@
   min-width: 36px;
 }
 .claim-reconcile-row-name { flex: 1; }
+.claim-reconcile-row-autoset {
+  font-size: 11px;
+  color: var(--claim-text-3);
+  margin-left: 6px;
+  font-style: italic;
+}
 .claim-reconcile-date {
   align-self: flex-start;
   margin-left: 32px;
