@@ -268,11 +268,10 @@
   font-family: inherit;
 }
 .claim-btn:hover {
-  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(255,107,74,.40);
   background: var(--claim-coral-dark);
 }
-.claim-btn:active { transform: translateY(0); }
+.claim-btn:active:not(:disabled) { transform: scale(0.98); }
 .claim-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -288,7 +287,6 @@
 .claim-btn--ghost:hover {
   background: rgba(255,107,74,.05);
   box-shadow: none;
-  transform: translateY(-1px);
 }
 .claim-microcopy {
   font-size: 12px;
@@ -634,7 +632,6 @@
 }
 .claim-btn--secondary:hover {
   background: #e2e8f0;
-  transform: translateY(-1px);
   box-shadow: none;
 }
 
