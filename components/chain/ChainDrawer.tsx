@@ -18,6 +18,7 @@ type ChainDrawerProps = {
   onClose: () => void;
   onOpenAddNode?: (direction: "above" | "below", chainId: string, editingLink?: EditingLinkData) => void;
   declineNotification?: { address: string; at: string } | null;
+  refreshKey?: number;
 };
 
 function ChainIcon() {
@@ -35,6 +36,7 @@ export function ChainDrawer({
   onClose,
   onOpenAddNode,
   declineNotification,
+  refreshKey = 0,
 }: ChainDrawerProps) {
   const { theme } = usePortalTheme();
   const [closing, setClosing] = useState(false);
@@ -75,12 +77,32 @@ export function ChainDrawer({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { toast } = useAgentToast();
 
+  const seenLinkIds = useRef<Set<string>>(new Set());
+  const firstLoad = useRef(true);
+  const [newLinkIds, setNewLinkIds] = useState<Set<string>>(new Set());
+
   const fetchChain = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/chains?transactionId=${transactionId}`);
       const data = await res.json();
-      setChain(data.chain ?? null);
+      const next: ChainV2 | null = data.chain ?? null;
+      const ids: string[] = next?.links.map((l) => l.id) ?? [];
+
+      if (firstLoad.current) {
+        seenLinkIds.current = new Set(ids);
+        firstLoad.current = false;
+      } else {
+        const fresh = new Set(ids.filter((id) => !seenLinkIds.current.has(id)));
+        if (fresh.size > 0) {
+          setNewLinkIds(fresh);
+          seenLinkIds.current = new Set(ids);
+        } else {
+          seenLinkIds.current = new Set(ids);
+        }
+      }
+
+      setChain(next);
     } catch {
       // Network error — show empty state
     } finally {
@@ -90,7 +112,14 @@ export function ChainDrawer({
 
   useEffect(() => {
     fetchChain();
-  }, [fetchChain]);
+  }, [fetchChain, refreshKey]);
+
+  // Clear the reveal flag after the 150ms animation has played out
+  useEffect(() => {
+    if (newLinkIds.size === 0) return;
+    const t = setTimeout(() => setNewLinkIds(new Set()), 200);
+    return () => clearTimeout(t);
+  }, [newLinkIds]);
 
   // Close on Escape
   useEffect(() => {
@@ -403,7 +432,7 @@ export function ChainDrawer({
 
               {/* Link cards */}
               {links.map((link, i) => (
-                <div key={link.id}>
+                <div key={link.id} className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
                   {confirmingDeleteId === link.id ? (
                     <div className="rounded-xl bg-white/40 border border-white/30 px-4 py-3 flex items-center gap-3">
                       <p className="flex-1 text-sm text-slate-900/70">Remove this sale from the chain?</p>

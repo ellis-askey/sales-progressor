@@ -13,6 +13,7 @@ type Props = {
 
 export function ViewChainButton({ transactionId, currentUserId, declineNotification }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [addNode, setAddNode] = useState<{
     direction: "above" | "below";
     chainId: string;
@@ -25,6 +26,11 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
 
   function handleCloseAddNode() {
     setAddNode(null);
+  }
+
+  function handleNodeSaved() {
+    setAddNode(null);
+    setRefreshKey((k) => k + 1);
   }
 
   return (
@@ -44,6 +50,7 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
           onClose={() => setDrawerOpen(false)}
           onOpenAddNode={handleOpenAddNode}
           declineNotification={declineNotification}
+          refreshKey={refreshKey}
         />
       )}
 
@@ -54,7 +61,7 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
           direction={addNode.direction}
           editingLink={addNode.editingLink}
           onClose={handleCloseAddNode}
-          onSaved={handleCloseAddNode}
+          onSaved={handleNodeSaved}
         />
       )}
     </>
