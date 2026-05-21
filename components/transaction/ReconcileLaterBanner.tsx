@@ -42,6 +42,7 @@ export function ReconcileLaterBanner({
   const [submitting, setSubmitting] = useState(false);
   const [state, setState] = useState<ReconciliationState>({});
   const [error, setError] = useState<string | null>(null);
+  const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -169,6 +170,8 @@ export function ReconcileLaterBanner({
             onChange={setState}
             submitting={submitting}
             error={error}
+            wizardStep={wizardStep}
+            onStepChange={setWizardStep}
             onClose={() => setModalOpen(false)}
             onSubmit={handleSubmit}
           />,
@@ -186,6 +189,8 @@ function ReconcileModal({
   onChange,
   submitting,
   error,
+  wizardStep,
+  onStepChange,
   onClose,
   onSubmit,
 }: {
@@ -196,10 +201,13 @@ function ReconcileModal({
   onChange: (next: ReconciliationState) => void;
   submitting: boolean;
   error: string | null;
+  wizardStep: "vendor" | "purchaser";
+  onStepChange: (step: "vendor" | "purchaser") => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
   const tickedCount = Object.values(state).filter((r) => r.ticked).length;
+  const onPurchaserStep = wizardStep === "purchaser";
 
   return (
     <div
@@ -251,13 +259,26 @@ function ReconcileModal({
         </div>
 
         {tenure && purchaseType ? (
-          <ReconcileMilestonePicker
-            milestoneDefinitions={milestoneDefinitions}
-            tenure={tenure}
-            purchaseType={purchaseType}
-            state={state}
-            onChange={onChange}
-          />
+          <>
+            {wizardStep === "purchaser" && (
+              <button
+                type="button"
+                className="claim-wizard-back"
+                onClick={() => onStepChange("vendor")}
+                style={{ marginBottom: 12 }}
+              >
+                ← Back to seller milestones
+              </button>
+            )}
+            <ReconcileMilestonePicker
+              milestoneDefinitions={milestoneDefinitions}
+              tenure={tenure}
+              purchaseType={purchaseType}
+              state={state}
+              onChange={onChange}
+              side={wizardStep}
+            />
+          </>
         ) : (
           <p style={{ fontSize: 13, color: "#dc2626" }}>
             This file is missing tenure or purchase type — can&apos;t reconcile until those are set.
@@ -279,14 +300,25 @@ function ReconcileModal({
           >
             Cancel
           </button>
-          <button
-            onClick={onSubmit}
-            disabled={submitting || !tenure || !purchaseType}
-            className="claim-btn"
-            type="button"
-          >
-            {submitting ? "Saving…" : tickedCount > 0 ? `Save ${tickedCount} milestone${tickedCount === 1 ? "" : "s"}` : "Save"}
-          </button>
+          {onPurchaserStep ? (
+            <button
+              onClick={onSubmit}
+              disabled={submitting || !tenure || !purchaseType}
+              className="claim-btn"
+              type="button"
+            >
+              {submitting ? "Saving…" : tickedCount > 0 ? `Save ${tickedCount} milestone${tickedCount === 1 ? "" : "s"}` : "Save"}
+            </button>
+          ) : (
+            <button
+              onClick={() => onStepChange("purchaser")}
+              disabled={submitting || !tenure || !purchaseType}
+              className="claim-btn"
+              type="button"
+            >
+              Next: Buyer milestones →
+            </button>
+          )}
         </div>
       </div>
     </div>

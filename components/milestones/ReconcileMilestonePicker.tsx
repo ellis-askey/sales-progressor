@@ -74,12 +74,17 @@ export function ReconcileMilestonePicker({
   purchaseType,
   state,
   onChange,
+  side,
 }: {
   milestoneDefinitions: MilestoneDefinitionLite[];
   tenure: Tenure;
   purchaseType: PurchaseType;
   state: ReconciliationState;
   onChange: (next: ReconciliationState) => void;
+  // When provided, renders only that side. When omitted, renders both (legacy
+  // single-screen mode — kept for backward compat). The wizard in the claim
+  // forms uses side="vendor" then side="purchaser" across two steps.
+  side?: "vendor" | "purchaser";
 }) {
   const autoNr = autoNrCodesFor(tenure, purchaseType);
   const filtered = milestoneDefinitions
@@ -159,8 +164,12 @@ export function ReconcileMilestonePicker({
 
   return (
     <div className="claim-reconcile-list">
-      <Section title="Vendor milestones" milestones={vendor} state={state} onRowChange={handleRowChange} />
-      <Section title="Purchaser milestones" milestones={purchaser} state={state} onRowChange={handleRowChange} />
+      {(side === undefined || side === "vendor") && (
+        <Section title="Vendor milestones" milestones={vendor} state={state} onRowChange={handleRowChange} />
+      )}
+      {(side === undefined || side === "purchaser") && (
+        <Section title="Purchaser milestones" milestones={purchaser} state={state} onRowChange={handleRowChange} />
+      )}
     </div>
   );
 }

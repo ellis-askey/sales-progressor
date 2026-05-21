@@ -41,12 +41,18 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
   const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
   // Keyed by milestone DEFINITION ID. eventDate is YYYY-MM-DD string or null.
   const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
+  // Two-step wizard when reconciliationMode === "in_progress": vendor then purchaser.
+  const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
   const hasDuplicates = duplicates.length > 0;
   const needsSaleDetails = !hasDuplicates || dupChoice === "create";
 
+  // Main submit is gated on:
+  //   - non-reconcile path: just need details + a mode picked
+  //   - in_progress wizard: only enable on purchaser step (vendor step shows "Next" instead)
+  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const canSubmit = needsSaleDetails
-    ? tenure !== null && purchaseType !== null && reconciliationMode !== null && !loading
+    ? tenure !== null && purchaseType !== null && reconciliationMode !== null && onPurchaserStep && !loading
     : !loading;
 
   async function claim(action: "create" | "link", existingTransactionId?: string) {
@@ -197,14 +203,36 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
         <span className="claim-reconcile-option-sub">Claim now, mark completed milestones from the file page</span>
       </button>
 
-      {reconciliationMode === "in_progress" && (
-        <ReconcileMilestonePicker
-          milestoneDefinitions={milestoneDefinitions}
-          tenure={tenure}
-          purchaseType={purchaseType}
-          state={reconciledMilestones}
-          onChange={setReconciledMilestones}
-        />
+      {reconciliationMode === "in_progress" && tenure && purchaseType && (
+        <>
+          {wizardStep === "purchaser" && (
+            <button
+              type="button"
+              className="claim-wizard-back"
+              onClick={() => setWizardStep("vendor")}
+            >
+              ← Back to seller milestones
+            </button>
+          )}
+          <ReconcileMilestonePicker
+            milestoneDefinitions={milestoneDefinitions}
+            tenure={tenure}
+            purchaseType={purchaseType}
+            state={reconciledMilestones}
+            onChange={setReconciledMilestones}
+            side={wizardStep}
+          />
+          {wizardStep === "vendor" && (
+            <button
+              type="button"
+              className="claim-btn"
+              onClick={() => setWizardStep("purchaser")}
+              style={{ marginTop: 12 }}
+            >
+              Next: Buyer milestones →
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -229,14 +257,16 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
             {error}
           </div>
         )}
-        <button
-          onClick={handleClaim}
-          disabled={!canSubmit}
-          className="claim-btn"
-          style={{ marginTop: 8 }}
-        >
-          {loading ? "Claiming…" : "Claim this sale"}
-        </button>
+        {onPurchaserStep && (
+          <button
+            onClick={handleClaim}
+            disabled={!canSubmit}
+            className="claim-btn"
+            style={{ marginTop: 8 }}
+          >
+            {loading ? "Claiming…" : "Claim this sale"}
+          </button>
+        )}
       </div>
     );
   }
@@ -298,18 +328,20 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
         </div>
       )}
 
-      <button
-        onClick={handleClaim}
-        disabled={!canSubmit}
-        className="claim-btn"
-        style={{ marginTop: 4 }}
-      >
-        {loading
-          ? "Claiming…"
-          : dupChoice === "link"
-          ? "Link this sale to the chain"
-          : "Claim this sale"}
-      </button>
+      {onPurchaserStep && (
+        <button
+          onClick={handleClaim}
+          disabled={!canSubmit}
+          className="claim-btn"
+          style={{ marginTop: 4 }}
+        >
+          {loading
+            ? "Claiming…"
+            : dupChoice === "link"
+            ? "Link this sale to the chain"
+            : "Claim this sale"}
+        </button>
+      )}
     </div>
   );
 }

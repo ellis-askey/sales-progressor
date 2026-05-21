@@ -37,7 +37,10 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
   const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
   const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
+  const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
+  // Main submit only enabled on purchaser wizard step (or when not reconciling at all)
+  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const canSubmit =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
@@ -45,7 +48,8 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
     firmName.trim().length > 0 &&
     tenure !== null &&
     purchaseType !== null &&
-    reconciliationMode !== null;
+    reconciliationMode !== null &&
+    onPurchaserStep;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -249,13 +253,35 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
             <span className="claim-reconcile-option-sub">Claim now, mark completed milestones from the file page</span>
           </button>
           {reconciliationMode === "in_progress" && (
-            <ReconcileMilestonePicker
-              milestoneDefinitions={milestoneDefinitions}
-              tenure={tenure}
-              purchaseType={purchaseType}
-              state={reconciledMilestones}
-              onChange={setReconciledMilestones}
-            />
+            <>
+              {wizardStep === "purchaser" && (
+                <button
+                  type="button"
+                  className="claim-wizard-back"
+                  onClick={() => setWizardStep("vendor")}
+                >
+                  ← Back to seller milestones
+                </button>
+              )}
+              <ReconcileMilestonePicker
+                milestoneDefinitions={milestoneDefinitions}
+                tenure={tenure}
+                purchaseType={purchaseType}
+                state={reconciledMilestones}
+                onChange={setReconciledMilestones}
+                side={wizardStep}
+              />
+              {wizardStep === "vendor" && (
+                <button
+                  type="button"
+                  className="claim-btn"
+                  onClick={() => setWizardStep("purchaser")}
+                  style={{ marginTop: 12 }}
+                >
+                  Next: Buyer milestones →
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -286,14 +312,16 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || loading}
-        className="claim-btn"
-        style={{ marginTop: 4 }}
-      >
-        {loading ? "Creating your account…" : "Create account & claim"}
-      </button>
+      {onPurchaserStep && (
+        <button
+          type="submit"
+          disabled={!canSubmit || loading}
+          className="claim-btn"
+          style={{ marginTop: 4 }}
+        >
+          {loading ? "Creating your account…" : "Create account & claim"}
+        </button>
+      )}
 
       <p className="claim-form-terms">
         By creating an account you agree to our{" "}

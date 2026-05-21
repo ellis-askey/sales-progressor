@@ -29,12 +29,15 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
   const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
   const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
+  const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
+  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const canSubmit =
     password.length > 0 &&
     tenure !== null &&
     purchaseType !== null &&
-    reconciliationMode !== null;
+    reconciliationMode !== null &&
+    onPurchaserStep;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -181,13 +184,35 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
             <span className="claim-reconcile-option-sub">Claim now, mark completed milestones from the file page</span>
           </button>
           {reconciliationMode === "in_progress" && (
-            <ReconcileMilestonePicker
-              milestoneDefinitions={milestoneDefinitions}
-              tenure={tenure}
-              purchaseType={purchaseType}
-              state={reconciledMilestones}
-              onChange={setReconciledMilestones}
-            />
+            <>
+              {wizardStep === "purchaser" && (
+                <button
+                  type="button"
+                  className="claim-wizard-back"
+                  onClick={() => setWizardStep("vendor")}
+                >
+                  ← Back to seller milestones
+                </button>
+              )}
+              <ReconcileMilestonePicker
+                milestoneDefinitions={milestoneDefinitions}
+                tenure={tenure}
+                purchaseType={purchaseType}
+                state={reconciledMilestones}
+                onChange={setReconciledMilestones}
+                side={wizardStep}
+              />
+              {wizardStep === "vendor" && (
+                <button
+                  type="button"
+                  className="claim-btn"
+                  onClick={() => setWizardStep("purchaser")}
+                  style={{ marginTop: 12 }}
+                >
+                  Next: Buyer milestones →
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -207,14 +232,16 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={!canSubmit || loading}
-        className="claim-btn"
-        style={{ marginTop: 4 }}
-      >
-        {loading ? "Signing in…" : "Log in & claim"}
-      </button>
+      {onPurchaserStep && (
+        <button
+          type="submit"
+          disabled={!canSubmit || loading}
+          className="claim-btn"
+          style={{ marginTop: 4 }}
+        >
+          {loading ? "Signing in…" : "Log in & claim"}
+        </button>
+      )}
     </form>
   );
 }
