@@ -16,6 +16,8 @@ type Props = {
   transactionId: string;
   contacts: Contact[];
   solicitors?: Solicitor[];
+  /** Gates the "Paste chat" entry in the overflow menu. Internal staff only (admin / sales_progressor). */
+  canPasteChat?: boolean;
 };
 
 type CommChannel = "note" | "email" | "phone" | "sms" | "whatsapp" | "voicemail" | "post";
@@ -32,7 +34,7 @@ const OVERFLOW_CHANNELS: { value: CommChannel; label: string; icon: string }[] =
   { value: "post",      label: "Post",      icon: "📮" },
 ];
 
-export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
+export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [channel, setChannel]         = useState<CommChannel | null>(null);
@@ -222,21 +224,25 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
                   {ch.icon} {ch.label}
                 </button>
               ))}
-              <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
-              <button
-                onClick={openPasteMode}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8, width: "100%",
-                  padding: "7px 12px", fontSize: 12, fontWeight: 500,
-                  border: "none", background: "transparent", cursor: "pointer",
-                  borderRadius: 5, color: "var(--agent-text-primary)",
-                  transition: "background 80ms",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-surface-glass)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                📋 Paste chat
-              </button>
+              {canPasteChat && (
+                <>
+                  <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "4px 6px" }} />
+                  <button
+                    onClick={openPasteMode}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, width: "100%",
+                      padding: "7px 12px", fontSize: 12, fontWeight: 500,
+                      border: "none", background: "transparent", cursor: "pointer",
+                      borderRadius: 5, color: "var(--agent-text-primary)",
+                      transition: "background 80ms",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agent-surface-glass)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    📋 Paste chat
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

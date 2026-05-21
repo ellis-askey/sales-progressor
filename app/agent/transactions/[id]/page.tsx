@@ -614,6 +614,7 @@ export default async function AgentTransactionDetailPage({
                   ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }]
                   : []),
               ]}
+              canPasteChat={isProgressor || isAdminRole}
             />}
             currentUserId={isProgressor ? session.user.id : undefined}
           />

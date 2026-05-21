@@ -68,12 +68,19 @@ export async function logCommAction(input: {
   revalidateTx(input.transactionId);
 }
 
+// Bulk WhatsApp chat import is internal-staff-only for now (admin / sales_progressor).
+// UI hides the entry point too; this is defence-in-depth.
+const PASTE_CHAT_ALLOWED_ROLES = new Set(["admin", "sales_progressor", "superadmin"]);
+
 export async function importWhatsAppChatAction(input: {
   transactionId: string;
   messages: ImportMessageInput[];
   mapping: SenderMapping;
 }): Promise<ImportResult> {
   const session = await requireSession();
+  if (!PASTE_CHAT_ALLOWED_ROLES.has(session.user.role)) {
+    throw new Error("Not available for this role");
+  }
   const result = await importWhatsAppChat(
     input.transactionId,
     input.messages,
@@ -91,6 +98,9 @@ export async function undoWhatsAppImportAction(
   transactionId: string,
 ): Promise<{ deleted: number }> {
   const session = await requireSession();
+  if (!PASTE_CHAT_ALLOWED_ROLES.has(session.user.role)) {
+    throw new Error("Not available for this role");
+  }
   const result = await undoWhatsAppImport(importBatchId, getAccessScope(session));
   revalidateTx(transactionId);
   return result;
