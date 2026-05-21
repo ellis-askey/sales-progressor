@@ -81,7 +81,7 @@ vars and redeploy, or simply remove the variable (missing = disabled).
 ## Row-Level Security (PR 51) — Staging Infrastructure Only
 
 > **Status:** Bypass policies are permanently active for now. Full strict-mode activation
-> is a future sprint item (pre-Series-A). See `docs/TODO.md` for scope and effort estimate.
+> is a future sprint item (pre-Series-A). See `docs/active/TODO.md` for scope and effort estimate.
 > Do not run the strict activation SQL below until the Prisma middleware and call-site
 > wiring described in TODO.md is complete.
 
@@ -197,7 +197,7 @@ curl -s "https://staging.yourdomain.com/api/command/rls-test\
 #   countWithContext == countWithoutContext  ← same agency, all rows visible
 ```
 
-### Production activation — DEFERRED (see docs/TODO.md)
+### Production activation — DEFERRED (see docs/active/TODO.md)
 
 Strict RLS activation requires:
 1. Prisma middleware wiring `app.current_agency_id` on every request

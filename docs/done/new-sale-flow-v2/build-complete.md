@@ -74,7 +74,7 @@
 - `NewTransactionForm.tsx` keeps its inline copies until cutover (as spec'd)
 
 ### Phase E5 — Cutover preparation
-- `docs/ELLIS_MANUAL_TODO.md` — full staged rollout playbook, 10-item smoke test checklist, rollback procedure, burn-in guidance
+- `docs/active/ELLIS_MANUAL_TODO.md` — full staged rollout playbook, 10-item smoke test checklist, rollback procedure, burn-in guidance
 - This document
 
 ---
@@ -89,7 +89,7 @@
 | Address blur auto-save | Explicit "Save draft" button is sufficient | Low priority |
 | Per-agent flag override | Defer until usage analytics show need | — |
 | Server-side outsourced validation | Client-only enforcement is sufficient for current usage | Known gap in docs |
-| Supabase RLS activation | Separate package (Package D) | docs/TODO.md |
+| Supabase RLS activation | Separate package (Package D) | docs/active/TODO.md |
 
 ---
 
@@ -114,7 +114,7 @@
 | `components/transactions-v2/DraftPanel.tsx` | Floating draft list panel |
 | `lib/utils/address.ts` | Shared phone/postcode utilities |
 | `lib/utils/solicitor-autofill.ts` | Shared solicitor autofill utility |
-| `docs/NEW_SALE_FLOW_BUILD_COMPLETE.md` | This document |
+| `docs/done/new-sale-flow-v2/build-complete.md` | This document |
 
 ## Files modified (Phase E only)
 
@@ -125,7 +125,7 @@
 | `components/transactions-v2/form/ContactsSection.tsx` | Responsive CSS classes |
 | `components/transactions-v2/form/SolicitorSection.tsx` | Re-export from shared utility |
 | `app/agent/styles/agent-system.css` | Contacts grid responsive classes |
-| `docs/ELLIS_MANUAL_TODO.md` | Rollout playbook + smoke test checklist |
+| `docs/active/ELLIS_MANUAL_TODO.md` | Rollout playbook + smoke test checklist |
 
 ---
 
@@ -134,7 +134,7 @@
 When you're ready to flip the flag:
 
 1. Merge this build to `master`
-2. Follow staging steps in `docs/ELLIS_MANUAL_TODO.md`
+2. Follow staging steps in `docs/active/ELLIS_MANUAL_TODO.md`
 3. Run all 10 smoke test items on staging
 4. Flip production flag
 5. Run smoke test items 1–5 on production

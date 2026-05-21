@@ -5,7 +5,7 @@
 **Authored:** 2026-05-03
 **Source of truth:** This document. CC must reference this file before any in-scope decision. Anything not in this document is OUT OF SCOPE.
 
-**Prerequisite reading:** `docs/OUTSOURCED_WORKFLOW_AUDIT.md` (the full current-state audit) and `docs/ROLE_VISIBILITY_AUDIT.md`.
+**Prerequisite reading:** `docs/active/package-d/outsourced-workflow-audit.md` (the full current-state audit) and `docs/ROLE_VISIBILITY_AUDIT.md`.
 
 ---
 
@@ -287,7 +287,7 @@ These appear in the manual-task appendix at end of build:
 
 ## 10. Anti-drift rules for CC
 
-1. Re-read this scope document and `docs/OUTSOURCED_WORKFLOW_AUDIT.md` before each PR
+1. Re-read this scope document and `docs/active/package-d/outsourced-workflow-audit.md` before each PR
 2. If something in the codebase looks like it would benefit from a change not in this document — list in `docs/PACKAGE_D_FOLLOWUPS.md`, do not implement
 3. PR 75 is cross-cutting and may surface code sites the audit didn't enumerate. Each new site found gets the same scope-aware treatment. Surface the list in the PR description so I can verify nothing was missed
 4. Do NOT touch the AgentShell, AppShell, or CommandShell. Visual layout stays as-is

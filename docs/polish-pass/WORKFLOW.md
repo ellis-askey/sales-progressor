@@ -324,7 +324,7 @@ Never start Stage 2 of page N+1 while Stage 4 of page N is unverified.
 
 **Process:**
 1. Note it separately: "Scope note: [what was found]. Not touching this in the polish pass — flagging for a follow-up task."
-2. Add it to `docs/TODO.md` or `docs/POST_LAUNCH_FIXES.md`
+2. Add it to `docs/active/TODO.md` or `docs/POST_LAUNCH_FIXES.md`
 3. Continue the polish pass unchanged
 
 The polish pass has one job. Refactors go in a separate PR. No exceptions.

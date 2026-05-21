@@ -219,7 +219,7 @@ Route replies to `support@thesalesprogressor.co.uk`. Agents who reply to a chain
 
 DMARC reporting address (`dmarc@thesalesprogressor.co.uk`) just needs to be a monitored inbox or a DMARC reporting tool. Can be the same as support@ initially.
 
-**Manual setup required:** SendGrid domain authentication for `mail.thesalesprogressor.co.uk`, plus DNS records at the registrar. This belongs in `docs/ELLIS_MANUAL_TODO.md`. Stage 2 will flag it.
+**Manual setup required:** SendGrid domain authentication for `mail.thesalesprogressor.co.uk`, plus DNS records at the registrar. This belongs in `docs/active/ELLIS_MANUAL_TODO.md`. Stage 2 will flag it.
 
 ### Provider
 

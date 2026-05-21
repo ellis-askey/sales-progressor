@@ -17,7 +17,7 @@
 | How they reach it | "+ New sale" button in AgentShell sidebar (link to `/agent/transactions/new-v2`). Also reachable by direct URL. |
 | Reachable without a transaction? | Yes — this IS the transaction creation page |
 
-**Code smell noted (per PAGE_LIST.md):** `app/agent/transactions/new-v2/page.tsx` uses `prisma as any` cast on line 7 (`const db = prisma as any`) to access `agencyRecommendedSolicitor`. Filed in `docs/TODO.md` — do not fix in this pass.
+**Code smell noted (per PAGE_LIST.md):** `app/agent/transactions/new-v2/page.tsx` uses `prisma as any` cast on line 7 (`const db = prisma as any`) to access `agencyRecommendedSolicitor`. Filed in `docs/active/TODO.md` — do not fix in this pass.
 
 **No `loading.tsx`** exists for this route. No skeleton will show during the server fetch. The page renders blank until all four parallel data fetches resolve.
 
@@ -1012,7 +1012,7 @@ If any of these three animate incorrectly (or not at all) during the spot-check,
 
 - **Chain collapse `confirm()` dialog:** Clicking "× Remove chain" when stubs exist calls `window.confirm()` — a native browser dialog, not an agent-styled modal. Inconsistent with the rest of the UI. Not a Stage 4 concern (chain UI is deferred to the chain sweep). Note it in Stage 2.
 
-- **"Tell me more" dead button:** `PortalInvitePrompt` renders a "Tell me more" button with no `onClick` handler. Clicking it does nothing. This is a functional gap — flag in Stage 2, file in `docs/TODO.md`, do not fix in the polish pass.
+- **"Tell me more" dead button:** `PortalInvitePrompt` renders a "Tell me more" button with no `onClick` handler. Clicking it does nothing. This is a functional gap — flag in Stage 2, file in `docs/active/TODO.md`, do not fix in the polish pass.
 
 - **`prisma as any` cast:** `app/agent/transactions/new-v2/page.tsx` line 7. Already filed per PAGE_LIST.md note. Do not touch.
 
@@ -1036,7 +1036,7 @@ If any of these three animate incorrectly (or not at all) during the spot-check,
 - **`ChainSection` polish** — deferred to chain sweep per PAGE_LIST.md
 - **`ContactsSection` / `ContactGroup`** — legacy components still imported but superseded by `ContactCarousel` — not touched
 - **Outsourced server-side validation gap** — not a UI concern for this pass
-- **"Tell me more" dead button** — functional gap, not voice/design — file in `docs/TODO.md`, do not fix in pass
+- **"Tell me more" dead button** — functional gap, not voice/design — file in `docs/active/TODO.md`, do not fix in pass
 - **`prisma as any` cast** — code smell, not UI — filed, do not fix
 - **Navigation guard suppression edge case** — functional concern, not UI
 

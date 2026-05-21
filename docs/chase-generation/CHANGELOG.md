@@ -28,8 +28,8 @@ All three scenarios tested against `claude-haiku-4-5-20251001`:
 - **§7.3 James (WhatsApp, Friendly, PM9 survey booking):** 60 words, asks James "have you had a chance to book a Level 2 or Level 3 homebuyer's report yet?" — correctly treats the booking as not yet done. No confusion with lender valuation. PM9 regression confirmed fixed.
 
 ### Two tone-calibration issues filed for follow-up (not blocking this PR)
-- **CP1 — Urgent tone reads as Polite-Yet-Firm.** Deborah message passes all hard criteria but uses only softeners. The Urgent modifier needs sharpening: require a factual days-outstanding statement, a direct ask on the key action, and explicit ordering (deadline first). Reference Email 12 in VOICE_CORPUS.md. Filed in `docs/TODO.md` as CP1.
-- **CP2 — Multi-item connective phrases need register filtering.** Marcus message bridges two equal-weight milestones with "On a lighter note," which shifts register inappropriately. §4.7 connective phrase list needs neutral-only examples and an explicit exclusion of tone-shifting connectives. Filed in `docs/TODO.md` as CP2.
+- **CP1 — Urgent tone reads as Polite-Yet-Firm.** Deborah message passes all hard criteria but uses only softeners. The Urgent modifier needs sharpening: require a factual days-outstanding statement, a direct ask on the key action, and explicit ordering (deadline first). Reference Email 12 in VOICE_CORPUS.md. Filed in `docs/active/TODO.md` as CP1.
+- **CP2 — Multi-item connective phrases need register filtering.** Marcus message bridges two equal-weight milestones with "On a lighter note," which shifts register inappropriately. §4.7 connective phrase list needs neutral-only examples and an explicit exclusion of tone-shifting connectives. Filed in `docs/active/TODO.md` as CP2.
 
 ### Context
 - The glossary was needed because the model was reading completed-state milestone names as present-tense facts. The fix is to inject "what outstanding means" and "common misframings to avoid" into every chase prompt, per milestone.

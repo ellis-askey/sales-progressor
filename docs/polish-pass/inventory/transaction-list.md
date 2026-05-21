@@ -52,7 +52,7 @@
 
 **Depth note:** `TransactionListWithSearch` defines 3 inline chip components (`AssignedToChip`, `RiskChip`, `ManagedByChip`) that all repeat the same `chipBase`/`chipDefault`/`chipActive` Tailwind class pattern. After conversion to `agent-segment-pill`, the helpers can either stay (cleaner API) or fold into inline buttons (less indirection). Stage 2 to decide.
 
-**Depth note:** `splitAddress` helper is duplicated across `TransactionRowView.tsx:34`, `ForecastStrip.tsx:7`, and `lib/services/hub.ts` (per memory). Code smell — file in `docs/TODO.md`, not fixed in this pass.
+**Depth note:** `splitAddress` helper is duplicated across `TransactionRowView.tsx:34`, `ForecastStrip.tsx:7`, and `lib/services/hub.ts` (per memory). Code smell — file in `docs/active/TODO.md`, not fixed in this pass.
 
 ---
 

@@ -4,7 +4,73 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
+
+---
+
+## Founder Brief / Weekly Review — internal-account exclusion
+
+Migration: `prisma/migrations/20260521150000_add_is_internal_flag/migration.sql`
+
+Adds `isInternal Boolean default false` to `Agency` and `User`. The migration backfills:
+- Every user with `role IN ('admin', 'sales_progressor', 'superadmin')` → `isInternal = true`
+- The `Zero Progressor` agency → `isInternal = true`
+- Every user under an internal agency → `isInternal = true`
+
+After this lands, the metric rollup ([lib/services/metrics-rollup.ts](lib/services/metrics-rollup.ts)) and every signal detector under [lib/services/signals/detectors/](lib/services/signals/detectors/) skip internal activity, so the Founder Brief and Weekly Review only reflect real customer agencies.
+
+### Staging steps (run first)
+
+```bash
+# Apply migration to staging
+DATABASE_URL="<staging-direct-url>" npx prisma migrate deploy
+
+# Verify backfill landed correctly
+DATABASE_URL="<staging-direct-url>" psql -c 'SELECT email, role, "isInternal" FROM "User" ORDER BY email;'
+DATABASE_URL="<staging-direct-url>" psql -c 'SELECT name, "isInternal" FROM "Agency" ORDER BY name;'
+```
+
+Then manually trigger the crons against staging:
+- `POST /api/cron/rollup-metrics` with `Authorization: Bearer <CRON_SECRET>`
+- `POST /api/cron/signals` (same header)
+- `POST /api/cron/weekly-review` (same header) — eyeball the email; numbers should reflect the 4 real customer agencies only.
+
+### Production steps (after staging looks clean)
+
+1. **Delete Natalie Mills first.** She and any associated agency/transactions should be removed entirely, not flagged. Run in the Supabase SQL editor against project `gmkfustgwipgihpmpjpr`:
+
+   ```sql
+   -- Preview what's tied to her
+   SELECT id, email, "agencyId", role FROM "User" WHERE email = 'ellisaskey+natalie@googlemail.com';
+
+   -- For the agencyId returned above, check what else is in that agency
+   SELECT COUNT(*) FROM "PropertyTransaction" WHERE "agencyId" = '<her-agency-id>';
+   SELECT COUNT(*) FROM "User" WHERE "agencyId" = '<her-agency-id>';
+   ```
+
+   If the agency only contains Natalie and no real-customer data:
+   ```sql
+   DELETE FROM "Agency" WHERE id = '<her-agency-id>';
+   -- Prisma cascade rules on User/Agency will clean up dependent rows.
+   ```
+   Otherwise delete just her User row.
+
+2. **Deploy the migration to production.** Same `prisma migrate deploy` command, but with the production DATABASE_URL.
+
+3. **Wipe historical rollup + signal data** so the next nightly cron starts from a clean slate (those rows reference the "51 sales in a week" test-data era). In the Supabase SQL editor:
+
+   ```sql
+   TRUNCATE "Signal", "DailyMetric" RESTART IDENTITY;
+   ```
+
+4. The 02:00 UTC `/api/cron/rollup-metrics` and 03:00 UTC `/api/cron/signals` jobs will rebuild from real customer activity only. Monday's Weekly Review should then reflect the genuine 4-customer baseline.
+
+### Rollback plan
+
+The migration is additive (one new column on two tables). If the brief starts hiding real activity (i.e. someone is wrongly flagged as internal), reverse with:
+```sql
+UPDATE "User" SET "isInternal" = false WHERE email = '<wrongly-flagged-email>';
+```
 
 ---
 
@@ -237,6 +303,18 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 
 ---
 
+## Email gaps to address (product decisions)
+
+- [ ] **No instant welcome email** — `activation_day_1` fires at 09:00 UTC the day *after* signup. Someone who signs up at 10am hears nothing until the next morning. Decide: add an immediate trigger on account creation, or accept the delay?
+
+- [ ] **Morning digest excludes negotiators** — role filter is `["admin", "sales_progressor", "director"]`. Negotiators only get the Monday brief. Decide: should negotiators get the daily morning digest too?
+
+- [ ] **No onboarding email sequence** — one activation email, one stuck-day-3 nudge, then silence until 30 days. No "here's how to get the most out of the platform" flow. Decide: worth building a day 3/7/14 sequence, or is the in-app checklist enough?
+
+- [ ] **`send_to_us_drop_21d` is outsourced-tier only** — self-managed users who go quiet for 21 days get nothing until the `quiet_30d` email. Decide: should self-managed users get their own 21-day check-in?
+
+---
+
 ## Decisions and reviews (1–2 hours, founder thinking time)
 
 - [ ] **Voice samples — write in your actual voice**
@@ -287,7 +365,13 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 - [ ] External penetration test or security review (pre-launch, requires human security firm)
 - [ ] Engage with industry communities (Property Industry Eye, The Negotiator, Propertymark LinkedIn groups) — 30 min/day
 - [ ] Decide on Vercel Pro upgrade ($20/mo) when you want sub-hourly cron granularity (`/api/cron/metrics-5min` is built but unwired pending this)
-- [ ] Decide whether to enable strict RLS in Supabase (currently bypass policies in place; full activation = future sprint per `docs/TODO.md`)
+- [ ] Decide whether to enable strict RLS in Supabase (currently bypass policies in place; full activation = future sprint per `docs/active/TODO.md`)
+
+---
+
+## Known issues
+
+- **Stale session FK violations on transaction creation** — If a user's session JWT contains an `agencyId` that no longer exists in the database (e.g. agency was deleted, or test data rotated), creating a new transaction triggers a `PropertyTransaction_agencyId_fkey` foreign key violation and shows the "Something went wrong" error boundary. Workaround: sign out and back in. Long-term fix: validate `session.user.agencyId` against the Agency table on session refresh, force re-auth if invalid. *(Discovered 2026-05-05 on local dev — production unaffected.)*
 
 ---
 

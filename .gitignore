@@ -15,6 +15,7 @@ build/
 .env.local
 .env.*.local
 .env.production
+.env.preview
 .env.test
 
 # Prisma generated
@@ -41,11 +42,7 @@ test-results/
 e2e/.auth/
 
 # Claude Code working directories and session scratch files
-# Root-anchored so legitimate docs/ copies remain tracked
 .claude/worktrees/
-/CC_PROMPT_*.md
-/PACKAGE_D_SCOPE.md
-/ELLIS_MANUAL_TODO.md
 .env*.local
 
 # TypeScript incremental build cache

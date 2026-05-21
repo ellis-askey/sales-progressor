@@ -2,8 +2,8 @@
 
 **Status:** Awaiting approval before Stage 2  
 **Date:** 2026-05-20  
-**Depends on:** Stage 0 approved (see `docs/EMAIL_ARC_STAGE0.md`)  
-**Prerequisite for Stage 2:** Ellis completes manual setup items in `docs/ELLIS_MANUAL_TODO.md` (DNS, SendGrid group, UNSUBSCRIBE_SECRET)
+**Depends on:** Stage 0 approved (see `docs/done/email-arc/stage0.md`)  
+**Prerequisite for Stage 2:** Ellis completes manual setup items in `docs/active/ELLIS_MANUAL_TODO.md` (DNS, SendGrid group, UNSUBSCRIBE_SECRET)
 
 ---
 
@@ -623,7 +623,7 @@ await sgMail.send({
 });
 ```
 
-This is the V1 approach for all emails. The `SENDGRID_UNSUBSCRIBE_GROUP_ID` env var is set by Ellis after creating the group (see `ELLIS_MANUAL_TODO.md`).
+This is the V1 approach for all emails. The `SENDGRID_UNSUBSCRIBE_GROUP_ID` env var is set by Ellis after creating the group (see `docs/active/ELLIS_MANUAL_TODO.md`).
 
 ---
 
@@ -731,7 +731,7 @@ This page allows post-launch monitoring without manual SQL. If an agent received
 
 3. **`ChainNotificationQueue` drain — synchronous vs cron** — Stage 1 recommends the synchronous-primary / cron-fallback pattern. If there are concerns about adding synchronous email sends to the withdrawal recording path (e.g. latency), the pure-cron approach is acceptable — but this extends withdrawal notification delay to up to 1 hour on free Vercel tier. Decision needed before Stage 2 implements the drain.
 
-4. **Vercel Pro for 5-minute cron** — on free Vercel, the email drain runs hourly. Upgrade to Vercel Pro ($20/mo, already noted in ELLIS_MANUAL_TODO.md) enables 5-minute granularity. For milestone/celebration emails with quiet hours, hourly is acceptable. For withdrawal fallback, it matters more. Ellis decides timing of upgrade separately.
+4. **Vercel Pro for 5-minute cron** — on free Vercel, the email drain runs hourly. Upgrade to Vercel Pro ($20/mo, already noted in docs/active/ELLIS_MANUAL_TODO.md) enables 5-minute granularity. For milestone/celebration emails with quiet hours, hourly is acceptable. For withdrawal fallback, it matters more. Ellis decides timing of upgrade separately.
 
 5. **`EMAIL_SANDBOX_MODE` on staging** — staging should have sandbox mode enabled so staging-triggered events don't accidentally email real agents. Confirm this is acceptable and that real-send testing will happen against a dedicated test chain with Ellis's own email only.
 

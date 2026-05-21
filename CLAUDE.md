@@ -132,8 +132,17 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   /schema.prisma         Single source of truth for data model
   /migrations            Prisma migrations — apply to staging first
 /docs                    Specs, scope documents, audit reports
+  README.md              Top-level navigation index
+  /active                Open plans + ongoing ops (ELLIS_MANUAL_TODO, TODO, package-d, etc.)
+  /done                  Shipped work, grouped by feature/arc
+  /reference             Always-live guides (PRODUCT_TRUTH, AGENT_SECURITY, etc.)
+  /meta                  Housekeeping + retired prompts
   /admin                 Command Centre specifications (ADMIN_01–10)
-  /_archive              Superseded/historical docs
+  /chain-feature         10-part chain reference series (inter-linked)
+  /chase-generation      Chase AI corpus + glossary (code-coupled)
+  /help/_discovery       Raw help documentation (large self-contained)
+  /polish-pass           Page-by-page polish inventory + workflow (code-coupled)
+  /audits                Standalone investigation reports
 .env                     Local secrets — NEVER commit
 ```
 
@@ -150,9 +159,9 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | Milestone weights and gating | `docs/MILESTONES_WEIGHTS_v1.md` |
 | Command Centre product spec | `docs/admin/ADMIN_01_SPEC.md` (and ADMIN_02–10 for subsystems) |
 | Visual design (agent app) | `docs/VISUAL_DIRECTION.md` |
-| Active package being built | `docs/PACKAGE_X_SCOPE.md` (if one exists) |
-| Manual ops tasks (founder side) | `docs/ELLIS_MANUAL_TODO.md` |
-| Technical debt | `docs/TODO.md` |
+| Active package being built | `docs/active/package-d/scope.md` (current — others under `docs/active/`) |
+| Manual ops tasks (founder side) | `docs/active/ELLIS_MANUAL_TODO.md` |
+| Technical debt | `docs/active/TODO.md` |
 | Bug log | `docs/POST_LAUNCH_FIXES.md` |
 | Test accounts | `docs/test-accounts.md` |
 | Outsourced workflow gap | This file ("Known gap" section above), pending Package D |
@@ -255,7 +264,7 @@ For every PR or significant change, your response includes:
 - **What I did** — plain English, no jargon
 - **Files changed** — list with one-line "what changed" per file
 - **Tests run** — `tsc` output, any test commands, migration verification
-- **What you need to do** — manual steps required (env vars, dashboard config, follow-up actions). If a manual task is required, it must also be added to `docs/ELLIS_MANUAL_TODO.md`
+- **What you need to do** — manual steps required (env vars, dashboard config, follow-up actions). If a manual task is required, it must also be added to `docs/active/ELLIS_MANUAL_TODO.md`
 - **Risks / what could go wrong** — honest assessment, not reassurance
 - **Next step** — one clear action
 
@@ -284,7 +293,7 @@ This project has had recurring scope drift in past CC sessions. To prevent it:
 - Never commit `.env` or any file containing secrets
 - Never auto-publish to social platforms (LinkedIn, Twitter, Instagram, TikTok) without per-post user confirmation
 - Never delete user data without explicit confirmation; default to anonymisation
-- Never add a new third-party integration without surfacing it in `docs/ELLIS_MANUAL_TODO.md` (env vars, signup steps, DPA requirements)
+- Never add a new third-party integration without surfacing it in `docs/active/ELLIS_MANUAL_TODO.md` (env vars, signup steps, DPA requirements)
 - Never bypass the multi-tenancy model:
   - For customer agency data: filter by `agencyId`
   - For internal staff data: build explicit access paths (`assignedUserId`, role-based admin queries) — never assume agencyId filtering applies
@@ -308,7 +317,7 @@ This project has had recurring scope drift in past CC sessions. To prevent it:
 | PostHog (EU) | Product analytics | Pending DPA + key |
 | Upstash Redis | Rate limiting | Pending account + creds |
 
-When adding a new integration, surface it in `docs/ELLIS_MANUAL_TODO.md` with the manual setup steps the founder needs to take.
+When adding a new integration, surface it in `docs/active/ELLIS_MANUAL_TODO.md` with the manual setup steps the founder needs to take.
 
 ---
 

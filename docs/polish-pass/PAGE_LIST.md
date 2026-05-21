@@ -23,7 +23,7 @@ Complexity ratings (Small / Medium / Large / X-Large) are honest estimates from 
 | Audience | Director, Negotiator |
 | Mobile complexity | **Most complex in the queue.** Two-column desktop layout collapses to single-column. MOS drop zone, chain section expansion, and solicitor picker each need a mobile treatment. Multi-party contact entry (up to 2 vendors, 2 purchasers) must remain usable at 375px. |
 | **Stage 4 note** | **Stage 4 is deferred and non-standard.** Stages 1–3 run normally and complete before other pages begin. Stage 4 (production cutover from `/agent/transactions/new` to this route) is held until transaction detail, hub, work queue, transaction list, dashboard, and analytics have all reached Stage 3 approved. Stage 4 then includes: revalidation check, UI swap, navigation link updates, old route redirect, `tsc` verification, spot-check on real transaction creation, and 24h monitoring. Full checklist in `WORKFLOW.md`. |
-| Uncertainty | Uses `components/transactions-v2/NewSaleFlow` — a component tree not yet deeply read. Stage 1 will reveal full scope. Uses `prisma as any` cast in places — note as code smell in Stage 1 inventory, file in `docs/TODO.md`, do not fix in the polish pass. |
+| Uncertainty | Uses `components/transactions-v2/NewSaleFlow` — a component tree not yet deeply read. Stage 1 will reveal full scope. Uses `prisma as any` cast in places — note as code smell in Stage 1 inventory, file in `docs/active/TODO.md`, do not fix in the polish pass. |
 
 ---
 
@@ -164,7 +164,7 @@ Original entry archived for reference below the strikethrough.
 | Complexity | **Medium** |
 | Audience | Director (write access to settings), Negotiator (read-only directory) |
 | Mobile complexity | **Similar to desktop** for directory. Settings sections stack cleanly. |
-| Uncertainty | Uses `prisma as any` cast — flag in Stage 1 inventory, file in `docs/TODO.md`, do not fix in the polish pass. |
+| Uncertainty | Uses `prisma as any` cast — flag in Stage 1 inventory, file in `docs/active/TODO.md`, do not fix in the polish pass. |
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Status:** Awaiting approval before any code is written
 **Route:** `/agent/transactions/new-v2` (feature flag `NEXT_PUBLIC_NEW_SALE_V2=true`)
-**Supersedes:** F1/F2/F3/F4 plan in `docs/NEW_SALE_FLOW_REDESIGN_PLAN.md` (F2 shipped, F1 shipped and now retiring, F3/F4 cancelled)
+**Supersedes:** F1/F2/F3/F4 plan in `docs/done/new-sale-flow-v2/v1-redesign-plan.md` (F2 shipped, F1 shipped and now retiring, F3/F4 cancelled)
 **Safety pattern:** `/agent/transactions/new` and `NewTransactionForm.tsx` untouched throughout. All server actions, memo-parse API, draft system, and submission wiring untouched.
 
 ---

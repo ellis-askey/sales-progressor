@@ -2,7 +2,7 @@
 
 **Commissioned:** 2026-05-09  
 **Status:** Awaiting sign-off before Phase B commences  
-**Spec reference:** `docs/NEW_SALE_FLOW_SPEC.md`  
+**Spec reference:** `docs/done/new-sale-flow-v2/spec.md`  
 **Safety invariant:** The existing `/agent/transactions/new` route and `NewTransactionForm.tsx` remain fully functional and untouched throughout every phase of this build.
 
 ---
@@ -205,13 +205,13 @@ memoFields: Set<string>                    // which fields were AI-extracted
 ## 3. Sub-phase breakdown
 
 ### Phase A — Audit + skeleton + feature flag (CURRENT)
-**Deliverable:** `docs/NEW_SALE_FLOW_BUILD_PLAN.md` (this document) + skeleton files committed.
+**Deliverable:** `docs/done/new-sale-flow-v2/build-plan.md` (this document) + skeleton files committed.
 
 Code shipped in Phase A:
 - `app/agent/transactions/new-v2/page.tsx` — server page shell (copies data-fetching pattern from existing page; renders `<NewSaleFlow />` placeholder)
 - `components/transactions-v2/NewSaleFlow.tsx` — placeholder client component that renders "Phase B in progress"
 - Feature flag wired in `AgentShell.tsx` — conditional href based on `NEXT_PUBLIC_NEW_SALE_V2`
-- `NEXT_PUBLIC_NEW_SALE_V2` added to `.env.example` and `docs/ELLIS_MANUAL_TODO.md`
+- `NEXT_PUBLIC_NEW_SALE_V2` added to `.env.example` and `docs/active/ELLIS_MANUAL_TODO.md`
 
 No UI visible to agents (flag off by default). The route is accessible by direct URL for local testing.
 
@@ -456,7 +456,7 @@ const newSaleHref = process.env.NEXT_PUBLIC_NEW_SALE_V2 === "true"
   : "/agent/transactions/new";
 ```
 
-### `docs/ELLIS_MANUAL_TODO.md` entry
+### `docs/active/ELLIS_MANUAL_TODO.md` entry
 
 Add: "Set `NEXT_PUBLIC_NEW_SALE_V2=true` in Vercel environment variables when ready to enable new sale flow for testing. Default is unset (old form)."
 
