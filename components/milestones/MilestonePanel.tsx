@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
-import { buildCompletionLookup, computeSlowness } from "@/lib/services/milestone-staleness";
+import { buildCompletionLookup, computeSlowness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -296,7 +296,7 @@ export function MilestonePanel({
                         // the pooled completion lookup.
                         const showSlowness =
                           def.isAvailable && !def.isComplete && !def.isNotRequired;
-                        const slownessSignal = showSlowness
+                        const slownessSignal = (showSlowness && MEDIANS_READY)
                           ? computeSlowness(def.code, completionLookup)
                           : null;
                         return (

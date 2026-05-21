@@ -20,6 +20,14 @@
 import { MILESTONE_DURATION_MEDIANS } from "@/lib/services/fees";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 
+// Hardcoded estimates aren't data. The slowness badge stays hidden until
+// the medians-ready email (lib/email/medians-ready.ts / cron) fires
+// (~50+ completed files) AND MILESTONE_DURATION_MEDIANS in fees.ts has
+// been swapped for learned values. Flip to true at that point — the
+// badge wiring stays in place and re-activates platform-wide.
+// See: docs/active/ELLIS_MANUAL_TODO.md for the manual switch-flip step.
+export const MEDIANS_READY = false;
+
 const SLOWNESS_THRESHOLD = 1.5;
 const DAY_MS = 86_400_000;
 
