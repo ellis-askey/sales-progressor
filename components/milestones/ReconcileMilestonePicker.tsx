@@ -186,6 +186,19 @@ export function ReconcileMilestonePicker({
     }
   }, [unlockedSet]);
 
+  // Scroll the picker into view when it mounts (i.e. agent picked "Already in
+  // progress") and when wizard step changes (vendor → purchaser). Without this
+  // the agent is left halfway down the page with the top milestones below the
+  // fold. Brief delay lets the form-collapse animation start so the post-layout
+  // scroll target is correct.
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [side]);
+
   // Centralised row-change handler. Applies the user's patch to the source row,
   // clears autoFilledFrom on the source (user has touched it), then runs cascade
   // rules against any cross-side counterpart.
@@ -264,7 +277,7 @@ export function ReconcileMilestonePicker({
   }
 
   return (
-    <div className="claim-reconcile-list">
+    <div ref={containerRef} className="claim-reconcile-list">
       {(side === undefined || side === "vendor") && (
         <Section
           title="Vendor milestones"
