@@ -189,13 +189,18 @@ export function ReconcileMilestonePicker({
   // Scroll the picker into view when it mounts (i.e. agent picked "Already in
   // progress") and when wizard step changes (vendor → purchaser). Without this
   // the agent is left halfway down the page with the top milestones below the
-  // fold. Brief delay lets the form-collapse animation start so the post-layout
-  // scroll target is correct.
+  // fold.
+  //
+  // Delay matters: the upper-form collapse animation is 320ms. If we scroll
+  // during the collapse, the layout shifts mid-scroll and the smooth scroll
+  // overshoots — agent lands at the bottom of the picker instead of the top.
+  // Wait 400ms (320ms animation + 80ms buffer) so layout is fully settled,
+  // then smooth-scroll to the picker's top.
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const t = setTimeout(() => {
       containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
+    }, 400);
     return () => clearTimeout(t);
   }, [side]);
 
