@@ -11,7 +11,9 @@ import "../claim/styles/claim-flow.css";
 
 type Option =
   | "01" | "02" | "03" | "04" | "05" | "06"
-  | "07" | "08" | "09" | "10" | "11" | "12";
+  | "07" | "08" | "09" | "10" | "11" | "12"
+  | "13" | "14" | "15" | "16" | "17" | "18"
+  | "19" | "20" | "21" | "22" | "23" | "24";
 
 const OPTIONS: { id: Option; name: string; note: string }[] = [
   { id: "01", name: "Mesh shift",         note: "Large gradient mesh — colors drift across the canvas" },
@@ -26,6 +28,18 @@ const OPTIONS: { id: Option; name: string; note: string }[] = [
   { id: "10", name: "Morphing blobs",     note: "Lava-lamp blobs — shape changes, not just position" },
   { id: "11", name: "Cursor spotlight",   note: "Soft radial light follows your mouse" },
   { id: "12", name: "Wave bars",          note: "Horizontal stripes scrolling vertically" },
+  { id: "13", name: "Bokeh field",        note: "Eight large soft-focus circles drifting at different speeds" },
+  { id: "14", name: "Ripple pond",        note: "Concentric ripples spawning at random points like rain on water" },
+  { id: "15", name: "Sunbeam fan",        note: "Sun-rays fanning from top-left, slowly rotating" },
+  { id: "16", name: "Confetti drift",     note: "Small coloured shapes falling diagonally" },
+  { id: "17", name: "Breathing gradient", note: "Whole canvas breathes — gentle pulse of scale + opacity" },
+  { id: "18", name: "Marquee bar",        note: "Single coral band sliding horizontally across" },
+  { id: "19", name: "Smoke wisps",        note: "Heavy blurred shapes drifting like smoke" },
+  { id: "20", name: "Constellation",      note: "Dots connected by faint lines, network graph feel" },
+  { id: "21", name: "Heartbeat ECG",      note: "Single waveform line scrolling left, like a monitor" },
+  { id: "22", name: "Topo contours",      note: "Stacked elevation rings drifting outward" },
+  { id: "23", name: "Hex flicker",        note: "Hex grid where individual tiles flicker on and off" },
+  { id: "24", name: "Crystal facets",     note: "Geometric polygons rotating + morphing" },
 ];
 
 const SCOPED_CSS = `
@@ -331,6 +345,269 @@ const SCOPED_CSS = `
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
+   * 13 — Bokeh field
+   * Eight large soft-focus circles, drifting at different speeds + sizes.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-13 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-13 > header,
+  .claim-page.bg-13 > .claim-container { position: relative; z-index: 2; }
+  .bg-bokeh {
+    position: fixed; border-radius: 50%;
+    filter: blur(40px); pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-bokeh-a { 0%,100% { transform: translate(0,0); } 50% { transform: translate(80px, -60px); } }
+  @keyframes bg-bokeh-b { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-90px, 70px); } }
+  @keyframes bg-bokeh-c { 0%,100% { transform: translate(0,0); } 50% { transform: translate(60px, 80px); } }
+  @keyframes bg-bokeh-d { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-70px, -50px); } }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 14 — Ripple pond
+   * Multiple expanding rings spawning at random points like rain on water.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-14 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-14 > header,
+  .claim-page.bg-14 > .claim-container { position: relative; z-index: 2; }
+  .bg-ripple {
+    position: fixed;
+    width: 40px; height: 40px;
+    border: 2px solid rgba(255,107,74,.7);
+    border-radius: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    pointer-events: none; z-index: 1;
+    animation: bg-ripple-expand 4s ease-out infinite;
+  }
+  @keyframes bg-ripple-expand {
+    0%   { transform: translate(-50%,-50%) scale(0);   opacity: 1;   border-width: 3px; }
+    100% { transform: translate(-50%,-50%) scale(10);  opacity: 0;   border-width: 1px; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 15 — Sunbeam fan
+   * Repeating conic rays rotating slowly from top-left.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-15 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-15 > header,
+  .claim-page.bg-15 > .claim-container { position: relative; z-index: 2; }
+  .claim-page.bg-15::before {
+    content: "";
+    position: fixed; top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: repeating-conic-gradient(
+      from 0deg at 10% 10%,
+      rgba(255,180,77,.40) 0deg,
+      rgba(255,180,77,.40) 8deg,
+      transparent 8deg,
+      transparent 24deg
+    );
+    animation: bg-fan-rotate 40s linear infinite;
+    pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-fan-rotate {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 16 — Confetti drift
+   * 24 small coloured rectangles falling diagonally, rotating.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-16 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-16 > header,
+  .claim-page.bg-16 > .claim-container { position: relative; z-index: 2; }
+  .bg-confetti {
+    position: fixed;
+    width: 10px; height: 4px;
+    pointer-events: none; z-index: 1;
+    animation: bg-confetti-fall linear infinite;
+  }
+  @keyframes bg-confetti-fall {
+    0%   { transform: translateY(-10vh) translateX(0) rotate(0deg);    opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(110vh) translateX(120px) rotate(720deg); opacity: 0; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 17 — Breathing gradient
+   * Whole canvas gently pulses scale + opacity. Slow, alive, calm.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-17 {
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,107,74,.40) 0%, rgba(255,180,77,.20) 40%, transparent 70%),
+      #FDF9F5;
+    background-size: 100% 100%;
+    animation: bg-breathe 6s ease-in-out infinite;
+  }
+  @keyframes bg-breathe {
+    0%, 100% { background-size: 100% 100%; }
+    50%      { background-size: 140% 140%; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 18 — Marquee bar
+   * One thick coral band scrolling across horizontally, on loop.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-18 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-18 > header,
+  .claim-page.bg-18 > .claim-container { position: relative; z-index: 2; }
+  .claim-page.bg-18::before {
+    content: "";
+    position: fixed; top: 40%; left: -100%;
+    width: 300%; height: 80px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255,107,74,.45) 30%,
+      rgba(255,180,77,.45) 50%,
+      rgba(255,107,74,.45) 70%,
+      transparent 100%
+    );
+    filter: blur(8px);
+    animation: bg-marquee-slide 8s linear infinite;
+    pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-marquee-slide {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(50%); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 19 — Smoke wisps
+   * Heavy blurred shapes drifting slowly like smoke. Different feel from
+   * aurora (smaller, more, more chaotic, monochrome-ish coral).
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-19 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-19 > header,
+  .claim-page.bg-19 > .claim-container { position: relative; z-index: 2; }
+  .bg-smoke {
+    position: fixed;
+    width: 400px; height: 200px;
+    border-radius: 50%;
+    filter: blur(60px);
+    background: rgba(255,107,74,.35);
+    pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-smoke-a { 0% { transform: translate(-30%, 0) scale(1); opacity: 0.3; } 50% { opacity: 0.7; } 100% { transform: translate(130%, -20%) scale(1.4); opacity: 0; } }
+  @keyframes bg-smoke-b { 0% { transform: translate(130%, 0) scale(1); opacity: 0.3; } 50% { opacity: 0.7; } 100% { transform: translate(-30%, 20%) scale(1.4); opacity: 0; } }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 20 — Constellation
+   * Dots connected by faint lines. Lines pulse (stroke-dashoffset).
+   * Renders as inline SVG for sharp lines.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-20 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-20 > header,
+  .claim-page.bg-20 > .claim-container { position: relative; z-index: 2; }
+  .bg-constellation-svg {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 1;
+  }
+  .bg-constellation-line {
+    stroke: rgba(255,107,74,.55);
+    stroke-width: 1;
+    fill: none;
+    stroke-dasharray: 6 6;
+    animation: bg-constellation-flow 4s linear infinite;
+  }
+  @keyframes bg-constellation-flow {
+    to { stroke-dashoffset: -24; }
+  }
+  .bg-constellation-dot {
+    fill: rgba(255,107,74,.85);
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 21 — Heartbeat ECG
+   * A single waveform line that scrolls horizontally like a heart monitor.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-21 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-21 > header,
+  .claim-page.bg-21 > .claim-container { position: relative; z-index: 2; }
+  .bg-ecg-svg {
+    position: fixed; left: 0; top: 50%;
+    width: 200vw; height: 200px;
+    transform: translateY(-50%);
+    pointer-events: none; z-index: 1;
+    animation: bg-ecg-scroll 6s linear infinite;
+  }
+  @keyframes bg-ecg-scroll {
+    from { transform: translate(0, -50%); }
+    to   { transform: translate(-50%, -50%); }
+  }
+  .bg-ecg-path {
+    stroke: rgba(255,107,74,.55);
+    stroke-width: 2;
+    fill: none;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 22 — Topo contours
+   * Stacked elevation rings, slowly drifting outward from centre.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-22 {
+    background:
+      repeating-radial-gradient(
+        circle at 50% 50%,
+        transparent 0px,
+        transparent 38px,
+        rgba(255,107,74,.30) 38px,
+        rgba(255,107,74,.30) 40px
+      ),
+      #FDF9F5;
+    background-size: 100% 100%;
+    animation: bg-topo-drift 6s linear infinite;
+  }
+  @keyframes bg-topo-drift {
+    from { background-size: 100% 100%; }
+    to   { background-size: 140% 140%; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 23 — Hex flicker
+   * Hex grid pattern as SVG bg. Individual cells flicker via overlay.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-23 {
+    background:
+      url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 52'%3E%3Cpath d='M30 0 L60 17 L60 35 L30 52 L0 35 L0 17 Z' fill='none' stroke='rgba(255,107,74,0.35)' stroke-width='1'/%3E%3C/svg%3E"),
+      #FDF9F5;
+    background-size: 60px 52px;
+    position: relative;
+    overflow: hidden;
+  }
+  .claim-page.bg-23 > header,
+  .claim-page.bg-23 > .claim-container { position: relative; z-index: 2; }
+  .bg-hex-cell {
+    position: fixed;
+    width: 60px; height: 52px;
+    background: rgba(255,107,74,.40);
+    clip-path: polygon(50% 0, 100% 33%, 100% 66%, 50% 100%, 0 66%, 0 33%);
+    pointer-events: none; z-index: 1;
+    animation: bg-hex-flicker 3s ease-in-out infinite;
+  }
+  @keyframes bg-hex-flicker {
+    0%, 100% { opacity: 0; }
+    50%      { opacity: 1; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 24 — Crystal facets
+   * Six big polygon shapes rotating + morphing position.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-24 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-24 > header,
+  .claim-page.bg-24 > .claim-container { position: relative; z-index: 2; }
+  .bg-crystal {
+    position: fixed;
+    width: 320px; height: 320px;
+    background: rgba(255,107,74,.30);
+    pointer-events: none; z-index: 1;
+    transform-origin: center;
+  }
+  @keyframes bg-crystal-a { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(60px,40px) rotate(180deg); } }
+  @keyframes bg-crystal-b { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(-50px,60px) rotate(-180deg); } }
+  @keyframes bg-crystal-c { 0%,100% { transform: translate(0,0) rotate(0deg); } 50% { transform: translate(40px,-50px) rotate(90deg); } }
+
+  /* ─────────────────────────────────────────────────────────────────────────
    * Picker panel
    * ───────────────────────────────────────────────────────────────────────── */
   .bg-picker {
@@ -462,6 +739,107 @@ const STARS = (() => {
   }));
 })();
 
+const BOKEH = (() => {
+  const rng = seededRand(3);
+  const COLORS = [
+    "rgba(255,107,74,.45)",
+    "rgba(255,180,77,.40)",
+    "rgba(255,200,150,.35)",
+    "rgba(255,140,100,.40)",
+  ];
+  const ANIMS = ["bg-bokeh-a", "bg-bokeh-b", "bg-bokeh-c", "bg-bokeh-d"];
+  return Array.from({ length: 8 }, (_, i) => ({
+    left: rng() * 100,
+    top: rng() * 100,
+    size: 180 + rng() * 220,
+    color: COLORS[i % COLORS.length],
+    anim: ANIMS[i % ANIMS.length],
+    duration: 8 + rng() * 8,
+    delay: -rng() * 10,
+  }));
+})();
+
+const RIPPLES = (() => {
+  const rng = seededRand(4);
+  return Array.from({ length: 7 }, () => ({
+    left: 10 + rng() * 80,
+    top: 10 + rng() * 80,
+    delay: -rng() * 4,
+  }));
+})();
+
+const CONFETTI = (() => {
+  const rng = seededRand(5);
+  const COLORS = ["#FF6B4A", "#FFB74D", "#FF9580", "#FFD966", "#FF7E5C"];
+  return Array.from({ length: 24 }, () => ({
+    left: rng() * 100,
+    color: COLORS[Math.floor(rng() * COLORS.length)],
+    width: 6 + rng() * 8,
+    height: 3 + rng() * 4,
+    duration: 6 + rng() * 6,
+    delay: -rng() * 12,
+  }));
+})();
+
+// Constellation: 18 dots, link each to its 2-3 nearest neighbours.
+const CONSTELLATION = (() => {
+  const rng = seededRand(6);
+  const dots = Array.from({ length: 18 }, () => ({
+    x: rng() * 100,
+    y: rng() * 100,
+  }));
+  const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  dots.forEach((a, i) => {
+    const distances = dots
+      .map((b, j) => ({ j, d: Math.hypot(b.x - a.x, b.y - a.y) }))
+      .filter(({ j }) => j !== i)
+      .sort((p, q) => p.d - q.d)
+      .slice(0, 2);
+    distances.forEach(({ j }) => {
+      if (j > i) lines.push({ x1: a.x, y1: a.y, x2: dots[j].x, y2: dots[j].y });
+    });
+  });
+  return { dots, lines };
+})();
+
+// ECG path: a repeating heartbeat waveform across 200vw.
+const ECG_PATH = (() => {
+  // One heartbeat unit (260px wide). Repeat across the width.
+  const beat = "l 40 0 l 8 -5 l 8 -15 l 8 40 l 8 -55 l 8 25 l 8 0 l 40 0 l 8 0";
+  let d = "M 0 100";
+  for (let i = 0; i < 24; i++) d += " " + beat;
+  return d;
+})();
+
+const HEX_FLICKERS = (() => {
+  const rng = seededRand(7);
+  return Array.from({ length: 18 }, () => ({
+    // Snap to hex grid roughly. 60×52 cells.
+    col: Math.floor(rng() * 30),
+    row: Math.floor(rng() * 20),
+    delay: -rng() * 3,
+  }));
+})();
+
+const CRYSTALS = (() => {
+  const rng = seededRand(8);
+  const SHAPES = [
+    "polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%)",  // pentagon
+    "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",            // diamond
+    "polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%)", // hexagon
+  ];
+  const ANIMS = ["bg-crystal-a", "bg-crystal-b", "bg-crystal-c"];
+  return Array.from({ length: 6 }, (_, i) => ({
+    left: rng() * 100 - 10,
+    top: rng() * 100 - 10,
+    clipPath: SHAPES[i % SHAPES.length],
+    anim: ANIMS[i % ANIMS.length],
+    duration: 12 + rng() * 10,
+    delay: -rng() * 12,
+    rotate: rng() * 360,
+  }));
+})();
+
 export default function ClaimBgPreviewPage() {
   const [option, setOption] = useState<Option>("01");
   const [solo, setSolo] = useState(false);
@@ -560,6 +938,104 @@ export default function ClaimBgPreviewPage() {
             <span className="bg-blob bg-blob--b" />
           </>
         )}
+        {option === "13" && BOKEH.map((b, i) => (
+          <span
+            key={i}
+            className="bg-bokeh"
+            style={{
+              left: `${b.left}%`,
+              top: `${b.top}%`,
+              width: b.size,
+              height: b.size,
+              background: b.color,
+              animation: `${b.anim} ${b.duration}s ease-in-out infinite alternate`,
+              animationDelay: `${b.delay}s`,
+            }}
+          />
+        ))}
+        {option === "14" && RIPPLES.map((r, i) => (
+          <span
+            key={i}
+            className="bg-ripple"
+            style={{
+              left: `${r.left}%`,
+              top: `${r.top}%`,
+              animationDelay: `${r.delay}s`,
+            }}
+          />
+        ))}
+        {option === "16" && CONFETTI.map((c, i) => (
+          <span
+            key={i}
+            className="bg-confetti"
+            style={{
+              left: `${c.left}%`,
+              width: c.width,
+              height: c.height,
+              background: c.color,
+              animationDuration: `${c.duration}s`,
+              animationDelay: `${c.delay}s`,
+            }}
+          />
+        ))}
+        {option === "19" && (
+          <>
+            <span className="bg-smoke" style={{ top: "20%", left: 0,    animation: "bg-smoke-a 14s ease-in-out infinite" }} />
+            <span className="bg-smoke" style={{ top: "55%", left: 0,    animation: "bg-smoke-b 17s ease-in-out infinite", animationDelay: "-4s" }} />
+            <span className="bg-smoke" style={{ top: "35%", left: 0,    animation: "bg-smoke-a 19s ease-in-out infinite", animationDelay: "-8s", background: "rgba(255,180,77,.35)" }} />
+            <span className="bg-smoke" style={{ top: "70%", left: 0,    animation: "bg-smoke-b 22s ease-in-out infinite", animationDelay: "-12s" }} />
+          </>
+        )}
+        {option === "20" && (
+          <svg className="bg-constellation-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {CONSTELLATION.lines.map((l, i) => (
+              <line
+                key={i}
+                className="bg-constellation-line"
+                x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+                vectorEffect="non-scaling-stroke"
+                style={{ animationDelay: `${-i * 0.15}s` }}
+              />
+            ))}
+            {CONSTELLATION.dots.map((d, i) => (
+              <circle
+                key={i}
+                className="bg-constellation-dot"
+                cx={d.x} cy={d.y} r={0.6}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        )}
+        {option === "21" && (
+          <svg className="bg-ecg-svg" viewBox="0 0 6240 200" preserveAspectRatio="none">
+            <path className="bg-ecg-path" d={ECG_PATH} vectorEffect="non-scaling-stroke" />
+          </svg>
+        )}
+        {option === "23" && HEX_FLICKERS.map((h, i) => (
+          <span
+            key={i}
+            className="bg-hex-cell"
+            style={{
+              left: h.col * 60,
+              top: h.row * 39,
+              animationDelay: `${h.delay}s`,
+            }}
+          />
+        ))}
+        {option === "24" && CRYSTALS.map((c, i) => (
+          <span
+            key={i}
+            className="bg-crystal"
+            style={{
+              left: `${c.left}%`,
+              top: `${c.top}%`,
+              clipPath: c.clipPath,
+              animation: `${c.anim} ${c.duration}s ease-in-out infinite`,
+              animationDelay: `${c.delay}s`,
+            }}
+          />
+        ))}
 
         <header className="claim-header">
           <a
