@@ -18,10 +18,21 @@ type AiStats = {
 };
 
 async function getAiStats(start: Date, end: Date): Promise<AiStats> {
+  // OutboundMessage has no `agency` relation field; exclude internal agencies
+  // via agencyId notIn (small list — usually 1 row).
+  const internalAgencies = await prisma.agency.findMany({
+    where: { isInternal: true },
+    select: { id: true },
+  });
+  const internalAgencyIds = internalAgencies.map((a) => a.id);
+
   const messages = await prisma.outboundMessage.findMany({
     where: {
       wasAiGenerated: true,
       createdAt: { gte: start, lt: end },
+      ...(internalAgencyIds.length > 0 && {
+        agencyId: { notIn: internalAgencyIds },
+      }),
     },
     select: { wasEdited: true, content: true },
   });

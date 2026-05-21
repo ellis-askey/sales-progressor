@@ -579,7 +579,7 @@ See PROP-7. The `PropertyFileTabs` sticky tab bar uses `position: sticky` at `to
 - Viewports tested: 375×812, 768×1024
 - Roles tested: Director (`alex@hartwellpartners.co.uk`) and Negotiator (`emily@hartwellpartners.co.uk`) — both accounts have ~10 live transactions with realistic data seeded
 - Method: Full-page screenshots (`page.screenshot({ fullPage: true })`) after 2.5s settle on each page. Interactive behaviours (dropdown open/close, iOS keyboard zoom) cannot be captured in static screenshots; those findings are marked accordingly
-- Screenshots location: `mobile_audit_screenshots/` in repo root (not committed)
+- Screenshots location: `./screenshots/` in repo root (not committed)
 - Each static-audit finding below is marked **CONFIRMED**, **REFUTED**, or **PARTIAL**
 
 ---
@@ -863,4 +863,4 @@ The following updates the Stage 1–3 ordering from the static audit, incorporat
 - `position: fixed` elements (mobile top bar, OnboardingChecklist panel) appear at their fixed viewport position in Playwright full-page screenshots; they do not repeat for each scroll segment.
 - Horizontal overflow is confirmed when the full-page screenshot width exceeds the configured viewport width — observed on `/agent/comms` (CRITICAL) and `/agent/dashboard` (MEDIUM).
 - Tailwind breakpoints confirmed via live rendering: `sm:` fires at 640px, `md:` at 768px — consistent with default config assumption in the static audit.
-- Screenshots saved in `mobile_audit_screenshots/{role}/{breakpoint}/{page}.png` — not committed to git.
+- Screenshots saved in `./screenshots/{role}/{breakpoint}/{page}.png` — not committed to git.

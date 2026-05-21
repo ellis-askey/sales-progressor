@@ -5,6 +5,10 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Detector, SignalResult } from "../types";
+import {
+  excludeInternalAgency,
+  internalAgencyFilter,
+} from "@/lib/security/internal-accounts";
 
 const MIN_STEP_ENTRIES = 30;
 const MIN_DELTA_PP = 10; // percentage points
@@ -19,25 +23,29 @@ async function getFunnelRates(start: Date, end: Date): Promise<FunnelRates> {
   const [signups, activatedAgencies, totalTransactions, transactionsWithSolicitor] =
     await Promise.all([
       // Signups: agencies created in window
-      prisma.agency.count({ where: { createdAt: { gte: start, lt: end } } }),
+      prisma.agency.count({
+        where: { createdAt: { gte: start, lt: end }, ...internalAgencyFilter },
+      }),
 
       // Activated: agencies created in window that also created a transaction (ever)
       prisma.agency.count({
         where: {
           createdAt: { gte: start, lt: end },
+          ...internalAgencyFilter,
           transactions: { some: {} },
         },
       }),
 
       // Transactions created in window
       prisma.propertyTransaction.count({
-        where: { createdAt: { gte: start, lt: end } },
+        where: { createdAt: { gte: start, lt: end }, ...excludeInternalAgency },
       }),
 
       // Transactions with solicitor: at least one solicitor assigned
       prisma.propertyTransaction.count({
         where: {
           createdAt: { gte: start, lt: end },
+          ...excludeInternalAgency,
           OR: [
             { vendorSolicitorFirmId: { not: null } },
             { purchaserSolicitorFirmId: { not: null } },

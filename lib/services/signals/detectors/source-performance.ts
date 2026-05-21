@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Detector, SignalResult } from "../types";
+import { internalAgencyFilter } from "@/lib/security/internal-accounts";
 
 const MIN_SOURCE_SIGNUPS = 10;
 const MIN_DELTA_PP = 15;
@@ -18,7 +19,11 @@ type SourceStats = {
 
 async function getSourceStats(start: Date, end: Date): Promise<{ baseline: number; sources: SourceStats[] }> {
   const agencies = await prisma.agency.findMany({
-    where: { createdAt: { gte: start, lt: end }, signupSource: { not: null } },
+    where: {
+      createdAt: { gte: start, lt: end },
+      signupSource: { not: null },
+      ...internalAgencyFilter,
+    },
     select: { id: true, signupSource: true },
   });
 

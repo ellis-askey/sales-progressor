@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Detector, SignalResult } from "../types";
+import { internalAgencyFilter } from "@/lib/security/internal-accounts";
 
 const STUCK_DAYS = 14;
 
@@ -17,6 +18,7 @@ export const silentAgency: Detector = async (window) => {
   // any Event in the last STUCK_DAYS
   const candidates = await prisma.agency.findMany({
     where: {
+      ...internalAgencyFilter,
       transactions: {
         some: { status: "active" },
       },

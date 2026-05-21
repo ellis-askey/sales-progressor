@@ -5,7 +5,7 @@
 **Authored:** 2026-05-03
 **Source of truth:** This document. CC must reference this file before any in-scope decision. Anything not in this document is OUT OF SCOPE.
 
-**Prerequisite reading:** `docs/active/package-d/outsourced-workflow-audit.md` (the full current-state audit) and `docs/ROLE_VISIBILITY_AUDIT.md`.
+**Prerequisite reading:** `docs/active/package-d/outsourced-workflow-audit.md` (the full current-state audit) and `docs/done/role-coverage/ROLE_VISIBILITY_AUDIT.md`.
 
 ---
 

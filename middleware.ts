@@ -183,6 +183,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|bg-test|login-preview|helpdrawertest|audit-gallery|api/auth|api/portal|api/register|api/seed-demo|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|bg-test|login-preview|helpdrawertest|audit-gallery|test|api/auth|api/portal|api/register|api/seed-demo|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

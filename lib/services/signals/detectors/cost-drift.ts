@@ -20,10 +20,21 @@ type SpendStats = {
 };
 
 async function getSpendStats(start: Date, end: Date): Promise<SpendStats> {
+  // OutboundMessage has no `agency` relation field, so exclude internal via
+  // agencyId notIn. Loaded once per call — internal agency count is tiny.
+  const internalAgencies = await prisma.agency.findMany({
+    where: { isInternal: true },
+    select: { id: true },
+  });
+  const internalAgencyIds = internalAgencies.map((a) => a.id);
+
   const messages = await prisma.outboundMessage.findMany({
     where: {
       wasAiGenerated: true,
       createdAt: { gte: start, lt: end },
+      ...(internalAgencyIds.length > 0 && {
+        agencyId: { notIn: internalAgencyIds },
+      }),
     },
     select: { aiCostCents: true },
   });

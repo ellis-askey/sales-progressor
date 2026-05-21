@@ -16,12 +16,22 @@ export const powerUserPattern: Detector = async (window) => {
   const lookbackStart = new Date(window.current.end);
   lookbackStart.setUTCDate(lookbackStart.getUTCDate() - LOOKBACK_DAYS);
 
+  // Event has no agency relation field, so exclude internal agencies via notIn.
+  const internalAgencies = await prisma.agency.findMany({
+    where: { isInternal: true },
+    select: { id: true },
+  });
+  const internalAgencyIds = internalAgencies.map((a) => a.id);
+
   // Count events per agency in the lookback window
   const eventsByAgency = await prisma.event.groupBy({
     by: ["agencyId"],
     where: {
       occurredAt: { gte: lookbackStart, lt: window.current.end },
-      agencyId: { not: null },
+      agencyId:
+        internalAgencyIds.length > 0
+          ? { not: null, notIn: internalAgencyIds }
+          : { not: null },
     },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },

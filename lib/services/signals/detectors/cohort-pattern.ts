@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Detector, SignalResult } from "../types";
+import { internalAgencyFilter } from "@/lib/security/internal-accounts";
 
 const MIN_GROUP_SIZE = 20;
 // "Active at week 4" = had any event in the 4th week after signup
@@ -21,7 +22,10 @@ export const cohortPattern: Detector = async (window) => {
   signupStart.setUTCDate(signupStart.getUTCDate() - 90); // agencies that signed up in last 90d before cutoff
 
   const allAgencies = await prisma.agency.findMany({
-    where: { createdAt: { gte: signupStart, lt: cohortCutoff } },
+    where: {
+      createdAt: { gte: signupStart, lt: cohortCutoff },
+      ...internalAgencyFilter,
+    },
     select: { id: true, createdAt: true },
   });
 

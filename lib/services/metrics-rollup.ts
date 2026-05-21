@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { AgencyModeProfile, ServiceType } from "@prisma/client";
+import {
+  excludeInternalAgency,
+  internalAgencyFilter,
+} from "@/lib/security/internal-accounts";
 
 const LONDON_TZ = "Europe/London";
 
@@ -47,6 +51,22 @@ type Scope = {
   modeProfile: AgencyModeProfile | null;
 };
 
+type InternalIds = {
+  agencyIds: string[];
+  userIds: string[];
+};
+
+async function loadInternalIds(): Promise<InternalIds> {
+  const [agencies, users] = await Promise.all([
+    prisma.agency.findMany({ where: { isInternal: true }, select: { id: true } }),
+    prisma.user.findMany({ where: { isInternal: true }, select: { id: true } }),
+  ]);
+  return {
+    agencyIds: agencies.map((a) => a.id),
+    userIds: users.map((u) => u.id),
+  };
+}
+
 type MetricValues = {
   transactionsCreated: number;
   transactionsExchanged: number;
@@ -62,14 +82,29 @@ type MetricValues = {
   aiSpendCents: number;
 };
 
-async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<MetricValues> {
+async function computeMetricsForScope(
+  dateStr: string,
+  scope: Scope,
+  internal: InternalIds
+): Promise<MetricValues> {
   const { start, end } = londonDayBounds(dateStr);
+
+  // Direct ID exclusions for tables without relation fields (Event) or with
+  // optional relations where we want to keep null-user rows (FeedbackSubmission).
+  const excludeInternalAgencyIds =
+    internal.agencyIds.length > 0
+      ? { agencyId: { notIn: internal.agencyIds } }
+      : {};
+  const excludeInternalUserIds =
+    internal.userIds.length > 0
+      ? { userId: { notIn: internal.userIds } }
+      : {};
 
   // Resolve agencyIds for modeProfile scope upfront (single query)
   let modeAgencyIds: string[] | undefined;
   if (scope.modeProfile !== null && scope.agencyId === null) {
     const rows = await prisma.agency.findMany({
-      where: { modeProfile: scope.modeProfile },
+      where: { modeProfile: scope.modeProfile, ...internalAgencyFilter },
       select: { id: true },
     });
     modeAgencyIds = rows.map((r) => r.id);
@@ -87,15 +122,24 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
         ? { agencyId: { in: modeAgencyIds } }
         : {};
 
-  // Transaction filter (agencyId + modeProfile + serviceType)
+  // Transaction filter (agencyId + modeProfile + serviceType).
+  // Always exclude transactions belonging to internal agencies so the global
+  // and mode/serviceType-scoped rollups reflect real customer activity only.
   const txFilter: Record<string, unknown> = {
     ...agencyFilter,
+    ...excludeInternalAgency,
     ...(scope.serviceType !== null && { serviceType: scope.serviceType }),
   };
 
-  // OutboundMessage filter (agencyId + optional serviceType via transaction join)
+  // OutboundMessage filter. OutboundMessage has no `agency` relation field
+  // (only the agencyId scalar), so internal exclusion goes via notIn IDs.
+  // If the scope already pins a specific agencyId, no extra exclusion needed.
   const msgFilter: Record<string, unknown> = {
-    ...agencyFilter,
+    ...(scope.agencyId !== null
+      ? { agencyId: scope.agencyId }
+      : modeAgencyIds !== undefined
+        ? { agencyId: { in: modeAgencyIds } }
+        : excludeInternalAgencyIds),
     ...(scope.serviceType !== null && {
       transaction: { serviceType: scope.serviceType },
     }),
@@ -176,6 +220,7 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
       : prisma.agency.count({
           where: {
             createdAt: { gte: start, lt: end },
+            ...internalAgencyFilter,
             ...(scope.agencyId !== null && { id: scope.agencyId }),
             ...(scope.modeProfile !== null && { modeProfile: scope.modeProfile }),
           },
@@ -188,6 +233,8 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
             type: "user_logged_in",
             occurredAt: { gte: start, lt: end },
             ...agencyFilter,
+            ...excludeInternalAgencyIds,
+            ...excludeInternalUserIds,
           },
         }),
 
@@ -199,6 +246,8 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
               occurredAt: { gte: start, lt: end },
               userId: { not: null },
               ...agencyFilter,
+              ...excludeInternalAgencyIds,
+              ...excludeInternalUserIds,
             },
             select: { userId: true },
             distinct: ["userId"],
@@ -211,6 +260,8 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
           where: {
             createdAt: { gte: start, lt: end },
             ...agencyFilter,
+            ...excludeInternalAgencyIds,
+            ...excludeInternalUserIds,
           },
         }),
 
@@ -294,7 +345,14 @@ export async function computeDailyMetric(
     { agencyId: null, serviceType: null, modeProfile: "mixed" },
   ];
 
-  const agencies = await prisma.agency.findMany({ select: { id: true } });
+  const internal = await loadInternalIds();
+
+  // Skip per-agency rollups for internal agencies — no point producing rows we
+  // never want to surface in briefs.
+  const agencies = await prisma.agency.findMany({
+    where: internalAgencyFilter,
+    select: { id: true },
+  });
   const agencyScopes: Scope[] = agencies.map(({ id }) => ({
     agencyId: id,
     serviceType: null,
@@ -303,7 +361,7 @@ export async function computeDailyMetric(
 
   let rowsWritten = 0;
   for (const scope of [...staticScopes, ...agencyScopes]) {
-    const metrics = await computeMetricsForScope(dateStr, scope);
+    const metrics = await computeMetricsForScope(dateStr, scope, internal);
     await upsertDailyMetricRow(dateStr, scope, metrics);
     rowsWritten++;
   }
@@ -324,7 +382,7 @@ export async function computeWeeklyCohort(
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
   const cohortAgencies = await prisma.agency.findMany({
-    where: { createdAt: { gte: monday, lt: weekEnd } },
+    where: { createdAt: { gte: monday, lt: weekEnd }, ...internalAgencyFilter },
     select: { id: true, modeProfile: true },
   });
 

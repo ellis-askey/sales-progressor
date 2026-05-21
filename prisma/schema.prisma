@@ -19,6 +19,8 @@ model Agency {
   modeProfile           AgencyModeProfile @default(self_progressed)
   modeProfileComputedAt DateTime?
 
+  isInternal Boolean @default(false)
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?
@@ -65,6 +67,7 @@ model User {
   phone                String?
   canViewAllFiles      Boolean    @default(false)
   hasSeenAgentWelcome  Boolean    @default(false)
+  isInternal           Boolean    @default(false)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 

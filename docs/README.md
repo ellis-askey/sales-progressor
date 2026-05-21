@@ -22,7 +22,6 @@ Long-life specs that ongoing work refers to. Don't move these — they're refere
 - [`MANUAL_TASKS.md`](MANUAL_TASKS.md) — Supabase RLS / credentials setup. Code-referenced by `lib/prisma-rls.ts`.
 - [`POST_LAUNCH_FIXES.md`](POST_LAUNCH_FIXES.md) — bug log. Code-referenced by `app/agent/polish/analytics/page.tsx`.
 - [`test-accounts.md`](test-accounts.md) — test account seed data.
-- [`copy-audit-overlays.md`](copy-audit-overlays.md) — overlay copy audit.
 
 ---
 
@@ -49,13 +48,16 @@ Historical record of completed arcs. Each folder holds all docs from that arc to
 - [`done/claim-polish-arc.md`](done/claim-polish-arc.md) — claim flow polish + bg + chain-add toast (shipped 2026-05-21).
 - [`done/milestone-engine-v5-diagnosis.md`](done/milestone-engine-v5-diagnosis.md) — milestone engine v5 audit + 12 fixes.
 - [`done/toast-system-build-log.md`](done/toast-system-build-log.md) — `useAgentToast` build log.
+- [`done/copy-audit-overlays.md`](done/copy-audit-overlays.md) — overlay voice/phrasing audit (2026-05-19).
+- [`done/hub-analytics-audit.md`](done/hub-analytics-audit.md) — Hub + Analytics Phase 0 audit.
+- [`done/agent-pages-audit.md`](done/agent-pages-audit.md) — Work Queue / To-Do / Solicitors Phase 0 audit.
 - [`done/email-arc/`](done/email-arc/) — chain notification email arc.
 - [`done/new-sale-flow-v2/`](done/new-sale-flow-v2/) — new sale creation flow v2 (spec + 2 redesign plans + build plan + completion report).
 - [`done/dashboard-rebuild/`](done/dashboard-rebuild/) — internal-staff dashboard rebuild (discovery + walkthrough + arc-completion).
-- [`done/role-coverage/`](done/role-coverage/) — role-coverage arc (10 audit files + completion report).
+- [`done/role-coverage/`](done/role-coverage/) — role-coverage arc (10 per-page audits + completion report + 3 ROLE_*.md prereq audits).
 - [`done/withdrawal-cascade/`](done/withdrawal-cascade/) — withdrawal cascade fixes (stages 1+2).
 - [`done/refresh-reports/`](done/refresh-reports/) — page-refresh shipped reports (analytics, completions, reminders, my-files).
-- [`done/mobile-stages/`](done/mobile-stages/) — mobile responsive arc (3 stages + audit).
+- [`done/mobile-stages/`](done/mobile-stages/) — mobile responsive arc (3 stages + audit + screenshots/).
 - [`done/retention-emails/`](done/retention-emails/) — retention email system (phase 0 + implementation).
 
 ---
