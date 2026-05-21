@@ -682,6 +682,14 @@ export async function reconcileClaimMilestonesAction(input: {
     const code = codeById.get(c.milestoneDefinitionId);
     if (!code) continue; // Unknown definitionId — skip silently
 
+    // Generic summary text — must NOT use the milestone's regular template
+    // (which would say "Sarah confirmed X" for work Sarah didn't do — misleading
+    // in the activity feed). Per ruling F: structure now, voice polish later.
+    const eventDateObj = c.eventDate ? new Date(c.eventDate) : null;
+    const summaryText = eventDateObj
+      ? `Recorded on claim — happened on ${eventDateObj.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+      : `Recorded on claim — actual date unknown`;
+
     try {
       await prisma.milestoneCompletion.upsert({
         where: {
@@ -695,17 +703,19 @@ export async function reconcileClaimMilestonesAction(input: {
           milestoneDefinitionId: c.milestoneDefinitionId,
           state: "complete",
           completedAt: new Date(now.getTime() + i), // Tiny offset to preserve ordering
-          eventDate: c.eventDate ? new Date(c.eventDate) : null,
+          eventDate: eventDateObj,
           completedById: session.user.id,
           reconciledAtClaim: true,
+          summaryText,
         },
         update: {
           state: "complete",
           completedAt: new Date(now.getTime() + i),
-          eventDate: c.eventDate ? new Date(c.eventDate) : null,
+          eventDate: eventDateObj,
           completedById: session.user.id,
           notRequiredReason: null,
           reconciledAtClaim: true,
+          summaryText,
         },
       });
 
