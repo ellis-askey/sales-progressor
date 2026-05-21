@@ -63,7 +63,18 @@ export function ClaimWelcomeModal({ address, originatorAgency }: Props) {
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-          <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+          <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "var(--agent-success)",
+                animation: "agent-pulse-dot 2.4s ease-in-out infinite",
+                flexShrink: 0,
+              }}
+            />
             You&apos;re in.
           </p>
           <button onClick={() => setVisible(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
