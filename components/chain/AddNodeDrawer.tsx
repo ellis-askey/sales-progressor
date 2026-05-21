@@ -32,6 +32,11 @@ export type EditingLinkData = {
   stubNotes?: string | null;
 };
 
+export type AddNodeSavedResult = {
+  kind: "added" | "edited";
+  inviteSent: boolean;
+};
+
 type Props = {
   // Existing-chain context: chainId present → API call on save
   chainId?: string;
@@ -41,7 +46,7 @@ type Props = {
   // New-transaction context: onSaveToMemory captures stub in parent state
   onSaveToMemory?: (data: StubFormData, direction: "above" | "below") => void;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result?: AddNodeSavedResult) => void;
 };
 
 const EMPTY_FORM: StubFormData = {
@@ -271,7 +276,12 @@ export function AddNodeDrawer({
         return;
       }
 
-      onSaved();
+      if (isEditMode) {
+        onSaved({ kind: "edited", inviteSent: false });
+      } else {
+        const data = await res.json().catch(() => ({})) as { inviteSent?: boolean };
+        onSaved({ kind: "added", inviteSent: !!data.inviteSent });
+      }
     } finally {
       setSaving(false);
     }

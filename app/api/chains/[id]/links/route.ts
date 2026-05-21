@@ -78,6 +78,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Auto-send invite when client requested it AND a valid email is present.
   // Mirrors the client's EMAIL_RE so the auto-send + the manual "Send invite"
   // button accept the same set of addresses.
+  let inviteSent = false;
   const email = body.stubAgentEmail?.trim().toLowerCase() ?? "";
   if (body.sendInviteNow && email && EMAIL_RE.test(email)) {
     const newLink = await prisma.chainLink.findFirst({
@@ -115,17 +116,20 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     });
 
     if (newLink) {
-      await sendChainInvite({
-        link: newLink,
-        sentByUserId: session.user.id,
-        sentByName: session.user.name ?? "",
-      }).catch((err) => {
+      try {
+        await sendChainInvite({
+          link: newLink,
+          sentByUserId: session.user.id,
+          sentByName: session.user.name ?? "",
+        });
+        inviteSent = true;
+      } catch (err) {
         // Don't fail the POST if the invite send itself errors — the stub is
         // already created and the agent can retry via the manual resend button.
         console.error("sendChainInvite failed", err);
-      });
+      }
     }
   }
 
-  return NextResponse.json({ chain: updatedChain }, { status: 201 });
+  return NextResponse.json({ chain: updatedChain, inviteSent }, { status: 201 });
 }

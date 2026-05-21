@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
-import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
+import type { AddNodeSavedResult, EditingLinkData } from "@/components/chain/AddNodeDrawer";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Props = {
   transactionId: string;
@@ -19,6 +20,7 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
     chainId: string;
     editingLink?: EditingLinkData;
   } | null>(null);
+  const { toast } = useAgentToast();
 
   function handleOpenAddNode(direction: "above" | "below", chainId: string, link?: EditingLinkData) {
     setAddNode({ direction, chainId, editingLink: link });
@@ -28,9 +30,15 @@ export function ViewChainButton({ transactionId, currentUserId, declineNotificat
     setAddNode(null);
   }
 
-  function handleNodeSaved() {
+  function handleNodeSaved(result?: AddNodeSavedResult) {
     setAddNode(null);
     setRefreshKey((k) => k + 1);
+    if (!result) return;
+    if (result.kind === "edited") {
+      toast.success("Sale updated");
+    } else {
+      toast.success(result.inviteSent ? "Sale added · Invite sent" : "Sale added");
+    }
   }
 
   return (
