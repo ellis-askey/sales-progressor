@@ -25,7 +25,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
-  const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | null>(null);
+  const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | "cash_from_proceeds" | null>(null);
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
   const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
   const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
@@ -98,7 +98,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
   const isWizardActive = reconciliationMode === "in_progress";
   const allUpperFilled = tenure !== null && purchaseType !== null;
   const upperSummary = allUpperFilled
-    ? `${stubEmail} · ${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}`
+    ? `${stubEmail} · ${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : purchaseType === "cash_buyer" ? "Cash purchase" : "Cash from Proceeds"}`
     : "";
 
   return (
@@ -178,6 +178,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
           <div className="claim-segment-pill-row">
             <button type="button" className={`claim-segment-pill${purchaseType === "mortgage" ? " on" : ""}`} onClick={() => setPurchaseType("mortgage")}>Mortgage</button>
             <button type="button" className={`claim-segment-pill${purchaseType === "cash_buyer" ? " on" : ""}`} onClick={() => setPurchaseType("cash_buyer")}>Cash purchase</button>
+            <button type="button" className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from Proceeds</button>
           </div>
         </div>
         {tenure === "leasehold" && (

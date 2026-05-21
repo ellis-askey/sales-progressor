@@ -22,7 +22,7 @@ type Props = {
 };
 
 type Tenure = "freehold" | "leasehold";
-type PurchaseType = "mortgage" | "cash_buyer";
+type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
 
 type ReconciliationMode = "fresh" | "in_progress" | "later";
 
@@ -113,7 +113,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
 
   const isWizardActive = reconciliationMode === "in_progress";
   const saleDetailsLabel = tenure && purchaseType
-    ? `${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}`
+    ? `${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : purchaseType === "cash_buyer" ? "Cash purchase" : "Cash from Proceeds"}`
     : "";
 
   const saleDetailsSection = needsSaleDetails && (
@@ -168,6 +168,13 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
             onClick={() => setPurchaseType("cash_buyer")}
           >
             Cash purchase
+          </button>
+          <button
+            type="button"
+            className={`claim-segment-pill${purchaseType === "cash_from_proceeds" ? " on" : ""}`}
+            onClick={() => setPurchaseType("cash_from_proceeds")}
+          >
+            Cash from Proceeds
           </button>
         </div>
       </div>
