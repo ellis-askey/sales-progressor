@@ -211,7 +211,7 @@ export default async function AgentTransactionDetailPage({
 
   const overdueCount = activeReminders.filter((l) => {
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
-    return toUKDateStr(l.nextDueDate) <= todayUKStr;
+    return toUKDateStr(l.nextDueDate) < todayUKStr;
   }).length;
 
   const reminderBadgeCount = reminderLogs.filter((l) => {
