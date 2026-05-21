@@ -131,7 +131,7 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
   const allContacts = contacts.length + (solicitors?.length ?? 0);
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <div className="glass-card rounded-[12px]" style={{ position: "relative", zIndex: 30 }}>
       {/* ── Channel row ──────────────────────────────────────────────────── */}
       <div
         style={{
@@ -198,7 +198,7 @@ export function CommsEntry({ transactionId, contacts, solicitors }: Props) {
             <div
               className="agent-dropdown-in"
               style={{
-                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20,
+                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 100,
                 background: "var(--agent-surface-elevated)",
                 border: "0.5px solid var(--agent-border-default)",
                 borderRadius: 8, padding: 4, minWidth: 120,
