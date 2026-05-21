@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { buildCompletionLookup, computeSlowness } from "@/lib/services/milestone-staleness";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -63,6 +64,13 @@ export function MilestonePanel({
     for (const m of purchaser) lookup.set(m.code, m);
     return lookup;
   }, [vendor, purchaser]);
+
+  // Pool both sides for the slowness lookup — a purchaser milestone can
+  // depend on a vendor completion (PM12 ← VM9). Built once per render.
+  const completionLookup = useMemo(
+    () => buildCompletionLookup([...vendor, ...purchaser]),
+    [vendor, purchaser],
+  );
 
   function getCounterpartNotice(code: string): string | undefined {
     if (code === "VM19") {
@@ -282,19 +290,30 @@ export function MilestonePanel({
                 <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
                   <div className="agent-acc-in">
                     {rows.length > 0 ? (
-                      rows.map((def) => (
-                        <MilestoneRow
-                          key={def.id}
-                          def={def}
-                          transactionId={transactionId}
-                          onConfirmStart={() => handleConfirmStart(def.id, def.code)}
-                          optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
-                          optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
-                          onNRStart={() => handleNRStart(def.id, def.code)}
-                          onUndoStart={() => handleUndoStart(def.id, def.code)}
-                          counterpartNotice={getCounterpartNotice(def.code)}
-                        />
-                      ))
+                      rows.map((def) => {
+                        // Slowness signal: only for rows that are currently
+                        // available + not done. Computed once per render from
+                        // the pooled completion lookup.
+                        const showSlowness =
+                          def.isAvailable && !def.isComplete && !def.isNotRequired;
+                        const slownessSignal = showSlowness
+                          ? computeSlowness(def.code, completionLookup)
+                          : null;
+                        return (
+                          <MilestoneRow
+                            key={def.id}
+                            def={def}
+                            transactionId={transactionId}
+                            onConfirmStart={() => handleConfirmStart(def.id, def.code)}
+                            optimisticallyAvailable={optimisticallyUnlockedIds.has(def.id)}
+                            optimisticallyRelocked={optimisticallyRelockedIds.has(def.id)}
+                            onNRStart={() => handleNRStart(def.id, def.code)}
+                            onUndoStart={() => handleUndoStart(def.id, def.code)}
+                            counterpartNotice={getCounterpartNotice(def.code)}
+                            slownessSignal={slownessSignal}
+                          />
+                        );
+                      })
                     ) : allInSection.length > 0 ? (
                       <div className="px-4 py-3 text-xs text-slate-900/40 italic">
                         All steps in this section are skipped

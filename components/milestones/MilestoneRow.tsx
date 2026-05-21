@@ -13,6 +13,7 @@ import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmMod
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
 import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
+import type { SlownessSignal } from "@/lib/services/milestone-staleness";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -29,6 +30,11 @@ type Props = {
   optimisticallyAvailable?: boolean;
   optimisticallyRelocked?: boolean;
   counterpartNotice?: string;
+  // Slowness signal computed by the parent panel from the platform-wide
+  // median (MILESTONE_DURATION_MEDIANS in lib/services/fees.ts). Null = no
+  // badge — either the milestone has no recorded "became available" anchor
+  // (no prereqs complete yet) or it's still under threshold.
+  slownessSignal?: SlownessSignal | null;
 };
 
 // Only PM9 (mortgage application) can be manually marked N/R
@@ -36,7 +42,7 @@ const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal }: Props) {
   const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -303,6 +309,14 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
             {def.name}
             {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
+            {slownessSignal && !isDone && !isBlocked && (
+              <span
+                className="ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
+                title={`Typical for this step: ${slownessSignal.median} days. This file is on day ${slownessSignal.daysAvailable}.`}
+              >
+                {slownessSignal.daysOver} days slower than typical
+              </span>
+            )}
           </p>
           {isDone && def.completion && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>

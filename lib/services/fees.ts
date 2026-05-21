@@ -74,7 +74,7 @@ export type ProgressResult = {
 // Confirmed values (Ellis, May 2026): PM11 ~10d, PM13 ~21d, PM9 7–21d (median 14d).
 // All other values are range midpoints from the proposal doc.
 
-const MILESTONE_DURATION_MEDIANS: Record<string, number> = {
+export const MILESTONE_DURATION_MEDIANS: Record<string, number> = {
   // Vendor side (20 milestones)
   VM1: 1,  VM2: 1,  VM3: 3,  VM4: 8,  VM5: 2,  VM6: 17, VM7: 6,
   VM8: 1,  /* VM9: see isShareOfFreehold logic below */
