@@ -36,15 +36,15 @@ const SCOPED_CSS = `
   .claim-page.bg-01 {
     background:
       linear-gradient(135deg,
-        rgba(255,107,74,.18) 0%,
-        rgba(255,180,77,.18) 25%,
-        rgba(255,235,200,.10) 50%,
-        rgba(255,140,100,.16) 75%,
-        rgba(255,107,74,.18) 100%
+        rgba(255,107,74,.40) 0%,
+        rgba(255,180,77,.40) 25%,
+        rgba(255,220,180,.30) 50%,
+        rgba(255,140,100,.40) 75%,
+        rgba(255,107,74,.40) 100%
       ),
       #FDF9F5;
     background-size: 400% 400%, auto;
-    animation: bg-mesh-shift 25s ease-in-out infinite;
+    animation: bg-mesh-shift 18s ease-in-out infinite;
   }
   @keyframes bg-mesh-shift {
     0%   { background-position: 0% 0%, 0 0; }
@@ -57,11 +57,13 @@ const SCOPED_CSS = `
    * 24 absolutely-positioned dots, each with a unique upward animation.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-02 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-02 > * { position: relative; z-index: 2; }
+  .claim-page.bg-02 > header,
+  .claim-page.bg-02 > .claim-container { position: relative; z-index: 2; }
   .bg-particle {
     position: fixed;
     border-radius: 50%;
-    background: rgba(255,107,74,.45);
+    background: rgba(255,107,74,.7);
+    box-shadow: 0 0 8px rgba(255,107,74,.45);
     pointer-events: none;
     z-index: 1;
     animation-name: bg-particle-float;
@@ -80,7 +82,8 @@ const SCOPED_CSS = `
    * Three pseudo-element clouds. Each scales and drifts independently.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-03 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-03 > * { position: relative; z-index: 2; }
+  .claim-page.bg-03 > header,
+  .claim-page.bg-03 > .claim-container { position: relative; z-index: 2; }
   .bg-aurora-cloud {
     position: fixed;
     border-radius: 50%;
@@ -89,22 +92,22 @@ const SCOPED_CSS = `
     z-index: 1;
   }
   .bg-aurora-cloud--a {
-    width: 600px; height: 400px;
-    background: rgba(255,107,74,.30);
-    top: 10%; left: -10%;
-    animation: bg-aurora-a 18s ease-in-out infinite alternate;
+    width: 800px; height: 550px;
+    background: rgba(255,107,74,.55);
+    top: 5%; left: -15%;
+    animation: bg-aurora-a 14s ease-in-out infinite alternate;
   }
   .bg-aurora-cloud--b {
-    width: 500px; height: 500px;
-    background: rgba(255,180,77,.28);
-    top: 40%; right: -10%;
-    animation: bg-aurora-b 22s ease-in-out infinite alternate;
+    width: 700px; height: 700px;
+    background: rgba(255,180,77,.50);
+    top: 30%; right: -15%;
+    animation: bg-aurora-b 18s ease-in-out infinite alternate;
   }
   .bg-aurora-cloud--c {
-    width: 550px; height: 350px;
-    background: rgba(255,200,150,.22);
-    bottom: -10%; left: 30%;
-    animation: bg-aurora-c 26s ease-in-out infinite alternate;
+    width: 750px; height: 500px;
+    background: rgba(255,200,150,.45);
+    bottom: -15%; left: 25%;
+    animation: bg-aurora-c 22s ease-in-out infinite alternate;
   }
   @keyframes bg-aurora-a {
     0%   { transform: translate(0,0) scale(1); }
@@ -124,21 +127,22 @@ const SCOPED_CSS = `
    * Three concentric rings expanding outward, staggered animation-delay.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-04 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-04 > * { position: relative; z-index: 2; }
+  .claim-page.bg-04 > header,
+  .claim-page.bg-04 > .claim-container { position: relative; z-index: 2; }
   .bg-ring {
     position: fixed; top: 50%; left: 50%;
-    width: 200px; height: 200px;
-    border: 2px solid rgba(255,107,74,.35);
+    width: 300px; height: 300px;
+    border: 3px solid rgba(255,107,74,.7);
     border-radius: 50%;
     transform: translate(-50%,-50%);
     pointer-events: none; z-index: 1;
-    animation: bg-ring-pulse 5s ease-out infinite;
+    animation: bg-ring-pulse 4s ease-out infinite;
   }
-  .bg-ring--2 { animation-delay: 1.66s; }
-  .bg-ring--3 { animation-delay: 3.33s; }
+  .bg-ring--2 { animation-delay: 1.33s; }
+  .bg-ring--3 { animation-delay: 2.66s; }
   @keyframes bg-ring-pulse {
-    0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.8; border-width: 3px; }
-    100% { transform: translate(-50%,-50%) scale(6);   opacity: 0;   border-width: 1px; }
+    0%   { transform: translate(-50%,-50%) scale(0.15); opacity: 1;   border-width: 4px; }
+    100% { transform: translate(-50%,-50%) scale(5);    opacity: 0;   border-width: 1px; }
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -146,7 +150,8 @@ const SCOPED_CSS = `
    * Single diagonal beam sweeping across the screen, slow.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-05 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-05 > * { position: relative; z-index: 2; }
+  .claim-page.bg-05 > header,
+  .claim-page.bg-05 > .claim-container { position: relative; z-index: 2; }
   .claim-page.bg-05::before {
     content: "";
     position: fixed; top: -100%; left: -100%;
@@ -154,18 +159,20 @@ const SCOPED_CSS = `
     background: linear-gradient(
       90deg,
       transparent 0%,
-      transparent 45%,
-      rgba(255,180,77,.22) 50%,
-      transparent 55%,
+      transparent 42%,
+      rgba(255,180,77,.55) 48%,
+      rgba(255,220,150,.65) 50%,
+      rgba(255,180,77,.55) 52%,
+      transparent 58%,
       transparent 100%
     );
     transform: rotate(20deg);
-    animation: bg-beam-sweep 9s linear infinite;
+    animation: bg-beam-sweep 6s linear infinite;
     pointer-events: none; z-index: 1;
   }
   @keyframes bg-beam-sweep {
-    0%   { transform: rotate(20deg) translateX(-40%); }
-    100% { transform: rotate(20deg) translateX(40%); }
+    0%   { transform: rotate(20deg) translateX(-50%); }
+    100% { transform: rotate(20deg) translateX(50%); }
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -173,20 +180,21 @@ const SCOPED_CSS = `
    * Rotating conic gradient pseudo-element, very slow.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-06 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-06 > * { position: relative; z-index: 2; }
+  .claim-page.bg-06 > header,
+  .claim-page.bg-06 > .claim-container { position: relative; z-index: 2; }
   .claim-page.bg-06::before {
     content: "";
     position: fixed; top: -50%; left: -50%;
     width: 200%; height: 200%;
     background: conic-gradient(
       from 0deg at 50% 50%,
-      rgba(255,107,74,.16) 0deg,
-      rgba(255,180,77,.16) 90deg,
-      rgba(255,235,200,.06) 180deg,
-      rgba(255,140,100,.14) 270deg,
-      rgba(255,107,74,.16) 360deg
+      rgba(255,107,74,.45) 0deg,
+      rgba(255,180,77,.40) 90deg,
+      rgba(255,235,200,.20) 180deg,
+      rgba(255,140,100,.40) 270deg,
+      rgba(255,107,74,.45) 360deg
     );
-    animation: bg-conic-spin 60s linear infinite;
+    animation: bg-conic-spin 30s linear infinite;
     pointer-events: none; z-index: 1;
   }
   @keyframes bg-conic-spin {
@@ -199,15 +207,15 @@ const SCOPED_CSS = `
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-07 {
     background:
-      radial-gradient(at 25% 25%, rgba(255,107,74,.20), transparent 55%),
-      radial-gradient(at 75% 75%, rgba(255,200,100,.18), transparent 55%),
-      radial-gradient(at 50% 50%, rgba(180,180,255,.12), transparent 55%),
+      radial-gradient(at 25% 25%, rgba(255,107,74,.45), transparent 55%),
+      radial-gradient(at 75% 75%, rgba(255,200,100,.45), transparent 55%),
+      radial-gradient(at 50% 50%, rgba(180,180,255,.30), transparent 55%),
       linear-gradient(45deg, #FDF9F5, #FFF1E5, #FDF9F5);
-    animation: bg-iridescent 14s ease-in-out infinite;
+    animation: bg-iridescent 10s ease-in-out infinite;
   }
   @keyframes bg-iridescent {
     0%, 100% { filter: hue-rotate(0deg); }
-    50%      { filter: hue-rotate(25deg); }
+    50%      { filter: hue-rotate(60deg); }
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -219,12 +227,12 @@ const SCOPED_CSS = `
       repeating-linear-gradient(
         105deg,
         transparent 0px,
-        transparent 32px,
-        rgba(255,107,74,.10) 32px,
-        rgba(255,107,74,.10) 33px
+        transparent 28px,
+        rgba(255,107,74,.30) 28px,
+        rgba(255,107,74,.30) 31px
       ),
       #FDF9F5;
-    animation: bg-rain-drift 5s linear infinite;
+    animation: bg-rain-drift 3s linear infinite;
   }
   @keyframes bg-rain-drift {
     from { background-position: 0 0, 0 0; }
@@ -236,18 +244,20 @@ const SCOPED_CSS = `
    * 30 dots, each fading in/out on its own cycle (delays randomized in JSX).
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-09 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-09 > * { position: relative; z-index: 2; }
+  .claim-page.bg-09 > header,
+  .claim-page.bg-09 > .claim-container { position: relative; z-index: 2; }
   .bg-star {
     position: fixed;
-    width: 3px; height: 3px;
+    width: 6px; height: 6px;
     border-radius: 50%;
-    background: rgba(255,107,74,.7);
+    background: rgba(255,107,74,.9);
+    box-shadow: 0 0 12px rgba(255,107,74,.6);
     pointer-events: none; z-index: 1;
-    animation: bg-star-twinkle 3s ease-in-out infinite;
+    animation: bg-star-twinkle 2.5s ease-in-out infinite;
   }
   @keyframes bg-star-twinkle {
-    0%, 100% { opacity: 0; transform: scale(0.5); }
-    50%      { opacity: 1; transform: scale(1.2); }
+    0%, 100% { opacity: 0; transform: scale(0.4); }
+    50%      { opacity: 1; transform: scale(1.3); }
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
@@ -255,23 +265,24 @@ const SCOPED_CSS = `
    * Lava-lamp: border-radius animates so shape mutates, plus translate.
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-10 { background: #FDF9F5; position: relative; overflow: hidden; }
-  .claim-page.bg-10 > * { position: relative; z-index: 2; }
+  .claim-page.bg-10 > header,
+  .claim-page.bg-10 > .claim-container { position: relative; z-index: 2; }
   .bg-blob {
     position: fixed;
     filter: blur(50px);
     pointer-events: none; z-index: 1;
   }
   .bg-blob--a {
-    top: 15%; left: 8%;
-    width: 420px; height: 420px;
-    background: rgba(255,107,74,.30);
-    animation: bg-blob-a 13s ease-in-out infinite;
+    top: 10%; left: 5%;
+    width: 550px; height: 550px;
+    background: rgba(255,107,74,.55);
+    animation: bg-blob-a 10s ease-in-out infinite;
   }
   .bg-blob--b {
-    bottom: 10%; right: 12%;
-    width: 460px; height: 460px;
-    background: rgba(255,180,77,.28);
-    animation: bg-blob-b 17s ease-in-out infinite;
+    bottom: 5%; right: 8%;
+    width: 600px; height: 600px;
+    background: rgba(255,180,77,.50);
+    animation: bg-blob-b 14s ease-in-out infinite;
   }
   @keyframes bg-blob-a {
     0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: translate(0,0) scale(1); }
@@ -289,9 +300,9 @@ const SCOPED_CSS = `
    * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-11 {
     background:
-      radial-gradient(circle 500px at var(--mx,50%) var(--my,50%),
-        rgba(255,107,74,.22) 0%,
-        rgba(255,180,77,.10) 35%,
+      radial-gradient(circle 600px at var(--mx,50%) var(--my,50%),
+        rgba(255,107,74,.55) 0%,
+        rgba(255,180,77,.30) 30%,
         transparent 65%
       ),
       #FDF9F5;
@@ -306,13 +317,13 @@ const SCOPED_CSS = `
     background:
       repeating-linear-gradient(
         180deg,
-        rgba(255,107,74,.08) 0px,
-        rgba(255,107,74,.08) 6px,
-        transparent 6px,
+        rgba(255,107,74,.28) 0px,
+        rgba(255,107,74,.28) 10px,
+        transparent 10px,
         transparent 48px
       ),
       #FDF9F5;
-    animation: bg-wave-scroll 4s linear infinite;
+    animation: bg-wave-scroll 2.5s linear infinite;
   }
   @keyframes bg-wave-scroll {
     from { background-position: 0 0, 0 0; }
@@ -380,6 +391,25 @@ const SCOPED_CSS = `
   .bg-picker-note {
     font-size: 11px; opacity: 0.7; line-height: 1.4;
   }
+  .bg-toggle-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px 4px;
+    border-top: 1px solid rgba(0,0,0,.06);
+    margin-top: 4px;
+  }
+  .bg-toggle-row label {
+    font-size: 12px; font-weight: 500;
+    color: rgba(0,0,0,.7);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* Hide-hero mode: dim the content so the background is fully readable */
+  .claim-page.solo .claim-container,
+  .claim-page.solo header {
+    opacity: 0.08;
+    pointer-events: none;
+  }
 
   /* Shrink the hero so the picker doesn't overlap it on standard screens */
   .claim-page .claim-container { max-width: min(640px, calc(100vw - 340px)); }
@@ -434,6 +464,7 @@ const STARS = (() => {
 
 export default function ClaimBgPreviewPage() {
   const [option, setOption] = useState<Option>("01");
+  const [solo, setSolo] = useState(false);
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -474,9 +505,15 @@ export default function ClaimBgPreviewPage() {
             <span className="bg-picker-note">{opt.note}</span>
           </button>
         ))}
+        <div className="bg-toggle-row">
+          <label>
+            <input type="checkbox" checked={solo} onChange={(e) => setSolo(e.target.checked)} />
+            Hide hero (see background only)
+          </label>
+        </div>
       </aside>
 
-      <div className={`claim-page bg-${option}`} style={pageStyle}>
+      <div className={`claim-page bg-${option}${solo ? " solo" : ""}`} style={pageStyle}>
         {/* Per-option fixed-position children */}
         {option === "02" && PARTICLES.map((p, i) => (
           <span
