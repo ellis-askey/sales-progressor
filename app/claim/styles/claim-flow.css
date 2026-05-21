@@ -61,6 +61,10 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--claim-coral);
+  text-decoration: none;
+}
+.claim-wordmark:hover {
+  opacity: 0.75;
 }
 .claim-body {
   animation: claim-enter 200ms ease-out both;

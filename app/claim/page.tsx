@@ -8,7 +8,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="claim-page">
       <header className="claim-header">
-        <span className="claim-wordmark">The Sales Progressor</span>
+        <a
+          href="https://www.thesalesprogressor.co.uk"
+          target="_blank"
+          rel="noopener"
+          className="claim-wordmark"
+        >
+          The Sales Progressor
+        </a>
       </header>
       {children}
     </div>
