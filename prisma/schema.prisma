@@ -116,6 +116,7 @@ model User {
   invitationsSent               DirectorInvitation[]   @relation("InvitationsSent")
   invitationsAccepted           DirectorInvitation[]   @relation("InvitationsAccepted")
   fileTimeSessions              FileTimeSession[]
+  notifications                 Notification[]
 }
 
 model AgentPushSubscription {
@@ -219,6 +220,7 @@ model PropertyTransaction {
   flags                      TransactionFlag[]
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
   fileTimeSessions           FileTimeSession[]
+  notifications              Notification[]
 
   @@index([serviceType, createdAt])
 }
@@ -1539,3 +1541,29 @@ model SystemNotification {
   firedAt   DateTime
   createdAt DateTime @default(now())
 }
+
+// ── Notification ─────────────────────────────────────────────────────────────
+// Per-user, per-event in-app notification queue. DISTINCT from
+// SystemNotification (which is a one-shot platform flag with no userId).
+// Used by SPBell on the internal dashboard to surface confirmation events on
+// files assigned to the current Sales Progressor. `payload` is type-specific
+// JSON; `readAt` is set when the user clicks the bell.
+//
+// Types currently in use:
+//   - "portal_milestone_confirm"            (buyer/seller confirmed via portal)
+//   - "agent_outsourced_milestone_confirm"  (agent confirmed step on outsourced file)
+
+model Notification {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  transactionId String?
+  transaction   PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  payload       Json
+  createdAt     DateTime             @default(now())
+  readAt        DateTime?
+
+  @@index([userId, readAt, createdAt])
+}
+

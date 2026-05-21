@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SignOutButton } from "@/components/layout/SignOutButton";
 import { AppShellClient } from "@/components/layout/AppShellClient";
 import { PortalBell } from "@/components/layout/PortalBell";
+import { SPBell } from "@/components/layout/SPBell";
 import type { Session } from "next-auth";
 import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
@@ -68,7 +69,9 @@ export function AppShell({
               <p className="text-sm font-bold text-slate-900/90 leading-tight tracking-tight">Sales Progressor</p>
             </div>
             <ChangelogDropdown />
-            <PortalBell userKey={session.user.email ?? session.user.name ?? "user"} />
+            {session.user.role === "sales_progressor"
+              ? <SPBell userKey={session.user.email ?? session.user.name ?? "user"} />
+              : <PortalBell userKey={session.user.email ?? session.user.name ?? "user"} />}
           </div>
         </div>
 

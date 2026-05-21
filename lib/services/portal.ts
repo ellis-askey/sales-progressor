@@ -6,6 +6,7 @@ import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type Recipien
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { unlockDirectDependents, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
+import { notifyPortalMilestoneConfirmed } from "@/lib/services/notifications";
 import type { MilestoneSide } from "@prisma/client";
 
 export type PortalMilestone = {
@@ -315,6 +316,21 @@ export async function logPortalMilestoneConfirm(
         createdById,
       },
     });
+  }
+
+  // Structured notification for the SP bell. Additive — the OutboundMessage
+  // above still feeds the activity timeline and AgentBell. Only fires when an
+  // SP is assigned (i.e. outsourced files).
+  if (tx.assignedUser?.id) {
+    const contact = tx.contacts.find((c) => c.id === contactId);
+    notifyPortalMilestoneConfirmed({
+      spUserId: tx.assignedUser.id,
+      transactionId,
+      contactName,
+      contactRole: contact?.roleType ?? "contact",
+      milestoneLabel,
+      milestoneCode: milestoneCode ?? "",
+    }).catch(() => {});
   }
 
   const base = process.env.NEXTAUTH_URL ?? "";

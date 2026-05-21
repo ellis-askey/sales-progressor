@@ -26,6 +26,7 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
+import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -53,7 +54,7 @@ export async function confirmMilestoneAction(input: {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, propertyAddress: true },
+    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -183,6 +184,28 @@ export async function confirmMilestoneAction(input: {
     // Retention email: fire first-exchange celebration for the agent who owns the file
     if (code === "VM19" || code === "PM26") {
       maybeFireFirstExchangeEmail(session.user.id, input.transactionId).catch(() => {});
+    }
+
+    // SP bell notification: when an agency-side user (director/negotiator/viewer)
+    // confirms a milestone on an outsourced file, ping the assigned Sales Progressor.
+    // Skip when the confirmer IS the SP, or when there's no SP assigned.
+    const isAgencyRole =
+      session.user.role === "director" ||
+      session.user.role === "negotiator" ||
+      session.user.role === "viewer";
+    if (
+      tx.serviceType === "outsourced" &&
+      tx.assignedUserId &&
+      tx.assignedUserId !== session.user.id &&
+      isAgencyRole
+    ) {
+      notifyOutsourcedMilestoneConfirmed({
+        spUserId: tx.assignedUserId,
+        transactionId: input.transactionId,
+        confirmerName: session.user.name ?? "An agent",
+        milestoneLabel: label,
+        milestoneCode: code,
+      }).catch(() => {});
     }
   }
 
