@@ -1,16 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
-import { titleCase } from "@/lib/utils";
-import { formatPostcode, isValidUKPostcode } from "@/lib/utils/address";
+import { AddressFields } from "./AddressFields";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
-
-function isLookupReady(postcode: string): boolean {
-  return /^[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}$/i.test(postcode.trim());
-}
 
 // ── Pill button ───────────────────────────────────────────────────────────────
 
@@ -124,13 +118,6 @@ export function Stage1Fields({
   onContinue,
   onLookup,
 }: Props) {
-  const [postcodeError, setPostcodeError] = useState("");
-  const [touched, setTouched] = useState({ street: false, city: false, postcode: false });
-
-  const streetValid = touched.street && streetAddress.trim().length >= 2;
-  const cityValid   = touched.city   && city.trim().length >= 1;
-  const postcodeValid = touched.postcode && postcode.trim().length > 0 && isValidUKPostcode(postcode);
-
   return (
     <div
       className="v2-stage1-card"
@@ -166,101 +153,17 @@ export function Stage1Fields({
       </div>
 
       {/* Address */}
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Property address
-          </p>
-          {onLookup && (
-            <button
-              type="button"
-              onClick={onLookup}
-              disabled={!isLookupReady(postcode)}
-              className={isLookupReady(postcode) ? "agent-link" : undefined}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                background: "none", border: "none", padding: 0,
-                cursor: isLookupReady(postcode) ? "pointer" : "default",
-                fontSize: 11, fontWeight: 600,
-                color: isLookupReady(postcode) ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
-              }}
-            >
-              <MagnifyingGlass size={11} weight="bold" />
-              Look up this property
-            </button>
-          )}
-        </div>
-
-        {/* Street address */}
-        <div style={{ marginBottom: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
-            Street address
-            <FieldIndicator source={memoSources.streetAddress} valid={streetValid} />
-          </label>
-          <input
-            className="agent-input"
-            value={streetAddress}
-            onChange={(e) => {
-              onStreetAddressChange(e.target.value);
-              onEdit("streetAddress");
-            }}
-            onBlur={(e) => { if (e.target.value.trim()) onStreetAddressChange(titleCase(e.target.value)); setTouched(t => ({ ...t, street: true })); }}
-            placeholder="e.g. 14 Hartwell Avenue"
-            maxLength={120}
-          />
-          <FieldHint source={memoSources.streetAddress} />
-        </div>
-
-        {/* City + Postcode */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div>
-            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
-              City / Town
-              <FieldIndicator source={memoSources.city} valid={cityValid} />
-            </label>
-            <input
-              className="agent-input"
-              value={city}
-              onChange={(e) => {
-                onCityChange(e.target.value);
-                onEdit("city");
-              }}
-              onBlur={(e) => { if (e.target.value.trim()) onCityChange(titleCase(e.target.value)); setTouched(t => ({ ...t, city: true })); }}
-              placeholder="e.g. Bristol"
-              maxLength={60}
-            />
-            <FieldHint source={memoSources.city} />
-          </div>
-          <div>
-            <label style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", marginBottom: 6 }}>
-              Postcode
-              <FieldIndicator source={memoSources.postcode} valid={postcodeValid} />
-            </label>
-            <input
-              className="agent-input"
-              value={postcode}
-              onChange={(e) => {
-                onPostcodeChange(e.target.value.toUpperCase());
-                onEdit("postcode");
-                setPostcodeError("");
-              }}
-              onBlur={(e) => {
-                if (!e.target.value.trim()) { setPostcodeError(""); setTouched(t => ({ ...t, postcode: true })); return; }
-                const formatted = formatPostcode(e.target.value);
-                onPostcodeChange(formatted);
-                setPostcodeError(isValidUKPostcode(formatted) ? "" : "Doesn't look like a valid UK postcode");
-                setTouched(t => ({ ...t, postcode: true }));
-              }}
-              placeholder="e.g. BS6 7TH"
-              maxLength={8}
-            />
-            {postcodeError && (
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: "#dc2626", fontWeight: 500 }}>{postcodeError}</p>
-            )}
-            <FieldHint source={memoSources.postcode} />
-          </div>
-        </div>
-      </div>
+      <AddressFields
+        streetAddress={streetAddress}
+        city={city}
+        postcode={postcode}
+        onStreetAddressChange={onStreetAddressChange}
+        onCityChange={onCityChange}
+        onPostcodeChange={onPostcodeChange}
+        memoSources={memoSources}
+        onEdit={onEdit}
+        onLookup={onLookup}
+      />
 
       {/* Tenure */}
       <div>

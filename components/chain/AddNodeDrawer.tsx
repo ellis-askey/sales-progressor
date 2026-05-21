@@ -4,7 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { titleCase } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
+
+function joinAddress(street: string, city: string, postcode: string): string {
+  return [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
+}
 
 export type StubFormData = {
   stubPropertyAddress: string;
@@ -139,18 +145,33 @@ export function AddNodeDrawer({
   const isEditMode = !!editingLink;
   const isExistingChain = !!chainId;
 
-  const [form, setForm] = useState<StubFormData>(() =>
+  const initialAddress = editingLink
+    ? parseAddressForEdit(editingLink.stubPropertyAddress ?? "")
+    : { streetAddress: "", city: "", postcode: "" };
+
+  const [streetAddress, setStreetAddress] = useState(initialAddress.streetAddress);
+  const [city, setCity] = useState(initialAddress.city);
+  const [postcode, setPostcode] = useState(initialAddress.postcode);
+
+  const [form, setForm] = useState<Omit<StubFormData, "stubPropertyAddress">>(() =>
     editingLink
       ? {
-          stubPropertyAddress: editingLink.stubPropertyAddress ?? "",
           stubAgencyName: editingLink.stubAgencyName ?? "",
           stubAgentName: editingLink.stubAgentName ?? "",
           stubAgentEmail: editingLink.stubAgentEmail ?? "",
           stubAgentPhone: editingLink.stubAgentPhone ?? "",
           stubNotes: editingLink.stubNotes ?? "",
         }
-      : EMPTY_FORM,
+      : {
+          stubAgencyName: "",
+          stubAgentName: "",
+          stubAgentEmail: "",
+          stubAgentPhone: "",
+          stubNotes: "",
+        },
   );
+
+  const stubPropertyAddress = joinAddress(streetAddress, city, postcode);
 
   const [emailError, setEmailError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -165,14 +186,16 @@ export function AddNodeDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  function update(field: keyof StubFormData) {
+  type FormField = Exclude<keyof StubFormData, "stubPropertyAddress">;
+
+  function update(field: FormField) {
     return (v: string) => setForm((f) => ({ ...f, [field]: v }));
   }
 
-  function applyTitleCase(field: keyof StubFormData) {
+  function applyTitleCase(field: FormField) {
     return () => {
       const val = form[field];
-      if (typeof val === "string" && val.trim()) {
+      if (val.trim()) {
         setForm((f) => ({ ...f, [field]: titleCase(val) }));
       }
     };
@@ -192,7 +215,7 @@ export function AddNodeDrawer({
   }
 
   const requiredFilled =
-    form.stubPropertyAddress.trim().length >= 3 &&
+    stubPropertyAddress.trim().length >= 3 &&
     form.stubAgencyName.trim().length >= 2;
 
   const hasValidEmail =
@@ -212,7 +235,7 @@ export function AddNodeDrawer({
 
     // In-memory context (new transaction page)
     if (onSaveToMemory) {
-      onSaveToMemory(form, direction);
+      onSaveToMemory({ ...form, stubPropertyAddress }, direction);
       onSaved();
       return;
     }
@@ -232,7 +255,7 @@ export function AddNodeDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           direction,
-          stubPropertyAddress: form.stubPropertyAddress.trim(),
+          stubPropertyAddress: stubPropertyAddress.trim(),
           stubAgencyName: form.stubAgencyName.trim(),
           stubAgentName: form.stubAgentName.trim() || null,
           stubAgentEmail: form.stubAgentEmail.trim().toLowerCase() || null,
@@ -309,14 +332,13 @@ export function AddNodeDrawer({
           <div>
             <SectionLabel>Property</SectionLabel>
             <div className="rounded-xl bg-white/40 border border-white/50 px-4 py-3">
-              <Field
-                label="Property address"
-                required
-                value={form.stubPropertyAddress}
-                onChange={update("stubPropertyAddress")}
-                onBlur={applyTitleCase("stubPropertyAddress")}
-                placeholder="e.g. 47 Oak Road, Bristol"
-                maxLength={200}
+              <AddressFields
+                streetAddress={streetAddress}
+                city={city}
+                postcode={postcode}
+                onStreetAddressChange={setStreetAddress}
+                onCityChange={setCity}
+                onPostcodeChange={setPostcode}
               />
             </div>
           </div>
@@ -369,7 +391,11 @@ export function AddNodeDrawer({
                 label="Contact number"
                 type="tel"
                 value={form.stubAgentPhone}
-                onChange={update("stubAgentPhone")}
+                onChange={(v) => update("stubAgentPhone")(cleanPhone(v))}
+                onBlur={() => {
+                  const formatted = formatUKPhone(form.stubAgentPhone);
+                  if (formatted !== form.stubAgentPhone) update("stubAgentPhone")(formatted);
+                }}
                 placeholder="07700 900000"
               />
             </div>
