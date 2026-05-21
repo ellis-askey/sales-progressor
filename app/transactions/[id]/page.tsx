@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/session";
 import { getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
-import { getReminderLogsForTransaction } from "@/lib/services/reminders";
+import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { getPortalViewDates } from "@/lib/services/portal";
@@ -48,7 +48,7 @@ export default async function TransactionDetailPage({
   const scope = getAccessScope(session);
 
   try {
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap] = await Promise.all([
     getTransactionByScope(id, scope),
     getMilestonesForTransaction(id, null).catch(() => null),
     getReminderLogsForTransaction(id, null).catch(() => []),
@@ -56,7 +56,9 @@ export default async function TransactionDetailPage({
     getLastUpdate(id).catch(() => null),
     listManualTasksForTransaction(id, null).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
+    getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
   ]);
+  const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
   if (!transaction) notFound();
 
@@ -353,6 +355,7 @@ export default async function TransactionDetailPage({
               exchangeReady={milestoneData.exchangeReady}
               vendorGateReady={milestoneData.vendorGateReady}
               purchaserGateReady={milestoneData.purchaserGateReady}
+              graceDaysByCode={graceDaysByCode}
             />
           ) : (
             <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>

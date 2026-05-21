@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
-import { buildCompletionLookup, computeSlowness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
+import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -43,6 +43,11 @@ type Props = {
   exchangeReady: boolean;
   vendorGateReady: boolean;
   purchaserGateReady: boolean;
+  // Map of milestone code → graceDays from active ReminderRules (server-fetched
+  // once per page load via getGraceDaysByMilestoneCode). Drives the staleness
+  // badge — codes absent from this map get no badge. Plain object on the wire
+  // since Maps don't serialise across server→client boundaries cleanly.
+  graceDaysByCode?: Record<string, number>;
 };
 
 export function MilestonePanel({
@@ -52,6 +57,7 @@ export function MilestonePanel({
   exchangeReady,
   vendorGateReady,
   purchaserGateReady,
+  graceDaysByCode,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
 
@@ -299,6 +305,14 @@ export function MilestonePanel({
                         const slownessSignal = (showSlowness && MEDIANS_READY)
                           ? computeSlowness(def.code, completionLookup)
                           : null;
+                        // Staleness signal: separate from slowness. Threshold
+                        // is the configured ReminderRule.graceDays, not a
+                        // learned median, so it's safe to show without
+                        // MEDIANS_READY. Same eligibility gate as slowness
+                        // (available + not done + not NR).
+                        const stalenessSignal = showSlowness
+                          ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code])
+                          : null;
                         return (
                           <MilestoneRow
                             key={def.id}
@@ -311,6 +325,7 @@ export function MilestonePanel({
                             onUndoStart={() => handleUndoStart(def.id, def.code)}
                             counterpartNotice={getCounterpartNotice(def.code)}
                             slownessSignal={slownessSignal}
+                            stalenessSignal={stalenessSignal}
                           />
                         );
                       })

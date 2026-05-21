@@ -13,7 +13,7 @@ import { SurveyNrConfirmModal } from "@/components/milestones/SurveyNrConfirmMod
 import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
 import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
-import type { SlownessSignal } from "@/lib/services/milestone-staleness";
+import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-staleness";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -35,6 +35,11 @@ type Props = {
   // badge — either the milestone has no recorded "became available" anchor
   // (no prereqs complete yet) or it's still under threshold.
   slownessSignal?: SlownessSignal | null;
+  // Staleness signal computed against ReminderRule.graceDays — fires when a
+  // milestone has been available longer than its configured chase grace
+  // window. Independent of slowness (medians aren't required), so it's safe
+  // to show without MEDIANS_READY.
+  stalenessSignal?: StalenessSignal | null;
 };
 
 // Only PM9 (mortgage application) can be manually marked N/R
@@ -42,7 +47,7 @@ const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal }: Props) {
   const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -315,6 +320,14 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 title={`Typical for this step: ${slownessSignal.median} days. This file is on day ${slownessSignal.daysAvailable}.`}
               >
                 {slownessSignal.daysOver} days slower than typical
+              </span>
+            )}
+            {stalenessSignal && !isDone && !isBlocked && (
+              <span
+                className="ml-2 text-[10px] font-normal text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
+                title={`Chase rule allows ${stalenessSignal.graceDays} days before this is considered overdue. This file is on day ${stalenessSignal.daysAwaiting}.`}
+              >
+                Awaiting {stalenessSignal.daysAwaiting} days
               </span>
             )}
           </p>

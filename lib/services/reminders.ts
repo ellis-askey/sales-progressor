@@ -8,6 +8,36 @@ import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 
+// ─── Public read helpers (server-only) ───────────────────────────────────────
+
+// Returns a map of milestone code → graceDays (smallest across active rules
+// targeting that code). Used by the staleness badge (Change 5 of the
+// visibility-pass) to render "Awaiting N days" on any available milestone
+// that has been sitting longer than its chase rule's grace window.
+//
+// "Smallest" is intentional: when multiple rules target the same code, the
+// shortest graceDays is the first chase that fires — i.e. the earliest
+// moment the milestone is officially overdue. Picking the smallest matches
+// the user-facing meaning of "this has been waiting too long".
+//
+// Codes with no active rule are absent from the map. Caller treats absence
+// as "no badge" (computeStaleness returns null for null/undefined graceDays).
+export async function getGraceDaysByMilestoneCode(): Promise<Map<string, number>> {
+  const rules = await prisma.reminderRule.findMany({
+    where: { isActive: true, targetMilestoneCode: { not: null } },
+    select: { targetMilestoneCode: true, graceDays: true },
+  });
+  const m = new Map<string, number>();
+  for (const r of rules) {
+    if (!r.targetMilestoneCode) continue;
+    const existing = m.get(r.targetMilestoneCode);
+    if (existing == null || r.graceDays < existing) {
+      m.set(r.targetMilestoneCode, r.graceDays);
+    }
+  }
+  return m;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ReminderLogWithRule = {

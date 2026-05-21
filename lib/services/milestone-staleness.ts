@@ -95,3 +95,43 @@ export function computeSlowness(
     daysAvailable,
   };
 }
+
+// ─── Staleness signal (Change 5 of the visibility-pass) ──────────────────────
+//
+// Unlike the slowness signal, this DOES NOT compare to learned medians —
+// the threshold is ReminderRule.graceDays, the same configured value the
+// reminder engine uses to decide when to start chasing. The badge says
+// "this has been sitting longer than the chase rule allows", which is a
+// fact derived from config Ellis already set, not an inference from data
+// we don't have. Safe to show without MEDIANS_READY.
+//
+// Returns null when:
+//   - graceDays for this code is unknown (no active ReminderRule with
+//     targetMilestoneCode === code)
+//   - the becameAvailableAt proxy is null (no prereqs known, same
+//     limitation as the slowness signal)
+//   - daysAvailable <= graceDays (still within the chase rule's grace
+//     window — not yet overdue)
+
+export type StalenessSignal = {
+  stale: true;
+  daysAwaiting: number; // days since the milestone became available
+  graceDays: number;    // threshold sourced from ReminderRule.graceDays
+};
+
+export function computeStaleness(
+  code: string,
+  lookup: CompletionLookup,
+  graceDays: number | null | undefined,
+  now: Date = new Date(),
+): StalenessSignal | null {
+  if (graceDays == null || graceDays < 0) return null;
+
+  const becameAvailableAt = latestPrerequisiteCompletion(code, lookup);
+  if (!becameAvailableAt) return null;
+
+  const daysAwaiting = Math.floor((now.getTime() - becameAvailableAt.getTime()) / DAY_MS);
+  if (daysAwaiting <= graceDays) return null;
+
+  return { stale: true, daysAwaiting, graceDays };
+}

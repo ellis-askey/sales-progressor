@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getTransaction, getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
-import { getReminderLogsForTransaction } from "@/lib/services/reminders";
+import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
 import { getActivityTimeline } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
@@ -57,7 +57,7 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = session.user.role === "admin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     isInternalStaff
@@ -68,7 +68,11 @@ export default async function AgentTransactionDetailPage({
     getActivityTimeline(id, session.user.agencyId).catch(() => []),
     getLastUpdate(id).catch(() => null),
     listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
+    getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
   ]);
+  // Maps don't serialise across the server→client boundary; flatten to a
+  // plain object for the MilestonePanel prop.
+  const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
   if (!transaction) notFound();
   const isDirectorRole = session.user.role === "director";
@@ -564,6 +568,7 @@ export default async function AgentTransactionDetailPage({
               exchangeReady={milestoneData.exchangeReady}
               vendorGateReady={milestoneData.vendorGateReady}
               purchaserGateReady={milestoneData.purchaserGateReady}
+              graceDaysByCode={graceDaysByCode}
             />
           ) : (
             <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>
