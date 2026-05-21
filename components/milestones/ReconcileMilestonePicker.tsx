@@ -104,7 +104,6 @@ function Section({
                   checked={row.ticked}
                   onChange={(e) => setRow(m.id, { ticked: e.target.checked })}
                 />
-                <span className="claim-reconcile-row-code">{m.code}</span>
                 <span className="claim-reconcile-row-name">{m.name}</span>
               </label>
               {row.ticked && (
@@ -114,7 +113,7 @@ function Section({
                   value={row.eventDate ?? ""}
                   max={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setRow(m.id, { eventDate: e.target.value || null })}
-                  aria-label={`When did ${m.code} happen?`}
+                  aria-label={`When did this happen? (${m.name})`}
                 />
               )}
             </li>
