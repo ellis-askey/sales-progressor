@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
+import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
@@ -298,17 +299,23 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
             <div className="text-right">
               <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
                 {progress.predictedExchangeDate
-                  ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                  ? transaction.overridePredictedDate
+                    ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                    : formatPredictedBand(progress.predictedExchangeDate)
                   : "—"}
                 {transaction.overridePredictedDate && (
                   <span className="ml-1 text-xs text-blue-500">(overridden)</span>
                 )}
               </p>
-              {progress.isEarlyEstimate && (
+              {progress.isEarlyEstimate ? (
                 <p className="text-[10px] text-slate-900/30 mt-0.5">
                   Too early to predict — using your 12-week target
                 </p>
-              )}
+              ) : progress.predictedExchangeDate && !transaction.overridePredictedDate ? (
+                <p className="text-[10px] text-slate-900/30 mt-0.5">
+                  Based on similar files — could shift by a week or two
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -577,17 +584,23 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
                   <div className="text-right">
                     <p className={`text-xs font-semibold ${transaction.overridePredictedDate ? "text-blue-600" : "text-slate-900/90"}`}>
                       {progress.predictedExchangeDate
-                        ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                        ? transaction.overridePredictedDate
+                          ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                          : formatPredictedBand(progress.predictedExchangeDate)
                         : "—"}
                       {transaction.overridePredictedDate && (
                         <span className="ml-1 text-xs text-blue-500">(overridden)</span>
                       )}
                     </p>
-                    {progress.isEarlyEstimate && (
+                    {progress.isEarlyEstimate ? (
                       <p className="text-[10px] text-slate-900/30 mt-0.5">
                         Too early to predict — using your 12-week target
                       </p>
-                    )}
+                    ) : progress.predictedExchangeDate && !transaction.overridePredictedDate ? (
+                      <p className="text-[10px] text-slate-900/30 mt-0.5">
+                        Based on similar files — could shift by a week or two
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex justify-between items-center">

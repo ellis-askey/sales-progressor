@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getChainLinkStatus, chainLinkStatusLabel, chainLinkStatusColour } from "@/lib/chain/status";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
 import type { ChainLinkV2 } from "@/lib/services/chains";
 
 function relativeTime(date: Date | string | null): string {
@@ -128,6 +129,14 @@ export function LinkCard({
       </div>
 
       {link.transaction && <ProgressBar percent={progressPercent} />}
+
+      {/* Predicted exchange band — only when we have a prediction and aren't
+       * in early-estimate phase. Same softened band the file sidebar uses. */}
+      {link.transaction && link.predictedExchangeDate && !link.isEarlyEstimate && (
+        <p className="text-[11px] text-slate-900/40 mt-1.5">
+          Exchange {formatPredictedBandShort(link.predictedExchangeDate)}
+        </p>
+      )}
 
       {/* Status descriptors for invited/bounced/declined */}
       {status.kind === "invited" && (

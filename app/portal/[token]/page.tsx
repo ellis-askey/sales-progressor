@@ -5,6 +5,7 @@ import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
+import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
@@ -138,6 +139,20 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                 <p className="text-[15px] font-semibold mt-2" style={{ color: "rgba(255,255,255,0.85)" }}>
                   {fmtPrice(transaction.purchasePrice / 100)}
                 </p>
+              )}
+              {progress.predictedExchangeDate && (
+                <div className="mt-3">
+                  <p className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.92)" }}>
+                    {progress.isEarlyEstimate
+                      ? "Expected exchange: we'll show an estimate as the file progresses"
+                      : `Expected exchange: ${formatPredictedBand(progress.predictedExchangeDate)}`}
+                  </p>
+                  {!progress.isEarlyEstimate && (
+                    <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>
+                      Based on files like yours. It can move a little either way.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             <div className="flex flex-col items-center gap-1 flex-shrink-0">

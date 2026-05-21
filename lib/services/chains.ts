@@ -2,6 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { shiftPositionsUp, repackPositions } from "@/lib/chain/positions";
+import {
+  calculatePhaseAwarePrediction,
+  computeEffectiveStartDate,
+  detectPhase,
+  type PhaseAwareInput,
+} from "@/lib/services/fees";
 
 // ─── Legacy types (used by legacy widget in components/chain/_legacy/) ────────
 
@@ -62,6 +68,14 @@ export type ChainLinkV2 = {
   // matching the per-file ProgressRing math in calculateProgress(). Null when
   // the link has no claimed transaction.
   progressPercent: number | null;
+  // Predicted exchange date for the link's claimed transaction, via the same
+  // phase-aware critical-path model used on the file detail page
+  // (calculatePhaseAwarePrediction in lib/services/fees.ts). Null when there's
+  // no claimed transaction OR the file is in early-estimate phase A.
+  // isEarlyEstimate true means "too soon to forecast" — caller should soften
+  // the rendering to "we'll show an estimate as the file progresses".
+  predictedExchangeDate: Date | null;
+  isEarlyEstimate: boolean;
   claimedBy: {
     id: string;
     name: string;
@@ -172,10 +186,17 @@ const LINK_V2_SELECT = {
       propertyAddress: true,
       status: true,
       agencyId: true,
+      createdAt: true,
+      purchaseType: true,
+      tenure: true,
+      isShareOfFreehold: true,
+      overridePredictedDate: true,
       milestoneCompletions: {
         select: {
           state: true,
-          milestoneDefinition: { select: { weight: true } },
+          eventDate: true,
+          reconciledAtClaim: true,
+          milestoneDefinition: { select: { code: true, weight: true } },
         },
       },
     },
@@ -190,27 +211,77 @@ const LINK_V2_SELECT = {
 
 // Pooled weighted progress matching calculateProgress() in lib/services/fees.ts.
 // Single ratio across applicable (non-NR) milestones on both sides.
-function computeWeightedProgress(
-  completions: {
-    state: string;
-    milestoneDefinition: { weight: { toNumber(): number } | number } | null;
-  }[],
-): number | null {
+type CompletionForChain = {
+  state: string;
+  eventDate: Date | null;
+  reconciledAtClaim: boolean;
+  milestoneDefinition: { code: string; weight: { toNumber(): number } | number } | null;
+};
+
+function weightOf(c: CompletionForChain): number {
+  if (!c.milestoneDefinition) return 0;
+  const w = c.milestoneDefinition.weight;
+  return typeof w === "number" ? w : w.toNumber();
+}
+
+function computeWeightedProgress(completions: CompletionForChain[]): number | null {
   if (!completions || completions.length === 0) return null;
   let applicableWeight = 0;
   let completedWeight = 0;
   for (const c of completions) {
     if (c.state === "not_required") continue;
-    const w = c.milestoneDefinition
-      ? typeof c.milestoneDefinition.weight === "number"
-        ? c.milestoneDefinition.weight
-        : c.milestoneDefinition.weight.toNumber()
-      : 0;
-    applicableWeight += w;
-    if (c.state === "complete") completedWeight += w;
+    applicableWeight += weightOf(c);
+    if (c.state === "complete") completedWeight += weightOf(c);
   }
   if (applicableWeight === 0) return 100;
   return Math.round((completedWeight / applicableWeight) * 100);
+}
+
+// Phase-aware predicted exchange date for a chain link, matching the same
+// model used on the file detail page (calculatePhaseAwarePrediction). Returns
+// null when no completions are available. isEarlyEstimate true means the file
+// is in Phase A (onboarding) and the prediction is just the 12-week floor —
+// callers should render "too early" copy rather than the band.
+function computeChainLinkPrediction(
+  completions: CompletionForChain[],
+  txn: {
+    createdAt: Date;
+    purchaseType: string | null;
+    tenure: string | null;
+    isShareOfFreehold: boolean;
+    overridePredictedDate: Date | null;
+  },
+): { predictedExchangeDate: Date | null; isEarlyEstimate: boolean } {
+  if (!completions) return { predictedExchangeDate: null, isEarlyEstimate: false };
+
+  const completedMilestoneCodes = completions
+    .filter((c) => c.state === "complete" && c.milestoneDefinition)
+    .map((c) => c.milestoneDefinition!.code);
+
+  const effectiveStartDate = computeEffectiveStartDate(
+    txn.createdAt,
+    completions.map((c) => ({ eventDate: c.eventDate, reconciledAtClaim: c.reconciledAtClaim })),
+  );
+
+  const phaseAware: PhaseAwareInput = {
+    completedMilestoneCodes,
+    purchaseType: txn.purchaseType as PhaseAwareInput["purchaseType"],
+    tenure: txn.tenure as PhaseAwareInput["tenure"],
+    isShareOfFreehold: txn.isShareOfFreehold,
+    effectiveStartDate,
+  };
+
+  const predictedExchangeDate = calculatePhaseAwarePrediction(
+    phaseAware,
+    txn.createdAt,
+    txn.overridePredictedDate ?? null,
+  );
+
+  const isEarlyEstimate =
+    !txn.overridePredictedDate &&
+    detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase === "onboarding";
+
+  return { predictedExchangeDate, isEarlyEstimate };
 }
 
 export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
@@ -231,19 +302,46 @@ export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
   });
   if (!chain) return null;
 
-  // Attach progressPercent per link; strip the raw completions array from the
-  // returned shape (only the percent is exposed publicly).
+  // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
+  // Strip the raw completions array AND the prediction inputs (createdAt /
+  // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
+  // returned shape — only the derived fields are exposed publicly. The link's
+  // transaction shape on the wire stays { id, propertyAddress, status, agencyId }
+  // for backward-compat with existing consumers (LinkCard, ChainDrawer, etc.).
   return {
     ...chain,
     links: chain.links.map((l) => {
       if (!l.transaction) {
-        return { ...l, transaction: null, progressPercent: null };
+        return {
+          ...l,
+          transaction: null,
+          progressPercent: null,
+          predictedExchangeDate: null,
+          isEarlyEstimate: false,
+        };
       }
-      const { milestoneCompletions, ...txnRest } = l.transaction;
+      const {
+        milestoneCompletions,
+        createdAt,
+        purchaseType,
+        tenure,
+        isShareOfFreehold,
+        overridePredictedDate,
+        ...txnPublic
+      } = l.transaction;
+      const prediction = computeChainLinkPrediction(milestoneCompletions, {
+        createdAt,
+        purchaseType,
+        tenure,
+        isShareOfFreehold,
+        overridePredictedDate,
+      });
       return {
         ...l,
-        transaction: txnRest,
+        transaction: txnPublic,
         progressPercent: computeWeightedProgress(milestoneCompletions),
+        predictedExchangeDate: prediction.predictedExchangeDate,
+        isEarlyEstimate: prediction.isEarlyEstimate,
       };
     }),
   };

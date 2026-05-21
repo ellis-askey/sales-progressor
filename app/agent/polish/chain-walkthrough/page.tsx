@@ -113,6 +113,8 @@ function mockLink(overrides: Partial<ChainLinkV2> & { id: string; position: numb
     withdrawalRespondedAt: null,
     transaction: null,
     progressPercent: null,
+    predictedExchangeDate: null,
+    isEarlyEstimate: false,
     claimedBy: null,
     createdBy: { id: MOCK_USER_ID, name: "Sarah Hartwell" },
     ...overrides,
