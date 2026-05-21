@@ -594,6 +594,10 @@ model OutboundMessage {
   providerMessageId   String?
   providerWebhookData Json?
 
+  // Bulk-import provenance: groups rows inserted together by WhatsApp chat import.
+  // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
+  importBatchId String?
+
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
   chaseTask   ChaseTask?           @relation(fields: [chaseTaskId], references: [id])
@@ -604,6 +608,7 @@ model OutboundMessage {
   @@index([channel, status, scheduledFor])
   @@index([purpose, createdAt])
   @@index([sentAt])
+  @@index([importBatchId])
 }
 
 enum CommType {
