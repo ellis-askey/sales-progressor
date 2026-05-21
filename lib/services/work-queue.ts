@@ -73,7 +73,13 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       contacts: { select: { name: true, roleType: true } },
       milestoneCompletions: {
         where: { state: "complete" },
-        select: { milestoneDefinitionId: true, completedAt: true, reconciledAtExchange: true },
+        select: {
+          milestoneDefinitionId: true,
+          completedAt: true,
+          eventDate: true,
+          reconciledAtExchange: true,
+          reconciledAtClaim: true,
+        },
         orderBy: { completedAt: "desc" },
       },
     },
@@ -95,11 +101,31 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
         alerts.push("overdue_exchange");
       }
 
-      // Stale progress — active files only, older than grace period, no genuine milestone in 14 days
+      // Stale progress — active files only, older than grace period, no effective activity in 14 days.
+      // Effective last activity = most recent of:
+      //   (1) genuine non-reconciled completion's completedAt
+      //   (2) reconciledAtClaim completion's eventDate (where non-null) — captures backdated real-world activity
+      //   (3) tx.createdAt (fallback — handles fresh claims with all-null eventDates)
+      // reconciledAtClaim completion with null eventDate is invisible to stale detection (agent ticked but didn't supply a date).
       if (tx.status === "active" && new Date(tx.createdAt) < newFileGrace) {
-        const genuineCompletions = tx.milestoneCompletions.filter((c) => !c.reconciledAtExchange);
-        const lastCompletion = genuineCompletions[0]?.completedAt ?? null;
-        if (!lastCompletion || new Date(lastCompletion) < staleThreshold) {
+        const realCompletions = tx.milestoneCompletions.filter(
+          (c) => !c.reconciledAtExchange && !c.reconciledAtClaim,
+        );
+        const latestRealCompletedAt = realCompletions[0]?.completedAt ?? null;
+
+        const backdatedEventDates = tx.milestoneCompletions
+          .filter((c) => c.reconciledAtClaim && c.eventDate)
+          .map((c) => c.eventDate as Date)
+          .sort((a, b) => b.getTime() - a.getTime());
+        const latestBackdatedEventDate = backdatedEventDates[0] ?? null;
+
+        const candidates: Date[] = [];
+        if (latestRealCompletedAt) candidates.push(new Date(latestRealCompletedAt));
+        if (latestBackdatedEventDate) candidates.push(new Date(latestBackdatedEventDate));
+        candidates.push(new Date(tx.createdAt));
+
+        const effectiveLastActivity = new Date(Math.max(...candidates.map((d) => d.getTime())));
+        if (effectiveLastActivity < staleThreshold) {
           alerts.push("stale");
         }
       }

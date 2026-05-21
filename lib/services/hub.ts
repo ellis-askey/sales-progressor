@@ -145,19 +145,34 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     }),
 
     // ── Stalled: active, not exchanged, no genuine milestone in 14 days ───────
-    // "Genuine" = reconciledAtExchange is false (excludes synthetic reconcile-at-exchange completions)
+    // "Genuine" = reconciledAtExchange AND reconciledAtClaim both false. For
+    // reconciled-at-claim completions, we instead check eventDate (the real-world
+    // date the agent backdated to). A file with recent backdated activity is NOT stalled.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
-        // No genuine (non-reconciled) milestone completion in last 14 days
+        // No genuine (non-reconciled) completion in last 14 days
         milestoneCompletions: {
           none: {
             state: "complete",
             completedAt: { gte: fourteenDaysAgo },
             reconciledAtExchange: false,
+            reconciledAtClaim: false,
           },
         },
+        // AND no recent backdated (reconciledAtClaim) completion either — eventDate within 14 days counts as activity
+        AND: [
+          {
+            milestoneCompletions: {
+              none: {
+                state: "complete",
+                reconciledAtClaim: true,
+                eventDate: { gte: fourteenDaysAgo },
+              },
+            },
+          },
+        ],
         // Not already exchanged
         NOT: {
           milestoneCompletions: {

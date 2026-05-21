@@ -124,6 +124,7 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
       where: {
         completedAt: { gte: start, lt: end },
         state: "complete",
+        reconciledAtClaim: false,
         milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
         transaction: txFilter,
       },
@@ -134,6 +135,7 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
       where: {
         completedAt: { gte: start, lt: end },
         state: "complete",
+        reconciledAtClaim: false,
         milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
         transaction: txFilter,
       },
@@ -143,6 +145,7 @@ async function computeMetricsForScope(dateStr: string, scope: Scope): Promise<Me
       where: {
         completedAt: { gte: start, lt: end },
         state: "complete",
+        reconciledAtClaim: false,
         transaction: txFilter,
       },
     }),
