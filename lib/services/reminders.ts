@@ -249,9 +249,26 @@ export async function evaluateTransactionReminders(transactionId: string) {
         await deactivateLog(transactionId, rule.id, "Anchor milestone not yet confirmed", assignedUserId);
         continue;
       }
-      anchorDate = (rule.useEventDate && anchorCompletion.eventDate)
-        ? anchorCompletion.eventDate
-        : (anchorCompletion.completedAt ?? transaction.createdAt);
+      if (anchorCompletion.reconciledAtClaim) {
+        // Reconciled at claim: completedAt is the claim day, not the real-world event.
+        // Always use eventDate. If eventDate is null (agent didn't supply a date) we
+        // have no usable anchor and must deactivate — otherwise the reminder would
+        // fire graceDays from the claim, which is misleading for backdated work.
+        if (!anchorCompletion.eventDate) {
+          await deactivateLog(
+            transactionId,
+            rule.id,
+            "Anchor milestone was reconciled at claim without an eventDate — no anchor available for scheduling",
+            assignedUserId,
+          );
+          continue;
+        }
+        anchorDate = anchorCompletion.eventDate;
+      } else {
+        anchorDate = (rule.useEventDate && anchorCompletion.eventDate)
+          ? anchorCompletion.eventDate
+          : (anchorCompletion.completedAt ?? transaction.createdAt);
+      }
     } else {
       anchorDate = transaction.createdAt;
     }
