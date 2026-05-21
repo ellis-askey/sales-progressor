@@ -52,9 +52,15 @@ export function autoNrCodesFor(tenure: Tenure, purchaseType: PurchaseType): Set<
   return codes;
 }
 
+// Exchange / completion milestones — hidden from the reconciliation picker because
+// chains exist pre-exchange. A claimed file by definition shouldn't have reached
+// exchange or completion yet (the originator wouldn't be inviting agents otherwise).
+const EXCHANGE_COMPLETION_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
+
 // Bilateral cross-side milestone pairs. Ticking one auto-fills the counterpart with
 // the same eventDate. Both directions defined so cascade works regardless of which
-// side the agent ticks first. See plan for rationale per pair.
+// side the agent ticks first. See plan for rationale per pair. VM19/PM26 and
+// VM20/PM27 deliberately omitted — those rows are hidden by EXCHANGE_COMPLETION_CODES.
 const CROSS_SIDE_PAIRS: Record<string, string> = {
   VM7: "PM7",   PM7: "VM7",     // Draft contract pack: vendor issued ↔ buyer received
   VM9: "PM12",  PM12: "VM9",    // Management pack: vendor received ↔ buyer received
@@ -62,8 +68,6 @@ const CROSS_SIDE_PAIRS: Record<string, string> = {
   VM12: "PM15", PM15: "VM12",   // Initial responses: vendor issued ↔ buyer received
   VM13: "PM17", PM17: "VM13",   // Additional enquiries: vendor received ↔ buyer raised
   VM15: "PM18", PM18: "VM15",   // Additional responses: vendor issued ↔ buyer received
-  VM19: "PM26", PM26: "VM19",   // Exchange confirmed (bilateral pair)
-  VM20: "PM27", PM27: "VM20",   // Completion confirmed (bilateral pair)
 };
 
 const DEFAULT_ROW: ReconciliationRow = { ticked: false, eventDate: null };
@@ -88,7 +92,7 @@ export function ReconcileMilestonePicker({
 }) {
   const autoNr = autoNrCodesFor(tenure, purchaseType);
   const filtered = milestoneDefinitions
-    .filter((m) => !autoNr.has(m.code))
+    .filter((m) => !autoNr.has(m.code) && !EXCHANGE_COMPLETION_CODES.has(m.code))
     .sort((a, b) => {
       if (a.side !== b.side) return a.side === "vendor" ? -1 : 1;
       return a.orderIndex - b.orderIndex;
