@@ -6,6 +6,7 @@ import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
 import { calculateProgress } from "@/lib/services/fees";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
+import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { PortalNextActionCard } from "@/components/portal/PortalNextActionCard";
 import { CircularProgress } from "@/components/portal/CircularProgress";
 import { ExchangeBanner, CompletionBanner } from "@/components/portal/ExchangeBanner";
@@ -140,7 +141,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
                   {fmtPrice(transaction.purchasePrice / 100)}
                 </p>
               )}
-              {progress.predictedExchangeDate && (
+              {MEDIANS_READY && progress.predictedExchangeDate && (
                 <div className="mt-3">
                   <p className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.92)" }}>
                     {progress.isEarlyEstimate
