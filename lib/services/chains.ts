@@ -108,11 +108,10 @@ export type ChainV2 = {
   links: ChainLinkV2[];
 };
 
-// Derived at query time (Option B) — no schema change needed.
-// transaction.status is already fetched in LINK_V2_SELECT.
-export function isChainBroken(chain: ChainV2): boolean {
-  return chain.links.some((l) => l.transaction?.status === "withdrawn");
-}
+// isChainBroken moved to lib/chain/is-broken.ts so client components can
+// value-import it without pulling this whole module (which now imports
+// the milestone glossary, which uses Node's fs).
+export { isChainBroken } from "@/lib/chain/is-broken";
 
 // ─── Legacy service functions ─────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import { X } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import type { ChainV2 } from "@/lib/services/chains";
-import { isChainBroken } from "@/lib/services/chains";
+import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
