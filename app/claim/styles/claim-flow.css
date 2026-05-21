@@ -788,3 +788,111 @@
   color: var(--claim-text-2);
   cursor: pointer;
 }
+
+/* ─── Reconciliation picker (claim-time milestone backdating) ─────────────── */
+.claim-reconcile {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(26,29,41,.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.claim-reconcile-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--claim-border);
+  border-radius: var(--claim-r-sm);
+  background: var(--claim-surface);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.claim-reconcile-option:hover:not(.on) { border-color: rgba(26,29,41,.18); }
+.claim-reconcile-option.on {
+  border-color: var(--claim-coral);
+  background: rgba(255, 107, 74, 0.04);
+}
+.claim-reconcile-option-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--claim-text-1);
+}
+.claim-reconcile-option-sub {
+  font-size: 12px;
+  color: var(--claim-text-3);
+  line-height: 1.4;
+}
+.claim-reconcile-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.claim-reconcile-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--claim-text-3);
+  margin: 0 0 8px;
+}
+.claim-reconcile-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.claim-reconcile-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--claim-r-sm);
+  background: var(--claim-surface);
+  border: 1px solid transparent;
+  transition: background .12s, border-color .12s;
+}
+.claim-reconcile-row.on {
+  background: rgba(255, 107, 74, 0.04);
+  border-color: rgba(255, 107, 74, 0.16);
+}
+.claim-reconcile-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--claim-text-2);
+}
+.claim-reconcile-row-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--claim-text-3);
+  min-width: 36px;
+}
+.claim-reconcile-row-name { flex: 1; }
+.claim-reconcile-date {
+  align-self: flex-start;
+  margin-left: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--claim-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--claim-text-2);
+  background: var(--claim-bg);
+}
+.claim-reconcile-date:focus {
+  outline: none;
+  border-color: var(--claim-coral);
+}
+
+@media (max-width: 480px) {
+  .claim-reconcile-row-main { font-size: 12px; }
+  .claim-reconcile-date { margin-left: 0; width: 100%; }
+}

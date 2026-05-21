@@ -185,6 +185,13 @@ export default async function ClaimConfirmPage({
 
   const hasDuplicates = enrichedMatches.length > 0;
 
+  // Milestone definitions for the reconciliation picker. Static catalogue (47 rows),
+  // safe to fetch once per page render. Filtering for tenure/purchaseType happens client-side.
+  const milestoneDefinitions = await prisma.milestoneDefinition.findMany({
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+    select: { id: true, code: true, name: true, side: true, orderIndex: true },
+  });
+
   return (
     <Shell>
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 20px 64px" }}>
@@ -250,6 +257,7 @@ export default async function ClaimConfirmPage({
             propertyAddress: m.propertyAddress,
             createdAt: m.createdAt.toISOString(),
           }))}
+          milestoneDefinitions={milestoneDefinitions}
         />
 
         <p className="claim-wrong-note">
