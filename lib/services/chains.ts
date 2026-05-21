@@ -56,8 +56,12 @@ export type ChainLinkV2 = {
     propertyAddress: string;
     status: string;
     agencyId: string;
-    _count: { milestoneCompletions: number };
   } | null;
+  // Weighted progress 0–100 computed at query time from the claimed transaction's
+  // milestone weights + completion states. Pooled across vendor + purchaser,
+  // matching the per-file ProgressRing math in calculateProgress(). Null when
+  // the link has no claimed transaction.
+  progressPercent: number | null;
   claimedBy: {
     id: string;
     name: string;
@@ -168,9 +172,10 @@ const LINK_V2_SELECT = {
       propertyAddress: true,
       status: true,
       agencyId: true,
-      _count: {
+      milestoneCompletions: {
         select: {
-          milestoneCompletions: { where: { state: "complete" } },
+          state: true,
+          milestoneDefinition: { select: { weight: true } },
         },
       },
     },
@@ -182,6 +187,31 @@ const LINK_V2_SELECT = {
     select: { id: true, name: true },
   },
 } as const;
+
+// Pooled weighted progress matching calculateProgress() in lib/services/fees.ts.
+// Single ratio across applicable (non-NR) milestones on both sides.
+function computeWeightedProgress(
+  completions: {
+    state: string;
+    milestoneDefinition: { weight: { toNumber(): number } | number } | null;
+  }[],
+): number | null {
+  if (!completions || completions.length === 0) return null;
+  let applicableWeight = 0;
+  let completedWeight = 0;
+  for (const c of completions) {
+    if (c.state === "not_required") continue;
+    const w = c.milestoneDefinition
+      ? typeof c.milestoneDefinition.weight === "number"
+        ? c.milestoneDefinition.weight
+        : c.milestoneDefinition.weight.toNumber()
+      : 0;
+    applicableWeight += w;
+    if (c.state === "complete") completedWeight += w;
+  }
+  if (applicableWeight === 0) return 100;
+  return Math.round((completedWeight / applicableWeight) * 100);
+}
 
 export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
   const chain = await prisma.propertyChain.findUnique({
@@ -199,7 +229,24 @@ export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
       },
     },
   });
-  return chain ?? null;
+  if (!chain) return null;
+
+  // Attach progressPercent per link; strip the raw completions array from the
+  // returned shape (only the percent is exposed publicly).
+  return {
+    ...chain,
+    links: chain.links.map((l) => {
+      if (!l.transaction) {
+        return { ...l, transaction: null, progressPercent: null };
+      }
+      const { milestoneCompletions, ...txnRest } = l.transaction;
+      return {
+        ...l,
+        transaction: txnRest,
+        progressPercent: computeWeightedProgress(milestoneCompletions),
+      };
+    }),
+  };
 }
 
 // Gets the chain for a given transaction via the canonical chainLinkId field.

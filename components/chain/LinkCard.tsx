@@ -5,11 +5,6 @@ import { getChainLinkStatus, chainLinkStatusLabel, chainLinkStatusColour } from 
 import { displayChainPosition } from "@/lib/chain/positions";
 import type { ChainLinkV2 } from "@/lib/services/chains";
 
-// How many total milestones a typical transaction has — used for rough % display.
-// Real percentage would require full milestone engine context. For chain visibility
-// we show a simplified progress bar.
-const TOTAL_MILESTONE_ESTIMATE = 28;
-
 function relativeTime(date: Date | string | null): string {
   if (!date) return "";
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -99,10 +94,10 @@ export function LinkCard({
   const address1 = addressParts[0].trim();
   const address2 = addressParts.slice(1).join(",").trim();
 
-  const completedMilestones = link.transaction?._count?.milestoneCompletions ?? 0;
-  const progressPercent = link.transaction
-    ? Math.round((completedMilestones / TOTAL_MILESTONE_ESTIMATE) * 100)
-    : 0;
+  // Real weighted progress (pooled vendor + purchaser, applicable-only) computed
+  // server-side in getChainV2. Falls back to 0 only when there's no claimed
+  // transaction; render code below already gates ProgressBar + % on transaction.
+  const progressPercent = link.progressPercent ?? 0;
 
   const borderClass = isYourFile
     ? "border-l-[#FF6B4A]"
