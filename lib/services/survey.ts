@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { greetingName } from "@/lib/utils";
 
 export async function sendCompletionSurveys(transactionId: string): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
@@ -27,7 +28,7 @@ export async function sendCompletionSurveys(transactionId: string): Promise<void
     ? tx.agentUser?.name
     : tx.assignedUser?.name;
   const fromAddr = personName
-    ? personAgencyFrom(personName.split(" ")[0], tx.agency.name)
+    ? personAgencyFrom(greetingName(personName), tx.agency.name)
     : agencyFrom(tx.agency.name);
 
   for (const contact of tx.contacts) {

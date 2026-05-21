@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
+import { greetingName } from "@/lib/utils";
 
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
@@ -61,7 +62,7 @@ export async function sendClientWeeklyUpdates(agencyId: string): Promise<number>
         ? tx.agentUser?.name
         : tx.assignedUser?.name;
       const fromAddr = personName
-        ? personAgencyFrom(personName.split(" ")[0], tx.agency.name)
+        ? personAgencyFrom(greetingName(personName), tx.agency.name)
         : agencyFrom(tx.agency.name);
 
       const portalSection = contact.portalToken

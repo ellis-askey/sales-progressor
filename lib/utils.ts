@@ -63,6 +63,32 @@ export function getFirstName(fullName: string): string {
   return titleCase(parts[0]!.replace(/[.,]/g, ""));
 }
 
+/**
+ * Returns the name to address a contact by in a greeting.
+ *   "Mrs Mary Parsons" → "Mary"
+ *   "Mary Parsons"     → "Mary"
+ *   "Mary"             → "Mary"
+ *   "Mrs Parsons"      → "Mrs Parsons"   (formal — title kept when no first name)
+ *   "Dr Smith"         → "Dr Smith"
+ *   "Mrs"              → "there"
+ *   ""                 → "there"
+ */
+export function greetingName(fullName: string): string {
+  if (!fullName.trim()) return "there";
+  const parts = fullName.trim().split(/\s+/).map((p) => p.replace(/[.,]/g, ""));
+  const nonTitle = parts.filter(
+    (p) => !NAME_PREFIXES.has(p.toLowerCase()) && !NAME_SUFFIXES.has(p.toLowerCase())
+  );
+  if (nonTitle.length === 0) return "there";
+  if (nonTitle.length === 1) {
+    const titles = parts.filter((p) => NAME_PREFIXES.has(p.toLowerCase())).map(titleCase);
+    return titles.length > 0
+      ? [...titles, titleCase(nonTitle[0])].join(" ")
+      : titleCase(nonTitle[0]);
+  }
+  return titleCase(nonTitle[0]);
+}
+
 /** Normalise a UK postcode to "XX## #XX" format with a single space. */
 export function normalizePostcode(raw: string): string {
   const clean = raw.replace(/\s+/g, "").toUpperCase();

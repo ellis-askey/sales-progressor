@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom, personAgencyFrom } from "@/lib/email/from-name";
 import { buildGreeting } from "@/lib/portal-copy";
+import { greetingName } from "@/lib/utils";
 import { checkPortalLimit, rateLimitJson } from "@/lib/ratelimit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     ? contact.transaction.agentUser?.name
     : contact.transaction.assignedUser?.name;
   const fromAddr = personName
-    ? personAgencyFrom(personName.split(" ")[0], agencyName)
+    ? personAgencyFrom(greetingName(personName), agencyName)
     : agencyFrom(agencyName);
 
   const greeting = buildGreeting(contact.name);

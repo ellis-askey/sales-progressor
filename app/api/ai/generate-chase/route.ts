@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
+import { greetingName } from "@/lib/utils";
 
 // Prompt strings are verbatim from PROMPT_SPEC.md §5 and §6 — do not edit here; edit the spec first.
 
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
       : "Not provided";
 
   // Sender and firm
-  const senderFirstName = session.user.name?.split(" ")[0] ?? session.user.name ?? "Your progressor";
+  const senderFirstName = session.user.name ? greetingName(session.user.name) : "Your progressor";
   const firmName = tx.agency?.name ?? "our agency";
 
   // Recipient side and chase count
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
   const primaryRecipient = client ?? solicitor;
   const showCc = channel === "email" && includeSolicitorCc && solicitor !== null;
 
-  const recipientFirstName = primaryRecipient?.name?.split(" ")[0] ?? "there";
+  const recipientFirstName = greetingName(primaryRecipient?.name ?? "");
   const recipientRole = primaryRecipient
     ? resolveRecipientRole(primaryRecipient.roleType, recipientSide)
     : recipientSide;
