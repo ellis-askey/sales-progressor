@@ -9,6 +9,7 @@ import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { toUKDateStr } from "@/lib/utils";
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -23,14 +24,14 @@ function addBusinessDays(from: Date, days: number): Date {
   return result;
 }
 
-function classifyForStats(log: AgentLog, today: Date): "overdue" | "due_today" | "coming_up" | null {
+function classifyForStats(log: AgentLog, todayStr: string, upcomingCutoffStr: string): "overdue" | "due_today" | "coming_up" | null {
   const openTask = log.chaseTasks[0] ?? null;
   if (openTask?.priority === "escalated") return "overdue";
-  const due = new Date(log.nextDueDate); due.setHours(0, 0, 0, 0);
-  const taskDue = openTask ? (() => { const d = new Date(openTask.dueDate); d.setHours(0, 0, 0, 0); return d; })() : null;
-  if (due < today || (taskDue && taskDue < today)) return "overdue";
-  if (due.getTime() === today.getTime()) return "due_today";
-  if (due <= addBusinessDays(today, 3)) return "coming_up";
+  const dueStr = toUKDateStr(log.nextDueDate);
+  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
+  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
+  if (dueStr === todayStr) return "due_today";
+  if (dueStr <= upcomingCutoffStr) return "coming_up";
   return null;
 }
 
@@ -48,13 +49,14 @@ export default async function WorkQueuePage() {
   ]);
 
   const now = new Date();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(now);
+  const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
   // Compute header stat row (exclude snoozed logs)
   const activeForStats = reminderLogs.filter((l) => !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
   let overdueCount = 0, dueTodayCount = 0, comingUpCount = 0;
   for (const l of activeForStats) {
-    const g = classifyForStats(l, today);
+    const g = classifyForStats(l, todayStr, upcomingCutoffStr);
     if (g === "overdue") overdueCount++;
     else if (g === "due_today") dueTodayCount++;
     else if (g === "coming_up") comingUpCount++;

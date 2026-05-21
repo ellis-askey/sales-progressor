@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 
 function stripChase(name: string): string {
@@ -91,12 +91,10 @@ function SnoozeButton({ taskId, onSnooze, disabled }: {
 }
 
 export function TaskCard({ task, onAction, onChased, loading }: Props) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const dueDate = new Date(task.dueDate);
-  const isOverdue = dueDate < today;
-  const isDueToday = dueDate.toDateString() === today.toDateString();
+  const todayStr = toUKDateStr(new Date());
+  const dueStr = toUKDateStr(task.dueDate);
+  const isOverdue = dueStr < todayStr;
+  const isDueToday = dueStr === todayStr;
   const isEscalated = task.priority === "escalated";
 
   const addressParts = task.transaction.propertyAddress.split(",");

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { toUKDateStr } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -38,14 +39,14 @@ function addBusinessDays(from: Date, days: number): Date {
   return result;
 }
 
-function classifyActive(log: AgentReminderLog, today: Date): UrgencyGroup | null {
+function classifyActive(log: AgentReminderLog, todayStr: string, upcomingCutoffStr: string): UrgencyGroup | null {
   const openTask = log.chaseTasks[0] ?? null;
   if (openTask?.priority === "escalated") return "escalated";
-  const due = new Date(log.nextDueDate); due.setHours(0, 0, 0, 0);
-  const taskDue = openTask ? (() => { const d = new Date(openTask.dueDate); d.setHours(0, 0, 0, 0); return d; })() : null;
-  if (due < today || (taskDue && taskDue < today)) return "overdue";
-  if (due.getTime() === today.getTime()) return "due_today";
-  if (due <= addBusinessDays(today, 3)) return "upcoming";
+  const dueStr = toUKDateStr(log.nextDueDate);
+  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
+  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
+  if (dueStr === todayStr) return "due_today";
+  if (dueStr <= upcomingCutoffStr) return "upcoming";
   return null;
 }
 
@@ -315,11 +316,13 @@ function SideColumn({
       <div style={{ flex: 1, padding: "6px 0" }}>
         {openTasks.map(({ log, task }, i) => {
           const name = log.reminderRule.name.replace(/^Chase:\s*/i, "");
-          const today = new Date(); today.setHours(0, 0, 0, 0);
-          const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
-          const isOverdue = dueDate < today;
-          const isDueToday = dueDate.getTime() === today.getTime();
-          const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
+          const rowTodayStr = toUKDateStr(new Date());
+          const dueStr = toUKDateStr(log.nextDueDate);
+          const isOverdue = dueStr < rowTodayStr;
+          const isDueToday = dueStr === rowTodayStr;
+          const daysOverdue = isOverdue
+            ? Math.floor((new Date(rowTodayStr).getTime() - new Date(dueStr).getTime()) / 86400000)
+            : 0;
           const urgencyColor = task.priority === "escalated" ? "var(--agent-danger)"
             : isOverdue ? "#ea580c"
             : isDueToday ? "var(--agent-warning)"
@@ -600,7 +603,8 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
   }, [logs]);
 
   const now = new Date();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(now);
+  const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
   const snoozedLogs    = logs.filter((l) => !hiddenIds.has(l.id) && l.snoozedUntil && new Date(l.snoozedUntil) > now);
   const nonSnoozedLogs = logs.filter((l) => !hiddenIds.has(l.id) && !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
@@ -646,7 +650,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
   const grouped: Record<UrgencyGroup, AgentReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
   for (const log of filteredActive) {
-    const g = classifyActive(log, today);
+    const g = classifyActive(log, todayStr, upcomingCutoffStr);
     if (g) grouped[g].push(log);
   }
   grouped.escalated.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());

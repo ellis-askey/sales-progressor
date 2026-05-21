@@ -4,6 +4,7 @@ import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { toUKDateStr } from "@/lib/utils";
 
 export default async function AgentTodoPage() {
   const session = await requireSession();
@@ -14,16 +15,15 @@ export default async function AgentTodoPage() {
   const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
   const tasks = [...ownTasks, ...inboxTasks];
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
 
   const ownOpen      = tasks.filter((t) => !t.isAgentRequest && t.status === "open");
   const progOpen     = tasks.filter((t) =>  t.isAgentRequest && t.status === "open");
-  const overdueOpen  = tasks.filter((t) => t.status === "open" && t.dueDate && new Date(t.dueDate) < today);
+  const overdueOpen  = tasks.filter((t) => t.status === "open" && t.dueDate && toUKDateStr(t.dueDate) < todayStr);
   const overdueCount = overdueOpen.length;
   const hasRedOverdue = overdueOpen.some((t) => {
-    const due = new Date(t.dueDate!); due.setHours(0, 0, 0, 0);
-    return Math.floor((today.getTime() - due.getTime()) / 86400000) >= 4;
+    const dueStr = toUKDateStr(t.dueDate!);
+    return Math.round((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000) >= 4;
   });
 
   const subtitle = isProgressor

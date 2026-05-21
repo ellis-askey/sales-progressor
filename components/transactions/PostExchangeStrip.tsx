@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PostExchangeGroup } from "@/lib/services/transactions";
+import { toUKDateStr } from "@/lib/utils";
 
 type Props = {
   groups: PostExchangeGroup[];
@@ -48,7 +49,10 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
               <div className="space-y-2">
                 {group.transactions.map((tx) => {
                   const daysUntil = tx.completionDate
-                    ? Math.round((new Date(tx.completionDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000)
+                    ? Math.round(
+                        (new Date(toUKDateStr(tx.completionDate)).getTime() -
+                          new Date(toUKDateStr(new Date())).getTime()) / 86400000
+                      )
                     : null;
 
                   return (

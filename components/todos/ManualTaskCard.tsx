@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
+import { toUKDateStr } from "@/lib/utils";
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -18,8 +19,9 @@ function timeAgo(date: Date): string {
 
 function formatDue(date: Date) {
   const d = new Date(date);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.floor((d.getTime() - today.getTime()) / 86400000);
+  const todayStr = toUKDateStr(new Date());
+  const dueStr = toUKDateStr(d);
+  const diff = Math.round((new Date(dueStr).getTime() - new Date(todayStr).getTime()) / 86400000);
   if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, overdue: true };
   if (diff === 0) return { label: "Due today", overdue: false };
   if (diff === 1) return { label: "Due tomorrow", overdue: false };

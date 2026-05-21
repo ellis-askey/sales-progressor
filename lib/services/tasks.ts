@@ -3,6 +3,7 @@
 // Sprint 7: Added contacts to transaction include for ChaseDrawer context.
 
 import { prisma } from "@/lib/prisma";
+import { toUKDateStr } from "@/lib/utils";
 
 export type WorkQueueTask = {
   id: string;
@@ -55,9 +56,6 @@ export async function getWorkQueueTasks(
 ): Promise<WorkQueueTask[]> {
   const { assignedToId, statusFilter = "all", includeCompleted = false } = options;
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-
   const statusIn = includeCompleted
     ? ["pending", "done", "cancelled"]
     : ["pending"];
@@ -97,11 +95,10 @@ export async function getWorkQueueTasks(
     },
   });
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
 
   return tasks.filter((task) => {
-    if (statusFilter === "overdue") return new Date(task.dueDate) < now && task.status === "pending";
+    if (statusFilter === "overdue") return toUKDateStr(task.dueDate) < todayStr && task.status === "pending";
     if (statusFilter === "escalated") return task.priority === "escalated" && task.status === "pending";
     if (statusFilter === "pending") return task.status === "pending";
     if (statusFilter === "done") return task.status === "done" || task.status === "cancelled";
@@ -110,8 +107,7 @@ export async function getWorkQueueTasks(
 }
 
 export async function getWorkQueueCounts(agencyId: string, userId: string, agentUserId?: string): Promise<WorkQueueCounts> {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
 
   const txFilter = agentUserId
     ? { agencyId, status: "active" as const, agentUserId }
@@ -134,7 +130,7 @@ export async function getWorkQueueCounts(agencyId: string, userId: string, agent
   return {
     total: allPending.length,
     pending: allPending.length,
-    overdue: allPending.filter((t) => new Date(t.dueDate) < now).length,
+    overdue: allPending.filter((t) => toUKDateStr(t.dueDate) < todayStr).length,
     escalated: allPending.filter((t) => t.priority === "escalated").length,
     mine: allPending.filter((t) => t.assignedToId === userId).length,
     snoozed: snoozedCount,

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
+import { toUKDateStr } from "@/lib/utils";
 
 export type ManualTaskWithRelations = {
   id: string;
@@ -196,15 +197,18 @@ export async function updateManualTaskAsProgressor(
 }
 
 export async function countManualTasksDueToday(agencyId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  return prisma.manualTask.count({
+  const now = new Date();
+  const todayStr = toUKDateStr(now);
+  // Generous DB window — precise filter in JS using UK date string.
+  const windowStart = new Date(now.getTime() - 26 * 60 * 60 * 1000);
+  const windowEnd   = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+  const tasks = await prisma.manualTask.findMany({
     where: {
       agencyId,
       status: "open",
-      dueDate: { gte: today, lt: tomorrow },
+      dueDate: { gte: windowStart, lt: windowEnd },
     },
+    select: { dueDate: true },
   });
+  return tasks.filter((t) => t.dueDate && toUKDateStr(t.dueDate) === todayStr).length;
 }

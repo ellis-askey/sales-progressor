@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toUKDateStr } from "@/lib/utils";
 
 export function ExchangeTargetCell({
   transactionId,
@@ -19,7 +19,7 @@ export function ExchangeTargetCell({
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
   const effectiveDate = localDate ?? expectedExchangeDate;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toUKDateStr(new Date());
 
   async function handleDateChange(dateStr: string) {
     if (!dateStr) return;
@@ -78,12 +78,11 @@ export function ExchangeTargetCell({
     );
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(effectiveDate);
-  d.setHours(0, 0, 0, 0);
-  const isPast = d < today;
-  const weeksAway = Math.round((d.getTime() - today.getTime()) / (7 * 86400000));
+  const dStr = toUKDateStr(effectiveDate);
+  const isPast = dStr < todayStr;
+  const weeksAway = Math.round(
+    (new Date(dStr).getTime() - new Date(todayStr).getTime()) / (7 * 86400000)
+  );
 
   return (
     <div>

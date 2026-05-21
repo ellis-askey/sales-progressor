@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
+import { toUKDateStr } from "@/lib/utils";
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -97,8 +98,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
     setTasks((prev) => [created, ...prev]);
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
 
   const ownTasks  = tasks.filter((t) => !t.isAgentRequest);
   const progTasks = tasks.filter((t) =>  t.isAgentRequest);
@@ -108,10 +108,10 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
   const progOpen = sortTasks(progTasks.filter((t) => t.status === "open"));
   const progDone = sortTasks(progTasks.filter((t) => t.status === "done"));
 
-  const ownOverdue   = ownOpen.filter((t) => t.dueDate && new Date(t.dueDate) < today);
-  const ownUpcoming  = ownOpen.filter((t) => !t.dueDate || new Date(t.dueDate) >= today);
-  const progOverdue  = progOpen.filter((t) => t.dueDate && new Date(t.dueDate) < today);
-  const progUpcoming = progOpen.filter((t) => !t.dueDate || new Date(t.dueDate) >= today);
+  const ownOverdue   = ownOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
+  const ownUpcoming  = ownOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
+  const progOverdue  = progOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
+  const progUpcoming = progOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
 
   if (tasks.length === 0) {
     return (

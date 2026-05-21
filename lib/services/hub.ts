@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
+import { toUKDateStr } from "@/lib/utils";
 
 const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   chase_unanswered:          "overdue",
@@ -490,7 +491,10 @@ export async function getHubAttentionItems(
   vis: AgentVisibility
 ): Promise<HubAttentionItem[]> {
   const now = new Date();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(now);
+  // Generous DB upper bound — catches anything that could be "today UK" regardless of DST.
+  // Final precise filter happens in JS using toUKDateStr below.
+  const dbUpperBound = new Date(now.getTime() + 26 * 60 * 60 * 1000);
   const txNested = buildTxNested(vis);
 
   // Build the transaction filter for reminderLog.where.transaction.
@@ -507,7 +511,7 @@ export async function getHubAttentionItems(
       transaction: txLogFilter,
       status: "active",
       OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
-      nextDueDate: { lte: today },
+      nextDueDate: { lte: dbUpperBound },
     },
     orderBy: { nextDueDate: "asc" },
     select: {
@@ -523,21 +527,23 @@ export async function getHubAttentionItems(
     },
   });
 
-  const items: HubAttentionItem[] = logs.map((log) => {
-    const openTask = log.chaseTasks[0] ?? null;
-    const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
-    const urgency: HubAttentionItem["urgency"] =
-      openTask?.priority === "escalated" ? "escalated"
-      : dueDate < today ? "overdue"
-      : "due_today";
-    return {
-      id: log.id,
-      urgency,
-      reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
-      transaction: log.transaction,
-      nextDueDate: log.nextDueDate,
-    };
-  });
+  const items: HubAttentionItem[] = logs
+    .filter((log) => toUKDateStr(log.nextDueDate) <= todayStr)
+    .map((log) => {
+      const openTask = log.chaseTasks[0] ?? null;
+      const dueStr = toUKDateStr(log.nextDueDate);
+      const urgency: HubAttentionItem["urgency"] =
+        openTask?.priority === "escalated" ? "escalated"
+        : dueStr < todayStr ? "overdue"
+        : "due_today";
+      return {
+        id: log.id,
+        urgency,
+        reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
+        transaction: log.transaction,
+        nextDueDate: log.nextDueDate,
+      };
+    });
 
   const order = { escalated: 0, overdue: 1, due_today: 2 };
   items.sort((a, b) => {
@@ -557,8 +563,11 @@ export type DiaryItem = {
 };
 
 export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const now = new Date();
+  const todayStr = toUKDateStr(now);
+  // Generous window — refined by JS filter below using UK date string.
+  const windowStart = new Date(now.getTime() - 26 * 60 * 60 * 1000);
+  const windowEnd   = new Date(now.getTime() + 26 * 60 * 60 * 1000);
   const txWhere = buildTxWhere(vis);
 
   const [exchanges, completions] = await Promise.all([
@@ -567,29 +576,34 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
         ...txWhere,
         status: "active",
         OR: [
-          { expectedExchangeDate:  { gte: todayStart, lte: todayEnd } },
-          { overridePredictedDate: { gte: todayStart, lte: todayEnd } },
+          { expectedExchangeDate:  { gte: windowStart, lte: windowEnd } },
+          { overridePredictedDate: { gte: windowStart, lte: windowEnd } },
         ],
       },
-      select: { id: true, propertyAddress: true },
+      select: { id: true, propertyAddress: true, expectedExchangeDate: true, overridePredictedDate: true },
     }),
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: { in: ["active", "completed"] },
-        completionDate: { gte: todayStart, lte: todayEnd },
+        completionDate: { gte: windowStart, lte: windowEnd },
       },
-      select: { id: true, propertyAddress: true },
+      select: { id: true, propertyAddress: true, completionDate: true },
     }),
   ]);
+
+  const isToday = (d: Date | null) => d !== null && toUKDateStr(d) === todayStr;
 
   // Completions first (higher significance); deduplicate by transactionId
   const seen = new Set<string>();
   const items: DiaryItem[] = [];
   for (const tx of completions) {
+    if (!isToday(tx.completionDate)) continue;
     if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress }); }
   }
   for (const tx of exchanges) {
+    const exDate = tx.overridePredictedDate ?? tx.expectedExchangeDate;
+    if (!isToday(exDate)) continue;
     if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress }); }
   }
   return items;

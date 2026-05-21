@@ -5,6 +5,7 @@ import { getSolicitorExchangeStats, getMonthlyActivity } from "@/lib/services/an
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
+import { toUKDateStr } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,15 +124,10 @@ export default async function AnalyticsPreviewPage({
 
   if (period === "week") {
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const next = new Date(d); next.setDate(d.getDate() + 1);
-      const label = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
-      const count = transactions.filter(t => {
-        const c = new Date(t.createdAt);
-        return c >= d && c < next;
-      }).length;
+      const dayDate = new Date(today.getTime() - i * 86_400_000);
+      const dayStr = toUKDateStr(dayDate);
+      const label = dayDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+      const count = transactions.filter(t => toUKDateStr(t.createdAt) === dayStr).length;
       barEntries.push({ label, count });
     }
   } else {

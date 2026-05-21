@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { CheckCircle, Clock, CaretDown, CaretUp } from "@phosphor-icons/react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
@@ -304,13 +304,15 @@ export function ReminderCard({
     setIsExiting(true);
     return new Promise((resolve) => setTimeout(() => { onSnooze(taskId, hours); resolve(); }, 260));
   }
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
   const isEscalated = openTask?.priority === "escalated";
-  const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
-  const isOverdue = dueDate < today;
-  const isDueToday = dueDate.getTime() === today.getTime();
-  const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
+  const dueStr = toUKDateStr(log.nextDueDate);
+  const isOverdue = dueStr < todayStr;
+  const isDueToday = dueStr === todayStr;
+  const daysOverdue = isOverdue
+    ? Math.floor((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000)
+    : 0;
 
   const party = getPartyFromCode(log.reminderRule.targetMilestoneCode);
   const partyLabel = party === "vendor" ? "Seller" : party === "purchaser" ? "Buyer" : null;

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
+import { toUKDateStr } from "@/lib/utils";
 
 type DigestFile = {
   id: string;
@@ -23,13 +24,13 @@ function fmtDate(d: Date) {
 }
 
 function daysUntil(d: Date) {
-  const ms = new Date(d).setHours(12, 0, 0, 0) - new Date().setHours(12, 0, 0, 0);
-  return Math.round(ms / 86400000);
+  const todayStr = toUKDateStr(new Date());
+  const dStr = toUKDateStr(d);
+  return Math.round((new Date(dStr).getTime() - new Date(todayStr).getTime()) / 86400000);
 }
 
 export async function buildMorningDigest(agencyId: string): Promise<ProgressorDigest[]> {
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const todayStr = toUKDateStr(new Date());
 
   const progressors = await prisma.user.findMany({
     where: { agencyId, role: { in: ["admin", "sales_progressor", "director"] } },
@@ -67,9 +68,9 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
       let dueToday = 0;
 
       for (const log of logs) {
-        const due = new Date(log.nextDueDate); due.setHours(12, 0, 0, 0);
-        if (due < todayStart) overdueChases++;
-        else if (due <= todayEnd) dueToday++;
+        const dueStr = toUKDateStr(log.nextDueDate);
+        if (dueStr < todayStr) overdueChases++;
+        else if (dueStr === todayStr) dueToday++;
       }
 
       const exchangeTarget = tx.expectedExchangeDate ?? null;

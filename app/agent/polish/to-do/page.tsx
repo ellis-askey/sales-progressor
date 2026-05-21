@@ -32,6 +32,7 @@
 import { useState, useEffect } from "react";
 import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { toUKDateStr } from "@/lib/utils";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -57,9 +58,9 @@ function fmtDate(d: Date): string {
 }
 
 function getDueStatus(dueDate: Date): { label: string; color: string; reassure: boolean } {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
-  const diff = Math.floor((today.getTime() - due.getTime()) / 86400000);
+  const todayStr = toUKDateStr(new Date());
+  const dueStr = toUKDateStr(dueDate);
+  const diff = Math.round((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000);
   if (diff < 0) {
     if (diff === -1) return { label: "Due tomorrow",    color: "var(--agent-text-muted)", reassure: false };
     return              { label: `Due ${fmtDate(dueDate)}`, color: "var(--agent-text-muted)", reassure: false };
@@ -200,8 +201,9 @@ export default function TodoPolishPage() {
   const progOpen   = progTasks.filter((t) => !t.isDone);
   const progDone   = progTasks.filter((t) =>  t.isDone);
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const overdueOpen = mineOpen.filter((t) => t.dueDate && new Date(t.dueDate) < today);
+  const todayStr = toUKDateStr(new Date());
+  const today = new Date(todayStr); // mock-data prop pass-through (UK midnight as Date)
+  const overdueOpen = mineOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
 
   /* ── Stat pills (matches page.tsx logic) ──────────────────────────── */
   const statPills = viewState === "populated" ? [

@@ -9,13 +9,15 @@ import {
   type TxGroup,
   type MilestoneRow,
 } from "@/components/comms/CommsActivityFeed";
+import { toUKDateStr } from "@/lib/utils";
 
 function dayLabel(d: Date | string) {
   const date = new Date(d);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  if (date >= today) return "Today";
-  if (date >= yesterday) return "Yesterday";
+  const todayStr = toUKDateStr(new Date());
+  const yesterdayStr = toUKDateStr(new Date(Date.now() - 86_400_000));
+  const dStr = toUKDateStr(date);
+  if (dStr >= todayStr) return "Today";
+  if (dStr >= yesterdayStr) return "Yesterday";
   return date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
 

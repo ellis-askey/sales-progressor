@@ -10,6 +10,7 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { toUKDateStr } from "@/lib/utils";
 
 function fmtCompact(pence: number) {
   const pounds = pence / 100;
@@ -51,16 +52,17 @@ export default async function AgentCompletionsPage() {
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const files = await getAgentCompletions(vis);
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const in7  = new Date(today); in7.setDate(today.getDate() + 7);
-  const in14 = new Date(today); in14.setDate(today.getDate() + 14);
+  const now = new Date();
+  const todayStr = toUKDateStr(now);
+  const in7Str  = toUKDateStr(new Date(now.getTime() + 7 * 86400000));
+  const in14Str = toUKDateStr(new Date(now.getTime() + 14 * 86400000));
 
   function urgencyFor(date: Date | null) {
     if (!date) return "no_date";
-    const d = new Date(date); d.setHours(0, 0, 0, 0);
-    if (d < today) return "overdue";
-    if (d < in7)   return "this_week";
-    if (d < in14)  return "next_week";
+    const dStr = toUKDateStr(date);
+    if (dStr < todayStr) return "overdue";
+    if (dStr < in7Str)   return "this_week";
+    if (dStr < in14Str)  return "next_week";
     return "later";
   }
 

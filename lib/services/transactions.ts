@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { toUKDateStr } from "@/lib/utils";
 
 export async function listTransactions(
   agencyId: string,
@@ -466,10 +467,10 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
 
   if (exchanged.length === 0) return [];
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const in7 = new Date(today); in7.setDate(today.getDate() + 7);
-  const in14 = new Date(today); in14.setDate(today.getDate() + 14);
+  const now = new Date();
+  const todayStr = toUKDateStr(now);
+  const in7Str = toUKDateStr(new Date(now.getTime() + 7 * 86400000));
+  const in14Str = toUKDateStr(new Date(now.getTime() + 14 * 86400000));
 
   const groups: Record<PostExchangeGroup["urgency"], PostExchangeTransaction[]> = {
     overdue: [],
@@ -481,10 +482,10 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
 
   for (const tx of exchanged) {
     if (!tx.completionDate) { groups.no_date.push(tx); continue; }
-    const d = new Date(tx.completionDate); d.setHours(0, 0, 0, 0);
-    if (d < today) groups.overdue.push(tx);
-    else if (d < in7) groups.this_week.push(tx);
-    else if (d < in14) groups.next_week.push(tx);
+    const dStr = toUKDateStr(tx.completionDate);
+    if (dStr < todayStr) groups.overdue.push(tx);
+    else if (dStr < in7Str) groups.this_week.push(tx);
+    else if (dStr < in14Str) groups.next_week.push(tx);
     else groups.later.push(tx);
   }
 
@@ -566,10 +567,10 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
 
   if (exchanged.length === 0) return [];
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const in7 = new Date(today); in7.setDate(today.getDate() + 7);
-  const in14 = new Date(today); in14.setDate(today.getDate() + 14);
+  const now = new Date();
+  const todayStr = toUKDateStr(now);
+  const in7Str = toUKDateStr(new Date(now.getTime() + 7 * 86400000));
+  const in14Str = toUKDateStr(new Date(now.getTime() + 14 * 86400000));
 
   const groups: Record<PostExchangeGroupDetailed["urgency"], PostExchangeTransactionDetailed[]> = {
     overdue: [], this_week: [], next_week: [], later: [], no_date: [],
@@ -577,10 +578,10 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
 
   for (const tx of exchanged) {
     if (!tx.completionDate) { groups.no_date.push(tx); continue; }
-    const d = new Date(tx.completionDate); d.setHours(0, 0, 0, 0);
-    if (d < today) groups.overdue.push(tx);
-    else if (d < in7) groups.this_week.push(tx);
-    else if (d < in14) groups.next_week.push(tx);
+    const dStr = toUKDateStr(tx.completionDate);
+    if (dStr < todayStr) groups.overdue.push(tx);
+    else if (dStr < in7Str) groups.this_week.push(tx);
+    else if (dStr < in14Str) groups.next_week.push(tx);
     else groups.later.push(tx);
   }
 

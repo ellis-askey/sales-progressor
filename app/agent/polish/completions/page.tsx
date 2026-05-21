@@ -26,6 +26,7 @@ import { CaretDown, ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { toUKDateStr } from "@/lib/utils";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -87,9 +88,9 @@ function timeSinceExchange(iso: string | null): string | null {
 
 function computeDays(iso: string | null): { rel: number | null; label: string; color: string } {
   if (!iso) return { rel: null, label: "", color: "var(--agent-text-muted)" };
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(iso); d.setHours(0, 0, 0, 0);
-  const rel = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+  const todayStr = toUKDateStr(new Date());
+  const dStr = toUKDateStr(new Date(iso));
+  const rel = Math.round((new Date(dStr).getTime() - new Date(todayStr).getTime()) / 86_400_000);
   let label = "";
   let color = "var(--agent-text-muted)";
   if (rel < 0)       { label = `${Math.abs(rel)} days overdue`; color = "var(--agent-danger)"; }

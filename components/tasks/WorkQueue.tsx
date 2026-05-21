@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction } from "@/app/actions/tasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toUKDateStr } from "@/lib/utils";
 import type { WorkQueueTask, WorkQueueCounts, SnoozedItem } from "@/lib/services/tasks";
 
 type Filter = "all" | "mine" | "overdue" | "escalated" | "snoozed";
@@ -30,11 +30,11 @@ export function WorkQueue({ tasks, snoozedItems, counts, currentUserId }: Props)
   const [activeFilter, setActiveFilter] = useState<Filter>("all");
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = toUKDateStr(new Date());
 
   const filtered = optimisticTasks.filter((task) => {
     if (activeFilter === "mine") return task.assignedTo?.id === currentUserId || task.transaction.assignedUserId === currentUserId;
-    if (activeFilter === "overdue") return new Date(task.dueDate) < today && task.status === "pending";
+    if (activeFilter === "overdue") return toUKDateStr(task.dueDate) < todayStr && task.status === "pending";
     if (activeFilter === "escalated") return task.priority === "escalated" && task.status === "pending";
     return task.status === "pending";
   });
