@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
 
 type ChaseTask = {
@@ -86,29 +88,59 @@ function classifyActive(log: ReminderLog, todayStr: string): UrgencyGroup {
 
 function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: string; onSnooze: (logId: string, taskId: string, hours: number) => void }) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const { theme } = usePortalTheme();
+
+  function close() { setClosing(true); setOpen(false); }
+
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
+    function handleScroll() { close(); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
+
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          if (!open && !closing && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            setPos({ top: r.top - 4, right: window.innerWidth - r.right });
+          }
+          if (open) { close(); } else { setClosing(false); setOpen(true); }
+        }}
         title="Snooze this reminder"
         style={{ fontSize: 10, color: "var(--agent-text-muted)", padding: "3px 7px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
       >
         🕐
       </button>
-      {open && (
-        <div className="absolute bottom-full mb-1 right-0 z-30 agent-dropdown-in" style={{ background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110 }}>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          data-theme={theme}
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
+          style={{
+            position: "fixed", top: pos.top, right: pos.right,
+            transform: "translateY(-100%)",
+            zIndex: 9999,
+            background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
+          }}
+        >
           {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -116,29 +148,60 @@ function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: str
 
 function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: string[]; taskIds: string[]; onSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void; disabled: boolean }) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const { theme } = usePortalTheme();
+
+  function close() { setClosing(true); setOpen(false); }
+
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
+    function handleScroll() { close(); }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
+
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => {
+          if (disabled) return;
+          if (!open && !closing && ref.current) {
+            const r = ref.current.getBoundingClientRect();
+            setPos({ top: r.top - 4, left: r.left });
+          }
+          if (open) { close(); } else { setClosing(false); setOpen(true); }
+        }}
         disabled={disabled}
         className="agent-btn agent-btn-sm agent-btn-ghost"
       >
         🕐 Snooze
       </button>
-      {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-30 agent-dropdown-in" style={{ background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110 }}>
+      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        <div
+          data-theme={theme}
+          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+          onAnimationEnd={() => { if (closing) setClosing(false); }}
+          style={{
+            position: "fixed", top: pos.top, left: pos.left,
+            transform: "translateY(-100%)",
+            zIndex: 9999,
+            background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
+          }}
+        >
           {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); setOpen(false); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

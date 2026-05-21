@@ -119,6 +119,26 @@ export function ChaseDrawer({
   const [channel, setChannel] = useState<Channel>("email");
   const [tone, setTone] = useState<Tone>(autoTone(nextChaseNumber));
   const [toneMenuOpen, setToneMenuOpen] = useState(false);
+  const [toneMenuClosing, setToneMenuClosing] = useState(false);
+  const [toneMenuPos, setToneMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const toneMenuRef = useRef<HTMLDivElement>(null);
+
+  function closeToneMenu() { setToneMenuClosing(true); setToneMenuOpen(false); }
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (toneMenuRef.current && !toneMenuRef.current.contains(e.target as Node)) closeToneMenu();
+    }
+    function handleScroll() { closeToneMenu(); }
+    if (toneMenuOpen) {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("scroll", handleScroll, true);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [toneMenuOpen]);
   const [ccSolicitor, setCcSolicitor] = useState(true);
   const [message, setMessage] = useState("");
   const [generatedText, setGeneratedText] = useState("");
@@ -476,9 +496,15 @@ export function ChaseDrawer({
               <p className="agent-section-label" style={{ margin: 0 }}>Tone</p>
               <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)" }}>Auto-selected — change if needed</span>
             </div>
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative" }} ref={toneMenuRef}>
               <button
-                onClick={() => setToneMenuOpen((v) => !v)}
+                onClick={() => {
+                  if (!toneMenuOpen && !toneMenuClosing && toneMenuRef.current) {
+                    const r = toneMenuRef.current.getBoundingClientRect();
+                    setToneMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+                  }
+                  if (toneMenuOpen) { closeToneMenu(); } else { setToneMenuClosing(false); setToneMenuOpen(true); }
+                }}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
@@ -490,17 +516,23 @@ export function ChaseDrawer({
                   {toneMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
                 </span>
               </button>
-              {toneMenuOpen && (
-                <div className="agent-dropdown-in" style={{
-                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 20,
-                  background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
-                  borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
-                }}>
+              {(toneMenuOpen || toneMenuClosing) && toneMenuPos && typeof document !== "undefined" && createPortal(
+                <div
+                  data-theme={theme}
+                  className={toneMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
+                  onAnimationEnd={() => { if (toneMenuClosing) setToneMenuClosing(false); }}
+                  style={{
+                    position: "fixed", top: toneMenuPos.top, left: toneMenuPos.left, width: toneMenuPos.width,
+                    zIndex: 9999,
+                    background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
+                    borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
+                  }}
+                >
                   {TONES.map((t) => (
                     <button
                       key={t}
-                      onClick={() => { setTone(t); setToneMenuOpen(false); }}
+                      onClick={() => { setTone(t); closeToneMenu(); }}
                       style={{
                         width: "100%", textAlign: "left", padding: "9px 12px",
                         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -514,7 +546,8 @@ export function ChaseDrawer({
                       )}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
