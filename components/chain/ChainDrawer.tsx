@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector } from "@/components/chain/LinkCard";
 import type { ChainV2 } from "@/lib/services/chains";
 import { isChainBroken } from "@/lib/services/chains";
+import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -419,6 +420,42 @@ export function ChainDrawer({
                   </p>
                 </div>
               )}
+
+              {/* Chain bottleneck banner — only when the chain is intact + a
+               * meaningful gap (>7 days) exists between the slowest claimed
+               * link and the median of the others. Relative comparison so it's
+               * safe to surface even before MEDIANS_READY (every link uses the
+               * same biased medians; the slowest is still the slowest). */}
+              {(() => {
+                if (isChainBroken(chain)) return null;
+                const bottleneck = computeChainBottleneck(chain);
+                if (!bottleneck) return null;
+                const isYourFile = bottleneck.claimedByUserId === currentUserId;
+                return (
+                  <div style={{
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    background: "rgba(245,158,11,0.08)",
+                    border: "0.5px solid rgba(245,158,11,0.25)",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}>
+                    <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>ℹ</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, lineHeight: 1.5 }}>
+                        Holdup in this chain
+                      </p>
+                      <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>
+                        {isYourFile
+                          ? `Your file is currently the holdup in this chain — about ${bottleneck.daysBehind} days behind the others.`
+                          : `The file at ${bottleneck.address} is running about ${bottleneck.daysBehind} days behind the rest of the chain. Worth a coordinated nudge from chain-mates.`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Add above button */}
               {showAddAbove && (
