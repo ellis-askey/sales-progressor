@@ -190,15 +190,31 @@ export function ReconcileMilestonePicker({
     const counterpartIsAutoFromThisSource = existingCounterpart.autoFilledFrom === sourceCode;
 
     // Tick of source → set counterpart with same date IF counterpart is untouched
-    // OR was previously auto-set from this same source.
+    // OR was previously auto-set from this same source. ALSO: counterpart must be
+    // unlocked given the new ticked set (so we don't auto-tick a locked row).
     if (patch.ticked === true) {
-      if (!existingCounterpart.ticked || counterpartIsAutoFromThisSource) {
+      // Compute the would-be-unlocked state for the counterpart, factoring in
+      // that the source row just became ticked (which might be the prereq that
+      // unlocks the counterpart, e.g. VM9 → PM12).
+      const tickedAfter = new Set(tickedCodes);
+      tickedAfter.add(sourceCode);
+      const counterpartPrereqs = DIRECT_PREREQUISITES[counterpartCode!] ?? [];
+      const counterpartWouldBeUnlocked = counterpartPrereqs.every(
+        (p) => tickedAfter.has(p) || autoNr.has(p),
+      );
+
+      if (
+        counterpartWouldBeUnlocked &&
+        (!existingCounterpart.ticked || counterpartIsAutoFromThisSource)
+      ) {
         next[counterpartId] = {
           ticked: true,
           eventDate: updatedSource.eventDate,
           autoFilledFrom: sourceCode,
         };
       }
+      // If counterpart is locked: skip cascade silently. Agent will reach the
+      // counterpart in step 2 once its prereqs are ticked and can tick it manually.
     }
     // Untick of source → untick counterpart IF it was auto-set from this source.
     // If counterpart was manually ticked (no autoFilledFrom), leave it.
