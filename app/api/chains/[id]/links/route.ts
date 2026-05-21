@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
+import { prisma } from "@/lib/prisma";
+import { sendChainInvite } from "@/lib/chain/invite";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -32,6 +36,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     stubAgentName?: string | null;
     stubAgentPhone?: string | null;
     stubNotes?: string | null;
+    sendInviteNow?: boolean;
   };
 
   if (!body.direction || !body.stubPropertyAddress || !body.stubAgencyName) {
@@ -69,6 +74,58 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     stubAgentPhone: body.stubAgentPhone ?? null,
     stubNotes: body.stubNotes ?? null,
   });
+
+  // Auto-send invite when client requested it AND a valid email is present.
+  // Mirrors the client's EMAIL_RE so the auto-send + the manual "Send invite"
+  // button accept the same set of addresses.
+  const email = body.stubAgentEmail?.trim().toLowerCase() ?? "";
+  if (body.sendInviteNow && email && EMAIL_RE.test(email)) {
+    const newLink = await prisma.chainLink.findFirst({
+      where: {
+        chainId,
+        createdByUserId: session.user.id,
+        stubAgentEmail: email,
+        transactionId: null,
+        inviteStatus: "NOT_SENT",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        stubAgentEmail: true,
+        stubAgentName: true,
+        stubPropertyAddress: true,
+        stubAgencyName: true,
+        inviteStatus: true,
+        inviteResendCount: true,
+        chain: {
+          select: {
+            createdByUserId: true,
+            links: {
+              orderBy: { position: "asc" },
+              select: {
+                position: true,
+                transactionId: true,
+                stubPropertyAddress: true,
+                transaction: { select: { propertyAddress: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (newLink) {
+      await sendChainInvite({
+        link: newLink,
+        sentByUserId: session.user.id,
+        sentByName: session.user.name ?? "",
+      }).catch((err) => {
+        // Don't fail the POST if the invite send itself errors — the stub is
+        // already created and the agent can retry via the manual resend button.
+        console.error("sendChainInvite failed", err);
+      });
+    }
+  }
 
   return NextResponse.json({ chain: updatedChain }, { status: 201 });
 }
