@@ -7,6 +7,13 @@ import { prisma } from "@/lib/prisma";
 
 type PositionedLink = { id: string; position: number };
 
+// Display convention: bottom of chain = #1, counting upward to the top.
+// DB position 0 (top of chain) displays as #N. DB position N-1 (bottom) displays as #1.
+// Every display surface must route through this helper — no per-surface +1 math.
+export function displayChainPosition(dbPosition: number, totalLinks: number): number {
+  return totalLinks - dbPosition;
+}
+
 // Returns the position for a brand-new link inserted above all existing links.
 // Caller must also shift all existing links' positions up by 1 (shiftAllUp).
 export function positionForNewTop(): number {

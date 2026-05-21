@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ClaimSignupForm } from "@/components/claim/ClaimSignupForm";
+import { displayChainPosition } from "@/lib/chain/positions";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -174,7 +175,7 @@ export default async function ClaimSignupPage({
                   <div className="claim-chain-row">
                     <div className="claim-chain-gutter">
                       <span className="claim-chain-num">
-                        {String(cl.position).padStart(2, "0")}
+                        {String(displayChainPosition(cl.position, chainLinks.length)).padStart(2, "0")}
                       </span>
                     </div>
                     <div

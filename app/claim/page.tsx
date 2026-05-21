@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { displayChainPosition } from "@/lib/chain/positions";
 import "./styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -211,7 +212,7 @@ export default async function ClaimPage({
                   <div className="claim-chain-row">
                     <div className="claim-chain-gutter">
                       <span className="claim-chain-num">
-                        {String(cl.position).padStart(2, "0")}
+                        {String(displayChainPosition(cl.position, chainLinks.length)).padStart(2, "0")}
                       </span>
                     </div>
                     <div

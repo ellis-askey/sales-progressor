@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { findDuplicateTransactions } from "@/lib/chain/duplicate-detection";
 import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
+import { displayChainPosition } from "@/lib/chain/positions";
 import "../styles/claim-flow.css";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -175,8 +176,9 @@ export default async function ClaimConfirmPage({
 
   // Chain position
   const stubLink = link.chain.links.find((l) => l.id === link.id);
-  const chainPosition = stubLink?.position ?? null;
   const totalLinks = link.chain.links.length;
+  const chainPosition =
+    stubLink !== undefined ? displayChainPosition(stubLink.position, totalLinks) : null;
 
   // Originator
   const originatorName = link.chain.createdBy?.name ?? null;

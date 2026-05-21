@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { getChainLinkStatus, chainLinkStatusLabel, chainLinkStatusColour } from "@/lib/chain/status";
+import { displayChainPosition } from "@/lib/chain/positions";
 import type { ChainLinkV2 } from "@/lib/services/chains";
 
 // How many total milestones a typical transaction has — used for rough % display.
@@ -125,7 +126,7 @@ export function LinkCard({
 
       {/* Position + progress */}
       <div className="flex items-center gap-2 text-xs text-slate-900/40 mt-1">
-        <span>Position {link.position + 1} of {totalLinks}</span>
+        <span>Position {displayChainPosition(link.position, totalLinks)} of {totalLinks}</span>
         {link.transaction && (
           <span className="ml-auto">{progressPercent}%</span>
         )}

@@ -4,6 +4,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
+import { displayChainPosition } from "@/lib/chain/positions";
 import crypto from "crypto";
 
 type LinkForInvite = {
@@ -97,7 +98,7 @@ async function sendInviteEmail(input: {
     stubPosition < originatorPosition ? "sale above" : "sale below";
 
   const totalLinks = link.chain.links.length;
-  const linkPosition = stubPosition + 1; // 1-indexed for display
+  const linkPosition = displayChainPosition(stubPosition, totalLinks); // bottom=#1 convention
   const claimedCount = link.chain.links.filter((l) => l.transactionId !== null).length;
   const recipientName = link.stubAgencyName ?? "there";
 
