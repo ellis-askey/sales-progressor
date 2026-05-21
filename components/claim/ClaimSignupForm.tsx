@@ -126,8 +126,35 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
     router.push(`/agent/transactions/${transactionId}?claimed=1&newUser=1`);
   }
 
+  const isWizardActive = reconciliationMode === "in_progress";
+  const allUpperFilled =
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    firmName.trim().length > 0 &&
+    tenure !== null &&
+    purchaseType !== null;
+  const upperSummary = allUpperFilled
+    ? `${firstName.trim()} ${lastName.trim()} · ${firmName.trim()} · ${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}`
+    : "";
+
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Combined summary pill — shown when wizard is active. Clicking exits wizard mode
+         so all upper sections re-expand. */}
+      {isWizardActive && allUpperFilled && (
+        <button
+          type="button"
+          className="claim-sale-details-summary"
+          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
+          aria-label="Edit your details"
+        >
+          <span>{upperSummary}</span>
+          <span className="claim-sale-details-summary-edit">Edit</span>
+        </button>
+      )}
+
+      {/* Collapsible upper form — name + email + password + agency + sale details */}
+      <div className={`claim-collapsible${isWizardActive ? " collapsed" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Name row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="claim-field">
@@ -211,23 +238,8 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
         />
       </div>
 
-      {/* Compact summary when wizard is active */}
-      {reconciliationMode === "in_progress" && tenure && purchaseType && (
-        <button
-          type="button"
-          className="claim-sale-details-summary"
-          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
-          aria-label="Edit sale details"
-        >
-          <span>
-            {tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · {purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}
-          </span>
-          <span className="claim-sale-details-summary-edit">Edit</span>
-        </button>
-      )}
-
       {/* Sale details */}
-      <div className={`claim-sale-details${reconciliationMode === "in_progress" ? " collapsed" : ""}`}>
+      <div className="claim-sale-details">
         <p className="claim-sale-details-note">Two details to set up your file.</p>
         <div>
           <label className="claim-field-label">Tenure</label>
@@ -250,6 +262,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
           </label>
         )}
       </div>
+      </div>{/* /.claim-collapsible */}
 
       {/* Reconciliation picker — only after tenure + purchaseType selected */}
       {tenure && purchaseType && (

@@ -95,8 +95,29 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
   }
 
+  const isWizardActive = reconciliationMode === "in_progress";
+  const allUpperFilled = tenure !== null && purchaseType !== null;
+  const upperSummary = allUpperFilled
+    ? `${stubEmail} · ${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}`
+    : "";
+
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Combined summary pill — shown when wizard is active */}
+      {isWizardActive && allUpperFilled && (
+        <button
+          type="button"
+          className="claim-sale-details-summary"
+          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
+          aria-label="Edit your details"
+        >
+          <span>{upperSummary}</span>
+          <span className="claim-sale-details-summary-edit">Edit</span>
+        </button>
+      )}
+
+      {/* Collapsible upper form — email + password + sale details */}
+      <div className={`claim-collapsible${isWizardActive ? " collapsed" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Email — locked */}
       <div className="claim-field">
         <label className="claim-field-label">Email</label>
@@ -142,23 +163,8 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
         </p>
       </div>
 
-      {/* Compact summary when wizard is active */}
-      {reconciliationMode === "in_progress" && tenure && purchaseType && (
-        <button
-          type="button"
-          className="claim-sale-details-summary"
-          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
-          aria-label="Edit sale details"
-        >
-          <span>
-            {tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · {purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}
-          </span>
-          <span className="claim-sale-details-summary-edit">Edit</span>
-        </button>
-      )}
-
       {/* Sale details */}
-      <div className={`claim-sale-details${reconciliationMode === "in_progress" ? " collapsed" : ""}`}>
+      <div className="claim-sale-details">
         <p className="claim-sale-details-note">Two details to set up your file.</p>
         <div>
           <label className="claim-field-label">Tenure</label>
@@ -181,6 +187,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props
           </label>
         )}
       </div>
+      </div>{/* /.claim-collapsible */}
 
       {/* Reconciliation picker — only after tenure + purchaseType selected */}
       {tenure && purchaseType && (
