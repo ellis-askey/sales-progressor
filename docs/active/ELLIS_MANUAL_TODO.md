@@ -8,6 +8,65 @@ Last updated: 2026-05-21
 
 ---
 
+## Medians-ready email — manual swap when it arrives
+
+A new daily cron `/api/cron/medians-ready-check` watches the platform's accumulated completion data. The moment ≥50 distinct transactions have at least one non-reconciled completed milestone, the cron sends a one-shot email (`MEDIANS_READY`) to every superadmin with a per-milestone comparison table: current hardcoded value vs computed median vs sample size, tagged as **Ready** (≥30 samples), **Low sample** (10–29), or **Insufficient** (<10).
+
+**The email will NOT re-fire.** A `SystemNotification` row keyed `medians_ready` is written after enqueueing, and subsequent cron runs short-circuit on its presence. To re-test (staging only), delete the row directly.
+
+### When the email arrives, do this:
+
+1. **Read the per-milestone table.** Decide which rows to action (the body suggests two paths: action only the ≥30 rows, OR wait until 100 transactions for higher per-row confidence).
+2. **Edit [lib/services/fees.ts:77](lib/services/fees.ts#L77)** — replace the hardcoded `MILESTONE_DURATION_MEDIANS` values with the computed medians for the codes you're confident about. Leave the others on hardcoded values.
+3. **Edit [lib/services/milestone-staleness.ts](lib/services/milestone-staleness.ts)** — flip `export const MEDIANS_READY = false;` to `true`. This re-activates platform-wide:
+   - The slowness badge (Change 3 of the visibility pass): per-milestone "X days slower than typical" pills.
+   - The predicted-exchange band (Change 2 of the visibility pass): "Around mid June" / "~mid Jun" on sidebar, portal, and chain LinkCards.
+4. **Commit + deploy as a single PR**, e.g. `"fees: swap MILESTONE_DURATION_MEDIANS for learned values; MEDIANS_READY=true"`.
+5. **Verify** that the slowness badges + exchange bands now render on real files. The staleness badge (Change 5) was always on — it doesn't depend on the flag.
+
+### If you want to skip the email and use this signal yourself before it fires:
+
+Query the DB directly: `SELECT COUNT(DISTINCT "transactionId") FROM "MilestoneCompletion" WHERE state = 'complete' AND "reconciledAtClaim" = false;`. When that hits 50 in production, the cron will fire on the next 09:00 UTC run.
+
+### Staging steps (run before merging Change 6 to production)
+
+```bash
+# Migration already applied to staging by CC on 2026-05-21.
+# Verify the table exists:
+DATABASE_URL="<staging-direct-url>" psql -c '\d "SystemNotification"'
+
+# To force-fire the cron on staging without waiting for 50 real transactions:
+# (a) Lower TRANSACTION_THRESHOLD in app/api/cron/medians-ready-check/route.ts to your current count.
+# (b) Hit the route with the staging CRON_SECRET:
+curl -H "Authorization: Bearer <STAGING_CRON_SECRET>" https://<staging-deploy>.vercel.app/api/cron/medians-ready-check
+
+# Confirm the OutboundEmailQueue got the row, then either wait for the daily
+# drain (09:00 UTC) or run it manually:
+curl -H "Authorization: Bearer <STAGING_CRON_SECRET>" https://<staging-deploy>.vercel.app/api/cron/drain-outbound-email
+
+# Confirm the SystemNotification row was written:
+DATABASE_URL="<staging-direct-url>" psql -c 'SELECT * FROM "SystemNotification";'
+
+# Reset for re-test:
+DATABASE_URL="<staging-direct-url>" psql -c 'DELETE FROM "SystemNotification" WHERE key = '\''medians_ready'\'';'
+DATABASE_URL="<staging-direct-url>" psql -c 'DELETE FROM "OutboundEmailQueue" WHERE "emailType" = '\''MEDIANS_READY'\'';'
+
+# Confirm EMAIL_SANDBOX_MODE=true on staging so sandbox-mode is on for the
+# test send (no real email goes out — SendGrid validates but doesn't deliver).
+```
+
+### Production migration
+
+Once staging walk is approved:
+
+```bash
+DATABASE_URL="<production-direct-url>" npx prisma migrate deploy
+```
+
+Then deploy the Change 6 code via `vercel --prod` from the visibility-pass arc's final approved commit.
+
+---
+
 ## Founder Brief / Weekly Review — internal-account exclusion
 
 Migration: `prisma/migrations/20260521150000_add_is_internal_flag/migration.sql`

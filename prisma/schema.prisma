@@ -1523,3 +1523,19 @@ model FileTimeSession {
   @@index([userId, startedAt])
   @@index([agencyId, startedAt])
 }
+
+// ── SystemNotification ───────────────────────────────────────────────────────
+// One-shot notification flags. Each `key` is a unique identifier for a single
+// platform-level event we never want to fire twice (e.g. "medians_ready" —
+// the first time we have enough completion data to swap the hardcoded
+// MILESTONE_DURATION_MEDIANS for learned values). Cron jobs check for the
+// row's existence before doing any expensive computation, and write the row
+// after enqueueing the notification. Resetting requires deleting the row
+// manually (intended — these are platform-lifetime events).
+
+model SystemNotification {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  firedAt   DateTime
+  createdAt DateTime @default(now())
+}
