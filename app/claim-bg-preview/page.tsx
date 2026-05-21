@@ -1,10 +1,11 @@
 "use client";
 
 // /claim-bg-preview
-// Twelve distinct background directions for the claim shell.
-// Live claim pages stay on flat cream until Ellis picks one to refine.
+// Twelve genuinely distinct background directions for the claim shell.
+// Each one has its own motion character, not a variation on a theme.
+// Live claim pages still on flat cream until a direction is picked.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { displayChainPosition } from "@/lib/chain/positions";
 import "../claim/styles/claim-flow.css";
 
@@ -13,149 +14,319 @@ type Option =
   | "07" | "08" | "09" | "10" | "11" | "12";
 
 const OPTIONS: { id: Option; name: string; note: string }[] = [
-  { id: "01", name: "Flat cream",          note: "Current baseline — no effects" },
-  { id: "02", name: "Corner bloom",        note: "Single soft coral wash, top-right, static" },
-  { id: "03", name: "Drifting orbs",       note: "Two large blurred orbs, slow animation" },
-  { id: "04", name: "Diagonal wash",       note: "Cream → ivory + corner coral accent" },
-  { id: "05", name: "Mesh gradient",       note: "Four-point soft color blobs" },
-  { id: "06", name: "Editorial split",     note: "Horizontal band split with coral hairline" },
-  { id: "07", name: "Spotlight from top",  note: "Wide amber glow behind the hero" },
-  { id: "08", name: "Vignette frame",      note: "Cream centre, darker at edges" },
-  { id: "09", name: "Dot grid",            note: "Fine dotted pattern on cream" },
-  { id: "10", name: "Aurora streaks",      note: "Diagonal animated soft color bands" },
-  { id: "11", name: "Architectural wedge", note: "Large coral triangle, top-right" },
-  { id: "12", name: "Cream + film grain",  note: "Flat cream with fine SVG noise" },
+  { id: "01", name: "Mesh shift",         note: "Large gradient mesh — colors drift across the canvas" },
+  { id: "02", name: "Floating particles", note: "Dust motes drifting upward, never the same frame twice" },
+  { id: "03", name: "Aurora wave",        note: "Three soft cloud bodies scaling + drifting like an aurora" },
+  { id: "04", name: "Pulsing rings",      note: "Coral rings expanding outward from centre, layered" },
+  { id: "05", name: "Light beams",        note: "Diagonal warm beam sweeping slowly left to right" },
+  { id: "06", name: "Conic spin",         note: "Slowly rotating conic gradient, faint" },
+  { id: "07", name: "Iridescent shift",   note: "Hue rotates across a soft multi-tone wash" },
+  { id: "08", name: "Diagonal rain",      note: "Slanted hairlines drifting in one direction" },
+  { id: "09", name: "Twinkling stars",    note: "Thirty dots fading in and out at different rates" },
+  { id: "10", name: "Morphing blobs",     note: "Lava-lamp blobs — shape changes, not just position" },
+  { id: "11", name: "Cursor spotlight",   note: "Soft radial light follows your mouse" },
+  { id: "12", name: "Wave bars",          note: "Horizontal stripes scrolling vertically" },
 ];
 
 const SCOPED_CSS = `
-  /* ── 01 Flat cream (baseline) ── */
-  .claim-page.bg-01 { background: #FDF9F5; }
-
-  /* ── 02 Corner bloom ── */
-  .claim-page.bg-02 {
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 01 — Mesh shift
+   * Multi-stop linear gradient over a 400% canvas, animated background-position.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-01 {
     background:
-      radial-gradient(ellipse 60% 50% at 92% 8%, rgba(255,107,74,.10) 0%, transparent 60%),
-      #FDF9F5;
-  }
-
-  /* ── 03 Drifting orbs (animated) ── */
-  .claim-page.bg-03 { background: #FDF9F5; position: relative; overflow-x: hidden; }
-  .claim-page.bg-03::before,
-  .claim-page.bg-03::after {
-    content: ""; position: fixed; border-radius: 50%; filter: blur(90px);
-    pointer-events: none; z-index: 0;
-  }
-  .claim-page.bg-03::before {
-    width: 520px; height: 520px; background: rgba(255,107,74,.18);
-    top: -120px; left: -120px;
-    animation: bg-orb-a 28s ease-in-out infinite alternate;
-  }
-  .claim-page.bg-03::after {
-    width: 560px; height: 560px; background: rgba(255,180,77,.16);
-    bottom: -160px; right: -160px;
-    animation: bg-orb-b 32s ease-in-out infinite alternate;
-  }
-  @keyframes bg-orb-a { 0% { transform: translate(0,0); } 100% { transform: translate(100px, 80px); } }
-  @keyframes bg-orb-b { 0% { transform: translate(0,0); } 100% { transform: translate(-80px, -100px); } }
-  .claim-page.bg-03 > * { position: relative; z-index: 1; }
-
-  /* ── 04 Diagonal wash ── */
-  .claim-page.bg-04 {
-    background:
-      radial-gradient(ellipse 50% 40% at 100% 0%, rgba(255,107,74,.14) 0%, transparent 55%),
-      linear-gradient(135deg, #FDF9F5 0%, #FBF2EA 100%);
-  }
-
-  /* ── 05 Mesh gradient (four-point) ── */
-  .claim-page.bg-05 {
-    background:
-      radial-gradient(at 20% 18%, rgba(255,107,74,.12) 0px, transparent 50%),
-      radial-gradient(at 82% 28%, rgba(255,180,77,.12) 0px, transparent 50%),
-      radial-gradient(at 70% 82%, rgba(255,180,150,.10) 0px, transparent 50%),
-      radial-gradient(at 22% 78%, rgba(255,140,100,.09) 0px, transparent 50%),
-      #FDF9F5;
-  }
-
-  /* ── 06 Editorial split (horizontal band + hairline) ── */
-  .claim-page.bg-06 {
-    background: linear-gradient(
-      180deg,
-      #FDF9F5 0%,
-      #FDF9F5 42%,
-      #F7EFE5 42%,
-      #F7EFE5 100%
-    );
-    position: relative;
-  }
-  .claim-page.bg-06::after {
-    content: ""; position: fixed; left: 0; right: 0; top: 42%;
-    height: 1px; background: rgba(255,107,74,.45);
-    pointer-events: none; z-index: 0;
-  }
-  .claim-page.bg-06 > * { position: relative; z-index: 1; }
-
-  /* ── 07 Spotlight from top ── */
-  .claim-page.bg-07 {
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,180,77,.20) 0%, transparent 55%),
-      #FDF9F5;
-  }
-
-  /* ── 08 Vignette frame ── */
-  .claim-page.bg-08 {
-    background: radial-gradient(ellipse 100% 80% at 50% 50%, #FDF9F5 25%, #F0E5D2 100%);
-  }
-
-  /* ── 09 Dot grid ── */
-  .claim-page.bg-09 {
-    background:
-      radial-gradient(circle, rgba(0,0,0,.07) 1px, transparent 1px) 0 0 / 18px 18px,
-      #FDF9F5;
-  }
-
-  /* ── 10 Aurora streaks (animated) ── */
-  .claim-page.bg-10 {
-    background:
-      linear-gradient(
-        120deg,
-        rgba(255,107,74,.10) 0%,
-        transparent 30%,
-        rgba(255,180,77,.10) 70%,
-        transparent 100%
+      linear-gradient(135deg,
+        rgba(255,107,74,.18) 0%,
+        rgba(255,180,77,.18) 25%,
+        rgba(255,235,200,.10) 50%,
+        rgba(255,140,100,.16) 75%,
+        rgba(255,107,74,.18) 100%
       ),
       #FDF9F5;
-    background-size: 200% 200%;
-    animation: bg-aurora-shift 18s ease-in-out infinite alternate;
+    background-size: 400% 400%, auto;
+    animation: bg-mesh-shift 25s ease-in-out infinite;
   }
-  @keyframes bg-aurora-shift {
-    0%   { background-position: 0% 0%; }
-    100% { background-position: 100% 100%; }
+  @keyframes bg-mesh-shift {
+    0%   { background-position: 0% 0%, 0 0; }
+    50%  { background-position: 100% 100%, 0 0; }
+    100% { background-position: 0% 0%, 0 0; }
   }
 
-  /* ── 11 Architectural wedge (top-right coral triangle) ── */
-  .claim-page.bg-11 { background: #FDF9F5; position: relative; }
-  .claim-page.bg-11::before {
-    content: ""; position: fixed; top: 0; right: 0;
-    width: 42%; height: 65%;
-    background: linear-gradient(225deg, rgba(255,107,74,.18) 0%, rgba(255,107,74,.02) 100%);
-    clip-path: polygon(100% 0, 100% 100%, 0 0);
-    pointer-events: none; z-index: 0;
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 02 — Floating particles
+   * 24 absolutely-positioned dots, each with a unique upward animation.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-02 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-02 > * { position: relative; z-index: 2; }
+  .bg-particle {
+    position: fixed;
+    border-radius: 50%;
+    background: rgba(255,107,74,.45);
+    pointer-events: none;
+    z-index: 1;
+    animation-name: bg-particle-float;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
   }
-  .claim-page.bg-11 > * { position: relative; z-index: 1; }
+  @keyframes bg-particle-float {
+    0%   { transform: translateY(110vh) translateX(0);    opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(-20vh) translateX(30px); opacity: 0; }
+  }
 
-  /* ── 12 Cream + film grain (SVG noise overlay) ── */
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 03 — Aurora wave
+   * Three pseudo-element clouds. Each scales and drifts independently.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-03 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-03 > * { position: relative; z-index: 2; }
+  .bg-aurora-cloud {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bg-aurora-cloud--a {
+    width: 600px; height: 400px;
+    background: rgba(255,107,74,.30);
+    top: 10%; left: -10%;
+    animation: bg-aurora-a 18s ease-in-out infinite alternate;
+  }
+  .bg-aurora-cloud--b {
+    width: 500px; height: 500px;
+    background: rgba(255,180,77,.28);
+    top: 40%; right: -10%;
+    animation: bg-aurora-b 22s ease-in-out infinite alternate;
+  }
+  .bg-aurora-cloud--c {
+    width: 550px; height: 350px;
+    background: rgba(255,200,150,.22);
+    bottom: -10%; left: 30%;
+    animation: bg-aurora-c 26s ease-in-out infinite alternate;
+  }
+  @keyframes bg-aurora-a {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(150px,80px) scale(1.3); }
+  }
+  @keyframes bg-aurora-b {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(-120px,-60px) scale(0.85); }
+  }
+  @keyframes bg-aurora-c {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(80px,-100px) scale(1.2); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 04 — Pulsing rings
+   * Three concentric rings expanding outward, staggered animation-delay.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-04 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-04 > * { position: relative; z-index: 2; }
+  .bg-ring {
+    position: fixed; top: 50%; left: 50%;
+    width: 200px; height: 200px;
+    border: 2px solid rgba(255,107,74,.35);
+    border-radius: 50%;
+    transform: translate(-50%,-50%);
+    pointer-events: none; z-index: 1;
+    animation: bg-ring-pulse 5s ease-out infinite;
+  }
+  .bg-ring--2 { animation-delay: 1.66s; }
+  .bg-ring--3 { animation-delay: 3.33s; }
+  @keyframes bg-ring-pulse {
+    0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.8; border-width: 3px; }
+    100% { transform: translate(-50%,-50%) scale(6);   opacity: 0;   border-width: 1px; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 05 — Light beams
+   * Single diagonal beam sweeping across the screen, slow.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-05 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-05 > * { position: relative; z-index: 2; }
+  .claim-page.bg-05::before {
+    content: "";
+    position: fixed; top: -100%; left: -100%;
+    width: 300%; height: 300%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 45%,
+      rgba(255,180,77,.22) 50%,
+      transparent 55%,
+      transparent 100%
+    );
+    transform: rotate(20deg);
+    animation: bg-beam-sweep 9s linear infinite;
+    pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-beam-sweep {
+    0%   { transform: rotate(20deg) translateX(-40%); }
+    100% { transform: rotate(20deg) translateX(40%); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 06 — Conic spin
+   * Rotating conic gradient pseudo-element, very slow.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-06 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-06 > * { position: relative; z-index: 2; }
+  .claim-page.bg-06::before {
+    content: "";
+    position: fixed; top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(255,107,74,.16) 0deg,
+      rgba(255,180,77,.16) 90deg,
+      rgba(255,235,200,.06) 180deg,
+      rgba(255,140,100,.14) 270deg,
+      rgba(255,107,74,.16) 360deg
+    );
+    animation: bg-conic-spin 60s linear infinite;
+    pointer-events: none; z-index: 1;
+  }
+  @keyframes bg-conic-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 07 — Iridescent shift
+   * Multi-tone radial wash with hue-rotate filter animating slowly.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-07 {
+    background:
+      radial-gradient(at 25% 25%, rgba(255,107,74,.20), transparent 55%),
+      radial-gradient(at 75% 75%, rgba(255,200,100,.18), transparent 55%),
+      radial-gradient(at 50% 50%, rgba(180,180,255,.12), transparent 55%),
+      linear-gradient(45deg, #FDF9F5, #FFF1E5, #FDF9F5);
+    animation: bg-iridescent 14s ease-in-out infinite;
+  }
+  @keyframes bg-iridescent {
+    0%, 100% { filter: hue-rotate(0deg); }
+    50%      { filter: hue-rotate(25deg); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 08 — Diagonal rain
+   * Slanted hairlines drifting in one direction via background-position.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-08 {
+    background:
+      repeating-linear-gradient(
+        105deg,
+        transparent 0px,
+        transparent 32px,
+        rgba(255,107,74,.10) 32px,
+        rgba(255,107,74,.10) 33px
+      ),
+      #FDF9F5;
+    animation: bg-rain-drift 5s linear infinite;
+  }
+  @keyframes bg-rain-drift {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: -120px -360px, 0 0; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 09 — Twinkling stars
+   * 30 dots, each fading in/out on its own cycle (delays randomized in JSX).
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-09 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-09 > * { position: relative; z-index: 2; }
+  .bg-star {
+    position: fixed;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: rgba(255,107,74,.7);
+    pointer-events: none; z-index: 1;
+    animation: bg-star-twinkle 3s ease-in-out infinite;
+  }
+  @keyframes bg-star-twinkle {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50%      { opacity: 1; transform: scale(1.2); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 10 — Morphing blobs
+   * Lava-lamp: border-radius animates so shape mutates, plus translate.
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-10 { background: #FDF9F5; position: relative; overflow: hidden; }
+  .claim-page.bg-10 > * { position: relative; z-index: 2; }
+  .bg-blob {
+    position: fixed;
+    filter: blur(50px);
+    pointer-events: none; z-index: 1;
+  }
+  .bg-blob--a {
+    top: 15%; left: 8%;
+    width: 420px; height: 420px;
+    background: rgba(255,107,74,.30);
+    animation: bg-blob-a 13s ease-in-out infinite;
+  }
+  .bg-blob--b {
+    bottom: 10%; right: 12%;
+    width: 460px; height: 460px;
+    background: rgba(255,180,77,.28);
+    animation: bg-blob-b 17s ease-in-out infinite;
+  }
+  @keyframes bg-blob-a {
+    0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: translate(0,0) scale(1); }
+    33%      { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: translate(60px,40px) scale(1.1); }
+    66%      { border-radius: 50% 50% 60% 40% / 30% 70% 50% 60%; transform: translate(-40px,60px) scale(0.9); }
+  }
+  @keyframes bg-blob-b {
+    0%, 100% { border-radius: 40% 60% 50% 50% / 50% 40% 60% 50%; transform: translate(0,0) scale(1); }
+    50%      { border-radius: 60% 40% 30% 70% / 40% 60% 50% 50%; transform: translate(-80px,-60px) scale(1.2); }
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 11 — Cursor spotlight
+   * Radial gradient with center driven by --mx / --my CSS variables (JS-fed).
+   * ───────────────────────────────────────────────────────────────────────── */
+  .claim-page.bg-11 {
+    background:
+      radial-gradient(circle 500px at var(--mx,50%) var(--my,50%),
+        rgba(255,107,74,.22) 0%,
+        rgba(255,180,77,.10) 35%,
+        transparent 65%
+      ),
+      #FDF9F5;
+    transition: background 80ms linear;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+   * 12 — Wave bars
+   * Horizontal stripes scrolling vertically via background-position.
+   * ───────────────────────────────────────────────────────────────────────── */
   .claim-page.bg-12 {
     background:
-      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      repeating-linear-gradient(
+        180deg,
+        rgba(255,107,74,.08) 0px,
+        rgba(255,107,74,.08) 6px,
+        transparent 6px,
+        transparent 48px
+      ),
       #FDF9F5;
+    animation: bg-wave-scroll 4s linear infinite;
+  }
+  @keyframes bg-wave-scroll {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 0 -48px, 0 0; }
   }
 
-  /* ── Picker panel (right side, vertical) ── */
+  /* ─────────────────────────────────────────────────────────────────────────
+   * Picker panel
+   * ───────────────────────────────────────────────────────────────────────── */
   .bg-picker {
     position: fixed; top: 16px; right: 16px;
     z-index: 1000;
     width: 280px;
-    background: rgba(255,255,255,.95);
+    background: rgba(255,255,255,.96);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(0,0,0,.10);
@@ -181,8 +352,8 @@ const SCOPED_CSS = `
     text-align: left;
     border-radius: 8px;
     background: transparent;
-    color: rgba(0,0,0,.75);
-    display: flex; flex-direction: column; gap: 2px;
+    color: rgba(0,0,0,.78);
+    display: flex; flex-direction: column; gap: 3px;
     transition: background 120ms, color 120ms;
     font-family: inherit;
   }
@@ -207,7 +378,7 @@ const SCOPED_CSS = `
     background: rgba(255,255,255,.25);
   }
   .bg-picker-note {
-    font-size: 11px; opacity: 0.65; line-height: 1.4;
+    font-size: 11px; opacity: 0.7; line-height: 1.4;
   }
 
   /* Shrink the hero so the picker doesn't overlap it on standard screens */
@@ -231,16 +402,64 @@ const SAMPLE = {
   ],
 };
 
+// Deterministic pseudo-random so SSR + client match (avoid hydration mismatch).
+function seededRand(seed: number): () => number {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return s / 2147483647;
+  };
+}
+
+const PARTICLES = (() => {
+  const rng = seededRand(1);
+  return Array.from({ length: 24 }, () => ({
+    left: rng() * 100,
+    size: 3 + rng() * 5,
+    duration: 14 + rng() * 14,
+    delay: -rng() * 28,
+  }));
+})();
+
+const STARS = (() => {
+  const rng = seededRand(2);
+  return Array.from({ length: 30 }, () => ({
+    left: rng() * 100,
+    top: rng() * 100,
+    delay: -rng() * 3,
+    duration: 2 + rng() * 3,
+  }));
+})();
+
 export default function ClaimBgPreviewPage() {
   const [option, setOption] = useState<Option>("01");
+  const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (option !== "11") return;
+    function onMove(e: MouseEvent) {
+      setMouse({
+        x: (e.clientX / window.innerWidth) * 100,
+        y: (e.clientY / window.innerHeight) * 100,
+      });
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [option]);
+
   const total = SAMPLE.links.length;
+  const pageStyle =
+    option === "11" && mouse
+      ? ({ ["--mx" as string]: `${mouse.x}%`, ["--my" as string]: `${mouse.y}%` } as React.CSSProperties)
+      : undefined;
 
   return (
     <>
       <style>{SCOPED_CSS}</style>
 
       <aside className="bg-picker">
-        <div className="bg-picker-title">Background · 12 options</div>
+        <div className="bg-picker-title">Background · 12 directions</div>
         {OPTIONS.map((opt) => (
           <button
             key={opt.id}
@@ -257,7 +476,54 @@ export default function ClaimBgPreviewPage() {
         ))}
       </aside>
 
-      <div className={`claim-page bg-${option}`}>
+      <div className={`claim-page bg-${option}`} style={pageStyle}>
+        {/* Per-option fixed-position children */}
+        {option === "02" && PARTICLES.map((p, i) => (
+          <span
+            key={i}
+            className="bg-particle"
+            style={{
+              left: `${p.left}%`,
+              width: p.size,
+              height: p.size,
+              animationDuration: `${p.duration}s`,
+              animationDelay: `${p.delay}s`,
+            }}
+          />
+        ))}
+        {option === "03" && (
+          <>
+            <span className="bg-aurora-cloud bg-aurora-cloud--a" />
+            <span className="bg-aurora-cloud bg-aurora-cloud--b" />
+            <span className="bg-aurora-cloud bg-aurora-cloud--c" />
+          </>
+        )}
+        {option === "04" && (
+          <>
+            <span className="bg-ring" />
+            <span className="bg-ring bg-ring--2" />
+            <span className="bg-ring bg-ring--3" />
+          </>
+        )}
+        {option === "09" && STARS.map((s, i) => (
+          <span
+            key={i}
+            className="bg-star"
+            style={{
+              left: `${s.left}%`,
+              top: `${s.top}%`,
+              animationDelay: `${s.delay}s`,
+              animationDuration: `${s.duration}s`,
+            }}
+          />
+        ))}
+        {option === "10" && (
+          <>
+            <span className="bg-blob bg-blob--a" />
+            <span className="bg-blob bg-blob--b" />
+          </>
+        )}
+
         <header className="claim-header">
           <a
             href="https://www.thesalesprogressor.co.uk"
