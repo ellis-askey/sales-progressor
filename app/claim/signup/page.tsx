@@ -114,6 +114,11 @@ export default async function ClaimSignupPage({
   const panelGhostCount =
     chainLinks.length > MAX_PANEL_LINKS ? chainLinks.length - MAX_PANEL_LINKS : 0;
 
+  const milestoneDefinitions = await prisma.milestoneDefinition.findMany({
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+    select: { id: true, code: true, name: true, side: true, orderIndex: true },
+  });
+
   return (
     <Shell>
       <div className="claim-signup-grid">
@@ -127,6 +132,7 @@ export default async function ClaimSignupPage({
               token={token}
               stubEmail={link.stubAgentEmail ?? ""}
               stubAgencyName={link.stubAgencyName ?? ""}
+              milestoneDefinitions={milestoneDefinitions}
             />
           </div>
 

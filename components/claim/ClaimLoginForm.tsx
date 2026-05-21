@@ -4,13 +4,21 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
+import {
+  ReconcileMilestonePicker,
+  type MilestoneDefinitionLite,
+  type ReconciliationState,
+} from "@/components/milestones/ReconcileMilestonePicker";
 
 type Props = {
   token: string;
   stubEmail: string;
+  milestoneDefinitions: MilestoneDefinitionLite[];
 };
 
-export function ClaimLoginForm({ token, stubEmail }: Props) {
+type ReconciliationMode = "fresh" | "in_progress" | "later";
+
+export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,8 +27,14 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
   const [purchaseType, setPurchaseType] = useState<"mortgage" | "cash_buyer" | null>(null);
   const [isShareOfFreehold, setIsShareOfFreehold] = useState(false);
+  const [reconciliationMode, setReconciliationMode] = useState<ReconciliationMode | null>(null);
+  const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
 
-  const canSubmit = password.length > 0 && tenure !== null && purchaseType !== null;
+  const canSubmit =
+    password.length > 0 &&
+    tenure !== null &&
+    purchaseType !== null &&
+    reconciliationMode !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,10 +54,27 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
       return;
     }
 
+    const claimBody: Record<string, unknown> = {
+      token,
+      action: "create",
+      tenure,
+      purchaseType,
+      isShareOfFreehold,
+      reconciliationMode,
+    };
+    if (reconciliationMode === "in_progress") {
+      claimBody.reconciledMilestones = Object.entries(reconciledMilestones)
+        .filter(([, v]) => v.ticked)
+        .map(([milestoneDefinitionId, v]) => ({
+          milestoneDefinitionId,
+          eventDate: v.eventDate || null,
+        }));
+    }
+
     const claimRes = await fetch("/api/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, action: "create", tenure, purchaseType, isShareOfFreehold }),
+      body: JSON.stringify(claimBody),
     });
 
     if (!claimRes.ok) {
@@ -54,6 +85,9 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
     }
 
     const { transactionId } = (await claimRes.json()) as { transactionId: string };
+    if (reconciliationMode === "later" && typeof window !== "undefined") {
+      try { window.localStorage.setItem(`reconcileLater:${transactionId}`, "1"); } catch {}
+    }
     await markWelcomeSeenAction().catch(() => {});
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
   }
@@ -129,6 +163,34 @@ export function ClaimLoginForm({ token, stubEmail }: Props) {
           </label>
         )}
       </div>
+
+      {/* Reconciliation picker — only after tenure + purchaseType selected */}
+      {tenure && purchaseType && (
+        <div className="claim-reconcile">
+          <p className="claim-field-label">Where is this sale up to?</p>
+          <button type="button" className={`claim-reconcile-option${reconciliationMode === "fresh" ? " on" : ""}`} onClick={() => setReconciliationMode("fresh")}>
+            <span className="claim-reconcile-option-title">Just starting</span>
+            <span className="claim-reconcile-option-sub">No work done yet — start with a clean file</span>
+          </button>
+          <button type="button" className={`claim-reconcile-option${reconciliationMode === "in_progress" ? " on" : ""}`} onClick={() => setReconciliationMode("in_progress")}>
+            <span className="claim-reconcile-option-title">Already in progress</span>
+            <span className="claim-reconcile-option-sub">Tick what&apos;s already done. Add real-world dates if you know them, leave blank if not.</span>
+          </button>
+          <button type="button" className={`claim-reconcile-option${reconciliationMode === "later" ? " on" : ""}`} onClick={() => setReconciliationMode("later")}>
+            <span className="claim-reconcile-option-title">I&apos;ll set this up later</span>
+            <span className="claim-reconcile-option-sub">Claim now, mark completed milestones from the file page</span>
+          </button>
+          {reconciliationMode === "in_progress" && (
+            <ReconcileMilestonePicker
+              milestoneDefinitions={milestoneDefinitions}
+              tenure={tenure}
+              purchaseType={purchaseType}
+              state={reconciledMilestones}
+              onChange={setReconciledMilestones}
+            />
+          )}
+        </div>
+      )}
 
       {error && (
         <div

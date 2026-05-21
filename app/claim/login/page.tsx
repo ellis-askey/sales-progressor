@@ -88,6 +88,11 @@ export default async function ClaimLoginPage({
 
   const stubEmail = link.stubAgentEmail ?? "";
 
+  const milestoneDefinitions = await prisma.milestoneDefinition.findMany({
+    orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+    select: { id: true, code: true, name: true, side: true, orderIndex: true },
+  });
+
   return (
     <Shell>
       <div className="claim-container--narrow">
@@ -109,7 +114,11 @@ export default async function ClaimLoginPage({
         </p>
 
         <div className="claim-form-card">
-          <ClaimLoginForm token={token} stubEmail={stubEmail} />
+          <ClaimLoginForm
+            token={token}
+            stubEmail={stubEmail}
+            milestoneDefinitions={milestoneDefinitions}
+          />
         </div>
 
         <p className="claim-link-row" style={{ marginTop: 16 }}>
