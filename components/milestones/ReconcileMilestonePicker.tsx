@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+
 // Reusable milestone reconciliation picker.
 // Renders vendor + purchaser sections with checkbox + optional date input per row.
 // Filters out auto-NR codes based on the file's tenure / purchaseType so the agent
@@ -102,8 +105,59 @@ export function ReconcileMilestonePicker({
   const purchaser = filtered.filter((m) => m.side === "purchaser");
 
   // Code ↔ id lookups for cross-side cascade
-  const idByCode = new Map(milestoneDefinitions.map((m) => [m.code, m.id]));
-  const codeById = new Map(milestoneDefinitions.map((m) => [m.id, m.code]));
+  const idByCode = useMemo(() => new Map(milestoneDefinitions.map((m) => [m.code, m.id])), [milestoneDefinitions]);
+  const codeById = useMemo(() => new Map(milestoneDefinitions.map((m) => [m.id, m.code])), [milestoneDefinitions]);
+
+  // Set of currently-ticked milestone codes (both sides) — derived from state.
+  // Used by the prerequisite-lock check below.
+  const tickedCodes = useMemo(() => {
+    const s = new Set<string>();
+    for (const [id, row] of Object.entries(state)) {
+      if (row.ticked) {
+        const code = codeById.get(id);
+        if (code) s.add(code);
+      }
+    }
+    return s;
+  }, [state, codeById]);
+
+  // A milestone is unlocked when every direct prerequisite is either ticked
+  // OR auto-NR for this tenure/purchaseType combo. Reuses the same map the
+  // normal completeMilestone flow uses so reconciliation can't produce a
+  // state the standard flow would reject.
+  function isUnlocked(code: string): boolean {
+    const prereqs = DIRECT_PREREQUISITES[code] ?? [];
+    return prereqs.every((p) => tickedCodes.has(p) || autoNr.has(p));
+  }
+
+  // Build a set of currently-unlocked milestone IDs (filtered set only).
+  // Used both to gate input and to drive the unlock-pulse animation.
+  const unlockedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const m of filtered) {
+      if (isUnlocked(m.code)) s.add(m.id);
+    }
+    return s;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, tickedCodes]);
+
+  // Track which rows newly became unlocked since the last render — those get a
+  // brief background-pulse animation to signal the unlock to the agent.
+  const prevUnlockedRef = useRef<Set<string>>(new Set());
+  const [justUnlocked, setJustUnlocked] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const prev = prevUnlockedRef.current;
+    const newly = new Set<string>();
+    for (const id of unlockedSet) {
+      if (!prev.has(id)) newly.add(id);
+    }
+    prevUnlockedRef.current = new Set(unlockedSet);
+    if (newly.size > 0) {
+      setJustUnlocked(newly);
+      const timer = setTimeout(() => setJustUnlocked(new Set()), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [unlockedSet]);
 
   // Centralised row-change handler. Applies the user's patch to the source row,
   // clears autoFilledFrom on the source (user has touched it), then runs cascade
@@ -169,10 +223,24 @@ export function ReconcileMilestonePicker({
   return (
     <div className="claim-reconcile-list">
       {(side === undefined || side === "vendor") && (
-        <Section title="Vendor milestones" milestones={vendor} state={state} onRowChange={handleRowChange} />
+        <Section
+          title="Vendor milestones"
+          milestones={vendor}
+          state={state}
+          onRowChange={handleRowChange}
+          unlockedSet={unlockedSet}
+          justUnlocked={justUnlocked}
+        />
       )}
       {(side === undefined || side === "purchaser") && (
-        <Section title="Purchaser milestones" milestones={purchaser} state={state} onRowChange={handleRowChange} />
+        <Section
+          title="Purchaser milestones"
+          milestones={purchaser}
+          state={state}
+          onRowChange={handleRowChange}
+          unlockedSet={unlockedSet}
+          justUnlocked={justUnlocked}
+        />
       )}
     </div>
   );
@@ -183,11 +251,15 @@ function Section({
   milestones,
   state,
   onRowChange,
+  unlockedSet,
+  justUnlocked,
 }: {
   title: string;
   milestones: MilestoneDefinitionLite[];
   state: ReconciliationState;
   onRowChange: (id: string, patch: Partial<ReconciliationRow>) => void;
+  unlockedSet: Set<string>;
+  justUnlocked: Set<string>;
 }) {
   if (milestones.length === 0) return null;
 
@@ -198,12 +270,21 @@ function Section({
         {milestones.map((m) => {
           const row = state[m.id] ?? DEFAULT_ROW;
           const isAutoSet = !!row.autoFilledFrom;
+          const isUnlocked = unlockedSet.has(m.id);
+          const isJustUnlocked = justUnlocked.has(m.id);
+          const classes = [
+            "claim-reconcile-row",
+            row.ticked ? "on" : "",
+            !isUnlocked ? "locked" : "",
+            isJustUnlocked ? "just-unlocked" : "",
+          ].filter(Boolean).join(" ");
           return (
-            <li key={m.id} className={`claim-reconcile-row${row.ticked ? " on" : ""}`}>
+            <li key={m.id} className={classes}>
               <label className="claim-reconcile-row-main">
                 <input
                   type="checkbox"
                   checked={row.ticked}
+                  disabled={!isUnlocked}
                   onChange={(e) => onRowChange(m.id, { ticked: e.target.checked })}
                 />
                 <span className="claim-reconcile-row-name">
@@ -211,9 +292,12 @@ function Section({
                   {isAutoSet && (
                     <span className="claim-reconcile-row-autoset"> (auto-set — change to override)</span>
                   )}
+                  {!isUnlocked && (
+                    <span className="claim-reconcile-row-locked"> (tick previous milestones first)</span>
+                  )}
                 </span>
               </label>
-              {row.ticked && (
+              {row.ticked && isUnlocked && (
                 <input
                   type="date"
                   className="claim-reconcile-date"

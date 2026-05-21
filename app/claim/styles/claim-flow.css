@@ -940,6 +940,30 @@
   margin-left: 6px;
   font-style: italic;
 }
+.claim-reconcile-row-locked {
+  font-size: 11px;
+  color: var(--claim-text-3);
+  margin-left: 6px;
+  font-style: italic;
+}
+
+/* Locked rows — prereqs not yet ticked. Greyed at 40% opacity, checkbox disabled.
+   Smooth opacity transition (280ms) so the lock state feels responsive. */
+.claim-reconcile-row {
+  transition: opacity 0.28s ease, background-color 0.4s ease;
+}
+.claim-reconcile-row.locked { opacity: 0.4; }
+.claim-reconcile-row.locked input[type="checkbox"] { cursor: not-allowed; }
+
+/* Unlock pulse — fires when a row newly becomes unlocked. Subtle coral
+   background fades to transparent over 600ms. Draws the eye without flashing. */
+@keyframes claim-reconcile-unlock-pulse {
+  0%   { background-color: rgba(255, 107, 74, 0.14); }
+  100% { background-color: transparent; }
+}
+.claim-reconcile-row.just-unlocked {
+  animation: claim-reconcile-unlock-pulse 0.6s ease-out;
+}
 .claim-wizard-back {
   background: none;
   border: none;
