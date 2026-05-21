@@ -174,6 +174,28 @@ Classified **theoretical** — no user has flagged this as confusing. No copy ch
 
 ---
 
+### Bug — manual comms inherit wrong channel/purpose/status defaults for inbound entries
+
+**File:** [lib/services/comms.ts:140-194](../lib/services/comms.ts#L140-L194) (`createCommunicationRecord`)
+
+**Symptom:** Every manually-logged inbound comm (Inbound (received) toggle in CommsEntry) currently writes the wrong values for three fields because `createCommunicationRecord` doesn't set them explicitly — it inherits the schema defaults on [`prisma/schema.prisma:539-541`](../prisma/schema.prisma#L539-L541):
+- `channel: "email"` — wrong when method is whatsapp / sms / phone
+- `purpose: "chase"` — wrong for an incoming reply (it's not a chase, it's an inbound)
+- `status: "sent"` — semantically wrong for inbound (it was received, not sent)
+
+**Data impact:** Every manually-logged inbound row in the DB today is mislabeled on those three fields. Any analytics or reporting that filters on `status`, `channel`, or `purpose` for inbound entries is reading wrong data. No user-facing impact today because no UI reads those fields for inbound rows (`method` is the canonical filter and that's set correctly) — but if/when reports come to depend on them, every existing inbound row is junk.
+
+**Why this came to light:** Building the WhatsApp chat bulk-import feature (2026-05-21) forced explicit per-direction field-setting; the bulk path uses `status: "delivered"` for inbound, `purpose: "other"` and `channel: "other"` for WhatsApp — done correctly. The same fix needs to apply to the single-comm path.
+
+**Fix shape:** In `createCommunicationRecord`, set `channel`, `purpose`, and `status` explicitly based on `input.type` and `input.method` (mirroring the bulk-import logic in `importWhatsAppChat`):
+- `channel`: derive from method — email/sms have matching values; whatsapp/phone/voicemail/post → `"other"`
+- `purpose`: `"other"` for manual logs (not chase)
+- `status`: `"sent"` if type=outbound, `"delivered"` if type=inbound, `"sent"` if type=internal_note
+
+**One-time backfill (optional):** UPDATE OutboundMessage SET status='delivered' WHERE type='inbound' AND status='sent' — but only if anything ever starts reading the field. Until then, leaving the existing bad data is harmless.
+
+---
+
 ### Polish — empty-state ghost convention (document as structural standard)
 
 The polish pass has established a pattern across comms (Stage 2, 2026-05-17) and completions (Stage 2, applied by precedent) but it isn't written down anywhere.
