@@ -108,5 +108,22 @@ export function getMilestoneContext(code: string): MilestoneContext | null {
   return glossaryMap[code] ?? null;
 }
 
+// First quoted alias from the milestone's "Also called" row — the snappy
+// label the agent would actually use ("searches ordered", "survey", "DCP").
+// Reused by the chain bottleneck banner (Change 4 of the visibility-pass)
+// so banner copy and chase-AI prompts stay on a single source of truth.
+// Returns null if the milestone isn't in the glossary or its alsoCalled row
+// has no quoted strings. Caller is responsible for grammar (the banner
+// renders it in colon form: "Hold-up: {label}." — no article required).
+export function getMilestoneShortLabel(code: string): string | null {
+  const ctx = glossaryMap[code];
+  if (!ctx) return null;
+  const match = ctx.alsoCalled.match(/"([^"]+)"/);
+  if (!match) return null;
+  // Lowercase the first character so it reads cleanly after a colon.
+  const first = match[1];
+  return first.charAt(0).toLowerCase() + first.slice(1);
+}
+
 // Exported for unit-testing the parser without relying on the file path
 export { parseGlossary };

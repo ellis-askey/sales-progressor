@@ -8,6 +8,8 @@ import {
   detectPhase,
   type PhaseAwareInput,
 } from "@/lib/services/fees";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { getMilestoneShortLabel } from "@/lib/chase/milestone-glossary";
 
 // ─── Legacy types (used by legacy widget in components/chain/_legacy/) ────────
 
@@ -76,6 +78,15 @@ export type ChainLinkV2 = {
   // the rendering to "we'll show an estimate as the file progresses".
   predictedExchangeDate: Date | null;
   isEarlyEstimate: boolean;
+  // Short label for the milestone currently blocking this link's progress —
+  // populated ONLY for the link belonging to the viewer (i.e. when
+  // claimedByUserId === viewerUserId at fetch time). Null for every other
+  // link, enforcing the chain feature's privacy boundary: a viewer sees
+  // full operational detail on their OWN file, summary signal only on
+  // others'. Surfaced by the chain bottleneck banner in ChainDrawer when
+  // the viewer is the slow link. Sourced from MILESTONE_GLOSSARY's
+  // "Also called" field via getMilestoneShortLabel().
+  stuckMilestoneLabel: string | null;
   claimedBy: {
     id: string;
     name: string;
@@ -195,6 +206,7 @@ const LINK_V2_SELECT = {
         select: {
           state: true,
           eventDate: true,
+          completedAt: true,
           reconciledAtClaim: true,
           milestoneDefinition: { select: { code: true, weight: true } },
         },
@@ -214,6 +226,7 @@ const LINK_V2_SELECT = {
 type CompletionForChain = {
   state: string;
   eventDate: Date | null;
+  completedAt: Date | null;
   reconciledAtClaim: boolean;
   milestoneDefinition: { code: string; weight: { toNumber(): number } | number } | null;
 };
@@ -284,7 +297,54 @@ function computeChainLinkPrediction(
   return { predictedExchangeDate, isEarlyEstimate };
 }
 
-export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
+// Among the milestones currently in state "available" on a transaction,
+// identify the one that has been waiting the longest — i.e. the practical
+// "hold-up". Uses the same becameAvailableAt proxy as milestone-staleness:
+// latest completedAt across the milestone's direct prerequisites. Returns
+// the milestone code (e.g. "PM8"), or null when:
+//   - no completions are in state "available"
+//   - none of the available milestones have all prereqs known + complete
+//     (e.g. early-estimate phase where prereqs haven't been seeded)
+// Only ever called for the viewer's own link, gated by claimedByUserId.
+function computeStuckMilestoneCode(completions: CompletionForChain[]): string | null {
+  if (!completions || completions.length === 0) return null;
+
+  // Build a map of completed milestone codes → completedAt for prereq lookup.
+  const completedByCode = new Map<string, Date>();
+  for (const c of completions) {
+    if (c.state === "complete" && c.completedAt && c.milestoneDefinition) {
+      completedByCode.set(c.milestoneDefinition.code, c.completedAt);
+    }
+  }
+
+  let stuckCode: string | null = null;
+  let stuckSince: number = Number.POSITIVE_INFINITY;
+
+  for (const c of completions) {
+    if (c.state !== "available" || !c.milestoneDefinition) continue;
+    const code = c.milestoneDefinition.code;
+    const prereqs = DIRECT_PREREQUISITES[code];
+    if (!prereqs || prereqs.length === 0) continue; // can't compute proxy
+
+    let latest: number | null = null;
+    let allKnown = true;
+    for (const p of prereqs) {
+      const pAt = completedByCode.get(p);
+      if (!pAt) { allKnown = false; break; }
+      const t = pAt.getTime();
+      if (latest === null || t > latest) latest = t;
+    }
+    if (!allKnown || latest === null) continue;
+    if (latest < stuckSince) {
+      stuckSince = latest;
+      stuckCode = code;
+    }
+  }
+
+  return stuckCode;
+}
+
+export async function getChainV2(chainId: string, viewerUserId?: string): Promise<ChainV2 | null> {
   const chain = await prisma.propertyChain.findUnique({
     where: { id: chainId },
     select: {
@@ -318,6 +378,7 @@ export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
           progressPercent: null,
           predictedExchangeDate: null,
           isEarlyEstimate: false,
+          stuckMilestoneLabel: null,
         };
       }
       const {
@@ -336,19 +397,32 @@ export async function getChainV2(chainId: string): Promise<ChainV2 | null> {
         isShareOfFreehold,
         overridePredictedDate,
       });
+      // Privacy: stuck-milestone detail is the link owner's private
+      // operational state. Only surface it for the viewer's own link.
+      // Every other link gets null at the trust boundary.
+      const isViewer = viewerUserId != null && l.claimedByUserId === viewerUserId;
+      const stuckCode = isViewer ? computeStuckMilestoneCode(milestoneCompletions) : null;
+      const stuckMilestoneLabel = stuckCode ? getMilestoneShortLabel(stuckCode) : null;
       return {
         ...l,
         transaction: txnPublic,
         progressPercent: computeWeightedProgress(milestoneCompletions),
         predictedExchangeDate: prediction.predictedExchangeDate,
         isEarlyEstimate: prediction.isEarlyEstimate,
+        stuckMilestoneLabel,
       };
     }),
   };
 }
 
 // Gets the chain for a given transaction via the canonical chainLinkId field.
-export async function getChainForTransactionV2(transactionId: string): Promise<ChainV2 | null> {
+// viewerUserId is forwarded to getChainV2 so the stuckMilestoneLabel field is
+// populated only on the viewer's own link (privacy boundary). Pass session
+// user id from the API route.
+export async function getChainForTransactionV2(
+  transactionId: string,
+  viewerUserId?: string,
+): Promise<ChainV2 | null> {
   const txn = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -360,7 +434,7 @@ export async function getChainForTransactionV2(transactionId: string): Promise<C
     },
   });
   if (!txn?.chainLink) return null;
-  return getChainV2(txn.chainLink.chainId);
+  return getChainV2(txn.chainLink.chainId, viewerUserId);
 }
 
 export type CreateChainInput = {

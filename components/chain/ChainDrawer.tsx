@@ -445,12 +445,14 @@ export function ChainDrawer({
                     <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>ℹ</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0, lineHeight: 1.5 }}>
-                        Holdup in this chain
+                        One file is behind the chain
                       </p>
                       <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>
                         {isYourFile
-                          ? `Your file is currently the holdup in this chain — about ${bottleneck.daysBehind} days behind the others.`
-                          : `The file at ${bottleneck.address} is running about ${bottleneck.daysBehind} days behind the rest of the chain. Worth a coordinated nudge from chain-mates.`}
+                          ? (bottleneck.stuckMilestoneLabel
+                              ? `Your file is about ${bottleneck.daysBehind} days behind the rest of the chain. Hold-up: ${bottleneck.stuckMilestoneLabel}. Worth a push if you can.`
+                              : `Your file is about ${bottleneck.daysBehind} days behind the rest of the chain. Worth a push if you can.`)
+                          : `${bottleneck.address} is about ${bottleneck.daysBehind} days behind the rest of the chain. A nudge across the chain may help.`}
                       </p>
                     </div>
                   </div>

@@ -27,6 +27,10 @@ export type ChainBottleneck = {
   daysBehind: number;              // gap vs median of the other links
   claimedByUserId: string | null;  // for "is this the viewer's own file?" check
   transactionId: string;
+  // Sourced server-side from getChainV2 — only populated when the slow
+  // link IS the viewer's own file. Always null when it's someone else's
+  // (privacy: chain-mates see address + gap, never milestone-level detail).
+  stuckMilestoneLabel: string | null;
 };
 
 export function computeChainBottleneck(chain: ChainV2): ChainBottleneck | null {
@@ -60,5 +64,6 @@ export function computeChainBottleneck(chain: ChainV2): ChainBottleneck | null {
     daysBehind,
     claimedByUserId: slowest.claimedByUserId,
     transactionId: slowest.transactionId!,
+    stuckMilestoneLabel: slowest.stuckMilestoneLabel,
   };
 }

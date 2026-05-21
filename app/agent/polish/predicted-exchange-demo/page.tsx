@@ -197,6 +197,7 @@ function mockChainLink(overrides: Partial<ChainLinkV2> & { id: string; position:
     progressPercent: 42,
     predictedExchangeDate: null,
     isEarlyEstimate: false,
+    stuckMilestoneLabel: null,
     claimedBy: { id: "user_mock", name: "Sarah Hartwell", firmName: "Hartwell & Partners" },
     createdBy: null,
     ...overrides,

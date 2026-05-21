@@ -28,8 +28,11 @@ export async function GET(req: NextRequest) {
   });
   if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Try v2 chain first (canonical chainLinkId); fall back to legacy
-  const chain = await getChainForTransactionV2(transactionId);
+  // Try v2 chain first (canonical chainLinkId); fall back to legacy.
+  // session.user.id flows through so stuckMilestoneLabel is populated only
+  // on the viewer's own link (privacy: full detail for self, summary only
+  // for other links).
+  const chain = await getChainForTransactionV2(transactionId, session.user.id);
   if (chain) {
     const allLinks = chain.links.map((l) => ({
       claimedByUserId: l.claimedByUserId,
