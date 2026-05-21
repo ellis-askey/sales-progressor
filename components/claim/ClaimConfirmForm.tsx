@@ -111,8 +111,25 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
     }
   }
 
+  const isWizardActive = reconciliationMode === "in_progress";
+  const saleDetailsLabel = tenure && purchaseType
+    ? `${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}`
+    : "";
+
   const saleDetailsSection = needsSaleDetails && (
-    <div className="claim-sale-details">
+    <>
+      {isWizardActive && saleDetailsLabel && (
+        <button
+          type="button"
+          className="claim-sale-details-summary"
+          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
+          aria-label="Edit sale details"
+        >
+          <span>{saleDetailsLabel}</span>
+          <span className="claim-sale-details-summary-edit">Edit</span>
+        </button>
+      )}
+    <div className={`claim-sale-details${isWizardActive ? " collapsed" : ""}`}>
       <p className="claim-sale-details-note">Two details to set up your file.</p>
 
       <div>
@@ -166,6 +183,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
         </label>
       )}
     </div>
+    </>
   );
 
   // Reconciliation picker — only shown when creating a fresh transaction

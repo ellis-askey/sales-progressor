@@ -211,8 +211,23 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
         />
       </div>
 
+      {/* Compact summary when wizard is active */}
+      {reconciliationMode === "in_progress" && tenure && purchaseType && (
+        <button
+          type="button"
+          className="claim-sale-details-summary"
+          onClick={() => { setReconciliationMode(null); setWizardStep("vendor"); }}
+          aria-label="Edit sale details"
+        >
+          <span>
+            {tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · {purchaseType === "mortgage" ? "Mortgage" : "Cash purchase"}
+          </span>
+          <span className="claim-sale-details-summary-edit">Edit</span>
+        </button>
+      )}
+
       {/* Sale details */}
-      <div className="claim-sale-details">
+      <div className={`claim-sale-details${reconciliationMode === "in_progress" ? " collapsed" : ""}`}>
         <p className="claim-sale-details-note">Two details to set up your file.</p>
         <div>
           <label className="claim-field-label">Tenure</label>
