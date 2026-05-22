@@ -4,10 +4,11 @@ import "../claim/styles/claim-flow.css";
 export default async function UnsubscribedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; type?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, type } = await searchParams;
   const isOk = status === "ok";
+  const isContact = type === "contact";
 
   return (
     <div className="claim-page">
@@ -24,12 +25,28 @@ export default async function UnsubscribedPage({
       </header>
       <div className="claim-error-wrap">
         <div className="claim-error-inner">
-          {isOk ? (
+          {isOk && isContact ? (
+            // Buyer/seller contact variant. Copy is intentionally GENERIC on
+            // the address ("your sale", not "your sale at 12 Acacia Avenue")
+            // — the page does not look up the contact by ID to avoid an
+            // unauthenticated ID-keyed read. The recipient knows which sale;
+            // they were just emailed about it.
             <>
               <p className="claim-error-eyebrow">The Sales Progressor</p>
               <h1 className="claim-error-h1">You&apos;re unsubscribed</h1>
               <p className="claim-error-p">
-                You won&apos;t receive any more emails from Sales Progressor.
+                We won&apos;t email you about update reminders for your sale anymore. Your agent will still be in touch directly when they need something from you.
+              </p>
+              <p className="claim-error-support">
+                Changed your mind? Tell your agent and they can re-enable reminders for you.
+              </p>
+            </>
+          ) : isOk ? (
+            <>
+              <p className="claim-error-eyebrow">The Sales Progressor</p>
+              <h1 className="claim-error-h1">You&apos;re unsubscribed</h1>
+              <p className="claim-error-p">
+                We won&apos;t send you any more emails from this address.
               </p>
               <p className="claim-error-support">
                 Changed your mind?{" "}

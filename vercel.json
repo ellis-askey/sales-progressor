@@ -75,6 +75,10 @@
     {
       "path": "/api/cron/medians-ready-check",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/client-chase",
+      "schedule": "30 8 * * *"
     }
   ]
 }

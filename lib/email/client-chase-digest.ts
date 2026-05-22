@@ -14,13 +14,18 @@
 // then this code is dormant and only exercised by scripts/verify-b4.ts.
 //
 // ────────────────────────────────────────────────────────────────────────────
-// COPY STATUS: DRAFT — the email subject + body strings below are PLACEHOLDER.
-// Real client-facing copy is reviewed in the pre-B7 batch alongside the
-// confirm-page strings, the six hard-block explanatory lines, and the
-// unsubscribe copy. Drafts kept calm + brief, no em-dashes, house style,
-// but treat as illustrative until the batch lands. Tone-split (do-it-
-// yourself vs nudge-your-solicitor) is also a copy-review concern; v1
-// draft is a single neutral tone.
+// COPY: locked in the pre-B7 copy batch (surface 1 of 4). Three tones:
+//   DIY    — every item is who:"you" (client confirms their own action)
+//   NUDGE  — every item is who:"solicitor"|"lender" (third party owns it)
+//   MIXED  — items span both categories
+// NUDGE/MIXED further branches on the "sitting with" phrasing:
+//   "your solicitor"            (all NUDGE items are who:"solicitor")
+//   "your lender"               (all NUDGE items are who:"lender" — PM6/PM11)
+//   "your solicitor or lender"  (mixed solicitor + lender NUDGE items)
+// House style: calm, address-first subject, no em-dashes, no exclamation
+// marks, no filler. The CTA is a single link (no per-item deep links —
+// decided in the copy batch to keep the email a dumb text+link and let
+// the page be authoritative on what's due).
 // ────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from "@/lib/prisma";
@@ -66,13 +71,58 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Classifier: returns the tone of a single milestone code based on
+// portal-copy.who. "you" → DIY; "solicitor"|"lender" → NUDGE. "agent"
+// shouldn't reach the digest (A6 allowlist filters bilateral codes) but
+// defensively classify as NUDGE so we never claim a client owns an action
+// the agent owns.
+type ItemTone = "diy" | "nudge";
+type NudgeParty = "solicitor" | "lender";
+
+function classifyTone(code: string): { tone: ItemTone; party: NudgeParty | null } {
+  const who = getMilestoneCopy(code).who;
+  if (who === "you") return { tone: "diy", party: null };
+  if (who === "lender") return { tone: "nudge", party: "lender" };
+  // "solicitor" | "agent" | anything else → NUDGE-solicitor
+  return { tone: "nudge", party: "solicitor" };
+}
+
+// Returns the "sitting with" phrase for NUDGE / MIXED digests. Examines
+// only the NUDGE items in the digest — DIY items don't contribute.
+function sittingWithPhrase(nudgeParties: NudgeParty[]): string {
+  const hasSolicitor = nudgeParties.includes("solicitor");
+  const hasLender = nudgeParties.includes("lender");
+  if (hasSolicitor && hasLender) return "your solicitor or lender";
+  if (hasLender) return "your lender";
+  return "your solicitor";
+}
+
+function withWhomPhrase(nudgeParties: NudgeParty[]): string {
+  const hasSolicitor = nudgeParties.includes("solicitor");
+  const hasLender = nudgeParties.includes("lender");
+  if (hasSolicitor && hasLender) return "with your solicitor or lender";
+  if (hasLender) return "with your lender";
+  return "with your solicitor";
+}
+
+function nudgeBlockHeading(nudgeParties: NudgeParty[]): string {
+  const hasSolicitor = nudgeParties.includes("solicitor");
+  const hasLender = nudgeParties.includes("lender");
+  if (hasSolicitor && hasLender) {
+    return "With your solicitor and lender (no action needed unless you want to chase):";
+  }
+  if (hasLender) return "With your lender (no action needed unless you want to chase):";
+  return "With your solicitor (no action needed unless you want to chase):";
+}
+
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
   const { transaction, contact, milestones } = input;
   const base = portalBase();
 
   // Deep-link with milestone codes as a query-param hint. B5's respond page
   // reads ClientChaseState authoritatively, not this param — the param is
-  // for click-analytics + a small "you have N items" hint at page-load.
+  // for click-analytics only. (Copy-batch decision: single link, no per-item
+  // anchors — anchor-jumping is inconsistent across mobile clients.)
   const codes = milestones.map((m) => m.code).join(",");
   const respondUrl = `${base}/portal/${contact.portalToken}/respond?items=${encodeURIComponent(codes)}`;
   const unsubscribeUrl = buildContactUnsubscribeUrl(contact.id);
@@ -80,44 +130,145 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const address = shortAddress(transaction.propertyAddress);
   const first = extractFirstName(contact.name);
   const count = milestones.length;
-  const items = count === 1 ? "1 update" : `${count} updates`;
 
-  // ─── DRAFT subject ────────────────────────────────────────────────────────
-  const subject =
-    count === 1
-      ? `Quick update needed on ${address}`
-      : `${count} quick updates on ${address}`;
+  // ─── Classify each item; split into DIY / NUDGE groups ──────────────────
+  const diy: { code: string; label: string }[] = [];
+  const nudge: { code: string; label: string; party: NudgeParty }[] = [];
+  for (const m of milestones) {
+    const { tone, party } = classifyTone(m.code);
+    const label = getMilestoneCopy(m.code).label;
+    if (tone === "diy") {
+      diy.push({ code: m.code, label });
+    } else {
+      nudge.push({ code: m.code, label, party: party ?? "solicitor" });
+    }
+  }
+  const nudgeParties = Array.from(new Set(nudge.map((n) => n.party))) as NudgeParty[];
 
-  // ─── DRAFT text body ──────────────────────────────────────────────────────
-  // No em-dashes (house style).
-  const milestoneListText = milestones
-    .map((m) => `  • ${getMilestoneCopy(m.code).label}`)
-    .join("\n");
+  const overallTone: "diy" | "nudge" | "mixed" =
+    diy.length > 0 && nudge.length > 0 ? "mixed" : diy.length > 0 ? "diy" : "nudge";
+
+  // ─── Subject (locked) ──────────────────────────────────────────────────
+  const subject = count === 1
+    ? `${address}: one update needed`
+    : `${address}: ${count} updates needed`;
+
+  // ─── Text body ─────────────────────────────────────────────────────────
+  // Singular/plural as fixed strings (no template fragments — robust).
+  const bulletLine = (label: string) => `  • ${label}`;
+
+  let bodyLines: string[];
+
+  if (overallTone === "diy") {
+    const opener = count === 1
+      ? `There's one thing on your sale at ${address} that only you can move forward:`
+      : `There are ${count} things on your sale at ${address} that only you can move forward:`;
+    bodyLines = [
+      `Hi ${first},`,
+      ``,
+      opener,
+      ``,
+      ...diy.map((d) => bulletLine(d.label)),
+      ``,
+      `Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.`,
+      ``,
+      respondUrl,
+    ];
+  } else if (overallTone === "nudge") {
+    const phrase = sittingWithPhrase(nudgeParties);
+    const opener = count === 1
+      ? `One thing is sitting with ${phrase} right now that we haven't seen confirmed yet:`
+      : `${count} things are sitting with ${phrase} right now that we haven't seen confirmed yet:`;
+    bodyLines = [
+      `Hi ${first},`,
+      ``,
+      `A quick update on your sale at ${address}.`,
+      ``,
+      opener,
+      ``,
+      ...nudge.map((n) => bulletLine(n.label)),
+      ``,
+      `You don't need to do anything yourself. If it's been a while and you want to chase, a short email often helps.`,
+      ``,
+      `If you've heard back and we just don't know yet, open the page below and let us know. We'll mark it done on our side so you don't get reminded again.`,
+      ``,
+      respondUrl,
+    ];
+  } else {
+    // mixed
+    const phrase = withWhomPhrase(nudgeParties);
+    bodyLines = [
+      `Hi ${first},`,
+      ``,
+      `A few updates on your sale at ${address}. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.`,
+      ``,
+      `Yours to do:`,
+      ...diy.map((d) => bulletLine(d.label)),
+      ``,
+      nudgeBlockHeading(nudgeParties),
+      ...nudge.map((n) => bulletLine(n.label)),
+      ``,
+      `Open the page below to confirm the items that are done, set an expected date, or leave a note for anything that's running late.`,
+      ``,
+      respondUrl,
+    ];
+  }
 
   const text = [
-    `Hi ${first},`,
-    ``,
-    count === 1
-      ? `One thing on your sale at ${address} is waiting for your update:`
-      : `${count} things on your sale at ${address} are waiting for your update:`,
-    ``,
-    milestoneListText,
-    ``,
-    `Open the page below to confirm, set a date you're expecting, or leave a quick note. It'll take a minute.`,
-    ``,
-    `${respondUrl}`,
+    ...bodyLines,
     ``,
     `Thanks,`,
     `Sales Progressor`,
     ``,
-    `If you'd rather we stop emailing you about updates, unsubscribe here:`,
-    `${unsubscribeUrl}`,
+    `If you'd rather we stop sending these, unsubscribe here:`,
+    unsubscribeUrl,
   ].join("\n");
 
-  // ─── DRAFT HTML body ──────────────────────────────────────────────────────
-  const milestoneListHtml = milestones
-    .map((m) => `        <li style="margin:0 0 6px;color:#1a1d29;font-size:14px;line-height:1.5;">${escapeHtml(getMilestoneCopy(m.code).label)}</li>`)
-    .join("\n");
+  // ─── HTML body ─────────────────────────────────────────────────────────
+  // Same logical structure as the text body. Bullets are rendered as <ul>.
+  const liStyle = `margin:0 0 6px;color:#1a1d29;font-size:14px;line-height:1.5;`;
+  const pStyle = `font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 16px;`;
+  const headingStyle = `font-size:15px;color:#1a1d29;font-weight:600;line-height:1.5;margin:0 0 8px;`;
+  const renderList = (items: { label: string }[]) =>
+    `<ul style="margin:0 0 20px;padding-left:20px;">\n` +
+    items.map((i) => `        <li style="${liStyle}">${escapeHtml(i.label)}</li>`).join("\n") +
+    `\n      </ul>`;
+
+  let htmlInner: string;
+
+  if (overallTone === "diy") {
+    const opener = count === 1
+      ? `There's one thing on your sale at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
+      : `There are ${count} things on your sale at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
+    htmlInner = `
+          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+          <p style="${pStyle}">${opener}</p>
+          ${renderList(diy)}
+          <p style="${pStyle}">Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
+  } else if (overallTone === "nudge") {
+    const phrase = escapeHtml(sittingWithPhrase(nudgeParties));
+    const opener = count === 1
+      ? `One thing is sitting with ${phrase} right now that we haven't seen confirmed yet:`
+      : `${count} things are sitting with ${phrase} right now that we haven't seen confirmed yet:`;
+    htmlInner = `
+          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+          <p style="${pStyle}">A quick update on your sale at <strong>${escapeHtml(address)}</strong>.</p>
+          <p style="${pStyle}">${opener}</p>
+          ${renderList(nudge)}
+          <p style="${pStyle}">You don't need to do anything yourself. If it's been a while and you want to chase, a short email often helps.</p>
+          <p style="${pStyle}">If you've heard back and we just don't know yet, open the page below and let us know. We'll mark it done on our side so you don't get reminded again.</p>`;
+  } else {
+    // mixed
+    const phrase = escapeHtml(withWhomPhrase(nudgeParties));
+    htmlInner = `
+          <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
+          <p style="${pStyle}">A few updates on your sale at <strong>${escapeHtml(address)}</strong>. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.</p>
+          <p style="${headingStyle}">Yours to do:</p>
+          ${renderList(diy)}
+          <p style="${headingStyle}">${escapeHtml(nudgeBlockHeading(nudgeParties))}</p>
+          ${renderList(nudge)}
+          <p style="${pStyle}">Open the page below to confirm the items that are done, set an expected date, or leave a note for anything that's running late.</p>`;
+  }
 
   const html = `<!DOCTYPE html>
 <html>
@@ -127,14 +278,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
-          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
-          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 12px;line-height:1.3;">${count === 1 ? "Quick update needed" : items + " on your sale"}</h1>
-          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">Hi ${escapeHtml(first)},</p>
-          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 20px;">${count === 1 ? "One thing on your sale at" : count + " things on your sale at"} <strong>${escapeHtml(address)}</strong> ${count === 1 ? "is waiting for your update:" : "are waiting for your update:"}</p>
-          <ul style="margin:0 0 24px;padding-left:20px;">
-${milestoneListHtml}
-          </ul>
-          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the page below to confirm, set a date you're expecting, or leave a quick note. It'll take a minute.</p>
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>${htmlInner}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr><td style="border-radius:8px;background:#FF6B4A;">
               <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
@@ -143,7 +287,7 @@ ${milestoneListHtml}
         </td></tr>
       </table>
       <p style="margin:20px 0 0;font-size:11px;color:#c0c4d0;text-align:center;">
-        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;·&nbsp;
+        <a href="${unsubscribeUrl}" style="color:#c0c4d0;text-decoration:none;">Unsubscribe</a> &nbsp;&middot;&nbsp;
         <a href="mailto:support@thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none;">support@thesalesprogressor.co.uk</a>
       </p>
     </td></tr>

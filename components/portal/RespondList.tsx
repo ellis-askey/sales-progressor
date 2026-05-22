@@ -1,13 +1,20 @@
 "use client";
 
-// B5 of the client-chase arc — respond-page list component.
+// Respond-page list component. B5 (initial scaffold) + B7 (DIY/NUDGE
+// branching, A2 in-place pill, hard-block per-code lookup).
 //
-// Renders the currently-due milestones from B5's page loader. Each row has
-// three controls: confirm / set-date / leave-note. Submits via the three
-// actions in app/actions/portal.ts. Empty state for "all caught up."
+// Branches on each item's who field:
+//   - DIY    (who:"you")           — client themselves performs the action
+//   - NUDGE  (who:"solicitor"|"lender") — third party owns it; client reports
 //
-// COPY STATUS: every user-facing string in this component is DRAFT pending
-// the pre-B7 copy batch. House style: no em-dashes, calm tone.
+// Button labels, modal prompts, and post-save feedback differ by tone per
+// the locked surface-2 copy. Post-save feedback is rendered as an A2-style
+// in-place pill: the row's content is replaced with a brief confirmation
+// (~1.2s) before the row collapses out.
+//
+// Defence-in-depth: if a hard-block code (the six bilateral codes) somehow
+// reaches a confirm action, the server action returns reason="agent_only"
+// and we render the per-code explanation from PORTAL_AGENT_ONLY_COPY.
 
 import { useState, useTransition } from "react";
 import { P } from "./portal-ui";
@@ -16,6 +23,9 @@ import {
   portalSetExpectedDateAction,
   portalLeaveChaseNoteAction,
 } from "@/app/actions/portal";
+import { getPortalAgentOnlyCopy } from "@/lib/chase/portal-agent-only-copy";
+
+type Who = "you" | "solicitor" | "lender";
 
 type Item = {
   milestoneCode: string;
@@ -23,6 +33,7 @@ type Item = {
   label: string;
   description: string;
   expectedDate: string | null;
+  who: Who;
 };
 
 type Props = {
@@ -33,6 +44,15 @@ type Props = {
   isOptedOut: boolean;
   items: Item[];
 };
+
+type PillState = { kind: "confirm" | "date" | "note"; text: string };
+
+// "15 Jun" style. Always GMT-equivalent because the input is a YYYY-MM-DD
+// from the date picker — no time component.
+function formatDdMmm(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 export function RespondList({
   token,
@@ -47,7 +67,9 @@ export function RespondList({
   const [noteInput, setNoteInput] = useState("");
   const [submittingCode, setSubmittingCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pillByCode, setPillByCode] = useState<Record<string, PillState>>({});
   const [doneFor, setDoneFor] = useState<string[]>([]);
+  const [hardBlockByCode, setHardBlockByCode] = useState<Record<string, string>>({});
   const [, startTransition] = useTransition();
 
   function open(code: string, mode: "confirm" | "date" | "note") {
@@ -62,6 +84,20 @@ export function RespondList({
     setActiveMode(null);
   }
 
+  // A2 in-place pill: hold for 1200ms, then collapse the row out.
+  function flashPill(code: string, pill: PillState) {
+    setPillByCode((prev) => ({ ...prev, [code]: pill }));
+    close();
+    setTimeout(() => {
+      setDoneFor((prev) => [...prev, code]);
+      setPillByCode((prev) => {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      });
+    }, 1200);
+  }
+
   function handleConfirm(item: Item) {
     setSubmittingCode(item.milestoneCode);
     setError(null);
@@ -74,15 +110,22 @@ export function RespondList({
           eventDate: dateInput || null,
         });
         if (!result.ok && result.reason === "agent_only") {
-          // B1 hard-block — should never reach here because A6's exclude
-          // list filters those codes out of the respond page. Defensive UX.
-          setError("Your agent confirms this step. Nothing for you to do here.");
-        } else if (result.ok) {
-          setDoneFor((prev) => [...prev, item.milestoneCode]);
+          // Defence-in-depth: A6 + page-loader should have filtered. If we
+          // still got here, look up the per-code explanation and render it
+          // in place of the row controls.
+          setHardBlockByCode((prev) => ({
+            ...prev,
+            [item.milestoneCode]: getPortalAgentOnlyCopy(item.milestoneCode),
+          }));
           close();
+        } else if (result.ok) {
+          const text = item.who === "you"
+            ? "Done. We won't ask again."
+            : "Thanks. We'll stop asking about this.";
+          flashPill(item.milestoneCode, { kind: "confirm", text });
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
+        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
       } finally {
         setSubmittingCode(null);
       }
@@ -104,10 +147,10 @@ export function RespondList({
           milestoneDefinitionId: item.milestoneDefinitionId,
           expectedDate: dateInput,
         });
-        setDoneFor((prev) => [...prev, item.milestoneCode]);
-        close();
+        const text = `Got it. We'll wait until ${formatDdMmm(dateInput)} before asking again.`;
+        flashPill(item.milestoneCode, { kind: "date", text });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
+        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
       } finally {
         setSubmittingCode(null);
       }
@@ -128,10 +171,9 @@ export function RespondList({
           milestoneCode: item.milestoneCode,
           note: noteInput,
         });
-        setDoneFor((prev) => [...prev, item.milestoneCode]);
-        close();
+        flashPill(item.milestoneCode, { kind: "note", text: "Thanks. Your agent will see this." });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
+        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
       } finally {
         setSubmittingCode(null);
       }
@@ -140,43 +182,62 @@ export function RespondList({
 
   const remaining = items.filter((i) => !doneFor.includes(i.milestoneCode));
 
-  // ─── Empty state ──────────────────────────────────────────────────────────
+  // ─── Tone-based sub-heading (DIY / NUDGE / mixed) ─────────────────────
+  function subHeading(): string {
+    if (items.length === 0) return "";
+    const hasDiy = items.some((i) => i.who === "you");
+    const hasNudge = items.some((i) => i.who !== "you");
+    const first = contactName.split(" ")[0];
+    if (hasDiy && hasNudge) {
+      return `Hi ${first}, some of these are yours; the rest are sitting with other parties. Update us on whatever you can.`;
+    }
+    if (hasDiy) {
+      return `Hi ${first}, these are yours to confirm or update us on.`;
+    }
+    // all NUDGE
+    const parties = new Set(items.map((i) => i.who));
+    const phrase = parties.has("solicitor") && parties.has("lender")
+      ? "your solicitor or lender"
+      : parties.has("lender") ? "your lender" : "your solicitor";
+    return `Hi ${first}, these are sitting with ${phrase}. You don't need to do anything yourself, but if you've heard back, you can update us.`;
+  }
+
+  // ─── Empty state ──────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
       <div style={{ padding: "32px 20px", maxWidth: 560, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, color: P.textPrimary, margin: 0 }}>
-          You&apos;re all caught up
+          Nothing waiting on you right now.
         </h1>
         <p style={{ fontSize: 15, color: P.textMuted, marginTop: 12, lineHeight: 1.6 }}>
-          Nothing on {propertyAddress.split(",")[0]} is waiting for your update right now.
-          We&apos;ll send you another email if anything new comes up.
+          We&apos;ll email if anything new comes up on {propertyAddress.split(",")[0]}. In the meantime, you can close this page.
         </p>
       </div>
     );
   }
 
-  // ─── All-done state (after submitting every visible item) ─────────────────
+  // ─── All-done state (after submitting every visible item) ─────────────
   if (remaining.length === 0) {
     return (
       <div style={{ padding: "32px 20px", maxWidth: 560, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, color: P.textPrimary, margin: 0 }}>
-          Thanks. Everyone&apos;s updated.
+          That&apos;s everything. Thanks for the update.
         </h1>
         <p style={{ fontSize: 15, color: P.textMuted, marginTop: 12, lineHeight: 1.6 }}>
-          We&apos;ve passed your update on to your agent. You can close this page.
+          Your agent has been notified. We&apos;ll be in touch when the next step is ready.
         </p>
       </div>
     );
   }
 
-  // ─── List view ────────────────────────────────────────────────────────────
+  // ─── List view ────────────────────────────────────────────────────────
   return (
     <div style={{ padding: "24px 16px 48px", maxWidth: 560, margin: "0 auto" }}>
       <h1 style={{ fontSize: 22, fontWeight: 600, color: P.textPrimary, margin: 0 }}>
-        Quick update on {propertyAddress.split(",")[0]}
+        Updates on {propertyAddress.split(",")[0]}
       </h1>
       <p style={{ fontSize: 14, color: P.textMuted, marginTop: 10, marginBottom: 24, lineHeight: 1.6 }}>
-        Hi {contactName.split(" ")[0]}, a few things are waiting for your input. Pick what fits each one.
+        {subHeading()}
       </p>
 
       {isOptedOut && (
@@ -192,7 +253,7 @@ export function RespondList({
             lineHeight: 1.5,
           }}
         >
-          You unsubscribed from these chase emails. You can still use this page anytime; we just won&apos;t email you again unless you re-subscribe.
+          You&apos;ve unsubscribed from these update reminders. You can still use this page if you want to. We just won&apos;t email you about items here unless you re-subscribe.
         </div>
       )}
 
@@ -216,6 +277,9 @@ export function RespondList({
         {remaining.map((item) => {
           const isExpanded = activeItem === item.milestoneCode;
           const isSubmitting = submittingCode === item.milestoneCode;
+          const pill = pillByCode[item.milestoneCode];
+          const hardBlock = hardBlockByCode[item.milestoneCode];
+          const isDiy = item.who === "you";
           return (
             <div
               key={item.milestoneCode}
@@ -226,246 +290,273 @@ export function RespondList({
                 padding: "16px 18px",
               }}
             >
-              <p style={{ fontSize: 15, fontWeight: 600, color: P.textPrimary, margin: 0, lineHeight: 1.4 }}>
-                {item.label}
-              </p>
-              {item.description && (
-                <p style={{ fontSize: 13, color: P.textMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-                  {item.description}
+              {pill ? (
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "#065f46",
+                    background: "#d1fae5",
+                    border: "0.5px solid #6ee7b7",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    margin: 0,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {pill.text}
                 </p>
-              )}
-              {item.expectedDate && (
-                <p style={{ fontSize: 12, color: P.textMuted, margin: "8px 0 0", fontStyle: "italic" }}>
-                  You previously said: around{" "}
-                  {new Date(item.expectedDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
-                </p>
-              )}
-
-              {/* Controls */}
-              {!isExpanded ? (
-                <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => open(item.milestoneCode, "confirm")}
-                    disabled={isSubmitting}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      background: P.primaryBg,
-                      color: P.primaryText,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Yes, this is done
-                  </button>
-                  <button
-                    onClick={() => open(item.milestoneCode, "date")}
-                    disabled={isSubmitting}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      background: "transparent",
-                      color: P.textPrimary,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      border: `0.5px solid ${P.border}`,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Set a date
-                  </button>
-                  <button
-                    onClick={() => open(item.milestoneCode, "note")}
-                    disabled={isSubmitting}
-                    style={{
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      background: "transparent",
-                      color: P.textPrimary,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      border: `0.5px solid ${P.border}`,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Leave a note
-                  </button>
-                </div>
+              ) : hardBlock ? (
+                <>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: P.textPrimary, margin: 0, lineHeight: 1.4 }}>
+                    {item.label}
+                  </p>
+                  <p style={{ fontSize: 13, color: P.textMuted, margin: "8px 0 0", lineHeight: 1.5 }}>
+                    {hardBlock}
+                  </p>
+                </>
               ) : (
-                <div style={{ marginTop: 14 }}>
-                  {activeMode === "confirm" && (
-                    <>
-                      <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
-                        When did this happen? (optional)
-                      </p>
-                      <input
-                        type="date"
-                        value={dateInput}
-                        onChange={(e) => setDateInput(e.target.value)}
-                        style={{
-                          fontSize: 14,
-                          padding: "8px 10px",
-                          borderRadius: 8,
-                          border: `0.5px solid ${P.border}`,
-                          width: "100%",
-                          marginBottom: 12,
-                        }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => handleConfirm(item)}
-                          disabled={isSubmitting}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: P.primaryBg,
-                            color: P.primaryText,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            border: "none",
-                            cursor: isSubmitting ? "wait" : "pointer",
-                            opacity: isSubmitting ? 0.6 : 1,
-                          }}
-                        >
-                          {isSubmitting ? "Saving..." : "Confirm"}
-                        </button>
-                        <button
-                          onClick={close}
-                          disabled={isSubmitting}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: "transparent",
-                            color: P.textMuted,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
+                <>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: P.textPrimary, margin: 0, lineHeight: 1.4 }}>
+                    {item.label}
+                  </p>
+                  {item.description && (
+                    <p style={{ fontSize: 13, color: P.textMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
+                      {item.description}
+                    </p>
+                  )}
+                  {item.expectedDate && (
+                    <p style={{ fontSize: 12, color: P.textMuted, margin: "8px 0 0", fontStyle: "italic" }}>
+                      You said around {formatDdMmm(item.expectedDate)} — has that changed?
+                    </p>
                   )}
 
-                  {activeMode === "date" && (
-                    <>
-                      <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
-                        When do you think this will happen?
-                      </p>
-                      <input
-                        type="date"
-                        value={dateInput}
-                        onChange={(e) => setDateInput(e.target.value)}
+                  {/* Controls */}
+                  {!isExpanded ? (
+                    <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => open(item.milestoneCode, "confirm")}
+                        disabled={isSubmitting}
                         style={{
-                          fontSize: 14,
-                          padding: "8px 10px",
+                          padding: "8px 14px",
                           borderRadius: 8,
-                          border: `0.5px solid ${P.border}`,
-                          width: "100%",
-                          marginBottom: 12,
+                          background: P.primaryBg,
+                          color: P.primaryText,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          border: "none",
+                          cursor: "pointer",
                         }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => handleSetDate(item)}
-                          disabled={isSubmitting || !dateInput}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: P.primaryBg,
-                            color: P.primaryText,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            border: "none",
-                            cursor: isSubmitting ? "wait" : "pointer",
-                            opacity: isSubmitting || !dateInput ? 0.6 : 1,
-                          }}
-                        >
-                          {isSubmitting ? "Saving..." : "Save date"}
-                        </button>
-                        <button
-                          onClick={close}
-                          disabled={isSubmitting}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: "transparent",
-                            color: P.textMuted,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  )}
+                      >
+                        {isDiy ? "Yes, this is done" : "Yes, this is already done"}
+                      </button>
+                      <button
+                        onClick={() => open(item.milestoneCode, "date")}
+                        disabled={isSubmitting}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          background: "transparent",
+                          color: P.textPrimary,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          border: `0.5px solid ${P.border}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Tell us when
+                      </button>
+                      <button
+                        onClick={() => open(item.milestoneCode, "note")}
+                        disabled={isSubmitting}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          background: "transparent",
+                          color: P.textPrimary,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          border: `0.5px solid ${P.border}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isDiy ? "Leave a note" : "Leave a note for your agent"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 14 }}>
+                      {activeMode === "confirm" && (
+                        <>
+                          <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
+                            {isDiy ? "When did this happen? (optional)" : "When did you hear back? (optional)"}
+                          </p>
+                          <input
+                            type="date"
+                            value={dateInput}
+                            onChange={(e) => setDateInput(e.target.value)}
+                            style={{
+                              fontSize: 14,
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `0.5px solid ${P.border}`,
+                              width: "100%",
+                              marginBottom: 12,
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => handleConfirm(item)}
+                              disabled={isSubmitting}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: P.primaryBg,
+                                color: P.primaryText,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: isSubmitting ? "wait" : "pointer",
+                                opacity: isSubmitting ? 0.6 : 1,
+                              }}
+                            >
+                              {isSubmitting ? "Saving..." : "Confirm"}
+                            </button>
+                            <button
+                              onClick={close}
+                              disabled={isSubmitting}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: "transparent",
+                                color: P.textMuted,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
 
-                  {activeMode === "note" && (
-                    <>
-                      <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
-                        Tell your agent what&apos;s happening:
-                      </p>
-                      <textarea
-                        value={noteInput}
-                        onChange={(e) => setNoteInput(e.target.value)}
-                        rows={3}
-                        placeholder="Anything they should know..."
-                        style={{
-                          fontSize: 14,
-                          padding: "10px 12px",
-                          borderRadius: 8,
-                          border: `0.5px solid ${P.border}`,
-                          width: "100%",
-                          marginBottom: 12,
-                          resize: "vertical",
-                          fontFamily: "inherit",
-                        }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => handleNote(item)}
-                          disabled={isSubmitting || !noteInput.trim()}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: P.primaryBg,
-                            color: P.primaryText,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            border: "none",
-                            cursor: isSubmitting ? "wait" : "pointer",
-                            opacity: isSubmitting || !noteInput.trim() ? 0.6 : 1,
-                          }}
-                        >
-                          {isSubmitting ? "Sending..." : "Send to agent"}
-                        </button>
-                        <button
-                          onClick={close}
-                          disabled={isSubmitting}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: 8,
-                            background: "transparent",
-                            color: P.textMuted,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
+                      {activeMode === "date" && (
+                        <>
+                          <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
+                            {isDiy ? "When do you think this'll happen?" : "When are you expecting this?"}
+                          </p>
+                          <input
+                            type="date"
+                            value={dateInput}
+                            onChange={(e) => setDateInput(e.target.value)}
+                            style={{
+                              fontSize: 14,
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: `0.5px solid ${P.border}`,
+                              width: "100%",
+                              marginBottom: 12,
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => handleSetDate(item)}
+                              disabled={isSubmitting || !dateInput}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: P.primaryBg,
+                                color: P.primaryText,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: isSubmitting ? "wait" : "pointer",
+                                opacity: isSubmitting || !dateInput ? 0.6 : 1,
+                              }}
+                            >
+                              {isSubmitting ? "Saving..." : "Save date"}
+                            </button>
+                            <button
+                              onClick={close}
+                              disabled={isSubmitting}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: "transparent",
+                                color: P.textMuted,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {activeMode === "note" && (
+                        <>
+                          <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
+                            Tell your agent what&apos;s happening:
+                          </p>
+                          <textarea
+                            value={noteInput}
+                            onChange={(e) => setNoteInput(e.target.value)}
+                            rows={3}
+                            placeholder="Anything they should know..."
+                            style={{
+                              fontSize: 14,
+                              padding: "10px 12px",
+                              borderRadius: 8,
+                              border: `0.5px solid ${P.border}`,
+                              width: "100%",
+                              marginBottom: 12,
+                              resize: "vertical",
+                              fontFamily: "inherit",
+                            }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => handleNote(item)}
+                              disabled={isSubmitting || !noteInput.trim()}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: P.primaryBg,
+                                color: P.primaryText,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                border: "none",
+                                cursor: isSubmitting ? "wait" : "pointer",
+                                opacity: isSubmitting || !noteInput.trim() ? 0.6 : 1,
+                              }}
+                            >
+                              {isSubmitting ? "Sending..." : "Send to agent"}
+                            </button>
+                            <button
+                              onClick={close}
+                              disabled={isSubmitting}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                background: "transparent",
+                                color: P.textMuted,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           );

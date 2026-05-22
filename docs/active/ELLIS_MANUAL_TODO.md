@@ -4,7 +4,31 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
+
+---
+
+## Client-chase arc — flag flip + manual re-subscribe ops
+
+The client-chase cron (`/api/cron/client-chase`, daily 08:30 UTC) is registered and tsc-clean but **flag-gated to a no-op** until you explicitly enable it.
+
+### Step 1 — enable the flag once you've walked it on staging
+
+Set `CLIENT_CHASE_ENABLED=true` in the Vercel environment for **staging first**, walk through the next morning's cron output (route logs + `ClientChaseState` DB rows + drained `OutboundEmailQueue` rows), then enable on production. Until the flag is `"true"`, the cron route returns `{ ok: true, skipped: "flag_disabled" }` and nothing is enqueued.
+
+### Step 2 — manual re-subscribe path (no UI for v1)
+
+If a contact unsubscribes and then asks their agent to re-enable update reminders, **the agent has no UI for this** — it's a manual DB op handled by you:
+
+```sql
+UPDATE "Contact" SET "unsubscribedAt" = NULL WHERE id = '<contact-id>';
+```
+
+Volume should be near-zero pre-launch. If/when manual ops becomes a regular task, build the UI then. The copy on the unsubscribe page and the respond-page opt-out banner correctly tells contacts to "tell your agent" — works whether the flip is DB or a future toggle.
+
+### Step 3 — escalation review (no SLA, sanity check only)
+
+When the cron escalates a `ClientChaseState` row (chase-count cap of 2 OR 14 days of silence, whichever fires first), `status` flips to `"escalated"`. Spot-check `SELECT * FROM "ClientChaseState" WHERE status = 'escalated'` periodically — disproportionately many escalations might mean cadence is too aggressive for real-world response patterns. Pre-launch with ~5 users this is mostly a sanity check.
 
 ---
 

@@ -109,6 +109,12 @@ export default async function PortalRespondPage({
         label: copy.label,
         description: copy.description ?? "",
         expectedDate: comp.expectedDate ? comp.expectedDate.toISOString() : null,
+        // who drives the DIY/NUDGE branching of the per-row controls. Sourced
+        // from portal-copy (single source of truth — same field the digest
+        // assembler classifies tone from). "agent" never reaches here because
+        // A6's allowlist filters bilateral codes upstream, but defensively
+        // anything not "you"/"lender" treats as solicitor-NUDGE.
+        who: (copy.who === "you" ? "you" : copy.who === "lender" ? "lender" : "solicitor") as "you" | "solicitor" | "lender",
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);

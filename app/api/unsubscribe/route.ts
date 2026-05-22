@@ -39,11 +39,18 @@ export async function GET(req: NextRequest) {
     // updateMany with the null guard means re-clicking the same link is a
     // no-op (matches the user/invite pattern). Always redirects to the same
     // confirmation page.
+    //
+    // type=contact lets the confirmation page render a buyer/seller-specific
+    // body ("update reminders for your sale", "your agent will still be in
+    // touch") rather than the generic "unsubscribed from this address" line
+    // used by the user/invite branches. NOTE: no contactId in the redirect
+    // URL — the page intentionally does NOT do an unauthenticated ID lookup
+    // (would be IDOR pattern). Copy is generic-by-design.
     await prisma.contact.updateMany({
       where: { id: contactId, unsubscribedAt: null },
       data: { unsubscribedAt: new Date() },
     });
-    return NextResponse.redirect(`${portalBase()}/unsubscribed?status=ok`);
+    return NextResponse.redirect(`${portalBase()}/unsubscribed?status=ok&type=contact`);
   }
 
   return invalid();
