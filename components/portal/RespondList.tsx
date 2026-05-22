@@ -125,7 +125,13 @@ export function RespondList({
           flashPill(item.milestoneCode, { kind: "confirm", text });
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
+        // Always show the friendly fallback — never expose the underlying
+        // error text. In production, Next.js redacts thrown server-action
+        // errors to a generic "Server Components render" string which would
+        // confuse users; in dev it would surface internals. The actual error
+        // is still available in server logs for debugging.
+        console.error("[respond] confirm action threw:", e);
+        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
@@ -150,7 +156,10 @@ export function RespondList({
         const text = `Got it. We'll wait until ${formatDdMmm(dateInput)} before asking again.`;
         flashPill(item.milestoneCode, { kind: "date", text });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
+        // See note in handleConfirm — friendly fallback always; underlying
+        // error in server logs.
+        console.error("[respond] set-date action threw:", e);
+        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
@@ -173,7 +182,9 @@ export function RespondList({
         });
         flashPill(item.milestoneCode, { kind: "note", text: "Thanks. Your agent will see this." });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong. Please try again or contact your agent.");
+        // See note in handleConfirm — friendly fallback always.
+        console.error("[respond] leave-note action threw:", e);
+        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
