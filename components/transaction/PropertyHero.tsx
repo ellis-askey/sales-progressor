@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 import { StatusControl } from "./StatusControl";
+import { formatDate } from "@/lib/utils";
 
 type Props = {
   address: string;
@@ -18,7 +19,7 @@ type Props = {
   backHref?: string;
   flagSlot?: React.ReactNode;
   assignedUserName?: string | null;
-  weeksActive?: number | null;
+  createdAt?: Date | string | null;
   transactionId?: string;
   hideServiceTypeBadge?: boolean;
 };
@@ -72,7 +73,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, weeksActive, transactionId, hideServiceTypeBadge = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -86,9 +87,7 @@ export function PropertyHero({
   if (isAgent) {
     const metaParts = [
       assignedUserName ?? null,
-      weeksActive != null
-        ? `${weeksActive} week${weeksActive !== 1 ? "s" : ""} active`
-        : null,
+      createdAt != null ? `Added on ${formatDate(createdAt)}` : null,
     ].filter(Boolean);
     const metaText = metaParts.join(" · ");
 

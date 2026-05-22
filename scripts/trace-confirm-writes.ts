@@ -45,6 +45,7 @@ type Args = {
   milestone: string; // milestone code, e.g. "PM8" or "VM19"
   out: string;
   eventDate?: string;
+  chain: boolean; // include a chain with a separate-agency mate
 };
 
 function parseArgs(): Args {
@@ -53,14 +54,16 @@ function parseArgs(): Args {
     const i = argv.indexOf(flag);
     return i >= 0 && i + 1 < argv.length ? argv[i + 1] : undefined;
   };
+  const flag = (f: string): boolean => argv.includes(f);
   const via = (get("--via") as Via) ?? "agent";
   const milestone = get("--milestone") ?? "PM8";
   const out = get("--out") ?? `logs/trace-${via}-${milestone}.json`;
   const eventDate = get("--eventDate") ?? undefined;
+  const chain = flag("--chain");
   if (via !== "agent" && via !== "portal") {
     throw new Error(`--via must be 'agent' or 'portal' (got ${via})`);
   }
-  return { via, milestone, out, eventDate };
+  return { via, milestone, out, eventDate, chain };
 }
 
 // ─── Prereq map (must match lib/milestone-prerequisites.ts) ──────────────────
@@ -100,7 +103,7 @@ function prereqChain(code: string): string[] {
 
 // ─── Fixture lifecycle ───────────────────────────────────────────────────────
 
-async function buildFixture(prisma: PrismaClient, targetCode: string) {
+async function buildFixture(prisma: PrismaClient, targetCode: string, includeChain = false) {
   // 1. Find or create the test agency
   let agency = await prisma.agency.findFirst({ where: { name: "TraceHarnessAgency" } });
   if (!agency) {
@@ -221,6 +224,99 @@ async function buildFixture(prisma: PrismaClient, targetCode: string) {
   const targetDefId = defByCode.get(targetCode);
   if (!targetDefId) throw new Error(`Milestone code ${targetCode} not in DB`);
 
+  // 7. Optional chain fixture — a 2-link chain where the trace transaction is
+  //    one link and the OTHER link is claimed by a separate agency's agent.
+  //    This is what fires chain-mate notifications when VM19/PM26/VM20/PM27
+  //    are confirmed.
+  let chainMate: { agency: { id: string }; user: { id: string; email: string; name: string }; transactionId: string } | null = null;
+  if (includeChain) {
+    // Separate agency for the chain mate
+    let mateAgency = await prisma.agency.findFirst({ where: { name: "TraceHarnessChainMateAgency" } });
+    if (!mateAgency) {
+      mateAgency = await prisma.agency.create({ data: { name: "TraceHarnessChainMateAgency", isInternal: true } });
+    }
+    let mateUser = await prisma.user.findFirst({ where: { email: "trace-chainmate@example.test" } });
+    if (!mateUser) {
+      mateUser = await prisma.user.create({
+        data: {
+          name: "Trace Chain Mate Agent",
+          email: "trace-chainmate@example.test",
+          role: "director",
+          agencyId: mateAgency.id,
+          firmName: "TraceHarnessChainMateAgency",
+          // NOT setting emailUnsubscribedAt — chain notifications use
+          // isUserEmailSuppressed; suppressing the mate would skip them
+          // and defeat the verification.
+        },
+      });
+    } else if (mateUser.emailUnsubscribedAt !== null) {
+      // Resurrect if previously suppressed
+      mateUser = await prisma.user.update({
+        where: { id: mateUser.id },
+        data: { emailUnsubscribedAt: null },
+      });
+    }
+    // Mate's own transaction (the downstream chain link)
+    const mateTx = await prisma.propertyTransaction.create({
+      data: {
+        propertyAddress: `Trace ChainMate ${Date.now()}, CM2 2CM`,
+        agencyId: mateAgency.id,
+        agentUserId: mateUser.id,
+        assignedUserId: mateUser.id,
+        purchaseType: "cash_buyer",
+        tenure: "freehold",
+        serviceType: "self_managed",
+        progressedBy: "agent",
+      },
+    });
+    const chain = await prisma.propertyChain.create({
+      data: {
+        agencyId: agency.id,
+        createdByUserId: agentUser.id,
+        status: "ACTIVE",
+      },
+    });
+    // Trace tx = position 0 (upstream / vendor in this chain)
+    const traceLink = await prisma.chainLink.create({
+      data: {
+        chainId: chain.id,
+        position: 0,
+        createdByUserId: agentUser.id,
+        claimedByUserId: agentUser.id,
+        claimedAt: new Date(),
+        transactionId: transaction.id,
+        inviteStatus: "CLAIMED",
+      },
+    });
+    // PropertyTransaction.chainLinkId back-reference — enqueueChainMilestoneNotifications
+    // reads this; without it the chain walk returns early.
+    await prisma.propertyTransaction.update({
+      where: { id: transaction.id },
+      data: { chainLinkId: traceLink.id },
+    });
+    // Mate tx = position 1 (downstream / purchaser in this chain)
+    const mateLink = await prisma.chainLink.create({
+      data: {
+        chainId: chain.id,
+        position: 1,
+        createdByUserId: agentUser.id,
+        claimedByUserId: mateUser.id,
+        claimedAt: new Date(),
+        transactionId: mateTx.id,
+        inviteStatus: "CLAIMED",
+      },
+    });
+    await prisma.propertyTransaction.update({
+      where: { id: mateTx.id },
+      data: { chainLinkId: mateLink.id },
+    });
+    chainMate = {
+      agency: { id: mateAgency.id },
+      user: { id: mateUser.id, email: mateUser.email, name: mateUser.name },
+      transactionId: mateTx.id,
+    };
+  }
+
   return {
     agency,
     agentUser,
@@ -229,11 +325,21 @@ async function buildFixture(prisma: PrismaClient, targetCode: string) {
     purchaserContact,
     targetDefId,
     targetCode,
+    chainMate,
   };
 }
 
-async function teardownFixture(prisma: PrismaClient, transactionId: string) {
-  // Cascade deletes completions, contacts, and the transaction
+async function teardownFixture(
+  prisma: PrismaClient,
+  transactionId: string,
+  chainMateTransactionId?: string | null,
+) {
+  // Cascade deletes completions, contacts, chain links, and the transaction.
+  // Delete the mate's transaction first (FK cascade on ChainLink keeps things
+  // consistent).
+  if (chainMateTransactionId) {
+    await prisma.propertyTransaction.delete({ where: { id: chainMateTransactionId } }).catch(() => {});
+  }
   await prisma.propertyTransaction.delete({ where: { id: transactionId } });
 }
 
@@ -315,7 +421,7 @@ function normalise(args: unknown, fixture: {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const { via, milestone, out, eventDate } = parseArgs();
+  const { via, milestone, out, eventDate, chain } = parseArgs();
   // Tick-shifted to ensure consistent output paths
   mkdirSync(dirname(out), { recursive: true });
 
@@ -329,9 +435,9 @@ async function main() {
 
   installCapture(prisma, captured);
 
-  console.log(`[trace] building fixture for ${via} confirm of ${milestone}...`);
-  const fx = await buildFixture(prisma, milestone);
-  console.log(`[trace] fixture transaction ${fx.transaction.id}`);
+  console.log(`[trace] building fixture for ${via} confirm of ${milestone}${chain ? " (with chain mate)" : ""}...`);
+  const fx = await buildFixture(prisma, milestone, chain);
+  console.log(`[trace] fixture transaction ${fx.transaction.id}${fx.chainMate ? `, chain mate ${fx.chainMate.user.email}` : ""}`);
 
   const fixtureCutoff = captured.length;
 
@@ -397,11 +503,46 @@ async function main() {
     args: normalise(c.args, fixtureNormalisation),
   }));
 
-  writeFileSync(out, JSON.stringify({ via, milestone, eventDate: eventDate ?? null, captured: dumped }, null, 2));
-  console.log(`[trace] wrote ${dumped.length} write operations to ${out}`);
+  // Chain-mate verification payload: if a chain mate was set up, fetch any
+  // OutboundEmailQueue rows enqueued during this run targeting that mate.
+  let chainMateEmails: unknown[] | undefined;
+  if (fx.chainMate) {
+    const queued = await prisma.outboundEmailQueue.findMany({
+      where: {
+        recipientUserId: fx.chainMate.user.id,
+        createdAt: { gte: new Date(Date.now() - 60 * 1000) },
+      },
+      select: {
+        emailType: true,
+        sourceId: true,
+        recipientEmail: true,
+        recipientUserId: true,
+        payload: true,
+        scheduledFor: true,
+      },
+    });
+    chainMateEmails = queued.map((q) => ({
+      emailType: q.emailType,
+      sourceId: "{SOURCE_ID}", // normalised
+      recipientEmail: q.recipientEmail === fx.chainMate!.user.email ? "{CHAIN_MATE_EMAIL}" : q.recipientEmail,
+      recipientUserId: "{CHAIN_MATE_USER_ID}",
+      payload: q.payload,
+      scheduledFor: "{SCHEDULED_FOR}",
+    }));
+  }
+
+  writeFileSync(out, JSON.stringify({
+    via,
+    milestone,
+    eventDate: eventDate ?? null,
+    chainMateInfo: fx.chainMate ? { email: fx.chainMate.user.email, agencyId: fx.chainMate.agency.id } : null,
+    chainMateEmailsEnqueued: chainMateEmails,
+    captured: dumped,
+  }, null, 2));
+  console.log(`[trace] wrote ${dumped.length} write operations${chainMateEmails ? ` + ${chainMateEmails.length} chain-mate emails` : ""} to ${out}`);
 
   console.log(`[trace] tearing down fixture ${fx.transaction.id}...`);
-  await teardownFixture(prisma, fx.transaction.id);
+  await teardownFixture(prisma, fx.transaction.id, fx.chainMate?.transactionId);
 
   await prisma.$disconnect();
 }

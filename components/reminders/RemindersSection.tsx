@@ -2,12 +2,45 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
+
+// Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
+// components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
+// the file self-contained — DRY refactor to a shared module is a small
+// future cleanup). Five FallbackKind values are surfaced; any new kind
+// gets a generic "Manual handoff" fallback.
+function fallbackChipText(kind: string): string {
+  switch (kind) {
+    case "client_opted_out":          return "Client opted out — manual";
+    case "max_chases_exhausted":      return "Chased twice — manual";
+    case "days_cap_exhausted":        return "14d silent — manual";
+    case "no_email_on_contact":       return "No email — manual";
+    case "no_portalToken_on_contact": return "No portal — manual";
+    default:                          return "Manual handoff";
+  }
+}
+function fallbackChipTitle(kind: string): string {
+  switch (kind) {
+    case "client_opted_out":
+      return "Client chased automatically, then opted out. Now manual — please follow up.";
+    case "max_chases_exhausted":
+      return "Client was chased twice automatically with no response. Manual chase needed.";
+    case "days_cap_exhausted":
+      return "Client has been silent for 14 days since the first chase. Manual chase needed.";
+    case "no_email_on_contact":
+      return "Can't chase automatically — the client contact has no email address. Manual chase needed.";
+    case "no_portalToken_on_contact":
+      return "Can't chase automatically — the client contact has no portal access. Manual chase needed.";
+    default:
+      return "Manual chase needed.";
+  }
+}
 
 type ChaseTask = {
   id: string;
@@ -230,7 +263,6 @@ function ColumnSection({
   propertyAddress,
   contacts,
   loading,
-  exitingIds,
   handleComplete,
   handleSnooze,
   handleSnoozeAll,
@@ -242,13 +274,13 @@ function ColumnSection({
   propertyAddress: string;
   contacts: Contact[];
   loading: string | null;
-  exitingIds: Set<string>;
   handleComplete: (logId: string, taskId: string) => void;
   handleSnooze: (logId: string, taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleChased: (taskId: string) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [rowsRef] = useAutoAnimate<HTMLDivElement>();
   const isSeller = side === "seller";
   const dotColor = isSeller ? "#ea580c" : "#3b82f6";
   const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
@@ -288,7 +320,7 @@ function ColumnSection({
       </div>
 
       {/* Rows */}
-      <div style={{ flex: 1, padding: "6px 0" }}>
+      <div ref={rowsRef} style={{ flex: 1, padding: "6px 0" }}>
         {logs.map((log, i) => {
           const task = log.chaseTasks.find((t) => t.status === "pending");
           const name = stripChase(log.reminderRule.name);
@@ -309,7 +341,6 @@ function ColumnSection({
           return (
             <div
               key={log.id}
-              className={exitingIds.has(log.id) ? "agent-row-exit" : ""}
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -317,7 +348,7 @@ function ColumnSection({
                 {urgencyLabel && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
                 )}
-                {task?.fallbackKind === "client_opted_out" && (
+                {task?.fallbackKind && (
                   <span
                     style={{
                       display: "inline-block",
@@ -331,9 +362,9 @@ function ColumnSection({
                       borderRadius: 4,
                       lineHeight: 1.4,
                     }}
-                    title="Client chased automatically, then opted out. Now manual — please follow up."
+                    title={fallbackChipTitle(task.fallbackKind)}
                   >
-                    Client opted out — manual
+                    {fallbackChipText(task.fallbackKind)}
                   </span>
                 )}
               </div>
@@ -342,7 +373,7 @@ function ColumnSection({
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
                     onClick={() => handleComplete(log.id, task.id)}
-                    disabled={loading === task.id || exitingIds.has(log.id)}
+                    disabled={loading === task.id}
                     title="Confirm milestone done"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
@@ -397,7 +428,16 @@ export function RemindersSection({
   const pathname = usePathname();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
-  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  // Optimistic hide: rows are dropped from the rendered list immediately on
+  // action, without waiting for revalidatePath to round-trip. auto-animate
+  // (attached to the list containers below) handles the fade-out + sibling
+  // reflow. Reset whenever fresh server data arrives.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setHiddenIds(new Set());
+  }, [reminderLogs]);
+  const [snoozedListRef] = useAutoAnimate<HTMLDivElement>();
+  const [completedListRef] = useAutoAnimate<HTMLDivElement>();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     escalated: false,
     overdue: false,
@@ -411,13 +451,13 @@ export function RemindersSection({
   const todayStr = toUKDateStr(now);
 
   const activeLogs = reminderLogs.filter((l) =>
-    l.status === "active" && !(l.snoozedUntil && new Date(l.snoozedUntil) > now)
+    !hiddenIds.has(l.id) && l.status === "active" && !(l.snoozedUntil && new Date(l.snoozedUntil) > now)
   );
   const snoozedLogs = reminderLogs.filter(
-    (l) => l.status === "active" && l.snoozedUntil && new Date(l.snoozedUntil) > now
+    (l) => !hiddenIds.has(l.id) && l.status === "active" && l.snoozedUntil && new Date(l.snoozedUntil) > now
   );
   const completedLogs = reminderLogs.filter(
-    (l) => l.status === "completed" || l.status === "inactive"
+    (l) => !hiddenIds.has(l.id) && (l.status === "completed" || l.status === "inactive")
   );
 
   const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
@@ -433,47 +473,39 @@ export function RemindersSection({
   }
 
   function handleComplete(logId: string, taskId: string) {
-    setExitingIds((prev) => new Set([...prev, logId]));
-    setTimeout(() => {
-      setLoading(taskId);
-      startTransition(async () => {
-        try { await completeTaskAction(taskId, pathname); }
-        finally { setLoading(null); setExitingIds(new Set()); }
-      });
-    }, 150);
+    setHiddenIds((prev) => new Set([...prev, logId]));
+    setLoading(taskId);
+    startTransition(async () => {
+      try { await completeTaskAction(taskId, pathname); }
+      finally { setLoading(null); }
+    });
   }
 
   function handleSnooze(logId: string, taskId: string, hours: number) {
-    setExitingIds((prev) => new Set([...prev, logId]));
-    setTimeout(() => {
-      setLoading(taskId);
-      startTransition(async () => {
-        try { await snoozeTaskAction(taskId, hours, pathname); }
-        finally { setLoading(null); setExitingIds(new Set()); }
-      });
-    }, 150);
+    setHiddenIds((prev) => new Set([...prev, logId]));
+    setLoading(taskId);
+    startTransition(async () => {
+      try { await snoozeTaskAction(taskId, hours, pathname); }
+      finally { setLoading(null); }
+    });
   }
 
   function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
-    setExitingIds(new Set(logIds));
-    setTimeout(() => {
-      setLoading(taskIds[0] ?? "");
-      startTransition(async () => {
-        try { await Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, pathname))); }
-        finally { setLoading(null); setExitingIds(new Set()); }
-      });
-    }, 150);
+    setHiddenIds((prev) => new Set([...prev, ...logIds]));
+    setLoading(taskIds[0] ?? "");
+    startTransition(async () => {
+      try { await Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, pathname))); }
+      finally { setLoading(null); }
+    });
   }
 
   function handleWakeup(logId: string) {
-    setExitingIds((prev) => new Set([...prev, logId]));
-    setTimeout(() => {
-      setLoading(logId);
-      startTransition(async () => {
-        try { await wakeupReminderAction(logId, pathname); }
-        finally { setLoading(null); setExitingIds(new Set()); }
-      });
-    }, 150);
+    setHiddenIds((prev) => new Set([...prev, logId]));
+    setLoading(logId);
+    startTransition(async () => {
+      try { await wakeupReminderAction(logId, pathname); }
+      finally { setLoading(null); }
+    });
   }
 
   function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, pathname)); }
@@ -545,10 +577,10 @@ export function RemindersSection({
               <div className="agent-acc-in">
                 <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
                   {sellerLogs.length > 0
-                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
                     : <EmptyColumn side="seller" />}
                   {buyerLogs.length > 0
-                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} exitingIds={exitingIds} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
                     : <EmptyColumn side="buyer" />}
                 </div>
               </div>
@@ -571,9 +603,9 @@ export function RemindersSection({
           </div>
           <div className={`agent-acc ${!collapsed.snoozed ? "open" : ""}`}>
             <div className="agent-acc-in">
-              <div className="space-y-1.5 p-4">
+              <div ref={snoozedListRef} className="space-y-1.5 p-4">
                 {snoozedLogs.map((log) => (
-                  <div key={log.id} className={`glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3 ${exitingIds.has(log.id) ? "agent-row-exit" : ""}`}>
+                  <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-slate-900/80 truncate">
                         {stripChase(log.reminderRule.name)}
@@ -586,7 +618,7 @@ export function RemindersSection({
                     </div>
                     <button
                       onClick={() => handleWakeup(log.id)}
-                      disabled={loading === log.id || exitingIds.has(log.id)}
+                      disabled={loading === log.id}
                       className="text-[10px] agent-link"
                     >
                       Wake up
@@ -613,7 +645,7 @@ export function RemindersSection({
           </div>
           <div className={`agent-acc ${!collapsed.completed ? "open" : ""}`}>
             <div className="agent-acc-in">
-              <div className="space-y-1.5 p-4">
+              <div ref={completedListRef} className="space-y-1.5 p-4">
                 {completedLogs.map((log) => (
                   <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5">
                     <p className="text-xs font-medium text-slate-900/60">{stripChase(log.reminderRule.name)}</p>

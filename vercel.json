@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/client-weekly-update",
-      "schedule": "0 18 * * 0"
+      "schedule": "0 9 * * 6"
     },
     {
       "path": "/api/cron/check-domains",

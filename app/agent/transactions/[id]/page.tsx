@@ -41,6 +41,7 @@ import { TransactionViewTracker } from "@/components/agent/TransactionViewTracke
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
 
 export default async function AgentTransactionDetailPage({
   params,
@@ -57,7 +58,7 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = session.user.role === "admin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     isInternalStaff
@@ -69,6 +70,11 @@ export default async function AgentTransactionDetailPage({
     getLastUpdate(id).catch(() => null),
     listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
     getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
+    // B6 of the client-chase arc — aggregated per-milestone chase state for
+    // the chip rendered by MilestoneRow. Returns {} when the chase feature
+    // is flag-gated off (no ClientChaseState rows yet); the chip simply
+    // doesn't render in that case.
+    getClientChaseStatesForTransaction(id).catch(() => ({})),
   ]);
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
@@ -334,9 +340,6 @@ export default async function AgentTransactionDetailPage({
       })
     : null;
 
-  const weeksActive = Math.floor(
-    (Date.now() - new Date(transaction.createdAt).getTime()) / (7 * 24 * 60 * 60 * 1000)
-  );
   const assignedDisplayName =
     (transaction.assignedUser as { name?: string | null } | null)?.name ??
     agentUser?.name ??
@@ -475,7 +478,7 @@ export default async function AgentTransactionDetailPage({
         hideServiceTypeBadge={false}
         backHref="/agent/transactions"
         assignedUserName={assignedDisplayName}
-        weeksActive={weeksActive}
+        createdAt={transaction.createdAt}
         transactionId={transaction.id}
       />
 
@@ -569,6 +572,7 @@ export default async function AgentTransactionDetailPage({
               vendorGateReady={milestoneData.vendorGateReady}
               purchaserGateReady={milestoneData.purchaserGateReady}
               graceDaysByCode={graceDaysByCode}
+              clientChaseByCode={clientChaseByCode}
             />
           ) : (
             <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>
