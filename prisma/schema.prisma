@@ -517,6 +517,14 @@ model ChaseTask {
   priority      TaskPriority    @default(normal)
   chaseCount    Int             @default(0)
   notes         String?
+  // Discrete-kind marker for tasks the system handed to the agent because
+  // automated chasing failed. Null for normal engine-created tasks. First
+  // value: "client_opted_out" — set when a client unsubscribed (A2/A3) and
+  // a chase that would have emailed them was redirected to the agent. UI
+  // renders a yellow chip on the work-queue row when this is set.
+  // Free-form String (not a Prisma enum) so future fallback kinds can be
+  // added without a schema migration.
+  fallbackKind  String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 

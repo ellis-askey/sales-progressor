@@ -15,6 +15,7 @@ type ChaseTask = {
   priority: string;
   chaseCount: number;
   dueDate: Date;
+  fallbackKind: string | null;
   communications: { createdAt: Date; method: string | null }[];
 };
 
@@ -315,6 +316,25 @@ function ColumnSection({
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
                 {urgencyLabel && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
+                )}
+                {task?.fallbackKind === "client_opted_out" && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      marginTop: 3,
+                      padding: "1px 6px",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: "#92400e",
+                      background: "#fef3c7",
+                      border: "0.5px solid #fcd34d",
+                      borderRadius: 4,
+                      lineHeight: 1.4,
+                    }}
+                    title="Client chased automatically, then opted out. Now manual — please follow up."
+                  >
+                    Client opted out — manual
+                  </span>
                 )}
               </div>
               {task && (

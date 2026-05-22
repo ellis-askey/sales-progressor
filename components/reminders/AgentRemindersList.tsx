@@ -352,6 +352,29 @@ function SideColumn({
                     {urgencyLabel}
                   </p>
                 )}
+                {/* Fallback-kind chip — set when the system handed this chase
+                 * back to the agent. The string-to-text map matches
+                 * FALLBACK_REASON in lib/services/reminders.ts but uses the
+                 * client-facing "work queue" wording. */}
+                {task.fallbackKind === "client_opted_out" && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      marginTop: 3,
+                      padding: "1px 6px",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: "#92400e",
+                      background: "#fef3c7",
+                      border: "0.5px solid #fcd34d",
+                      borderRadius: 4,
+                      lineHeight: 1.4,
+                    }}
+                    title="Client chased automatically, then opted out. Now manual — please follow up."
+                  >
+                    Client opted out — manual
+                  </span>
+                )}
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
               {/* OLD: title="Confirm milestone done" — Rule 2 schema jargon (milestone → step) */}

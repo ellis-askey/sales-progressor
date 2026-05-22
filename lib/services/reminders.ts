@@ -67,6 +67,7 @@ export type ReminderLogWithRule = {
     priority: TaskPriority;
     chaseCount: number;
     dueDate: Date;
+    fallbackKind: string | null;
     communications: { createdAt: Date; method: string | null }[];
   }[];
 };
@@ -92,7 +93,7 @@ export async function getReminderLogsForTransaction(
       },
       chaseTasks: {
         select: {
-          id: true, status: true, priority: true, chaseCount: true, dueDate: true,
+          id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
           communications: {
             where: { type: "outbound" },
             orderBy: { createdAt: "desc" },
@@ -149,7 +150,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       chaseTasks: {
         where: { status: "pending" },
         select: {
-          id: true, status: true, priority: true, chaseCount: true, dueDate: true,
+          id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
           communications: {
             where: { type: "outbound" },
             orderBy: { createdAt: "desc" },
@@ -680,4 +681,145 @@ export async function autoCompleteRemindersForMilestone(
     where: { id: { in: logIds } },
     data: { status: "completed", statusReason: "Milestone completed" },
   });
+}
+
+// ─── Fail-soft fallback helper (A4 of the client-chase arc) ──────────────────
+//
+// Creates an agent ChaseTask for a milestone when automated client chasing
+// has failed — currently only fired when a client unsubscribed via the A2/A3
+// contact-unsubscribe path. Surfacing this in the agent's work queue with a
+// clear human-readable reason is the leverage: the agent sees WHY this
+// landed on them, not just THAT it did.
+//
+// Writes three artefacts:
+//   1. ChaseTask row — fallbackKind set so the UI renders the yellow chip;
+//      assigned to the file's progressor (or agent if self-managed); status
+//      pending, priority normal.
+//   2. ReminderLog parent — statusReason set with the structured reason
+//      ("Client opted out of automated chases — handed to agent"). This is
+//      the queryable provenance field.
+//   3. OutboundMessage internal-note — populates the activity feed with
+//      "{Contact} opted out on {date}. Reminder handed back to agent."
+//      so a year later you can see exactly when and why this turned manual.
+//
+// Idempotent re-call: if an active log + pending task already exist for
+// this (transaction, rule), no second task is created.
+//
+// A4 has NO production caller. Sub-arc B wires it into the chase pipeline
+// at send time. The helper is testable today via scripts/verify-a4.ts.
+export type FallbackKind = "client_opted_out";
+
+const FALLBACK_REASON: Record<FallbackKind, string> = {
+  client_opted_out: "Client opted out of automated chases — handed to agent",
+};
+
+function fallbackActivityNote(kind: FallbackKind, contactName: string, optedOutAt: Date): string {
+  if (kind === "client_opted_out") {
+    const when = optedOutAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    return `Automated client chase suppressed — ${contactName} opted out on ${when}. Reminder handed back to agent.`;
+  }
+  // Defensive default — typescript narrows out other kinds, but if this
+  // expands later we want a sensible fallback rather than throwing.
+  return `Automated client chase suppressed — reminder handed back to agent.`;
+}
+
+export async function createAgentChaseTaskForMilestone(input: {
+  transactionId: string;
+  milestoneCode: string;
+  kind: FallbackKind;
+  contactName: string;
+  optedOutAt: Date;
+}): Promise<{ logId: string; taskId: string } | null> {
+  const { transactionId, milestoneCode, kind, contactName, optedOutAt } = input;
+
+  // Resolve the file's agent / progressor — the task gets assigned to them.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { agentUserId: true, assignedUserId: true },
+  });
+  if (!tx) return null;
+  const assignedToId = tx.assignedUserId ?? tx.agentUserId;
+  if (!assignedToId) return null;
+
+  // Find the active ReminderRule that targets this milestone. If multiple
+  // rules target the same code (rare), use the first — matches the existing
+  // engine's behaviour at `evaluateTransactionReminders`.
+  const rule = await prisma.reminderRule.findFirst({
+    where: { isActive: true, targetMilestoneCode: milestoneCode },
+    select: { id: true },
+  });
+  if (!rule) return null;
+
+  // Find-or-create the ReminderLog for this (transaction, rule). Mirrors the
+  // engine's idempotency pattern.
+  const existingLog = await prisma.reminderLog.findFirst({
+    where: { transactionId, reminderRuleId: rule.id, status: "active" },
+    select: { id: true },
+  });
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const log = existingLog
+    ? await prisma.reminderLog.update({
+        where: { id: existingLog.id },
+        data: {
+          statusReason: FALLBACK_REASON[kind],
+          nextDueDate: today,
+        },
+        select: { id: true },
+      })
+    : await prisma.reminderLog.create({
+        data: {
+          transactionId,
+          reminderRuleId: rule.id,
+          status: "active",
+          nextDueDate: today,
+          sourceDateUsed: today,
+          statusReason: FALLBACK_REASON[kind],
+        },
+        select: { id: true },
+      });
+
+  // Find-or-create the pending ChaseTask. If one is already pending for this
+  // log, update it with the fallback marker; never create a second.
+  const existingTask = await prisma.chaseTask.findFirst({
+    where: { reminderLogId: log.id, status: "pending" },
+    select: { id: true },
+  });
+
+  const task = existingTask
+    ? await prisma.chaseTask.update({
+        where: { id: existingTask.id },
+        data: { fallbackKind: kind, assignedToId, dueDate: today, priority: "normal" },
+        select: { id: true },
+      })
+    : await prisma.chaseTask.create({
+        data: {
+          transactionId,
+          reminderLogId: log.id,
+          assignedToId,
+          dueDate: today,
+          status: "pending",
+          priority: "normal",
+          chaseCount: 0,
+          fallbackKind: kind,
+        },
+        select: { id: true },
+      });
+
+  // Activity-feed note — surfaces the reason in the agent's comm timeline so
+  // it isn't only visible on the work-queue row.
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId,
+      type: "internal_note",
+      content: fallbackActivityNote(kind, contactName, optedOutAt),
+      createdById: assignedToId,
+      chaseTaskId: task.id,
+      isAutomated: true,
+    },
+  });
+
+  return { logId: log.id, taskId: task.id };
 }
