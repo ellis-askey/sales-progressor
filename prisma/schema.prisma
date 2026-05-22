@@ -278,6 +278,12 @@ model Contact {
   roleType              ContactRole
   portalToken           String?     @unique
   lastVisitedPortalAt   DateTime?
+  // Set when the contact clicks the unsubscribe link in any platform email
+  // addressed to them. Mirrors User.emailUnsubscribedAt. Suppression check
+  // via isContactEmailSuppressed in lib/email.ts. Foundation for the
+  // client-chase arc (A2/A3 of Sub-arc A in
+  // docs/active/client-chase-discovery.md). No callers yet.
+  unsubscribedAt        DateTime?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 

@@ -79,6 +79,20 @@ export async function isUserEmailSuppressed(userId: string): Promise<boolean> {
   return user?.emailUnsubscribedAt != null;
 }
 
+// Returns true if this contact has unsubscribed from all platform emails
+// addressed to them. Mirrors isUserEmailSuppressed for client recipients
+// (vendor / purchaser / solicitor / broker Contacts). Sub-arc A — A2 commit
+// of the client-chase arc; the actual suppression check at queue-drain time
+// is wired in A5 (extending OutboundEmailQueue for Contact recipients).
+// No callers yet — pure infrastructure.
+export async function isContactEmailSuppressed(contactId: string): Promise<boolean> {
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    select: { unsubscribedAt: true },
+  });
+  return contact?.unsubscribedAt != null;
+}
+
 // Returns true if this chain link's invite has been unsubscribed (unclaimed agents only).
 export async function isInviteEmailSuppressed(chainLinkId: string): Promise<boolean> {
   const link = await prisma.chainLink.findUnique({
