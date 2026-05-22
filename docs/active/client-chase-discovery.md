@@ -749,6 +749,22 @@ If the system started sending a client chase, the existing infrastructure that w
 
 ---
 
+## Sub-arc B post-arc follow-ups
+
+Items that need fixing AFTER Sub-arc B ships but were not appropriate to bundle into the original commits. Do NOT forget these.
+
+### 1. RemindersSection.tsx chip text per fallback kind
+
+**Context:** B3 expanded the fallback chip in `components/reminders/AgentRemindersList.tsx` to render distinct text for each of the five `FallbackKind` values. The sibling component `components/reminders/RemindersSection.tsx` (the file-detail reminders panel) still renders a single generic chip — `"Client opted out — manual"` — for ALL fallback kinds.
+
+**Why deferred:** at B3 commit time, `RemindersSection.tsx` had uncommitted auto-animate / optimistic-hide refactor work from a parallel conversation. Per the branch-hygiene protocol I stopped and flagged; the user chose to leave RemindersSection.tsx untouched in B3 rather than rush the parallel work to commit. Generic chip is acceptable in the interim because Sub-arc B's cron is flag-gated OFF — no fallback chips render in production until launch.
+
+**What to do:** small follow-up commit AFTER the auto-animate work in the other conversation lands. Copy the same chip text mapping from `AgentRemindersList.tsx`'s chip-render block into `RemindersSection.tsx`'s equivalent block. Five kind→text mappings; one extra `<span>` per kind isn't needed if a mapping function handles all five.
+
+**How to apply:** during launch prep (or earlier if the auto-animate refactor commits first), grep `AgentRemindersList.tsx` for `fallbackKind === "client_opted_out"` to find the existing block, copy the text mapping into `RemindersSection.tsx`, ship as a single-concern commit.
+
+---
+
 ## Sub-arc B planning agenda (carried from A1 sign-off)
 
 Items raised during Sub-arc A that need a deliberate decision when planning Sub-arc B. Do NOT act on these in Sub-arc A.

@@ -683,54 +683,94 @@ export async function autoCompleteRemindersForMilestone(
   });
 }
 
-// ─── Fail-soft fallback helper (A4 of the client-chase arc) ──────────────────
+// ─── Fail-soft fallback helper (A4 + B3 of the client-chase arc) ────────────
 //
 // Creates an agent ChaseTask for a milestone when automated client chasing
-// has failed — currently only fired when a client unsubscribed via the A2/A3
-// contact-unsubscribe path. Surfacing this in the agent's work queue with a
-// clear human-readable reason is the leverage: the agent sees WHY this
-// landed on them, not just THAT it did.
+// has failed — every failure mode that means "system can't / won't chase
+// this client any further" routes here, so the agent gets the file back
+// with a clear human-readable reason. The leverage is making the reason
+// visible: the agent sees WHY this landed on them, not just THAT it did.
+//
+// Five fallback kinds today (B8 will add hard_bounce_on_last_send later
+// alongside the SendGrid webhook):
+//   - client_opted_out          (A2/A3 contact-unsubscribe path)
+//   - max_chases_exhausted      (Sub-arc B escalation: chaseCount >= 2)
+//   - days_cap_exhausted        (Sub-arc B escalation: 14d silence)
+//   - no_email_on_contact       (data gap: chase would fail-deliver)
+//   - no_portalToken_on_contact (data gap: chase has nowhere to link to)
 //
 // Writes three artefacts:
-//   1. ChaseTask row — fallbackKind set so the UI renders the yellow chip;
-//      assigned to the file's progressor (or agent if self-managed); status
-//      pending, priority normal.
-//   2. ReminderLog parent — statusReason set with the structured reason
-//      ("Client opted out of automated chases — handed to agent"). This is
-//      the queryable provenance field.
-//   3. OutboundMessage internal-note — populates the activity feed with
-//      "{Contact} opted out on {date}. Reminder handed back to agent."
-//      so a year later you can see exactly when and why this turned manual.
+//   1. ChaseTask row — fallbackKind set so the UI renders the kind-specific
+//      chip; assigned to the file's progressor (or agent if self-managed);
+//      status pending, priority normal.
+//   2. ReminderLog parent — statusReason set with the structured reason for
+//      this kind. Queryable provenance field.
+//   3. OutboundMessage internal-note — populates the activity feed with a
+//      kind-specific human-readable explanation so a year later you can see
+//      exactly when and why this turned manual.
 //
 // Idempotent re-call: if an active log + pending task already exist for
 // this (transaction, rule), no second task is created.
 //
-// A4 has NO production caller. Sub-arc B wires it into the chase pipeline
-// at send time. The helper is testable today via scripts/verify-a4.ts.
-export type FallbackKind = "client_opted_out";
+// Sub-arc B's cron (B7) is the production caller. B3 leaves no callers
+// added yet; the helper is testable via scripts/verify-b3.ts.
+export type FallbackKind =
+  | "client_opted_out"
+  | "max_chases_exhausted"
+  | "days_cap_exhausted"
+  | "no_email_on_contact"
+  | "no_portalToken_on_contact";
 
+// Structured statusReason text written to ReminderLog.statusReason. Locked
+// at user sign-off — do not edit without the corresponding chip-text + audit-
+// note copy review.
 const FALLBACK_REASON: Record<FallbackKind, string> = {
-  client_opted_out: "Client opted out of automated chases — handed to agent",
+  client_opted_out:             "Client opted out of automated chases — handed to agent",
+  max_chases_exhausted:         "Client chased twice, no response — handed to agent",
+  days_cap_exhausted:           "Client silent for 14 days — handed to agent",
+  no_email_on_contact:          "Client contact missing email address — handed to agent",
+  no_portalToken_on_contact:    "Client contact missing portal access — handed to agent",
 };
 
-function fallbackActivityNote(kind: FallbackKind, contactName: string, optedOutAt: Date): string {
-  if (kind === "client_opted_out") {
-    const when = optedOutAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-    return `Automated client chase suppressed — ${contactName} opted out on ${when}. Reminder handed back to agent.`;
-  }
-  // Defensive default — typescript narrows out other kinds, but if this
-  // expands later we want a sensible fallback rather than throwing.
-  return `Automated client chase suppressed — reminder handed back to agent.`;
-}
-
-export async function createAgentChaseTaskForMilestone(input: {
+// Common input fields every kind requires.
+type FallbackInputBase = {
   transactionId: string;
   milestoneCode: string;
-  kind: FallbackKind;
   contactName: string;
-  optedOutAt: Date;
-}): Promise<{ logId: string; taskId: string } | null> {
-  const { transactionId, milestoneCode, kind, contactName, optedOutAt } = input;
+};
+
+// Discriminated input — kind determines what additional context is required.
+// Forces callers to supply the right metadata at compile time.
+export type FallbackInput =
+  | (FallbackInputBase & { kind: "client_opted_out";          optedOutAt: Date })
+  | (FallbackInputBase & { kind: "max_chases_exhausted";      chaseCount: number; lastChasedAt: Date })
+  | (FallbackInputBase & { kind: "days_cap_exhausted";        firstChasedAt: Date })
+  | (FallbackInputBase & { kind: "no_email_on_contact" })
+  | (FallbackInputBase & { kind: "no_portalToken_on_contact" });
+
+// Human-readable activity-feed note. Each kind gets a kind-specific
+// rendering using its required context. Date formatting matches the rest of
+// the activity timeline.
+function fallbackActivityNote(input: FallbackInput): string {
+  const dateFmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  switch (input.kind) {
+    case "client_opted_out":
+      return `Automated client chase suppressed — ${input.contactName} opted out on ${dateFmt(input.optedOutAt)}. Reminder handed back to agent.`;
+    case "max_chases_exhausted":
+      return `Automated client chase suppressed — ${input.contactName} chased ${input.chaseCount} time${input.chaseCount === 1 ? "" : "s"} (last on ${dateFmt(input.lastChasedAt)}) with no response. Reminder handed back to agent.`;
+    case "days_cap_exhausted":
+      return `Automated client chase suppressed — ${input.contactName} silent since first chase on ${dateFmt(input.firstChasedAt)} (14-day cap reached). Reminder handed back to agent.`;
+    case "no_email_on_contact":
+      return `Automated client chase couldn't fire — ${input.contactName} has no email address on file. Reminder handed back to agent.`;
+    case "no_portalToken_on_contact":
+      return `Automated client chase couldn't fire — ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
+  }
+}
+
+export async function createAgentChaseTaskForMilestone(
+  input: FallbackInput
+): Promise<{ logId: string; taskId: string } | null> {
+  const { transactionId, milestoneCode, kind } = input;
 
   // Resolve the file's agent / progressor — the task gets assigned to them.
   const tx = await prisma.propertyTransaction.findUnique({
@@ -814,7 +854,7 @@ export async function createAgentChaseTaskForMilestone(input: {
     data: {
       transactionId,
       type: "internal_note",
-      content: fallbackActivityNote(kind, contactName, optedOutAt),
+      content: fallbackActivityNote(input),
       createdById: assignedToId,
       chaseTaskId: task.id,
       isAutomated: true,

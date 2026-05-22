@@ -28,6 +28,40 @@ const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; lab
   upcoming:  { label: "Coming up",  headerCls: "wq-urgency-bar wq-urgency-bar-coming-up", labelCls: "text-slate-900/60", badgeCls: "bg-slate-100 text-slate-900/60" },
 };
 
+// ─── Fallback-kind chip text (B3 of the client-chase arc) ───────────────────
+// Five kinds of fail-soft routing today (see FallbackKind in
+// lib/services/reminders.ts). Each renders the SAME amber chip in this
+// component, with kind-specific short text + a longer hover title that
+// explains the next step to the agent. Falls back to a generic chip if a
+// new kind is added in code but not here (defensive — TypeScript would
+// catch the exhaustiveness gap at compile time too).
+function fallbackChipText(kind: string): string {
+  switch (kind) {
+    case "client_opted_out":          return "Client opted out — manual";
+    case "max_chases_exhausted":      return "Chased twice — manual";
+    case "days_cap_exhausted":        return "14d silent — manual";
+    case "no_email_on_contact":       return "No email — manual";
+    case "no_portalToken_on_contact": return "No portal — manual";
+    default:                          return "Manual handoff";
+  }
+}
+function fallbackChipTitle(kind: string): string {
+  switch (kind) {
+    case "client_opted_out":
+      return "Client chased automatically, then opted out. Now manual — please follow up.";
+    case "max_chases_exhausted":
+      return "Client was chased twice automatically with no response. Manual chase needed.";
+    case "days_cap_exhausted":
+      return "Client has been silent for 14 days since the first chase. Manual chase needed.";
+    case "no_email_on_contact":
+      return "Can't chase automatically — the client contact has no email address. Manual chase needed.";
+    case "no_portalToken_on_contact":
+      return "Can't chase automatically — the client contact has no portal access. Manual chase needed.";
+    default:
+      return "Manual chase needed.";
+  }
+}
+
 function isSunday(d: Date) { return d.getDay() === 0; }
 function addBusinessDays(from: Date, days: number): Date {
   const result = new Date(from);
@@ -353,10 +387,15 @@ function SideColumn({
                   </p>
                 )}
                 {/* Fallback-kind chip — set when the system handed this chase
-                 * back to the agent. The string-to-text map matches
-                 * FALLBACK_REASON in lib/services/reminders.ts but uses the
-                 * client-facing "work queue" wording. */}
-                {task.fallbackKind === "client_opted_out" && (
+                 * back to the agent (B3 of the client-chase arc). Five kinds
+                 * today, all rendering the same amber chip with kind-specific
+                 * short text + a longer hover title. Sub-arc B's cron writes
+                 * the kind; A4's helper is the one place that does the write.
+                 *
+                 * Sibling component RemindersSection.tsx still renders the
+                 * original generic chip — see docs/active/client-chase-discovery.md
+                 * post-arc follow-ups for when to mirror this mapping there. */}
+                {task.fallbackKind && (
                   <span
                     style={{
                       display: "inline-block",
@@ -370,9 +409,9 @@ function SideColumn({
                       borderRadius: 4,
                       lineHeight: 1.4,
                     }}
-                    title="Client chased automatically, then opted out. Now manual — please follow up."
+                    title={fallbackChipTitle(task.fallbackKind)}
                   >
-                    Client opted out — manual
+                    {fallbackChipText(task.fallbackKind)}
                   </span>
                 )}
               </div>
