@@ -479,13 +479,17 @@ export async function logPortalMilestoneConfirm(
     });
   }
 
-  // Structured notification for the SP bell. Additive — the OutboundMessage
-  // above still feeds the activity timeline and AgentBell. Only fires when an
-  // SP is assigned (i.e. outsourced files).
-  if (tx.assignedUser?.id) {
+  // Structured notification for the file-owner's bell. Additive — the
+  // OutboundMessage above still feeds the activity timeline. Fires for
+  // BOTH outsourced (assignedUser) and self-managed (agentUser) files —
+  // before this generalisation, the bell only rang on outsourced files
+  // and self-managed agents had to spot client confirms in the activity
+  // feed manually. Now they ring for whoever owns the file.
+  const bellUserId = tx.assignedUser?.id ?? tx.agentUser?.id;
+  if (bellUserId) {
     const contact = tx.contacts.find((c) => c.id === contactId);
     notifyPortalMilestoneConfirmed({
-      spUserId: tx.assignedUser.id,
+      userId: bellUserId,
       transactionId,
       contactName,
       contactRole: contact?.roleType ?? "contact",

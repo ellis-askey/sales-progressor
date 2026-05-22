@@ -7,6 +7,7 @@ import { portalCompleteMilestone, portalMarkNotRequired, PORTAL_AGENT_ONLY_ERROR
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
 import { getMilestoneCopy } from "@/lib/portal-copy";
+import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/services/notifications";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -148,7 +149,7 @@ export async function portalSetExpectedDateAction(input: {
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
-    select: { id: true, propertyTransactionId: true, roleType: true },
+    select: { id: true, name: true, propertyTransactionId: true, roleType: true },
   });
   if (!contact) throw new Error("Invalid token");
 
@@ -190,6 +191,49 @@ export async function portalSetExpectedDateAction(input: {
     data: { lastEngagedAt: new Date() },
   });
 
+  // Agent/SP-visibility cascade (Phase 1.2 of the portal-action-notifications
+  // arc). Without these writes, a client picking a date is silent to the
+  // file owner — they never learn the client provided an estimate. We add:
+  //   - an OutboundMessage internal_note so the activity feed shows it
+  //   - a Notification row so the bell rings
+  // Fire-and-forget (.catch swallow) so a notification failure doesn't
+  // break the primary write.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { agentUserId: true, assignedUserId: true },
+  });
+  const targetUserId = tx?.assignedUserId ?? tx?.agentUserId;
+  if (targetUserId) {
+    const milestoneLabel = getMilestoneCopy(input.milestoneCode).label;
+    const dateFormatted = new Date(input.expectedDate).toLocaleDateString("en-GB", {
+      day: "numeric", month: "long", year: "numeric",
+    });
+    // Include "via the client portal" so the AgentBell content-filter counts
+    // this as a portal-originated event (same signal the milestone-confirm
+    // path uses — see lib/services/portal.ts:467).
+    const content = `${contact.name} told us via the client portal they're expecting "${milestoneLabel}" around ${dateFormatted}`;
+
+    prisma.outboundMessage.create({
+      data: {
+        transactionId: contact.propertyTransactionId,
+        type: "internal_note",
+        contactIds: [contact.id],
+        content,
+        createdById: targetUserId,
+      },
+    }).catch(() => {});
+
+    notifyPortalExpectedDateSet({
+      userId: targetUserId,
+      transactionId: contact.propertyTransactionId,
+      contactName: contact.name,
+      contactRole: contact.roleType,
+      milestoneLabel,
+      milestoneCode: input.milestoneCode,
+      expectedDate: new Date(input.expectedDate),
+    }).catch(() => {});
+  }
+
   revalidatePath(`/portal/${input.token}/respond`, "page");
 }
 
@@ -206,7 +250,7 @@ export async function portalLeaveChaseNoteAction(input: {
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
-    select: { id: true, propertyTransactionId: true },
+    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
   });
   if (!contact) throw new Error("Invalid token");
 
@@ -222,6 +266,45 @@ export async function portalLeaveChaseNoteAction(input: {
     },
     data: { lastEngagedAt: new Date() },
   });
+
+  // Agent/SP-visibility cascade (Phase 1.3). The note already lands in the
+  // PortalMessage table (via sendClientPortalMessage above) and triggers a
+  // web push. But the messages view is siloed from the main activity feed,
+  // and there's no bell entry, so it's easy to miss. Cross-write to
+  // OutboundMessage (activity feed) + Notification (bell) so the agent has
+  // multiple chances to see the note. Fire-and-forget — failure here must
+  // not break the note's primary save.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { agentUserId: true, assignedUserId: true },
+  });
+  const targetUserId = tx?.assignedUserId ?? tx?.agentUserId;
+  if (targetUserId) {
+    const notePreview = trimmed.length > 80 ? trimmed.slice(0, 80) + "…" : trimmed;
+    // Include "via the client portal" so the AgentBell content-filter counts
+    // this as a portal-originated event.
+    const content = `${contact.name} left a note via the client portal about "${label}": "${trimmed}"`;
+
+    prisma.outboundMessage.create({
+      data: {
+        transactionId: contact.propertyTransactionId,
+        type: "internal_note",
+        contactIds: [contact.id],
+        content,
+        createdById: targetUserId,
+      },
+    }).catch(() => {});
+
+    notifyPortalChaseNote({
+      userId: targetUserId,
+      transactionId: contact.propertyTransactionId,
+      contactName: contact.name,
+      contactRole: contact.roleType,
+      milestoneLabel: label,
+      milestoneCode: input.milestoneCode,
+      notePreview,
+    }).catch(() => {});
+  }
 
   revalidatePath(`/portal/${input.token}/respond`, "page");
 }

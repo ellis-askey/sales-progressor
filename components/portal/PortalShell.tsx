@@ -32,6 +32,14 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
   const isHome     = pathname === base || pathname === base + "/";
   const isProgress = pathname.startsWith(base + "/progress");
   const isUpdates  = pathname.startsWith(base + "/updates");
+  // Hide install + push prompts on the chase respond page — the page is
+  // a focused single-task UX reached from a chase email, and both prompts
+  // (Add to Home Screen, Enable Notifications) compete for attention
+  // with the chase items. Also: the browser's PWA install would capture
+  // the chase deep-link URL (not the manifest's start_url), which would
+  // create a stale home-screen icon. Both prompts still appear on the
+  // overview / progress / updates pages where they belong.
+  const isRespond  = pathname.startsWith(base + "/respond");
 
   return (
     <div
@@ -66,10 +74,12 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, age
 
       {/* Page content */}
       <main className="max-w-lg mx-auto px-4 pt-5 pb-32">
-        <div className="lg:hidden">
-          <PortalInstallPrompt />
-          <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
-        </div>
+        {!isRespond && (
+          <div className="lg:hidden">
+            <PortalInstallPrompt />
+            <PortalPushPrompt token={token} vapidPublicKey={vapidPublicKey} />
+          </div>
+        )}
         {children}
       </main>
 

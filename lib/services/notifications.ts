@@ -53,9 +53,14 @@ export async function notifyOutsourcedMilestoneConfirmed(args: {
   });
 }
 
-/** Event B: a buyer or seller confirmed a milestone via the client portal. */
+/**
+ * Event B: a buyer or seller confirmed a milestone via the client portal.
+ * userId is the file owner whose bell should ring — assignedUser on
+ * outsourced files, agentUser on self-managed (callers compute the right
+ * one via `assignedUser?.id ?? agentUserId`).
+ */
 export async function notifyPortalMilestoneConfirmed(args: {
-  spUserId: string;
+  userId: string;
   transactionId: string;
   contactName: string;
   contactRole: string;
@@ -63,7 +68,7 @@ export async function notifyPortalMilestoneConfirmed(args: {
   milestoneCode: string;
 }): Promise<void> {
   await createNotification({
-    userId: args.spUserId,
+    userId: args.userId,
     type: "portal_milestone_confirm",
     transactionId: args.transactionId,
     payload: {
@@ -71,6 +76,65 @@ export async function notifyPortalMilestoneConfirmed(args: {
       contactRole: args.contactRole,
       milestoneLabel: args.milestoneLabel,
       milestoneCode: args.milestoneCode,
+    },
+  });
+}
+
+/**
+ * Event C: a buyer or seller set an expected date on a milestone via the
+ * respond page (B7's three-action UI). Same userId semantics as Event B.
+ * Softer event than a confirm — surfaces in the bell + activity feed but
+ * no email is sent.
+ */
+export async function notifyPortalExpectedDateSet(args: {
+  userId: string;
+  transactionId: string;
+  contactName: string;
+  contactRole: string;
+  milestoneLabel: string;
+  milestoneCode: string;
+  expectedDate: Date;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "portal_expected_date_set",
+    transactionId: args.transactionId,
+    payload: {
+      contactName: args.contactName,
+      contactRole: args.contactRole,
+      milestoneLabel: args.milestoneLabel,
+      milestoneCode: args.milestoneCode,
+      expectedDate: args.expectedDate.toISOString(),
+    },
+  });
+}
+
+/**
+ * Event D: a buyer or seller left a chase-note on the respond page.
+ * Same userId semantics as Event B. The note ALSO writes a PortalMessage
+ * row (existing behaviour via sendClientPortalMessage) — this notification
+ * surfaces the note in the bell + activity feed alongside the messages
+ * view, so it isn't easy to miss when reviewing a file.
+ */
+export async function notifyPortalChaseNote(args: {
+  userId: string;
+  transactionId: string;
+  contactName: string;
+  contactRole: string;
+  milestoneLabel: string;
+  milestoneCode: string;
+  notePreview: string;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "portal_chase_note",
+    transactionId: args.transactionId,
+    payload: {
+      contactName: args.contactName,
+      contactRole: args.contactRole,
+      milestoneLabel: args.milestoneLabel,
+      milestoneCode: args.milestoneCode,
+      notePreview: args.notePreview,
     },
   });
 }
