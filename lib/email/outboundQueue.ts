@@ -4,7 +4,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { sendChainEmail, isUserEmailSuppressed } from "@/lib/email";
+import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed } from "@/lib/email";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
 
@@ -83,19 +83,42 @@ export function scheduleForBusinessHours(now: Date): Date {
 
 // ─── Enqueue ───────────────────────────────────────────────────────────────────
 
+// Enqueue an outbound email for business-hours delivery. Caller must supply
+// EXACTLY ONE of recipientUserId / recipientContactId — the DB CHECK
+// constraint enforces this, but the runtime assertion fails fast at the
+// call site (clearer error than a P2002 unique-violation later).
+//
+// recipientUserId path is the existing one (claimed agents, chain
+// notifications). recipientContactId path is new in A5 of the client-chase
+// arc — used by Sub-arc B's digest sender when targeting vendor / purchaser
+// / solicitor / broker contacts.
 export async function enqueueEmail({
   emailType,
   sourceId,
   recipientEmail,
   recipientUserId,
+  recipientContactId,
   payload,
 }: {
   emailType: string;
   sourceId: string;
   recipientEmail: string;
-  recipientUserId: string;
+  recipientUserId?: string;
+  recipientContactId?: string;
   payload: Record<string, unknown>;
 }): Promise<void> {
+  // Exactly-one-recipient invariant — catches developer error before the DB
+  // CHECK constraint would. The constraint is the source of truth; this is
+  // the friendlier surface for misuse.
+  const hasUser = !!recipientUserId;
+  const hasContact = !!recipientContactId;
+  if (hasUser === hasContact) {
+    throw new Error(
+      `[enqueueEmail] exactly one of recipientUserId / recipientContactId must be set ` +
+      `(got userId=${hasUser ? "set" : "null"}, contactId=${hasContact ? "set" : "null"})`,
+    );
+  }
+
   const scheduledFor = scheduleForBusinessHours(new Date());
   try {
     await prisma.outboundEmailQueue.create({
@@ -103,7 +126,8 @@ export async function enqueueEmail({
         emailType,
         sourceId,
         recipientEmail,
-        recipientUserId,
+        recipientUserId: recipientUserId ?? null,
+        recipientContactId: recipientContactId ?? null,
         payload: payload as Prisma.InputJsonValue,
         scheduledFor,
       },
@@ -132,14 +156,40 @@ export async function drainOutboundQueue(): Promise<{
   let failed = 0;
 
   for (const record of due) {
-    const suppressed = await isUserEmailSuppressed(record.recipientUserId);
+    // Dispatch the suppression check to the right helper based on which
+    // recipient column is set. CHECK constraint guarantees exactly one is
+    // non-null; defensively skip records that somehow violate it (e.g.
+    // direct SQL inserts pre-A5 wouldn't have either, though such rows
+    // can't exist because the constraint was added BEFORE this code path).
+    let suppressed = false;
+    let recipientLogId = "";
+    if (record.recipientUserId) {
+      suppressed = await isUserEmailSuppressed(record.recipientUserId);
+      recipientLogId = `userId=${record.recipientUserId}`;
+    } else if (record.recipientContactId) {
+      suppressed = await isContactEmailSuppressed(record.recipientContactId);
+      recipientLogId = `contactId=${record.recipientContactId}`;
+    } else {
+      // Should never happen — CHECK constraint blocks this. Log loudly and
+      // skip rather than crash the drain loop.
+      console.error(
+        `[EMAIL_FAIL] type=${record.emailType} id=${record.id} reason=no_recipient_columns_set`,
+      );
+      await prisma.outboundEmailQueue.update({
+        where: { id: record.id },
+        data: { errorAt: new Date(), errorMessage: "no_recipient_columns_set" },
+      });
+      failed++;
+      continue;
+    }
+
     if (suppressed) {
       await prisma.outboundEmailQueue.update({
         where: { id: record.id },
         data: { sentAt: new Date(), errorMessage: "suppressed:unsubscribed" },
       });
       console.log(
-        `[EMAIL_SKIP] type=${record.emailType} userId=${record.recipientUserId} reason=unsubscribed`,
+        `[EMAIL_SKIP] type=${record.emailType} ${recipientLogId} reason=unsubscribed`,
       );
       skipped++;
       continue;
