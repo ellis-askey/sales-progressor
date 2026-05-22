@@ -753,6 +753,18 @@ If the system started sending a client chase, the existing infrastructure that w
 
 Items that need fixing AFTER Sub-arc B ships but were not appropriate to bundle into the original commits. Do NOT forget these.
 
+### 2. Wire the B6 agent-visibility chip on the file-detail page
+
+**Context:** B6 added `getClientChaseStatesForTransaction()` + chip rendering in `MilestoneRow.tsx`. The chip surfaces when the milestone's row receives a `clientChase` prop. But the agent transaction detail page (`app/agent/transactions/[id]/page.tsx`) does NOT currently call the helper or pass the prop — meaning the chip never renders in production.
+
+**Why deferred:** at B6 commit time, the same page had uncommitted `createdAt`/`weeksActive` refactor work in-flight from a parallel conversation. Per protocol I stopped and flagged; the user chose to skip the page wiring in B6 rather than rush the parallel work. Same pattern as the RemindersSection chip-text follow-up.
+
+**What to do:** in `app/agent/transactions/[id]/page.tsx` (and the mirror `app/transactions/[id]/page.tsx` for internal staff):
+1. Extend the existing `Promise.all` block with `getClientChaseStatesForTransaction(id)`.
+2. Pass the result as `clientChaseByCode={...}` to `<MilestonePanel>`.
+
+**How to apply:** small follow-up commit after the parallel auto-animate/createdAt refactor lands. Two files, two-line additions each.
+
 ### 1. RemindersSection.tsx chip text per fallback kind
 
 **Context:** B3 expanded the fallback chip in `components/reminders/AgentRemindersList.tsx` to render distinct text for each of the five `FallbackKind` values. The sibling component `components/reminders/RemindersSection.tsx` (the file-detail reminders panel) still renders a single generic chip — `"Client opted out — manual"` — for ALL fallback kinds.

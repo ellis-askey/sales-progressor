@@ -5,6 +5,7 @@ import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
+import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
@@ -48,6 +49,14 @@ type Props = {
   // badge — codes absent from this map get no badge. Plain object on the wire
   // since Maps don't serialise across server→client boundaries cleanly.
   graceDaysByCode?: Record<string, number>;
+  // Map of milestone code → aggregated client-chase state for the
+  // transaction (B6 of the client-chase arc). When present and a row
+  // matches the code, MilestoneRow renders the chase-status chip. Codes
+  // absent from this map get no chip. Optional — the agent transaction
+  // page doesn't pass it yet (collision-blocked; tracked as a follow-up
+  // in docs/active/client-chase-discovery.md). The chip renders silently
+  // when the wiring lands.
+  clientChaseByCode?: Record<string, AggregatedClientChase>;
 };
 
 export function MilestonePanel({
@@ -58,6 +67,7 @@ export function MilestonePanel({
   vendorGateReady,
   purchaserGateReady,
   graceDaysByCode,
+  clientChaseByCode,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
 
@@ -313,6 +323,12 @@ export function MilestonePanel({
                         const stalenessSignal = showSlowness
                           ? computeStaleness(def.code, completionLookup, graceDaysByCode?.[def.code])
                           : null;
+                        // Client-chase chip: same eligibility gate (avail-
+                        // able + not done + not NR). Renders only when the
+                        // map supplies a non-null entry for this code.
+                        const clientChase = showSlowness
+                          ? clientChaseByCode?.[def.code] ?? null
+                          : null;
                         return (
                           <MilestoneRow
                             key={def.id}
@@ -326,6 +342,7 @@ export function MilestonePanel({
                             counterpartNotice={getCounterpartNotice(def.code)}
                             slownessSignal={slownessSignal}
                             stalenessSignal={stalenessSignal}
+                            clientChase={clientChase}
                           />
                         );
                       })

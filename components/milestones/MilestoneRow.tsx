@@ -14,6 +14,7 @@ import { UndoMilestoneModal } from "@/components/milestones/UndoMilestoneModal";
 import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDrawer";
 import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-staleness";
+import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -40,6 +41,13 @@ type Props = {
   // window. Independent of slowness (medians aren't required), so it's safe
   // to show without MEDIANS_READY.
   stalenessSignal?: StalenessSignal | null;
+  // Client-chase chip (B6 of the client-chase arc). When the system has
+  // chased the client about this milestone, the chip surfaces the latest
+  // state to the agent: "Client chased Nd ago" (amber), "Client engaged Nd
+  // ago" (green), or "Client opted out" (grey). Null = no chip; the same
+  // row eligibility as slowness/staleness applies (available + not done +
+  // not NR).
+  clientChase?: AggregatedClientChase | null;
 };
 
 // Only PM9 (mortgage application) can be manually marked N/R
@@ -47,7 +55,21 @@ const NR_ALLOWED = new Set(["PM9"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal }: Props) {
+// Relative time formatter for the B6 client-chase chip. "today", "yesterday",
+// "Nd ago" for under a week, then "Nw ago". Used in chip text where the
+// agent wants quick glanceability, not an absolute date.
+function formatRelative(d: Date | null): string {
+  if (!d) return "recently";
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days < 0) return "just now";
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
+}
+
+export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase }: Props) {
   const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -330,6 +352,26 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                 Awaiting {stalenessSignal.daysAwaiting} days
               </span>
             )}
+            {/* Client-chase chip (B6 of the client-chase arc). One of three
+              * states. Same eligibility as slowness/staleness chips. */}
+            {clientChase && !isDone && !isBlocked && (() => {
+              const cn = clientChase.kind === "engaged"
+                ? "ml-2 text-[10px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5"
+                : clientChase.kind === "opted_out"
+                ? "ml-2 text-[10px] font-normal text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5"
+                : "ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5";
+              const text = clientChase.kind === "engaged"
+                ? `Client engaged ${formatRelative(clientChase.lastEngagedAt)}`
+                : clientChase.kind === "opted_out"
+                ? "Client opted out"
+                : `Client chased ${formatRelative(clientChase.lastChasedAt)}`;
+              const tooltip = [
+                clientChase.lastChasedAt ? `Last chased: ${formatDate(clientChase.lastChasedAt)}` : null,
+                clientChase.lastEngagedAt ? `Last engaged: ${formatDate(clientChase.lastEngagedAt)}` : null,
+                clientChase.contactCount > 1 ? `Across ${clientChase.contactCount} contacts` : null,
+              ].filter(Boolean).join(" • ");
+              return <span className={cn} title={tooltip}>{text}</span>;
+            })()}
           </p>
           {isDone && def.completion && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>
