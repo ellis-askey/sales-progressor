@@ -34,5 +34,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${portalBase()}/unsubscribed?status=ok`);
   }
 
+  if (subject.startsWith("contact:")) {
+    const contactId = subject.slice(8);
+    // updateMany with the null guard means re-clicking the same link is a
+    // no-op (matches the user/invite pattern). Always redirects to the same
+    // confirmation page.
+    await prisma.contact.updateMany({
+      where: { id: contactId, unsubscribedAt: null },
+      data: { unsubscribedAt: new Date() },
+    });
+    return NextResponse.redirect(`${portalBase()}/unsubscribed?status=ok`);
+  }
+
   return invalid();
 }

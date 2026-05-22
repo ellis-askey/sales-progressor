@@ -1,7 +1,8 @@
 // lib/email/unsubscribe.ts
 // HMAC-SHA256 signed unsubscribe tokens. No expiry — set UNSUBSCRIBE_SECRET in Vercel env.
-// Subject format:  "user:{userId}"   → sets User.emailUnsubscribedAt
-//                  "invite:{linkId}" → sets ChainLink.inviteUnsubscribedAt
+// Subject format:  "user:{userId}"      → sets User.emailUnsubscribedAt
+//                  "invite:{linkId}"    → sets ChainLink.inviteUnsubscribedAt
+//                  "contact:{contactId}" → sets Contact.unsubscribedAt (A3, client-chase arc)
 
 import { createHmac, timingSafeEqual } from "crypto";
 
@@ -53,5 +54,14 @@ export function buildUserUnsubscribeUrl(userId: string): string {
 
 export function buildInviteUnsubscribeUrl(chainLinkId: string): string {
   const token = generateUnsubscribeToken(`invite:${chainLinkId}`);
+  return `${portalBase()}/api/unsubscribe?t=${encodeURIComponent(token)}`;
+}
+
+// Used by client-chase emails (vendor / purchaser / solicitor / broker
+// contacts). Clicking sets Contact.unsubscribedAt. A5 wires this URL into
+// emails enqueued for Contact recipients; A3 (this commit) provides only
+// the URL builder + endpoint handler.
+export function buildContactUnsubscribeUrl(contactId: string): string {
+  const token = generateUnsubscribeToken(`contact:${contactId}`);
   return `${portalBase()}/api/unsubscribe?t=${encodeURIComponent(token)}`;
 }
