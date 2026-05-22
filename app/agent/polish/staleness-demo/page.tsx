@@ -55,6 +55,7 @@ function mockCompletion(state: "complete" | "available" | "locked", completedAt?
     state,
     completedAt: completedAt ?? null,
     eventDate: null,
+    expectedDate: null,
     notRequiredReason: null,
     completedById: null,
     confirmedByPortal: false,

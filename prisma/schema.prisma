@@ -222,6 +222,7 @@ model PropertyTransaction {
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
   fileTimeSessions           FileTimeSession[]
   notifications              Notification[]
+  clientChaseStates          ClientChaseState[]
 
   @@index([serviceType, createdAt])
 }
@@ -293,6 +294,7 @@ model Contact {
   portalMessages    PortalMessage[]
   documents         TransactionDocument[]
   outboundEmails    OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientContact")
+  clientChaseStates ClientChaseState[]
 }
 
 model PortalPushSubscription {
@@ -443,6 +445,14 @@ model MilestoneCompletion {
   state                 MilestoneState @default(locked)
   completedAt           DateTime?
   eventDate             DateTime?
+  // Client-supplied speculation about WHEN a milestone will happen — set
+  // via the chase confirm page's "Set a date" control (Sub-arc B / B5).
+  // Distinct from eventDate (which is the REAL date when complete) and
+  // from completedAt (when our system marked it complete). Cleared when
+  // the milestone is later confirmed (so it doesn't shadow the real date).
+  // Allows the chase pipeline to track "client said 15 June" engagement
+  // without prematurely marking the milestone complete.
+  expectedDate          DateTime?
   notRequiredReason     String?
   completedById         String?
   confirmedByPortal     Boolean        @default(false)
@@ -1596,5 +1606,55 @@ model Notification {
   readAt        DateTime?
 
   @@index([userId, readAt, createdAt])
+}
+
+// ── ClientChaseState ──────────────────────────────────────────────────────────
+// Per-(transaction, contact, milestone) state for the automated client-chase
+// pipeline (Sub-arc B). The cron reads this table to decide who to chase,
+// who to escalate, and who to hand back to the agent via the fail-soft
+// helper. NOT touched by Sub-arc A (table created in B2; no callers until B7).
+//
+// Lifecycle:
+//   1. Cron finds (transaction, contact, milestone) tuples eligible for the
+//      first chase → creates a row with status="active", chaseCount=0,
+//      firstChasedAt=null. (Created when the first chase is about to send;
+//      not pre-created for every eligible row.)
+//   2. Each chase send: chaseCount++, lastChasedAt=now. firstChasedAt set on
+//      the first send.
+//   3. Each client engagement (portal visit / note / date-set): lastEngagedAt
+//      = now. The 14-day silence window restarts from this point.
+//   4. Milestone confirmed (by anyone) → status="completed". Row stays for
+//      audit; not deleted.
+//   5. Escalation ceiling hit (chaseCount >= 2 OR (now - firstChasedAt) >=
+//      14d AND lastEngagedAt < firstChasedAt) → status="escalated"; the
+//      A4 fail-soft helper creates an agent ChaseTask with the right kind.
+//   6. Contact unsubscribes → status="opted_out"; A4 fail-soft fires with
+//      kind="client_opted_out".
+//
+// Status values (free-form String for forward-compat):
+//   - "active"     — eligible for chase
+//   - "completed"  — milestone confirmed; row inert (kept for audit)
+//   - "escalated"  — ceiling hit; agent ChaseTask exists
+//   - "opted_out"  — contact unsubscribed; agent ChaseTask exists
+
+model ClientChaseState {
+  id              String   @id @default(cuid())
+  transactionId   String
+  contactId       String
+  milestoneCode   String
+  chaseCount      Int      @default(0)
+  firstChasedAt   DateTime?
+  lastChasedAt    DateTime?
+  lastEngagedAt   DateTime?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact     Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, contactId, milestoneCode])
+  @@index([status, lastChasedAt])
+  @@index([contactId, status])
 }
 
