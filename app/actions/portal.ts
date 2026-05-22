@@ -3,22 +3,39 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { portalCompleteMilestone, portalMarkNotRequired } from "@/lib/services/portal";
+import { portalCompleteMilestone, portalMarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
+
+// Discriminated result so the portal UI can render the B1 hard-block
+// gracefully instead of treating it as a server error.
+export type PortalConfirmResult =
+  | { ok: true }
+  | { ok: false; reason: "agent_only" };
 
 export async function portalConfirmMilestoneAction(input: {
   token: string;
   milestoneDefinitionId: string;
   eventDate?: string | null;
-}) {
-  const completion = await portalCompleteMilestone(input);
+}): Promise<PortalConfirmResult> {
+  try {
+    await portalCompleteMilestone(input);
+  } catch (err) {
+    // B1 hard-block: surface the agent-only refusal as a structured result
+    // so the bottom-sheet renders the explanatory copy instead of a generic
+    // 500. Any other error rethrows (the UI still falls back to its generic
+    // error path for genuine failures — invalid token, prereq guard, etc.).
+    if (err instanceof Error && err.message === PORTAL_AGENT_ONLY_ERROR) {
+      return { ok: false, reason: "agent_only" };
+    }
+    throw err;
+  }
 
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
 
-  return completion;
+  return { ok: true };
 }
 
 export async function portalMarkNotRequiredAction(input: {

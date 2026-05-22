@@ -10,6 +10,7 @@ import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { pushToTransaction } from "@/lib/services/push";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { PORTAL_AGENT_ONLY_CODES } from "@/lib/chase/portal-agent-only-codes";
 
 export type PortalMilestone = {
   id: string;
@@ -204,6 +205,17 @@ export async function logPortalView(token: string): Promise<void> {
   // No email — the portal bell on the dashboard handles this notification
 }
 
+// B1 of the client-chase arc (Sub-arc B) — hard-block on client portal
+// confirmation of the six bilateral / agent-only milestone codes. The codes
+// themselves live in lib/chase/portal-agent-only-codes.ts (imported above)
+// so the same set drives both this server enforcement and the client-side
+// button stripping in PortalMilestoneList.tsx.
+//
+// Sentinel error message: the action wrapper (portalConfirmMilestoneAction)
+// intercepts this string and returns a structured response to the UI so the
+// bottom-sheet renders graceful explanatory copy instead of a generic 500.
+export const PORTAL_AGENT_ONLY_ERROR = "AGENT_ONLY_MILESTONE";
+
 // Client portal milestone confirmation — A1 of the client-chase arc.
 //
 // Delegates to completeMilestone() with a Contact confirmer so the full
@@ -211,6 +223,10 @@ export async function logPortalView(token: string): Promise<void> {
 // outOfOrderCompletion self-resolve, chain-mate notifications, celebration,
 // dependent unlocks, reminder auto-resolve, exchange-gate check).
 // The whole write is atomic via $transaction, matching the agent path.
+//
+// B1 of Sub-arc B added a hard-block at the top of this function for the
+// six bilateral / agent-only milestone codes (VM18/PM25, VM19/PM26,
+// VM20/PM27). See PORTAL_AGENT_ONLY_CODES above.
 //
 // Post-transaction this function then fires:
 //   - bilateral counterpart (VM19↔PM26, VM20↔PM27) — exchange/completion
@@ -244,6 +260,16 @@ export async function portalCompleteMilestone(input: {
     where: { id: input.milestoneDefinitionId, side },
   });
   if (!def) throw new Error("Milestone not found");
+
+  // B1 hard-block: clients cannot self-confirm the six bilateral / agent-
+  // only codes. Defence in depth — even if the portal UI fails to strip the
+  // Confirm button, a crafted POST to portalConfirmMilestoneAction still
+  // can't push these codes to complete. The action wrapper catches this
+  // exact error string and returns a structured response so the UI renders
+  // a graceful message rather than a generic 500.
+  if (PORTAL_AGENT_ONLY_CODES.has(def.code)) {
+    throw new Error(PORTAL_AGENT_ONLY_ERROR);
+  }
 
   // Milestone must be in available state to be confirmed via portal
   const current = await prisma.milestoneCompletion.findUnique({

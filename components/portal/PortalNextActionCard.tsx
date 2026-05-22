@@ -69,9 +69,17 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
     startTransition(async () => {
       addOptimistic(true);
       try {
-        await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestone.id, eventDate: ed });
-        await fireConfetti();
-        // revalidatePath in action triggers page re-render — no setTimeout needed
+        const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestone.id, eventDate: ed });
+        if (result.ok) {
+          await fireConfetti();
+          // revalidatePath in action triggers page re-render — no setTimeout needed
+        } else if (result.reason === "agent_only") {
+          // B1 hard-block — should never reach via normal UI flow (the card
+          // doesn't surface bilateral codes), but surface the friendly copy
+          // if it ever does (e.g. a crafted request).
+          setError("Your agent confirms this step once it's done.");
+          setSheetOpen(true);
+        }
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Something went wrong");
         setSheetOpen(true);

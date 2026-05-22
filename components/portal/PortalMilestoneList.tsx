@@ -5,6 +5,7 @@ import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
 import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { SearchesUpload } from "./SearchesUpload";
+import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 
 
 type Milestone = {
@@ -122,8 +123,17 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     startTransition(async () => {
       addOptimistic(milestoneId);
       try {
-        await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed });
-        await fireConfetti();
+        const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed });
+        if (result.ok) {
+          await fireConfetti();
+        } else if (result.reason === "agent_only") {
+          // B1 hard-block hit. Normally the UI strips the Confirm button for
+          // these six codes (see portalAgentOnlyCode below), so reaching this
+          // branch means a crafted request or a UI bug. Surface the friendly
+          // explanation rather than the dev sentinel.
+          setError("Your agent confirms this step once it's done. You don't need to mark it here.");
+          setConfirming(milestoneId);
+        }
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Something went wrong");
         setConfirming(milestoneId);
@@ -199,7 +209,13 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 <div>
                   {groupMilestones.map((m, mIdx) => {
                     const isLast        = mIdx === groupMilestones.length - 1;
-                    const canConfirm    = !m.isComplete && !m.isNotRequired && m.isAvailable;
+                    // B1 hard-block: the six bilateral / agent-only codes
+                    // (VM18/PM25/VM19/PM26/VM20/PM27) are never client-
+                    // confirmable. Show the milestone in the list so the
+                    // client sees what's coming, but strip the Confirm
+                    // button and replace with explanatory copy.
+                    const isAgentOnly   = isPortalAgentOnly(m.code);
+                    const canConfirm    = !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
                     const isLocked      = !m.isComplete && !m.isNotRequired && !m.isAvailable;
                     const isProcessing  = processingId === m.id;
 
@@ -260,6 +276,19 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                   </button>
                                 )}
                               </div>
+                            )}
+                            {/* B1 hard-block: replace the Confirm button with
+                              * explanatory copy for the six agent-only codes
+                              * when they're available + not complete. The
+                              * client sees the milestone is coming and knows
+                              * it's deliberately handled by the agent. */}
+                            {isAgentOnly && !m.isComplete && !m.isNotRequired && m.isAvailable && (
+                              <p
+                                className="text-[11px] font-medium italic max-w-[180px] text-right"
+                                style={{ color: P.textMuted, lineHeight: 1.4 }}
+                              >
+                                Your agent confirms this once it's done.
+                              </p>
                             )}
                           </div>
                         </div>
