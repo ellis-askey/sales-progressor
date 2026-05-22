@@ -68,12 +68,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Primary + bilateral counterpart writes in a single atomic transaction
+      const apiConfirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
       const result = await prisma.$transaction(async (ptx) => {
         const primary = await completeMilestone({
           transactionId,
           milestoneDefinitionId,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
+          confirmer: apiConfirmer,
           eventDate: eventDate ? new Date(eventDate) : null,
         }, ptx);
 
@@ -85,8 +85,7 @@ export async function POST(req: NextRequest) {
             await completeMilestone({
               transactionId,
               milestoneDefinitionId: counterDefId,
-              completedById: session.user.id,
-              completedByName: session.user.name ?? "",
+              confirmer: apiConfirmer,
               eventDate: eventDate ? new Date(eventDate) : null,
             }, ptx);
           }

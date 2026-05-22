@@ -4,10 +4,12 @@ import { sendEmail } from "@/lib/email";
 import { pushToContact } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { unlockDirectDependents, maybeUnlockExchangeGate } from "@/lib/services/milestones";
-import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
-import { notifyPortalMilestoneConfirmed } from "@/lib/services/notifications";
-import type { MilestoneSide } from "@prisma/client";
+import { completeMilestone } from "@/lib/services/milestones";
+import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
+import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
+import { pushToTransaction } from "@/lib/services/push";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 export type PortalMilestone = {
   id: string;
@@ -202,6 +204,29 @@ export async function logPortalView(token: string): Promise<void> {
   // No email — the portal bell on the dashboard handles this notification
 }
 
+// Client portal milestone confirmation — A1 of the client-chase arc.
+//
+// Delegates to completeMilestone() with a Contact confirmer so the full
+// in-service cascade fires uniformly (touchLastActivity, summaryText,
+// outOfOrderCompletion self-resolve, chain-mate notifications, celebration,
+// dependent unlocks, reminder auto-resolve, exchange-gate check).
+// The whole write is atomic via $transaction, matching the agent path.
+//
+// Post-transaction this function then fires:
+//   - bilateral counterpart (VM19↔PM26, VM20↔PM27) — exchange/completion
+//     are single real-world events that mark both sides simultaneously
+//   - expectedExchangeDate / completionDate sync on the transaction row
+//   - PostHog MILESTONE_CONFIRMED event (tagged confirmedBy: "client")
+//   - pushToTransaction (other portal contacts get a web-push)
+//   - maybeFireFirstExchangeEmail (keyed to file's agentUserId, not the
+//     confirming contact)
+//   - notifyOutsourcedMilestoneConfirmed (SP gets pinged on outsourced files)
+//   - logPortalMilestoneConfirm (PRESERVED — internal note + rich emails to
+//     the other contacts on the file)
+//   - sendExchangeCompletionPack (PRESERVED — for VM19/PM26 only)
+//
+// confirmedByPortal: true is set inside completeMilestone (driven by the
+// Contact confirmer). completedById remains null (the FK targets User).
 export async function portalCompleteMilestone(input: {
   token: string;
   milestoneDefinitionId: string;
@@ -234,34 +259,144 @@ export async function portalCompleteMilestone(input: {
     throw new Error("Milestone not yet available for confirmation");
   }
 
-  const completion = await prisma.milestoneCompletion.upsert({
-    where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId: contact.propertyTransactionId,
-        milestoneDefinitionId: input.milestoneDefinitionId,
-      },
-    },
-    create: {
+  // Resolve bilateral counterpart before opening the transaction (read-only lookup).
+  const BILATERAL_PAIRS: Record<string, string> = {
+    VM19: "PM26", PM26: "VM19",
+    VM20: "PM27", PM27: "VM20",
+  };
+  const counterCode = BILATERAL_PAIRS[def.code];
+  let counterDefId: string | undefined;
+  if (counterCode) {
+    const counterDef = await prisma.milestoneDefinition.findFirst({
+      where: { code: counterCode },
+      select: { id: true },
+    });
+    counterDefId = counterDef?.id;
+  }
+
+  const confirmer = { kind: "contact" as const, id: contact.id, name: contact.name };
+
+  // Atomic primary + bilateral counterpart + exchange-date sync
+  const completion = await prisma.$transaction(async (ptx) => {
+    const primary = await completeMilestone({
       transactionId: contact.propertyTransactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
-      state: "complete",
-      completedAt: new Date(),
+      confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
-      confirmedByPortal: true,
-    },
-    update: {
-      state: "complete",
-      completedAt: new Date(),
-      eventDate: input.eventDate ? new Date(input.eventDate) : null,
-      confirmedByPortal: true,
-    },
+    }, ptx);
+
+    if (counterDefId) {
+      const alreadyDone = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+      });
+      if (!alreadyDone) {
+        await completeMilestone({
+          transactionId: contact.propertyTransactionId,
+          milestoneDefinitionId: counterDefId,
+          confirmer,
+          eventDate: input.eventDate ? new Date(input.eventDate) : null,
+        }, ptx);
+      }
+    }
+
+    // Exchange Forecast sync — lock in the confirmed exchange date
+    if ((def.code === "VM19" || def.code === "PM26") && input.eventDate) {
+      await ptx.propertyTransaction.update({
+        where: { id: contact.propertyTransactionId },
+        data: { expectedExchangeDate: new Date(input.eventDate) },
+      });
+    }
+
+    return primary;
   });
 
-  // Unlock the next milestones in sequence, cancel reminders, check exchange gate
-  await unlockDirectDependents(contact.propertyTransactionId, def.code);
-  await autoCompleteRemindersForMilestone(contact.propertyTransactionId, def.code);
-  await maybeUnlockExchangeGate(contact.propertyTransactionId, side as MilestoneSide, null);
+  // Completion-date sync (matches agent action, post-transaction)
+  if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
+    const actualDate = new Date(input.eventDate);
+    const txData = await prisma.propertyTransaction.findFirst({
+      where: { id: contact.propertyTransactionId },
+      select: { completionDate: true },
+    });
+    const existingDate = txData?.completionDate;
+    const dateMismatch = !existingDate ||
+      Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
+    if (dateMismatch) {
+      await prisma.propertyTransaction.update({
+        where: { id: contact.propertyTransactionId },
+        data: { completionDate: actualDate },
+      });
+    }
+  }
 
+  // Lookup the file's agent / SP / serviceType for the post-cascade dispatchers.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { agentUserId: true, assignedUserId: true, serviceType: true, agencyId: true },
+  });
+
+  // PostHog event (tagged confirmedBy: "client"). Keyed to the file's agent,
+  // not the confirming contact — Contact.id wouldn't make sense as a PostHog
+  // distinct_id.
+  if (tx?.agentUserId) {
+    void trackServerEvent(tx.agentUserId, ANALYTICS_EVENTS.MILESTONE_CONFIRMED, {
+      transactionId: contact.propertyTransactionId,
+      milestoneId: input.milestoneDefinitionId,
+      milestoneCode: def.code,
+      agencyId: tx.agencyId || undefined,
+      confirmedBy: "client",
+      confirmerContactId: contact.id,
+    });
+  }
+
+  // Web push to other portal contacts subscribed to this transaction.
+  // Same title/body logic as the agent action.
+  const label = getMilestoneCopy(def.code).label;
+  const short = (await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { propertyAddress: true },
+  }))?.propertyAddress.split(",")[0] ?? "Your file";
+  let pushTitle = "Progress update";
+  let pushBody = `${short} — "${label}" is complete.`;
+  if (def.code === "VM19" || def.code === "PM26") {
+    pushTitle = "Contracts exchanged!";
+    pushBody = `${short} — your transaction is now legally committed.`;
+  } else if (def.code === "VM20" || def.code === "PM27") {
+    pushTitle = "Completed!";
+    pushBody = `${short} — congratulations, your transaction has completed.`;
+  } else if (def.code === "VM18" || def.code === "PM25") {
+    pushTitle = "Ready to exchange";
+    pushBody = `${short} — your solicitor has confirmed everything is in place.`;
+  } else if (input.eventDate) {
+    const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+    pushTitle = `Date confirmed — ${short}`;
+    pushBody = `${label}: ${fmtDate}`;
+  }
+  pushToTransaction(contact.propertyTransactionId, {
+    title: pushTitle,
+    body: pushBody,
+    urlPath: "/progress",
+  }).catch(() => {});
+
+  // First-exchange retention email — fires for the file's agent, not the
+  // confirming contact (the retention reward goes to the agent for whom this
+  // is their first exchange in the system).
+  if ((def.code === "VM19" || def.code === "PM26") && tx?.agentUserId) {
+    maybeFireFirstExchangeEmail(tx.agentUserId, contact.propertyTransactionId).catch(() => {});
+  }
+
+  // Outsourced-SP notification — clients are never the SP, so any client
+  // confirm on an outsourced file pings the assigned progressor.
+  if (tx?.serviceType === "outsourced" && tx.assignedUserId) {
+    notifyOutsourcedMilestoneConfirmed({
+      spUserId: tx.assignedUserId,
+      transactionId: contact.propertyTransactionId,
+      confirmerName: contact.name,
+      milestoneLabel: label,
+      milestoneCode: def.code,
+    }).catch(() => {});
+  }
+
+  // Existing portal-specific notifications preserved exactly as before.
   logPortalMilestoneConfirm(
     contact.propertyTransactionId,
     contact.id,

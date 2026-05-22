@@ -25,8 +25,7 @@ export async function completeTaskAction(taskId: string, pathname: string) {
         await completeMilestone({
           transactionId,
           milestoneDefinitionId: def.id,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
+          confirmer: { kind: "user", id: session.user.id, name: session.user.name ?? "" },
         });
         // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
       } catch (err) {

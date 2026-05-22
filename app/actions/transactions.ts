@@ -137,13 +137,13 @@ export async function createTransactionAction(input: {
       where: { code: { in: ["VM2", "PM2"] } },
       select: { id: true },
     });
+    const mosConfirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
     await Promise.all(
       mosDefs.map((def) =>
         completeMilestone({
           transactionId: tx.id,
           milestoneDefinitionId: def.id,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
+          confirmer: mosConfirmer,
         })
       )
     );

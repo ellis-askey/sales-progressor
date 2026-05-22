@@ -441,11 +441,22 @@ export async function getImpliedPredecessors(
 
 // ── completeMilestone ────────────────────────────────────────────────────────
 
+// Confirmer identity for a milestone completion. Either an authenticated
+// User (agent / progressor / director / negotiator) or a Contact (vendor /
+// purchaser / solicitor / broker confirming via the portal). The discriminator
+// drives:
+//   - completedById foreign key: set to User.id only when kind === "user";
+//     null for contact confirms (the FK targets the User table).
+//   - confirmedByPortal flag: true when kind === "contact"; false otherwise.
+//   - summary template substitution: confirmer.name fills the {agent} token.
+export type Confirmer =
+  | { kind: "user"; id: string; name: string }
+  | { kind: "contact"; id: string; name: string };
+
 export type CompleteMilestoneInput = {
   transactionId: string;
   milestoneDefinitionId: string;
-  completedById: string;
-  completedByName: string;
+  confirmer: Confirmer;
   eventDate?: Date | null;
   completedAt?: Date;
 };
@@ -479,8 +490,15 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   }
 
   const summaryText = def.summaryTemplate
-    ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.completedByName)
+    ? await generateSummaryText(input.transactionId, def.summaryTemplate, input.confirmer.name)
     : null;
+
+  // Derive provenance from the confirmer.
+  // - completedById: User.id when an agent confirms; null when a contact
+  //   confirms via portal (the FK targets the User table, not Contact).
+  // - confirmedByPortal: true for contact confirms; false otherwise.
+  const completedById = input.confirmer.kind === "user" ? input.confirmer.id : null;
+  const confirmedByPortal = input.confirmer.kind === "contact";
 
   const completion = await db.milestoneCompletion.upsert({
     where: {
@@ -495,14 +513,16 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
       state: "complete",
       completedAt: input.completedAt ?? new Date(),
       eventDate: input.eventDate ?? null,
-      completedById: input.completedById,
+      completedById,
+      confirmedByPortal,
       summaryText,
     },
     update: {
       state: "complete",
       completedAt: input.completedAt ?? new Date(),
       eventDate: input.eventDate ?? null,
-      completedById: input.completedById,
+      completedById,
+      confirmedByPortal,
       summaryText,
       notRequiredReason: null,
     },
@@ -510,7 +530,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
 
   await unlockDirectDependents(input.transactionId, def.code, tx);
   await autoCompleteRemindersForMilestone(input.transactionId, def.code, tx);
-  await maybeUnlockExchangeGate(input.transactionId, def.side, input.completedById, tx);
+  await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq
   // chain is now satisfied (the agent re-confirmed the missing upstream milestone).

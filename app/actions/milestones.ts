@@ -79,12 +79,12 @@ export async function confirmMilestoneAction(input: {
   }
 
   // Primary + bilateral counterpart writes in a single atomic transaction
+  const confirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
   const result = await prisma.$transaction(async (ptx) => {
     const primary = await completeMilestone({
       transactionId: input.transactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
-      completedById: session.user.id,
-      completedByName: session.user.name ?? "",
+      confirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
     }, ptx);
 
@@ -96,8 +96,7 @@ export async function confirmMilestoneAction(input: {
         await completeMilestone({
           transactionId: input.transactionId,
           milestoneDefinitionId: counterDefId,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
+          confirmer,
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
         }, ptx);
       }
@@ -556,11 +555,11 @@ export async function confirmExchangeReconciliationAction(input: {
     }
 
     // 2. Primary milestone
+    const sweepConfirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
     await completeMilestone({
       transactionId: input.transactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
-      completedById: session.user.id,
-      completedByName: session.user.name ?? "",
+      confirmer: sweepConfirmer,
       eventDate: input.eventDate ? new Date(input.eventDate) : null,
     }, ptx);
 
@@ -573,8 +572,7 @@ export async function confirmExchangeReconciliationAction(input: {
         await completeMilestone({
           transactionId: input.transactionId,
           milestoneDefinitionId: counterDefId,
-          completedById: session.user.id,
-          completedByName: session.user.name ?? "",
+          confirmer: sweepConfirmer,
           eventDate: input.eventDate ? new Date(input.eventDate) : null,
         }, ptx);
       }
