@@ -19,6 +19,7 @@ import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
 import { RemindersSection } from "@/components/reminders/RemindersSection";
+import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
 import { CommsEntry } from "@/components/activity/CommsEntry";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import { TransactionSidebar } from "@/components/transaction/TransactionSidebar";
@@ -48,7 +49,7 @@ export default async function TransactionDetailPage({
   const scope = getAccessScope(session);
 
   try {
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap, automatedEmails] = await Promise.all([
     getTransactionByScope(id, scope),
     getMilestonesForTransaction(id, null).catch(() => null),
     getReminderLogsForTransaction(id, null).catch(() => []),
@@ -57,6 +58,9 @@ export default async function TransactionDetailPage({
     listManualTasksForTransaction(id, null).catch(() => []),
     countManualTasksDueToday(session.user.agencyId).catch(() => 0),
     getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
+    // Automated-emails preview for the AutomatedEmailsCard at the top of
+    // the Reminders tab. Same data shape as the agent file-detail page.
+    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
   ]);
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
@@ -375,6 +379,7 @@ export default async function TransactionDetailPage({
                 .filter((m) => m.isComplete || m.isNotRequired)
                 .map((m) => m.code)
             )}
+            automatedEmails={automatedEmails}
           />
         </div>
 

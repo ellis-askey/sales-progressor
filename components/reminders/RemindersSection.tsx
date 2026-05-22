@@ -9,6 +9,8 @@ import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTas
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
+import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
+import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 
 // Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
 // components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
@@ -76,6 +78,12 @@ type Props = {
   completedMilestoneCodes?: Set<string>;
   contacts?: Contact[];
   propertyAddress?: string;
+  // Pending + sent-today + predicted-upcoming automated emails for this
+  // file. Surfaces as a compact card at the top of the tab; clicking
+  // opens a right-side drawer with the full grouped breakdown. Optional
+  // for callers that haven't yet wired it; defaults to empty (card
+  // shows the muted "no automated emails" line).
+  automatedEmails?: AutomatedEmailsPreview;
 };
 
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
@@ -424,6 +432,7 @@ export function RemindersSection({
   reminderLogs,
   contacts = [],
   propertyAddress = "",
+  automatedEmails,
 }: Props) {
   const pathname = usePathname();
   const [, startTransition] = useTransition();
@@ -543,6 +552,14 @@ export function RemindersSection({
           {loading === "engine" ? "Running…" : "↻ Run engine"}
         </button>
       </div>
+
+      {/* Automated-emails preview (Phase 4 of the email-preview arc) —
+        * compact one-line card at the top of the Reminders tab. Click opens
+        * a right-side drawer with pending + sent today + predicted upcoming.
+        * Only renders when the loader supplied data (optional prop). */}
+      {automatedEmails && (
+        <AutomatedEmailsCard data={automatedEmails} />
+      )}
 
       {/* Empty state */}
       {activeLogs.length === 0 && snoozedLogs.length === 0 && completedLogs.length === 0 && (

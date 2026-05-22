@@ -42,6 +42,7 @@ import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
+import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
 
 export default async function AgentTransactionDetailPage({
   params,
@@ -58,7 +59,7 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = session.user.role === "admin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     isInternalStaff
@@ -75,6 +76,9 @@ export default async function AgentTransactionDetailPage({
     // is flag-gated off (no ClientChaseState rows yet); the chip simply
     // doesn't render in that case.
     getClientChaseStatesForTransaction(id).catch(() => ({})),
+    // Automated-emails preview — pending + sent today + predicted upcoming
+    // for the AutomatedEmailsCard at the top of the Reminders tab.
+    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
   ]);
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
@@ -591,6 +595,7 @@ export default async function AgentTransactionDetailPage({
                 .filter((m) => m.isComplete || m.isNotRequired)
                 .map((m) => m.code)
             )}
+            automatedEmails={automatedEmails}
           />
         </div>
 
