@@ -6,6 +6,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { portalCompleteMilestone, portalMarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
+import { getMilestoneCopy } from "@/lib/portal-copy";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -82,4 +83,145 @@ export async function replyPortalMessageAction(input: {
   );
 
   revalidatePath(`/transactions/${input.transactionId}`, "page");
+}
+
+// ─── B5 of the client-chase arc — respond-page actions ──────────────────────
+//
+// Three actions a client can take on /portal/{token}/respond. Each one
+// resolves the contact via the existing token lookup, validates the
+// milestone belongs to the contact's side (mirror of the portalCompleteMilestone
+// guard), then writes the appropriate state. ENGAGEMENT TRACKING is the
+// common thread: every action bumps ClientChaseState.lastEngagedAt so the
+// 14-day silence window restarts.
+//
+// COPY STATUS: any user-facing strings in here are DRAFT pending the
+// pre-B7 copy batch. The action signatures + state writes are final.
+
+// 1. Confirm — full A1 unified cascade (via existing portalConfirmMilestoneAction),
+//    then mark ClientChaseState row as "completed" so B7's cron stops chasing.
+//    Inherits the B1 hard-block protection on the six bilateral codes.
+export async function portalConfirmFromRespondAction(input: {
+  token: string;
+  milestoneCode: string;
+  milestoneDefinitionId: string;
+  eventDate?: string | null;
+}) {
+  const result = await portalConfirmMilestoneAction({
+    token: input.token,
+    milestoneDefinitionId: input.milestoneDefinitionId,
+    eventDate: input.eventDate,
+  });
+
+  if (result.ok) {
+    const contact = await prisma.contact.findUnique({
+      where: { portalToken: input.token },
+      select: { id: true, propertyTransactionId: true },
+    });
+    if (contact) {
+      await prisma.clientChaseState.updateMany({
+        where: {
+          transactionId: contact.propertyTransactionId,
+          contactId: contact.id,
+          milestoneCode: input.milestoneCode,
+          status: "active",
+        },
+        data: { status: "completed" },
+      });
+    }
+  }
+
+  revalidatePath(`/portal/${input.token}/respond`, "page");
+  return result;
+}
+
+// 2. Set expected date — writes MilestoneCompletion.expectedDate (B2) but
+//    leaves state="available" (the milestone is NOT marked complete). The
+//    client's "I think it'll happen on X" is recorded as speculation; the
+//    chase continues, but the silence window resets.
+export async function portalSetExpectedDateAction(input: {
+  token: string;
+  milestoneCode: string;
+  milestoneDefinitionId: string;
+  expectedDate: string;
+}) {
+  if (!input.expectedDate) throw new Error("Date required");
+
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, propertyTransactionId: true, roleType: true },
+  });
+  if (!contact) throw new Error("Invalid token");
+
+  // Side-match guard (mirrors portalCompleteMilestone)
+  const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
+  const def = await prisma.milestoneDefinition.findFirst({
+    where: { id: input.milestoneDefinitionId, side },
+    select: { id: true },
+  });
+  if (!def) throw new Error("Milestone not found");
+
+  // upsert so the row exists even on the first contact-initiated date
+  await prisma.milestoneCompletion.upsert({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId: contact.propertyTransactionId,
+        milestoneDefinitionId: def.id,
+      },
+    },
+    create: {
+      transactionId: contact.propertyTransactionId,
+      milestoneDefinitionId: def.id,
+      state: "available",
+      expectedDate: new Date(input.expectedDate),
+    },
+    update: {
+      expectedDate: new Date(input.expectedDate),
+    },
+  });
+
+  // Engagement tracking — silence clock resets
+  await prisma.clientChaseState.updateMany({
+    where: {
+      transactionId: contact.propertyTransactionId,
+      contactId: contact.id,
+      milestoneCode: input.milestoneCode,
+      status: "active",
+    },
+    data: { lastEngagedAt: new Date() },
+  });
+
+  revalidatePath(`/portal/${input.token}/respond`, "page");
+}
+
+// 3. Leave a note — creates a PortalMessage tied to the agent, prefixed with
+//    the milestone context so the agent timeline shows what the note is
+//    about. Engagement tracking same as above.
+export async function portalLeaveChaseNoteAction(input: {
+  token: string;
+  milestoneCode: string;
+  note: string;
+}) {
+  const trimmed = input.note.trim();
+  if (!trimmed) throw new Error("Note cannot be empty");
+
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: input.token },
+    select: { id: true, propertyTransactionId: true },
+  });
+  if (!contact) throw new Error("Invalid token");
+
+  const label = getMilestoneCopy(input.milestoneCode).label;
+  await sendClientPortalMessage(input.token, `[About: ${label}] ${trimmed}`);
+
+  await prisma.clientChaseState.updateMany({
+    where: {
+      transactionId: contact.propertyTransactionId,
+      contactId: contact.id,
+      milestoneCode: input.milestoneCode,
+      status: "active",
+    },
+    data: { lastEngagedAt: new Date() },
+  });
+
+  revalidatePath(`/portal/${input.token}/respond`, "page");
 }
