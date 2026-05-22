@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/reminders/run",
-      "schedule": "0 7 * * *"
+      "schedule": "0 7 * * 1-6"
     },
     {
       "path": "/api/cron/morning-digest",
@@ -66,11 +66,11 @@
     },
     {
       "path": "/api/cron/drain-outbound-email",
-      "schedule": "0 9 * * *"
+      "schedule": "0 9 * * 1-6"
     },
     {
       "path": "/api/cron/drain-withdrawal-notifications",
-      "schedule": "0 9 * * *"
+      "schedule": "0 9 * * 1-6"
     },
     {
       "path": "/api/cron/medians-ready-check",
@@ -78,7 +78,7 @@
     },
     {
       "path": "/api/cron/client-chase",
-      "schedule": "30 8 * * *"
+      "schedule": "30 8 * * 1-6"
     }
   ]
 }
