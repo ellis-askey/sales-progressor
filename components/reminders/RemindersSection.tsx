@@ -169,21 +169,31 @@ function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: str
         🕐
       </button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        // Outer wrapper holds the positioning transform (translateY(-100%)
+        // anchors the menu's bottom edge above the trigger). Inner box runs
+        // the slide-in animation. They MUST be split — the animation's
+        // transform keyframes would otherwise override the inline -100%
+        // and the menu would render covering the button instead of above it.
         <div
-          data-theme={theme}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, right: pos.right,
             transform: "translateY(-100%)",
             zIndex: 9999,
-            background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
           }}
         >
-          {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
-          ))}
+          <div
+            data-theme={theme}
+            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+            onAnimationEnd={() => { if (closing) setClosing(false); }}
+            style={{
+              background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
+            }}
+          >
+            {SNOOZE_OPTIONS.map((opt) => (
+              <button key={opt.hours} onClick={() => { onSnooze(logId, taskId, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            ))}
+          </div>
         </div>,
         document.body
       )}
@@ -230,21 +240,28 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
         🕐 Snooze
       </button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        // See RowSnoozeMenu above for why the positioning transform and the
+        // animation class MUST live on different elements.
         <div
-          data-theme={theme}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, left: pos.left,
             transform: "translateY(-100%)",
             zIndex: 9999,
-            background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
           }}
         >
-          {SNOOZE_OPTIONS.map((opt) => (
-            <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
-          ))}
+          <div
+            data-theme={theme}
+            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+            onAnimationEnd={() => { if (closing) setClosing(false); }}
+            style={{
+              background: "var(--agent-surface-elevated)", borderRadius: 12, overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid var(--agent-border-default)", minWidth: 110,
+            }}
+          >
+            {SNOOZE_OPTIONS.map((opt) => (
+              <button key={opt.hours} onClick={() => { onSnoozeAll(logIds, taskIds, opt.hours); close(); }} className="w-full text-left px-3 py-2 text-xs text-slate-900/70 hover:bg-slate-50 transition-colors">{opt.label}</button>
+            ))}
+          </div>
         </div>,
         document.body
       )}

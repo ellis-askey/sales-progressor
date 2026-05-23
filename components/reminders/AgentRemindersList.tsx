@@ -159,31 +159,40 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
         <Clock size={12} weight="regular" /> Snooze all
       </button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        // Outer wrapper: positioning transform (translateY(-100%) anchors
+        // bottom edge above trigger). Inner box: slide-in animation. They
+        // must be split or the animation transform overrides positioning
+        // and the menu lands ON the button instead of above it.
         <div
-          data-theme={theme}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, left: pos.left,
             transform: "translateY(-100%)",
             zIndex: 9999,
-            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-            minWidth: 110,
           }}
         >
-          {SNOOZE_OPTIONS_SPLIT.map((opt) => (
-            <button
-              key={opt.hours}
-              onClick={() => {
-                onSnoozeAll(logIds, taskIds, opt.hours);
-                close();
-              }}
-              className="agent-dropdown-item"
-            >
-              {opt.label}
-            </button>
-          ))}
+          <div
+            data-theme={theme}
+            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+            onAnimationEnd={() => { if (closing) setClosing(false); }}
+            style={{
+              background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+              minWidth: 110,
+            }}
+          >
+            {SNOOZE_OPTIONS_SPLIT.map((opt) => (
+              <button
+                key={opt.hours}
+                onClick={() => {
+                  onSnoozeAll(logIds, taskIds, opt.hours);
+                  close();
+                }}
+                className="agent-dropdown-item"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>,
         document.body
       )}
@@ -233,31 +242,38 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
         <Clock size={12} weight="regular" />
       </button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
+        // See SideSnoozeMenu above for why the positioning transform and the
+        // animation class MUST live on different elements.
         <div
-          data-theme={theme}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
           style={{
             position: "fixed", top: pos.top, right: pos.right,
             transform: "translateY(-100%)",
             zIndex: 9999,
-            background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-            minWidth: 110,
           }}
         >
-          {SNOOZE_OPTIONS_SPLIT.map((opt) => (
-            <button
-              key={opt.hours}
-              onClick={() => {
-                onSnooze(taskId, opt.hours);
-                close();
-              }}
-              className="agent-dropdown-item"
-            >
-              {opt.label}
-            </button>
-          ))}
+          <div
+            data-theme={theme}
+            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
+            onAnimationEnd={() => { if (closing) setClosing(false); }}
+            style={{
+              background: "rgba(255,255,255,0.97)", borderRadius: 12, overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
+              minWidth: 110,
+            }}
+          >
+            {SNOOZE_OPTIONS_SPLIT.map((opt) => (
+              <button
+                key={opt.hours}
+                onClick={() => {
+                  onSnooze(taskId, opt.hours);
+                  close();
+                }}
+                className="agent-dropdown-item"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>,
         document.body
       )}
