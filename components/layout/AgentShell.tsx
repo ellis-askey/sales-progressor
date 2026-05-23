@@ -9,7 +9,7 @@ import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import {
-  FolderOpen, CalendarCheck, ChartBar, BellSimple,
+  FolderOpen, CalendarCheck, ChartBar, BellSimple, EnvelopeSimple,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon,
 } from "@phosphor-icons/react";
@@ -41,6 +41,7 @@ function buildNavGroups(role: UserRole) {
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
+    { href: "/agent/automated-emails", label: "Auto emails", Icon: EnvelopeSimple },
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
   ];
