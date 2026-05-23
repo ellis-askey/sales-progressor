@@ -15,6 +15,7 @@
 // belonged inline alongside the other accordion cards.
 
 import { useState } from "react";
+import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
 import type {
@@ -26,6 +27,10 @@ import type {
 
 type Props = {
   data: AutomatedEmailsPreview;
+  // Optional: when provided, renders a "View all for this file →" link at
+  // the bottom of the accordion that deep-links into the platform-wide
+  // automated-emails feed, filtered to just this transaction.
+  transactionId?: string;
 };
 
 // Compact day-label for the inline summary.
@@ -171,7 +176,7 @@ function EmptyLine({ text }: { text: string }) {
 
 // ─── Card component ──────────────────────────────────────────────────────
 
-export function AutomatedEmailsCard({ data }: Props) {
+export function AutomatedEmailsCard({ data, transactionId }: Props) {
   const [open, setOpen] = useState(false);
   const text = summaryText(data);
   const hasAny = data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0;
@@ -273,9 +278,22 @@ export function AutomatedEmailsCard({ data }: Props) {
           )}
 
           {/* Caveat */}
-          <p style={{ padding: "14px 20px", margin: 0, fontSize: 11, color: "var(--agent-text-muted, rgba(15,23,42,0.50))", lineHeight: 1.5 }}>
+          <p style={{ padding: "14px 20px 8px", margin: 0, fontSize: 11, color: "var(--agent-text-muted, rgba(15,23,42,0.50))", lineHeight: 1.5 }}>
             Predicted dates can shift if a chase fires earlier than expected or if the client engages.
           </p>
+
+          {/* Deep link to the platform-wide feed, filtered to this file */}
+          {transactionId && (
+            <div style={{ padding: "0 20px 14px", display: "flex", justifyContent: "flex-end" }}>
+              <Link
+                href={`/agent/automated-emails?tab=sent&fileId=${transactionId}`}
+                className="agent-link"
+                style={{ fontSize: 12, fontWeight: 600 }}
+              >
+                View all for this file →
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

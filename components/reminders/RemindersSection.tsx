@@ -589,7 +589,7 @@ export function RemindersSection({
         * a right-side drawer with pending + sent today + predicted upcoming.
         * Only renders when the loader supplied data (optional prop). */}
       {automatedEmails && (
-        <AutomatedEmailsCard data={automatedEmails} />
+        <AutomatedEmailsCard data={automatedEmails} transactionId={transactionId} />
       )}
 
       {/* Empty state */}
