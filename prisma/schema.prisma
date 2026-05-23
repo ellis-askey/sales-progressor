@@ -21,6 +21,14 @@ model Agency {
 
   isInternal Boolean @default(false)
 
+  // Master toggle for automated client-facing chase emails on this agency's
+  // files. When false, the client-chase cron skips digest enqueue for any
+  // file owned by this agency. The chase clock keeps running and the agent
+  // reminder engine sets a "client_emails_paused" fallback chip on the
+  // existing ChaseTask so the work surfaces as a manual task. Directors
+  // toggle via /agent/settings/automation.
+  chaseEmailsEnabled Boolean @default(true)
+
   // Signup attribution
   signupSource      String?
   signupMedium      String?
@@ -76,6 +84,7 @@ model User {
   managedAgents        User[]                @relation("ProgressorAgents")
   assignedTransactions PropertyTransaction[] @relation("AssignedUser")
   agentFiles           PropertyTransaction[] @relation("AgentFiles")
+  pausedTransactions   PropertyTransaction[] @relation("PausedTransactions")
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
   chaseTasks           ChaseTask[]
   communications       OutboundMessage[] @relation("CommCreatedBy")
@@ -192,12 +201,33 @@ model PropertyTransaction {
   brokerReferralFeeReceived    Boolean               @default(false)
   purchaserBrokerReferral      Boolean               @default(false)
   lastActivityAt               DateTime?
+
+  // Per-file pause toggle for automated client-facing chase emails. When
+  // true, the client-chase cron skips digest enqueue for this file. The
+  // chase clock keeps running underneath and escalation still fires —
+  // pausing emails MUST NOT block the file from flagging to the team.
+  // Toggled via the AutomationControls panel on the transaction-detail page.
+  clientEmailsPaused           Boolean           @default(false)
+  pausedAt                     DateTime?         // When clientEmailsPaused was last set to true
+  pausedById                   String?           // Which user toggled the pause on
+
+  // Per-transaction snapshot of chase rule values at creation time. JSON
+  // map keyed by milestone code: { graceDays, repeatEveryDays,
+  // useEventDate, anchorMilestoneCode, requiresExchangeReady }. The
+  // client-chase cron reads from this snapshot rather than live
+  // ReminderRule so Settings edits apply to NEW files only — in-flight
+  // files keep their original schedule. Backfilled at migration time
+  // for existing transactions. Defensive fallback: cron uses live
+  // ReminderRule if snapshot is missing.
+  chaseRuleSnapshot            Json?
+
   createdAt                    DateTime          @default(now())
   updatedAt                    DateTime          @updatedAt
 
   agency                     Agency                @relation(fields: [agencyId], references: [id])
   assignedUser               User?                 @relation("AssignedUser", fields: [assignedUserId], references: [id])
   agentUser                  User?                 @relation("AgentFiles", fields: [agentUserId], references: [id])
+  pausedBy                   User?                 @relation("PausedTransactions", fields: [pausedById], references: [id])
   contacts                   Contact[]
   vendorSolicitorFirm        SolicitorFirm?        @relation("VendorSolicitorFirm",    fields: [vendorSolicitorFirmId],    references: [id])
   vendorSolicitorContact     SolicitorContact?     @relation("VendorSolicitorContact",  fields: [vendorSolicitorContactId],  references: [id])

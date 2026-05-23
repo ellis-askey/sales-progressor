@@ -719,7 +719,8 @@ export type FallbackKind =
   | "max_chases_exhausted"
   | "days_cap_exhausted"
   | "no_email_on_contact"
-  | "no_portalToken_on_contact";
+  | "no_portalToken_on_contact"
+  | "client_emails_paused";
 
 // Structured statusReason text written to ReminderLog.statusReason. Locked
 // at user sign-off — do not edit without the corresponding chip-text + audit-
@@ -730,6 +731,7 @@ const FALLBACK_REASON: Record<FallbackKind, string> = {
   days_cap_exhausted:           "Client silent for 14 days — handed to agent",
   no_email_on_contact:          "Client contact missing email address — handed to agent",
   no_portalToken_on_contact:    "Client contact missing portal access — handed to agent",
+  client_emails_paused:         "Client emails paused on this file — handed to agent",
 };
 
 // Common input fields every kind requires.
@@ -746,7 +748,8 @@ export type FallbackInput =
   | (FallbackInputBase & { kind: "max_chases_exhausted";      chaseCount: number; lastChasedAt: Date })
   | (FallbackInputBase & { kind: "days_cap_exhausted";        firstChasedAt: Date })
   | (FallbackInputBase & { kind: "no_email_on_contact" })
-  | (FallbackInputBase & { kind: "no_portalToken_on_contact" });
+  | (FallbackInputBase & { kind: "no_portalToken_on_contact" })
+  | (FallbackInputBase & { kind: "client_emails_paused";      pausedScope: "agency" | "file" });
 
 // Human-readable activity-feed note. Each kind gets a kind-specific
 // rendering using its required context. Date formatting matches the rest of
@@ -764,6 +767,10 @@ function fallbackActivityNote(input: FallbackInput): string {
       return `Automated client chase couldn't fire — ${input.contactName} has no email address on file. Reminder handed back to agent.`;
     case "no_portalToken_on_contact":
       return `Automated client chase couldn't fire — ${input.contactName} has no portal access (no token issued). Reminder handed back to agent.`;
+    case "client_emails_paused":
+      return input.pausedScope === "agency"
+        ? `Automated client chase paused — chase emails are switched off agency-wide. Reminder handed back to agent.`
+        : `Automated client chase paused — chase emails are paused on this file. Reminder handed back to agent.`;
   }
 }
 
