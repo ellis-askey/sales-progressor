@@ -1,26 +1,32 @@
 "use client";
 
-// Per-file automation controls panel.
+// Per-file automation banner. Single row: title + state-aware subtext on the
+// left, toggle on the right. Visual rhythm matches FileHealthBanner /
+// NextMilestoneWidget so it reads as part of the Overview tab, not a card
+// dropped in afterwards.
 //
-// Visibility rules (enforced by the parent page — this component renders
-// nothing on its own if shown=false):
-//   - Hidden when serviceType !== "self_managed"
-//   - Hidden when status is completed | withdrawn | draft
+// Three states surfaced via one toggle:
+//   - ON  → automation active (paused=false, status=active)
+//   - OFF → paused-only (paused=true, status=active)
+//   - OFF → on-hold (status=on_hold) — also OFF on the toggle
 //
-// Two controls:
-//   1. Pause client emails toggle
-//      - Off: cron enqueues digests normally
-//      - On:  cron skips digest enqueue + ChaseTask gets the
-//             "client_emails_paused" fallbackKind chip. Chase clock keeps
-//             running underneath. Escalation still fires.
-//   2. Put file on hold / Reactivate file
-//      - on_hold flips PropertyTransaction.status. Cron's status="active"
-//        filter auto-freezes everything. Reactivate bumps the active CCS
-//        clocks (lastChasedAt + lastEngagedAt) so the unpause doesn't
-//        produce a pile of overdue repeats.
+// ON  → OFF opens the AutomationStopModal chooser so the agent picks WHICH
+//       mode (pause-only or full hold). The toggle moves to OFF only on
+//       success.
+// OFF → ON resumes directly (no modal) — calls reactivateFile if currently
+//       on-hold, resumeClientEmails if currently paused-only.
+//
+// Visibility (enforced by parent page, not here):
+//   serviceType === "self_managed" AND status in {"active","on_hold"}.
 
 import { useState, useTransition } from "react";
-import { pauseClientEmails, resumeClientEmails, putFileOnHold, reactivateFile } from "@/app/actions/automation";
+import {
+  pauseClientEmails,
+  resumeClientEmails,
+  putFileOnHold,
+  reactivateFile,
+} from "@/app/actions/automation";
+import { AutomationStopModal } from "@/components/transaction/AutomationStopModal";
 
 type Props = {
   transactionId: string;
@@ -28,104 +34,130 @@ type Props = {
   status: "active" | "on_hold";
 };
 
-export function AutomationControls({ transactionId, initialClientEmailsPaused, status }: Props) {
+type Mode = "active" | "paused" | "on_hold";
+
+function deriveMode(paused: boolean, status: "active" | "on_hold"): Mode {
+  if (status === "on_hold") return "on_hold";
+  return paused ? "paused" : "active";
+}
+
+const SUBTEXT: Record<Mode, string> = {
+  active: "Automated chases sending as scheduled.",
+  paused: "Paused — client emails won't send. The team still sees this file in their reminders.",
+  on_hold: "On hold — everything is frozen until you reactivate.",
+};
+
+export function AutomationControls({
+  transactionId,
+  initialClientEmailsPaused,
+  status,
+}: Props) {
   const [paused, setPaused] = useState(initialClientEmailsPaused);
-  const [currentStatus, setCurrentStatus] = useState(status);
+  const [currentStatus, setCurrentStatus] = useState<"active" | "on_hold">(status);
+  const [modalOpen, setModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function togglePause() {
+  const mode = deriveMode(paused, currentStatus);
+  const toggleOn = mode === "active";
+
+  function handleToggleClick() {
+    if (isPending) return;
     setError(null);
-    const next = !paused;
+    if (toggleOn) {
+      // ON → OFF: open chooser, server action fires inside the modal pick
+      setModalOpen(true);
+      return;
+    }
+    // OFF → ON: resume directly from whichever mode we're in
     startTransition(async () => {
-      const result = next ? await pauseClientEmails(transactionId) : await resumeClientEmails(transactionId);
-      if (result.ok) setPaused(next);
-      else setError(result.error);
+      const result =
+        mode === "on_hold"
+          ? await reactivateFile(transactionId)
+          : await resumeClientEmails(transactionId);
+      if (result.ok) {
+        setPaused(false);
+        setCurrentStatus("active");
+      } else {
+        setError(result.error);
+      }
     });
   }
 
-  function toggleHold() {
+  function handleChoice(choice: "pause" | "hold") {
     setError(null);
     startTransition(async () => {
-      const result = currentStatus === "on_hold"
-        ? await reactivateFile(transactionId)
-        : await putFileOnHold(transactionId);
-      if (result.ok) setCurrentStatus(currentStatus === "on_hold" ? "active" : "on_hold");
-      else setError(result.error);
+      const result =
+        choice === "pause"
+          ? await pauseClientEmails(transactionId)
+          : await putFileOnHold(transactionId);
+      if (result.ok) {
+        if (choice === "pause") setPaused(true);
+        else setCurrentStatus("on_hold");
+        setModalOpen(false);
+      } else {
+        setError(result.error);
+        setModalOpen(false);
+      }
     });
   }
-
-  const isOnHold = currentStatus === "on_hold";
 
   return (
-    <div className="glass-card rounded-[12px] p-5">
-      <h3 className="text-base font-semibold mb-1 text-[var(--agent-text-primary,#1A1D29)]">
-        Automation on this file
-      </h3>
-      <p className="text-sm mb-4 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
-        Pause automated emails or freeze the file. The team still sees this file in their reminders.
-      </p>
-
-      <div className="space-y-3">
-        {/* Pause client emails */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--agent-text-primary,#1A1D29)]">
-              Pause client emails
-            </p>
-            <p className="text-xs text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
-              {paused
-                ? "No automated chases will send. Reminders show as manual handoffs."
-                : "Automated chases are sending as scheduled."}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={paused}
-            onClick={togglePause}
-            disabled={isPending || isOnHold}
-            className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50"
-            style={{ background: paused ? "#FF6B4A" : "rgba(15,23,42,0.20)" }}
-          >
-            <span
-              className="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
-              style={{ transform: paused ? "translateX(22px)" : "translateX(4px)", marginTop: 4 }}
-            />
-          </button>
+    <>
+      <div
+        className="agent-reveal-in"
+        style={{
+          background: "var(--agent-surface-elevated)",
+          border: "1px solid rgba(15,23,42,0.08)",
+          borderRadius: 10,
+          padding: "10px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+            Automation on this file
+          </span>
+          <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
+            {error ?? SUBTEXT[mode]}
+          </span>
         </div>
-
-        {/* On hold */}
-        <div className="pt-3 border-t border-[rgba(15,23,42,0.08)] flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-[var(--agent-text-primary,#1A1D29)]">
-              {isOnHold ? "File is on hold" : "Put file on hold"}
-            </p>
-            <p className="text-xs text-[var(--agent-text-muted,rgba(15,23,42,0.50))]">
-              {isOnHold
-                ? "Nothing is automated. Reactivate to resume."
-                : "Freezes the whole file — no emails, no agent reminders, no escalations."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={toggleHold}
-            disabled={isPending}
-            className="px-3 py-1.5 rounded-md text-sm font-semibold disabled:opacity-50"
+        <button
+          type="button"
+          role="switch"
+          aria-checked={toggleOn}
+          onClick={handleToggleClick}
+          disabled={isPending}
+          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50"
+          style={{
+            height: 24,
+            width: 42,
+            background: toggleOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
+          }}
+          aria-label={toggleOn ? "Stop automation on this file" : "Resume automation on this file"}
+        >
+          <span
+            className="inline-block rounded-full bg-white shadow transition-transform"
             style={{
-              background: isOnHold ? "#FF6B4A" : "transparent",
-              color: isOnHold ? "white" : "var(--agent-text-primary,#1A1D29)",
-              border: isOnHold ? "none" : "1px solid rgba(15,23,42,0.20)",
+              height: 18,
+              width: 18,
+              marginTop: 3,
+              transform: toggleOn ? "translateX(21px)" : "translateX(3px)",
             }}
-          >
-            {isOnHold ? "Reactivate file" : "Put on hold"}
-          </button>
-        </div>
-
-        {error && (
-          <p className="text-xs text-red-700 pt-2">{error}</p>
-        )}
+          />
+        </button>
       </div>
-    </div>
+
+      {modalOpen && (
+        <AutomationStopModal
+          onPick={handleChoice}
+          onClose={() => setModalOpen(false)}
+          isPending={isPending}
+        />
+      )}
+    </>
   );
 }
