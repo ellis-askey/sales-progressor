@@ -53,3 +53,9 @@ tsconfig.tsbuildinfo
 
 # Playwright screenshots (ephemeral test output)
 e2e/screenshots/
+
+# Debug trace JSON from one-off scripts (ephemeral)
+logs/
+
+# Office app lockfiles (e.g. Word "~$..." while a doc is open)
+~$*

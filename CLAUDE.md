@@ -3,7 +3,7 @@
 **This file is the persistent context for every Claude Code session in this repo.**
 **Always read this file before taking any action. Re-read at the start of any new task.**
 
-Last updated: 2026-05-03 (verified against production DB and source code)
+Last updated: 2026-05-23 (Package D shipped; staging→prod clean break promoted)
 
 ---
 
@@ -14,7 +14,7 @@ Sales Progressor is a UK estate agency sales progression SaaS. The product manag
 The customer is an estate agency. Two service tiers:
 
 - **Self-managed (£59 per sale, charged on exchange)** — agency uses the platform themselves to manage their own files. **Fully functional today.**
-- **Outsourced (£250+ per sale, charged on exchange)** — Sales Progressor's internal team progresses the file on the agency's behalf. **Not yet fully functional — see "Known gap: Outsourced workflow" below.**
+- **Outsourced (£250+ per sale, charged on exchange)** — Sales Progressor's internal team progresses the file on the agency's behalf. **Fully functional today** (Package D shipped 2026-05-03; access scope helper at `lib/security/access-scope.ts`).
 
 Current stage: pre-launch, ~5 test users, no paying customers.
 
@@ -38,29 +38,18 @@ The `viewer` role exists in code but is not in production use as of this writing
 
 **Customer agency users have `agencyId` set to their agency. Internal staff (`sales_progressor`, `admin`, `superadmin`) have `agencyId = null`.**
 
-This is the core multi-tenancy model. Customer agency data is scoped by `agencyId`. Internal staff exist outside that scope and access transactions through different mechanisms (when those mechanisms exist — see known gap below).
+This is the core multi-tenancy model. Customer agency data is scoped by `agencyId`. Internal staff exist outside that scope and access transactions through `assignedUserId` (sales_progressor) or admin-level cross-agency views (admin / superadmin).
 
-### Known gap: Outsourced workflow
+### Access scope helper
 
-**Internal staff (`sales_progressor`, `admin`) currently cannot see any transactions on `/dashboard`.**
+Internal staff visibility is handled by `lib/security/access-scope.ts`. `getAccessScope(session)` returns one of three shapes:
+- `{ kind: "all" }` — admin / superadmin (no agency filter)
+- `{ kind: "assigned", userId }` — sales_progressor (sees their assigned files only)
+- `{ kind: "agency", agencyIds }` — director / negotiator / viewer (their agency)
 
-The query path filters by `session.user.agencyId`, which is `""` for internal staff (`null` coalesced to empty string). No transaction has `agencyId = ""`, so the result is always empty.
+Use this helper for every multi-tenant read or write. `scopeTransactionWhere` for lists, `scopeOwnershipWhere` for single-tx guards, `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models. Do not introduce ad-hoc `agencyId: session.user.agencyId` patterns — they break for internal staff (whose agencyId is null).
 
-The schema fields exist:
-- `PropertyTransaction.serviceType` (`self_managed` | `outsourced`)
-- `PropertyTransaction.assignedUserId` (intended to link to internal staff)
-- An assignment UI exists (the unassigned-files widget)
-
-But the read path — the query that shows an internal staff member their assigned files — was never built.
-
-**Implication for any work touching internal staff or outsourced files:**
-
-- The `/dashboard` page renders but shows an empty transaction list for internal staff
-- The outsourced (£250+) tier on the pricing page advertises functionality that is not currently operable
-- Any feature that assumes internal staff can "see their assigned files" must build the read path first
-- This is tracked as **Package D — Outsourced Workflow** for future planning
-
-When working on anything related to outsourced files, internal staff visibility, or the `/dashboard` route — surface this gap and confirm scope before proceeding.
+Shipped as Package D, 2026-05-03. Hub dashboard at `/agent/hub` routes internal staff through `resolveInternalVisibility()` in `lib/services/agent.ts`. Unassigned-files widget is at `components/hub/UnassignedFilesView.tsx`.
 
 ---
 
@@ -164,7 +153,7 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | Technical debt | `docs/active/TODO.md` |
 | Bug log | `docs/POST_LAUNCH_FIXES.md` |
 | Test accounts | `docs/test-accounts.md` |
-| Outsourced workflow gap | This file ("Known gap" section above), pending Package D |
+| Access scope (internal staff visibility) | `lib/security/access-scope.ts` — see "Access scope helper" above |
 
 ---
 
@@ -209,9 +198,9 @@ If the user asks for something that:
 
 For customer agency data: every database query must filter by `agencyId` derived from the authenticated session.
 
-For routes accepting client-supplied IDs: verify the resource belongs to the authenticated user's agency BEFORE acting on it. Use the access scope helper from `lib/security/access-scope.ts` (built in Package D). Until Package D ships, ownership is enforced via inline `findFirst({ where: { id, agencyId } })` patterns. Do NOT introduce new ad-hoc inline checks — wait for Package D's helper if writing new code that needs ownership enforcement.
+For routes accepting client-supplied IDs: verify the resource belongs to the authenticated user's scope BEFORE acting on it. Use the access scope helper from `lib/security/access-scope.ts` (`scopeOwnershipWhere(scope, id)` for single-tx guards, `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models). Do NOT introduce ad-hoc inline `findFirst({ where: { id, agencyId } })` checks — they break for internal staff.
 
-For internal staff (where `agencyId = null`): **agencyId-based filtering does not apply**. Internal staff access transactions through `assignedUserId` (when that path exists) or admin-level cross-agency views. Build these paths explicitly; don't assume agencyId filtering is the only mechanism.
+For internal staff (where `agencyId = null`): **agencyId-based filtering does not apply**. The access scope helper handles this — `sales_progressor` is scoped by `assignedUserId`, `admin` / `superadmin` see everything. Always go through the helper rather than building your own visibility logic.
 
 A query that doesn't have a clear access model is a tenant isolation hole. There are no exceptions outside Command Centre routes (which use `commandDb` with explicit superadmin context).
 
