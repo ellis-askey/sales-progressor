@@ -72,32 +72,32 @@ async function main() {
     {
       code: "VM1",  orderIndex: 1,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
       weight: 6.00, name: "Seller has instructed their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have instructed their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} instructed their solicitor",
     },
     {
       code: "VM2",  orderIndex: 2,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Seller has received the memorandum of sale",
-      summaryTemplate: "{agent} confirmed that {vendors} have received the memorandum of sale",
+      summaryTemplate: "{agent} confirmed {vendors} received the memorandum of sale",
     },
     {
       code: "VM3",  orderIndex: 3,  blocksExchange: true,  predecessorCode: "VM1",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 4.00, name: "Seller has received the welcome pack from their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have received their welcome pack from their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} received the welcome pack from their solicitor",
     },
     {
       code: "VM4",  orderIndex: 4,  blocksExchange: true,  predecessorCode: "VM3",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Seller has completed ID and AML checks with their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have completed their ID and AML checks",
+      summaryTemplate: "{agent} confirmed {vendors} completed ID and AML checks",
     },
     {
       code: "VM5",  orderIndex: 5,  blocksExchange: true,  predecessorCode: "VM4",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 4.00, name: "Seller has received the property information forms from their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have received the property information forms from their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} received the property information forms",
     },
     {
       code: "VM6",  orderIndex: 6,  blocksExchange: true,  predecessorCode: "VM5",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 8.00, name: "Seller has returned completed property information forms to their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have returned their completed property information forms",
+      summaryTemplate: "{agent} confirmed {vendors} returned the completed property information forms",
     },
     {
       code: "VM7",  orderIndex: 7,  blocksExchange: true,  predecessorCode: "VM6",  canBeMarkedNr: CanBeMarkedNr.never,
@@ -122,7 +122,7 @@ async function main() {
     {
       code: "VM11", orderIndex: 11, blocksExchange: true,  predecessorCode: "VM10", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 5.00, name: "Seller has provided initial replies to their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have provided their initial replies to their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} provided initial replies to their solicitor",
     },
     {
       code: "VM12", orderIndex: 12, blocksExchange: true,  predecessorCode: "VM11", canBeMarkedNr: CanBeMarkedNr.never,
@@ -137,7 +137,7 @@ async function main() {
     {
       code: "VM14", orderIndex: 14, blocksExchange: true,  predecessorCode: "VM13", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Seller has provided additional replies to their solicitor",
-      summaryTemplate: "{agent} confirmed that {vendors} have provided their further replies to their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} provided further replies to their solicitor",
     },
     {
       code: "VM15", orderIndex: 15, blocksExchange: true,  predecessorCode: "VM14", canBeMarkedNr: CanBeMarkedNr.never,
@@ -152,7 +152,7 @@ async function main() {
     {
       code: "VM17", orderIndex: 17, blocksExchange: true,  predecessorCode: "VM16", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 8.00, name: "Seller's solicitor has received signed contract documents back from the seller",
-      summaryTemplate: "{agent} confirmed that {vendors} have returned their signed contract documents to their solicitor",
+      summaryTemplate: "{agent} confirmed {vendors} returned signed contract documents to their solicitor",
     },
     {
       code: "VM18", orderIndex: 18, blocksExchange: false, predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
@@ -176,27 +176,27 @@ async function main() {
     {
       code: "PM1",  orderIndex: 1,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
       weight: 5.00, name: "Buyer has instructed their solicitor",
-      summaryTemplate: "{agent} confirmed that {purchasers} have instructed their solicitor",
+      summaryTemplate: "{agent} confirmed {purchasers} instructed their solicitor",
     },
     {
       code: "PM2",  orderIndex: 2,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Buyer has received the memorandum of sale",
-      summaryTemplate: "{agent} confirmed that {purchasers} have received the memorandum of sale",
+      summaryTemplate: "{agent} confirmed {purchasers} received the memorandum of sale",
     },
     {
       code: "PM3",  orderIndex: 3,  blocksExchange: true,  predecessorCode: "PM1",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 2.00, name: "Buyer has completed ID and AML checks with their solicitor",
-      summaryTemplate: "{agent} confirmed that {purchasers} have completed their ID and AML checks with their solicitor",
+      summaryTemplate: "{agent} confirmed {purchasers} completed ID and AML checks",
     },
     {
       code: "PM4",  orderIndex: 4,  blocksExchange: true,  predecessorCode: "PM1",  canBeMarkedNr: CanBeMarkedNr.never,
       weight: 6.00, name: "Buyer has paid money on account to their solicitor",
-      summaryTemplate: "{agent} confirmed that {purchasers} have paid money on account to their solicitor",
+      summaryTemplate: "{agent} confirmed {purchasers} paid money on account to their solicitor",
     },
     {
       code: "PM5",  orderIndex: 5,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.auto_only,
       weight: 4.00, name: "Buyer has submitted their mortgage application",
-      summaryTemplate: "{agent} confirmed that {purchasers} have submitted their mortgage application",
+      summaryTemplate: "{agent} confirmed {purchasers} submitted their mortgage application",
     },
     {
       code: "PM6",  orderIndex: 6,  blocksExchange: true,  predecessorCode: "PM5",  canBeMarkedNr: CanBeMarkedNr.auto_only,
@@ -216,12 +216,12 @@ async function main() {
     {
       code: "PM9",  orderIndex: 9,  blocksExchange: true,  predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.manual_allowed,
       weight: 4.00, eventDateRequired: true, name: "Buyer has booked a Level 2 or Level 3 survey",
-      summaryTemplate: "{agent} confirmed that {purchasers} have booked their survey",
+      summaryTemplate: "{agent} confirmed {purchasers} booked their survey",
     },
     {
       code: "PM10", orderIndex: 10, blocksExchange: true,  predecessorCode: "PM9",  canBeMarkedNr: CanBeMarkedNr.auto_only,
       weight: 3.00, name: "Buyer has received the survey report",
-      summaryTemplate: "{agent} confirmed that {purchasers} have received their survey report",
+      summaryTemplate: "{agent} confirmed {purchasers} received the survey report",
     },
     {
       code: "PM11", orderIndex: 11, blocksExchange: true,  predecessorCode: "PM6",  canBeMarkedNr: CanBeMarkedNr.auto_only,
@@ -276,7 +276,7 @@ async function main() {
     {
       code: "PM21", orderIndex: 21, blocksExchange: true,  predecessorCode: "PM20", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Buyer has received the final report from their solicitor",
-      summaryTemplate: "{agent} confirmed that {purchasers} have received their final report from their solicitor",
+      summaryTemplate: "{agent} confirmed {purchasers} received the final report from their solicitor",
     },
     {
       code: "PM22", orderIndex: 22, blocksExchange: true,  predecessorCode: "PM21", canBeMarkedNr: CanBeMarkedNr.never,
@@ -286,12 +286,12 @@ async function main() {
     {
       code: "PM23", orderIndex: 23, blocksExchange: true,  predecessorCode: "PM22", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 6.00, name: "Buyer's solicitor has received the signed contract documents back from the buyer",
-      summaryTemplate: "{agent} confirmed that {purchasers} have returned their signed contract documents",
+      summaryTemplate: "{agent} confirmed {purchasers} returned signed contract documents",
     },
     {
       code: "PM24", orderIndex: 24, blocksExchange: true,  predecessorCode: "PM23", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 3.00, name: "Buyer has transferred the deposit",
-      summaryTemplate: "{agent} confirmed that {purchasers} have transferred the deposit to their solicitor",
+      summaryTemplate: "{agent} confirmed {purchasers} transferred the deposit to their solicitor",
     },
     {
       code: "PM25", orderIndex: 25, blocksExchange: false, predecessorCode: null,   canBeMarkedNr: CanBeMarkedNr.never,
@@ -306,7 +306,7 @@ async function main() {
     {
       code: "PM27", orderIndex: 27, blocksExchange: false, predecessorCode: "PM26", canBeMarkedNr: CanBeMarkedNr.never,
       weight: 5.00, eventDateRequired: true, name: "Buyer has received confirmation that the sale has completed",
-      summaryTemplate: "{agent} confirmed that the purchase has completed — {purchasers} are now the proud owners",
+      summaryTemplate: "{agent} confirmed the purchase has completed — congratulations to {purchasers}",
     },
   ];
 
