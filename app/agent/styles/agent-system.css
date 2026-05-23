@@ -433,12 +433,18 @@
     border-color: var(--agent-coral-deep);
     font-weight: var(--agent-weight-medium);
     box-shadow: 0 2px 6px rgba(var(--agent-coral-rgb), 0.28);
+    /* "You're here" — same-URL click is a no-op, so suppress the pointer
+     * cursor that would suggest a re-navigation happens. Keeps the pill
+     * usable for keyboard / aria-current semantics without misleading the
+     * mouse user. */
+    cursor: default;
   }
   .agent-segment-pill.on:hover:not(:disabled) {
+    /* Subtle deepening only — no lift / no growing shadow. Hovering the
+     * active pill shouldn't suggest "I'll do something" because clicking
+     * it doesn't visibly change anything. */
     background: var(--agent-coral-darker);
     border-color: var(--agent-coral-darker);
-    box-shadow: 0 3px 8px rgba(var(--agent-coral-rgb), 0.34);
-    transform: translateY(-1px);
   }
   .agent-segment-pill:disabled {
     opacity: 0.42;
@@ -450,6 +456,52 @@
     font-size: var(--agent-text-micro);
     border-radius: var(--agent-radius-sm);
     border-width: 1px;
+  }
+
+  /* ── KPI card (clickable, jumps to a matching tab) ──────────────────────
+   * Used on /agent/automated-emails for the three count cards above the
+   * tabs. Whole card is a <Link>; hover lifts 1px and reveals a chevron
+   * in the top-right corner. Same elevation language as the segment-pill
+   * hover treatment. */
+  .agent-kpi-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--agent-surface-elevated);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+                border-color     180ms cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow       180ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform        120ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .agent-kpi-card:hover {
+    border-color: rgba(var(--agent-coral-rgb), 0.40);
+    box-shadow: 0 2px 6px rgba(var(--agent-coral-rgb), 0.12);
+    transform: translateY(-1px);
+  }
+  .agent-kpi-card:active {
+    transform: scale(0.99);
+  }
+  .agent-kpi-card-chevron {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    color: var(--agent-coral-deep);
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity   180ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .agent-kpi-card:hover .agent-kpi-card-chevron {
+    opacity: 1;
+    transform: translateX(0);
   }
   .agent-segment-pill-note {
     font-size: var(--agent-text-micro);

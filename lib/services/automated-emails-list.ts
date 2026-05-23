@@ -53,7 +53,12 @@ export type EmailRow = {
 
 export type EmailListResponse = {
   rows: EmailRow[];
-  counts: { pending: number; sentLast7d: number; errored: number };
+  counts: {
+    pending: number;
+    sentLast7d: number;   // KPI strip — "what happened lately"
+    sentLast30d: number;  // Sent-tab label — matches the tab's 30-day window
+    errored: number;
+  };
 };
 
 // Build the transaction-where clause from caller role + scope. Independent
@@ -135,19 +140,21 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   const txIds = transactions.map((t) => t.id);
   const txAddressById = new Map(transactions.map((t) => [t.id, t.propertyAddress]));
 
-  // Empty-scope short-circuit. Avoids 5 queries with `in: []`.
+  // Empty-scope short-circuit. Avoids 4 queries with `in: []`.
   if (txIds.length === 0) {
-    return { rows: [], counts: { pending: 0, sentLast7d: 0, errored: 0 } };
+    return { rows: [], counts: { pending: 0, sentLast7d: 0, sentLast30d: 0, errored: 0 } };
   }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
-  // KPI counts always shown regardless of tab. Three parallel COUNTs.
+  // KPI counts + tab-label counts in parallel. The 7d/30d split is
+  // intentional: KPI shows recent activity ("what happened lately"); the
+  // Sent tab spans 30 days ("review history") so we need both.
   const baseScopeFilter = {
     recipientContact: { propertyTransactionId: { in: txIds } },
   };
-  const [pendingCount, sent7dCount, erroredCount] = await Promise.all([
+  const [pendingCount, sent7dCount, sent30dCount, erroredCount] = await Promise.all([
     prisma.outboundEmailQueue.count({
       where: { ...baseScopeFilter, sentAt: null, errorAt: null },
     }),
@@ -155,10 +162,13 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
       where: { ...baseScopeFilter, sentAt: { gte: sevenDaysAgo } },
     }),
     prisma.outboundEmailQueue.count({
+      where: { ...baseScopeFilter, sentAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.outboundEmailQueue.count({
       where: { ...baseScopeFilter, errorAt: { not: null } },
     }),
   ]);
-  const counts = { pending: pendingCount, sentLast7d: sent7dCount, errored: erroredCount };
+  const counts = { pending: pendingCount, sentLast7d: sent7dCount, sentLast30d: sent30dCount, errored: erroredCount };
 
   // Tab-specific row fetch.
   let rows: EmailRow[] = [];

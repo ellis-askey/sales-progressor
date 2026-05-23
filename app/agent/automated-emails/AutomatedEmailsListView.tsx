@@ -21,7 +21,7 @@ import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 
 type Props = {
   rows: EmailRow[];
-  counts: { pending: number; sentLast7d: number; errored: number };
+  counts: { pending: number; sentLast7d: number; sentLast30d: number; errored: number };
   tab: EmailListTab;
   mineOnly: boolean;
   fileId?: string;
@@ -35,6 +35,23 @@ const TABS: { value: EmailListTab; label: string }[] = [
   { value: "errored", label: "Errored" },
   { value: "upcoming", label: "Upcoming" },
 ];
+
+// Per-tab count for the "Label · N" suffix. Returns null when no global
+// count is known (Upcoming requires a per-tx prediction fan-out; we don't
+// compute that just for the label).
+function countForTab(
+  t: EmailListTab,
+  counts: Props["counts"],
+  rows: EmailRow[],
+  activeTab: EmailListTab,
+): number | null {
+  if (t === "pending") return counts.pending;
+  if (t === "sent") return counts.sentLast30d;
+  if (t === "errored") return counts.errored;
+  // upcoming — show count only when we're already on that tab (rows are
+  // already loaded; no extra cost). Skip otherwise.
+  return t === activeTab ? rows.length : null;
+}
 
 // Build a URL preserving the relevant params (mine, fileId) but swapping tab.
 function tabHref(tab: EmailListTab, mineOnly: boolean, fileId?: string): string {
@@ -279,11 +296,11 @@ export function AutomatedEmailsListView({
   const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
   return (
     <div className="space-y-4">
-      {/* KPI strip */}
+      {/* KPI strip — each card jumps to the matching tab on click */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-        <KpiCard label="Pending now" value={counts.pending} />
-        <KpiCard label="Sent (7d)" value={counts.sentLast7d} />
-        <KpiCard label="Errored" value={counts.errored} />
+        <KpiCard label="Pending now" value={counts.pending} href={tabHref("pending", mineOnly, fileId)} />
+        <KpiCard label="Sent (7d)"   value={counts.sentLast7d} href={tabHref("sent",    mineOnly, fileId)} />
+        <KpiCard label="Errored"     value={counts.errored}    href={tabHref("errored", mineOnly, fileId)} />
       </div>
 
       {/* Director toggle + file filter pill */}
@@ -334,17 +351,19 @@ export function AutomatedEmailsListView({
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4 }}>
-        {TABS.map((t) => (
-          <Link
-            key={t.value}
-            href={tabHref(t.value, mineOnly, fileId)}
-            className={`agent-segment-pill agent-segment-pill-sm${tab === t.value ? " on" : ""}`}
-          >
-            {t.label}
-            {t.value === "pending" && counts.pending > 0 ? ` (${counts.pending})` : ""}
-            {t.value === "errored" && counts.errored > 0 ? ` (${counts.errored})` : ""}
-          </Link>
-        ))}
+        {TABS.map((t) => {
+          const n = countForTab(t.value, counts, rows, tab);
+          return (
+            <Link
+              key={t.value}
+              href={tabHref(t.value, mineOnly, fileId)}
+              className={`agent-segment-pill agent-segment-pill-sm${tab === t.value ? " on" : ""}`}
+            >
+              {t.label}
+              {n != null ? ` · ${n}` : ""}
+            </Link>
+          );
+        })}
       </div>
 
       {/* List */}
@@ -405,25 +424,19 @@ export function AutomatedEmailsListView({
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: number }) {
+// Clickable KPI card — whole card is a Link that jumps to the matching tab.
+// Uses the .agent-kpi-card class for hover lift + chevron reveal (defined
+// in agent-system.css alongside the segment-pill recipe).
+function KpiCard({ label, value, href }: { label: string; value: number; href: string }) {
   return (
-    <div
-      style={{
-        background: "var(--agent-surface-elevated)",
-        border: "1px solid rgba(15,23,42,0.08)",
-        borderRadius: 10,
-        padding: "12px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-      }}
-    >
+    <Link href={href} className="agent-kpi-card">
       <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 700 }}>
         {label}
       </span>
-      <span style={{ fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+      <span style={{ fontSize: 22, fontWeight: 700, color: "var(--agent-text-primary)", marginTop: 2 }}>
         {value}
       </span>
-    </div>
+      <span className="agent-kpi-card-chevron" aria-hidden>→</span>
+    </Link>
   );
 }
