@@ -17,7 +17,7 @@ export type RiskScore = {
 };
 
 export type RiskInput = {
-  onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
+  onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
   escalatedTaskCount: number;
   overdueTaskCount: number;
   daysSinceLastActivity: number | null;
@@ -26,6 +26,12 @@ export type RiskInput = {
 
 export function calculateRiskScore(input: RiskInput): RiskScore {
   const { onTrack, escalatedTaskCount, overdueTaskCount, daysSinceLastActivity, daysStuckOnMilestone } = input;
+
+  // On hold: risk factors aren't accumulating (clock is frozen), so showing
+  // a score would be misleading. Render the no_data state.
+  if (onTrack === "on_hold") {
+    return { level: "no_data", score: 0, factors: [] };
+  }
 
   const isNoData =
     escalatedTaskCount === 0 &&

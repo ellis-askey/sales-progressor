@@ -128,6 +128,8 @@ model User {
   notifications                 Notification[]
   outboundEmailQueueAsRecipient OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientUser")
   chainNotifications            ChainNotificationQueue[]
+  holdsStarted                  TransactionHoldPeriod[]  @relation("HoldStartedBy")
+  holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
 }
 
 model AgentPushSubscription {
@@ -254,8 +256,31 @@ model PropertyTransaction {
   fileTimeSessions           FileTimeSession[]
   notifications              Notification[]
   clientChaseStates          ClientChaseState[]
+  holdPeriods                TransactionHoldPeriod[]
 
   @@index([serviceType, createdAt])
+}
+
+// Audit + duration tracking for periods where a transaction is on hold.
+// One row per hold period: startedAt is when status flipped to on_hold,
+// endedAt is when it flipped back to active (null while currently on hold).
+// Used by lib/services/hold-duration.ts to compute activeElapsedMs so that
+// time-based signals (on_track, weeks elapsed, predicted exchange) freeze
+// while paused, and so platform median calculations can subtract hold time.
+model TransactionHoldPeriod {
+  id            String              @id @default(cuid())
+  transactionId String
+  startedAt     DateTime
+  startedById   String
+  endedAt       DateTime?
+  endedById     String?
+  createdAt     DateTime            @default(now())
+
+  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  startedBy     User                @relation("HoldStartedBy", fields: [startedById], references: [id])
+  endedBy       User?               @relation("HoldEndedBy",   fields: [endedById],   references: [id])
+
+  @@index([transactionId, endedAt])
 }
 
 enum TransactionStatus {

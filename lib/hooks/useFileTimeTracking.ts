@@ -4,7 +4,10 @@ import { useRef, useEffect } from "react";
 
 type Interval = { start: string; end: string };
 
-export function useFileTimeTracking(transactionId: string) {
+// transactionId of null disables tracking entirely — used by the file-detail
+// page to suspend the session while the file is on hold (time spent looking
+// at a paused file shouldn't accrue to billing / median calculations).
+export function useFileTimeTracking(transactionId: string | null) {
   const sessionIdRef    = useRef<string | null>(null);
   const intervalStartRef = useRef<string | null>(null);
   const accumulatedRef  = useRef<Interval[]>([]);
@@ -33,6 +36,7 @@ export function useFileTimeTracking(transactionId: string) {
   }
 
   useEffect(() => {
+    if (!transactionId) return; // disabled (e.g. file on hold) — no session opens
     let mounted = true;
 
     fetch("/api/file-time/start", {

@@ -80,10 +80,23 @@ export async function putFileOnHold(transactionId: string): Promise<ActionResult
   if (tx.status === "on_hold") return { ok: true }; // already on hold; idempotent
   if (tx.status !== "active") return { ok: false, error: "Only active files can be put on hold." };
 
-  await prisma.propertyTransaction.update({
-    where: { id: tx.id },
-    data: { status: "on_hold" },
-  });
+  // Status flip + open a new hold period in one transaction so the period
+  // row exists from the moment the status changes. The hold-duration
+  // helpers rely on the open period being present while status=on_hold.
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.propertyTransaction.update({
+      where: { id: tx.id },
+      data: { status: "on_hold" },
+    }),
+    prisma.transactionHoldPeriod.create({
+      data: {
+        transactionId: tx.id,
+        startedAt: now,
+        startedById: session.user.id,
+      },
+    }),
+  ]);
 
   revalidatePath(`/agent/transactions/${transactionId}`);
   revalidatePath(`/transactions/${transactionId}`);
@@ -106,11 +119,18 @@ export async function reactivateFile(transactionId: string): Promise<ActionResul
   //     past-due normalisation handles them on the next run as a single
   //     catch-up chase, not a pile
   //   - Nothing else touched (no MilestoneCompletion edits, no rule changes)
+  //   - Open hold period (endedAt is null) gets closed in the same
+  //     transaction. updateMany handles the defensive case where multiple
+  //     open periods somehow exist (shouldn't happen but doesn't hurt).
   const now = new Date();
   await prisma.$transaction([
     prisma.clientChaseState.updateMany({
       where: { transactionId: tx.id, status: "active" },
       data: { lastChasedAt: now, lastEngagedAt: now },
+    }),
+    prisma.transactionHoldPeriod.updateMany({
+      where: { transactionId: tx.id, endedAt: null },
+      data: { endedAt: now, endedById: session.user.id },
     }),
     prisma.propertyTransaction.update({
       where: { id: tx.id },

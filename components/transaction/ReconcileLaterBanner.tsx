@@ -12,6 +12,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { Info } from "@phosphor-icons/react";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 import {
   ReconcileMilestonePicker,
   type MilestoneDefinitionLite,
@@ -104,60 +106,15 @@ export function ReconcileLaterBanner({
 
   return (
     <>
-      <div
-        style={{
-          background: "var(--agent-surface-info, #f0f9ff)",
-          border: "1px solid var(--agent-border-info, #93c5fd)",
-          borderRadius: 10,
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 4,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1e3a8a" }}>
-            Bring this file up to date
-          </p>
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: "#1e40af" }}>
-            Mark which milestones are already done and (if you know) when they happened.
-            Your file's timeline and predictions will track accurately from there.{" "}
-            <button
-              onClick={() => setModalOpen(true)}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                fontWeight: 600,
-                fontSize: 13,
-                color: "#1e3a8a",
-                textDecoration: "underline",
-                cursor: "pointer",
-              }}
-            >
-              Set up milestones →
-            </button>
-          </p>
-        </div>
-        <button
-          onClick={handleDismiss}
-          aria-label="Dismiss"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1,
-            color: "#1e40af",
-            padding: 0,
-            flexShrink: 0,
-          }}
-        >
-          ×
-        </button>
-      </div>
+      <AgentBanner
+        kind="info"
+        icon={<Info size={18} weight="fill" />}
+        title="Bring this file up to date"
+        body="Mark which milestones are already done and (if you know) when they happened — your file's timeline and predictions will track accurately from there."
+        action={{ label: "Set up milestones →", onClick: () => setModalOpen(true) }}
+        dismissible={{ onDismiss: handleDismiss }}
+        className="mb-1"
+      />
 
       {modalOpen &&
         typeof document !== "undefined" &&

@@ -25,7 +25,7 @@ export type HealthRaw = {
   nextActionLabel: string | null;
   nextMilestoneLabel: string | null;
   daysStuckOnMilestone: number | null;
-  onTrack?: "on_track" | "at_risk" | "off_track" | "unknown";
+  onTrack?: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
 };
 
 export type TransactionRow = {

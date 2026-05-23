@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Warning } from "@phosphor-icons/react";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export function ChainSetupFailedBanner() {
   const params = useSearchParams();
@@ -22,61 +24,20 @@ export function ChainSetupFailedBanner() {
   if (!visible) return null;
 
   return (
-    <div
-      style={{
-        background: "var(--agent-surface-warning, #fffbeb)",
-        border: "1px solid var(--agent-border-warning, #fcd34d)",
-        borderRadius: 10,
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 4,
+    <AgentBanner
+      kind="warning"
+      icon={<Warning size={18} weight="fill" />}
+      title="Chain setup failed"
+      body="Your file was saved, but the chain wasn't linked."
+      action={{
+        label: "Go to chain panel →",
+        onClick: () => {
+          document.getElementById("chain-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          setVisible(false);
+        },
       }}
-    >
-      <div style={{ flex: 1 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#92400e" }}>
-          Chain setup failed
-        </p>
-        <p style={{ margin: "2px 0 0", fontSize: 13, color: "#b45309" }}>
-          Your file was saved, but the chain wasn&apos;t linked.{" "}
-          <button
-            onClick={() => {
-              document.getElementById("chain-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
-              setVisible(false);
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              fontWeight: 600,
-              fontSize: 13,
-              color: "#92400e",
-              textDecoration: "underline",
-              cursor: "pointer",
-            }}
-          >
-            Go to chain panel →
-          </button>
-        </p>
-      </div>
-      <button
-        onClick={() => setVisible(false)}
-        aria-label="Dismiss"
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 16,
-          lineHeight: 1,
-          color: "#b45309",
-          padding: 0,
-          flexShrink: 0,
-        }}
-      >
-        ×
-      </button>
-    </div>
+      dismissible={{ onDismiss: () => setVisible(false) }}
+      className="mb-1"
+    />
   );
 }

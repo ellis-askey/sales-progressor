@@ -14,12 +14,16 @@ type RawHealthInput = {
   lastActivityAt: Date | null;
   nextChaseLabel: string | null;
   nextMilestoneLabel: string | null;
+  // Optional: when status is "on_hold", days-since-last-activity is frozen
+  // (the count would otherwise tick up even though no work is happening),
+  // which feeds the amber/red 14d/28d thresholds.
+  isOnHold?: boolean;
 };
 
 export function computeHealth(input: RawHealthInput): HealthData {
-  const { pendingOverdueTasks, escalatedTasks, lastActivityAt, nextChaseLabel, nextMilestoneLabel } = input;
+  const { pendingOverdueTasks, escalatedTasks, lastActivityAt, nextChaseLabel, nextMilestoneLabel, isOnHold } = input;
 
-  const daysSinceLastActivity = lastActivityAt
+  const daysSinceLastActivity = lastActivityAt && !isOnHold
     ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / 86400000)
     : null;
 

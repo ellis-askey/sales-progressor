@@ -101,11 +101,15 @@ export default async function TransactionDetailPage({
     completedAt: m.completion?.completedAt ?? undefined,
   }));
 
+  // Hold-aware elapsed time (see /agent variant for context).
+  const { totalHoldMs } = await import("@/lib/services/hold-duration");
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     transaction.createdAt,
-    transaction.overridePredictedDate ?? null
+    transaction.overridePredictedDate ?? null,
+    undefined,
+    { status: transaction.status, holdMs: totalHoldMs({ status: transaction.status, holdPeriods: transaction.holdPeriods }) },
   );
 
   // Exchange confirmed when VM19 (vendor exchanged) or PM26 (purchaser exchanged) is complete

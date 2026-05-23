@@ -188,6 +188,14 @@ export default async function AgentTransactionDetailPage({
     .filter((c): c is NonNullable<typeof c> => c != null);
   const effectiveStartDate = computeEffectiveStartDate(transaction.createdAt, allCompletions);
 
+  // Hold-aware elapsed time: subtract total on-hold ms so weeks-elapsed and
+  // velocity-based predictions freeze while the file is paused. Status
+  // also drives the on_hold onTrack pill.
+  const { totalHoldMs } = await import("@/lib/services/hold-duration");
+  const holdInput = {
+    status: transaction.status,
+    holdPeriods: transaction.holdPeriods,
+  };
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
@@ -200,6 +208,7 @@ export default async function AgentTransactionDetailPage({
       isShareOfFreehold: transaction.isShareOfFreehold,
       effectiveStartDate,
     } : undefined,
+    { status: transaction.status, holdMs: totalHoldMs(holdInput) },
   );
   if (milestoneData) {
     progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
@@ -456,7 +465,7 @@ export default async function AgentTransactionDetailPage({
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
-      <FileTimeTracker transactionId={id} />
+      <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>

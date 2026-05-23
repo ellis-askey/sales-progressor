@@ -59,7 +59,7 @@ export type ProgressResult = {
   percent: number;          // overall blended, rounded to integer for display
   vendorPercent: number;    // vendor-side, rounded
   purchaserPercent: number; // purchaser-side, rounded
-  onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
+  onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
   twelveWeekTarget: Date | null;
   predictedExchangeDate: Date | null;
   isEarlyEstimate: boolean; // true when still in Phase A (onboarding) and prediction is the 12-week target
@@ -256,6 +256,10 @@ export function calculateProgress(
   createdAt: Date,
   overridePredictedDate?: Date | null,
   phaseAware?: PhaseAwareInput,
+  // Optional: when provided, on-hold periods are subtracted from elapsed time
+  // so weeks-elapsed, on-track signal and velocity-based predicted exchange
+  // freeze while the file is paused. Status="on_hold" forces onTrack="on_hold".
+  hold?: { status: import("@prisma/client").TransactionStatus; holdMs: number },
 ): ProgressResult {
   const now = new Date();
 
@@ -281,7 +285,11 @@ export function calculateProgress(
   const twelveWeekTarget = new Date(anchorDate);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  const msElapsed    = now.getTime() - anchorDate.getTime();
+  // Active-only elapsed: subtract total on-hold ms so weeks-elapsed and the
+  // velocity-based prediction freeze while paused. When no hold input is
+  // provided, behaves identically to the original (raw msElapsed).
+  const rawMsElapsed = now.getTime() - anchorDate.getTime();
+  const msElapsed    = Math.max(0, rawMsElapsed - (hold?.holdMs ?? 0));
   const weeksElapsed = Math.floor(msElapsed / (7 * 86400000));
   const daysElapsed  = msElapsed / 86400000;
 
@@ -316,7 +324,11 @@ export function calculateProgress(
   const weeksRemaining = Math.ceil(msToExchange / (7 * 86400000));
 
   let onTrack: ProgressResult["onTrack"] = "unknown";
-  if (percent > 0) {
+  if (hold?.status === "on_hold") {
+    // Frozen — at_risk/off_track signal is not meaningful while time isn't
+    // ticking. UI renders a neutral "On hold" pill from this value.
+    onTrack = "on_hold";
+  } else if (percent > 0) {
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = overallRaw - expectedPercent;
     if (diff >= -10) onTrack = "on_track";

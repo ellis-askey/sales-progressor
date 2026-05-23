@@ -14,7 +14,7 @@ type Props = {
   purchasePrice: number | null;
   exchangeDate: Date | null;
   percent: number;
-  onTrack: "on_track" | "at_risk" | "off_track" | "unknown";
+  onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
   serviceType?: ServiceType | null;
   backHref?: string;
   flagSlot?: React.ReactNode;
@@ -49,6 +49,7 @@ const TRACK_BAR: Record<string, string> = {
   at_risk:   "bg-amber-400",
   off_track: "bg-red-500",
   unknown:   "bg-blue-400",
+  on_hold:   "bg-slate-300", // neutral grey — file is frozen, no track signal
 };
 
 function formatPrice(pence: number | null): string | null {

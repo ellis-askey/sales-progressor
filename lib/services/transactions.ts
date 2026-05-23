@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
+import { activeElapsedMs } from "@/lib/services/hold-duration";
 
 export async function listTransactions(
   agencyId: string,
@@ -73,6 +74,7 @@ export async function listTransactions(
         take: 1,
         select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true },
       },
+      holdPeriods: { select: { startedAt: true, endedAt: true } },
     },
   });
 
@@ -88,7 +90,9 @@ export async function listTransactions(
       ? nextTask.reminderLog.reminderRule.name
       : null;
 
-    const daysStuckOnMilestone = lastMilestoneAt
+    // daysStuckOnMilestone: frozen while the file is on hold — otherwise it
+    // would keep ticking even though no work can happen.
+    const daysStuckOnMilestone = lastMilestoneAt && tx.status !== "on_hold"
       ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
       : null;
 
@@ -126,12 +130,20 @@ export async function listTransactions(
     }
 
     const completedCount = tx._count.milestoneCompletions;
-    const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
+    // Active-only elapsed: hold periods are subtracted so the on-track
+    // signal doesn't drift while the file is paused.
+    const daysElapsed = activeElapsedMs(new Date(tx.createdAt), {
+      status: tx.status,
+      holdPeriods: tx.holdPeriods,
+    }) / 86400000;
     const weeksElapsed = daysElapsed / 7;
     const actualPercent = Math.min(100, (completedCount / totalMilestones) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
-    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
+    // on_hold short-circuit: time isn't ticking so at_risk/off_track signal
+    // isn't meaningful. UI renders a neutral "On hold" pill instead.
+    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold" =
+      tx.status === "on_hold" ? "on_hold" :
       completedCount === 0 ? "unknown" :
       diff >= -10 ? "on_track" :
       diff >= -25 ? "at_risk" :
@@ -170,6 +182,7 @@ export async function getTransaction(id: string, agencyId: string) {
       purchaserSolicitorFirm: { select: { id: true, name: true } },
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
+      holdPeriods: { select: { startedAt: true, endedAt: true } },
     },
   });
 }
@@ -186,6 +199,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       purchaserSolicitorFirm: { select: { id: true, name: true } },
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
+      holdPeriods: { select: { startedAt: true, endedAt: true } },
     },
   });
 }
@@ -260,6 +274,7 @@ export async function listTransactionsByScope(scope: AccessScope) {
         orderBy: { dueDate: "asc" },
         take: 5,
       },
+      holdPeriods: { select: { startedAt: true, endedAt: true } },
     },
   });
 
@@ -273,17 +288,26 @@ export async function listTransactionsByScope(scope: AccessScope) {
       ? nextTask.reminderLog.reminderRule.name
       : null;
 
-    const daysStuckOnMilestone = lastMilestoneAt
+    // Frozen while on hold (see listTransactions for context).
+    const daysStuckOnMilestone = lastMilestoneAt && tx.status !== "on_hold"
       ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
       : null;
 
     const completedCount = tx._count.milestoneCompletions;
-    const daysElapsed = (Date.now() - new Date(tx.createdAt).getTime()) / 86400000;
+    // Active-only elapsed: hold periods are subtracted so the on-track
+    // signal doesn't drift while the file is paused.
+    const daysElapsed = activeElapsedMs(new Date(tx.createdAt), {
+      status: tx.status,
+      holdPeriods: tx.holdPeriods,
+    }) / 86400000;
     const weeksElapsed = daysElapsed / 7;
     const actualPercent = Math.min(100, (completedCount / totalMilestones) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
-    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" =
+    // on_hold short-circuit: time isn't ticking so at_risk/off_track signal
+    // isn't meaningful. UI renders a neutral "On hold" pill instead.
+    const onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold" =
+      tx.status === "on_hold" ? "on_hold" :
       completedCount === 0 ? "unknown" :
       diff >= -10 ? "on_track" :
       diff >= -25 ? "at_risk" :
