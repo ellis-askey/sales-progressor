@@ -2,6 +2,32 @@
 
 ---
 
+## STANDING ODDITIES (not bugs — known divergences to track)
+
+### Prod DB is ahead of prod code (as of 2026-05-23)
+The production database has the `20260524_grammar_voice_fixes_b8` and `20260523140000_automation_controls` migrations applied, but the master branch (= prod code) does NOT reference any of the new columns yet. This came from the env trap: `.env` had prod URLs and `prisma migrate deploy` silently targeted prod for both migrations. Fixed the env trap on 2026-05-23 (see entry below) — but the prod schema is now ahead of prod code until staging code promotes to master.
+
+**Why it's safe in the meantime:**
+- The new columns (`Agency.chaseEmailsEnabled`, `PropertyTransaction.clientEmailsPaused`, etc.) all have non-null defaults — existing reads/writes from master code are unaffected.
+- The client-chase cron isn't deployed on prod (returns 404), so the "fallbackKind = client_emails_paused" logic isn't running anywhere that could touch prod data.
+
+**When staging promotes to master:** nobody should be surprised that the columns are already there. `prisma migrate status` against prod will simply show "Database schema is up to date".
+
+---
+
+## FIXED
+
+### B-ENV — Prisma CLI silently targeted prod instead of staging
+**Symptom:** Two migrations in May 2026 (`20260524_grammar_voice_fixes_b8` and `20260523140000_automation_controls`) were applied to PRODUCTION when "staging-first" had been claimed.
+**Root cause:** Prisma CLI reads `.env` (not `.env.local`), and `.env` had prod DATABASE_URL + DIRECT_URL. Every `npx prisma migrate deploy` resolved to prod by default. Compounded by shell env vars also set to prod URLs in the dev terminal.
+**Fix (2026-05-23):**
+- `.env` now points at **staging** by default. Prod URLs moved to `.env.production` (already gitignored).
+- New npm scripts: `db:migrate:status:staging`, `db:migrate:staging`, `db:migrate:status:prod`, `db:migrate:prod`. All use `dotenv-cli --override` to defeat shell-env precedence.
+- `db:migrate:prod` runs `scripts/migrate-prod.mjs` which: (a) validates `.env.production` project ID against the expected prod ID (hard abort otherwise), (b) prints the resolved DATABASE_URL with masked password, (c) requires an interactive `"yes"` before exec'ing `prisma migrate deploy`.
+- Verified parity: both DBs at 60 migrations, "Database schema is up to date!" on 2026-05-23.
+
+---
+
 ## FIXED
 
 ### B1 — Duplicate transaction on submit
