@@ -127,6 +127,7 @@ model User {
   fileTimeSessions              FileTimeSession[]
   notifications                 Notification[]
   outboundEmailQueueAsRecipient OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientUser")
+  editedEmailQueueRows          OutboundEmailQueue[] @relation("EmailQueueEditedBy")
   chainNotifications            ChainNotificationQueue[]
   holdsStarted                  TransactionHoldPeriod[]  @relation("HoldStartedBy")
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
@@ -988,11 +989,19 @@ model OutboundEmailQueue {
   errorMessage        String?
   createdAt           DateTime  @default(now())
 
+  // Audit: when an agent edits the pending payload via the email preview
+  // modal, these track who/when. Null on rows that were never edited.
+  // The edit overwrites payload in place — the drain reads JSON so edits
+  // propagate naturally. No version history for v1.
+  editedAt            DateTime?
+  editedById          String?
+
   // Relations — back-refs added on the User and Contact models in their
   // sections of the schema. ON DELETE CASCADE so deleting a user or contact
   // clears any pending queued mail (orphan-prevention).
   recipientUser    User?    @relation("OutboundEmailQueueRecipientUser", fields: [recipientUserId], references: [id], onDelete: Cascade)
   recipientContact Contact? @relation("OutboundEmailQueueRecipientContact", fields: [recipientContactId], references: [id], onDelete: Cascade)
+  editedBy         User?    @relation("EmailQueueEditedBy", fields: [editedById], references: [id], onDelete: SetNull)
 
   @@unique([emailType, sourceId, recipientUserId])
   @@unique([emailType, sourceId, recipientContactId])

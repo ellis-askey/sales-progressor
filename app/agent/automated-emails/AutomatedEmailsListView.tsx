@@ -6,13 +6,18 @@
 //   - File-filter pill when fileId is in the URL
 //   - Tab segment-pill row (URL-driven via <Link>)
 //   - List of email rows, grouped by day for sent/upcoming tabs
+//   - Each persisted row (pending / sent / errored) opens the
+//     EmailPreviewModal on click; predicted upcoming rows have no
+//     payload so they're click-disabled.
 //
 // All navigation is via <Link> + URL query params so deep-links survive
 // reload and the back button works as expected.
 
 import Link from "next/link";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-list";
+import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 
 type Props = {
   rows: EmailRow[];
@@ -125,13 +130,16 @@ function statusMeta(row: EmailRow): string {
   }
 }
 
-function EmailRowCard({ row }: { row: EmailRow }) {
+function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: string) => void }) {
   const searchParams = useSearchParams();
   // Preserve current tab/mine state when linking back from a file
   const backTab = searchParams.get("tab") ?? "pending";
   const backMine = searchParams.get("mine") === "1";
   const backHref =
     `/agent/automated-emails?tab=${backTab}${backMine ? "&mine=1" : ""}`;
+  // Upcoming rows are predictions with synthetic IDs (no queue row yet) —
+  // the preview modal has nothing to load, so the row is plain.
+  const isPreviewable = row.status !== "upcoming";
   return (
     <div
       style={{
@@ -204,6 +212,18 @@ function EmailRowCard({ row }: { row: EmailRow }) {
           {row.errorMessage}
         </p>
       )}
+      {isPreviewable && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={() => onPreview(row.id)}
+            className="agent-link"
+            style={{ fontSize: 11, fontWeight: 600 }}
+          >
+            {row.status === "pending" ? "View / Edit →" : "View →"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -256,6 +276,7 @@ export function AutomatedEmailsListView({
   fileLabel,
   showMineToggle,
 }: Props) {
+  const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
   return (
     <div className="space-y-4">
       {/* KPI strip */}
@@ -360,7 +381,7 @@ export function AutomatedEmailsListView({
               </p>
               <div className="space-y-2">
                 {g.rows.map((r) => (
-                  <EmailRowCard key={r.id} row={r} />
+                  <EmailRowCard key={r.id} row={r} onPreview={setPreviewEmailId} />
                 ))}
               </div>
             </div>
@@ -369,9 +390,16 @@ export function AutomatedEmailsListView({
       ) : (
         <div className="space-y-2">
           {rows.map((r) => (
-            <EmailRowCard key={r.id} row={r} />
+            <EmailRowCard key={r.id} row={r} onPreview={setPreviewEmailId} />
           ))}
         </div>
+      )}
+
+      {previewEmailId && (
+        <EmailPreviewModal
+          emailId={previewEmailId}
+          onClose={() => setPreviewEmailId(null)}
+        />
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
+import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 import type {
   AutomatedEmailsPreview,
   PendingEmail,
@@ -135,7 +136,24 @@ function SectionHeader({ label, count, accent }: { label: string; count: number;
   );
 }
 
-function Row({ category, primary, secondary, trailing }: { category: "chase" | "notification"; primary: string; secondary: string; trailing: string }) {
+function Row({
+  category,
+  primary,
+  secondary,
+  trailing,
+  previewLabel,
+  onPreview,
+}: {
+  category: "chase" | "notification";
+  primary: string;
+  secondary: string;
+  trailing: string;
+  // When provided, shows a small "View →" / "View / Edit →" link on the
+  // trailing line that opens the preview modal. Predicted-upcoming rows
+  // don't have a queue row to preview — they call without onPreview.
+  previewLabel?: string;
+  onPreview?: () => void;
+}) {
   return (
     <div
       style={{
@@ -156,9 +174,16 @@ function Row({ category, primary, secondary, trailing }: { category: "chase" | "
         <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary, rgba(15,23,42,0.65))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {secondary}
         </p>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted, rgba(15,23,42,0.50))", flexShrink: 0 }}>
-          {trailing}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {previewLabel && onPreview && (
+            <button type="button" onClick={onPreview} className="agent-link" style={{ fontSize: 11, fontWeight: 600 }}>
+              {previewLabel}
+            </button>
+          )}
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted, rgba(15,23,42,0.50))" }}>
+            {trailing}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -178,6 +203,7 @@ function EmptyLine({ text }: { text: string }) {
 
 export function AutomatedEmailsCard({ data, transactionId }: Props) {
   const [open, setOpen] = useState(false);
+  const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
   const text = summaryText(data);
   const hasAny = data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0;
 
@@ -241,6 +267,8 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
                 primary={p.subject}
                 secondary={`To ${getShortName({ name: p.recipientName })} (${p.recipientRole})`}
                 trailing={`Send ${formatDayAndTime(p.scheduledFor)}`}
+                previewLabel={p.category === "chase" ? "View / Edit" : "View"}
+                onPreview={() => setPreviewEmailId(p.id)}
               />
             ))
           )}
@@ -257,6 +285,8 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
                 primary={s.subject}
                 secondary={`To ${getShortName({ name: s.recipientName })} (${s.recipientRole})`}
                 trailing={`Sent ${formatTime(s.sentAt)}`}
+                previewLabel="View"
+                onPreview={() => setPreviewEmailId(s.id)}
               />
             ))
           )}
@@ -296,6 +326,13 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
           )}
         </div>
       </div>
+
+      {previewEmailId && (
+        <EmailPreviewModal
+          emailId={previewEmailId}
+          onClose={() => setPreviewEmailId(null)}
+        />
+      )}
     </div>
   );
 }
