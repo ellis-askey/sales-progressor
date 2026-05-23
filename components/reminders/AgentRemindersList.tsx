@@ -129,18 +129,25 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
 
   function close() { setClosing(true); setOpen(false); }
 
+  // Listener gated on `open` — see ChaseDrawer for the same pattern. If
+  // registered unconditionally on mount, any prior click anywhere on the
+  // page calls close() and flips `closing` to true, which then permanently
+  // blocks `setPos` inside onClick (its `!open && !closing` guard) and the
+  // menu never renders even when reopened.
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function handleScroll() { close(); }
-    document.addEventListener("mousedown", handle);
-    window.addEventListener("scroll", handleScroll, true);
+    if (open) {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("scroll", handleScroll, true);
+    }
     return () => {
       document.removeEventListener("mousedown", handle);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>
@@ -212,18 +219,21 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
 
   function close() { setClosing(true); setOpen(false); }
 
+  // See SideSnoozeMenu above for why the listener is gated on `open`.
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function handleScroll() { close(); }
-    document.addEventListener("mousedown", handle);
-    window.addEventListener("scroll", handleScroll, true);
+    if (open) {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("scroll", handleScroll, true);
+    }
     return () => {
       document.removeEventListener("mousedown", handle);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>

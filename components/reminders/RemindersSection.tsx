@@ -140,18 +140,26 @@ function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: str
 
   function close() { setClosing(true); setOpen(false); }
 
+  // Gate listener registration on `open` — see ChaseDrawer for the same
+  // pattern. Registering unconditionally on mount means any prior click
+  // anywhere on the page fires close(), flipping `closing` to true even
+  // though the menu was never open. After that, the onClick's
+  // `!open && !closing` guard blocks setPos, so the menu never gets a
+  // position and never renders. Gating the listener fixes that.
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function handleScroll() { close(); }
-    document.addEventListener("mousedown", handle);
-    window.addEventListener("scroll", handleScroll, true);
+    if (open) {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("scroll", handleScroll, true);
+    }
     return () => {
       document.removeEventListener("mousedown", handle);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>
@@ -210,18 +218,21 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
 
   function close() { setClosing(true); setOpen(false); }
 
+  // See RowSnoozeMenu above for why the listener is gated on `open`.
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function handleScroll() { close(); }
-    document.addEventListener("mousedown", handle);
-    window.addEventListener("scroll", handleScroll, true);
+    if (open) {
+      document.addEventListener("mousedown", handle);
+      window.addEventListener("scroll", handleScroll, true);
+    }
     return () => {
       document.removeEventListener("mousedown", handle);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>
