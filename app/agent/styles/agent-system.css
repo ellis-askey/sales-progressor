@@ -367,22 +367,25 @@
    * Mark selected with .on. Subtitle text uses .agent-segment-pill-note.
    * Small variant: .agent-segment-pill-sm for compact inline chips. */
 
-  /* V3 canonical (2026-05-24) — deeper coral active + warm-cream inactive
-   * with subtle coral hint-border. Replaces V2's 7% coral active (which
-   * disappeared into the warm peachy bg) and 40% white inactive (which
-   * was indistinguishable from the bg).
+  /* V4 canonical (2026-05-24) — solid filled active. V3 (tint-based) was
+   * unreliable across themes because the slate / claret accents are muted
+   * blue-greys/blue-purples: 18% of "muted blue-grey" on a purple-lilac
+   * gradient registered as almost nothing. The recipe below uses the
+   * theme's accent at 100% for active so the selected state is unmissable
+   * in every theme, regardless of whether the accent is bright (sunset
+   * coral) or subdued (slate blue-grey).
    *
    * Recipe:
-   *   - Inactive: warm cream tint at 65% opacity + 18% coral hint-border —
-   *     warm-aligned with bg, opaque enough to define edges.
-   *   - Active (.on): 18% coral fill (2.6× the old 7%) + solid coral border
-   *     + subtle coral box-shadow for depth. Reads as definitively selected
-   *     on any background.
-   *   - Solid-mode override: darker neutral inactive so the pill anchors
-   *     against solid-white cards (where coral-tinted inactive would feel
-   *     out of place).
-   *   - Night-mode override: dark-slate inactive (existing pattern, kept).
-   *   - Transition: 180ms cubic-bezier for the polished state-swap feel.
+   *   - Inactive: var(--agent-surface-elevated) (white in day, dark-slate
+   *     in night) + neutral border. Theme-reliable; always defined edges.
+   *   - Hover (non-active): 12% accent fill + 50% accent border + accent
+   *     text colour + 1px lift. Strong enough to inform the user the pill
+   *     IS clickable.
+   *   - Active (.on): solid accent fill + white text + accent shadow.
+   *     Same font-weight as inactive (500) so visual mass stays equal
+   *     — no perceived-font-inconsistency from heavier text.
+   *   - Solid-mode override: slightly stronger inactive edge.
+   *   - Night-mode override: matching dark-slate inactive + accent active.
    *
    * One recipe, every consumer benefits — no component changes required. */
   .agent-segment-pill {
@@ -392,8 +395,8 @@
     gap: 6px;
     padding: 6px 13px;
     border-radius: var(--agent-radius-md);
-    background: rgba(255, 245, 235, 0.65);
-    border: 1px solid rgba(255, 138, 101, 0.18);
+    background: var(--agent-surface-elevated);
+    border: 1px solid var(--agent-border-default);
     color: var(--agent-text-secondary);
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-medium);
@@ -406,12 +409,14 @@
                 transform        120ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
-    background: var(--agent-coral-bg-tint);
-    border-color: rgba(var(--agent-coral-rgb), 0.40);
-    color: var(--agent-coral);
+    background: rgba(var(--agent-coral-rgb), 0.12);
+    border-color: rgba(var(--agent-coral-rgb), 0.50);
+    color: var(--agent-coral-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(var(--agent-coral-rgb), 0.10);
   }
-  [data-solid] .agent-segment-pill {
-    background: rgba(15, 23, 42, 0.05);
+  [data-solid] .agent-segment-pill:not(.on) {
+    background: rgba(15, 23, 42, 0.04);
     border-color: rgba(15, 23, 42, 0.14);
   }
   .agent-segment-pill:focus-visible {
@@ -423,15 +428,17 @@
     transform: scale(0.97);
   }
   .agent-segment-pill.on {
-    background: rgba(var(--agent-coral-base-rgb), 0.18);
-    color: var(--agent-coral-deep);
+    background: var(--agent-coral-deep);
+    color: #ffffff;
     border-color: var(--agent-coral-deep);
-    font-weight: var(--agent-weight-semibold);
-    box-shadow: 0 1px 3px rgba(var(--agent-coral-rgb), 0.20);
+    font-weight: var(--agent-weight-medium);
+    box-shadow: 0 2px 6px rgba(var(--agent-coral-rgb), 0.28);
   }
   .agent-segment-pill.on:hover:not(:disabled) {
-    background: rgba(var(--agent-coral-rgb), 0.24);
-    box-shadow: 0 2px 5px rgba(var(--agent-coral-rgb), 0.24);
+    background: var(--agent-coral-darker);
+    border-color: var(--agent-coral-darker);
+    box-shadow: 0 3px 8px rgba(var(--agent-coral-rgb), 0.34);
+    transform: translateY(-1px);
   }
   .agent-segment-pill:disabled {
     opacity: 0.42;
@@ -1703,15 +1710,16 @@
     color: #94A3B8;
   }
   .agent-shell-root[data-night] .agent-segment-pill:hover:not(:disabled):not(.on) {
-    background: var(--agent-coral-bg-tint);
-    border-color: rgba(var(--agent-coral-rgb), 0.40);
+    background: rgba(var(--agent-coral-rgb), 0.18);
+    border-color: rgba(var(--agent-coral-rgb), 0.60);
     color: var(--agent-coral);
+    transform: translateY(-1px);
   }
   .agent-shell-root[data-night] .agent-segment-pill.on {
-    background: rgba(255, 107, 74, 0.22);
+    background: var(--agent-coral-deep);
     border-color: var(--agent-coral-deep);
-    color: var(--agent-coral-deep);
-    box-shadow: 0 1px 3px rgba(255, 107, 74, 0.25);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(var(--agent-coral-rgb), 0.34);
   }
 
   .agent-shell-root[data-night] .agent-input,
