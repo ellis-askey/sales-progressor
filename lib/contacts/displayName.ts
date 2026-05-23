@@ -37,10 +37,18 @@ export function getDisplayName(contact: NameLike): string {
 
 /**
  * Short reference for use in inline sentences.
- * Skips honorific prefixes; keeps professional titles (Dr, Prof, Rev) + last name.
- * e.g. "Miss Adele Maxwell-Harrison" → "Adele"
- *      "Dr Mildred Aduamoah"       → "Dr Aduamoah"
- *      "Rachel Whitfield"          → "Rachel"
+ * Skips honorific prefixes when a first name is available; keeps any title
+ * (honorific or professional) when only a surname follows it, so we never
+ * reduce "Mr Stevens" to bare "Stevens".
+ *
+ * e.g. "Miss Adele Maxwell-Harrison" → "Adele"        (honorific + first name)
+ *      "Mr Stevens"                  → "Mr Stevens"   (honorific + surname only — keep title)
+ *      "Mrs Hartley"                 → "Mrs Hartley"  (honorific + surname only)
+ *      "Dr Mildred Aduamoah"         → "Dr Aduamoah"  (professional title + first + last)
+ *      "Dr Brown"                    → "Dr Brown"     (professional title + surname only)
+ *      "Rachel Whitfield"            → "Rachel"       (no title)
+ *      "Rachel"                      → "Rachel"
+ *      "Bontoft Property Developments Ltd" → "Bontoft" (company — first word)
  * CRITICAL: never returns just a prefix.
  */
 export function getShortName(contact: NameLike): string {
@@ -51,7 +59,13 @@ export function getShortName(contact: NameLike): string {
     if (PROFESSIONAL_TITLES.has(lp)) {
       return `${prefix} ${rest[rest.length - 1]}`;
     }
-    return rest[0]; // honorific: use first name
+    // Honorific (Mr/Mrs/Ms/Miss/Mx/Sir/Dame/Lord/Lady): if no first name
+    // available (single word remaining), keep the title so we don't reduce
+    // "Mr Stevens" to "Stevens". Otherwise use the first name word.
+    if (rest.length === 1) {
+      return `${prefix} ${rest[0]}`;
+    }
+    return rest[0];
   }
   return rest[0]; // no prefix: first name
 }
@@ -71,15 +85,28 @@ export function getInitials(contact: NameLike): string {
 }
 
 /**
- * Extracts the first meaningful name word for use in templates and sentence
- * fragments where only a first name is needed.
- * e.g. "Miss Smith"     → "Smith"   (not "Miss")
- *      "Dr John Brown"  → "John"
- *      "Rachel"         → "Rachel"
- * Falls back to "the contact" if nothing usable is found.
+ * Extracts a name suitable for inline greetings like "Hi {name},".
+ * Returns the first name word when available; falls back to "Title Surname"
+ * when only a title + surname is provided (so "Hi Mr Stevens," reads
+ * correctly rather than the too-informal "Hi Stevens,").
+ *
+ * e.g. "Miss Adele Maxwell-Harrison" → "Adele"        (has first name)
+ *      "Dr John Brown"               → "John"
+ *      "Mr Stevens"                  → "Mr Stevens"   (no first name — fall back to formal)
+ *      "Mrs Hartley"                 → "Mrs Hartley"  (no first name)
+ *      "Dr Brown"                    → "Dr Brown"     (no first name)
+ *      "Rachel Whitfield"            → "Rachel"
+ *      "Rachel"                      → "Rachel"
+ *      ""                            → "the contact"  (fallback)
+ *      "Miss"                        → "Miss"         (prefix-only fallback)
  */
 export function extractFirstName(name: string): string {
   const { prefix, rest } = parseName(name);
   if (rest.length === 0) return prefix ?? "the contact";
+  // No first name available (only title + surname): fall back to the
+  // formal "Title Surname" form rather than the bare surname.
+  if (prefix && rest.length === 1) {
+    return `${prefix} ${rest[0]}`;
+  }
   return rest[0];
 }
