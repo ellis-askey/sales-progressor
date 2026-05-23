@@ -53,6 +53,11 @@ function ProgressBar({ percent }: { percent: number }) {
   );
 }
 
+type DirectionalState = {
+  upward: string | null;   // ChainWithdrawalStatus value or null
+  downward: string | null;
+};
+
 type LinkCardProps = {
   link: ChainLinkV2;
   totalLinks: number;
@@ -61,7 +66,40 @@ type LinkCardProps = {
   onResendInvite?: (linkId: string) => void;
   onEditStub?: (link: ChainLinkV2) => void;
   onDeleteStub?: (linkId: string) => void;
+  /** Per-direction response state for cascade-aware badge rendering.
+   *  Computed at /api/chains and passed down. Omitted → falls back to the
+   *  single denormalised link.withdrawalStatus for backwards safety. */
+  directional?: DirectionalState;
 };
+
+const BADGE_STYLE = {
+  REMARKETING: { color: "#7c3aed", bg: "rgba(124,58,237,0.08)", border: "rgba(124,58,237,0.2)", label: "Going back to market" },
+  WAITING:     { color: "#0369a1", bg: "rgba(3,105,161,0.08)",  border: "rgba(3,105,161,0.2)",  label: "Waiting for chain to reform" },
+  BREAK_CHAIN: { color: "#b45309", bg: "rgba(180,83,9,0.08)",   border: "rgba(180,83,9,0.2)",   label: "Proceeding without onward purchase" },
+  WITHDRAWN:   { color: "#525252", bg: "rgba(82,82,82,0.10)",   border: "rgba(82,82,82,0.25)",  label: "Withdrawn" },
+} as const;
+
+type BadgeKind = keyof typeof BADGE_STYLE;
+
+function Badge({ kind, arrow }: { kind: BadgeKind; arrow?: "↑" | "↓" }) {
+  const s = BADGE_STYLE[kind];
+  return (
+    <span style={{
+      display: "inline-block",
+      marginTop: 6,
+      marginRight: 6,
+      fontSize: 10,
+      fontWeight: 600,
+      color: s.color,
+      background: s.bg,
+      border: `0.5px solid ${s.border}`,
+      borderRadius: 4,
+      padding: "2px 6px",
+    }}>
+      {arrow ? `${arrow} ` : ""}{s.label}
+    </span>
+  );
+}
 
 export function LinkCard({
   link,
@@ -71,6 +109,7 @@ export function LinkCard({
   onResendInvite,
   onEditStub,
   onDeleteStub,
+  directional,
 }: LinkCardProps) {
   const status = getChainLinkStatus(
     {
@@ -175,36 +214,26 @@ export function LinkCard({
         </span>
       )}
 
-      {/* Withdrawal response status */}
-      {link.withdrawalStatus === "REMARKETING" && (
-        <span style={{
-          display: "inline-block",
-          marginTop: 6,
-          fontSize: 10,
-          fontWeight: 600,
-          color: "#7c3aed",
-          background: "rgba(124,58,237,0.08)",
-          border: "0.5px solid rgba(124,58,237,0.2)",
-          borderRadius: 4,
-          padding: "2px 6px",
-        }}>
-          Going back to market
-        </span>
-      )}
-      {link.withdrawalStatus === "WAITING" && (
-        <span style={{
-          display: "inline-block",
-          marginTop: 6,
-          fontSize: 10,
-          fontWeight: 600,
-          color: "#0369a1",
-          background: "rgba(3,105,161,0.08)",
-          border: "0.5px solid rgba(3,105,161,0.2)",
-          borderRadius: 4,
-          padding: "2px 6px",
-        }}>
-          Waiting for chain to reform
-        </span>
+      {/* Cascade response badges. WITHDRAWN is terminal — show only that.
+       *  Otherwise up to two directional badges (↑ upward, ↓ downward) from
+       *  the per-direction state passed via `directional`. Fallback to the
+       *  single denormalised link.withdrawalStatus when `directional` is
+       *  omitted (e.g. an older caller). */}
+      {link.withdrawalStatus === "WITHDRAWN" ? (
+        <Badge kind="WITHDRAWN" />
+      ) : directional ? (
+        <>
+          {directional.upward && BADGE_STYLE[directional.upward as BadgeKind] && (
+            <Badge kind={directional.upward as BadgeKind} arrow="↑" />
+          )}
+          {directional.downward && BADGE_STYLE[directional.downward as BadgeKind] && (
+            <Badge kind={directional.downward as BadgeKind} arrow="↓" />
+          )}
+        </>
+      ) : (
+        link.withdrawalStatus && BADGE_STYLE[link.withdrawalStatus as BadgeKind] && (
+          <Badge kind={link.withdrawalStatus as BadgeKind} />
+        )
       )}
 
       {/* Actions */}

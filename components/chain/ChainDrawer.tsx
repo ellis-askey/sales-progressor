@@ -53,26 +53,41 @@ export function ChainDrawer({
   const [loading, setLoading] = useState(true);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
   const [declineDismissed, setDeclineDismissed] = useState(false);
-  const [withdrawalResponse, setWithdrawalResponse] = useState<"REMARKETING" | "WAITING" | null>(null);
-  const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [pendingNotifications, setPendingNotifications] = useState<Array<{
+    id: string;
+    type: "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT";
+    direction: "UPWARD" | "DOWNWARD";
+    triggeringLinkId: string;
+    createdAt: string;
+  }>>([]);
+  const [directional, setDirectional] = useState<Record<string, { upward: string | null; downward: string | null }>>({});
+  const [submittingNotificationId, setSubmittingNotificationId] = useState<string | null>(null);
+  const [respondError, setRespondError] = useState<string | null>(null);
 
   async function dismissDecline() {
     setDeclineDismissed(true);
     await fetch("/api/chain/dismiss-decline", { method: "POST" }).catch(() => null);
   }
 
-  async function submitWithdrawalResponse(chainId: string, linkId: string) {
-    if (!withdrawalResponse) return;
-    setSubmittingResponse(true);
+  async function respondToNotification(notificationId: string, status: "REMARKETING" | "WAITING" | "BREAK_CHAIN" | "WITHDRAW") {
+    setSubmittingNotificationId(notificationId);
+    setRespondError(null);
     try {
-      await fetch(`/api/chains/${chainId}/links/${linkId}/respond`, {
+      const res = await fetch(`/api/chains/notifications/${notificationId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: withdrawalResponse }),
+        body: JSON.stringify({ status }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setRespondError(body.error ?? "Couldn't save your response — please reload and try again.");
+        return;
+      }
       await fetchChain();
+    } catch {
+      setRespondError("Network error — please reload and try again.");
     } finally {
-      setSubmittingResponse(false);
+      setSubmittingNotificationId(null);
     }
   }
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -104,6 +119,8 @@ export function ChainDrawer({
       }
 
       setChain(next);
+      setPendingNotifications(data.pendingNotifications ?? []);
+      setDirectional(data.directional ?? {});
     } catch {
       // Network error — show empty state
     } finally {
@@ -347,60 +364,84 @@ export function ChainDrawer({
                 </div>
               )}
 
-              {/* Withdrawal response picker — shown when chain-mate withdrew and user hasn't responded */}
-              {(() => {
-                const chainBroken = isChainBroken(chain);
-                if (!chainBroken || !userLink) return null;
-                const alreadyResponded = userLink.withdrawalStatus !== null;
-                if (alreadyResponded) return null;
+              {/* Cascade-notification respond cards — one per pending notification for this user.
+                  Each card's button set depends on notification.type. */}
+              {pendingNotifications.map((n) => {
+                const prompt = n.type === "LOST_BUYER"
+                  ? "The buyer for your client's property has pulled out of the chain. What would you like to do?"
+                  : n.type === "LOST_PURCHASE"
+                    ? "The property your client was buying has fallen through. What would you like to do?"
+                    : "The onward chain is being re-formed. Is your client happy to wait?";
+
+                const options: Array<{ status: "REMARKETING" | "WAITING" | "BREAK_CHAIN" | "WITHDRAW"; label: string }> =
+                  n.type === "LOST_BUYER"
+                    ? [
+                        { status: "REMARKETING", label: "Find a new buyer" },
+                        { status: "WITHDRAW",    label: "Withdraw too" },
+                      ]
+                    : n.type === "LOST_PURCHASE"
+                      ? [
+                          { status: "REMARKETING", label: "Find a new purchase" },
+                          { status: "BREAK_CHAIN", label: "Proceed without onward purchase" },
+                          { status: "WITHDRAW",    label: "Withdraw too" },
+                        ]
+                      : [
+                          { status: "WAITING",  label: "Wait" },
+                          { status: "WITHDRAW", label: "Withdraw" },
+                        ];
+
                 return (
-                  <div style={{
+                  <div key={n.id} style={{
                     marginBottom: 12,
                     padding: "12px 12px",
                     background: "rgba(99,102,241,0.06)",
                     border: "0.5px solid rgba(99,102,241,0.2)",
                     borderRadius: 8,
                   }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: "0 0 6px" }}>
-                      A sale in this chain has withdrawn. How do you want to proceed?
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", margin: "0 0 10px" }}>
+                      {prompt}
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-                      {(["REMARKETING", "WAITING"] as const).map((opt) => (
-                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                          <input
-                            type="radio"
-                            name="withdrawal-response"
-                            value={opt}
-                            checked={withdrawalResponse === opt}
-                            onChange={() => setWithdrawalResponse(opt)}
-                            style={{ accentColor: "#6366f1" }}
-                          />
-                          <span style={{ fontSize: 12, color: "var(--agent-text-primary)" }}>
-                            {opt === "REMARKETING" ? "Going back to market" : "Waiting for chain to reform"}
-                          </span>
-                        </label>
-                      ))}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {options.map((opt) => {
+                        const isSubmitting = submittingNotificationId === n.id;
+                        return (
+                          <button
+                            key={opt.status}
+                            onClick={() => { void respondToNotification(n.id, opt.status); }}
+                            disabled={isSubmitting}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: "6px 12px",
+                              borderRadius: 6,
+                              border: "none",
+                              background: opt.status === "WITHDRAW" ? "#dc2626" : "#6366f1",
+                              color: "#fff",
+                              cursor: isSubmitting ? "not-allowed" : "pointer",
+                              opacity: isSubmitting ? 0.5 : 1,
+                            }}
+                          >
+                            {isSubmitting ? "Saving…" : opt.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <button
-                      onClick={() => { if (userLink) void submitWithdrawalResponse(chain.id, userLink.id); }}
-                      disabled={!withdrawalResponse || submittingResponse}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "6px 14px",
-                        borderRadius: 6,
-                        border: "none",
-                        background: "#6366f1",
-                        color: "#fff",
-                        cursor: withdrawalResponse && !submittingResponse ? "pointer" : "not-allowed",
-                        opacity: withdrawalResponse && !submittingResponse ? 1 : 0.5,
-                      }}
-                    >
-                      {submittingResponse ? "Saving…" : "Save"}
-                    </button>
                   </div>
                 );
-              })()}
+              })}
+              {respondError && (
+                <div style={{
+                  marginBottom: 12,
+                  padding: "8px 12px",
+                  background: "rgba(220,38,38,0.08)",
+                  border: "0.5px solid rgba(220,38,38,0.2)",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: "#991b1b",
+                }}>
+                  {respondError}
+                </div>
+              )}
 
               {/* Broken-chain banner — voice pass deferred */}
               {isChainBroken(chain) && (
@@ -493,6 +534,7 @@ export function ChainDrawer({
                       link={link}
                       totalLinks={links.length}
                       currentUserId={currentUserId}
+                      directional={directional[link.id]}
                       isYourFile={
                         link.claimedByUserId === currentUserId ||
                         (link.transactionId !== null && link.createdByUserId === currentUserId)

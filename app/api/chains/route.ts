@@ -41,7 +41,53 @@ export async function GET(req: NextRequest) {
     if (!canViewChain(allLinks, session.user.id)) {
       return NextResponse.json({ chain: null });
     }
-    return NextResponse.json({ chain });
+
+    // Cascade-notification augmentation: per-link directional state for badges
+    // + this user's pending notifications for the respond UI.
+    const allNotifications = await prisma.chainNotificationQueue.findMany({
+      where: { chainId: chain.id },
+      select: {
+        id: true,
+        recipientLinkId: true,
+        recipientUserId: true,
+        type: true,
+        direction: true,
+        triggeringLinkId: true,
+        response: true,
+        respondedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // For each link, find the most-recent responded notification per direction.
+    // The link's existing `withdrawalStatus = 'WITHDRAWN'` is terminal and
+    // overrides per-direction state.
+    const directional: Record<string, { upward: string | null; downward: string | null }> = {};
+    for (const link of chain.links) {
+      const upward = allNotifications.find(
+        (n) => n.recipientLinkId === link.id && n.direction === "UPWARD" && n.response,
+      );
+      const downward = allNotifications.find(
+        (n) => n.recipientLinkId === link.id && n.direction === "DOWNWARD" && n.response,
+      );
+      directional[link.id] = {
+        upward: upward?.response ?? null,
+        downward: downward?.response ?? null,
+      };
+    }
+
+    const pendingNotifications = allNotifications
+      .filter((n) => n.recipientUserId === session.user.id && !n.response)
+      .map((n) => ({
+        id: n.id,
+        type: n.type,
+        direction: n.direction,
+        triggeringLinkId: n.triggeringLinkId,
+        createdAt: n.createdAt,
+      }));
+
+    return NextResponse.json({ chain, pendingNotifications, directional });
   }
 
   // Fallback: legacy chain (no permission check required — same agency)

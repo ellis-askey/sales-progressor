@@ -127,6 +127,7 @@ model User {
   fileTimeSessions              FileTimeSession[]
   notifications                 Notification[]
   outboundEmailQueueAsRecipient OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientUser")
+  chainNotifications            ChainNotificationQueue[]
 }
 
 model AgentPushSubscription {
@@ -808,6 +809,18 @@ enum ChainWithdrawalStatus {
   WITHDRAWN
   REMARKETING
   WAITING
+  BREAK_CHAIN
+}
+
+enum ChainNotificationType {
+  LOST_BUYER
+  LOST_PURCHASE
+  ASKED_TO_WAIT
+}
+
+enum ChainDirection {
+  UPWARD
+  DOWNWARD
 }
 
 model PropertyChain {
@@ -821,9 +834,10 @@ model PropertyChain {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  agency    Agency      @relation(fields: [agencyId], references: [id])
-  createdBy User?       @relation("ChainCreatedBy", fields: [createdByUserId], references: [id])
-  links     ChainLink[]
+  agency        Agency                   @relation(fields: [agencyId], references: [id])
+  createdBy     User?                    @relation("ChainCreatedBy", fields: [createdByUserId], references: [id])
+  links         ChainLink[]
+  notifications ChainNotificationQueue[]
 }
 
 model ChainLink {
@@ -873,6 +887,8 @@ model ChainLink {
   createdBy            User?                @relation("ChainLinkCreatedBy", fields: [createdByUserId], references: [id])
   claimedBy            User?                @relation("ChainLinkClaimedBy", fields: [claimedByUserId], references: [id])
   lastInviteSentBy     User?                @relation("ChainLinkLastInviteSentBy", fields: [lastInviteSentByUserId], references: [id])
+  triggeredNotifications ChainNotificationQueue[] @relation("CascadeTrigger")
+  receivedNotifications  ChainNotificationQueue[] @relation("CascadeRecipient")
 
   @@unique([chainId, position])
   @@index([transactionId])
@@ -881,25 +897,43 @@ model ChainLink {
 }
 
 // ─── ChainNotificationQueue ───────────────────────────────────────────────────
-// Pending withdrawal notifications — records are created when a chain-linked
-// transaction is withdrawn. notifiedAt is null until the email channel fires.
-// Unique on (withdrawingTransactionId, recipientUserId) to prevent duplicate emails.
+// Step-wise chain withdrawal cascade — one row per directional notification.
+// Created when:
+//   - A chain-linked transaction is withdrawn (initial trigger fires two rows:
+//     one upward LOST_BUYER, one downward LOST_PURCHASE — each to the nearest
+//     claimed link in that direction, stopping at any WITHDRAWN link).
+//   - An agent responds REMARKETING (fires one row: ASKED_TO_WAIT to the next
+//     claimed link in the same direction as the incoming notification).
+//   - An agent responds WITHDRAW (fires a fresh cascade from their now-WITHDRAWN
+//     link, naturally limited by the stop-at-WITHDRAWN traversal).
+// Response state lives per-row (not per-link), so one agent can hold multiple
+// in-flight notifications (e.g. REMARKETING-down + ASKED_TO_WAIT-up).
+// nudgeSentAt: set by /api/cron/drain-withdrawal-notifications 14 days after a
+// WAITING response — single nudge, terminal thereafter.
 
 model ChainNotificationQueue {
-  id                       String    @id @default(cuid())
-  chainId                  String
-  withdrawingTransactionId String
-  withdrawingUserId        String?
-  withdrawingReason        String?
-  recipientUserId          String
-  recipientLinkId          String
-  recipientEmail           String
-  createdAt                DateTime  @default(now())
-  notifiedAt               DateTime?
+  id                String                 @id @default(cuid())
+  chainId           String
+  chain             PropertyChain          @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  triggeringLinkId  String
+  triggeringLink    ChainLink              @relation("CascadeTrigger", fields: [triggeringLinkId], references: [id])
+  recipientLinkId   String
+  recipientLink     ChainLink              @relation("CascadeRecipient", fields: [recipientLinkId], references: [id])
+  recipientUserId   String
+  recipientUser     User                   @relation(fields: [recipientUserId], references: [id])
+  recipientEmail    String
+  type              ChainNotificationType
+  direction         ChainDirection
+  emailSentAt       DateTime?
+  response          ChainWithdrawalStatus?
+  respondedAt       DateTime?
+  nudgeSentAt       DateTime?
+  createdAt         DateTime               @default(now())
 
-  @@unique([withdrawingTransactionId, recipientUserId])
-  @@index([notifiedAt])
-  @@index([withdrawingTransactionId])
+  @@index([recipientUserId, response])
+  @@index([response, respondedAt])
+  @@index([chainId])
+  @@index([recipientLinkId])
 }
 
 // ─── OutboundEmailQueue ───────────────────────────────────────────────────────

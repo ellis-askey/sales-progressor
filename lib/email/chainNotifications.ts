@@ -20,50 +20,41 @@ function escapeHtml(s: string): string {
 const portalBase = () =>
   process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
 
-// ─── Withdrawal ────────────────────────────────────────────────────────────────
+// ─── Chain cascade notifications ───────────────────────────────────────────────
+// Three notification types fire through the same queue + drain pipeline:
+//   - LOST_BUYER      — the buyer for the recipient's client's property pulled out
+//   - LOST_PURCHASE   — the property the recipient's client was buying fell through
+//   - ASKED_TO_WAIT   — onward chain is being re-formed; will your client wait?
+//
+// All three are framed from the recipient's own client's standpoint. The
+// withdrawn party is always adjacent to the recipient, never the recipient.
+// Voice rules: no system self-references, no process jargon, active where
+// natural, no exclamation marks.
 
-export function buildWithdrawalEmailPayload({
-  withdrawingAddress,
-  reason,
-  recipientTransactionId,
-  unsubscribeUrl,
-}: {
-  withdrawingAddress: string;
-  reason: string | null;
+type CascadePayloadArgs = {
+  recipientAddress: string;
   recipientTransactionId: string | null;
   unsubscribeUrl: string;
-}): { subject: string; text: string; html: string } {
-  const subject = `${withdrawingAddress} has withdrawn from the chain`;
-  const ctaUrl = recipientTransactionId
+};
+
+function ctaUrlFor(recipientTransactionId: string | null): string {
+  return recipientTransactionId
     ? `${portalBase()}/agent/transactions/${recipientTransactionId}`
     : `${portalBase()}/agent/hub`;
+}
 
-  const textLines = [
-    `${withdrawingAddress} has withdrawn.`,
-    ...(reason ? [`Reason: ${reason}`] : []),
-    `Open the chain to update your plans.`,
-    ``,
-    `Open chain: ${ctaUrl}`,
-    ``,
-    `—`,
-    `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`,
-    `Need help? support@thesalesprogressor.co.uk`,
-  ];
-  const text = textLines.join("\n");
-
-  const html = `<!DOCTYPE html>
+function shellHtml({ heading, body, ctaUrl, unsubscribeUrl }: { heading: string; body: string; ctaUrl: string; unsubscribeUrl: string }): string {
+  return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
+<head><meta charset="utf-8"><title>${escapeHtml(heading)}</title></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f5f5f5;padding:40px 20px;">
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
           <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>
-          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(withdrawingAddress)} has withdrawn from the chain</h1>
-          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(withdrawingAddress)} has withdrawn.</p>
-          ${reason ? `<p style="font-size:14px;color:#4a5162;margin:0 0 8px;">Reason: ${escapeHtml(reason)}</p>` : ""}
-          <p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">Open the chain to update your plans.</p>
+          <h1 style="font-size:20px;color:#1a1d29;margin:0 0 20px;line-height:1.3;">${escapeHtml(heading)}</h1>
+          ${body}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr><td style="border-radius:8px;background:#FF6B4A;">
               <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open chain</a>
@@ -78,38 +69,114 @@ export function buildWithdrawalEmailPayload({
     </td></tr>
   </table>
 </body></html>`;
+}
 
+export function buildLostBuyerEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: CascadePayloadArgs): { subject: string; text: string; html: string } {
+  const subject = `Update on ${recipientAddress} — the buyer has pulled out`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+  const lead = `The buyer for your client's property at ${recipientAddress} has pulled out of the chain.`;
+  const follow = `Open the chain to let us know what's next — find a new buyer, or withdraw.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
   return { subject, text, html };
 }
 
-// Reads all pending ChainNotificationQueue records and fires withdrawal emails.
-// Called synchronously from notifyChainMatesOfWithdrawal, and by the hourly cron fallback.
-export async function fireWithdrawalNotifications(): Promise<{
+export function buildLostPurchaseEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: CascadePayloadArgs): { subject: string; text: string; html: string } {
+  const subject = `Update on ${recipientAddress} — the onward purchase has fallen through`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+  const lead = `The property your client was buying has fallen through.`;
+  const follow = `Open the chain to let us know what's next — find a new purchase, proceed without one, or withdraw.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
+  return { subject, text, html };
+}
+
+export function buildAskedToWaitEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: CascadePayloadArgs): { subject: string; text: string; html: string } {
+  const subject = `Update on ${recipientAddress} — onward chain is re-forming`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+  const lead = `The onward chain is being re-formed.`;
+  const follow = `Is your client happy to wait while the gap is filled? Open the chain to let us know — wait, or withdraw.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
+  return { subject, text, html };
+}
+
+export function buildWaitNudgeEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: CascadePayloadArgs): { subject: string; text: string; html: string } {
+  const subject = `Still waiting on ${recipientAddress}?`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+  const lead = `Two weeks ago your client agreed to wait while the onward chain re-formed.`;
+  const follow = `Is your client still waiting, or has this moved? Open the chain to update us.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
+  return { subject, text, html };
+}
+
+/**
+ * Drains all unsent (emailSentAt IS NULL) ChainNotificationQueue rows, picking
+ * the right payload builder per notification type. Called synchronously after
+ * cascade writes; also drained daily by /api/cron/drain-withdrawal-notifications
+ * as a fallback for any rows the synchronous fire missed.
+ */
+export async function fireChainCascadeNotifications(): Promise<{
   sent: number;
   skipped: number;
   failed: number;
 }> {
   const pending = await prisma.chainNotificationQueue.findMany({
-    where: { notifiedAt: null },
+    where: { emailSentAt: null },
     take: 50,
   });
   if (pending.length === 0) return { sent: 0, skipped: 0, failed: 0 };
 
-  // Batch-fetch withdrawing property addresses
-  const withdrawingTxIds = [...new Set(pending.map((r) => r.withdrawingTransactionId))];
-  const withdrawingTxs = await prisma.propertyTransaction.findMany({
-    where: { id: { in: withdrawingTxIds } },
-    select: { id: true, propertyAddress: true },
-  });
-  const addrMap = new Map(withdrawingTxs.map((t) => [t.id, t.propertyAddress]));
-
-  // Batch-fetch recipient transaction IDs via ChainLink
+  // Batch-fetch the recipient's own transaction address + id (for the email heading + CTA)
   const recipientLinkIds = [...new Set(pending.map((r) => r.recipientLinkId))];
   const recipientLinks = await prisma.chainLink.findMany({
     where: { id: { in: recipientLinkIds } },
-    select: { id: true, transactionId: true },
+    select: { id: true, transactionId: true, transaction: { select: { propertyAddress: true } } },
   });
-  const txIdMap = new Map(recipientLinks.map((l) => [l.id, l.transactionId]));
+  const linkInfoMap = new Map(
+    recipientLinks.map((l) => [l.id, { transactionId: l.transactionId, address: l.transaction?.propertyAddress ?? "your file" }]),
+  );
 
   let sent = 0;
   let skipped = 0;
@@ -120,42 +187,115 @@ export async function fireWithdrawalNotifications(): Promise<{
     if (suppressed) {
       await prisma.chainNotificationQueue.update({
         where: { id: record.id },
-        data: { notifiedAt: new Date() },
+        data: { emailSentAt: new Date() },
       });
-      console.log(
-        `[EMAIL_SKIP] type=WITHDRAWAL userId=${record.recipientUserId} reason=unsubscribed`,
-      );
+      console.log(`[EMAIL_SKIP] type=${record.type} userId=${record.recipientUserId} reason=unsubscribed`);
       skipped++;
       continue;
     }
 
-    const withdrawingAddress = addrMap.get(record.withdrawingTransactionId) ?? "A property";
-    const recipientTransactionId = txIdMap.get(record.recipientLinkId) ?? null;
+    const info = linkInfoMap.get(record.recipientLinkId);
+    const recipientAddress = info?.address ?? "your file";
+    const recipientTransactionId = info?.transactionId ?? null;
     const unsubscribeUrl = buildUserUnsubscribeUrl(record.recipientUserId);
 
-    const { subject, text, html } = buildWithdrawalEmailPayload({
-      withdrawingAddress,
-      reason: record.withdrawingReason,
-      recipientTransactionId,
-      unsubscribeUrl,
-    });
+    const payload =
+      record.type === "LOST_BUYER"
+        ? buildLostBuyerEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl })
+        : record.type === "LOST_PURCHASE"
+          ? buildLostPurchaseEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl })
+          : buildAskedToWaitEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl });
 
     try {
-      await sendChainEmail({ to: record.recipientEmail, subject, text, html });
+      await sendChainEmail({ to: record.recipientEmail, subject: payload.subject, text: payload.text, html: payload.html });
       await prisma.chainNotificationQueue.update({
         where: { id: record.id },
-        data: { notifiedAt: new Date() },
+        data: { emailSentAt: new Date() },
       });
-      console.log(`[EMAIL_SENT] type=WITHDRAWAL to=${record.recipientEmail}`);
+      console.log(`[EMAIL_SENT] type=${record.type} to=${record.recipientEmail}`);
       sent++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
-      console.error(`[EMAIL_FAIL] type=WITHDRAWAL to=${record.recipientEmail} err=${message}`);
+      console.error(`[EMAIL_FAIL] type=${record.type} to=${record.recipientEmail} err=${message}`);
       failed++;
     }
   }
 
   return { sent, skipped, failed };
+}
+
+/**
+ * Sends a single nudge email for each WAITING response older than 14 days
+ * with nudgeSentAt still null. Sets nudgeSentAt on send so it doesn't fire
+ * again. Called daily from /api/cron/drain-withdrawal-notifications.
+ */
+export async function sendChainWaitNudges(): Promise<{ nudged: number; skipped: number; failed: number }> {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const stale = await prisma.chainNotificationQueue.findMany({
+    where: {
+      response: "WAITING",
+      respondedAt: { lt: cutoff },
+      nudgeSentAt: null,
+    },
+    take: 50,
+    select: {
+      id: true,
+      recipientUserId: true,
+      recipientEmail: true,
+      recipientLinkId: true,
+    },
+  });
+
+  if (stale.length === 0) return { nudged: 0, skipped: 0, failed: 0 };
+
+  const linkIds = [...new Set(stale.map((r) => r.recipientLinkId))];
+  const links = await prisma.chainLink.findMany({
+    where: { id: { in: linkIds } },
+    select: { id: true, transactionId: true, transaction: { select: { propertyAddress: true } } },
+  });
+  const linkInfoMap = new Map(
+    links.map((l) => [l.id, { transactionId: l.transactionId, address: l.transaction?.propertyAddress ?? "your file" }]),
+  );
+
+  let nudged = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const record of stale) {
+    const suppressed = await isUserEmailSuppressed(record.recipientUserId);
+    if (suppressed) {
+      await prisma.chainNotificationQueue.update({
+        where: { id: record.id },
+        data: { nudgeSentAt: new Date() },
+      });
+      console.log(`[EMAIL_SKIP] type=WAIT_NUDGE userId=${record.recipientUserId} reason=unsubscribed`);
+      skipped++;
+      continue;
+    }
+
+    const info = linkInfoMap.get(record.recipientLinkId);
+    const recipientAddress = info?.address ?? "your file";
+    const recipientTransactionId = info?.transactionId ?? null;
+    const unsubscribeUrl = buildUserUnsubscribeUrl(record.recipientUserId);
+
+    const payload = buildWaitNudgeEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl });
+
+    try {
+      await sendChainEmail({ to: record.recipientEmail, subject: payload.subject, text: payload.text, html: payload.html });
+      await prisma.chainNotificationQueue.update({
+        where: { id: record.id },
+        data: { nudgeSentAt: new Date() },
+      });
+      console.log(`[EMAIL_SENT] type=WAIT_NUDGE to=${record.recipientEmail}`);
+      nudged++;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "send error";
+      console.error(`[EMAIL_FAIL] type=WAIT_NUDGE to=${record.recipientEmail} err=${message}`);
+      failed++;
+    }
+  }
+
+  return { nudged, skipped, failed };
 }
 
 // ─── Decline notification ──────────────────────────────────────────────────────

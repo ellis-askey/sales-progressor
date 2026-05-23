@@ -12,7 +12,7 @@ import { evaluateTransactionReminders, createInitialRemindersInline } from "@/li
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
-import { notifyChainMatesOfWithdrawal } from "@/lib/chain/withdrawal";
+import { cascadeChainWithdrawal } from "@/lib/chain/withdrawal";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
@@ -343,8 +343,7 @@ export async function changeStatusAction(
   }
 
   if (status === "withdrawn" && tx.chainLinkId) {
-    notifyChainMatesOfWithdrawal(transactionId, session.user.id, fallThroughReason ?? null)
-      .catch(console.error);
+    cascadeChainWithdrawal(tx.chainLinkId).catch(console.error);
   }
 
   revalidateTx(transactionId);
