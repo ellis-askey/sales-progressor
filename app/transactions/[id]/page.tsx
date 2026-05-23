@@ -12,6 +12,7 @@ import { getPortalViewDates } from "@/lib/services/portal";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { listManualTasksForTransaction, countManualTasksDueToday } from "@/lib/services/manual-tasks";
 import { calculateProgress } from "@/lib/services/fees";
+import { totalHoldMs } from "@/lib/services/hold-duration";
 import { AppShell } from "@/components/layout/AppShell";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
@@ -102,7 +103,6 @@ export default async function TransactionDetailPage({
   }));
 
   // Hold-aware elapsed time (see /agent variant for context).
-  const { totalHoldMs } = await import("@/lib/services/hold-duration");
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),

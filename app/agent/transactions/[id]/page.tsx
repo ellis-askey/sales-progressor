@@ -10,6 +10,7 @@ import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
 import { toUKDateStr } from "@/lib/utils";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
+import { totalHoldMs } from "@/lib/services/hold-duration";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { StatusControl } from "@/components/transaction/StatusControl";
@@ -191,7 +192,6 @@ export default async function AgentTransactionDetailPage({
   // Hold-aware elapsed time: subtract total on-hold ms so weeks-elapsed and
   // velocity-based predictions freeze while the file is paused. Status
   // also drives the on_hold onTrack pill.
-  const { totalHoldMs } = await import("@/lib/services/hold-duration");
   const holdInput = {
     status: transaction.status,
     holdPeriods: transaction.holdPeriods,

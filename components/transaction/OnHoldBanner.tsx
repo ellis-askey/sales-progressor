@@ -1,3 +1,5 @@
+"use client";
+
 // Calm warning banner shown at the top of the transaction-detail page while
 // a file is on hold. Renders nothing when the file isn't on hold — caller
 // decides visibility based on PropertyTransaction.status.
