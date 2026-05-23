@@ -68,8 +68,8 @@ export function SearchesUpload({ token }: Props) {
   return (
     <div className="mt-3 space-y-2">
       <p className="text-[13px] leading-relaxed" style={{ color: P.textSecondary }}>
-        Got a copy of your searches? Upload them here so your solicitor and agent have them on file.{" "}
-        <span style={{ color: P.textMuted }}>(Optional — you don't have to do this.)</span>
+        Got a copy of your survey report? Upload it here and we&apos;ll keep it on file.{" "}
+        <span style={{ color: P.textMuted }}>(Optional — you don&apos;t have to.)</span>
       </p>
 
       <input
@@ -101,7 +101,7 @@ export function SearchesUpload({ token }: Props) {
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Attach search results
+            Attach survey report
           </>
         )}
       </button>
