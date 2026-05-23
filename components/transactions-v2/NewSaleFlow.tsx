@@ -679,7 +679,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       });
       toast.success("Draft saved");
     } catch {
-      toast.error("Couldn't save draft. Try again.");
+      toast.error("Couldn't save draft — try again");
     } finally {
       setIsSavingDraft(false);
     }
@@ -706,7 +706,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       setDrafts((prev) => prev.filter((d) => d.id !== draftId));
       if (currentDraftId === draftId) setCurrentDraftId(null);
     } catch {
-      toast.error("Couldn't remove draft.");
+      toast.error("Couldn't remove draft — try again");
     }
   }
 

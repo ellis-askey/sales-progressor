@@ -157,7 +157,8 @@ export function ChainDrawer({
         method: "POST",
       });
       if (res.ok) {
-        toast.success("1 invite sent");
+        const sent = 1;
+        toast.success(`${sent} invite${sent !== 1 ? "s" : ""} sent`);
         await fetchChain();
       } else {
         toast.error("Couldn't send invite");

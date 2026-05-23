@@ -80,7 +80,7 @@ export function TeamManagement({
     } else {
       setShowAdd(false);
       setName(""); setEmail("");
-      toast.success("Invitation sent", { description: name.trim() });
+      toast.success("Invite sent", { description: name.trim() });
       await refreshPending();
     }
   }
@@ -88,7 +88,7 @@ export function TeamManagement({
   async function handleResend(id: string) {
     const result = await resendNegotiatorInvitation(id);
     if (result.ok) {
-      toast.success("Invitation resent");
+      toast.success("Invite resent");
       await refreshPending();
     } else {
       toast.error(result.error);
@@ -100,7 +100,7 @@ export function TeamManagement({
     const result = await cancelNegotiatorInvitation(id);
     if (result.ok) {
       setPending((prev) => prev.filter((inv) => inv.id !== id));
-      toast.info(`Invitation for ${memberName} cancelled`);
+      toast.info(`Invite for ${memberName} cancelled`);
     } else {
       toast.error(result.error);
     }

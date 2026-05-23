@@ -22,6 +22,9 @@ type Props = {
   createdAt?: Date | string | null;
   transactionId?: string;
   hideServiceTypeBadge?: boolean;
+  /** Pass-through to StatusControl so the withdraw success toast can tail
+   *  "— chain notified" only when the transaction is actually chain-linked. */
+  inChain?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -74,7 +77,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -121,7 +124,7 @@ export function PropertyHero({
             </h1>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               {transactionId
-                ? <StatusControl transactionId={transactionId} currentStatus={status} />
+                ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
                 : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
               }
               {tenure && (

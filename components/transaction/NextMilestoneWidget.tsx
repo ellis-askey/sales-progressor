@@ -107,8 +107,8 @@ function MilestoneSideRow({
       setFlashed(true);
       setTimeout(() => setFlashed(false), 700);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to complete milestone";
-      toast.error("Couldn't complete milestone", { description: message });
+      const message = err instanceof Error ? err.message : "Failed to confirm step";
+      toast.error("Couldn't confirm step", { description: message });
     } finally {
       setLoading(false);
     }
@@ -130,8 +130,8 @@ function MilestoneSideRow({
       toast.success(milestone.name);
       router.refresh();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to complete milestone";
-      toast.error("Couldn't complete milestone", { description: message });
+      const message = err instanceof Error ? err.message : "Failed to confirm step";
+      toast.error("Couldn't confirm step", { description: message });
     } finally {
       setLoading(false);
     }

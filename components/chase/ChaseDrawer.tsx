@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp } from "@phosphor-icons/react";
 
 type Channel = "email" | "whatsapp";
@@ -145,6 +146,7 @@ export function ChaseDrawer({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useAgentToast();
   const [generatedContext, setGeneratedContext] = useState<{ primaryContact: { name: string; role: string } | null } | null>(null);
 
   // Channel crossfade — displayChannel lags channel by 120ms so content fades
@@ -301,10 +303,13 @@ export function ChaseDrawer({
         }
       }
 
+      // Toast first so it lands in the same beat as the drawer close.
+      toast.success("Chase sent");
       onSent();
       onClose();
     } catch {
       setError("Couldn't send — try again.");
+      toast.error("Couldn't send chase — try again or check the recipient");
     } finally {
       setIsSending(false);
     }

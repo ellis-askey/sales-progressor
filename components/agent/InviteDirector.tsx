@@ -50,7 +50,7 @@ export function InviteDirector({ latestInvitation }: InviteDirectorProps) {
     startTransition(async () => {
       const result = await inviteDirector(formData);
       if (result.ok) {
-        toast.success(`Invitation sent to ${email}`);
+        toast.success(`Invite sent to ${email}`);
         window.location.reload();
       } else {
         setError(result.error ?? "Couldn't send invitation");
@@ -175,7 +175,7 @@ function ResendButton({ invitationId }: { invitationId: string }) {
     startTransition(async () => {
       const result = await resendInvitation(invitationId);
       if (result.ok) {
-        toast.success("Invitation resent");
+        toast.success("Invite resent");
       } else {
         toast.error(result.error ?? "Couldn't resend");
       }

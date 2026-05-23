@@ -31,9 +31,12 @@ const FALL_THROUGH_REASONS = [
 type Props = {
   transactionId: string;
   currentStatus: TransactionStatus;
+  /** True when the transaction is part of a chain. Used to tail the
+   *  withdraw success toast with "— chain notified" only when relevant. */
+  inChain?: boolean;
 };
 
-export function StatusControl({ transactionId, currentStatus }: Props) {
+export function StatusControl({ transactionId, currentStatus, inChain = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [open, setOpen]             = useState(false);
@@ -76,6 +79,13 @@ export function StatusControl({ transactionId, currentStatus }: Props) {
       setOptimisticStatus(status);
       try {
         await changeStatusAction(transactionId, status, fallThroughReason);
+        const label =
+          status === "active"    ? "File active" :
+          status === "on_hold"   ? "File on hold" :
+          status === "completed" ? "File completed" :
+          status === "withdrawn" ? (inChain ? "Withdrawn — chain notified" : "Withdrawn") :
+          "Status updated";
+        toast.success(label);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
         if (msg.startsWith("Cannot mark as completed")) {

@@ -121,7 +121,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     startTransition(async () => {
       try {
         await logCommAction({ transactionId, ...snap });
-        toast.success(type === "internal_note" ? "Note added" : "Communication logged");
+        toast.success(type === "internal_note" ? "Note added" : "Logged");
       } finally {
         setLoading(false);
       }

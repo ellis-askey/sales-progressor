@@ -207,9 +207,17 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
     setNightMode(next);
   }
 
+  const [refreshing, setRefreshing] = useState(false);
   function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
     router.refresh();
-    setRefreshedAt(new Date());
+    // Hold the spinning state for 300ms minimum so the eye catches it —
+    // router.refresh() can resolve in <50ms which the brain doesn't register.
+    setTimeout(() => {
+      setRefreshedAt(new Date());
+      setRefreshing(false);
+    }, 300);
   }
 
   return (
@@ -255,17 +263,20 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>
           <button
             onClick={handleRefresh}
+            disabled={refreshing}
             title="Refresh data"
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
-              background: "none", border: "none", cursor: "pointer",
+              background: "none", border: "none", cursor: refreshing ? "default" : "pointer",
               color: "var(--agent-text-muted)", fontSize: 11,
               padding: "4px 8px", borderRadius: 6, transition: "background 150ms",
               whiteSpace: "nowrap", flexShrink: 0,
             }}
             className="hover:bg-black/[0.04]"
           >
-            <ArrowsClockwise size={13} />
+            <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}>
+              <ArrowsClockwise size={13} />
+            </span>
             {`As of ${formatAgentTime(refreshedAt)}`}
           </button>
           <div className="hidden md:block"><SolidModeToggle /></div>

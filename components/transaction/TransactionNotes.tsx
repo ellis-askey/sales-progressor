@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition, useOptimistic } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { relativeDate } from "@/lib/utils";
 import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { withErrorToast } from "@/lib/agent/actionToast";
 
 type Note = {
   id: string;
@@ -33,6 +35,8 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
     (current: Note[], newNote: Note) => [newNote, ...current]
   );
 
+  const [noteListRef] = useAutoAnimate<HTMLDivElement>();
+
   const visible = expanded ? optimisticNotes : optimisticNotes.slice(0, PAGE_SIZE);
   const hidden = optimisticNotes.length - PAGE_SIZE;
 
@@ -50,11 +54,15 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
         createdAt: new Date(),
         createdByName: currentUserName,
       });
-      try {
-        await addNoteAction(transactionId, content);
+      const result = await withErrorToast(
+        toast,
+        () => addNoteAction(transactionId, content),
+        "Couldn't save note — try again",
+      );
+      if (result !== null) {
         toast.success("Note added");
-      } catch {
-        setError("Failed to save note — please try again");
+      } else {
+        setError("Couldn't save note — please try again");
       }
     });
   }
@@ -62,11 +70,13 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
   function handleDelete(id: string) {
     setDeleting(id);
     startTransition(async () => {
-      try {
-        await deleteCommAction(id, transactionId);
-      } finally {
-        setDeleting(null);
-      }
+      const result = await withErrorToast(
+        toast,
+        () => deleteCommAction(id, transactionId),
+        "Couldn't delete note — try again",
+      );
+      setDeleting(null);
+      if (result !== null) toast.success("Note deleted");
     });
   }
 
@@ -79,7 +89,7 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
       <div style={{ padding: 16 }}>
         {/* Note list */}
         {optimisticNotes.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          <div ref={noteListRef} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
             {visible.map((note) => {
               const isOptimistic = note.id.startsWith("temp-");
               return (

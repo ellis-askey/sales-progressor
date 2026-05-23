@@ -496,6 +496,7 @@ export default async function AgentTransactionDetailPage({
         assignedUserName={assignedDisplayName}
         createdAt={transaction.createdAt}
         transactionId={transaction.id}
+        inChain={!!transaction.chainLinkId}
       />
 
       <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab} heroConnected>

@@ -448,7 +448,7 @@ export default function SystemPreviewPage() {
             { type: "success", icon: <CheckCircle weight="fill" style={{ width: 18, height: 18, color: "var(--agent-success)", flexShrink: 0 }} />, title: "Transaction created", desc: "14 Elmwood Avenue has been set up." },
             { type: "error",   icon: <WarningCircle weight="fill" style={{ width: 18, height: 18, color: "var(--agent-danger)", flexShrink: 0 }} />,  title: "Failed to save",       desc: "Check your connection and try again." },
             { type: "warning", icon: <Warning weight="fill" style={{ width: 18, height: 18, color: "var(--agent-warning)", flexShrink: 0 }} />, title: "Exchange in 2 days",  desc: "Mortgage confirmation still pending." },
-            { type: "info",    icon: <Info weight="fill" style={{ width: 18, height: 18, color: "var(--agent-info)", flexShrink: 0 }} />,    title: "Portal invitation sent", desc: "Client will receive an email shortly." },
+            { type: "info",    icon: <Info weight="fill" style={{ width: 18, height: 18, color: "var(--agent-info)", flexShrink: 0 }} />,    title: "Portal invite sent", desc: "Client will receive an email shortly." },
           ].map(({ type, icon, title, desc }) => (
             <div key={type} className={`agent-toast agent-toast-${type}`}>
               {icon}

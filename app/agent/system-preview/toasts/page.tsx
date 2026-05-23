@@ -113,8 +113,8 @@ export default function ToastsPreviewPage() {
         description="All four types shown in their resting state. The left accent stripe and icon together communicate type without relying on colour alone."
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 380 }}>
-          <StaticToast type="success" message="Milestone confirmed" description="Vendor and purchaser notified" />
-          <StaticToast type="info"    message="Portal invitation sent" description="Client will receive an email shortly" />
+          <StaticToast type="success" message="Step confirmed" description="Vendor and purchaser notified" />
+          <StaticToast type="info"    message="Portal invite sent" description="Client will receive an email shortly" />
           <StaticToast type="warning" message="Mortgage offer expires in 14 days" />
           <StaticToast type="error"   message="Couldn't save your changes" description="Please try again" />
         </div>
@@ -137,10 +137,10 @@ export default function ToastsPreviewPage() {
         description="Click to fire real toasts in the bottom-right corner. Hover a toast to pause its timer."
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <TriggerBtn label="Milestone confirmed"
-            onClick={() => toast.success("Milestone confirmed", { description: "The seller has signed and returned their contract documents" })} />
-          <TriggerBtn label="Milestone confirmed (implied)"
-            onClick={() => toast.success("Mortgage offer received", { description: "+2 implied milestones also confirmed" })} />
+          <TriggerBtn label="Step confirmed"
+            onClick={() => toast.success("Step confirmed", { description: "The seller has signed and returned their contract documents" })} />
+          <TriggerBtn label="Step confirmed (implied)"
+            onClick={() => toast.success("Mortgage offer received", { description: "+2 implied steps also confirmed" })} />
           <TriggerBtn label="File created"
             onClick={() => toast.success("File created", { description: "14 Elmwood Avenue, Bristol" })} />
           <TriggerBtn label="To-do added"
@@ -157,8 +157,8 @@ export default function ToastsPreviewPage() {
             onClick={() => toast.success("To-do removed", {
               action: { label: "Undo", onClick: () => console.log("undo") },
             })} />
-          <TriggerBtn label="Milestone undone"
-            onClick={() => toast.success("Milestone reversed", { description: "+2 downstream milestones also undone" })} />
+          <TriggerBtn label="Step undone"
+            onClick={() => toast.success("Step undone", { description: "+2 downstream steps also undone" })} />
           <TriggerBtn label="Sale withdrawn"
             onClick={() => toast.success("Sale withdrawn", {
               action: { label: "Undo", onClick: () => console.log("undo withdrawal") },
@@ -178,7 +178,7 @@ export default function ToastsPreviewPage() {
           <TriggerBtn label="Preferences saved"
             onClick={() => toast.info("Preferences saved")} />
           <TriggerBtn label="Team invite sent"
-            onClick={() => toast.info("Invitation sent to james@agency.co.uk")} />
+            onClick={() => toast.info("Invite sent to james@agency.co.uk")} />
         </div>
       </Section>
 
@@ -216,8 +216,8 @@ export default function ToastsPreviewPage() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <TriggerBtn label="Fire 3 at once" variant="primary"
             onClick={() => {
-              toast.success("Milestone confirmed");
-              toast.info("Portal invitation sent");
+              toast.success("Step confirmed");
+              toast.info("Portal invite sent");
               toast.warning("Mortgage offer expires in 14 days");
             }} />
           <TriggerBtn label="Fire 5 at once (max 4 show)"

@@ -27,6 +27,7 @@ import {
   reactivateFile,
 } from "@/app/actions/automation";
 import { AutomationStopModal } from "@/components/transaction/AutomationStopModal";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Props = {
   transactionId: string;
@@ -57,6 +58,7 @@ export function AutomationControls({
   const [modalOpen, setModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useAgentToast();
 
   const mode = deriveMode(paused, currentStatus);
   const toggleOn = mode === "active";
@@ -70,16 +72,22 @@ export function AutomationControls({
       return;
     }
     // OFF → ON: resume directly from whichever mode we're in
+    const wasOnHold = mode === "on_hold";
     startTransition(async () => {
-      const result =
-        mode === "on_hold"
-          ? await reactivateFile(transactionId)
-          : await resumeClientEmails(transactionId);
+      const result = wasOnHold
+        ? await reactivateFile(transactionId)
+        : await resumeClientEmails(transactionId);
       if (result.ok) {
         setPaused(false);
         setCurrentStatus("active");
+        toast.success(wasOnHold ? "File active" : "Client emails resumed");
       } else {
         setError(result.error);
+        toast.error(
+          wasOnHold
+            ? "Couldn't reactivate file — try again"
+            : "Couldn't resume client emails — try again",
+        );
       }
     });
   }
@@ -95,9 +103,15 @@ export function AutomationControls({
         if (choice === "pause") setPaused(true);
         else setCurrentStatus("on_hold");
         setModalOpen(false);
+        toast.success(choice === "pause" ? "Client emails paused" : "File on hold");
       } else {
         setError(result.error);
         setModalOpen(false);
+        toast.error(
+          choice === "pause"
+            ? "Couldn't pause client emails — try again"
+            : "Couldn't put file on hold — try again",
+        );
       }
     });
   }
