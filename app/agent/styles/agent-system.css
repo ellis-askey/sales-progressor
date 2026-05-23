@@ -367,11 +367,24 @@
    * Mark selected with .on. Subtitle text uses .agent-segment-pill-note.
    * Small variant: .agent-segment-pill-sm for compact inline chips. */
 
-  /* V2 canonical (2026-05-12) — solid filled chip, replaces the prior
-   * outlined-with-rest-alpha spec. Rationale: pill/tab canonical now splits
-   * along hierarchy (.agent-tab for top-level nav, .agent-segment-pill for
-   * lesser/sub-element selection). V2 emphasises clickability via fill
-   * density; .on becomes solid coral. Documented in ANIMATION_STANDARDS.md. */
+  /* V3 canonical (2026-05-24) — deeper coral active + warm-cream inactive
+   * with subtle coral hint-border. Replaces V2's 7% coral active (which
+   * disappeared into the warm peachy bg) and 40% white inactive (which
+   * was indistinguishable from the bg).
+   *
+   * Recipe:
+   *   - Inactive: warm cream tint at 65% opacity + 18% coral hint-border —
+   *     warm-aligned with bg, opaque enough to define edges.
+   *   - Active (.on): 18% coral fill (2.6× the old 7%) + solid coral border
+   *     + subtle coral box-shadow for depth. Reads as definitively selected
+   *     on any background.
+   *   - Solid-mode override: darker neutral inactive so the pill anchors
+   *     against solid-white cards (where coral-tinted inactive would feel
+   *     out of place).
+   *   - Night-mode override: dark-slate inactive (existing pattern, kept).
+   *   - Transition: 180ms cubic-bezier for the polished state-swap feel.
+   *
+   * One recipe, every consumer benefits — no component changes required. */
   .agent-segment-pill {
     display: inline-flex;
     flex-direction: row;
@@ -379,27 +392,27 @@
     gap: 6px;
     padding: 6px 13px;
     border-radius: var(--agent-radius-md);
-    background: rgba(255, 255, 255, 0.40);
-    border: 1px solid var(--agent-border-default);
-    color: var(--agent-text-muted);
+    background: rgba(255, 245, 235, 0.65);
+    border: 1px solid rgba(255, 138, 101, 0.18);
+    color: var(--agent-text-secondary);
     font-size: var(--agent-text-body-sm);
     font-weight: var(--agent-weight-medium);
     cursor: pointer;
     user-select: none;
-    transition: background  var(--agent-transition-fast),
-                color       var(--agent-transition-fast),
-                transform   var(--agent-transition-fast),
-                box-shadow  var(--agent-transition-fast),
-                border-color var(--agent-transition-fast);
+    transition: background-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+                border-color     180ms cubic-bezier(0.4, 0, 0.2, 1),
+                color            180ms cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow       180ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform        120ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
     background: var(--agent-coral-bg-tint);
-    border-color: var(--agent-coral);
+    border-color: rgba(var(--agent-coral-rgb), 0.40);
     color: var(--agent-coral);
   }
   [data-solid] .agent-segment-pill {
-    background: rgba(15, 23, 42, 0.04);
-    border-color: rgba(15, 23, 42, 0.12);
+    background: rgba(15, 23, 42, 0.05);
+    border-color: rgba(15, 23, 42, 0.14);
   }
   .agent-segment-pill:focus-visible {
     outline: none;
@@ -410,20 +423,15 @@
     transform: scale(0.97);
   }
   .agent-segment-pill.on {
-    /* Soft-coral .on (2026-05-13) — replaces the solid-coral-white-text V2
-     * spec. Solid coral was too heavy: the white text on coral bg read as
-     * a visually different element from the inactive chips and was being
-     * perceived as a different font. Soft-coral keeps the active state
-     * unmissable via hue but matches the inactive chips on visual mass +
-     * font-weight, fixing the perceived font inconsistency. */
-    background: rgba(var(--agent-coral-base-rgb), 0.07);
+    background: rgba(var(--agent-coral-base-rgb), 0.18);
     color: var(--agent-coral-deep);
     border-color: var(--agent-coral-deep);
-    font-weight: var(--agent-weight-medium);
+    font-weight: var(--agent-weight-semibold);
+    box-shadow: 0 1px 3px rgba(var(--agent-coral-rgb), 0.20);
   }
   .agent-segment-pill.on:hover:not(:disabled) {
-    background: rgba(var(--agent-coral-rgb), 0.20);
-    border-color: rgba(var(--agent-coral-rgb), 0.60);
+    background: rgba(var(--agent-coral-rgb), 0.24);
+    box-shadow: 0 2px 5px rgba(var(--agent-coral-rgb), 0.24);
   }
   .agent-segment-pill:disabled {
     opacity: 0.42;
@@ -1690,19 +1698,20 @@
   }
 
   .agent-shell-root[data-night] .agent-segment-pill {
-    background: rgba(30, 41, 59, 0.65);
-    border-color: rgba(255,255,255,0.10);
+    background: rgba(30, 41, 59, 0.70);
+    border-color: rgba(255, 255, 255, 0.12);
     color: #94A3B8;
   }
-  .agent-shell-root[data-night] .agent-segment-pill:hover {
+  .agent-shell-root[data-night] .agent-segment-pill:hover:not(:disabled):not(.on) {
     background: var(--agent-coral-bg-tint);
-    border-color: var(--agent-coral);
+    border-color: rgba(var(--agent-coral-rgb), 0.40);
     color: var(--agent-coral);
   }
   .agent-shell-root[data-night] .agent-segment-pill.on {
-    background: rgba(255,107,74,0.12);
+    background: rgba(255, 107, 74, 0.22);
     border-color: var(--agent-coral-deep);
     color: var(--agent-coral-deep);
+    box-shadow: 0 1px 3px rgba(255, 107, 74, 0.25);
   }
 
   .agent-shell-root[data-night] .agent-input,
