@@ -37,6 +37,8 @@ import { ClaimedToast } from "@/components/transaction/ClaimedToast";
 import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
 import { ReconcileLaterBanner } from "@/components/transaction/ReconcileLaterBanner";
+import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
+import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
@@ -460,6 +462,7 @@ export default async function AgentTransactionDetailPage({
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
       <Suspense><ClaimWelcomeModal address={transaction.propertyAddress} originatorAgency={originatorAgency ?? undefined} /></Suspense>
       <Suspense><ChainSetupFailedBanner /></Suspense>
+      <OnHoldBanner show={transaction.status === "on_hold"} />
       {transaction.chainLinkId && reconcileMilestoneDefinitions.length > 0 && (
         <ReconcileLaterBanner
           transactionId={id}
@@ -490,6 +493,15 @@ export default async function AgentTransactionDetailPage({
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
+
+          {transaction.serviceType === "self_managed" &&
+            (transaction.status === "active" || transaction.status === "on_hold") && (
+              <AutomationControls
+                transactionId={transaction.id}
+                initialClientEmailsPaused={transaction.clientEmailsPaused}
+                status={transaction.status as "active" | "on_hold"}
+              />
+            )}
 
           <ContactsSection
             transactionId={transaction.id}

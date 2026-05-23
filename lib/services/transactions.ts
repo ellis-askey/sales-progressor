@@ -622,6 +622,51 @@ export type CreateTransactionInput = {
   purchaserBrokerReferral?: boolean;
 };
 
+// Build a chaseRuleSnapshot from the current ReminderRule rows. Forward-only
+// semantics: Settings edits to ReminderRule apply to NEW transactions only;
+// existing transactions keep their snapshot. The cron reads timing from the
+// transaction's snapshot, falling back to live ReminderRule only when the
+// snapshot is missing or malformed. Migration backfilled snapshots for
+// pre-existing transactions; this function seeds them at creation time
+// from here on.
+async function buildChaseRuleSnapshot(): Promise<Record<string, {
+  graceDays: number;
+  repeatEveryDays: number;
+  useEventDate: boolean;
+  requiresExchangeReady: boolean;
+  anchorMilestoneCode: string | null;
+}>> {
+  const rules = await prisma.reminderRule.findMany({
+    where: { isActive: true, targetMilestoneCode: { not: null } },
+    select: {
+      targetMilestoneCode: true,
+      graceDays: true,
+      repeatEveryDays: true,
+      useEventDate: true,
+      requiresExchangeReady: true,
+      anchorMilestone: { select: { code: true } },
+    },
+  });
+  const out: Record<string, {
+    graceDays: number;
+    repeatEveryDays: number;
+    useEventDate: boolean;
+    requiresExchangeReady: boolean;
+    anchorMilestoneCode: string | null;
+  }> = {};
+  for (const r of rules) {
+    if (!r.targetMilestoneCode) continue;
+    out[r.targetMilestoneCode] = {
+      graceDays: r.graceDays,
+      repeatEveryDays: r.repeatEveryDays,
+      useEventDate: r.useEventDate,
+      requiresExchangeReady: r.requiresExchangeReady,
+      anchorMilestoneCode: r.anchorMilestone?.code ?? null,
+    };
+  }
+  return out;
+}
+
 export async function createTransaction(input: CreateTransactionInput) {
   const twelveWeekTarget = new Date();
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
@@ -630,10 +675,13 @@ export async function createTransaction(input: CreateTransactionInput) {
   const autoExchangeDate = new Date();
   autoExchangeDate.setDate(autoExchangeDate.getDate() + 84);
 
+  const chaseRuleSnapshot = await buildChaseRuleSnapshot();
+
   const tx = await prisma.propertyTransaction.create({
     data: {
       propertyAddress: input.propertyAddress,
       agencyId: input.agencyId,
+      chaseRuleSnapshot,
       assignedUserId: input.assignedUserId ?? null,
       agentUserId: input.agentUserId ?? null,
       progressedBy: input.progressedBy ?? "progressor",

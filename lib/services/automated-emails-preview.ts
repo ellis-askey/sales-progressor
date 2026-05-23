@@ -218,9 +218,27 @@ export async function getAutomatedEmailsForTransaction(
     }),
     prisma.propertyTransaction.findUnique({
       where: { id: transactionId },
-      select: { createdAt: true, status: true },
+      select: { createdAt: true, status: true, chaseRuleSnapshot: true },
     }),
   ]);
+
+  // Per-transaction snapshot read (same source the cron uses for timing).
+  // Settings edits to ReminderRule don't affect this file's predictions;
+  // the snapshot captured at creation time wins. Falls back to live rule
+  // values if the snapshot is missing/malformed.
+  type SnapEntry = { graceDays?: number; repeatEveryDays?: number };
+  type Snap = Record<string, SnapEntry | undefined>;
+  const snap: Snap = (transaction?.chaseRuleSnapshot && typeof transaction.chaseRuleSnapshot === "object")
+    ? (transaction.chaseRuleSnapshot as Snap)
+    : {};
+  function snapTiming(code: string): { graceDays?: number; repeatEveryDays?: number } {
+    const e = snap[code];
+    if (!e) return {};
+    return {
+      graceDays: typeof e.graceDays === "number" ? e.graceDays : undefined,
+      repeatEveryDays: typeof e.repeatEveryDays === "number" ? e.repeatEveryDays : undefined,
+    };
+  }
 
   const chaseableRules = allActiveRules.filter((r) =>
     r.targetMilestoneCode != null && isClientChaseable(r.targetMilestoneCode),
@@ -233,9 +251,9 @@ export async function getAutomatedEmailsForTransaction(
   const upcoming: UpcomingChase[] = [];
 
   // ── Kind 1: REPEAT chases from active CCS rows ──────────────────────
-  const repeatByCode = new Map<string, number>();
+  const liveRepeatByCode = new Map<string, number>();
   for (const r of chaseableRules) {
-    if (r.targetMilestoneCode) repeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
+    if (r.targetMilestoneCode) liveRepeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
   }
   for (const row of allCcsRows) {
     if (row.status !== "active") continue;
@@ -243,7 +261,7 @@ export async function getAutomatedEmailsForTransaction(
     if (!row.lastChasedAt) continue;
     // Engagement gate
     if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
-    const repeat = repeatByCode.get(row.milestoneCode);
+    const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
     if (repeat == null) continue;
     const candidate = addDays(row.lastChasedAt, repeat);
     const predicted = nextNonSundayFrom(candidate);
@@ -303,8 +321,10 @@ export async function getAutomatedEmailsForTransaction(
       }
       if (!anchorDate) continue;
 
-      // First-due date with the grace floor + Sunday-skip.
-      const grace = Math.max(rule.graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
+      // First-due date with the grace floor + Sunday-skip. Snapshot
+      // graceDays wins over the live rule when present.
+      const graceFromSnap = snapTiming(code).graceDays;
+      const grace = Math.max(graceFromSnap ?? rule.graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
       let firstDue = addDays(anchorDate, grace);
       // Past-due → normalise to today; cron will fire on the next non-Sunday run.
       if (firstDue < todayStart) firstDue = todayStart;

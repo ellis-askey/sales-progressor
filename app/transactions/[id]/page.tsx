@@ -14,6 +14,7 @@ import { listManualTasksForTransaction, countManualTasksDueToday } from "@/lib/s
 import { calculateProgress } from "@/lib/services/fees";
 import { AppShell } from "@/components/layout/AppShell";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
+import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
@@ -253,6 +254,7 @@ export default async function TransactionDetailPage({
   return (
     <AppShell session={session} activePath="/dashboard" todoCount={todoCount}>
       <div className="glass-page">
+      <OnHoldBanner show={transaction.status === "on_hold"} />
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}

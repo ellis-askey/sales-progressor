@@ -24,6 +24,7 @@ function fallbackChipText(kind: string): string {
     case "days_cap_exhausted":        return "14d silent — manual";
     case "no_email_on_contact":       return "No email — manual";
     case "no_portalToken_on_contact": return "No portal — manual";
+    case "client_emails_paused":      return "Client emails paused — manual";
     default:                          return "Manual handoff";
   }
 }
@@ -39,6 +40,8 @@ function fallbackChipTitle(kind: string): string {
       return "Can't chase automatically — the client contact has no email address. Manual chase needed.";
     case "no_portalToken_on_contact":
       return "Can't chase automatically — the client contact has no portal access. Manual chase needed.";
+    case "client_emails_paused":
+      return "Client emails are paused on this file. Chase manually if needed.";
     default:
       return "Manual chase needed.";
   }
