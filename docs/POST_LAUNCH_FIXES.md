@@ -2,6 +2,17 @@
 
 ---
 
+## TO FIX
+
+### M5min — `/api/cron/metrics-5min` route comment claims a schedule that doesn't exist
+**Symptom:** [app/api/cron/metrics-5min/route.ts:7](app/api/cron/metrics-5min/route.ts#L7) starts with `// Runs every 5 minutes via Vercel Cron (see vercel.json).` but the route is NOT registered in `vercel.json` — confirmed by `grep "metrics-5min" vercel.json` returning nothing. The intent was live intra-day `DailyMetric` counts for the command centre.
+**Why not a regression:** the file is older code (added in PR 17, predates this week) and the command centre doesn't currently read intra-day rollups (only the nightly `/api/cron/rollup-metrics` output), so no user-facing feature is degraded. Flagged because a comment claiming a schedule that doesn't fire is the kind of thing that misleads the next person who reads it.
+**Fix options (Monday):**
+- (a) Register the schedule in `vercel.json` (e.g. `*/5 * * * *`) if intra-day rollups are actually wanted.
+- (b) Delete the route + comment if not. Cleaner if nothing consumes intra-day rollups.
+
+---
+
 ## STANDING ODDITIES (not bugs — known divergences to track)
 
 ### Prod DB is ahead of prod code (as of 2026-05-23)
