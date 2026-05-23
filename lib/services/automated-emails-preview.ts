@@ -14,7 +14,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { getMilestoneCopy } from "@/lib/portal-copy";
-import { CLIENT_CHASE_COUNT_CAP } from "@/lib/services/client-chase-cron";
+import { CLIENT_CHASE_COUNT_CAP, CLIENT_CHASE_GRACE_FLOOR_DAYS } from "@/lib/services/client-chase-cron";
+import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
+import type { ContactRole } from "@prisma/client";
 
 export type PendingEmail = {
   id: string;
@@ -150,47 +152,96 @@ export async function getAutomatedEmailsForTransaction(
       };
     });
 
-  // ─── Upcoming (predicted from active ClientChaseState) ──────────────
-  // Skip rows where:
-  //   - status !== active (completed / escalated / opted_out have no chase ahead)
-  //   - chaseCount >= cap (no more chase emails; escalation territory)
-  //   - chaseCount === 0 (no firstChasedAt; would need anchor lookup — v1 skip)
-  //   - lastEngagedAt > lastChasedAt (engagement paused the loop)
-  const ccsRows = await prisma.clientChaseState.findMany({
-    where: {
-      transactionId,
-      status: "active",
-      chaseCount: { gt: 0, lt: CLIENT_CHASE_COUNT_CAP },
-    },
-    select: {
-      contactId: true,
-      milestoneCode: true,
-      chaseCount: true,
-      lastChasedAt: true,
-      lastEngagedAt: true,
-      contact: {
-        select: { id: true, name: true, roleType: true },
-      },
-    },
-  });
+  // ─── Upcoming (predicted) — two kinds combined ──────────────────────
+  //
+  // Kind 1: REPEAT chases — predict next-fire from active CCS rows with
+  //         chaseCount in (0, cap). Logic = lastChasedAt + repeatEveryDays,
+  //         engagement-gated. Excludes paused-after-engagement rows.
+  //
+  // Kind 2: FIRST chases — predict when a milestone's first chase will
+  //         fire. For each chaseable rule × eligible contact where there's
+  //         no CCS row yet AND the target milestone is "available" AND
+  //         the anchor is satisfied: compute anchor + max(grace, floor),
+  //         Sunday-skip, include if within horizon. Mirrors the same
+  //         setup logic as findDueClientChases in client-chase-cron.ts.
+  //
+  // Both kinds load from a shared set of bulk queries (rules + defs +
+  // completions + contacts + all-ccs-rows for this transaction) so the
+  // total query count stays small.
 
-  // Bulk-load ReminderRule rows for repeatEveryDays lookup
-  const codes = Array.from(new Set(ccsRows.map((r) => r.milestoneCode)));
-  const rules = codes.length > 0
-    ? await prisma.reminderRule.findMany({
-        where: { isActive: true, targetMilestoneCode: { in: codes } },
-        select: { targetMilestoneCode: true, repeatEveryDays: true },
-      })
-    : [];
-  const repeatByCode = new Map<string, number>();
-  for (const r of rules) {
-    if (r.targetMilestoneCode) repeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
-  }
+  const [allCcsRows, allActiveRules, allDefs, allCompletions, contacts, transaction] = await Promise.all([
+    prisma.clientChaseState.findMany({
+      where: { transactionId },
+      select: {
+        contactId: true,
+        milestoneCode: true,
+        status: true,
+        chaseCount: true,
+        lastChasedAt: true,
+        lastEngagedAt: true,
+        contact: { select: { id: true, name: true, roleType: true } },
+      },
+    }),
+    prisma.reminderRule.findMany({
+      where: { isActive: true, targetMilestoneCode: { not: null } },
+      select: {
+        targetMilestoneCode: true,
+        anchorMilestoneId: true,
+        graceDays: true,
+        repeatEveryDays: true,
+        useEventDate: true,
+        requiresExchangeReady: true,
+      },
+    }),
+    prisma.milestoneDefinition.findMany({
+      select: { id: true, code: true, blocksExchange: true },
+    }),
+    prisma.milestoneCompletion.findMany({
+      where: { transactionId },
+      select: {
+        milestoneDefinitionId: true,
+        state: true,
+        completedAt: true,
+        eventDate: true,
+        reconciledAtClaim: true,
+      },
+    }),
+    prisma.contact.findMany({
+      where: {
+        propertyTransactionId: transactionId,
+        roleType: { in: ["vendor", "purchaser"] },
+        unsubscribedAt: null,
+        email: { not: null },
+        portalToken: { not: null },
+      },
+      select: { id: true, name: true, roleType: true },
+    }),
+    prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { createdAt: true, status: true },
+    }),
+  ]);
+
+  const chaseableRules = allActiveRules.filter((r) =>
+    r.targetMilestoneCode != null && isClientChaseable(r.targetMilestoneCode),
+  );
+  const defByCode = new Map(allDefs.map((d) => [d.code, d.id]));
+  const blockerDefIds = new Set(allDefs.filter((d) => d.blocksExchange).map((d) => d.id));
+  const completionByDefId = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c]));
+  const existingCcsKeys = new Set(allCcsRows.map((r) => `${r.contactId}:${r.milestoneCode}`));
 
   const upcoming: UpcomingChase[] = [];
-  for (const row of ccsRows) {
+
+  // ── Kind 1: REPEAT chases from active CCS rows ──────────────────────
+  const repeatByCode = new Map<string, number>();
+  for (const r of chaseableRules) {
+    if (r.targetMilestoneCode) repeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
+  }
+  for (const row of allCcsRows) {
+    if (row.status !== "active") continue;
+    if (row.chaseCount <= 0 || row.chaseCount >= CLIENT_CHASE_COUNT_CAP) continue;
     if (!row.lastChasedAt) continue;
-    // Engagement gate: if engaged after the last chase, no upcoming chase.
+    // Engagement gate
     if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
     const repeat = repeatByCode.get(row.milestoneCode);
     if (repeat == null) continue;
@@ -207,6 +258,85 @@ export async function getAutomatedEmailsForTransaction(
       chaseNumber: row.chaseCount + 1,
     });
   }
+
+  // ── Kind 2: FIRST chases (milestone available, no CCS row yet) ──────
+  // Requires the transaction to be active (closed/declined files don't
+  // chase) — short-circuit if status differs.
+  if (transaction && transaction.status === "active") {
+    const exchangeReady = Array.from(blockerDefIds).every((defId) => {
+      const c = completionByDefId.get(defId);
+      return c && (c.state === "complete" || c.state === "not_required");
+    });
+
+    const todayStart = new Date(now);
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    for (const rule of chaseableRules) {
+      const code = rule.targetMilestoneCode;
+      if (!code) continue;
+      const targetDefId = defByCode.get(code);
+      if (!targetDefId) continue;
+
+      // Target must currently be "available" to be chaseable
+      const targetComp = completionByDefId.get(targetDefId);
+      if (!targetComp || targetComp.state !== "available") continue;
+
+      // Exchange-ready gate (matches cron)
+      if (rule.requiresExchangeReady && !exchangeReady) continue;
+
+      // Compute anchor date with the same precedence as the cron's
+      // computeAnchorDate (reconciledAtClaim → eventDate; useEventDate;
+      // else completedAt; null-anchor rules use transaction.createdAt).
+      let anchorDate: Date | null = null;
+      if (rule.anchorMilestoneId) {
+        const ac = completionByDefId.get(rule.anchorMilestoneId);
+        if (!ac || ac.state !== "complete") continue; // anchor not yet done
+        if (ac.reconciledAtClaim) {
+          anchorDate = ac.eventDate ?? null;
+        } else if (rule.useEventDate && ac.eventDate) {
+          anchorDate = ac.eventDate;
+        } else {
+          anchorDate = ac.completedAt ?? transaction.createdAt;
+        }
+      } else {
+        anchorDate = transaction.createdAt;
+      }
+      if (!anchorDate) continue;
+
+      // First-due date with the grace floor + Sunday-skip.
+      const grace = Math.max(rule.graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
+      let firstDue = addDays(anchorDate, grace);
+      // Past-due → normalise to today; cron will fire on the next non-Sunday run.
+      if (firstDue < todayStart) firstDue = todayStart;
+      firstDue = nextNonSundayFrom(firstDue);
+      if (firstDue > upcomingHorizon) continue;
+
+      // Recipient side from code prefix (matches cron's sideForMilestoneCode)
+      const side: ContactRole | null =
+        code.startsWith("VM") ? "vendor"
+        : code.startsWith("PM") ? "purchaser"
+        : null;
+      if (!side) continue;
+      const recipients = contacts.filter((c) => c.roleType === side);
+
+      for (const contact of recipients) {
+        // Skip if a CCS row of any status already exists — repeat-kind
+        // (or skip-because-completed/escalated/opted-out) already handles it.
+        if (existingCcsKeys.has(`${contact.id}:${code}`)) continue;
+
+        upcoming.push({
+          contactId: contact.id,
+          contactName: contact.name,
+          contactRole: contact.roleType,
+          milestoneCode: code,
+          milestoneLabel: getMilestoneCopy(code).label,
+          predictedFireDate: firstDue,
+          chaseNumber: 1, // first chase
+        });
+      }
+    }
+  }
+
   // Earliest-firing first
   upcoming.sort((a, b) => a.predictedFireDate.getTime() - b.predictedFireDate.getTime());
 
