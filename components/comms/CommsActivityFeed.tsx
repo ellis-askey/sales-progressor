@@ -95,7 +95,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-medium text-slate-900/80">{m.milestoneName}</span>
+                                <span className="text-[13px] font-medium text-slate-900/80">{m.milestoneName}</span>
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{
                                   display: "inline-flex", alignItems: "center", gap: 4,
                                   background: ROLE_PILL_BG[m.side === "vendor" ? "vendor" : "purchaser"],
