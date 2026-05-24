@@ -480,6 +480,40 @@ The gate is built to read whatever's in the `TermsVersion` table. PR 6 ships the
 
 Until both steps are done, PR 6 is shippable as code but the card form will refuse to render — by design.
 
+### Step 3 — PR 7 deliverables: webhook secret + endpoint registration + live keys for prod
+
+PR 7 (real charging + failed-payment block) needs three things from you before it can flip to live in production. None of these are needed for staging — the staging deploy works against test-mode keys and there's no real charging on staging.
+
+**3a — Register the Stripe webhook endpoint.**
+- Go to Stripe Dashboard → **Developers → Webhooks → Add endpoint**.
+- Do this twice: once in **Test mode** (for the staging deploy), once in **Live mode** (for production). They produce different signing secrets.
+- Endpoint URL:
+  - Staging test-mode: `https://salesprogressor-git-staging-ellis-askeys-projects.vercel.app/api/webhooks/stripe`
+  - Production live-mode: `https://portal.thesalesprogressor.co.uk/api/webhooks/stripe`
+- Events to send: `invoice.payment_succeeded`, `invoice.payment_failed`. (Add more later if PR 7+ extends to other event types.)
+- After saving each endpoint, Stripe shows a **signing secret** (starts `whsec_...`).
+- Add to Vercel env:
+  - `STRIPE_WEBHOOK_SECRET` on **staging** = the test-mode whsec
+  - `STRIPE_WEBHOOK_SECRET` on **production** = the live-mode whsec
+- Tell CC when both are set.
+
+**3b — Swap production STRIPE_*_KEY env vars from test-mode to live-mode keys.**
+
+This is the moment real charging becomes possible on production — only do it when you're ready for that and have completed Stripe account activation.
+- In Stripe Dashboard, toggle to **Live mode**.
+- From Developers → API keys, copy the **Live** publishable key (`pk_live_...`) and secret key (`sk_live_...`).
+- In Vercel **production** env, replace:
+  - `STRIPE_PUBLISHABLE_KEY` → the live `pk_live_...`
+  - `STRIPE_SECRET_KEY` → the live `sk_live_...`
+- Staging stays on test-mode keys. Do NOT put live keys in the staging environment — staging should never charge real cards.
+- After swap, the first real exchange in a new billing month on production will charge real money on the 1st of the following month. The accrual cron is already scheduled; PR 7 adds the issuance cron that does the actual Stripe charge.
+
+**3c — Insert the 2026-05-payments-v1 TermsVersion row on production.**
+
+This is the "PR 6 goes live" moment. CC will provide a small one-shot script with the same hard prod guard (validates project ID) as the staging insert. Only run it after Steps 1–3a above are done, and you've walked the full staging arc clean.
+
+Once all three steps complete, PR 6 + PR 7 are both fully live in production.
+
 ---
 
 ## Future, deferred, not urgent

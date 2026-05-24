@@ -6,6 +6,7 @@ import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/
 import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
+import { assertCanCreateFile } from "@/lib/billing/payment-block";
 
 export async function listTransactions(
   agencyId: string,
@@ -710,6 +711,13 @@ export async function createTransaction(input: CreateTransactionInput) {
   const chaseRuleSnapshot = await buildChaseRuleSnapshot();
 
   const newTx = await prisma.$transaction(async (tx) => {
+    // Payments: refuse new files if the agency has an overdue failed payment
+    // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws
+    // PaymentBlockedError which the caller surfaces as a "update your card"
+    // UX message. Existing files keep running regardless — block is strictly
+    // on NEW file creation. See lib/billing/payment-block.ts.
+    await assertCanCreateFile(input.agencyId, tx);
+
     // Stamp the frozen-trial state. If this is the agency's first-ever
     // PropertyTransaction, Agency.firstSubmissionAt is set inside this same
     // tx; the returned boolean is persisted on the new row and NEVER

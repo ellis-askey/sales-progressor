@@ -22,6 +22,7 @@ import {
 } from "@/components/hub/HubCharts";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
+import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight, Warning, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -271,6 +272,13 @@ export default async function HubPreviewPage() {
 
       {/* ── Content ────────────────────────────────────────────────────────────── */}
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* ── Payments — failed-payment warning or block notice ─────────────────── */}
+        {/* Self-hides for non-directors and for "ok" state. Hub is the right
+            surface — it's the first page a director sees after login. */}
+        {role === "director" && session.user.agencyId && (
+          <PaymentBlockBanner agencyId={session.user.agencyId} />
+        )}
 
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}
         {diaryItems.length > 0 && (
