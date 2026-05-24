@@ -231,8 +231,18 @@ export async function updateRetentionEmailOptOutAction(optedOut: boolean) {
 
 // Diagnostic — fires a one-off test push to every device subscribed by the
 // current user. Bypasses per-event toggles (it's a "did setup work?" check,
-// not an event-driven push). If no devices are subscribed, the call to
-// pushToUser is a no-op so the action returns ok with deliveredCount=0.
+// not an event-driven push).
+//
+// Surfaces three distinct failure modes so the user knows what's broken:
+//   - reason: "no_devices"           — no subscription rows yet
+//   - reason: "vapid_not_configured" — server lacks VAPID_PRIVATE_KEY or
+//                                       VAPID_PUBLIC_KEY env vars; pushToUser
+//                                       would silently no-op without them.
+//                                       Caller needs to set the env on Vercel.
+//   - ok + deliveredCount > 0        — request handed off to web-push; if the
+//                                       device still doesn't show a notification
+//                                       the failure is downstream (browser,
+//                                       OS-level DND, or stale subscription).
 export async function sendTestPushAction() {
   const session = await requireSession();
 
@@ -242,6 +252,16 @@ export async function sendTestPushAction() {
 
   if (before === 0) {
     return { ok: true as const, deliveredCount: 0, reason: "no_devices" as const };
+  }
+
+  // Server-side env check — surfaces the most common silent-failure mode.
+  // Mirror the same gate that getWebPush() uses in lib/services/push.ts.
+  if (!process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_PUBLIC_KEY) {
+    return {
+      ok: true as const,
+      deliveredCount: 0,
+      reason: "vapid_not_configured" as const,
+    };
   }
 
   await pushToUser(session.user.id, {

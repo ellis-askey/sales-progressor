@@ -230,7 +230,11 @@ export function MobilePushSection({
         return;
       }
       if (result.deliveredCount === 0) {
-        setTestStatus("No devices subscribed yet — enable on this device first.");
+        if ("reason" in result && result.reason === "vapid_not_configured") {
+          setTestStatus("Push isn't configured on the server (VAPID env vars missing).");
+        } else {
+          setTestStatus("No devices subscribed yet — enable on this device first.");
+        }
         return;
       }
       setTestStatus(
@@ -242,7 +246,7 @@ export function MobilePushSection({
       setTestStatus("Couldn't send — check console");
     }
     // Auto-clear after a few seconds so the UI doesn't get stuck.
-    setTimeout(() => setTestStatus(null), 5000);
+    setTimeout(() => setTestStatus(null), 8000);
   }
 
   function deviceLabel(d: SubscribedDevice): string {
