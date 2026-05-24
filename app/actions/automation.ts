@@ -243,7 +243,7 @@ export async function updateEmailPayload(
       recipientContact: {
         select: {
           propertyTransactionId: true,
-          transaction: { select: { agencyId: true, agentUserId: true } },
+          transaction: { select: { agencyId: true, agentUserId: true, assignedUserId: true } },
         },
       },
     },
@@ -260,11 +260,25 @@ export async function updateEmailPayload(
   const tx = email.recipientContact?.transaction;
   if (!tx) return { ok: false, error: "Email's transaction not found." };
 
-  // Permission gate: director in this agency OR the file's assigned agent.
-  const isDirector =
-    session.user.role === "director" && session.user.agencyId === tx.agencyId;
-  const isAssignedAgent = tx.agentUserId === session.user.id;
-  if (!isDirector && !isAssignedAgent) {
+  // Permission gate: anyone who can VIEW this email can also edit it
+  // (mirrors the inScope rule in getEmailForPreview). Effectively:
+  //   admin / superadmin  → any file platform-wide
+  //   sales_progressor    → their assigned outsourced files
+  //   director            → any file in their agency
+  //   negotiator / viewer → files where they're the assigned agent
+  // Plus the gates above: emailType=CLIENT_CHASE + still pending.
+  const role = session.user.role;
+  let inScope = false;
+  if (role === "admin" || role === "superadmin") {
+    inScope = true;
+  } else if (role === "sales_progressor") {
+    inScope = tx.assignedUserId === session.user.id;
+  } else if (role === "director") {
+    inScope = tx.agencyId === session.user.agencyId;
+  } else if (role === "negotiator" || role === "viewer") {
+    inScope = tx.agencyId === session.user.agencyId && tx.agentUserId === session.user.id;
+  }
+  if (!inScope) {
     return { ok: false, error: "You don't have permission to edit this email." };
   }
 
@@ -361,10 +375,10 @@ export async function getEmailForPreview(emailId: string): Promise<{
   }
   if (!inScope) return { ok: false, error: "Not found." };
 
-  const isDirector = role === "director" && tx.agencyId === session.user.agencyId;
-  const isAssignedAgent = tx.agentUserId === session.user.id;
+  // Editable when in-scope (anyone who can VIEW) AND the email is still
+  // editable in principle (chase + pending). Mirrors updateEmailPayload.
   const canEdit =
-    (isDirector || isAssignedAgent) &&
+    inScope &&
     email.emailType === "CLIENT_CHASE" &&
     email.sentAt === null &&
     email.errorAt === null;
