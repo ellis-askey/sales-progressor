@@ -11,7 +11,7 @@ import type { AgentTheme, MobileAgentTheme } from "@/lib/agent/themes";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   PlusCircle, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -49,6 +49,9 @@ function buildNavGroups(role: UserRole) {
     main,
     secondary: [
       { href: "/agent/partners",    label: "Partners",    Icon: Buildings     },
+      // Billing is director-only — negotiators 404 on the page anyway.
+      // Hidden from the nav for non-directors so it doesn't surface a dead link.
+      ...(role === "director" ? [{ href: "/agent/billing", label: "Billing", Icon: CreditCard }] : []),
     ],
   };
 }
