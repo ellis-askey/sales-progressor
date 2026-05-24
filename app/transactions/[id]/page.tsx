@@ -6,7 +6,7 @@ import { getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
-import { getActivityTimeline } from "@/lib/services/comms";
+import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { getPortalViewDates } from "@/lib/services/portal";
 import type { ActivityEntry } from "@/lib/services/comms";
@@ -51,7 +51,7 @@ export default async function TransactionDetailPage({
   const scope = getAccessScope(session);
 
   try {
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap, automatedEmails] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap, automatedEmails, automatedEmailCounts] = await Promise.all([
     getTransactionByScope(id, scope),
     getMilestonesForTransaction(id, null).catch(() => null),
     getReminderLogsForTransaction(id, null).catch(() => []),
@@ -63,6 +63,8 @@ export default async function TransactionDetailPage({
     // Automated-emails preview for the AutomatedEmailsCard at the top of
     // the Reminders tab. Same data shape as the agent file-detail page.
     getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
+    // Per-contact automated-email tally for the ContactsSection over-chase pill.
+    getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
   ]);
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
@@ -307,7 +309,7 @@ export default async function TransactionDetailPage({
 
           {/* People — contacts + solicitors */}
           <div className="grid grid-cols-2 gap-5">
-            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} portalViewDates={portalViewDates} />
+            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} portalViewDates={portalViewDates} automatedEmailCounts={automatedEmailCounts} />
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{

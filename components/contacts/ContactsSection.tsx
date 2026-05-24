@@ -9,6 +9,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
+import { Envelope } from "@phosphor-icons/react";
 import type { ContactRole } from "@prisma/client";
 
 function whatsappHref(phone: string): string {
@@ -71,16 +72,38 @@ const EMPTY_FORM = {
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
 const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
 
+// Threshold ladder for the per-contact automated-email pill. Tuned conservatively
+// — anything ≥5 warrants a glance, ≥10 likely needs intervention. Single source
+// of truth so the agent app feels consistent if the pill ever moves elsewhere.
+const AUTO_EMAIL_AMBER_AT = 5;
+const AUTO_EMAIL_RED_AT = 10;
+
+function autoEmailTone(count: number): { bg: string; fg: string } | null {
+  if (count <= 0) return null;
+  if (count >= AUTO_EMAIL_RED_AT) {
+    return { bg: "rgba(var(--agent-danger-rgb), 0.10)", fg: "var(--agent-danger)" };
+  }
+  if (count >= AUTO_EMAIL_AMBER_AT) {
+    return { bg: "rgba(var(--agent-warning-rgb), 0.10)", fg: "var(--agent-warning)" };
+  }
+  return { bg: "rgba(15,23,42,0.06)", fg: "var(--agent-text-muted)" };
+}
+
 export function ContactsSection({
   transactionId,
   contacts,
   address = "",
   portalViewDates = {},
+  automatedEmailCounts = {},
 }: {
   transactionId: string;
   contacts: Contact[];
   address?: string;
   portalViewDates?: Record<string, Date>;
+  // Map of contactId -> count of automated emails fired against this file.
+  // Hidden when count=0; tone shifts amber at 5, red at 10. Drives the
+  // "is this person being over-chased?" signal on each row.
+  automatedEmailCounts?: Record<string, number>;
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -250,7 +273,7 @@ export function ContactsSection({
                         </span>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       {contact.phone && (
                         <a data-sensitive="true" href={whatsappHref(contact.phone)} className="agent-link agent-link-muted" style={{ fontSize: 10 }}>
                           {contact.phone}
@@ -261,6 +284,36 @@ export function ContactsSection({
                           {contact.email}
                         </a>
                       )}
+                      {(() => {
+                        const n = automatedEmailCounts[contact.id] ?? 0;
+                        const tone = autoEmailTone(n);
+                        if (!tone) return null;
+                        const label = `${n} auto email${n === 1 ? "" : "s"}`;
+                        const title = n >= AUTO_EMAIL_RED_AT
+                          ? `${label} — likely over-chasing; consider pausing client emails`
+                          : n >= AUTO_EMAIL_AMBER_AT
+                            ? `${label} — review chase cadence`
+                            : label;
+                        return (
+                          <span
+                            title={title}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                              background: tone.bg,
+                              color: tone.fg,
+                            }}
+                          >
+                            <Envelope size={11} weight="fill" />
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 

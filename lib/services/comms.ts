@@ -117,6 +117,29 @@ export async function getActivityTimeline(
   );
 }
 
+// Counts automated emails (cron-fired chases / notifications) per contact on
+// a transaction. Used by the contact rows on the file detail page to surface
+// "is this person being over-chased?" — a signal the agent can't see otherwise
+// because they didn't author these messages themselves.
+//
+// One round-trip + JS aggregation: per file there are typically <50 automated
+// rows and <8 contacts; not worth a groupBy or N count() queries.
+export async function getAutomatedEmailCountsByContact(
+  transactionId: string,
+): Promise<Record<string, number>> {
+  const rows = await prisma.outboundMessage.findMany({
+    where: { transactionId, isAutomated: true, channel: "email" },
+    select: { contactIds: true },
+  });
+  const counts: Record<string, number> = {};
+  for (const r of rows) {
+    for (const cid of r.contactIds) {
+      counts[cid] = (counts[cid] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export type CreateCommInput = {

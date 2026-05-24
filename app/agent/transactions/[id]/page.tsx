@@ -4,7 +4,7 @@ import { getTransaction, getTransactionByScope } from "@/lib/services/transactio
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
-import { getActivityTimeline } from "@/lib/services/comms";
+import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
@@ -62,7 +62,7 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = session.user.role === "admin";
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     isInternalStaff
@@ -82,6 +82,10 @@ export default async function AgentTransactionDetailPage({
     // Automated-emails preview — pending + sent today + predicted upcoming
     // for the AutomatedEmailsCard at the top of the Reminders tab.
     getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
+    // Per-contact tally of automated emails fired against this file. Drives
+    // the small "5 auto emails" pill on each ContactsSection row so an
+    // over-chased recipient is visible at a glance.
+    getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
   ]);
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
@@ -522,6 +526,7 @@ export default async function AgentTransactionDetailPage({
                 .filter((c) => c.lastVisitedPortalAt)
                 .map((c) => [c.id, c.lastVisitedPortalAt as Date])
             )}
+            automatedEmailCounts={automatedEmailCounts}
           />
 
           <NextMilestoneWidget
