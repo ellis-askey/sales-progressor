@@ -183,6 +183,11 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|bg-test|login-preview|helpdrawertest|audit-gallery|test|api/auth|api/portal|api/register|api/seed-demo|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    // sw.js MUST be excluded from middleware — service workers refuse to
+    // register if their script comes through any redirect, and the agent-
+    // route gate below would 307 /sw.js for agent users (no matching prefix
+    // in agentAllowed). Exclude as a literal path so the file is served
+    // as a pure static asset.
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|bg-test|login-preview|helpdrawertest|audit-gallery|test|api/auth|api/portal|api/register|api/seed-demo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };
