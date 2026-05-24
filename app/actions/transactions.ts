@@ -48,6 +48,12 @@ export async function createTransactionAction(input: {
   mosMimeType?: string;
   mosFilename?: string;
   forceCreate?: boolean;
+  // Admin-only migration overrides. createdAt backdates the file; agencyId
+  // + assignedUserId let admin create FOR a different agency / progressor.
+  // Action throws Forbidden if any of these is supplied by a non-admin.
+  migrationCreatedAt?: Date;
+  migrationAgencyId?: string;
+  migrationAssignedUserId?: string;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -63,13 +69,27 @@ export async function createTransactionAction(input: {
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
+  const isAdmin = session.user.role === "admin";
   const resolvedProgressedBy = isAgent ? input.progressedBy : "progressor";
 
-  // Duplicate address guard: normalise and check within agency for active files
-  if (session.user.agencyId) {
+  // Admin-only migration overrides. Block any non-admin from passing them.
+  const hasMigrationOverride = !!(input.migrationCreatedAt || input.migrationAgencyId || input.migrationAssignedUserId);
+  if (hasMigrationOverride && !isAdmin) {
+    throw new Error("Forbidden: migration overrides require admin role");
+  }
+  const effectiveAgencyId = input.migrationAgencyId ?? session.user.agencyId;
+  if (!effectiveAgencyId) {
+    throw new Error("Cannot create transaction without an agency");
+  }
+  const effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
+
+  // Duplicate address guard: normalise and check within agency for active files.
+  // Scope the check to the EFFECTIVE agency (admin migration may target a
+  // different agency than the admin's own — admin's own agencyId is null anyway).
+  if (effectiveAgencyId) {
     const normAddress = input.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim();
     const allActive = await prisma.propertyTransaction.findMany({
-      where: { agencyId: session.user.agencyId, status: { in: ["active", "on_hold"] } },
+      where: { agencyId: effectiveAgencyId, status: { in: ["active", "on_hold"] } },
       select: { id: true, propertyAddress: true, agentUser: { select: { name: true } } },
     });
     const duplicate = allActive.find(
@@ -88,9 +108,10 @@ export async function createTransactionAction(input: {
 
   const tx = await createTransaction({
     propertyAddress: input.propertyAddress,
-    agencyId: session.user.agencyId,
-    assignedUserId: isAgent ? undefined : session.user.id,
+    agencyId: effectiveAgencyId,
+    assignedUserId: effectiveAssignedUserId,
     agentUserId: isAgent ? session.user.id : null,
+    createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,
     tenure: input.tenure,

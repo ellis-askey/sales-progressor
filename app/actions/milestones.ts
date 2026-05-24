@@ -27,6 +27,7 @@ import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
+import { evaluateTransactionReminders } from "@/lib/services/reminders";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -756,6 +757,125 @@ export async function reconcileClaimMilestonesAction(input: {
       // Continue with the rest — partial reconciliation is better than none
     }
   }
+
+  revalidateTx(input.transactionId);
+  return { applied };
+}
+
+// ─── Admin migration: backdated bulk tick + comms entries ───────────────────
+// Admin-only. Marks a batch of milestones complete with HISTORICAL dates from
+// the old system, mirroring how reconcileClaimMilestonesAction works but with:
+//   - no reconciledAtClaim flag (this isn't a claim event)
+//   - "[Migrated]" prefix on summaryText so the activity feed shows provenance
+//   - an OutboundMessage internal_note per milestone with backdated sentAt so
+//     the Updates feed reads chronologically from the historical dates
+//   - a single evaluateTransactionReminders pass at the end to recompute the
+//     reminder picture against the new completion state
+//
+// Caller (the migration page) is expected to call createTransactionAction first
+// with migrationCreatedAt set, then call this for the historical milestones.
+export async function migrateCompleteMilestonesAction(input: {
+  transactionId: string;
+  completions: Array<{ milestoneDefinitionId: string; eventDate: string }>;
+}): Promise<{ applied: number }> {
+  const session = await requireSession();
+  if (session.user.role !== "admin") {
+    throw new Error("Forbidden: migration action requires admin role");
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { id: true, agencyId: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (input.completions.length === 0) return { applied: 0 };
+
+  const defIds = input.completions.map((c) => c.milestoneDefinitionId);
+  const defs = await prisma.milestoneDefinition.findMany({
+    where: { id: { in: defIds } },
+    select: { id: true, code: true, name: true },
+  });
+  const defById = new Map(defs.map((d) => [d.id, d]));
+
+  let applied = 0;
+
+  for (let i = 0; i < input.completions.length; i++) {
+    const c = input.completions[i]!;
+    const def = defById.get(c.milestoneDefinitionId);
+    if (!def) continue;
+
+    const eventDateObj = new Date(c.eventDate);
+    if (Number.isNaN(eventDateObj.getTime())) continue;
+    const dateLabel = eventDateObj.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    const summaryText = `[Migrated] ${def.name} — completed ${dateLabel}`;
+
+    try {
+      await prisma.milestoneCompletion.upsert({
+        where: {
+          transactionId_milestoneDefinitionId: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: c.milestoneDefinitionId,
+          },
+        },
+        create: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: c.milestoneDefinitionId,
+          state: "complete",
+          completedAt: eventDateObj,
+          eventDate: eventDateObj,
+          completedById: session.user.id,
+          summaryText,
+        },
+        update: {
+          state: "complete",
+          completedAt: eventDateObj,
+          eventDate: eventDateObj,
+          completedById: session.user.id,
+          notRequiredReason: null,
+          summaryText,
+        },
+      });
+
+      // Backdated internal-note comms entry so the Updates feed shows the
+      // file's history rather than starting blank.
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: input.transactionId,
+          agencyId: tx.agencyId,
+          type: "internal_note",
+          contactIds: [],
+          content: `[Migrated] ${def.name} completed on ${dateLabel}`,
+          createdById: session.user.id,
+          createdByRole: "admin",
+          sentAt: eventDateObj,
+        },
+      }).catch((err) =>
+        console.error(`[migrateCompleteMilestonesAction] comms write failed for ${def.code}:`, err),
+      );
+
+      await unlockDirectDependents(input.transactionId, def.code).catch((err) =>
+        console.error(`[migrateCompleteMilestonesAction] unlock failed for ${def.code}:`, err),
+      );
+
+      applied++;
+    } catch (err) {
+      console.error(
+        `[migrateCompleteMilestonesAction] failed to apply ${def.code} on tx ${input.transactionId}:`,
+        err,
+      );
+    }
+  }
+
+  // One reminder-engine pass against the new completion state — seeds the
+  // reminders the file should have right now, no duplicates for completed ones.
+  await evaluateTransactionReminders(input.transactionId).catch((err) =>
+    console.error(`[migrateCompleteMilestonesAction] reminder evaluate failed:`, err),
+  );
 
   revalidateTx(input.transactionId);
   return { applied };

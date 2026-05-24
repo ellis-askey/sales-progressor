@@ -626,6 +626,11 @@ export type CreateTransactionInput = {
   agentUserId?: string | null;
   progressedBy?: "progressor" | "agent";
   expectedExchangeDate?: Date | null;
+  // Admin-only override for migrating historical files. When set, createdAt
+  // is persisted as the supplied date and the 12-week target is anchored
+  // to it (so a 6-week-old migrated file has its target 6 weeks from now,
+  // not 12). Caller is responsible for verifying admin role before passing.
+  createdAt?: Date;
   purchasePrice?: number | null;
   tenure?: Tenure | null;
   isShareOfFreehold?: boolean;
@@ -692,11 +697,13 @@ async function buildChaseRuleSnapshot(): Promise<Record<string, {
 }
 
 export async function createTransaction(input: CreateTransactionInput) {
-  const twelveWeekTarget = new Date();
+  // Anchor the 12-week target to createdAt when supplied (admin migration),
+  // otherwise to now (standard create). Same date drives expectedExchangeDate.
+  const anchor = input.createdAt ?? new Date();
+  const twelveWeekTarget = new Date(anchor);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
 
-  // Auto-set exchange date to 12 weeks out if not provided
-  const autoExchangeDate = new Date();
+  const autoExchangeDate = new Date(anchor);
   autoExchangeDate.setDate(autoExchangeDate.getDate() + 84);
 
   const chaseRuleSnapshot = await buildChaseRuleSnapshot();
@@ -705,6 +712,7 @@ export async function createTransaction(input: CreateTransactionInput) {
     data: {
       propertyAddress: input.propertyAddress,
       agencyId: input.agencyId,
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
       chaseRuleSnapshot,
       assignedUserId: input.assignedUserId ?? null,
       agentUserId: input.agentUserId ?? null,
