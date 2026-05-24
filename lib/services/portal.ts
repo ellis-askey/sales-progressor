@@ -381,21 +381,23 @@ export async function portalCompleteMilestone(input: {
     where: { id: contact.propertyTransactionId },
     select: { propertyAddress: true },
   }))?.propertyAddress.split(",")[0] ?? "Your file";
-  let pushTitle = "Progress update";
-  let pushBody = `${short} — "${label}" is complete.`;
+  // Unified exchange / completion / ready-to-exchange strings — matches
+  // confirmMilestoneAction and confirmExchangeReconciliationAction.
+  let pushTitle = "One step closer";
+  let pushBody = `${label}, done at ${short}.`;
   if (def.code === "VM19" || def.code === "PM26") {
     pushTitle = "Contracts exchanged!";
-    pushBody = `${short} — your transaction is now legally committed.`;
+    pushBody = `${short}. The sale is now legally binding. Congratulations.`;
   } else if (def.code === "VM20" || def.code === "PM27") {
-    pushTitle = "Completed!";
-    pushBody = `${short} — congratulations, your transaction has completed.`;
+    pushTitle = "It's completed!";
+    pushBody = `${short} is yours. Congratulations on your move.`;
   } else if (def.code === "VM18" || def.code === "PM25") {
     pushTitle = "Ready to exchange";
-    pushBody = `${short} — your solicitor has confirmed everything is in place.`;
+    pushBody = `Everything's in place at ${short}. Exchange is next.`;
   } else if (input.eventDate) {
     const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    pushTitle = `Date confirmed — ${short}`;
-    pushBody = `${label}: ${fmtDate}`;
+    pushTitle = `Date confirmed: ${short}`;
+    pushBody = `${label} booked for ${fmtDate}`;
   }
   pushToTransaction(contact.propertyTransactionId, {
     title: pushTitle,
@@ -522,8 +524,11 @@ export async function logPortalMilestoneConfirm(
   // users still see it on their next SP visit.
   if (bellUserId && prefsByUser.get(bellUserId)?.push?.clientConfirmation === true) {
     const shortAddress = address.split(",")[0];
+    // portalLabel is the shorter portal-copy label computed earlier from
+    // getMilestoneCopy(milestoneCode).label; falls back to milestoneLabel
+    // (MilestoneDefinition.name) when no portal copy exists for the code.
     pushToUser(bellUserId, {
-      title: `${contactName} confirmed: ${milestoneLabel}`,
+      title: `${contactName} confirmed: ${portalLabel}`,
       body:  shortAddress,
       url:   dashUrl,
     }).catch(() => {});
@@ -680,32 +685,36 @@ export async function logPortalMilestoneConfirm(
   const isCompletion = milestoneCode === "VM20" || milestoneCode === "PM27";
   const isReadyToExchange = milestoneCode === "VM18" || milestoneCode === "PM25";
 
-  let confirmTitle = "Step confirmed";
-  let confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} is progressing — a step has been recorded.`;
-  let otherTitle   = "Progress update";
-  let otherBody    = `Your transaction is moving forward. Log in to see the latest.`;
+  // Confirming-contact fallback keeps a personal "thanks" voice; other-
+  // contacts fallback uses the more neutral "one step closer" frame. The
+  // exchange / completion / ready-to-exchange / date-confirmed branches all
+  // unify with the agent-flow strings per Flag 2 of the voice-check doc.
+  let confirmTitle = "Thanks, that's confirmed";
+  let confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} just moved a step forward.`;
+  let otherTitle   = "One step closer";
+  let otherBody    = `Your move just progressed. Tap to see the latest.`;
 
   if (isExchange) {
     confirmTitle = "Contracts exchanged!";
-    confirmBody  = `Congratulations — your transaction at ${short} is now legally committed.`;
+    confirmBody  = `${short}. The sale is now legally binding. Congratulations.`;
     otherTitle   = "Contracts exchanged!";
-    otherBody    = `Congratulations — your transaction at ${short} is now legally committed.`;
+    otherBody    = `${short}. The sale is now legally binding. Congratulations.`;
   } else if (isCompletion) {
-    confirmTitle = "Completed!";
-    confirmBody  = `Congratulations — your transaction at ${short} has completed.`;
-    otherTitle   = "Completed!";
-    otherBody    = `Congratulations — your transaction at ${short} has completed.`;
+    confirmTitle = "It's completed!";
+    confirmBody  = `${short} is yours. Congratulations on your move.`;
+    otherTitle   = "It's completed!";
+    otherBody    = `${short} is yours. Congratulations on your move.`;
   } else if (isReadyToExchange) {
     confirmTitle = "Ready to exchange";
-    confirmBody  = `${short} — your solicitor has confirmed everything is in place.`;
+    confirmBody  = `Everything's in place at ${short}. Exchange is next.`;
     otherTitle   = "Ready to exchange";
-    otherBody    = `${short} — your solicitor has confirmed everything is in place.`;
+    otherBody    = `Everything's in place at ${short}. Exchange is next.`;
   } else if (eventDate) {
     const fmtDate = new Date(eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    confirmTitle = `Date confirmed — ${short}`;
-    confirmBody  = `${milestoneLabel}: ${fmtDate}`;
-    otherTitle   = `Date confirmed — ${short}`;
-    otherBody    = `${milestoneLabel}: ${fmtDate}`;
+    confirmTitle = `Date confirmed: ${short}`;
+    confirmBody  = `${milestoneLabel} booked for ${fmtDate}`;
+    otherTitle   = `Date confirmed: ${short}`;
+    otherBody    = `${milestoneLabel} booked for ${fmtDate}`;
   }
 
   if (confirmingContact?.portalToken) {

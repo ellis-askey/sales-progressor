@@ -208,7 +208,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
 
     const short = tx.propertyAddress.split(",")[0];
     pushToTransaction(input.transactionId, {
-      title: `Update on ${short}`,
+      title: `New update: ${short}`,
       body: preview,
       urlPath: "/updates",
     }).catch(() => {});

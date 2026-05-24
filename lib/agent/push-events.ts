@@ -62,11 +62,17 @@ export async function pushChaseEscalation(
     select: { propertyAddress: true },
   });
   if (!tx) return;
+  // Title kept as "Escalated: {milestone name}" — the milestone-name data
+  // (reminderRule.name minus "Chase:" prefix) reads as past-tense / done
+  // phrasing ("Buyer has booked their survey"), so we can't rewrite to a
+  // not-yet-done form without changing the underlying data. Body bumps to
+  // include a clear action prompt.
+  const short = shortAddress(tx.propertyAddress);
   await pushToFileOwner({
     transactionId,
     key: "chaseEscalation",
     title: milestoneLabel ? `Escalated: ${milestoneLabel}` : "Chase escalated",
-    body:  shortAddress(tx.propertyAddress),
+    body:  `${short} · needs a chase`,
   });
 }
 
@@ -89,8 +95,10 @@ export async function pushFileAssigned(args: {
     if (!tx) return;
 
     const base = process.env.NEXTAUTH_URL ?? "";
+    // Title now names the assigner so the agent knows WHO put it on their
+    // plate — the data is already captured in args.assignerName.
     await pushToUser(args.assigneeUserId, {
-      title: `New file assigned to you`,
+      title: `${args.assignerName} assigned you a file`,
       body:  shortAddress(tx.propertyAddress),
       url:   `${base}/transactions/${args.transactionId}`,
     });
@@ -110,16 +118,19 @@ export async function pushExchangeApproaching(
     select: { propertyAddress: true },
   });
   if (!tx) return;
-  const body = daysUntil <= 0
-    ? `${shortAddress(tx.propertyAddress)} — exchange target is today`
+  // Title now carries the urgency (today / tomorrow / N days); body is just
+  // the address. Reads faster on a lock-screen line than the old "Exchange
+  // approaching · address — target in N days" stack.
+  const title = daysUntil <= 0
+    ? "Exchange target: today"
     : daysUntil === 1
-      ? `${shortAddress(tx.propertyAddress)} — exchange target is tomorrow`
-      : `${shortAddress(tx.propertyAddress)} — exchange target in ${daysUntil} days`;
+      ? "Exchange target: tomorrow"
+      : `Exchange target: ${daysUntil} days`;
   await pushToFileOwner({
     transactionId,
     key: "exchangeApproaching",
-    title: "Exchange approaching",
-    body,
+    title,
+    body: shortAddress(tx.propertyAddress),
   });
 }
 
@@ -138,11 +149,22 @@ export async function pushChainEvent(args: {
     if (!prefs.push.chainEvent) return;
 
     const titleMap: Record<typeof args.kind, string> = {
-      LOST_BUYER:    "Chain update: buyer fell through",
-      LOST_PURCHASE: "Chain update: purchase fell through",
-      ASKED_TO_WAIT: "Chain update: asked to wait",
-      WAIT_NUDGE:    "Still waiting — chain update needed",
+      LOST_BUYER:    "Chain update: the buyer has pulled out",
+      LOST_PURCHASE: "Chain update: the purchase has fallen through",
+      ASKED_TO_WAIT: "Chain update: can your client wait?",
+      WAIT_NUDGE:    "Still waiting on this chain",
       DECLINE:       "Chain invite declined",
+    };
+    // Most chain events benefit from a clear "tap to respond" cue in the
+    // body — the user almost always needs to do something next. The nudge
+    // gets a softer "an update is needed" framing; decline stays bare since
+    // it's informational only.
+    const bodyMap: Record<typeof args.kind, string> = {
+      LOST_BUYER:    `${shortAddress(args.propertyAddress)} · tap to respond`,
+      LOST_PURCHASE: `${shortAddress(args.propertyAddress)} · tap to respond`,
+      ASKED_TO_WAIT: `${shortAddress(args.propertyAddress)} · tap to respond`,
+      WAIT_NUDGE:    `${shortAddress(args.propertyAddress)} · an update is needed`,
+      DECLINE:       shortAddress(args.propertyAddress),
     };
 
     const base = process.env.NEXTAUTH_URL ?? "";
@@ -152,7 +174,7 @@ export async function pushChainEvent(args: {
 
     await pushToUser(args.recipientUserId, {
       title: titleMap[args.kind],
-      body:  shortAddress(args.propertyAddress),
+      body:  bodyMap[args.kind],
       url,
     });
   } catch (err) {

@@ -149,22 +149,25 @@ export async function confirmMilestoneAction(input: {
     const label = getMilestoneCopy(code).label;
     const short = tx.propertyAddress.split(",")[0];
 
-    let title = "Progress update";
-    let body  = `${short} — "${label}" is complete.`;
+    // Unified exchange / completion / ready-to-exchange strings — same copy
+    // fires regardless of which code path (agent confirm, claim wizard, or
+    // client self-confirm). See PUSH_NOTIF_STRINGS doc for the approved set.
+    let title = "One step closer";
+    let body  = `${label}, done at ${short}.`;
 
     if (code === "VM19" || code === "PM26") {
       title = "Contracts exchanged!";
-      body  = `${short} — your transaction is now legally committed.`;
+      body  = `${short}. The sale is now legally binding. Congratulations.`;
     } else if (code === "VM20" || code === "PM27") {
-      title = "Completed!";
-      body  = `${short} — congratulations, your transaction has completed.`;
+      title = "It's completed!";
+      body  = `${short} is yours. Congratulations on your move.`;
     } else if (code === "VM18" || code === "PM25") {
       title = "Ready to exchange";
-      body  = `${short} — your solicitor has confirmed everything is in place.`;
+      body  = `Everything's in place at ${short}. Exchange is next.`;
     } else if (input.eventDate) {
       const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-      title = `Date confirmed — ${short}`;
-      body  = `${label}: ${fmtDate}`;
+      title = `Date confirmed: ${short}`;
+      body  = `${label} booked for ${fmtDate}`;
     }
 
     pushToTransaction(input.transactionId, {
@@ -624,15 +627,17 @@ export async function confirmExchangeReconciliationAction(input: {
   const label = getMilestoneCopy(code).label;
   const short = tx.propertyAddress.split(",")[0];
 
-  let title = "Progress update";
-  let body  = `${short} — "${label}" is complete.`;
+  // Unified exchange / completion strings — matches Site 8 + the portal
+  // confirm path; see PUSH_NOTIF_STRINGS for the approved set.
+  let title = "One step closer";
+  let body  = `${label}, done at ${short}.`;
 
   if (code === "VM19" || code === "PM26") {
     title = "Contracts exchanged!";
-    body  = `${short} — your transaction is now legally committed.`;
+    body  = `${short}. The sale is now legally binding. Congratulations.`;
   } else if (code === "VM20" || code === "PM27") {
-    title = "Completed!";
-    body  = `${short} — congratulations, your transaction has completed.`;
+    title = "It's completed!";
+    body  = `${short} is yours. Congratulations on your move.`;
   }
 
   pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
