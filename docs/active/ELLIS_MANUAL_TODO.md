@@ -443,6 +443,45 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 
 ---
 
+## Payments — Stripe account + pricing disclosure copy (PR 6 blockers)
+
+The payments build plan (`docs/active/payments-build-plan.md`) is mid-rollout — PRs 1–5 shipped (schema, trial stamp, exchange snapshot, reversal handler, accrual cron + director-facing running total). PR 6 is **Stripe Elements card capture + the pricing-acknowledgement gate** and needs two things from you before it can ship.
+
+### Step 1 — Stripe account + API keys (test mode only for PR 6)
+
+PR 6 captures cards but does not charge — test-mode keys are sufficient. Live-mode keys come in PR 7 (real charging + failed-payment block).
+
+1. **Create a Stripe account at https://stripe.com** if one doesn't already exist for The Sales Progressor. Use the company email; complete the basic business profile (you can finish "Activate your account" — the live-mode bits — later when PR 7 needs them).
+2. In the Stripe dashboard, **toggle to "Test mode"** (top right).
+3. From **Developers → API keys**, copy:
+   - **Publishable key** (starts `pk_test_...`)
+   - **Secret key** (starts `sk_test_...`)
+4. Add to **Vercel → Settings → Environment Variables** for the **staging** environment:
+   - `STRIPE_PUBLISHABLE_KEY` = the `pk_test_...` value
+   - `STRIPE_SECRET_KEY` = the `sk_test_...` value
+5. Repeat for **production** (same test-mode keys for now — we are NOT charging in production until PR 7. CC will swap to live-mode keys as part of PR 7 once you've activated the Stripe account properly).
+6. Tell CC when done — PR 6's `lib/stripe.ts` initialiser will read these on next deploy.
+
+### Step 2 — Pricing disclosure copy (the legal-weight screen)
+
+PR 6 builds the acknowledgement gate that records "the director agreed to v1 of the terms" before card capture is allowed. The actual disclosure text is **not invented by CC** — it's a design/voice deliverable from you, since this is the one screen with legal weight in the whole flow.
+
+The gate is built to read whatever's in the `TermsVersion` table. PR 6 ships the table empty; until you supply real copy and insert a row, the card-capture form is blocked behind a clear "Payment setup is not yet available — pricing disclosure pending" message. **No placeholder wording will be seeded.**
+
+1. Draft the disclosure copy. It needs to cover:
+   - What we charge (£59 in-house per exchange; £250/£300/£350 outsourced by exchange-confirmed sale price)
+   - When we charge (monthly, on exchange — never before, never on fall-through)
+   - The 7-day free trial (first 7 days of files are free-on-exchange forever)
+   - Failed-payment behaviour (existing files keep running; new file creation blocks after ~7 days of failed payment until the card is updated)
+   - The director-only billing scope (negotiators don't see prices)
+   - VAT status (not VAT-registered today; the disclosure should note this and that pricing is inclusive)
+2. Send CC the final text + the version tag you want recorded (suggested `"2026-05-payments-v1"`, bump when terms change).
+3. CC will insert it as a single row into `TermsVersion`. After insert, the gate becomes operational with no code change required.
+
+Until both steps are done, PR 6 is shippable as code but the card form will refuse to render — by design.
+
+---
+
 ## Future, deferred, not urgent
 
 - [ ] **Settings polish pass — consider tabbed layout once card count crosses ~8.** The notification-toggles work (shipped) pushes `/agent/settings` from 5 cards to 7. Polish pass should audit whether a tabbed layout (Profile / Notifications / Branch / Team / Account) becomes warranted; current single-column stack still scans fine. New cards used the existing ThemePicker glass-card pattern so they refit cleanly into tabs without code changes.

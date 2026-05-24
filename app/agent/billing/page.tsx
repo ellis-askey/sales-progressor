@@ -124,7 +124,13 @@ export default async function BillingPage() {
         </div>
 
         <p style={{ fontSize: 12, color: "var(--agent-text-secondary, #6b7280)" }}>
-          Billed monthly on exchange. Live total — updates the moment a file's exchange milestone is confirmed.
+          Billed monthly on exchange. Live total — updates the moment a file's exchange milestone is confirmed.{" "}
+          <a
+            href="/agent/billing/payment-method"
+            style={{ color: "var(--agent-primary, #FF6B4A)", textDecoration: "none", fontWeight: 600 }}
+          >
+            Manage payment method →
+          </a>
         </p>
       </div>
     </>
