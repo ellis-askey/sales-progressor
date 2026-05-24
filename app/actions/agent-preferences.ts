@@ -256,7 +256,14 @@ export async function sendTestPushAction() {
 
   // Server-side env check — surfaces the most common silent-failure mode.
   // Mirror the same gate that getWebPush() uses in lib/services/push.ts.
+  // Diagnostic detail goes to the server log (which env var is missing);
+  // the UI just sees the user-friendly "unavailable" copy via the reason.
   if (!process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_PUBLIC_KEY) {
+    const missing = [
+      !process.env.VAPID_PRIVATE_KEY ? "VAPID_PRIVATE_KEY" : null,
+      !process.env.VAPID_PUBLIC_KEY ? "VAPID_PUBLIC_KEY" : null,
+    ].filter(Boolean);
+    console.error(`[sendTestPushAction] push unavailable — missing env: ${missing.join(", ")}`);
     return {
       ok: true as const,
       deliveredCount: 0,

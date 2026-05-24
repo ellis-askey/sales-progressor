@@ -1107,7 +1107,7 @@ export async function confirmSaleDetailsAction(input: {
     }
 
     // 3a. Comms records for reversed milestones
-    const TYPE_LABEL_COMMS: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" };
+    const TYPE_LABEL_COMMS: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from proceeds" };
     const TENURE_LABEL_COMMS: Record<string, string> = { leasehold: "Leasehold", freehold: "Freehold" };
     for (const code of reversedCodes) {
       const def = defByCode.get(code);
@@ -1192,7 +1192,7 @@ export async function confirmSaleDetailsAction(input: {
     }
   });
 
-  const TYPE_LABEL: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from Proceeds" };
+  const TYPE_LABEL: Record<string, string> = { mortgage: "Mortgage", cash_buyer: "Cash buyer", cash_from_proceeds: "Cash from proceeds" };
   const TENURE_LABEL: Record<string, string> = { leasehold: "Leasehold", freehold: "Freehold" };
   const changes: string[] = [];
   if (input.newPurchaseType !== tx.purchaseType) {

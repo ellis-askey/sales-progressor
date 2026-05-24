@@ -243,7 +243,7 @@ export function MigrateSaleForm({
             className={INPUT}
             required
           />
-          <p className={HINT}>Backdated to the file&apos;s real start date from the old system. Drives weeks-elapsed and the 12-week target.</p>
+          <p className={HINT}>Backdated to the file&apos;s real start date from the old system. Drives the file&apos;s age and the 12-week exchange target.</p>
         </Field>
         <Field label="Agency" required>
           <select value={agencyId} onChange={(e) => handleAgencyChange(e.target.value)} className={INPUT} required>
@@ -278,7 +278,7 @@ export function MigrateSaleForm({
               Agent (self-managed)
             </label>
           </div>
-          <p className={HINT}>Determines serviceType. Outsourced = our team progresses; self-managed = agency progresses themselves.</p>
+          <p className={HINT}>Outsourced means our team progresses the file; self-managed means the agency does.</p>
         </Field>
       </Section>
 

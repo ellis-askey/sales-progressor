@@ -37,7 +37,7 @@ const TOGGLES: ToggleSpec[] = [
   {
     key: "weeklyBrief",
     label: "Weekly brief",
-    description: "Monday-morning rollup of last week + escalations.",
+    description: "Monday summary of last week's activity and escalations.",
   },
   {
     key: "clientConfirmationEmails",
@@ -89,7 +89,7 @@ export function EmailNotificationsSection({ initialPrefs }: { initialPrefs: Noti
       <div className="mb-5">
         <h2 className="text-sm font-bold text-slate-900/80 mb-1">Email notifications</h2>
         <p className="text-xs text-slate-900/50">
-          Tune which automated emails reach your inbox. The in-app bell keeps showing everything — these toggles only suppress the email duplicates.
+          Choose which automated emails reach your inbox. The in-app bell keeps showing everything — these toggles only suppress the email duplicates.
         </p>
       </div>
 

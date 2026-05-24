@@ -34,7 +34,7 @@ const TOGGLES: Spec[] = [
   {
     key: "clientConfirmation",
     label: "Client milestone confirmations",
-    description: "When a buyer or seller confirms a milestone via their portal. Off by default — turn on if you want the buzz for every client tick.",
+    description: "When a buyer or seller confirms a milestone via their portal. Off by default — turn on to be notified every time a client confirms.",
   },
   {
     key: "clientChaseNote",
@@ -49,17 +49,17 @@ const TOGGLES: Spec[] = [
   {
     key: "fileAssigned",
     label: "File assigned to me",
-    description: "When an admin assigns a new file to you.",
+    description: "When a file is assigned (or reassigned) to you.",
   },
   {
     key: "exchangeApproaching",
-    label: "Exchange ≤ 7 days",
+    label: "Exchange approaching",
     description: "Daily check; fires once per file when the exchange target is within a week.",
   },
   {
     key: "chainEvent",
     label: "Chain updates",
-    description: "Lost buyer / lost purchase / asked to wait / wait nudge / decline on any chain your file is part of.",
+    description: "When something happens on a chain your file is part of — a pulled buyer, a fallen purchase, a wait request, or a declined invite.",
   },
 ];
 
@@ -70,7 +70,8 @@ type SubscribeStatus =
   | { kind: "denied" }
   | { kind: "blocked" }
   | { kind: "unsupported"; reason: "browser" | "ios-needs-pwa" }
-  | { kind: "error"; message: string };
+  | { kind: "unavailable" }   // VAPID public key not in client bundle — push pipeline unconfigured
+  | { kind: "error" };        // generic catch-all; details go to console
 
 export function MobilePushSection({
   initialPrefs,
@@ -167,7 +168,9 @@ export function MobilePushSection({
       await navigator.serviceWorker.ready;
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
       if (!vapidKey) {
-        setSubStatus({ kind: "error", message: "Push isn't configured for this environment." });
+        // Diagnostic detail goes to console; user sees the "unavailable" copy.
+        console.error("[push subscribe] NEXT_PUBLIC_VAPID_PUBLIC_KEY missing");
+        setSubStatus({ kind: "unavailable" });
         return;
       }
       const sub = await reg.pushManager.subscribe({
@@ -200,8 +203,10 @@ export function MobilePushSection({
       setThisDeviceEndpoint(newEndpoint);
       setSubStatus({ kind: "done" });
     } catch (err) {
+      // Detail goes to the console for debugging; the user-facing string is
+      // a fixed line so browser-API error fragments don't leak into the UI.
       console.error("[push subscribe failed]", err);
-      setSubStatus({ kind: "error", message: err instanceof Error ? err.message : "Subscribe failed" });
+      setSubStatus({ kind: "error" });
     }
   }
 
@@ -226,12 +231,14 @@ export function MobilePushSection({
     try {
       const result = await sendTestPushAction();
       if (!result.ok) {
-        setTestStatus("Couldn't send — check console");
+        setTestStatus("Couldn't send the test — try again.");
         return;
       }
       if (result.deliveredCount === 0) {
         if ("reason" in result && result.reason === "vapid_not_configured") {
-          setTestStatus("Push isn't configured on the server (VAPID env vars missing).");
+          // Diagnostic detail (which env var, which environment) belongs
+          // in server logs — the user just sees the unavailable copy.
+          setTestStatus("Push notifications aren't available right now.");
         } else {
           setTestStatus("No devices subscribed yet — enable on this device first.");
         }
@@ -243,7 +250,7 @@ export function MobilePushSection({
           : `Sent to ${result.deliveredCount} devices.`,
       );
     } catch {
-      setTestStatus("Couldn't send — check console");
+      setTestStatus("Couldn't send the test — try again.");
     }
     // Auto-clear after a few seconds so the UI doesn't get stuck.
     setTimeout(() => setTestStatus(null), 8000);
@@ -371,8 +378,11 @@ export function MobilePushSection({
             </ol>
           </div>
         )}
+        {subStatus.kind === "unavailable" && (
+          <p className="text-xs text-amber-700 mt-2">Push notifications aren&apos;t available right now.</p>
+        )}
         {subStatus.kind === "error" && (
-          <p className="text-xs text-red-700 mt-2">Something went wrong: {subStatus.message}</p>
+          <p className="text-xs text-red-700 mt-2">Something went wrong — try again.</p>
         )}
       </div>
 
