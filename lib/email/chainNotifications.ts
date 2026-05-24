@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, isUserEmailSuppressed } from "@/lib/email";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
+import { pushChainEvent } from "@/lib/agent/push-events";
 import { buildUserUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 
@@ -228,6 +229,16 @@ export async function fireChainCascadeNotifications(): Promise<{
       });
       console.log(`[EMAIL_SENT] type=${record.type} to=${record.recipientEmail}`);
       sent++;
+
+      // Companion push to the same recipient (gated on their per-event toggle).
+      // Wait-nudge is handled by the sendChainWaitNudges path below — only the
+      // three primary types fire here.
+      pushChainEvent({
+        recipientUserId: record.recipientUserId,
+        transactionId: recipientTransactionId,
+        propertyAddress: recipientAddress,
+        kind: record.type as "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT",
+      }).catch(() => {});
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
       console.error(`[EMAIL_FAIL] type=${record.type} to=${record.recipientEmail} err=${message}`);
@@ -314,6 +325,13 @@ export async function sendChainWaitNudges(): Promise<{ nudged: number; skipped: 
       });
       console.log(`[EMAIL_SENT] type=WAIT_NUDGE to=${record.recipientEmail}`);
       nudged++;
+
+      pushChainEvent({
+        recipientUserId: record.recipientUserId,
+        transactionId: recipientTransactionId,
+        propertyAddress: recipientAddress,
+        kind: "WAIT_NUDGE",
+      }).catch(() => {});
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
       console.error(`[EMAIL_FAIL] type=WAIT_NUDGE to=${record.recipientEmail} err=${message}`);
@@ -736,4 +754,11 @@ export async function fireDeclineNotification({
 
   await sendChainEmail({ to: originator.email, subject, text, html });
   console.log(`[EMAIL_SENT] type=DECLINE to=${originator.email}`);
+
+  pushChainEvent({
+    recipientUserId: createdByUserId,
+    transactionId: originatorLink?.transactionId ?? null,
+    propertyAddress: stubAddress,
+    kind: "DECLINE",
+  }).catch(() => {});
 }

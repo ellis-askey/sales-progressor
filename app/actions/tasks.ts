@@ -7,6 +7,7 @@ import { completeChaseTask, advanceChaseTask, snoozeReminderLog, wakeUpReminderL
 import { completeMilestone } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
+import { pushChaseEscalation } from "@/lib/agent/push-events";
 
 export async function completeTaskAction(taskId: string, pathname: string) {
   const session = await requireSession();
@@ -93,10 +94,23 @@ export async function escalateTaskAction(taskId: string, pathname: string) {
   const scope = getAccessScope(session);
   const task = await prisma.chaseTask.findFirst({
     where: scopeChaseTaskWhere(scope, taskId),
-    select: { id: true },
+    select: {
+      id: true,
+      priority: true,
+      transactionId: true,
+      reminderLog: { select: { reminderRule: { select: { name: true } } } },
+    },
   });
   if (!task) throw new Error("Task not found");
+  const wasEscalated = task.priority === "escalated";
   await prisma.chaseTask.update({ where: { id: taskId }, data: { priority: "escalated" } });
+
+  // Fire push only on the transition non-escalated -> escalated.
+  if (!wasEscalated) {
+    const milestoneLabel = task.reminderLog?.reminderRule?.name?.replace(/^Chase:\s*/i, "") ?? null;
+    pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
+  }
+
   revalidatePath(pathname, "page");
 }
 

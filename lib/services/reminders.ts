@@ -7,6 +7,7 @@ import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
+import { pushChaseEscalation } from "@/lib/agent/push-events";
 
 // ─── Public read helpers (server-only) ───────────────────────────────────────
 
@@ -366,6 +367,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
       if (taskAge > 0 && taskAge % rule.repeatEveryDays === 0) {
         const newChaseCount = openTask.chaseCount + 1;
         const newPriority: TaskPriority = newChaseCount >= rule.escalateAfterChases ? "escalated" : "normal";
+        const justEscalated = openTask.priority !== "escalated" && newPriority === "escalated";
         await prisma.chaseTask.update({
           where: { id: openTask.id },
           data: {
@@ -374,6 +376,10 @@ export async function evaluateTransactionReminders(transactionId: string) {
             dueDate: addDays(openTask.dueDate, rule.repeatEveryDays),
           },
         });
+        if (justEscalated) {
+          const milestoneLabel = rule.name.replace(/^Chase:\s*/i, "");
+          pushChaseEscalation(transactionId, milestoneLabel).catch(() => {});
+        }
       }
     } else {
       if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
@@ -546,11 +552,13 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
     select: {
       id: true,
       chaseCount: true,
+      priority: true,
+      transactionId: true,
       reminderLog: {
         select: {
           id: true,
           nextDueDate: true,
-          reminderRule: { select: { repeatEveryDays: true, escalateAfterChases: true } },
+          reminderRule: { select: { name: true, repeatEveryDays: true, escalateAfterChases: true } },
         },
       },
     },
@@ -562,6 +570,7 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
   const newPriority: TaskPriority = newChaseCount >= task.reminderLog.reminderRule.escalateAfterChases
     ? "escalated"
     : "normal";
+  const justEscalated = task.priority !== "escalated" && newPriority === "escalated";
   const nextDue = new Date(task.reminderLog.nextDueDate);
   nextDue.setDate(nextDue.getDate() + repeatDays);
 
@@ -575,6 +584,11 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
       data: { nextDueDate: nextDue },
     }),
   ]);
+
+  if (justEscalated) {
+    const milestoneLabel = task.reminderLog.reminderRule.name.replace(/^Chase:\s*/i, "");
+    pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
+  }
 }
 
 export async function completeChaseTask(

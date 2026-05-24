@@ -4,6 +4,7 @@ import { pushToContact, pushToUser } from "@/lib/services/push";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 
 export type PortalMessageShape = {
   id: string;
@@ -96,15 +97,20 @@ export async function sendClientPortalMessage(token: string, content: string): P
 
   const tx = contact.transaction;
 
-  // Push notification to the assigned agent (fire-and-forget)
+  // Push notification to the file owner (assignedUser ?? agentUser). Gated on
+  // the clientChaseNote toggle — default ON, preserves existing behaviour for
+  // anyone who hasn't touched the setting.
   const agentUserId = tx.assignedUser?.id ?? tx.agentUserId;
   if (agentUserId) {
-    const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
-    pushToUser(agentUserId, {
-      title: `Message from ${contact.name}`,
-      body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
-      url:   dashUrl,
-    }).catch(() => {});
+    const prefs = await getNotificationPrefs(agentUserId);
+    if (prefs.push.clientChaseNote) {
+      const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
+      pushToUser(agentUserId, {
+        title: `${contact.name} replied`,
+        body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
+        url:   dashUrl,
+      }).catch(() => {});
+    }
   }
 
   if (!tx.assignedUser?.email) return;

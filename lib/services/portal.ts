@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
-import { pushToContact } from "@/lib/services/push";
+import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
-import { pushToTransaction } from "@/lib/services/push";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { PORTAL_AGENT_ONLY_CODES } from "@/lib/chase/portal-agent-only-codes";
@@ -509,16 +508,26 @@ export async function logPortalMilestoneConfirm(
     : (tx.assignedUser?.email ?? undefined);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
-  // Per-user opt-out for "email me when a client confirms a milestone". Bell
-  // notification fires unconditionally above (notifyPortalMilestoneConfirmed
-  // / notifyOutsourcedMilestoneConfirmed) — only the email duplicates are
-  // gated. Defaults are ON.
+  // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
+  // client milestone confirmations. Bell still fires unconditionally above.
   const agentRecipientIds = [tx.assignedUser?.id, tx.agentUser?.id].filter((x): x is string => !!x);
   const prefsByUser = agentRecipientIds.length > 0
     ? await getNotificationPrefsForUsers(agentRecipientIds)
     : new Map();
   const wantsEmail = (userId: string | undefined) =>
     userId ? prefsByUser.get(userId)?.clientConfirmationEmails !== false : false;
+
+  // Push to the file owner (assignedUser ?? agentUser). Default OFF — agent
+  // opts in from settings. The bell entry above runs unconditionally so opt-out
+  // users still see it on their next SP visit.
+  if (bellUserId && prefsByUser.get(bellUserId)?.push?.clientConfirmation === true) {
+    const shortAddress = address.split(",")[0];
+    pushToUser(bellUserId, {
+      title: `${contactName} confirmed: ${milestoneLabel}`,
+      body:  shortAddress,
+      url:   dashUrl,
+    }).catch(() => {});
+  }
 
   // Notify the assigned progressor (outsourced only — self-managed has no assignedUser)
   if (tx.assignedUser?.email && wantsEmail(tx.assignedUser.id)) {

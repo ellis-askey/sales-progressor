@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
-import { isNotificationKey, type NotificationKey } from "@/lib/agent/notification-prefs";
+import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 
 export async function updateAgentTheme(theme: AgentTheme) {
   const session = await requireSession();
@@ -142,6 +142,70 @@ export async function updateAgentNotificationPrefAction(input: {
         notifications: {
           ...existingNotif,
           [input.key]: input.value,
+        },
+      },
+    },
+  });
+
+  return { ok: true as const, key: input.key, value: input.value };
+}
+
+// Flips a single push-notification toggle inside
+// agentPreferences.notifications.push. Read-merge-write at three depths:
+// preserves root prefs (theme), other notification keys, and other push
+// keys. Same pattern as updateAgentNotificationPrefAction.
+export async function updateAgentPushPrefAction(input: {
+  key: PushKey;
+  value: boolean;
+}) {
+  const session = await requireSession();
+
+  if (!isPushKey(input.key)) {
+    return { ok: false as const, error: "Invalid push key" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const root =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  const existingNotif: Record<string, unknown> =
+    root.notifications && typeof root.notifications === "object"
+      ? (root.notifications as Record<string, unknown>)
+      : {};
+
+  // Narrow existing push overrides to boolean values only.
+  const existingPush: Record<string, boolean> = {};
+  if (existingNotif.push && typeof existingNotif.push === "object") {
+    for (const [k, v] of Object.entries(existingNotif.push as Record<string, unknown>)) {
+      if (typeof v === "boolean") existingPush[k] = v;
+    }
+  }
+
+  // Also narrow sibling notification keys (booleans only) so we don't poison
+  // the JSON with stray unknown values during the merge.
+  const cleanedNotif: Record<string, boolean | Record<string, boolean>> = {};
+  for (const [k, v] of Object.entries(existingNotif)) {
+    if (k === "push") continue;
+    if (typeof v === "boolean") cleanedNotif[k] = v;
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: {
+        ...root,
+        notifications: {
+          ...cleanedNotif,
+          push: {
+            ...existingPush,
+            [input.key]: input.value,
+          },
         },
       },
     },

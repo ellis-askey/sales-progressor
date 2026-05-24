@@ -9,6 +9,7 @@ import { AccountDangerZone } from "@/components/agent/AccountDangerZone";
 import { InviteDirector } from "@/components/agent/InviteDirector";
 import { EmailNotificationsSection } from "@/components/agent/settings/EmailNotificationsSection";
 import { SilencedFilesSection } from "@/components/agent/settings/SilencedFilesSection";
+import { MobilePushSection } from "@/components/agent/settings/MobilePushSection";
 import { getAgentTheme, getMobileAgentTheme } from "@/lib/agent/themes";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
@@ -22,7 +23,7 @@ export default async function AgentSettingsPage({
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
 
-  const [userRecord, pendingInvitations, notificationPrefs, silencedFilesRaw] = await Promise.all([
+  const [userRecord, pendingInvitations, notificationPrefs, silencedFilesRaw, pushDevicesRaw] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { phone: true, agentPreferences: true },
@@ -58,6 +59,11 @@ export default async function AgentSettingsPage({
       },
       orderBy: { propertyAddress: "asc" },
     }),
+    prisma.agentPushSubscription.findMany({
+      where: { userId: session.user.id },
+      select: { id: true, endpoint: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
@@ -74,6 +80,16 @@ export default async function AgentSettingsPage({
   const silenceableFiles = silencedFilesRaw
     .filter((f) => !f.clientEmailsPaused)
     .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
+
+  // No userAgent column on AgentPushSubscription today, so device label is
+  // generic. If we want richer labels later, add the column + capture UA at
+  // subscribe time. For v1, "Subscribed device" + date is enough.
+  const pushDevices = pushDevicesRaw.map((d) => ({
+    id: d.id,
+    endpoint: d.endpoint,
+    label: "Subscribed device",
+    createdAt: d.createdAt,
+  }));
 
   const directorStatus = session.user.agencyId
     ? await getAgencyDirectorStatus(session.user.agencyId)
@@ -161,6 +177,12 @@ export default async function AgentSettingsPage({
         <SilencedFilesSection
           initialSilenced={silencedFiles}
           silenceable={silenceableFiles}
+        />
+
+        {/* Mobile push notifications — device list + per-event toggles */}
+        <MobilePushSection
+          initialPrefs={notificationPrefs}
+          initialDevices={pushDevices}
         />
 
         {/* Team — directors only */}

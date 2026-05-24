@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
+import { pushExchangeApproaching } from "@/lib/agent/push-events";
 
 type DigestFile = {
   id: string;
@@ -185,4 +186,66 @@ ${tableRows ? `<table style="width:100%;border-collapse:collapse;margin-bottom:2
   }
 
   return sent;
+}
+
+// Daily exchange-approaching sweep. Runs after the morning digest so it shares
+// the cron pass. For every active file with expectedExchangeDate within 7 days,
+// fires a push to the file owner ONCE per warning (dedup via a Notification
+// row of type=exchange_approaching keyed on the date). The push helper itself
+// checks each user's per-event toggle before firing.
+export async function fireExchangeApproachingPushes(agencyId: string): Promise<number> {
+  const todayMs = new Date().setUTCHours(0, 0, 0, 0);
+  const sevenDaysFromNow = new Date(todayMs + 7 * 86400000);
+
+  const candidates = await prisma.propertyTransaction.findMany({
+    where: {
+      agencyId,
+      status: "active",
+      expectedExchangeDate: { gte: new Date(todayMs), lte: sevenDaysFromNow },
+    },
+    select: {
+      id: true,
+      propertyAddress: true,
+      expectedExchangeDate: true,
+      assignedUserId: true,
+      agentUserId: true,
+    },
+  });
+
+  let pushed = 0;
+  for (const tx of candidates) {
+    const ownerId = tx.assignedUserId ?? tx.agentUserId;
+    if (!ownerId || !tx.expectedExchangeDate) continue;
+
+    // Dedup: skip if we've already written an exchange_approaching notification
+    // for this transaction targeting the same exchange date.
+    const dateKey = tx.expectedExchangeDate.toISOString().slice(0, 10);
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: ownerId,
+        type: "exchange_approaching",
+        transactionId: tx.id,
+        payload: { path: ["dateKey"], equals: dateKey },
+      },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    await prisma.notification.create({
+      data: {
+        userId: ownerId,
+        type: "exchange_approaching",
+        transactionId: tx.id,
+        payload: { dateKey, propertyAddress: tx.propertyAddress },
+      },
+    });
+
+    const days = Math.round(
+      (tx.expectedExchangeDate.getTime() - todayMs) / 86400000,
+    );
+    pushExchangeApproaching(tx.id, days).catch(() => {});
+    pushed++;
+  }
+
+  return pushed;
 }

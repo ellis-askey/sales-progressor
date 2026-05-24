@@ -15,6 +15,7 @@ import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal } from "@/lib/chain/withdrawal";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
+import { pushFileAssigned } from "@/lib/agent/push-events";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -469,9 +470,12 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
-    select: { id: true },
+    select: { id: true, assignedUserId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  const previousAssigneeId = tx.assignedUserId;
+  const isNewAssignment = !!assignedUserId && assignedUserId !== previousAssigneeId;
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
@@ -488,6 +492,15 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
       : `${session.user.name} unassigned file`,
     session.user.id
   );
+
+  // Push the NEW assignee (not the displaced one). Skipped for unassignment.
+  if (isNewAssignment && assignedUserId) {
+    pushFileAssigned({
+      transactionId,
+      assigneeUserId: assignedUserId,
+      assignerName: session.user.name ?? "Admin",
+    }).catch(() => {});
+  }
 
   revalidateTx(transactionId);
 }

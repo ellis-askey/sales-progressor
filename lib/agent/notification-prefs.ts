@@ -20,6 +20,17 @@ export type NotificationKey =
   | "clientConfirmationEmails"
   | "chainEmails";
 
+// Per-event push notification toggles. Distinct namespace from email keys
+// because pushes are more intrusive and have different sensible defaults
+// (most ON for urgent stuff, client-confirmation OFF because volume is high).
+export type PushKey =
+  | "clientConfirmation"      // buyer/seller confirmed a milestone via portal
+  | "clientChaseNote"         // buyer/seller left a note on the Respond page
+  | "chaseEscalation"         // a chase task got bumped to escalated priority
+  | "fileAssigned"            // a file was assigned/reassigned to me
+  | "exchangeApproaching"     // expectedExchangeDate is within 7 days
+  | "chainEvent";             // chain link event affecting my file
+
 export type NotificationPrefs = {
   morningDigest: boolean;
   weeklyBrief: boolean;
@@ -29,16 +40,27 @@ export type NotificationPrefs = {
   // so the settings UI can present it alongside the JSON-backed toggles
   // without callers needing to know about the storage split.
   retentionEmails: boolean;
+  push: Record<PushKey, boolean>;
 };
 
-// Defaults are ALL on — preserves the current behaviour (every agent receives
-// everything) for any user that hasn't touched the toggles.
+export const DEFAULT_PUSH_PREFS: Record<PushKey, boolean> = {
+  clientConfirmation:  false,  // high-volume potential; agent opts in
+  clientChaseNote:     true,   // already firing today; behaviour preserved
+  chaseEscalation:     true,   // urgent — something's going wrong
+  fileAssigned:        true,   // workload changed; one-off, infrequent
+  exchangeApproaching: true,   // time-sensitive
+  chainEvent:          true,   // urgent, downstream impact
+};
+
+// Email-channel defaults are ALL on (preserves behaviour); push defaults
+// are conservative (see per-key reasoning above).
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   morningDigest: true,
   weeklyBrief: true,
   clientConfirmationEmails: true,
   chainEmails: true,
   retentionEmails: true,
+  push: { ...DEFAULT_PUSH_PREFS },
 };
 
 export const NOTIFICATION_KEYS: readonly NotificationKey[] = [
@@ -48,8 +70,21 @@ export const NOTIFICATION_KEYS: readonly NotificationKey[] = [
   "chainEmails",
 ];
 
+export const PUSH_KEYS: readonly PushKey[] = [
+  "clientConfirmation",
+  "clientChaseNote",
+  "chaseEscalation",
+  "fileAssigned",
+  "exchangeApproaching",
+  "chainEvent",
+];
+
 export function isNotificationKey(value: string): value is NotificationKey {
   return (NOTIFICATION_KEYS as readonly string[]).includes(value);
+}
+
+export function isPushKey(value: string): value is PushKey {
+  return (PUSH_KEYS as readonly string[]).includes(value);
 }
 
 // Parses the agentPreferences JSON safely — returns the partial overrides only;
@@ -65,6 +100,19 @@ function parseNotificationOverrides(prefs: unknown): Partial<NotificationPrefs> 
   if (typeof n.weeklyBrief === "boolean") out.weeklyBrief = n.weeklyBrief;
   if (typeof n.clientConfirmationEmails === "boolean") out.clientConfirmationEmails = n.clientConfirmationEmails;
   if (typeof n.chainEmails === "boolean") out.chainEmails = n.chainEmails;
+
+  // Push sub-object — boolean values only, ignored otherwise.
+  if (n.push && typeof n.push === "object") {
+    const push: Partial<Record<PushKey, boolean>> = {};
+    const p = n.push as Record<string, unknown>;
+    for (const key of PUSH_KEYS) {
+      const v = p[key];
+      if (typeof v === "boolean") push[key] = v;
+    }
+    if (Object.keys(push).length > 0) {
+      out.push = { ...DEFAULT_PUSH_PREFS, ...push };
+    }
+  }
   return out;
 }
 
@@ -73,12 +121,13 @@ export async function getNotificationPrefs(userId: string): Promise<Notification
     where: { id: userId },
     select: { agentPreferences: true, retentionEmailOptOut: true },
   });
-  if (!user) return { ...DEFAULT_NOTIFICATION_PREFS };
+  if (!user) return { ...DEFAULT_NOTIFICATION_PREFS, push: { ...DEFAULT_PUSH_PREFS } };
   const overrides = parseNotificationOverrides(user.agentPreferences);
   return {
     ...DEFAULT_NOTIFICATION_PREFS,
     ...overrides,
     retentionEmails: !user.retentionEmailOptOut,
+    push: overrides.push ?? { ...DEFAULT_PUSH_PREFS },
   };
 }
 
@@ -99,6 +148,7 @@ export async function getNotificationPrefsForUsers(
       ...DEFAULT_NOTIFICATION_PREFS,
       ...overrides,
       retentionEmails: !u.retentionEmailOptOut,
+      push: overrides.push ?? { ...DEFAULT_PUSH_PREFS },
     });
   }
   return out;
