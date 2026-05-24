@@ -53,6 +53,13 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
 
   for (const agencyId of agencyIds) {
     await prisma.$transaction(async (tx) => {
+      // VAT state for this agency — passed to computeFee for line splitting.
+      // Per-agency lookup (cheap) so a flip mid-month is honoured on next run.
+      const agencyVat = await tx.agency.findUnique({
+        where: { id: agencyId },
+        select: { vatRegisteredAt: true, vatRateBps: true },
+      });
+
       // Ensure the open invoice exists (single row enforced by
       // @@unique([agencyId, monthStart])).
       let invoice = await tx.invoice.findUnique({
@@ -110,7 +117,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
       // Add missing lines for newly-billed transactions.
       for (const t of billedTxns) {
         if (existingByTxId.has(t.id)) continue;
-        const fee = computeFee(t.serviceType, t.priceAtExchange);
+        const fee = computeFee(t.serviceType, t.priceAtExchange, agencyVat ?? null);
         await tx.invoiceLine.create({
           data: {
             invoiceId: invoice.id,
@@ -118,8 +125,8 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
             kind: fee.kind satisfies InvoiceLineKind,
             description: `${fee.bandLabel} — ${t.propertyAddress}`,
             amountPence: fee.amountPence,
-            vatPence: 0, // VAT scaffolding lives in PR 8's flip rehearsal
-            totalPence: fee.amountPence,
+            vatPence: fee.vatPence,
+            totalPence: fee.totalPence,
           },
         });
         linesAdded++;

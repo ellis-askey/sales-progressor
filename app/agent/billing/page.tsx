@@ -67,6 +67,12 @@ export default async function BillingPage() {
           <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-0.02em" }}>
             {formatPence(total.totalPence)}
           </div>
+          {total.vatActive && (
+            <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 13, color: "var(--agent-text-secondary, #6b7280)" }}>
+              <span>Subtotal (ex-VAT): {formatPence(total.subtotalPence)}</span>
+              <span>VAT: {formatPence(total.vatPence)}</span>
+            </div>
+          )}
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 8 }}>
             {total.inHouseCount} in-house · {total.outsourcedCount} outsourced
           </div>
@@ -114,7 +120,7 @@ export default async function BillingPage() {
                       {line.bandLabel}
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                      {formatPence(line.amountPence)}
+                      {formatPence(line.totalPence)}
                     </td>
                   </tr>
                 ))}

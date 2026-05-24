@@ -52,6 +52,7 @@ export async function handleExchangeReversal(
       exchangedAt: true,
       billedAtExchange: true,
       priceAtExchange: true,
+      agency: { select: { vatRegisteredAt: true, vatRateBps: true } },
     },
   });
   if (!txn) return;
@@ -94,13 +95,18 @@ export async function handleExchangeReversal(
   });
   if (existingCredit) return;
 
-  const fee = computeFee(txn.serviceType, txn.priceAtExchange);
+  // CreditNote amount uses the GROSS fee (what was actually charged), not
+  // the ex-VAT split. The credit nets out the full Stripe charge on next
+  // month's invoice; the VAT side of the credit follows automatically when
+  // accrual writes the credit_applied line back through computeFee against
+  // the agency's VAT state at that future moment.
+  const fee = computeFee(txn.serviceType, txn.priceAtExchange, txn.agency ?? null);
   const today = new Date().toISOString().slice(0, 10);
   await db.creditNote.create({
     data: {
       agencyId: txn.agencyId,
       transactionId,
-      amountPence: fee.amountPence,
+      amountPence: fee.totalPence,
       reason: `Exchange reversed post-invoice — ${milestoneCode} undone on ${today}`,
     },
   });

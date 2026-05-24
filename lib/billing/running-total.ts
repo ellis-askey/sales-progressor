@@ -25,7 +25,10 @@ export type RunningTotalLine = {
   bandLabel: string;
   /** Snapshot taken at exchange — immune to later edits of purchasePrice. */
   priceAtExchangePence: number | null;
+  /** Ex-VAT when agency is VAT-registered; inclusive otherwise. */
   amountPence: number;
+  vatPence: number;
+  totalPence: number;
 };
 
 export type RunningTotal = {
@@ -33,13 +36,28 @@ export type RunningTotal = {
   monthStart: Date;
   monthEnd: Date;
   lines: RunningTotalLine[];
+  /** Sum of line.totalPence — the gross amount to charge. */
   totalPence: number;
+  /** Sum of line.amountPence (ex-VAT when registered; equals totalPence otherwise). */
+  subtotalPence: number;
+  /** Sum of line.vatPence. Zero when not VAT-registered. */
+  vatPence: number;
   inHouseCount: number;
   outsourcedCount: number;
+  /** True iff agency is currently VAT-registered (drives UI breakdown). */
+  vatActive: boolean;
 };
 
 export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = new Date()): Promise<RunningTotal> {
   const { start, end } = billingMonthRange(now);
+
+  // Pull the agency's VAT state once — applies to all this agency's lines.
+  const agency = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: { vatRegisteredAt: true, vatRateBps: true },
+  });
+  const vat = agency ?? null;
+  const vatActive = agency !== null && agency.vatRegisteredAt !== null && agency.vatRateBps !== null && agency.vatRateBps > 0;
 
   // Source of truth: PropertyTransaction rows that have a billing stamp in
   // this month. Trial-file exchanges leave billedAtExchange null and so
@@ -61,13 +79,17 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
   });
 
   let totalPence = 0;
+  let subtotalPence = 0;
+  let vatPence = 0;
   let inHouseCount = 0;
   let outsourcedCount = 0;
   const lines: RunningTotalLine[] = [];
 
   for (const r of rows) {
-    const fee = computeFee(r.serviceType, r.priceAtExchange);
-    totalPence += fee.amountPence;
+    const fee = computeFee(r.serviceType, r.priceAtExchange, vat);
+    totalPence += fee.totalPence;
+    subtotalPence += fee.amountPence;
+    vatPence += fee.vatPence;
     if (fee.kind === "in_house_fee") inHouseCount++;
     else outsourcedCount++;
     lines.push({
@@ -78,8 +100,10 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       bandLabel: fee.bandLabel,
       priceAtExchangePence: r.priceAtExchange,
       amountPence: fee.amountPence,
+      vatPence: fee.vatPence,
+      totalPence: fee.totalPence,
     });
   }
 
-  return { monthStart: start, monthEnd: end, lines, totalPence, inHouseCount, outsourcedCount };
+  return { monthStart: start, monthEnd: end, lines, totalPence, subtotalPence, vatPence, inHouseCount, outsourcedCount, vatActive };
 }
