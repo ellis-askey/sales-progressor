@@ -30,7 +30,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
-const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
+export const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
 
 export async function maybeStampExchange(
   transactionId: string,

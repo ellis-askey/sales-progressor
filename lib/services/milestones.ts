@@ -7,6 +7,7 @@ import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
+import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
@@ -1214,6 +1215,16 @@ export async function executeUndoMilestone(input: {
           },
         });
       }
+    }
+
+    // Payments: reverse the exchange stamp / write a CreditNote if invoice issued.
+    // Fires for every reversed milestone code; the helper short-circuits for
+    // non-VM19/PM26 codes. Bilateral-safe: VM19+PM26 both fire here in the same
+    // ptx, second call is a no-op via the helper's NULL guard (branch a) or
+    // existing-credit lookup (branch b). See lib/services/billing-reversal.ts.
+    for (const defId of allReverseIds) {
+      const code = idToCode.get(defId);
+      if (code) await handleExchangeReversal(transactionId, code, ptx);
     }
   });
 
