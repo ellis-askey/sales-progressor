@@ -245,6 +245,52 @@ async function seedHartwell(): Promise<{ emily: string; sam: string }> {
   await p.pricingAcknowledgement.deleteMany({ where: { agencyId } });
   console.log(`  pricing acknowledgement cleared — /agent/billing/payment-method lands on disclosure`);
 
+  // ── Additional past invoices for the history section ────────────────────
+  // 2 more closed past months with mixed statuses (paid + failed), each with
+  // representative line items. Purely additive — doesn't disturb the existing
+  // PAYMENTS-TOUR tour data above. Stripe invoice ids are fakes; the polish
+  // page just renders the data.
+  const monthsBack = (n: number) => {
+    const ref = new Date(thisMonthStart);
+    return new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() - n, 1));
+  };
+  const past1 = monthsBack(2); // 2 months ago — paid
+  const past2 = monthsBack(3); // 3 months ago — failed (the one that produced the credit-note context)
+
+  const paidInvoice = await p.invoice.create({
+    data: {
+      agencyId, monthStart: past1, status: "paid",
+      issuedAt: new Date(past1.getTime() + 30 * 24 * 3_600_000),
+      paidAt: new Date(past1.getTime() + 33 * 24 * 3_600_000),
+      stripeInvoiceId: `in_TOUR_FAKE_hartwell_paid_${past1.getUTCFullYear()}${String(past1.getUTCMonth() + 1).padStart(2, "0")}`,
+    },
+  });
+  await p.invoiceLine.createMany({
+    data: [
+      // VAT-registered line splits: gross 5900 → 4917 + 983
+      { invoiceId: paidInvoice.id, kind: "in_house_fee",  description: `In-house file — ${TOUR_PREFIX}3 Old Mill Yard, Bath`,            amountPence: 4917,  vatPence: 983,  totalPence: 5900 },
+      // Outsourced mid: 30000 → 25000 + 5000
+      { invoiceId: paidInvoice.id, kind: "outsourced_fee", description: `Outsourced — £350,000–£499,999 — ${TOUR_PREFIX}19 Park Crescent, York`, amountPence: 25000, vatPence: 5000, totalPence: 30000 },
+      // Outsourced high: 35000 → 29167 + 5833
+      { invoiceId: paidInvoice.id, kind: "outsourced_fee", description: `Outsourced — £500,000+ — ${TOUR_PREFIX}66 Heath Lane, Tunbridge Wells`, amountPence: 29167, vatPence: 5833, totalPence: 35000 },
+    ],
+  });
+
+  const failedInvoice = await p.invoice.create({
+    data: {
+      agencyId, monthStart: past2, status: "failed",
+      issuedAt: new Date(past2.getTime() + 30 * 24 * 3_600_000),
+      stripeInvoiceId: `in_TOUR_FAKE_hartwell_failed_${past2.getUTCFullYear()}${String(past2.getUTCMonth() + 1).padStart(2, "0")}`,
+    },
+  });
+  await p.invoiceLine.createMany({
+    data: [
+      { invoiceId: failedInvoice.id, kind: "in_house_fee",  description: `In-house file — ${TOUR_PREFIX}45 Riverside Walk, Cambridge`, amountPence: 4917, vatPence: 983, totalPence: 5900 },
+      { invoiceId: failedInvoice.id, kind: "outsourced_fee", description: `Outsourced — up to £349,999 — ${TOUR_PREFIX}21 Mill Lane, Norwich`, amountPence: 20833, vatPence: 4167, totalPence: 25000 },
+    ],
+  });
+  console.log(`  past invoices: paid (${past1.toISOString().slice(0, 7)}) + failed (${past2.toISOString().slice(0, 7)}) for history section`);
+
   return { emily: emily.id, sam: sam.id };
 }
 
@@ -334,6 +380,30 @@ async function seedMarlowWarning() {
   console.log(`  warning state set up: paymentFailedAt 3d ago, no block yet`);
 }
 
+async function seedTidyBrandNew() {
+  divider("Seeding Tidy & Co — BRAND-NEW (in trial) demo");
+  const { id: agencyId } = await findOrCreateAgency("Tidy & Co");
+  // firstSubmissionAt set 3 days ago — still inside the 14-day trial window,
+  // so the polish page can render "11 days left of your free trial".
+  await p.agency.update({
+    where: { id: agencyId },
+    data: {
+      firstSubmissionAt: new Date(Date.now() - 3 * 24 * 3_600_000),
+      vatRegisteredAt: null, vatRateBps: null,
+      paymentFailedAt: null, newFileCreationBlockedAt: null,
+      stripeCustomerId: null, // no card on file
+    },
+  });
+  const liv = await findOrCreateDirector({
+    agencyId, email: "liv@tidyandco.co.uk",
+    name: "Liv Hargreaves", firmName: "Tidy & Co", role: "director",
+  });
+  console.log(`  liv director: ${liv.created ? "created (password: " + DEMO_PASSWORD + ")" : "ensured"} (${liv.id})`);
+
+  await wipeTourDataForAgency(agencyId);
+  console.log(`  no exchanges seeded — brand-new agency, empty billing page + history`);
+}
+
 async function main() {
   const dbProj = projectIdOf(process.env.DATABASE_URL);
   if (dbProj === PROD_PROJECT_ID) {
@@ -356,6 +426,7 @@ async function main() {
     await seedHartwell();
     await seedBeaconBlocked();
     await seedMarlowWarning();
+    await seedTidyBrandNew();
 
     divider("Done");
     console.log("");
@@ -364,6 +435,7 @@ async function main() {
     console.log(`  Hartwell negotiator (404 test): sam@hartwellpartners.co.uk    (password: ${DEMO_PASSWORD})`);
     console.log(`  Beacon BLOCKED demo:            tom@beaconestates.co.uk       (password: ${DEMO_PASSWORD})`);
     console.log(`  Marlow WARNING demo:            james@marlowandco.co.uk       (password: ${DEMO_PASSWORD})`);
+    console.log(`  Tidy BRAND-NEW demo:            liv@tidyandco.co.uk           (password: ${DEMO_PASSWORD})`);
     console.log("");
     console.log("Run scripts/spot-check-payments-tour.ts to verify state per agency.");
   } finally {

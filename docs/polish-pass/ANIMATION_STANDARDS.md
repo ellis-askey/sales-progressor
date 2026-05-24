@@ -679,6 +679,36 @@ Already global — defined in `agent-system.css` for `.agent-btn:active { transf
 
 ---
 
+### B1 — Number count-up (`useCountUp` hook)
+
+**What it animates:** Numerical display values that mount with meaning — money totals on `/agent/billing` (headline £-this-month, lifetime billed, saved-via-trial), the metric-band cards, and the building-invoice grand total when a new line lands.
+
+**Why not a CSS class:** the value being animated is a runtime number, not a presentational state change. CSS can't tween from "0" to "1018" through "847, 904, 982".
+
+**Where it lives:** `lib/hooks/useCountUp.ts`. Per-page hook, importable from any client component that displays a money or count value with mount-meaning.
+
+**How to use:**
+```tsx
+import { useCountUp } from "@/lib/hooks/useCountUp";
+
+const totalPence = data.totalPence;
+const displayPence = useCountUp(totalPence, { duration: 600 });
+return <span>{formatPence(displayPence)}</span>;
+```
+
+**Behaviour:**
+- Mounts at 0, eases to target over `duration` ms (default 600ms — calm enough for money UIs).
+- When `target` changes mid-animation, retargets smoothly from the current display value — so a "new line landed" tick on the running total feels right rather than jumping.
+- `initialSnap: true` skips first-mount animation (use when arriving on the page with already-known data and animation would feel artificial).
+
+**Timing:** 600ms ease-out cubic — fast at the start, slow at the end. The number arrives at its resting place rather than rushing past.
+
+**Reduced-motion:** respects the global `data-rm` contract. When `document.documentElement.dataset.rm === "1"`, snaps to the final value with no animation. No additional per-call work needed.
+
+**Where it applies:** `/agent/billing` (and its polish counterpart `/agent/polish/billing-hub`). May extend to other money-UI surfaces (founder daily brief metrics, agency analytics) if those are added.
+
+---
+
 ## Reduced-motion contract
 
 Every canonical class has a reduced-motion override in the `@media (prefers-reduced-motion: reduce)` block in `agent-system.css`. The `[data-rm="1"]` override on test pages suppresses all CSS `transition-duration` and `animation-duration` — canonical classes respond to this automatically.
