@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { formatPrice, formatFee, calculateOurFee } from "@/lib/services/fees";
+import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
@@ -223,7 +224,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               {TRACK_LABEL[progress.onTrack]}
             </span>
             <p className="text-xs text-slate-900/40">
-              {progress.weeksElapsed} week{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
+              {formatElapsedDays(progress.daysElapsed)}
             </p>
           </div>
         </div>
@@ -482,7 +483,7 @@ export function TransactionSidebar({ transaction, assignedUser, agentUser, progr
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, background: "var(--agent-text-muted)" }} />
                 <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>
-                  {progress.weeksElapsed} wk{progress.weeksElapsed !== 1 ? "s" : ""} elapsed
+                  {formatElapsedDays(progress.daysElapsed, { compact: true })}
                 </span>
               </div>
               {progress.weeksRemaining !== null && (

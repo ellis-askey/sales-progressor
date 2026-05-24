@@ -64,6 +64,7 @@ export type ProgressResult = {
   predictedExchangeDate: Date | null;
   isEarlyEstimate: boolean; // true when still in Phase A (onboarding) and prediction is the 12-week target
   weeksElapsed: number;
+  daysElapsed: number;
   weeksRemaining: number | null;
   fileLevelPhase?: FileLevelPhase | null;
 };
@@ -345,6 +346,7 @@ export function calculateProgress(
     predictedExchangeDate,
     isEarlyEstimate,
     weeksElapsed,
+    daysElapsed: Math.floor(daysElapsed),
     weeksRemaining,
   };
 }

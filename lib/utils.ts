@@ -228,3 +228,25 @@ export function daysUntil(date: Date | string): number {
   const dueStr = toUKDateStr(new Date(date));
   return Math.round((new Date(dueStr).getTime() - new Date(todayStr).getTime()) / 86400000);
 }
+
+// Renders an active-elapsed day count as a human label for the Progress card.
+// 0 -> "Just started"; 1-6 -> "N day(s) elapsed"; exact weeks -> "N week(s) elapsed";
+// mixed -> "N week(s) M day(s) elapsed". Compact swaps "week/day" for "wk/d"
+// and keeps the " elapsed" suffix off (the narrow sidebar variant).
+export function formatElapsedDays(days: number, opts?: { compact?: boolean }): string {
+  const d = Math.max(0, Math.floor(days));
+  const compact = opts?.compact ?? false;
+  if (d === 0) return "Just started";
+
+  const weeks = Math.floor(d / 7);
+  const remDays = d % 7;
+  const wkUnit = compact ? "wk" : "week";
+  const dUnit = compact ? "d" : "day";
+  const tail = compact ? "" : " elapsed";
+
+  const wkPart = weeks > 0 ? `${weeks} ${wkUnit}${weeks !== 1 ? "s" : ""}` : "";
+  const dPart  = remDays > 0 ? `${remDays} ${dUnit}${remDays !== 1 ? "s" : ""}` : "";
+
+  if (wkPart && dPart) return `${wkPart} ${dPart}${tail}`;
+  return `${wkPart || dPart}${tail}`;
+}
