@@ -30,26 +30,10 @@
 // the same milestone simultaneously) is not defended — vanishingly rare.
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma, ServiceType } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { EXCHANGE_CODES } from "@/lib/services/billing-trigger";
-
-// PR 5 will host the proper billing-month boundary helper in lib/billing/period.ts
-// with Europe/London tz handling. For PR 4 we use UTC since no invoices exist
-// yet (PR 5 is what creates them) — branch (b) only fires once accrual is live.
-function monthStartUtc(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
-
-// In-house £59 inclusive, outsourced tiered by price (per the locked model).
-// Kept local for now; PR 5 will extract this to lib/billing/fee.ts when the
-// accrual cron needs the same logic.
-function feePence(serviceType: ServiceType, priceAtExchange: number): number {
-  if (serviceType === "self_managed") return 5900; // £59 in-house
-  const gbp = priceAtExchange / 100;
-  if (gbp < 350000) return 25000;  // £250
-  if (gbp < 500000) return 30000;  // £300
-  return 35000;                    // £350
-}
+import { billingMonthStart } from "@/lib/billing/period";
+import { computeFee } from "@/lib/billing/fee";
 
 export async function handleExchangeReversal(
   transactionId: string,
@@ -84,7 +68,7 @@ export async function handleExchangeReversal(
   if (txn.billedAtExchange === null) return;
 
   // 3. Decide branch (a) vs (b) based on invoice issuance state.
-  const monthStart = monthStartUtc(txn.billedAtExchange);
+  const monthStart = billingMonthStart(txn.billedAtExchange);
   const invoice = await db.invoice.findUnique({
     where: { agencyId_monthStart: { agencyId: txn.agencyId, monthStart } },
     select: { status: true },
@@ -110,13 +94,13 @@ export async function handleExchangeReversal(
   });
   if (existingCredit) return;
 
-  const amountPence = feePence(txn.serviceType, txn.priceAtExchange ?? 0);
+  const fee = computeFee(txn.serviceType, txn.priceAtExchange);
   const today = new Date().toISOString().slice(0, 10);
   await db.creditNote.create({
     data: {
       agencyId: txn.agencyId,
       transactionId,
-      amountPence,
+      amountPence: fee.amountPence,
       reason: `Exchange reversed post-invoice — ${milestoneCode} undone on ${today}`,
     },
   });

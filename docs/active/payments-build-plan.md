@@ -127,10 +127,16 @@ Eight PRs. Each one ends at a verifiable boundary before the next is opened. Sch
 ### PR 5 — Invoice accrual + director-facing running total
 
 **What changes:**
-- Daily cron `accrue-invoices` reads exchanges with `billedAtExchange` set in the current calendar month and accrues durable lines onto a single open `Invoice` per agency per month. Applies any unapplied `CreditNote` rows.
+- Daily cron `accrue-invoices` reads exchanges with `billedAtExchange` set in the current billing month (Europe/London boundary; see `lib/billing/period.ts` below) and accrues durable lines onto a single open `Invoice` per agency per month. Applies any unapplied `CreditNote` rows.
 - Month-end cron (or 1st-of-month) flips the prior month's open invoice from `building` → `issued` and triggers Stripe invoice creation (in PR 7 — for now just status flip + audit row).
-- New page `/agent/billing` shows the director the current month's running total. **The total and line breakdown are computed live at page-load** from `PropertyTransaction` rows where `billedAtExchange` is set in the current calendar month and `agencyId` matches — NOT from `InvoiceLine` rows. This makes "watch it build" feel instant regardless of cron cadence. The cron writes durable `InvoiceLine` rows for billing history and Stripe issuance; the page never depends on the cron having run.
+- New page `/agent/billing` shows the director the current month's running total. **The total and line breakdown are computed live at page-load** from `PropertyTransaction` rows where `billedAtExchange` is set in the current billing month and `agencyId` matches — NOT from `InvoiceLine` rows. This makes "watch it build" feel instant regardless of cron cadence. The cron writes durable `InvoiceLine` rows for billing history and Stripe issuance; the page never depends on the cron having run.
 - Negotiators denied at the route guard.
+
+**Carryover items closed in this PR (flagged in PR 3 and PR 4):**
+
+- **`lib/billing/fee.ts`** — single shared fee function knowing both in-house flat (£59) and outsourced tiers (£250/£300/£350). The accrual cron and `lib/services/billing-reversal.ts` both consume it. Replaces the local `feePence()` in [billing-reversal.ts](../../lib/services/billing-reversal.ts) that was inlined for PR 4 focus. `lib/services/fees.ts` currently only knows outsourced tiers (clientType=standard) — the new helper is the single source of truth going forward; the legacy `calculateOurFee` is left in place for any analytics already reading it (no breakage, no duplication for the billing path).
+
+- **Partial unique index on `CreditNote`** — Postgres `CREATE UNIQUE INDEX … WHERE "appliedAt" IS NULL` so the database itself prevents two unapplied CreditNotes per transaction. Closes PR 4 branch (b)'s concurrency gap (two concurrent `executeUndoMilestone` calls on the same transaction couldn't both write a CreditNote, even theoretically). Structural defence at the DB layer, mirroring the `@@unique([agencyId, monthStart])` trick on `Invoice`. The existing-credit lookup in `handleExchangeReversal` becomes belt-and-suspenders rather than the only line of defence. Migration is hand-rolled (Prisma's `@@unique` doesn't express partial indexes; the constraint lives in the migration SQL only).
 
 **Files touched:** `app/api/cron/accrue-invoices/route.ts`, `vercel.json` (add cron entry), `app/agent/billing/page.tsx`, role-guard at the page level.
 
