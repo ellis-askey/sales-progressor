@@ -46,6 +46,17 @@ export type RunningTotal = {
   outsourcedCount: number;
   /** True iff agency is currently VAT-registered (drives UI breakdown). */
   vatActive: boolean;
+  /** Trial-file exchanges this month — billedAtExchange null, exchangedAt set,
+      freeOnExchange true. Surfaced for "value given away" visibility. */
+  trialExchangeCount: number;
+  /** What those trial files WOULD have charged at gross rates if not in trial.
+      Useful for the founder's "trial cost" mental model. */
+  trialValuePence: number;
+  /** Sum of unapplied CreditNote.amountPence for this agency, regardless of
+      when the credits were written. They'll be applied to the next building
+      invoice run. Director-facing surface so credits are visible BEFORE the
+      cron applies them. */
+  pendingCreditPence: number;
 };
 
 export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = new Date()): Promise<RunningTotal> {
@@ -105,5 +116,36 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
     });
   }
 
-  return { monthStart: start, monthEnd: end, lines, totalPence, subtotalPence, vatPence, inHouseCount, outsourcedCount, vatActive };
+  // Trial exchanges this month — value given away in the trial window.
+  // freeOnExchange=true files exchange normally (exchangedAt set) but don't bill.
+  const trialRows = await prisma.propertyTransaction.findMany({
+    where: {
+      agencyId,
+      freeOnExchange: true,
+      exchangedAt: { gte: start, lt: end },
+    },
+    select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
+  });
+  let trialValuePence = 0;
+  for (const r of trialRows) {
+    // priceAtExchange isn't set for trial files (PR 3 stops at exchangedAt for them),
+    // so fall back to purchasePrice for the "would have charged" estimate.
+    const fee = computeFee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, vat);
+    trialValuePence += fee.totalPence;
+  }
+
+  // Pending credits — unapplied CreditNote rows for this agency, will apply
+  // to the next building-invoice run.
+  const creditAgg = await prisma.creditNote.aggregate({
+    where: { agencyId, appliedAt: null },
+    _sum: { amountPence: true },
+  });
+  const pendingCreditPence = creditAgg._sum.amountPence ?? 0;
+
+  return {
+    monthStart: start, monthEnd: end, lines, totalPence, subtotalPence, vatPence,
+    inHouseCount, outsourcedCount, vatActive,
+    trialExchangeCount: trialRows.length, trialValuePence,
+    pendingCreditPence,
+  };
 }

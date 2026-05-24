@@ -76,6 +76,16 @@ export default async function BillingPage() {
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 8 }}>
             {total.inHouseCount} in-house · {total.outsourcedCount} outsourced
           </div>
+          {total.trialExchangeCount > 0 && (
+            <div style={{ fontSize: 12, color: "var(--agent-text-muted, #9ca3af)", marginTop: 8 }}>
+              + {total.trialExchangeCount} trial file{total.trialExchangeCount === 1 ? "" : "s"} exchanged — free ({formatPence(total.trialValuePence)} retail value given away)
+            </div>
+          )}
+          {total.pendingCreditPence > 0 && (
+            <div style={{ fontSize: 12, color: "var(--agent-text-muted, #9ca3af)", marginTop: 4 }}>
+              − {formatPence(total.pendingCreditPence)} pending credit will apply to next month's bill
+            </div>
+          )}
         </div>
 
         {/* Lines */}
