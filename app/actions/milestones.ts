@@ -762,21 +762,28 @@ export async function reconcileClaimMilestonesAction(input: {
   return { applied };
 }
 
-// ─── Admin migration: backdated bulk tick + comms entries ───────────────────
+// ─── Admin migration: backdated bulk tick ──────────────────────────────────
 // Admin-only. Marks a batch of milestones complete with HISTORICAL dates from
-// the old system, mirroring how reconcileClaimMilestonesAction works but with:
-//   - no reconciledAtClaim flag (this isn't a claim event)
-//   - "[Migrated]" prefix on summaryText so the activity feed shows provenance
-//   - an OutboundMessage internal_note per milestone with backdated sentAt so
-//     the Updates feed reads chronologically from the historical dates
-//   - a single evaluateTransactionReminders pass at the end to recompute the
-//     reminder picture against the new completion state
+// the old system. Designed to leave the file INDISTINGUISHABLE from a natively-
+// created one in the UI:
+//   - completedById attributed to the chosen agent (not admin); null when no
+//     agent is picked (renders as "Auto-confirmed" like portal confirmations)
+//   - summaryText left null so the timeline renders the milestone's normal
+//     name without any "[Migrated]" marker
+//   - NO OutboundMessage rows written — MilestoneCompletion already surfaces
+//     in the Updates feed via getActivityTimeline (lib/services/comms.ts:47),
+//     so writing internal_notes would duplicate every entry
+//   - lastActivityAt set to the latest backdated event so the file doesn't
+//     read as "Just added" on activity-driven widgets
+//   - one evaluateTransactionReminders pass at the end to recompute reminders
 //
 // Caller (the migration page) is expected to call createTransactionAction first
-// with migrationCreatedAt set, then call this for the historical milestones.
+// with migrationCreatedAt + migrationAgentUserId set, then call this with the
+// same agentUserId for the historical milestone ticks.
 export async function migrateCompleteMilestonesAction(input: {
   transactionId: string;
   completions: Array<{ milestoneDefinitionId: string; eventDate: string }>;
+  agentUserId?: string;
 }): Promise<{ applied: number }> {
   const session = await requireSession();
   if (session.user.role !== "admin") {
@@ -785,7 +792,7 @@ export async function migrateCompleteMilestonesAction(input: {
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
-    select: { id: true, agencyId: true },
+    select: { id: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -798,7 +805,12 @@ export async function migrateCompleteMilestonesAction(input: {
   });
   const defById = new Map(defs.map((d) => [d.id, d]));
 
+  // Attribute completions to the chosen agent. Null when not supplied — better
+  // than the admin's id (which renders as "Admin confirmed X" in the timeline).
+  const completerId = input.agentUserId ?? null;
+
   let applied = 0;
+  let latestEventTime = 0;
 
   for (let i = 0; i < input.completions.length; i++) {
     const c = input.completions[i]!;
@@ -807,12 +819,7 @@ export async function migrateCompleteMilestonesAction(input: {
 
     const eventDateObj = new Date(c.eventDate);
     if (Number.isNaN(eventDateObj.getTime())) continue;
-    const dateLabel = eventDateObj.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    const summaryText = `[Migrated] ${def.name} — completed ${dateLabel}`;
+    if (eventDateObj.getTime() > latestEventTime) latestEventTime = eventDateObj.getTime();
 
     try {
       await prisma.milestoneCompletion.upsert({
@@ -828,35 +835,18 @@ export async function migrateCompleteMilestonesAction(input: {
           state: "complete",
           completedAt: eventDateObj,
           eventDate: eventDateObj,
-          completedById: session.user.id,
-          summaryText,
+          completedById: completerId,
+          summaryText: null,
         },
         update: {
           state: "complete",
           completedAt: eventDateObj,
           eventDate: eventDateObj,
-          completedById: session.user.id,
+          completedById: completerId,
           notRequiredReason: null,
-          summaryText,
+          summaryText: null,
         },
       });
-
-      // Backdated internal-note comms entry so the Updates feed shows the
-      // file's history rather than starting blank.
-      await prisma.outboundMessage.create({
-        data: {
-          transactionId: input.transactionId,
-          agencyId: tx.agencyId,
-          type: "internal_note",
-          contactIds: [],
-          content: `[Migrated] ${def.name} completed on ${dateLabel}`,
-          createdById: session.user.id,
-          createdByRole: "admin",
-          sentAt: eventDateObj,
-        },
-      }).catch((err) =>
-        console.error(`[migrateCompleteMilestonesAction] comms write failed for ${def.code}:`, err),
-      );
 
       await unlockDirectDependents(input.transactionId, def.code).catch((err) =>
         console.error(`[migrateCompleteMilestonesAction] unlock failed for ${def.code}:`, err),
@@ -869,6 +859,17 @@ export async function migrateCompleteMilestonesAction(input: {
         err,
       );
     }
+  }
+
+  // Bump lastActivityAt to the most recent backdated event so the file reads
+  // as "Active <X> ago" rather than "Just added" on the activity-driven UIs.
+  if (latestEventTime > 0) {
+    await prisma.propertyTransaction.update({
+      where: { id: input.transactionId },
+      data: { lastActivityAt: new Date(latestEventTime) },
+    }).catch((err) =>
+      console.error(`[migrateCompleteMilestonesAction] lastActivityAt bump failed:`, err),
+    );
   }
 
   // One reminder-engine pass against the new completion state — seeds the

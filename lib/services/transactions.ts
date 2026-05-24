@@ -715,6 +715,10 @@ export async function createTransaction(input: CreateTransactionInput) {
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
       chaseRuleSnapshot,
       assignedUserId: input.assignedUserId ?? null,
+      // Match the post-create assignUserAction pattern: stamp assignedAt
+      // whenever an assignee is set at create time. Anchored to createdAt so
+      // backdated files report "assigned 3 weeks ago" correctly.
+      assignedAt: input.assignedUserId ? (input.createdAt ?? new Date()) : null,
       agentUserId: input.agentUserId ?? null,
       progressedBy: input.progressedBy ?? "progressor",
       serviceType: (input.progressedBy ?? "progressor") === "agent" ? "self_managed" : "outsourced",

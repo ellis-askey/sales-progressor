@@ -49,11 +49,13 @@ export async function createTransactionAction(input: {
   mosFilename?: string;
   forceCreate?: boolean;
   // Admin-only migration overrides. createdAt backdates the file; agencyId
-  // + assignedUserId let admin create FOR a different agency / progressor.
-  // Action throws Forbidden if any of these is supplied by a non-admin.
+  // + assignedUserId let admin create FOR a different agency / progressor;
+  // agentUserId attributes the file to the real director/negotiator who owned
+  // it in the old system. Action throws Forbidden if any is set by a non-admin.
   migrationCreatedAt?: Date;
   migrationAgencyId?: string;
   migrationAssignedUserId?: string;
+  migrationAgentUserId?: string;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -73,7 +75,7 @@ export async function createTransactionAction(input: {
   const resolvedProgressedBy = isAgent ? input.progressedBy : "progressor";
 
   // Admin-only migration overrides. Block any non-admin from passing them.
-  const hasMigrationOverride = !!(input.migrationCreatedAt || input.migrationAgencyId || input.migrationAssignedUserId);
+  const hasMigrationOverride = !!(input.migrationCreatedAt || input.migrationAgencyId || input.migrationAssignedUserId || input.migrationAgentUserId);
   if (hasMigrationOverride && !isAdmin) {
     throw new Error("Forbidden: migration overrides require admin role");
   }
@@ -110,7 +112,7 @@ export async function createTransactionAction(input: {
     propertyAddress: input.propertyAddress,
     agencyId: effectiveAgencyId,
     assignedUserId: effectiveAssignedUserId,
-    agentUserId: isAgent ? session.user.id : null,
+    agentUserId: input.migrationAgentUserId ?? (isAgent ? session.user.id : null),
     createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,

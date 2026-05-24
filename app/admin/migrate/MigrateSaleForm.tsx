@@ -15,6 +15,7 @@ import type { Tenure, PurchaseType } from "@prisma/client";
 
 type Agency = { id: string; name: string };
 type SP = { id: string; name: string; email: string };
+type AgencyAgent = { id: string; name: string; email: string; role: string; agencyId: string | null };
 type MilestoneDef = {
   id: string;
   code: string;
@@ -32,10 +33,12 @@ const EMPTY_CONTACT: ContactRow = { name: "", phone: "", email: "" };
 export function MigrateSaleForm({
   agencies,
   salesProgressors,
+  agencyAgents,
   milestoneDefs,
 }: {
   agencies: Agency[];
   salesProgressors: SP[];
+  agencyAgents: AgencyAgent[];
   milestoneDefs: MilestoneDef[];
 }) {
   const router = useRouter();
@@ -47,8 +50,21 @@ export function MigrateSaleForm({
   const [createdAt, setCreatedAt] = useState(TODAY);
   const [agencyId, setAgencyId] = useState(agencies[0]?.id ?? "");
   const [assignedSpId, setAssignedSpId] = useState(salesProgressors[0]?.id ?? "");
+  // Original agent — optional; filtered to the chosen agency. Used as the
+  // attribution identity for milestone completions (so the timeline reads
+  // "Sarah confirmed X" instead of "Admin confirmed X").
+  const [agentUserId, setAgentUserId] = useState<string>("");
   const [serviceType, setServiceType] = useState<"self_managed" | "outsourced">("outsourced");
   const [progressedBy, setProgressedBy] = useState<"agent" | "progressor">("progressor");
+
+  const agentsForAgency = agencyAgents.filter((a) => a.agencyId === agencyId);
+
+  // When agency changes, clear the agent selection so the picker can't carry
+  // an agent from a different agency.
+  function handleAgencyChange(next: string) {
+    setAgencyId(next);
+    setAgentUserId("");
+  }
 
   // Section 2: property + sale details
   const [streetAddress, setStreetAddress] = useState("");
@@ -96,6 +112,7 @@ export function MigrateSaleForm({
 
   function resetForm() {
     setCreatedAt(TODAY);
+    setAgentUserId("");
     setStreetAddress("");
     setCity("");
     setPostcode("");
@@ -172,6 +189,7 @@ export function MigrateSaleForm({
           migrationCreatedAt: createdAtDate,
           migrationAgencyId: agencyId,
           migrationAssignedUserId: assignedSpId,
+          migrationAgentUserId: agentUserId || undefined,
         });
 
         let applied = 0;
@@ -179,6 +197,7 @@ export function MigrateSaleForm({
           const { applied: n } = await migrateCompleteMilestonesAction({
             transactionId: result.id,
             completions: milestoneCompletions,
+            agentUserId: agentUserId || undefined,
           });
           applied = n;
         }
@@ -227,7 +246,7 @@ export function MigrateSaleForm({
           <p className={HINT}>Backdated to the file&apos;s real start date from the old system. Drives weeks-elapsed and the 12-week target.</p>
         </Field>
         <Field label="Agency" required>
-          <select value={agencyId} onChange={(e) => setAgencyId(e.target.value)} className={INPUT} required>
+          <select value={agencyId} onChange={(e) => handleAgencyChange(e.target.value)} className={INPUT} required>
             {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </Field>
@@ -235,6 +254,18 @@ export function MigrateSaleForm({
           <select value={assignedSpId} onChange={(e) => setAssignedSpId(e.target.value)} className={INPUT} required>
             {salesProgressors.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.email})</option>)}
           </select>
+        </Field>
+        <Field label="Original agent (director or negotiator)">
+          <select value={agentUserId} onChange={(e) => setAgentUserId(e.target.value)} className={INPUT} disabled={agentsForAgency.length === 0}>
+            <option value="">— None / unattributed —</option>
+            {agentsForAgency.map((a) => (
+              <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+            ))}
+          </select>
+          <p className={HINT}>
+            Who owned this file on the agency side in the old system. Attributed to milestone completions in the activity timeline. Leave blank to render as &quot;Auto-confirmed&quot; (like portal confirmations).
+            {agencyId && agentsForAgency.length === 0 && " No directors/negotiators on this agency — leaving blank."}
+          </p>
         </Field>
         <Field label="Progressed by">
           <div className="flex gap-4 text-sm">

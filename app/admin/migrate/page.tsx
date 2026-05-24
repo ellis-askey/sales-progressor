@@ -14,7 +14,7 @@ export default async function MigratePage() {
   const session = await requireSession();
   if (session.user.role !== "admin") redirect("/dashboard");
 
-  const [agencies, salesProgressors, milestoneDefs] = await Promise.all([
+  const [agencies, salesProgressors, agencyAgents, milestoneDefs] = await Promise.all([
     prisma.agency.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -23,6 +23,14 @@ export default async function MigratePage() {
       where: { role: "sales_progressor" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true },
+    }),
+    // Directors + negotiators across all agencies — used by the "Original
+    // agent" picker on the form. Filtered client-side when the user picks an
+    // agency. Returns agencyId so the filter can run without an extra query.
+    prisma.user.findMany({
+      where: { role: { in: ["director", "negotiator"] } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, role: true, agencyId: true },
     }),
     prisma.milestoneDefinition.findMany({
       orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
@@ -35,11 +43,12 @@ export default async function MigratePage() {
       <div className="p-6 max-w-4xl mx-auto">
         <PageHeader
           title="Migrate historical sale"
-          subtitle="Admin-only. Hand-enters a sale from an old system, backdates the file age and milestone history so it joins the live engine with the right state. One file at a time — submit, repeat."
+          subtitle="Admin-only. Hand-enters a sale from an old system, backdates the file age and milestone history so it joins the live engine with the right state — and looks identical to a natively-created file. One at a time — submit, repeat."
         />
         <MigrateSaleForm
           agencies={agencies}
           salesProgressors={salesProgressors}
+          agencyAgents={agencyAgents}
           milestoneDefs={milestoneDefs}
         />
       </div>
