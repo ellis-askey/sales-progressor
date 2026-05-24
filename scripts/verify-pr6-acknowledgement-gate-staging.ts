@@ -127,7 +127,7 @@ async function main() {
     const fakeTerms1 = await p.termsVersion.create({
       data: {
         versionTag: FAKE_TERMS_TAG_1,
-        body: FAKE_TERMS_BODY,
+        bodySections: [{ heading: "Throwaway", body: FAKE_TERMS_BODY }],
         // Past timestamp so getActiveTermsVersion (filters effectiveFrom
         // <= now()) immediately considers it active. Leaves headroom for
         // scenario 6's "newer" row.
@@ -137,11 +137,11 @@ async function main() {
     const state2 = await getPaymentMethodState(agency.id);
     console.log(`  state.kind: ${state2.kind}`);
     console.log(`  state.terms?.versionTag: ${state2.kind === "disclosure" ? state2.terms.versionTag : "n/a"}`);
-    console.log(`  state.terms?.body[:80]: ${state2.kind === "disclosure" ? state2.terms.body.slice(0, 80) + "…" : "n/a"}`);
+    console.log(`  state.terms?.sections[0].body[:80]: ${state2.kind === "disclosure" ? state2.terms.sections[0].body.slice(0, 80) + "…" : "n/a"}`);
     check("state = 'disclosure' once a terms row exists", state2.kind === "disclosure");
     if (state2.kind === "disclosure") {
       check("disclosure renders FROM the DB row, not hardcoded copy",
-        state2.terms.body === FAKE_TERMS_BODY);
+        state2.terms.sections[0]?.body === FAKE_TERMS_BODY);
       check("disclosure tag = the seeded fake tag",
         state2.terms.versionTag === FAKE_TERMS_TAG_1);
     }
@@ -196,7 +196,7 @@ async function main() {
     const fakeTerms2 = await p.termsVersion.create({
       data: {
         versionTag: FAKE_TERMS_TAG_2,
-        body: FAKE_TERMS_BODY + " (v2 revision)",
+        bodySections: [{ heading: "Throwaway v2", body: FAKE_TERMS_BODY + " (v2 revision)" }],
         // Strictly later than v1 (which was now-2000ms) but still in the
         // past so getActiveTermsVersion considers it active. v2 wins via
         // ORDER BY effectiveFrom DESC.

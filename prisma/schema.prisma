@@ -1874,7 +1874,11 @@ model InvoiceLine {
 model TermsVersion {
   id               String                   @id @default(cuid())
   versionTag       String                   @unique  // e.g. "2026-05-payments-v1"
-  body             String                            // actual disclosure text/markdown
+  // JSONB array of { heading: string, body: string }. Structured so the
+  // renderer maps over sections cleanly + future versions can change wording
+  // without breaking the parser. See lib/billing/terms-sections.ts for the
+  // TypeScript type.
+  bodySections     Json
   effectiveFrom    DateTime
   createdAt        DateTime                 @default(now())
   acknowledgements PricingAcknowledgement[]

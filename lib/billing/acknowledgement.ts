@@ -14,11 +14,12 @@
 // see PR 1 schema). The FK to User is a convenience pointer.
 
 import { prisma } from "@/lib/prisma";
+import { parseTermsSections, type TermsSection } from "@/lib/billing/terms-sections";
 
 export type ActiveTermsVersion = {
   id: string;
   versionTag: string;
-  body: string;
+  sections: TermsSection[];
   effectiveFrom: Date;
 };
 
@@ -31,9 +32,15 @@ export async function getActiveTermsVersion(now: Date = new Date()): Promise<Act
   const row = await prisma.termsVersion.findFirst({
     where: { effectiveFrom: { lte: now } },
     orderBy: { effectiveFrom: "desc" },
-    select: { id: true, versionTag: true, body: true, effectiveFrom: true },
+    select: { id: true, versionTag: true, bodySections: true, effectiveFrom: true },
   });
-  return row;
+  if (!row) return null;
+  return {
+    id: row.id,
+    versionTag: row.versionTag,
+    sections: parseTermsSections(row.bodySections),
+    effectiveFrom: row.effectiveFrom,
+  };
 }
 
 /**

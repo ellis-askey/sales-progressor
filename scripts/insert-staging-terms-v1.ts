@@ -18,17 +18,41 @@ const STAGING_PROJECT_ID = "etidawkbqctarmsdjoxp";
 const PROD_PROJECT_ID = "gmkfustgwipgihpmpjpr";
 const VERSION_TAG = "2026-05-payments-v1";
 
-// Exact text supplied by Ellis. Preserved verbatim — whitespace and
-// paragraph breaks survive because PricingDisclosure renders with
-// whiteSpace: "pre-wrap".
-const TERMS_BODY = `Sales Progressor — pricing
-You're adding a payment card so we can bill you for completed sales. Here's exactly how that works.
-What you pay. We charge per sale, and only once it exchanges — never before. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee depends on the agreed sale price at exchange: £250 for sales up to £349,999, £300 for £350,000 to £499,999, and £350 for £500,000 and above.
-When you pay. Nothing is charged until a sale exchanges. Fees for sales that exchange in a given month are collected together as a single payment at the end of that month. You'll see the running total building on your billing page throughout the month, so there are no surprises.
-Your free trial. Any sale you add in your first 14 days is free for its whole life — even when it exchanges months later, you won't be charged for it. The 14 days run from the first sale you add.
-If a payment fails. Sales already underway carry on as normal. But until the payment is sorted, you won't be able to add new sales. We'll show you clearly that a payment needs attention and how to fix it.
-Who's billed. Billing is handled by the agency's director. Only a director can see or manage payment details and invoices.
-VAT. We're not currently VAT-registered, so no VAT is added to these fees. If that changes, we'll let you know before it affects what you pay.`;
+// Exact text supplied by Ellis. Stored as structured sections so the
+// renderer maps cleanly + future versions can change wording without
+// breaking the parser. Lives in this script as the SINGLE SOURCE OF TRUTH
+// for the v1 content — staging and prod both insert from here, no drift
+// between formats.
+const TERMS_SECTIONS = [
+  {
+    heading: "Sales Progressor — pricing",
+    body: "You're adding a payment card so we can bill you for completed sales. Here's exactly how that works.",
+  },
+  {
+    heading: "What you pay",
+    body: "We charge per sale, and only once it exchanges — never before. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee depends on the agreed sale price at exchange: £250 for sales up to £349,999, £300 for £350,000 to £499,999, and £350 for £500,000 and above.",
+  },
+  {
+    heading: "When you pay",
+    body: "Nothing is charged until a sale exchanges. Fees for sales that exchange in a given month are collected together as a single payment at the end of that month. You'll see the running total building on your billing page throughout the month, so there are no surprises.",
+  },
+  {
+    heading: "Your free trial",
+    body: "Any sale you add in your first 14 days is free for its whole life — even when it exchanges months later, you won't be charged for it. The 14 days run from the first sale you add.",
+  },
+  {
+    heading: "If a payment fails",
+    body: "Sales already underway carry on as normal. But until the payment is sorted, you won't be able to add new sales. We'll show you clearly that a payment needs attention and how to fix it.",
+  },
+  {
+    heading: "Who's billed",
+    body: "Billing is handled by the agency's director. Only a director can see or manage payment details and invoices.",
+  },
+  {
+    heading: "VAT",
+    body: "We're not currently VAT-registered, so no VAT is added to these fees. If that changes, we'll let you know before it affects what you pay.",
+  },
+];
 
 function projectIdOf(url: string | undefined): string {
   const m = url?.match(/(?:postgres\.|db\.)([a-z0-9]{20})/);
@@ -61,7 +85,7 @@ async function main() {
   console.log("================================================================");
   console.log(`  Project ID:  ${dbProj}`);
   console.log(`  Version tag: ${VERSION_TAG}`);
-  console.log(`  Body length: ${TERMS_BODY.length} chars, ${TERMS_BODY.split("\n").length} lines`);
+  console.log(`  Sections:    ${TERMS_SECTIONS.length}`);
   console.log("================================================================");
   console.log("");
 
@@ -71,17 +95,16 @@ async function main() {
     if (existing) {
       console.log(`No-op: row with versionTag '${VERSION_TAG}' already exists (id=${existing.id}).`);
       console.log(`  effectiveFrom: ${existing.effectiveFrom.toISOString()}`);
-      console.log(`  body length:   ${existing.body.length} chars`);
       console.log("");
-      console.log("If you need to UPDATE the body of an existing row, do it manually");
-      console.log("via psql or Supabase studio — this script only INSERTS.");
+      console.log("If you need to UPDATE the body sections, do it manually via the");
+      console.log("Supabase studio or a one-shot script — this script only INSERTS.");
       process.exit(0);
     }
 
     const row = await p.termsVersion.create({
       data: {
         versionTag: VERSION_TAG,
-        body: TERMS_BODY,
+        bodySections: TERMS_SECTIONS,
         effectiveFrom: new Date(),
       },
     });

@@ -70,7 +70,7 @@ export default async function PaymentMethodPage() {
         {state.kind === "disclosure" && (
           <PricingDisclosure
             termsVersionId={state.terms.id}
-            termsBody={state.terms.body}
+            termsSections={state.terms.sections}
             termsVersionTag={state.terms.versionTag}
           />
         )}
