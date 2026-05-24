@@ -24,7 +24,7 @@
 //
 //   2. "Beacon Estates" — permanent BLOCKED-payment state
 //        Director: tom@beaconestates.co.uk
-//        paymentFailedAt 9d ago + newFileCreationBlockedAt set
+//        paymentFailedAt 15d ago + newFileCreationBlockedAt set
 //        1 prior-month failed Invoice (stripeInvoiceId set so it looks real)
 //        Hub shows red banner. New file creation refused with 402.
 //
@@ -252,8 +252,8 @@ async function seedBeaconBlocked() {
   divider("Seeding Beacon Estates — BLOCKED demo");
   const { id: agencyId } = await findOrCreateAgency("Beacon Estates");
   const now = new Date();
-  // 9 days since failed payment → past the 7-day grace.
-  const failedAt = new Date(now.getTime() - 9 * 24 * 3_600_000);
+  // 15 days since failed payment → past the 14-day grace.
+  const failedAt = new Date(now.getTime() - 15 * 24 * 3_600_000);
   await p.agency.update({
     where: { id: agencyId },
     data: {
@@ -299,7 +299,7 @@ async function seedBeaconBlocked() {
       amountPence: 30000, vatPence: 0, totalPence: 30000,
     },
   });
-  console.log(`  blocked state set up: paymentFailedAt 9d ago, newFileCreationBlockedAt now`);
+  console.log(`  blocked state set up: paymentFailedAt 15d ago, newFileCreationBlockedAt now`);
 }
 
 async function seedMarlowWarning() {

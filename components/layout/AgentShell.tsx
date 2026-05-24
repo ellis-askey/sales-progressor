@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { SolidModeToggle } from "@/components/layout/SolidModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
@@ -49,9 +50,10 @@ function buildNavGroups(role: UserRole) {
     main,
     secondary: [
       { href: "/agent/partners",    label: "Partners",    Icon: Buildings     },
-      // Billing is director-only — negotiators 404 on the page anyway.
-      // Hidden from the nav for non-directors so it doesn't surface a dead link.
-      ...(role === "director" ? [{ href: "/agent/billing", label: "Billing", Icon: CreditCard }] : []),
+      // Billing lives in the top-right UserDropdown alongside Settings —
+      // it's a "manage your agency" surface, not a daily-use nav item.
+      // Negotiators see the same dropdown entry but get a modal explaining
+      // billing is director-only.
     ],
   };
 }
@@ -67,7 +69,12 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   const [open, setOpen] = useState(false);
+  const [billingModalOpen, setBillingModalOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Billing is for agency users (director + negotiator). Internal staff
+  // and admins have no billing because they don't own an agency that's
+  // being charged. Show the entry only for those two roles.
+  const showBillingEntry = role === "director" || role === "negotiator";
 
   useEffect(() => {
     if (!open) return;
@@ -161,6 +168,39 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
                 Settings
               </Link>
+              {showBillingEntry && (
+                role === "director" ? (
+                  <Link
+                    href="/agent/billing"
+                    onClick={() => setOpen(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 9,
+                      padding: "8px 10px", borderRadius: 8,
+                      textDecoration: "none", color: "var(--agent-text-primary)", fontSize: 13,
+                      transition: "background 150ms",
+                    }}
+                    className="hover:bg-black/[0.05]"
+                  >
+                    <CreditCard weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
+                    Billing
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => { setOpen(false); setBillingModalOpen(true); }}
+                    style={{
+                      display: "flex", width: "100%", alignItems: "center", gap: 9,
+                      padding: "8px 10px", borderRadius: 8, textAlign: "left",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "var(--agent-text-primary)", fontSize: 13,
+                      transition: "background 150ms",
+                    }}
+                    className="hover:bg-black/[0.05]"
+                  >
+                    <CreditCard weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
+                    Billing
+                  </button>
+                )
+              )}
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
                 style={{
@@ -179,6 +219,10 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
         </div>
 
       </div>
+
+      {/* Negotiator-clicked Billing → modal explaining director-only + 3 paths.
+          Renders outside the dropdown card so it overlays the whole viewport. */}
+      <BillingNegotiatorModal open={billingModalOpen} onClose={() => setBillingModalOpen(false)} />
     </div>
   );
 }

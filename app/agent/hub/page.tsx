@@ -23,6 +23,7 @@ import {
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
+import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { Plus, Clock, ArrowRight, Warning, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -278,6 +279,13 @@ export default async function HubPreviewPage() {
             surface — it's the first page a director sees after login. */}
         {role === "director" && session.user.agencyId && (
           <PaymentBlockBanner agencyId={session.user.agencyId} />
+        )}
+
+        {/* ── Payments — gentle nudge to set up a card after trial + 7d grace ───── */}
+        {/* Self-hides during trial, immediately after trial (1-week orientation
+            window), and once a card is on file. Director-only. */}
+        {role === "director" && session.user.agencyId && (
+          <PaymentMethodNudge agencyId={session.user.agencyId} />
         )}
 
         {/* ── 2. Today's diary ──────────────────────────────────────────────────── */}

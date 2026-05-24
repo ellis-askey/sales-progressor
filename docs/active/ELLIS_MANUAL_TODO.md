@@ -472,7 +472,7 @@ The gate is built to read whatever's in the `TermsVersion` table. PR 6 ships the
    - What we charge (£59 in-house per exchange; £250/£300/£350 outsourced by exchange-confirmed sale price)
    - When we charge (monthly, on exchange — never before, never on fall-through)
    - The 7-day free trial (first 7 days of files are free-on-exchange forever)
-   - Failed-payment behaviour (existing files keep running; new file creation blocks after ~7 days of failed payment until the card is updated)
+   - Failed-payment behaviour (existing files keep running; new file creation blocks after ~14 days of failed payment until the card is updated)
    - The director-only billing scope (negotiators don't see prices)
    - VAT status (not VAT-registered today; the disclosure should note this and that pricing is inclusive)
 2. Send CC the final text + the version tag you want recorded (suggested `"2026-05-payments-v1"`, bump when terms change).

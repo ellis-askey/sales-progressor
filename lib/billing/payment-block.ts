@@ -24,7 +24,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const PAYMENT_FAILURE_GRACE_DAYS = 7;
+// Bumped from 7 → 14 (2026-05-24): 7 days was tight for real-world card
+// issues (travel, new card in post, holiday banking). 14 still drives a
+// resolution timeline but doesn't punish reasonable delays.
+const PAYMENT_FAILURE_GRACE_DAYS = 14;
 export const PAYMENT_FAILURE_GRACE_MS = PAYMENT_FAILURE_GRACE_DAYS * 24 * 60 * 60 * 1000;
 
 export type PaymentBlockState =
@@ -97,7 +100,7 @@ export async function assertCanCreateFile(
 }
 
 /**
- * Daily cron logic: for any agency with paymentFailedAt + 7 days < now
+ * Daily cron logic: for any agency with paymentFailedAt + 14 days < now
  * and newFileCreationBlockedAt still null, set newFileCreationBlockedAt = now.
  * Idempotent — re-runs after the flag is set are no-ops via the WHERE clause.
  */
