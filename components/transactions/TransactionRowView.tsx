@@ -8,6 +8,7 @@ import { calculateRiskScore } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 
 export type HealthRaw = {
@@ -204,11 +205,12 @@ function VendorBuyerLine({ contacts }: { contacts?: { name: string; roleType: st
     return <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(var(--agent-warning-rgb), 0.40)" }}>Names not set</p>;
   }
   return (
-    <p className="text-xs text-slate-900/40 mt-0.5 truncate">
-      {"Vendor: "}
-      {vendor ? firstNameLastInitial(vendor.name) : <span className="text-slate-900/25">not set</span>}
-      {" · Buyer: "}
-      {buyer ? firstNameLastInitial(buyer.name) : <span className="text-slate-900/25">not set</span>}
+    <p className="text-xs text-slate-900/40 mt-0.5 truncate" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <RoleIcon role="vendor" size={11} />
+      <span>Vendor: {vendor ? firstNameLastInitial(vendor.name) : <span className="text-slate-900/25">not set</span>}</span>
+      <span style={{ color: "var(--agent-text-muted)" }}>·</span>
+      <RoleIcon role="purchaser" size={11} />
+      <span>Buyer: {buyer ? firstNameLastInitial(buyer.name) : <span className="text-slate-900/25">not set</span>}</span>
     </p>
   );
 }

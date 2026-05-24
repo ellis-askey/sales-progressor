@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
@@ -255,6 +256,7 @@ export function MilestonePanel({
               className={`agent-segment-pill agent-segment-pill-sm${activeTab === side ? " on" : ""}`}
               style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
+              <RoleIcon role={side} size={12} colorOverride={activeTab === side ? "currentColor" : undefined} />
               <span className="capitalize">{side}</span>
               <span className="agent-segment-pill-note">{done}/{total}</span>
             </button>

@@ -7,6 +7,7 @@ import { CheckCircle, Clock, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { ChaseButton } from "@/components/chase/ChaseButton";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 
 export type Contact = {
   id: string;
@@ -389,9 +390,10 @@ export function ReminderCard({
           )}
           {contactName && <p className="text-xs text-slate-900/40 mb-0.5">{contactName}</p>}
           <p className="text-sm font-medium text-slate-900/80">{stripChase(log.reminderRule.name)}</p>
-          {partyLabel && (
+          {partyLabel && party && (
             <div className="flex items-center gap-2 mt-1.5">
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${partyPillClass}`}>
+              <span className={`inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-md ${partyPillClass}`}>
+                <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
               </span>
             </div>
@@ -461,8 +463,9 @@ export function ReminderCard({
             {log.reminderRule.description && (
               <p className="text-xs text-slate-900/50">{log.reminderRule.description}</p>
             )}
-            {partyLabel && (
-              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md ${partyPillClass}`}>
+            {partyLabel && party && (
+              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md ${partyPillClass}`}>
+                <RoleIcon role={party} size={11} />
                 Waiting on {partyLabel}
               </span>
             )}

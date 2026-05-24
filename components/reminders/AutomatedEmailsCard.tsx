@@ -14,11 +14,12 @@
 // flagged the Glass-theme drawer was see-through + raised that the data
 // belonged inline alongside the other accordion cards.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
 import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
+import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type {
   AutomatedEmailsPreview,
   PendingEmail,
@@ -146,7 +147,7 @@ function Row({
 }: {
   category: "chase" | "notification";
   primary: string;
-  secondary: string;
+  secondary: ReactNode;
   trailing: string;
   // When provided, shows a small "View →" / "View / Edit →" link on the
   // trailing line that opens the preview modal. Predicted-upcoming rows
@@ -171,9 +172,9 @@ function Row({
         </p>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 2 }}>
-        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary, rgba(15,23,42,0.65))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary, rgba(15,23,42,0.65))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
           {secondary}
-        </p>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {previewLabel && onPreview && (
             <button type="button" onClick={onPreview} className="agent-link" style={{ fontSize: 11, fontWeight: 600 }}>
@@ -186,6 +187,24 @@ function Row({
         </div>
       </div>
     </div>
+  );
+}
+
+// Renders "To {name}" with an inline role pill (icon + capitalised label)
+// derived from the contact's role string.
+function ToWithRole({ name, role }: { name: string; role: string }) {
+  const r = asRole(role);
+  return (
+    <>
+      <span>To {name}</span>
+      {r && (
+        <>
+          <span>·</span>
+          <RoleIcon role={r} size={11} />
+          <span>{roleLabel(r)}</span>
+        </>
+      )}
+    </>
   );
 }
 
@@ -265,7 +284,7 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
                 key={p.id}
                 category={p.category}
                 primary={p.subject}
-                secondary={`To ${getShortName({ name: p.recipientName })} (${p.recipientRole})`}
+                secondary={<ToWithRole name={getShortName({ name: p.recipientName })} role={p.recipientRole} />}
                 trailing={`Send ${formatDayAndTime(p.scheduledFor)}`}
                 previewLabel={p.category === "chase" ? "View / Edit" : "View"}
                 onPreview={() => setPreviewEmailId(p.id)}
@@ -283,7 +302,7 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
                 key={s.id}
                 category={s.category}
                 primary={s.subject}
-                secondary={`To ${getShortName({ name: s.recipientName })} (${s.recipientRole})`}
+                secondary={<ToWithRole name={getShortName({ name: s.recipientName })} role={s.recipientRole} />}
                 trailing={`Sent ${formatTime(s.sentAt)}`}
                 previewLabel="View"
                 onPreview={() => setPreviewEmailId(s.id)}
@@ -301,7 +320,7 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
                 key={`${u.contactId}-${u.milestoneCode}-${i}`}
                 category="chase"
                 primary={`${u.milestoneLabel} chase`}
-                secondary={`To ${getShortName({ name: u.contactName })} (${u.contactRole}) · chase ${u.chaseNumber} of 2`}
+                secondary={<><ToWithRole name={getShortName({ name: u.contactName })} role={u.contactRole} /><span>· chase {u.chaseNumber} of 2</span></>}
                 trailing={formatDayAndTime(u.predictedFireDate)}
               />
             ))

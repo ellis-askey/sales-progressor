@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EmailRow, EmailListTab } from "@/lib/services/automated-emails-list";
 import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
+import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 
 type Props = {
   rows: EmailRow[];
@@ -211,9 +212,19 @@ function EmailRowCard({ row, onPreview }: { row: EmailRow; onPreview: (emailId: 
           color: "var(--agent-text-muted)",
         }}
       >
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
           To {row.recipientName}
-          {row.recipientRole ? ` · ${row.recipientRole}` : ""}
+          {(() => {
+            const r = asRole(row.recipientRole);
+            if (!r) return null;
+            return (
+              <>
+                <span>·</span>
+                <RoleIcon role={r} size={11} />
+                <span>{roleLabel(r)}</span>
+              </>
+            );
+          })()}
         </span>
         <span style={{ flexShrink: 0, fontWeight: 500 }}>{statusMeta(row)}</span>
       </div>

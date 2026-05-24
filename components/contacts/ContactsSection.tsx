@@ -4,10 +4,11 @@
 // Light theme. Applies titleCase to contact names before saving.
 
 import { useState, useTransition } from "react";
-import { CONTACT_ROLES, CONTACT_ROLE_LABELS, titleCase, normalizePhone } from "@/lib/utils";
+import { CONTACT_ROLES, titleCase, normalizePhone } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
 import type { ContactRole } from "@prisma/client";
 
 function whatsappHref(phone: string): string {
@@ -46,14 +47,6 @@ type Contact = {
   roleType: string;
   portalToken: string | null;
   createdAt: Date;
-};
-
-const ROLE_BADGE_STYLE: Record<string, { background: string; color: string }> = {
-  vendor:    { background: "rgba(59,130,246,.1)",  color: "#3b82f6" },
-  purchaser: { background: "rgba(34,197,94,.1)",   color: "#16a34a" },
-  solicitor: { background: "rgba(139,92,246,.1)",  color: "#7c3aed" },
-  broker:    { background: "rgba(245,158,11,.1)",  color: "#d97706" },
-  other:     { background: "rgba(15,23,42,.06)",   color: "var(--agent-text-muted)" },
 };
 
 function fmtRelative(date: Date): string {
@@ -233,7 +226,7 @@ export function ContactsSection({
         <div>
           {contacts.map((contact) => {
             const role = contact.roleType as ContactRole;
-            const badgeStyle = ROLE_BADGE_STYLE[role] ?? ROLE_BADGE_STYLE.other;
+            const r = asRole(role) ?? "other";
             const isEditing = editingId === contact.id;
             const isExiting = exitingId === contact.id;
             return (
@@ -247,8 +240,9 @@ export function ContactsSection({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                       <span data-sensitive="true" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
-                      <span style={{ fontSize: 10, borderRadius: 4, padding: "1px 6px", ...badgeStyle }}>
-                        {CONTACT_ROLE_LABELS[role]}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
+                        <RoleIcon role={r} size={11} />
+                        {roleLabel(r)}
                       </span>
                       {contact.portalToken && portalViewDates[contact.id] && (
                         <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>

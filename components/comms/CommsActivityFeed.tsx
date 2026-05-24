@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
+import { RoleIcon, ROLE_PILL_BG, roleColour } from "@/components/ui/RoleIcon";
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -96,9 +97,11 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-medium text-slate-900/80">{m.milestoneName}</span>
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{
-                                  background: m.side === "vendor" ? "rgba(var(--agent-warning-rgb), 0.08)" : "rgba(var(--agent-success-rgb), 0.08)",
-                                  color: m.side === "vendor" ? "var(--agent-warning)" : "var(--agent-success)",
+                                  display: "inline-flex", alignItems: "center", gap: 4,
+                                  background: ROLE_PILL_BG[m.side === "vendor" ? "vendor" : "purchaser"],
+                                  color: roleColour(m.side === "vendor" ? "vendor" : "purchaser"),
                                 }}>
+                                  <RoleIcon role={m.side === "vendor" ? "vendor" : "purchaser"} size={10} />
                                   {m.side === "vendor" ? "Vendor" : "Purchaser"}
                                 </span>
                                 {m.confirmedByPortal && (

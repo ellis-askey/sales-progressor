@@ -10,6 +10,7 @@ import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 
 // Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
@@ -285,7 +286,7 @@ function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
   return (
     <div style={{ flex: 1, minWidth: 0, borderRadius: 14, background: isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)", border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`, display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "8px 12px", borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`, display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: isSeller ? "#ea580c" : "#3b82f6", flexShrink: 0 }} />
+        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: isSeller ? "#ea580c" : "#3b82f6" }}>{isSeller ? "Seller" : "Buyer"}</span>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 12px" }}>
@@ -321,7 +322,6 @@ function ColumnSection({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
   const isSeller = side === "seller";
-  const dotColor = isSeller ? "#ea580c" : "#3b82f6";
   const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
   const labelColor = isSeller ? "#ea580c" : "#3b82f6";
 
@@ -353,7 +353,7 @@ function ColumnSection({
     <div style={{ flex: 1, minWidth: 0, borderRadius: 14, background: columnBg, border: `0.5px solid ${isSeller ? "rgba(234,88,12,0.14)" : "rgba(59,130,246,0.14)"}`, display: "flex", flexDirection: "column" }}>
       {/* Column header */}
       <div style={{ padding: "8px 12px", borderBottom: `0.5px solid ${isSeller ? "rgba(234,88,12,0.10)" : "rgba(59,130,246,0.10)"}`, display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>{isSeller ? "Seller" : "Buyer"}</span>
         <span style={{ fontSize: 10, color: "var(--agent-text-muted)", marginLeft: "auto" }}>{logs.length} {logs.length === 1 ? "item" : "items"}</span>
       </div>

@@ -13,6 +13,7 @@
 
 import { useState, useTransition } from "react";
 import { updateAgencyChasePolicy } from "@/app/actions/automation";
+import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
 
 type RuleRow = {
   milestoneCode: string;
@@ -110,8 +111,8 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
           Changes apply to new files only. Files already in flight keep their original schedule.
         </p>
 
-        <RuleSection title="Vendor side" rows={vendorRules} updateRule={updateRule} />
-        <RuleSection title="Purchaser side" rows={purchaserRules} updateRule={updateRule} />
+        <RuleSection title="Vendor side" side="vendor" rows={vendorRules} updateRule={updateRule} />
+        <RuleSection title="Purchaser side" side="purchaser" rows={purchaserRules} updateRule={updateRule} />
       </section>
 
       {/* Save bar */}
@@ -145,17 +146,20 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
 
 function RuleSection({
   title,
+  side,
   rows,
   updateRule,
 }: {
   title: string;
+  side: Role;
   rows: { rule: RuleRow; idx: number }[];
   updateRule: (idx: number, patch: Partial<RuleRow>) => void;
 }) {
   if (rows.length === 0) return null;
   return (
     <div className="mb-5">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--agent-text-secondary,rgba(15,23,42,0.65))] mb-2">
+      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--agent-text-secondary,rgba(15,23,42,0.65))] mb-2 flex items-center gap-1.5">
+        <RoleIcon role={side} size={13} />
         {title}
       </h4>
       <div className="space-y-2">

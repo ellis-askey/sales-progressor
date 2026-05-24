@@ -23,8 +23,7 @@ import {
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { Plus, Clock, ArrowRight, Warning, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -527,9 +526,10 @@ export default async function HubPreviewPage() {
                   className="agent-press-cell"
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <AlertCircle
+                    <Warning
                       size={14}
                       color="var(--agent-warning)"
+                      weight="fill"
                       style={{ flexShrink: 0 }}
                     />
                     <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>
@@ -538,7 +538,7 @@ export default async function HubPreviewPage() {
                       <span style={{ color: "var(--agent-text-secondary)" }}>nothing logged in 14+ days</span>
                     </span>
                   </div>
-                  <ChevronRight size={14} color="var(--agent-text-muted)" style={{ flexShrink: 0 }} />
+                  <CaretRight size={14} color="var(--agent-text-muted)" weight="bold" style={{ flexShrink: 0 }} />
                 </Link>
               )}
             </div>

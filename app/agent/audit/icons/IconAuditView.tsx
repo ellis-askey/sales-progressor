@@ -30,7 +30,7 @@ import {
   Storefront, ShoppingBag, Tag, SignOut, SignIn, Target,
   Briefcase, Scales, BookOpen, Gavel,
   ChartLineUp, HandCoins, Bank, Calculator,
-  UserCircle, IdentificationCard,
+  UserCircle, IdentificationCard, UserSquare, IdentificationBadge,
   // Drift alternatives
   Siren, ArrowFatUp, SquaresFour, Compass,
 } from "@phosphor-icons/react";
@@ -51,7 +51,7 @@ const ICON: Record<string, Icon> = {
   Storefront, ShoppingBag, Tag, SignOut, SignIn, Target,
   Briefcase, Scales, BookOpen, Gavel,
   ChartLineUp, HandCoins, Bank, Calculator,
-  UserCircle, IdentificationCard,
+  UserCircle, IdentificationCard, UserSquare, IdentificationBadge,
   Siren, ArrowFatUp, SquaresFour, Compass,
 };
 
@@ -504,31 +504,31 @@ export function IconAuditView() {
       <Section id="roles" title="NEW — Role universals" intro="Every ContactRole shown as bare text today across 11 surfaces. Adding universal icons disambiguates faster than reading the word. Three context replicas per role: inline next to a contact name, as a section header, and as a role badge pill — matches the actual usages.">
         <IconCard
           status="new"
-          name="Storefront"
+          name="UserCircle"
           size={28}
           context="NEW — universal vendor/seller icon. Today: bare 'vendor' / 'Vendor' / 'Vendors' text on contact rows, milestone tabs, section headers, role badges, and the automated-emails 'To Mrs Hartley · vendor' line."
-          recommendation="Recommended: Storefront — conveys 'selling' semantically. Paired with the existing orange (#ea580c) colour convention."
-          alternatives={["HouseLine", "Tag", "SignOut", "Key"]}
+          recommendation="Recommended: UserCircle in orange (#ea580c). Avatar-style icon — vendors and purchasers are PEOPLE, distinguished by the side-colour convention. Visually consistent with purchaser (same icon, different colour)."
+          alternatives={["User", "UserSquare", "IdentificationBadge", "Storefront"]}
           preview={
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <ContactInlinePreview icon="Storefront" name="Mrs Hartley" tone="vendor" />
-              <SectionHeaderPreview icon="Storefront" label="Vendors" tone="vendor" />
-              <PillPreview icon="Storefront" label="Vendor" tone="vendor" />
+              <ContactInlinePreview icon="UserCircle" name="Mrs Hartley" tone="vendor" />
+              <SectionHeaderPreview icon="UserCircle" label="Vendors" tone="vendor" />
+              <PillPreview icon="UserCircle" label="Vendor" tone="vendor" />
             </div>
           }
         />
         <IconCard
           status="new"
-          name="ShoppingBag"
+          name="UserCircle"
           size={28}
           context="NEW — universal purchaser/buyer icon. Today: bare 'purchaser' / 'Purchaser' / 'Purchasers' text on contact rows, milestone tabs, section headers, role badges."
-          recommendation="Recommended: ShoppingBag — counterpart to Storefront. Paired with the existing blue (#0369a1) colour convention."
-          alternatives={["House", "SignIn", "Target", "Key"]}
+          recommendation="Recommended: UserCircle in blue (#0369a1). Same icon as vendor — the colour does the differentiation. Both sides are people, just on different sides of the transaction."
+          alternatives={["User", "UserSquare", "IdentificationBadge", "ShoppingBag"]}
           preview={
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <ContactInlinePreview icon="ShoppingBag" name="Mr Stevens" tone="purchaser" />
-              <SectionHeaderPreview icon="ShoppingBag" label="Purchasers" tone="purchaser" />
-              <PillPreview icon="ShoppingBag" label="Purchaser" tone="purchaser" />
+              <ContactInlinePreview icon="UserCircle" name="Mr Stevens" tone="purchaser" />
+              <SectionHeaderPreview icon="UserCircle" label="Purchasers" tone="purchaser" />
+              <PillPreview icon="UserCircle" label="Purchaser" tone="purchaser" />
             </div>
           }
         />
@@ -567,8 +567,8 @@ export function IconAuditView() {
           name="User"
           size={28}
           context="NEW — generic 'other' contact role. For contacts that aren't vendor/purchaser/solicitor/broker (e.g. surveyors, removal firms, neighbours)."
-          recommendation="Recommended: User — single-person fallback metaphor."
-          alternatives={["UserCircle", "IdentificationCard"]}
+          recommendation="Recommended: User in neutral grey. Plain silhouette (no circle) — distinguishes from vendor/purchaser which use UserCircle. Still avatar-family for visual cohesion."
+          alternatives={["UserCircle", "IdentificationBadge"]}
           preview={
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <ContactInlinePreview icon="User" name="The surveyor" tone="neutral" />

@@ -10,6 +10,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
+import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
@@ -321,7 +322,6 @@ function SideColumn({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isSeller = side === "seller";
-  const dotColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
   const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
   const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
 
@@ -365,7 +365,7 @@ function SideColumn({
         borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
         display: "flex", alignItems: "center", gap: 6,
       }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
           {isSeller ? "Seller" : "Buyer"}
         </span>
@@ -530,7 +530,6 @@ function SideColumn({
 
 function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
   const isSeller = side === "seller";
-  const dotColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
   const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
   const labelColor = isSeller ? "var(--agent-warning)" : "var(--agent-info)";
 
@@ -548,7 +547,7 @@ function EmptyColumn({ side }: { side: "seller" | "buyer" }) {
         borderBottom: `0.5px solid ${isSeller ? "rgba(var(--agent-warning-rgb), 0.10)" : "rgba(var(--agent-info-rgb), 0.10)"}`,
         display: "flex", alignItems: "center", gap: 6,
       }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+        <RoleIcon role={isSeller ? "vendor" : "purchaser"} size={12} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: labelColor }}>
           {isSeller ? "Seller" : "Buyer"}
         </span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
 
 // Reusable milestone reconciliation picker.
 // Renders vendor + purchaser sections with checkbox + optional date input per row.
@@ -286,6 +287,7 @@ export function ReconcileMilestonePicker({
       {(side === undefined || side === "vendor") && (
         <Section
           title="Vendor milestones"
+          side="vendor"
           milestones={vendor}
           state={state}
           onRowChange={handleRowChange}
@@ -296,6 +298,7 @@ export function ReconcileMilestonePicker({
       {(side === undefined || side === "purchaser") && (
         <Section
           title="Purchaser milestones"
+          side="purchaser"
           milestones={purchaser}
           state={state}
           onRowChange={handleRowChange}
@@ -309,6 +312,7 @@ export function ReconcileMilestonePicker({
 
 function Section({
   title,
+  side,
   milestones,
   state,
   onRowChange,
@@ -316,6 +320,7 @@ function Section({
   justUnlocked,
 }: {
   title: string;
+  side: Role;
   milestones: MilestoneDefinitionLite[];
   state: ReconciliationState;
   onRowChange: (id: string, patch: Partial<ReconciliationRow>) => void;
@@ -326,7 +331,10 @@ function Section({
 
   return (
     <div className="claim-reconcile-section">
-      <p className="claim-reconcile-section-title">{title}</p>
+      <p className="claim-reconcile-section-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <RoleIcon role={side} size={13} />
+        {title}
+      </p>
       <ul className="claim-reconcile-rows">
         {milestones.map((m) => {
           const row = state[m.id] ?? DEFAULT_ROW;
