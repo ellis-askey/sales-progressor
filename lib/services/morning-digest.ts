@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
 import { toUKDateStr } from "@/lib/utils";
+import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 
 type DigestFile = {
   id: string;
@@ -101,9 +102,16 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
   const fromAddr = agency ? agencyFrom(agency.name) : undefined;
 
   const digests = await buildMorningDigest(agencyId);
+
+  // Per-user opt-out: skip anyone with notifications.morningDigest === false.
+  // Defaults are ON, so users who haven't touched the toggle still receive.
+  const prefsByUser = await getNotificationPrefsForUsers(digests.map((d) => d.userId));
+
   let sent = 0;
 
   for (const d of digests) {
+    if (prefsByUser.get(d.userId)?.morningDigest === false) continue;
+
     const overdueTx    = d.files.filter((f) => f.overdueChases > 0);
     const dueTodayTx   = d.files.filter((f) => f.dueToday > 0 && f.overdueChases === 0);
     const exchangeSoon = d.files.filter(

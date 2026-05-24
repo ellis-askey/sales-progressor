@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, isUserEmailSuppressed } from "@/lib/email";
+import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 import { buildUserUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 
@@ -194,6 +195,19 @@ export async function fireChainCascadeNotifications(): Promise<{
       continue;
     }
 
+    // Per-user opt-out for chain emails. Mark the queue row sent so we don't
+    // retry on every cron pass — agent has actively chosen not to receive.
+    const prefs = await getNotificationPrefs(record.recipientUserId);
+    if (!prefs.chainEmails) {
+      await prisma.chainNotificationQueue.update({
+        where: { id: record.id },
+        data: { emailSentAt: new Date() },
+      });
+      console.log(`[EMAIL_SKIP] type=${record.type} userId=${record.recipientUserId} reason=chainEmailsOptOut`);
+      skipped++;
+      continue;
+    }
+
     const info = linkInfoMap.get(record.recipientLinkId);
     const recipientAddress = info?.address ?? "your file";
     const recipientTransactionId = info?.transactionId ?? null;
@@ -269,6 +283,18 @@ export async function sendChainWaitNudges(): Promise<{ nudged: number; skipped: 
         data: { nudgeSentAt: new Date() },
       });
       console.log(`[EMAIL_SKIP] type=WAIT_NUDGE userId=${record.recipientUserId} reason=unsubscribed`);
+      skipped++;
+      continue;
+    }
+
+    // Per-user opt-out for chain emails (covers nudges too).
+    const prefs = await getNotificationPrefs(record.recipientUserId);
+    if (!prefs.chainEmails) {
+      await prisma.chainNotificationQueue.update({
+        where: { id: record.id },
+        data: { nudgeSentAt: new Date() },
+      });
+      console.log(`[EMAIL_SKIP] type=WAIT_NUDGE userId=${record.recipientUserId} reason=chainEmailsOptOut`);
       skipped++;
       continue;
     }
@@ -684,6 +710,13 @@ export async function fireDeclineNotification({
   });
   if (!originator?.email || originator.emailUnsubscribedAt != null) {
     console.log(`[EMAIL_SKIP] type=DECLINE userId=${createdByUserId} reason=${originator?.emailUnsubscribedAt ? "unsubscribed" : "no-email"}`);
+    return;
+  }
+
+  // Per-user opt-out for chain emails (DECLINE included — it's a chain event).
+  const declinePrefs = await getNotificationPrefs(createdByUserId);
+  if (!declinePrefs.chainEmails) {
+    console.log(`[EMAIL_SKIP] type=DECLINE userId=${createdByUserId} reason=chainEmailsOptOut`);
     return;
   }
 

@@ -445,6 +445,7 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 
 ## Future, deferred, not urgent
 
+- [ ] **Settings polish pass — consider tabbed layout once card count crosses ~8.** The notification-toggles work (shipped) pushes `/agent/settings` from 5 cards to 7. Polish pass should audit whether a tabbed layout (Profile / Notifications / Branch / Team / Account) becomes warranted; current single-column stack still scans fine. New cards used the existing ThemePicker glass-card pattern so they refit cleanly into tabs without code changes.
 - [ ] External penetration test or security review (pre-launch, requires human security firm)
 - [ ] Engage with industry communities (Property Industry Eye, The Negotiator, Propertymark LinkedIn groups) — 30 min/day
 - [ ] Decide on Vercel Pro upgrade ($20/mo) when you want sub-hourly cron granularity (`/api/cron/metrics-5min` is built but unwired pending this)

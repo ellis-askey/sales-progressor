@@ -7,8 +7,11 @@ import { ProfileForm } from "@/components/agent/ProfileForm";
 import { ThemePicker } from "@/components/agent/ThemePicker";
 import { AccountDangerZone } from "@/components/agent/AccountDangerZone";
 import { InviteDirector } from "@/components/agent/InviteDirector";
+import { EmailNotificationsSection } from "@/components/agent/settings/EmailNotificationsSection";
+import { SilencedFilesSection } from "@/components/agent/settings/SilencedFilesSection";
 import { getAgentTheme, getMobileAgentTheme } from "@/lib/agent/themes";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
+import { getNotificationPrefs } from "@/lib/agent/notification-prefs";
 
 export default async function AgentSettingsPage({
   searchParams,
@@ -19,7 +22,7 @@ export default async function AgentSettingsPage({
   const { verified } = await searchParams;
   const isDirector = session.user.role === "director";
 
-  const [userRecord, pendingInvitations] = await Promise.all([
+  const [userRecord, pendingInvitations, notificationPrefs, silencedFilesRaw] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { phone: true, agentPreferences: true },
@@ -31,10 +34,46 @@ export default async function AgentSettingsPage({
           orderBy: { createdAt: "desc" },
         })
       : Promise.resolve([]),
+    getNotificationPrefs(session.user.id),
+    // Scope of the silenced-files surface:
+    //   directors -> every self-managed agency file
+    //   negotiators -> files they own (assignedUserId OR agentUserId = self)
+    // pauseClientEmails server action already enforces the same access scope,
+    // so the picker can't silence anything the user shouldn't reach.
+    prisma.propertyTransaction.findMany({
+      where: {
+        serviceType: "self_managed",
+        status: { in: ["active", "on_hold"] },
+        ...(session.user.agencyId ? { agencyId: session.user.agencyId } : {}),
+        ...(isDirector
+          ? {}
+          : { OR: [{ assignedUserId: session.user.id }, { agentUserId: session.user.id }] }),
+      },
+      select: {
+        id: true,
+        propertyAddress: true,
+        clientEmailsPaused: true,
+        pausedAt: true,
+        pausedBy: { select: { name: true } },
+      },
+      orderBy: { propertyAddress: "asc" },
+    }),
   ]);
 
   const currentTheme = getAgentTheme(userRecord?.agentPreferences);
   const currentMobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
+
+  const silencedFiles = silencedFilesRaw
+    .filter((f) => f.clientEmailsPaused)
+    .map((f) => ({
+      id: f.id,
+      propertyAddress: f.propertyAddress,
+      pausedAt: f.pausedAt,
+      pausedByName: f.pausedBy?.name ?? null,
+    }));
+  const silenceableFiles = silencedFilesRaw
+    .filter((f) => !f.clientEmailsPaused)
+    .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
 
   const directorStatus = session.user.agencyId
     ? await getAgencyDirectorStatus(session.user.agencyId)
@@ -114,6 +153,15 @@ export default async function AgentSettingsPage({
 
         {/* Branch theme */}
         <ThemePicker currentTheme={currentTheme} currentMobileTheme={currentMobileTheme} />
+
+        {/* Email notifications — per-user opt-outs for every automated agent email */}
+        <EmailNotificationsSection initialPrefs={notificationPrefs} />
+
+        {/* Silenced files — bulk lens on per-file clientEmailsPaused */}
+        <SilencedFilesSection
+          initialSilenced={silencedFiles}
+          silenceable={silenceableFiles}
+        />
 
         {/* Team — directors only */}
         {isDirector && (

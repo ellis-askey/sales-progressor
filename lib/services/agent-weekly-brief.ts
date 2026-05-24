@@ -3,6 +3,7 @@ import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
 import { getActiveFlags, FLAG_LABELS } from "@/lib/services/problem-detection";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 
 type AgentFile = {
   id: string;
@@ -31,6 +32,9 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     select: { id: true, name: true, email: true },
   });
 
+  // Per-user opt-out: skip anyone with notifications.weeklyBrief === false.
+  const prefsByUser = await getNotificationPrefsForUsers(agents.map((a) => a.id));
+
   let sent = 0;
   const base = process.env.NEXTAUTH_URL ?? "";
 
@@ -45,6 +49,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
 
   for (const agent of agents) {
     if (!agent.email) continue;
+    if (prefsByUser.get(agent.id)?.weeklyBrief === false) continue;
 
     const transactions = await prisma.propertyTransaction.findMany({
       where: { agencyId, agentUserId: agent.id, status: "active" },

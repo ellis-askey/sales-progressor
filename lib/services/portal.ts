@@ -11,6 +11,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { PORTAL_AGENT_ONLY_CODES } from "@/lib/chase/portal-agent-only-codes";
+import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
 
 export type PortalMilestone = {
   id: string;
@@ -508,8 +509,19 @@ export async function logPortalMilestoneConfirm(
     : (tx.assignedUser?.email ?? undefined);
   const dashUrl = `${base}/transactions/${transactionId}`;
 
+  // Per-user opt-out for "email me when a client confirms a milestone". Bell
+  // notification fires unconditionally above (notifyPortalMilestoneConfirmed
+  // / notifyOutsourcedMilestoneConfirmed) — only the email duplicates are
+  // gated. Defaults are ON.
+  const agentRecipientIds = [tx.assignedUser?.id, tx.agentUser?.id].filter((x): x is string => !!x);
+  const prefsByUser = agentRecipientIds.length > 0
+    ? await getNotificationPrefsForUsers(agentRecipientIds)
+    : new Map();
+  const wantsEmail = (userId: string | undefined) =>
+    userId ? prefsByUser.get(userId)?.clientConfirmationEmails !== false : false;
+
   // Notify the assigned progressor (outsourced only — self-managed has no assignedUser)
-  if (tx.assignedUser?.email) {
+  if (tx.assignedUser?.email && wantsEmail(tx.assignedUser.id)) {
     sendEmail({
       to: tx.assignedUser.email,
       subject: `Client confirmed: "${milestoneLabel}" — ${tx.propertyAddress}`,
@@ -580,7 +592,7 @@ export async function logPortalMilestoneConfirm(
 
     // Agent notification for portal-confirmed milestones (no self-confirmation suppression for portal)
     const agentCopy = richCopy.vendorAgentPortal ?? richCopy.vendorAgent;
-    if (tx.agentUser?.email && agentCopy) {
+    if (tx.agentUser?.email && agentCopy && wantsEmail(tx.agentUser.id)) {
       const greeting = buildGreeting(tx.agentUser.name);
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
