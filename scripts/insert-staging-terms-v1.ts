@@ -25,7 +25,7 @@ const TERMS_BODY = `Sales Progressor — pricing
 You're adding a payment card so we can bill you for completed sales. Here's exactly how that works.
 What you pay. We charge per sale, and only once it exchanges — never before. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee depends on the agreed sale price at exchange: £250 for sales up to £349,999, £300 for £350,000 to £499,999, and £350 for £500,000 and above.
 When you pay. Nothing is charged until a sale exchanges. Fees for sales that exchange in a given month are collected together as a single payment at the end of that month. You'll see the running total building on your billing page throughout the month, so there are no surprises.
-Your free trial. Any sale you add in your first 7 days is free for its whole life — even when it exchanges months later, you won't be charged for it. The 7 days run from the first sale you add.
+Your free trial. Any sale you add in your first 14 days is free for its whole life — even when it exchanges months later, you won't be charged for it. The 14 days run from the first sale you add.
 If a payment fails. Sales already underway carry on as normal. But until the payment is sorted, you won't be able to add new sales. We'll show you clearly that a payment needs attention and how to fix it.
 Who's billed. Billing is handled by the agency's director. Only a director can see or manage payment details and invoices.
 VAT. We're not currently VAT-registered, so no VAT is added to these fees. If that changes, we'll let you know before it affects what you pay.`;

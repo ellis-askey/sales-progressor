@@ -5,8 +5,8 @@
 //        → firstSubmissionAt set, freeOnExchange = true
 //   2. Same agency creates a second file the same day
 //        → freeOnExchange still true, firstSubmissionAt unchanged
-//   3. A second agency with firstSubmissionAt backdated 8 days creates a file
-//        → freeOnExchange = false, firstSubmissionAt unchanged
+//   3. A second agency with firstSubmissionAt backdated 15 days creates a file
+//        → freeOnExchange = false, firstSubmissionAt unchanged (trial = 14 days)
 //   4. Fresh claim-signup (new Agency + User + claimed PropertyTransaction)
 //        → claimed file freeOnExchange = true, firstSubmissionAt set on the new agency
 //
@@ -98,30 +98,30 @@ async function main() {
       agency1AfterSecond!.firstSubmissionAt!.getTime() === firstSubBefore.getTime(),
       `before=${fmt(firstSubBefore)} after=${fmt(agency1AfterSecond!.firstSubmissionAt)}`,
     );
-    check("freeOnExchange === true (still inside 7-day window)", tx2.freeOnExchange === true);
+    check("freeOnExchange === true (still inside 14-day window)", tx2.freeOnExchange === true);
 
     // ─── Scenario 3 ────────────────────────────────────────────────────
-    divider("3. Agency with firstSubmissionAt backdated 8 days creates a file");
-    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    divider("3. Agency with firstSubmissionAt backdated 15 days creates a file");
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
     const agency3 = await p.agency.create({
       data: {
         name: `${TEST_PREFIX}backdated-3`,
-        firstSubmissionAt: eightDaysAgo,
+        firstSubmissionAt: fifteenDaysAgo,
       },
     });
-    console.log(`  agency.firstSubmissionAt (seeded 8d ago): ${fmt(agency3.firstSubmissionAt)}`);
+    console.log(`  agency.firstSubmissionAt (seeded 15d ago): ${fmt(agency3.firstSubmissionAt)}`);
     const tx3 = await createTransaction({
       propertyAddress: "3 Old Lane, London",
       agencyId: agency3.id,
     });
     const agency3After = await p.agency.findUnique({ where: { id: agency3.id } });
-    console.log(`  agency.firstSubmissionAt (after create):  ${fmt(agency3After!.firstSubmissionAt)}`);
-    console.log(`  tx3.freeOnExchange:                       ${tx3.freeOnExchange}`);
+    console.log(`  agency.firstSubmissionAt (after create):   ${fmt(agency3After!.firstSubmissionAt)}`);
+    console.log(`  tx3.freeOnExchange:                        ${tx3.freeOnExchange}`);
     check(
-      "firstSubmissionAt unchanged (still the seeded 8-days-ago value)",
-      agency3After!.firstSubmissionAt!.getTime() === eightDaysAgo.getTime(),
+      "firstSubmissionAt unchanged (still the seeded 15-days-ago value)",
+      agency3After!.firstSubmissionAt!.getTime() === fifteenDaysAgo.getTime(),
     );
-    check("freeOnExchange === false (outside 7-day window)", tx3.freeOnExchange === false);
+    check("freeOnExchange === false (outside 14-day window)", tx3.freeOnExchange === false);
 
     // ─── Scenario 4 ────────────────────────────────────────────────────
     divider("4. Fresh claim-signup creates Agency + claimed file");

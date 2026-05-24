@@ -9,7 +9,7 @@
 //     at the call site)
 //   - Agency has no stripeCustomerId yet (no card on file)
 //   - Agency has a firstSubmissionAt — i.e. has submitted at least one file
-//   - >= 14 days have elapsed since firstSubmissionAt — past the 7-day trial
+//   - >= 21 days have elapsed since firstSubmissionAt — past the 14-day trial
 //     plus another week of grace before we start mentioning billing setup
 //   - Hides itself otherwise (server-component, returns null)
 //
@@ -21,7 +21,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
-const NUDGE_THRESHOLD_MS = 14 * 24 * 60 * 60 * 1000;
+const NUDGE_THRESHOLD_MS = 21 * 24 * 60 * 60 * 1000;
 
 export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   const agency = await prisma.agency.findUnique({

@@ -64,11 +64,11 @@ async function main() {
         await p.agency.update({
           where: { id: agency.id },
           data: {
-            paymentFailedAt: new Date(now.getTime() - 15 * 24 * 3600 * 1000),
+            paymentFailedAt: new Date(now.getTime() - 8 * 24 * 3600 * 1000),
             newFileCreationBlockedAt: now,
           },
         });
-        console.log(`✓ "${agencyName}" → blocked state (paymentFailedAt 15d ago, blocked now)`);
+        console.log(`✓ "${agencyName}" → blocked state (paymentFailedAt 8d ago, blocked now)`);
         console.log(`  Hub banner should now show red. New file creation refused with 402.`);
         break;
       case "clear":

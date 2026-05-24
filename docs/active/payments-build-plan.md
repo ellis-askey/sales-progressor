@@ -8,14 +8,14 @@
 
 ## Goal
 
-Ship the locked payments model — charge on exchange, 7-day frozen trial, tiered outsourced pricing, month-end accrual, own billing page + Stripe Elements, VAT-flippable — in safely staged, individually verifiable PRs against real money mechanics.
+Ship the locked payments model — charge on exchange, 14-day frozen trial, tiered outsourced pricing, month-end accrual, own billing page + Stripe Elements, VAT-flippable — in safely staged, individually verifiable PRs against real money mechanics.
 
 ---
 
 ## Non-negotiables (carried verbatim from discovery)
 
 1. **Bilateral footgun:** VM19 and PM26 auto-complete each other within a single PropertyTransaction. The billing trigger fires **once per transaction**, gated to one side, guarded by a `billedAtExchange` timestamp on the row that any code path checks before recording a charge. Never bill twice for the same transaction.
-2. **Frozen trial fields, stamped at create:** `Agency.firstSubmissionAt` set once on the agency's first-ever PropertyTransaction. `PropertyTransaction.freeOnExchange` computed at create from `(now − firstSubmissionAt) ≤ 7 days` and **never recomputed afterwards**. No code path reads trial state at exchange time.
+2. **Frozen trial fields, stamped at create:** `Agency.firstSubmissionAt` set once on the agency's first-ever PropertyTransaction. `PropertyTransaction.freeOnExchange` computed at create from `(now − firstSubmissionAt) ≤ 14 days` and **never recomputed afterwards**. No code path reads trial state at exchange time.
 3. **Reversal hung on `executeUndoMilestone`:** when VM19/PM26 is undone, if `billedAtExchange` exists and the invoice for that month hasn't been issued → clear the marker and drop from the building invoice. If the invoice has been issued → leave history intact and emit a `CreditNote` against the next month's invoice. No cash refunds.
 4. **`PropertyTransaction.priceAtExchange` snapshot** captured at the completion hook from `purchasePrice`. Billing reads from the snapshot, not the live field. Immune to later price edits.
 5. **VAT scaffolding on day one:** line-item invoice structure + `Agency.vatRegisteredAt` field present from the first migration. Rendering hides the VAT line while `vatRegisteredAt` is null. The flip is purely a config change, not a schema migration.

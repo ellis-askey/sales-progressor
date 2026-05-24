@@ -10,7 +10,7 @@
 //       Agency.firstSubmissionAt is set to now AND we return true (the new
 //       transaction is the trial-anchor file, definitionally free-on-exchange).
 //   - On subsequent creates:
-//       We compute (now - firstSubmissionAt) <= 7 days and return that.
+//       We compute (now - firstSubmissionAt) <= 14 days and return that.
 //
 // The returned boolean is the value the caller stamps onto
 // PropertyTransaction.freeOnExchange — which is then NEVER recomputed.
@@ -22,10 +22,16 @@
 // and the freeOnExchange stamp are atomic — otherwise two parallel creates
 // from the same agency could both observe firstSubmissionAt as null and both
 // claim to be the anchor file.
+//
+// Trial window: bumped 7 → 14 days (2026-05-24). Two weeks is still trivial
+// in property-transaction time, but gives agencies a meaningful runway to
+// add several sales and feel the product working before any of them become
+// billable. Constant change only — does NOT retroactively re-stamp existing
+// rows; existing PropertyTransaction.freeOnExchange values stay as written.
 
 import type { Prisma } from "@prisma/client";
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const TRIAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 export async function stampTrialState(
   agencyId: string,
@@ -48,5 +54,5 @@ export async function stampTrialState(
   }
 
   const elapsedMs = Date.now() - agency.firstSubmissionAt.getTime();
-  return elapsedMs <= SEVEN_DAYS_MS;
+  return elapsedMs <= TRIAL_WINDOW_MS;
 }
