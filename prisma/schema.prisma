@@ -37,6 +37,24 @@ model Agency {
   signupLandingPage String?
   signupAt          DateTime?
 
+  // Payments — frozen trial flag anchor.
+  // Set on this agency's first-ever PropertyTransaction create. NEVER updated thereafter.
+  // PropertyTransaction.freeOnExchange is computed at create time from
+  // (now - firstSubmissionAt <= 7 days) and persisted on the row; this field is only
+  // re-read on subsequent creates to evaluate the trial window for the next file.
+  firstSubmissionAt          DateTime?
+
+  // VAT scaffolding — present day one so the future flip is config, not migration.
+  // While vatRegisteredAt is null, invoice rendering shows the inclusive total only.
+  // When set, rendering splits the line into ex-VAT amount + VAT line at vatRateBps.
+  vatRegisteredAt            DateTime?
+  vatRateBps                 Int?         // basis points: 2000 = 20%
+
+  // Stripe + payment lifecycle.
+  stripeCustomerId           String?
+  paymentFailedAt            DateTime?    // Set by Stripe webhook on invoice.payment_failed
+  newFileCreationBlockedAt   DateTime?    // Set by check-failed-payments cron ~7d after paymentFailedAt
+
   users                    User[]
   transactions             PropertyTransaction[]
   manualTasks              ManualTask[]
@@ -48,6 +66,9 @@ model Agency {
   negotiatorInvitations    NegotiatorInvitation[]
   directorInvitations      DirectorInvitation[]
   fileTimeSessions         FileTimeSession[]
+  invoices                 Invoice[]
+  pricingAcknowledgements  PricingAcknowledgement[]
+  creditNotes              CreditNote[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -131,6 +152,7 @@ model User {
   chainNotifications            ChainNotificationQueue[]
   holdsStarted                  TransactionHoldPeriod[]  @relation("HoldStartedBy")
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
+  pricingAcknowledgements       PricingAcknowledgement[]
 }
 
 model AgentPushSubscription {
@@ -233,6 +255,25 @@ model PropertyTransaction {
   // ReminderRule if snapshot is missing.
   chaseRuleSnapshot            Json?
 
+  // Payments — frozen trial flag.
+  // Stamped at create time from (now - agency.firstSubmissionAt <= 7 days). NEVER recomputed.
+  // Trial files exchange normally but do not generate a charge.
+  freeOnExchange               Boolean           @default(false)
+
+  // Set on VM19/PM26 completion for ALL files (trial and paying alike). Idempotent.
+  // "Did this file exchange?" — answer.
+  exchangedAt                  DateTime?
+
+  // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
+  // Trial files leave this null. Guard against bilateral double-billing — checked
+  // before write so the bilateral partner's auto-complete is a no-op.
+  // "Did this file bill?" — answer.
+  billedAtExchange             DateTime?
+
+  // Snapshot of purchasePrice at the moment of exchange. Billing reads from this
+  // snapshot, not the live purchasePrice field — immune to later price edits.
+  priceAtExchange              Int?              // pence
+
   createdAt                    DateTime          @default(now())
   updatedAt                    DateTime          @updatedAt
 
@@ -262,6 +303,8 @@ model PropertyTransaction {
   documents                  TransactionDocument[]
   flags                      TransactionFlag[]
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
+  invoiceLines               InvoiceLine[]
+  creditNotes                CreditNote[]
   fileTimeSessions           FileTimeSession[]
   notifications              Notification[]
   clientChaseStates          ClientChaseState[]
@@ -1762,5 +1805,116 @@ model ClientChaseState {
   @@unique([transactionId, contactId, milestoneCode])
   @@index([status, lastChasedAt])
   @@index([contactId, status])
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────
+// Scaffolding-only in this migration: tables present, no behaviour wired yet.
+// See docs/active/payments-build-plan.md for the staged rollout.
+
+enum InvoiceStatus {
+  building   // current month, accruing
+  issued     // month closed, Stripe invoice created
+  paid       // Stripe webhook confirmed payment
+  failed     // Stripe webhook confirmed failure
+  void       // manually voided
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  agencyId        String
+  agency          Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  // First-of-month timestamp UTC marking the billing period.
+  // IMPORTANT: the rule for which billing month an exchange falls into is
+  // computed in Europe/London (so an exchange at 00:30 on the 1st London
+  // time doesn't land on last month's invoice). Storage stays UTC; the
+  // boundary computation lives in lib/billing/period.ts (PR 5).
+  monthStart      DateTime
+  status          InvoiceStatus @default(building)
+  issuedAt        DateTime?
+  paidAt          DateTime?
+  stripeInvoiceId String?
+  lines           InvoiceLine[]
+  appliedCredits  CreditNote[]  @relation("InvoiceCreditApplications")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([agencyId, monthStart])
+  @@index([status])
+}
+
+enum InvoiceLineKind {
+  in_house_fee
+  outsourced_fee
+  credit_applied
+}
+
+model InvoiceLine {
+  id            String               @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  transactionId String?
+  transaction   PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  kind          InvoiceLineKind
+  description   String
+  // amountPence is ex-VAT when the agency is VAT-registered at issuance time;
+  // inclusive otherwise. Rendering reads agency.vatRegisteredAt to decide.
+  amountPence   Int
+  vatPence      Int                  @default(0)
+  totalPence    Int                  // amountPence + vatPence
+  createdAt     DateTime             @default(now())
+
+  @@index([invoiceId])
+  @@index([transactionId])
+}
+
+// Pricing disclosure text shown to the director at first card capture.
+// Ships EMPTY in PR 1 — its first row is inserted only when the actual
+// disclosure copy is designed (separate task before PR 6 ships).
+// Never seed with placeholder text — see payments-build-plan.md PR 6 flag.
+model TermsVersion {
+  id               String                   @id @default(cuid())
+  versionTag       String                   @unique  // e.g. "2026-05-payments-v1"
+  body             String                            // actual disclosure text/markdown
+  effectiveFrom    DateTime
+  createdAt        DateTime                 @default(now())
+  acknowledgements PricingAcknowledgement[]
+}
+
+// One row per director acknowledgement of the pricing disclosure.
+// The acknowledgedByName + acknowledgedByEmail strings ARE the audit record;
+// the FK to User is a convenience link that nulls on user delete (GDPR-safe).
+model PricingAcknowledgement {
+  id                    String        @id @default(cuid())
+  agencyId              String
+  agency                Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  acknowledgedByUserId  String?
+  acknowledgedBy        User?         @relation(fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
+  acknowledgedByName    String        // denormalised at acknowledgement — the audit record
+  acknowledgedByEmail   String        // denormalised at acknowledgement — the audit record
+  termsVersionId        String
+  termsVersion          TermsVersion  @relation(fields: [termsVersionId], references: [id])
+  acknowledgedAt        DateTime      @default(now())
+
+  @@index([agencyId])
+}
+
+// Credit against a future invoice. Written when an exchange that was already
+// invoiced gets reversed via executeUndoMilestone (PR 4). Model is credit-only:
+// no cash refunds (per locked model in payments-build-plan.md).
+model CreditNote {
+  id                  String               @id @default(cuid())
+  agencyId            String
+  agency              Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  transactionId       String?
+  transaction         PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  amountPence         Int
+  reason              String               // e.g. "Exchange reversed post-invoice — VM19 undone on 2026-06-12"
+  appliedToInvoiceId  String?
+  appliedToInvoice    Invoice?             @relation("InvoiceCreditApplications", fields: [appliedToInvoiceId], references: [id])
+  appliedAt           DateTime?
+  createdAt           DateTime             @default(now())
+
+  @@index([agencyId])
+  @@index([appliedToInvoiceId])
 }
 
