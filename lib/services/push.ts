@@ -60,6 +60,7 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
   });
 
   const stale: string[] = [];
+  const succeeded: string[] = [];
 
   await Promise.allSettled(
     subs.map(async (sub) => {
@@ -68,6 +69,7 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload)
         );
+        succeeded.push(sub.id);
       } catch (err: unknown) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) stale.push(sub.id);
@@ -77,6 +79,14 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
 
   if (stale.length > 0) {
     await prisma.agentPushSubscription.deleteMany({ where: { id: { in: stale } } });
+  }
+  if (succeeded.length > 0) {
+    // Bumps the "last used" signal so the devices list in settings can show
+    // "Last used 3 days ago" — helps users prune dead subscriptions.
+    await prisma.agentPushSubscription.updateMany({
+      where: { id: { in: succeeded } },
+      data: { lastUsedAt: new Date() },
+    });
   }
 }
 

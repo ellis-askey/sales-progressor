@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { isAgentTheme, isMobileAgentTheme, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
+import { pushToUser } from "@/lib/services/push";
 
 export async function updateAgentTheme(theme: AgentTheme) {
   const session = await requireSession();
@@ -226,4 +227,34 @@ export async function updateRetentionEmailOptOutAction(optedOut: boolean) {
   });
 
   return { ok: true as const, optedOut };
+}
+
+// Diagnostic — fires a one-off test push to every device subscribed by the
+// current user. Bypasses per-event toggles (it's a "did setup work?" check,
+// not an event-driven push). If no devices are subscribed, the call to
+// pushToUser is a no-op so the action returns ok with deliveredCount=0.
+export async function sendTestPushAction() {
+  const session = await requireSession();
+
+  const before = await prisma.agentPushSubscription.count({
+    where: { userId: session.user.id },
+  });
+
+  if (before === 0) {
+    return { ok: true as const, deliveredCount: 0, reason: "no_devices" as const };
+  }
+
+  await pushToUser(session.user.id, {
+    title: "Sales Progressor — test push",
+    body:  "If you see this, push is working.",
+    url:   `${process.env.NEXTAUTH_URL ?? ""}/agent/settings`,
+  });
+
+  // pushToUser prunes any subscriptions that 404/410 — recount to report
+  // accurately how many devices the test actually reached.
+  const after = await prisma.agentPushSubscription.count({
+    where: { userId: session.user.id },
+  });
+
+  return { ok: true as const, deliveredCount: after };
 }

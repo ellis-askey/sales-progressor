@@ -17,13 +17,14 @@
 // gate the device-push duplicate.
 
 import { useState, useTransition, useEffect } from "react";
-import { updateAgentPushPrefAction } from "@/app/actions/agent-preferences";
+import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
 import type { NotificationPrefs, PushKey } from "@/lib/agent/notification-prefs";
 
 export type SubscribedDevice = {
   id: string;
   endpoint: string;
-  label: string;       // Best-effort "Chrome on Mac" parse from user agent (server-side)
+  userAgent: string | null;
+  lastUsedAt: Date | null;
   createdAt: Date;
 };
 
@@ -84,8 +85,15 @@ export function MobilePushSection({
   const [subStatus, setSubStatus] = useState<SubscribeStatus>({ kind: "idle" });
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Endpoint of the subscription registered to THIS browser session, if any.
+  // Used to render the "This device" badge on the matching row.
+  const [thisDeviceEndpoint, setThisDeviceEndpoint] = useState<string | null>(null);
+  // Result of clicking "Send test push" — null = idle, otherwise a short
+  // human-readable status string.
+  const [testStatus, setTestStatus] = useState<string | null>(null);
 
-  // Detect support + iOS-PWA situation on mount (client-only).
+  // Detect support + iOS-PWA situation + the current browser's subscription
+  // endpoint on mount (client-only).
   const [envCheck, setEnvCheck] = useState<{
     supported: boolean;
     isIOS: boolean;
@@ -102,6 +110,20 @@ export function MobilePushSection({
       window.matchMedia("(display-mode: standalone)").matches ||
       ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
     setEnvCheck({ supported, isIOS, isStandalone: standalone });
+
+    // Look up THIS browser's push subscription endpoint so we can render the
+    // "This device" badge. Quiet failure if SW not registered or no sub.
+    (async () => {
+      try {
+        if (!("serviceWorker" in navigator)) return;
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) return;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub?.endpoint) setThisDeviceEndpoint(sub.endpoint);
+      } catch {
+        // Service worker not registered yet — no badge to render.
+      }
+    })();
   }, []);
 
   function handleToggle(key: PushKey) {
@@ -160,16 +182,22 @@ export function MobilePushSection({
       });
       if (!res.ok) throw new Error("Server save failed");
 
-      // Optimistically add the new device to the list.
+      // Optimistically add the new device to the list. userAgent populated
+      // from navigator.userAgent — server will have done the same from the
+      // request header, so the persisted row will match on next reload.
+      const newEndpoint = subJson.endpoint ?? "new";
       setDevices((prev) => [
         ...prev,
         {
-          id: subJson.endpoint ?? "new",
-          endpoint: subJson.endpoint ?? "",
-          label: parseUserAgent(navigator.userAgent),
+          id: newEndpoint,
+          endpoint: newEndpoint,
+          userAgent: navigator.userAgent,
+          lastUsedAt: null,
           createdAt: new Date(),
         },
       ]);
+      // Now-current device — render the "This device" badge straight away.
+      setThisDeviceEndpoint(newEndpoint);
       setSubStatus({ kind: "done" });
     } catch (err) {
       console.error("[push subscribe failed]", err);
@@ -187,9 +215,56 @@ export function MobilePushSection({
         body: JSON.stringify({ endpoint: device.endpoint }),
       });
       setDevices((prev) => prev.filter((d) => d.id !== device.id));
+      if (device.endpoint === thisDeviceEndpoint) setThisDeviceEndpoint(null);
     } finally {
       setRevokingId(null);
     }
+  }
+
+  async function handleTestPush() {
+    setTestStatus("Sending…");
+    try {
+      const result = await sendTestPushAction();
+      if (!result.ok) {
+        setTestStatus("Couldn't send — check console");
+        return;
+      }
+      if (result.deliveredCount === 0) {
+        setTestStatus("No devices subscribed yet — enable on this device first.");
+        return;
+      }
+      setTestStatus(
+        result.deliveredCount === 1
+          ? "Sent — check your device."
+          : `Sent to ${result.deliveredCount} devices.`,
+      );
+    } catch {
+      setTestStatus("Couldn't send — check console");
+    }
+    // Auto-clear after a few seconds so the UI doesn't get stuck.
+    setTimeout(() => setTestStatus(null), 5000);
+  }
+
+  function deviceLabel(d: SubscribedDevice): string {
+    if (d.userAgent) return parseUserAgent(d.userAgent);
+    return "Subscribed device";
+  }
+
+  // "Last used 3 days ago" if lastUsedAt set, otherwise "Added 5 Mar".
+  function deviceSubLabel(d: SubscribedDevice): string {
+    if (d.lastUsedAt) {
+      const days = Math.floor((Date.now() - new Date(d.lastUsedAt).getTime()) / 86400000);
+      if (days === 0) {
+        const hours = Math.floor((Date.now() - new Date(d.lastUsedAt).getTime()) / 3600000);
+        if (hours === 0) return "Last used just now";
+        return hours === 1 ? "Last used 1 hour ago" : `Last used ${hours} hours ago`;
+      }
+      if (days === 1) return "Last used yesterday";
+      if (days < 7) return `Last used ${days} days ago`;
+      if (days < 30) return `Last used ${Math.round(days / 7)} weeks ago`;
+      return `Last used ${Math.round(days / 30)} months ago`;
+    }
+    return `Added ${new Date(d.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
   }
 
   return (
@@ -208,33 +283,62 @@ export function MobilePushSection({
           <p className="text-xs text-slate-500 italic mb-3">No devices subscribed yet — click below to enable on this one.</p>
         ) : (
           <div className="space-y-2 mb-3">
-            {devices.map((d) => (
-              <div key={d.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-slate-50 border border-slate-200">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800 truncate">{d.label}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Added {new Date(d.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRevoke(d)}
-                  disabled={revokingId === d.id}
-                  className="agent-btn agent-btn-xs agent-btn-ghost-bordered flex-shrink-0"
+            {devices.map((d) => {
+              const isThisDevice = d.endpoint === thisDeviceEndpoint;
+              return (
+                <div
+                  key={d.id}
+                  className={`flex items-center justify-between gap-3 py-2 px-3 rounded-md border ${
+                    isThisDevice ? "bg-orange-50/40 border-orange-200" : "bg-slate-50 border-slate-200"
+                  }`}
                 >
-                  {revokingId === d.id ? "…" : "Revoke"}
-                </button>
-              </div>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-slate-800 truncate">{deviceLabel(d)}</p>
+                      {isThisDevice && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 flex-shrink-0">
+                          This device
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">{deviceSubLabel(d)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRevoke(d)}
+                    disabled={revokingId === d.id}
+                    className="agent-btn agent-btn-xs agent-btn-ghost-bordered flex-shrink-0"
+                  >
+                    {revokingId === d.id ? "…" : "Revoke"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={handleEnable}
-          disabled={subStatus.kind === "asking" || subStatus.kind === "done"}
-          className="agent-btn agent-btn-sm agent-btn-primary"
-        >
-          {subStatus.kind === "asking" ? "Asking permission…" : subStatus.kind === "done" ? "✓ Enabled" : "Enable on this device"}
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleEnable}
+            disabled={subStatus.kind === "asking" || subStatus.kind === "done"}
+            className="agent-btn agent-btn-sm agent-btn-primary"
+          >
+            {subStatus.kind === "asking" ? "Asking permission…" : subStatus.kind === "done" ? "✓ Enabled" : "Enable on this device"}
+          </button>
+          <button
+            type="button"
+            onClick={handleTestPush}
+            disabled={devices.length === 0 || testStatus === "Sending…"}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            title={devices.length === 0 ? "Enable on a device first" : "Sends a test push to confirm setup works. Bypasses the toggles below."}
+          >
+            Send test push
+          </button>
+          {testStatus && (
+            <span className="text-xs text-slate-600">{testStatus}</span>
+          )}
+        </div>
 
         {subStatus.kind === "denied" && (
           <p className="text-xs text-amber-700 mt-2">

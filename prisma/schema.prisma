@@ -134,12 +134,20 @@ model User {
 }
 
 model AgentPushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  // Captured from req.headers.get("user-agent") at subscribe time. Drives
+  // the "Chrome on Mac" labels in the settings devices list. Nullable —
+  // existing rows fall back to a generic "Subscribed device" label.
+  userAgent  String?
+  // Updated on every successful pushToUser send to this subscription so
+  // users can spot dead devices in the settings list. Nullable — rows
+  // that have never received a push fall back to the createdAt date.
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

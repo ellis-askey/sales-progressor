@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
+    // Capture the user agent so the devices list in /agent/settings can show
+    // a meaningful label ("Chrome on Mac") instead of a generic placeholder.
+    // Nullable column — old subscriptions remain valid without a UA.
+    const userAgent = req.headers.get("user-agent") ?? null;
+
     await prisma.agentPushSubscription.upsert({
       where:  { endpoint: subscription.endpoint },
       create: {
@@ -20,11 +25,15 @@ export async function POST(req: NextRequest) {
         endpoint: subscription.endpoint,
         p256dh:   subscription.keys.p256dh,
         auth:     subscription.keys.auth,
+        userAgent,
       },
       update: {
         userId: session.user.id,
         p256dh: subscription.keys.p256dh,
         auth:   subscription.keys.auth,
+        // Refresh on re-subscribe — same endpoint may come back from a
+        // different browser version, worth keeping the latest UA.
+        userAgent,
       },
     });
 

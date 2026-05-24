@@ -61,7 +61,7 @@ export default async function AgentSettingsPage({
     }),
     prisma.agentPushSubscription.findMany({
       where: { userId: session.user.id },
-      select: { id: true, endpoint: true, createdAt: true },
+      select: { id: true, endpoint: true, userAgent: true, lastUsedAt: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -81,13 +81,15 @@ export default async function AgentSettingsPage({
     .filter((f) => !f.clientEmailsPaused)
     .map((f) => ({ id: f.id, propertyAddress: f.propertyAddress }));
 
-  // No userAgent column on AgentPushSubscription today, so device label is
-  // generic. If we want richer labels later, add the column + capture UA at
-  // subscribe time. For v1, "Subscribed device" + date is enough.
+  // userAgent + lastUsedAt are now persisted (Phase B). The client component
+  // parses the UA string into "Chrome on Mac" — pass it raw rather than
+  // re-implementing the parser here. Older rows have userAgent=null and fall
+  // back to the generic label client-side.
   const pushDevices = pushDevicesRaw.map((d) => ({
     id: d.id,
     endpoint: d.endpoint,
-    label: "Subscribed device",
+    userAgent: d.userAgent,
+    lastUsedAt: d.lastUsedAt,
     createdAt: d.createdAt,
   }));
 
