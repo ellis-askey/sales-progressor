@@ -5,6 +5,7 @@ import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/l
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
+import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
@@ -96,18 +97,11 @@ export async function initializeMilestoneCompletions(
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
   });
 
-  // Determine auto-NR codes at creation
-  const autoNrCodes = new Set<string>();
-  if (tenure === "freehold") {
-    autoNrCodes.add("VM8");
-    autoNrCodes.add("VM9");
-    autoNrCodes.add("PM12"); // no management pack for freehold
-  }
-  if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {
-    autoNrCodes.add("PM5");
-    autoNrCodes.add("PM6");
-    autoNrCodes.add("PM11");
-  }
+  // Single source of truth: lib/milestone-auto-nr.ts. Shared with the
+  // edit-sale-details cascade (confirmSaleDetailsAction) and the
+  // ReconcileMilestonePicker client mirror — adding a new rule there
+  // propagates here automatically.
+  const autoNrCodes = computeAutoNrCodes(purchaseType, tenure);
 
   // Available = no prerequisites (or all prereqs are auto-NR), AND not an exchange gate
   const availableCodes = new Set<string>();

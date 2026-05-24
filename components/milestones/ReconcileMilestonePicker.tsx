@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { RoleIcon, type Role } from "@/components/ui/RoleIcon";
 
 // Reusable milestone reconciliation picker.
@@ -40,21 +41,11 @@ export type ReconciliationState = Record<string, ReconciliationRow>;
 type Tenure = "freehold" | "leasehold";
 type PurchaseType = "mortgage" | "cash_buyer" | "cash_from_proceeds";
 
-// Mirrors initializeMilestoneCompletions in lib/services/milestones.ts.
-// Auto-NR codes are hidden from the picker because they're not relevant for this tenure/purchase combo.
+// Auto-NR rule lives in lib/milestone-auto-nr.ts (single source of truth shared
+// with initializeMilestoneCompletions + confirmSaleDetailsAction). This thin
+// wrapper preserves the existing call signature for backward compat.
 export function autoNrCodesFor(tenure: Tenure, purchaseType: PurchaseType): Set<string> {
-  const codes = new Set<string>();
-  if (tenure === "freehold") {
-    codes.add("VM8");
-    codes.add("VM9");
-    codes.add("PM12");
-  }
-  if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {
-    codes.add("PM5");
-    codes.add("PM6");
-    codes.add("PM11");
-  }
-  return codes;
+  return computeAutoNrCodes(purchaseType, tenure);
 }
 
 // Exchange / completion milestones — hidden from the reconciliation picker because

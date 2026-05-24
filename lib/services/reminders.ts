@@ -276,7 +276,13 @@ export async function evaluateTransactionReminders(transactionId: string) {
 
     if (rule.anchorMilestoneId) {
       const anchorCompletion = completionByDefId.get(rule.anchorMilestoneId);
-      if (!anchorCompletion || anchorCompletion.state !== "complete") {
+      // Treat both "complete" and "not_required" as valid anchors. NR anchors
+      // are how the engine handles cases like PM25's chase rule (anchored on
+      // PM24) when PM24 is auto-NR'd for cash_from_proceeds files — without
+      // this, the dependent chase silently deactivates. Fall-through to the
+      // anchorDate resolution below; the NR row's completedAt (or
+      // transaction.createdAt) supplies a usable schedule origin.
+      if (!anchorCompletion || (anchorCompletion.state !== "complete" && anchorCompletion.state !== "not_required")) {
         await deactivateLog(transactionId, rule.id, "Anchor milestone not yet confirmed", assignedUserId);
         continue;
       }

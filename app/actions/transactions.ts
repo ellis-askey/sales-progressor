@@ -14,6 +14,7 @@ import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal } from "@/lib/chain/withdrawal";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
+import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -876,20 +877,11 @@ export async function discardDraftAction(draftId: string) {
 
 // ─── Edit Sale Details reconciliation ────────────────────────────────────────
 
-const CASH_NR_CODES = new Set(["PM5", "PM6", "PM11"]);
-const FREEHOLD_NR_CODES = new Set(["VM8", "VM9", "PM12"]);
+// Auto-NR rule lives in lib/milestone-auto-nr.ts. PURCHASE_TYPE_NR_CODES and
+// FREEHOLD_NR_CODES are re-exported from there so the comms-text branching
+// below can tell "this milestone was reversed because purchaseType changed"
+// from "this milestone was reversed because tenure changed".
 const EXCHANGE_GATE_CODES_SET = new Set(["VM18", "PM25"]);
-
-function computeAutoNrCodes(purchaseType: PurchaseType | null, tenure: Tenure | null): Set<string> {
-  const codes = new Set<string>();
-  if (purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds") {
-    CASH_NR_CODES.forEach((c) => codes.add(c));
-  }
-  if (tenure === "freehold") {
-    FREEHOLD_NR_CODES.forEach((c) => codes.add(c));
-  }
-  return codes;
-}
 
 function computeNewMilestoneState(code: string, stateByCode: Map<string, string>): "available" | "locked" {
   if (EXCHANGE_GATE_CODES_SET.has(code)) return "locked";
@@ -1107,7 +1099,7 @@ export async function confirmSaleDetailsAction(input: {
     for (const code of reversedCodes) {
       const def = defByCode.get(code);
       if (!def) continue;
-      const changeDesc = CASH_NR_CODES.has(code)
+      const changeDesc = PURCHASE_TYPE_NR_CODES.has(code)
         ? `purchase type changed from ${TYPE_LABEL_COMMS[tx.purchaseType ?? ""] ?? tx.purchaseType} to ${TYPE_LABEL_COMMS[input.newPurchaseType]}`
         : `tenure changed from ${TENURE_LABEL_COMMS[tx.tenure ?? ""] ?? tx.tenure} to ${TENURE_LABEL_COMMS[input.newTenure]}`;
       await ptx.outboundMessage.create({

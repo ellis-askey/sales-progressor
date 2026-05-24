@@ -289,7 +289,10 @@ async function main() {
       summaryTemplate: "{agent} confirmed {purchasers} returned signed contract documents",
     },
     {
-      code: "PM24", orderIndex: 24, blocksExchange: true,  predecessorCode: "PM23", canBeMarkedNr: CanBeMarkedNr.never,
+      // canBeMarkedNr=auto_only: auto-NR when purchaseType=cash_from_proceeds
+      // (deposit comes from concurrent-sale equity, not pre-exchange transfer).
+      // Manual NR still forbidden — same pattern as PM5/PM6/PM11.
+      code: "PM24", orderIndex: 24, blocksExchange: true,  predecessorCode: "PM23", canBeMarkedNr: CanBeMarkedNr.auto_only,
       weight: 3.00, name: "Buyer has transferred the deposit",
       summaryTemplate: "{agent} confirmed {purchasers} transferred the deposit to their solicitor",
     },

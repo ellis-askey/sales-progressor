@@ -142,6 +142,7 @@ The following milestones are auto-marked not required at file creation based on 
 | PM5 (Buyer submitted mortgage application) | Purchase type = Cash buyer OR Cash from proceeds |
 | PM6 (Lender valuation booked) | Purchase type = Cash buyer OR Cash from proceeds |
 | PM11 (Buyer's solicitor received the mortgage offer) | Purchase type = Cash buyer OR Cash from proceeds |
+| PM24 (Buyer has transferred the deposit) | Purchase type = Cash from proceeds (deposit comes from concurrent-sale equity, not pre-exchange transfer) |
 
 These are excluded from the visible milestone list immediately. No user action.
 
@@ -837,7 +838,7 @@ Notification audiences are listed per-milestone below in §10 and §11.
 | Reminder anchor | `predecessor` |
 | Responsibility | Buyer |
 | Blocks exchange | Yes |
-| Can be marked not required | No |
+| Can be marked not required | Auto-only — auto-NR when Purchase type = Cash from proceeds (deposit comes from concurrent-sale equity, so no pre-exchange transfer to track). Manual NR not permitted. |
 | Notification audience | Agent, Progressor, Seller, Buyer |
 | Why it matters | Financial commitment required to exchange contracts. |
 
