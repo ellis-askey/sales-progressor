@@ -102,10 +102,12 @@ export async function GET(_req: NextRequest) {
     },
   });
   } catch (err) {
+    // Console output goes to Vercel function logs. Response body intentionally
+    // hides the stack to avoid leaking implementation details to the browser.
     console.error("[invoice-pdf/preview] FAILED:", err);
     console.error("[invoice-pdf/preview] stack:", err instanceof Error ? err.stack : "no stack");
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "PDF render failed", stack: err instanceof Error ? err.stack : undefined },
+      { error: err instanceof Error ? err.message : "PDF render failed" },
       { status: 500 },
     );
   }
