@@ -145,11 +145,12 @@ export default async function BillingHubPage() {
   }
 
   return (
-    <div style={{ padding: "8px 32px 32px", display: "flex", flexDirection: "column", gap: 18, maxWidth: 1080, margin: "0 auto" }}>
+    <>
       <PageHeader
         title="Billing"
         subtitle={`${monthLabel(runningTotal.monthStart)} · updates live as files exchange`}
       />
+      <div className="px-4 md:px-8 py-2 md:py-4" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Payment-block banner — self-hides when state = ok. */}
       <PaymentBlockBanner agencyId={agency.id} />
@@ -210,6 +211,7 @@ export default async function BillingHubPage() {
           termsSections={terms.sections}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

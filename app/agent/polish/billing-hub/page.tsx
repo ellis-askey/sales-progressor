@@ -152,11 +152,12 @@ export default async function BillingHubPolishPage({
   }
 
   return (
-    <div style={{ padding: "8px 32px 32px", display: "flex", flexDirection: "column", gap: 18, maxWidth: 1080, margin: "0 auto" }}>
+    <>
       <PageHeader
         title="Billing"
         subtitle={`${monthLabel(runningTotal.monthStart)} · updates live as files exchange`}
       />
+      <div className="px-4 md:px-8 py-2 md:py-4" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* State toggle — polish page only. Above the content so the
           reviewer always sees what state they're looking at. */}
@@ -224,6 +225,7 @@ export default async function BillingHubPolishPage({
       <p style={{ fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", marginTop: 8 }}>
         Polish test page · Stage 2 · do not transplant to /agent/billing until walked
       </p>
-    </div>
+      </div>
+    </>
   );
 }
