@@ -1,150 +1,272 @@
+// app/cookie-policy/page.tsx
+//
+// Cookie Policy — Version 1.0, published 25 May 2026.
+//
+// COUNSEL NOTES (do NOT remove — internal markers, not rendered on the public
+// page; the lawyer reads them here in source):
+//
+// 1. [COUNSEL TO CONFIRM] — that the "strictly necessary" categorisation is
+//    defensible under ICO guidance for each cookie in the strictly-necessary
+//    table, in particular the `cookie-consent` preference cookie and the
+//    Stripe fraud-prevention cookies (__stripe_mid, __stripe_sid).
+//
+// 2. [COUNSEL TO CONFIRM] — whether Sentry's browser storage should be
+//    categorised as strictly necessary (error monitoring for service
+//    reliability) or treated as requiring consent. Confirm what Sentry
+//    actually sets in the browser and whether it should be consent-gated
+//    alongside analytics.
+//
+// 3. [COUNSEL TO CONFIRM] — consent is currently recorded on the user's
+//    device only (localStorage + cookie); there is no server-side audit
+//    record of who consented to what and when. Please advise whether a
+//    server-side consent record is required under PECR / UK GDPR, or
+//    whether device-side storage is sufficient at our scale.
+//
+// Source of truth for full annotated copy + observations:
+// docs/policies/cookie-policy.md
+
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PolicyShell, type PolicySection } from "@/components/policies/PolicyShell";
 import { ResetPreferencesButton } from "./ResetPreferencesButton";
 
 export const metadata: Metadata = {
-  title: "Cookie Policy — Sales Progressor",
-  robots: { index: false },
+  title: "Cookie Policy — The Sales Progressor",
+  description:
+    "What cookies and similar storage technologies we use, why, and how to control your preferences.",
 };
+
+const PENDING_SENTRY_REGION = (
+  <span className="pending">CONFIRM SENTRY REGION</span>
+);
+
+const SECTIONS: PolicySection[] = [
+  {
+    id: "what-is-a-cookie",
+    title: "1. What is a cookie?",
+    body: (
+      <>
+        <p>
+          A cookie is a small text file stored on your device when you visit a website. Some
+          websites also use related technologies such as <strong>local storage</strong>, which works
+          similarly. Together these help a site remember things about your visit — whether
+          you&rsquo;re logged in, or what preferences you&rsquo;ve set. Where we use local storage
+          in a way that affects your privacy choices, we treat it the same as a cookie and cover it
+          in this policy.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "your-choice",
+    title: "2. Your choice",
+    body: (
+      <p>
+        When you first visit, we show you a cookie banner. You can <strong>Accept all</strong>,
+        choose <strong>Essential only</strong>, or <strong>Manage</strong> your choice with granular
+        toggles. Analytics cookies are <strong>off until you turn them on</strong> — nothing
+        non-essential loads before you choose. You can change your decision at any time using the
+        &ldquo;Reset preferences&rdquo; option further down this page.
+      </p>
+    ),
+  },
+  {
+    id: "strictly-necessary",
+    title: "3. Strictly necessary cookies",
+    body: (
+      <>
+        <p>These are essential for the platform to work and cannot be switched off.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Purpose</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>next-auth.session-token</code> (or{" "}
+                <code>__Secure-next-auth.session-token</code> on HTTPS)
+              </td>
+              <td>Keeps you logged in</td>
+              <td>30 days (or until you sign out)</td>
+            </tr>
+            <tr>
+              <td><code>next-auth.csrf-token</code></td>
+              <td>Protects forms against cross-site request forgery</td>
+              <td>Session</td>
+            </tr>
+            <tr>
+              <td><code>cookie-consent</code></td>
+              <td>
+                Remembers your cookie choice so we don&rsquo;t ask every visit. Also stored in your
+                browser&rsquo;s local storage.
+              </td>
+              <td>1 year</td>
+            </tr>
+            <tr>
+              <td><code>command_session</code></td>
+              <td>
+                Command Centre only — confirms an administrator has passed two-factor authentication.
+                Not set for regular users.
+              </td>
+              <td>24 hours</td>
+            </tr>
+            <tr>
+              <td>
+                <code>__stripe_mid</code>, <code>__stripe_sid</code>
+              </td>
+              <td>
+                Set by Stripe, our payment processor, on pages where card details are entered — used
+                for payment fraud prevention.
+              </td>
+              <td>
+                <code>__stripe_mid</code>: 1 year · <code>__stripe_sid</code>: 30 minutes
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </>
+    ),
+  },
+  {
+    id: "analytics",
+    title: "4. Analytics cookies (optional)",
+    body: (
+      <>
+        <p>
+          These are <strong>off by default</strong>. We set them only if you accept analytics. They
+          help us understand how the platform is used so we can improve it.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Purpose</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ph_*</code> (e.g. <code>ph_&lt;token&gt;_posthog</code>)</td>
+              <td>
+                PostHog analytics. Records page views and feature interactions to help us understand
+                usage. Session recording is disabled; data is stored on PostHog&rsquo;s EU servers.
+              </td>
+              <td>Up to 1 year</td>
+            </tr>
+          </tbody>
+        </table>
+      </>
+    ),
+  },
+  {
+    id: "error-monitoring",
+    title: "5. Error monitoring",
+    body: (
+      <p>
+        We use Sentry to detect and diagnose errors so we can fix them. Sentry may set or read
+        identifiers in your browser and receives limited technical data (such as IP address and
+        browser information) when an error occurs.
+      </p>
+    ),
+  },
+  {
+    id: "manage-preferences",
+    title: "6. How to manage your preferences",
+    body: (
+      <>
+        <p>
+          You can change your cookie choice at any time using the button below — it resets your
+          choice and re-shows the banner.
+        </p>
+        <p style={{ marginTop: 12 }}>
+          <ResetPreferencesButton />
+        </p>
+        <p>
+          You can also control cookies through your browser settings. Blocking all cookies may stop
+          you logging in or using the platform.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "where-recorded",
+    title: "7. Where your choice is recorded",
+    body: (
+      <p>
+        Your cookie choice is stored on your own device (in a cookie and in local storage). Because
+        it lives on your device, clearing your browser data will reset it and we&rsquo;ll ask again
+        on your next visit.
+      </p>
+    ),
+  },
+  {
+    id: "third-party-processors",
+    title: "8. Third-party processors",
+    body: (
+      <>
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Role</th>
+              <th>Data location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PostHog, Inc.</td>
+              <td>Analytics (only with consent)</td>
+              <td>EU</td>
+            </tr>
+            <tr>
+              <td>Stripe</td>
+              <td>Payment fraud prevention on card-entry pages</td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
+            <tr>
+              <td>Sentry</td>
+              <td>Error monitoring</td>
+              <td>{PENDING_SENTRY_REGION}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Each processes data under a data processing agreement. You can read PostHog&rsquo;s privacy
+          policy at posthog.com/privacy and Stripe&rsquo;s at stripe.com/privacy.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "contact",
+    title: "9. Contact",
+    body: (
+      <>
+        <p>
+          Questions about cookies or your data:{" "}
+          <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>
+        </p>
+        <p>
+          For the full picture of how we handle personal data, see our{" "}
+          <Link href="/privacy">Privacy Policy</Link>.
+        </p>
+      </>
+    ),
+  },
+];
 
 export default function CookiePolicyPage() {
   return (
-    <div style={{ maxWidth: "680px", margin: "0 auto", padding: "48px 24px 80px", fontFamily: "system-ui, sans-serif", color: "#222", lineHeight: "1.65" }}>
-
-      <p style={{ fontSize: "13px", color: "#888", marginBottom: "8px" }}>
-        <Link href="/" style={{ color: "#888", textDecoration: "none" }}>Sales Progressor</Link>
-      </p>
-      <h1 style={{ fontSize: "26px", fontWeight: "700", marginBottom: "6px" }}>Cookie Policy</h1>
-      <p style={{ color: "#888", fontSize: "14px", marginTop: "0" }}>Last updated: May 2026</p>
-
-      <p>
-        Sales Progressor (&ldquo;we&rdquo;, &ldquo;us&rdquo;) uses cookies and similar storage
-        technologies on this website and the Sales Progressor platform. This policy explains what
-        cookies we set, why we set them, and how you can control them.
-      </p>
-
-      {/* LEGAL REVIEW REQUIRED — confirm this policy satisfies PECR (Privacy and Electronic Communications Regulations) requirements for UK users; verify consent mechanism for analytics cookies is adequate */}
-
-      <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>What is a cookie?</h2>
-      <p>
-        A cookie is a small text file stored on your device when you visit a website. Cookies
-        help sites remember information about your visit — such as whether you are logged in
-        or what preferences you have set.
-      </p>
-
-      {/* LEGAL REVIEW REQUIRED — confirm each cookie listed below matches what is actually set in production; verify the "strictly necessary" categorisation is defensible under ICO guidance */}
-      <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>Cookies we use</h2>
-
-      <h3 style={{ fontSize: "15px", fontWeight: "600", marginTop: "24px" }}>Strictly necessary</h3>
-      <p>
-        These cookies are essential for the platform to work. They cannot be switched off.
-      </p>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginTop: "12px" }}>
-        <thead>
-          <tr style={{ background: "#f5f5f5" }}>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Cookie name</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Purpose</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            {
-              name: "next-auth.session-token\n(or __Secure-next-auth.session-token on HTTPS)",
-              purpose: "Keeps you logged in to the Sales Progressor platform.",
-              duration: "30 days (or until you sign out)",
-            },
-            {
-              name: "next-auth.csrf-token",
-              purpose: "Protects form submissions against cross-site request forgery attacks.",
-              duration: "Session",
-            },
-            {
-              name: "cookie-consent",
-              purpose: "Remembers whether you have accepted or declined optional analytics cookies, so we do not ask again on every visit.",
-              duration: "1 year",
-            },
-            {
-              name: "command_session",
-              purpose: "Command Centre only. Confirms that an authorised administrator has passed two-factor authentication (TOTP step-up) to access the admin console. Not set for regular agency users.",
-              duration: "24 hours",
-            },
-          ].map((row) => (
-            <tr key={row.name} style={{ borderBottom: "1px solid #f0f0f0" }}>
-              <td style={{ padding: "8px 12px", verticalAlign: "top", fontFamily: "monospace", fontSize: "12px", whiteSpace: "pre-line" }}>{row.name}</td>
-              <td style={{ padding: "8px 12px", verticalAlign: "top" }}>{row.purpose}</td>
-              <td style={{ padding: "8px 12px", verticalAlign: "top", whiteSpace: "nowrap" }}>{row.duration}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* LEGAL REVIEW REQUIRED — confirm opt-in consent mechanism for analytics cookies meets PECR requirements; verify PostHog DPA is signed and EU data residency is confirmed in writing */}
-      <h3 style={{ fontSize: "15px", fontWeight: "600", marginTop: "28px" }}>Analytics (optional)</h3>
-      <p>
-        These cookies are <strong>off by default</strong>. We only set them if you click
-        &ldquo;Accept analytics&rdquo; in the cookie banner. They help us understand how
-        people use the platform so we can improve it.
-      </p>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginTop: "12px" }}>
-        <thead>
-          <tr style={{ background: "#f5f5f5" }}>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Cookie name</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Purpose</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: "600", borderBottom: "1px solid #e0e0e0" }}>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            {
-              name: "ph_*",
-              purpose: "PostHog analytics. Records page views and feature interactions (anonymised) to help us understand platform usage. Session recordings are disabled. We collect only a limited set of events, all data is stored on PostHog's EU-region servers.",
-              duration: "Up to 1 year",
-            },
-          ].map((row) => (
-            <tr key={row.name} style={{ borderBottom: "1px solid #f0f0f0" }}>
-              <td style={{ padding: "8px 12px", verticalAlign: "top", fontFamily: "monospace", fontSize: "12px" }}>{row.name}</td>
-              <td style={{ padding: "8px 12px", verticalAlign: "top" }}>{row.purpose}</td>
-              <td style={{ padding: "8px 12px", verticalAlign: "top", whiteSpace: "nowrap" }}>{row.duration}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>How to manage your preferences</h2>
-      <p>
-        You can change your cookie preferences at any time. Clicking the button below will
-        reset your choice and re-show the cookie banner on your next page load.
-      </p>
-      <ResetPreferencesButton />
-
-      <p style={{ marginTop: "16px" }}>
-        You can also control cookies through your browser settings. Blocking all cookies may
-        affect your ability to log in and use the platform.
-      </p>
-
-      {/* LEGAL REVIEW REQUIRED — confirm DPA reference and data residency claim for PostHog are accurate and documented */}
-      <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>Third-party processors</h2>
-      <p>
-        Analytics data is processed by <strong>PostHog, Inc.</strong> under a data processing
-        agreement. PostHog stores data on servers within the European Economic Area (EU region).
-        You can read PostHog&apos;s privacy policy at{" "}
-        <span style={{ color: "#555" }}>posthog.com/privacy</span>.
-      </p>
-
-      <h2 style={{ fontSize: "18px", fontWeight: "600", marginTop: "36px" }}>Contact</h2>
-      <p>
-        If you have questions about how we use cookies or about your personal data, please
-        email us at{" "}
-        <a href="mailto:support@thesalesprogressor.co.uk" style={{ color: "#333" }}>
-          support@thesalesprogressor.co.uk
-        </a>
-        .
-      </p>
-
-      <div style={{ marginTop: "48px", paddingTop: "24px", borderTop: "1px solid #eee", fontSize: "13px", color: "#888" }}>
-        <Link href="/" style={{ color: "#888" }}>← Back to Sales Progressor</Link>
-      </div>
-    </div>
+    <PolicyShell
+      title="Cookie Policy"
+      description="What we set, why, and how to control it."
+      lastUpdated="25 May 2026"
+      version="1.0"
+      sections={SECTIONS}
+    />
   );
 }
