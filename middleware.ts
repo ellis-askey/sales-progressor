@@ -188,6 +188,13 @@ export const config = {
     // route gate below would 307 /sw.js for agent users (no matching prefix
     // in agentAllowed). Exclude as a literal path so the file is served
     // as a pure static asset.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|bg-test|login-preview|helpdrawertest|audit-gallery|test|api/auth|api/portal|api/register|api/seed-demo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    //
+    // Pre-launch dev-route gate (2026-05-25): bg-test, login-preview,
+    // helpdrawertest, audit-gallery, and test were previously in this
+    // exclusion list, making them publicly reachable in production. Removed
+    // so they now hit the middleware auth gate. Unauthenticated visitors
+    // get redirected to /login; logged-in users still reach them via the
+    // existing agentAllowed prefix list inside the middleware function.
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|portal|api/auth|api/portal|api/register|api/seed-demo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

@@ -41,15 +41,28 @@ export default function PrivacyPage() {
 
           {/* LEGAL REVIEW REQUIRED — confirm data processing agreements (DPAs) exist with each listed sub-processor; verify region accuracy for each service */}
           <section>
-            <h2 className="text-xl font-semibold text-slate-900 mb-3">4. Third-party services</h2>
-            <p className="text-slate-600 leading-relaxed">We use the following third-party services to operate the platform:</p>
-            <ul className="list-disc list-inside text-slate-600 leading-relaxed space-y-2 mt-3">
-              <li><strong>Supabase / PostgreSQL</strong> — database hosting (EU West region)</li>
-              <li><strong>Vercel</strong> — application hosting</li>
-              <li><strong>SendGrid (Twilio)</strong> — email delivery for progress updates and portal invites</li>
-              <li><strong>Anthropic</strong> — AI message generation (chase message drafts only; no personal data is included in AI prompts beyond role descriptions and milestone names)</li>
-              <li><strong>Upstash Redis</strong> — rate limiting counters only; no personal data is stored. Counters are keyed by IP address or an anonymised token identifier and expire automatically.</li>
-            </ul>
+            <h2 className="text-xl font-semibold text-slate-900 mb-3">4. Third-party services we use</h2>
+            <p className="text-slate-600 leading-relaxed">We use a small number of trusted service providers (sub-processors) to run the platform. Each processes personal data only on our instructions and under a data processing agreement. They are:</p>
+            <div className="overflow-x-auto mt-3">
+              <table className="w-full text-sm border border-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left font-semibold text-slate-700 px-3 py-2 border-b border-slate-200">Provider</th>
+                    <th className="text-left font-semibold text-slate-700 px-3 py-2 border-b border-slate-200">What it does</th>
+                    <th className="text-left font-semibold text-slate-700 px-3 py-2 border-b border-slate-200">Data location</th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-600">
+                  <tr className="border-b border-slate-100"><td className="px-3 py-2 font-medium">Supabase</td><td className="px-3 py-2">Database hosting and file storage</td><td className="px-3 py-2">EU</td></tr>
+                  <tr className="border-b border-slate-100"><td className="px-3 py-2 font-medium">Vercel</td><td className="px-3 py-2">Application hosting and delivery</td><td className="px-3 py-2">EU / global edge</td></tr>
+                  <tr className="border-b border-slate-100"><td className="px-3 py-2 font-medium">SendGrid (Twilio)</td><td className="px-3 py-2">Sending transactional and notification email</td><td className="px-3 py-2">EU / US under standard safeguards</td></tr>
+                  <tr className="border-b border-slate-100"><td className="px-3 py-2 font-medium">Anthropic</td><td className="px-3 py-2">Powers AI-assisted features, such as drafting chase messages</td><td className="px-3 py-2">US under standard safeguards</td></tr>
+                  <tr className="border-b border-slate-100"><td className="px-3 py-2 font-medium">Upstash</td><td className="px-3 py-2">Rate limiting and background-task infrastructure</td><td className="px-3 py-2">EU</td></tr>
+                  <tr><td className="px-3 py-2 font-medium">PostHog</td><td className="px-3 py-2">Product analytics — only when you have consented to analytics cookies. Text is masked and session recording is disabled.</td><td className="px-3 py-2">EU</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-slate-600 leading-relaxed mt-3">We review this list as our providers change and keep our cookie policy and this page in step with it.</p>
           </section>
 
           {/* LEGAL REVIEW REQUIRED — confirm 7-year transaction retention period is correct for estate agency compliance; confirm 3-year inactivity threshold is defensible; check whether anonymisation constitutes erasure under UK GDPR */}
@@ -68,7 +81,10 @@ export default function PrivacyPage() {
           {/* LEGAL REVIEW REQUIRED — verify cookie disclosure matches the actual cookies set; confirm PECR compliance for any analytics cookies */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">7. Cookies</h2>
-            <p className="text-slate-600 leading-relaxed">The platform uses a session cookie to keep you logged in. No advertising or tracking cookies are used. Portal users may have a browser storage entry saved to remember home-screen install prompt preferences. See our <Link href="/cookie-policy" className="text-blue-600 hover:text-blue-700">Cookie Policy</Link> for a full list.</p>
+            <p className="text-slate-600 leading-relaxed">We use strictly necessary cookies to keep you signed in and to keep the platform secure — your session token, a security (CSRF) token, and a cookie that remembers your cookie choice. These are required for the platform to work and do not need your consent.</p>
+            <p className="text-slate-600 leading-relaxed mt-3">With your consent, we also use analytics cookies from PostHog to understand how the platform is used so we can improve it. We ask for this when you first visit, and you can accept or decline. You can change your choice at any time using the &ldquo;Reset preferences&rdquo; option on our cookie policy page. If you decline, no analytics cookies are set.</p>
+            <p className="text-slate-600 leading-relaxed mt-3">We do not use advertising cookies, and we do not sell your data.</p>
+            <p className="text-slate-600 leading-relaxed mt-3">A full list of the individual cookies we use is in our <Link href="/cookie-policy" className="text-blue-600 hover:text-blue-700">Cookie Policy</Link>.</p>
           </section>
 
           {/* LEGAL REVIEW REQUIRED — confirm ICO registration is in place; verify contact details are current */}
