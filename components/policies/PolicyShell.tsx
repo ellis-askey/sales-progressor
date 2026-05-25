@@ -24,6 +24,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { PolicyNavBar } from "./PolicyNavBar";
 
 export type PolicySection = {
   /** Stable URL fragment for the section (no leading #). */
@@ -133,15 +134,16 @@ export function PolicyShell({
         style={{ width: `${progress}%` }}
       />
 
-      {/* Slim top bar */}
+      {/* Slim top bar — just the back-link. Policy-to-policy navigation
+          lives in the PolicyNavBar tab row below. */}
       <header className="policy-topbar">
         <Link href={backHref} className="policy-back-link">
           <span aria-hidden="true">←</span> {backLabel}
         </Link>
-        <Link href="/legal" className="policy-hub-link">
-          All policies
-        </Link>
       </header>
+
+      {/* Tab nav for jumping between any of the 5 legal documents */}
+      <PolicyNavBar />
 
       {/* Hero */}
       <div className="policy-hero">
@@ -295,13 +297,6 @@ export function PolicyShell({
           transition: color 150ms;
         }
         .policy-back-link:hover { color: #111827; }
-        .policy-hub-link {
-          font-size: 12.5px;
-          color: #9ca3af;
-          text-decoration: none;
-          transition: color 150ms;
-        }
-        .policy-hub-link:hover { color: #6b7280; }
 
         .policy-hero {
           max-width: 720px;
@@ -592,7 +587,6 @@ export function PolicyShell({
           .policy-sidebar-link,
           .policy-mobile-nav-trigger span,
           .policy-back-link,
-          .policy-hub-link,
           .policy-prose a {
             transition-property: color;
           }
@@ -606,6 +600,7 @@ export function PolicyShell({
         @media print {
           .policy-progress,
           .policy-topbar,
+          .policy-nav,
           .policy-sidebar,
           .policy-mobile-nav,
           .policy-footer,

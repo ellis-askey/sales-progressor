@@ -7,6 +7,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PolicyNavBar } from "@/components/policies/PolicyNavBar";
 
 export const metadata: Metadata = {
   title: "Legal — Sales Progressor",
@@ -63,6 +64,11 @@ export default function LegalIndexPage() {
           <span aria-hidden="true">←</span> Sales Progressor
         </Link>
       </header>
+
+      {/* Same policy tab bar that appears on every individual policy page —
+          on the hub none of the tabs is active (the hub itself isn't a
+          policy), so it acts as a jump-to-any-policy bar. */}
+      <PolicyNavBar />
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "72px 32px 96px" }}>
         <h1 style={{
