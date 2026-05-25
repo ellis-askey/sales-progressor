@@ -4,6 +4,59 @@
 
 ## TO FIX
 
+### Solicitor edits may not be revalidating their page
+**Found during:** Stage 5 of the Account-area cutover (2026-05-25).
+**Symptom:** `app/actions/solicitors.ts` had four `revalidatePath("/agent/settings")` calls, but `/agent/settings` has never rendered solicitor data — that lives at `/agent/solicitors`. The stale calls were removed in the Account cutover commit (they pointed at the wrong path AND `/agent/settings` is now a redirect anyway), but only one of the four functions (`addRecommendedSolicitorWithContactAction`) had a matching `revalidatePath("/agent/solicitors")` call. The other three (`upsertRecommendedSolicitorAction`, `removeRecommendedSolicitorAction`, `createAndRecommendSolicitorAction`) now have no revalidation at all.
+**Open question:** does `/agent/solicitors` need invalidation on every mutation, or does it re-query on each visit / use a different revalidation mechanism? If yes, those three functions need `revalidatePath("/agent/solicitors")` added.
+**Why not fixed in the cutover:** intentionally kept out of scope — would have widened a presentation/IA commit into a behaviour-change commit. The wrong-path calls were doing nothing useful, so removing them is strictly safer than leaving them in. The "is revalidation needed at all" question is the actual bug to investigate.
+**Files:**
+- [app/actions/solicitors.ts](app/actions/solicitors.ts) — the three functions missing `/agent/solicitors` revalidation
+
+---
+
+## LOGGED BUNDLED CHANGES (billing-logic changes that didn't get their own commit)
+
+Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
+
+### 2026-05-25 — /agent/billing cutover surfaced post-Stage-5 (Stage 6 bundle)
+**The miss:** Stage 5 of the Account-area arc retired /agent/settings but left the analogous V1 /agent/billing hub serving. The user noticed the symptom while walking the staging build — the "Billing" entry in the AgentShell user-dropdown was still landing on the legacy V1 glass-card hub instead of the v2 /agent/account/billing surface.
+**The gap:** Six runtime references to /agent/billing, not just the dropdown. Every "do something with payment" path in the app was still funneling into the V1 hub. The dropdown was the most visible offender; the rest were quieter (Stripe SetupIntent return URL, two PaymentBlockBanner CTAs, PaymentMethodNudge CTA, BillingNegotiatorModal post-promotion reload).
+**The fix (bundled in Stage 6):** Single atomic commit, mirrors the Stage 5 pattern.
+- All 6 runtime refs repointed to /agent/account/billing (with #payment-method anchor where applicable):
+  - components/layout/AgentShell.tsx — director dropdown Billing entry
+  - components/billing/BillingNegotiatorModal.tsx — post-promotion window.location.href reload
+  - components/billing/CardCaptureForm.tsx — Stripe SetupIntent return_url
+  - components/billing/PaymentBlockBanner.tsx — blocked-state CTA
+  - components/billing/PaymentBlockBanner.tsx — warning-state CTA (also normalised from /agent/billing/payment-method to the anchor form)
+  - components/billing/PaymentMethodNudge.tsx — trial-end nudge CTA
+- next.config.ts gains a 302 redirect /agent/billing → /agent/account/billing (exact source — does NOT cascade to /agent/billing/payment-method).
+- app/agent/billing/payment-method/page.tsx retargeted to redirect directly to /agent/account/billing#payment-method (single hop, not chained).
+- AgentShell dropdown label renamed Settings → Account (desktop + mobile-sidebar bottom) at the user's direction — "Settings" was narrower than what's inside the area now.
+- V1 page file (app/agent/billing/page.tsx) kept as rollback reference, same posture as the Stage 5 settings file.
+**Why bundled with the dropdown UX change rather than its own commit:** the user noticed the symptom AND wanted the dropdown redesign at the same time; doing two commits would have meant the dropdown commit pointing the new label at the old hub for a few minutes, then a follow-up cutover. Bundling kept the cutover atomic. This entry exists so the bundle is traceable.
+**Why it's revertable in isolation despite the bundle:** the 6 repoints are simple href / window.location.href / return_url string changes. Each can be reverted to its /agent/billing form individually. The next.config redirect can be removed in one line. The dropdown label rename is a one-string edit (Account ↔ Settings).
+
+---
+
+### 2026-05-25 — Building-invoice Subtotal display changed from ex-VAT to gross-before-credits (commit `9e5b5b1`)
+**Bundled with:** Stage 2 of the Account-area arc (Profile tab migration) — not its own commit.
+**The bug:** After the prior VAT sweep stripped the VAT row, the totals block read `Subtotal £848.34 / Credits −£350 / Total £668` on the Hartwell polish preview. The eye reads £848.34 − £350 = £498.34 ≠ £668. Production unaffected (no VAT-on agencies), but real for any VAT-on agency that ever has credits.
+**Root cause:** `running-total.ts` computes `subtotalPence` as the ex-VAT split (£1018 ÷ 1.20 = £848.34) for VAT-on agencies. The VAT row that used to bridge ex-VAT → gross was removed, but the renderers kept reading the (now-stale-for-display) ex-VAT field.
+**Fix:** Three renderers compute the displayed Subtotal as `totalPence + creditsAppliedPence` instead of reading `props.subtotalPence` / `input.subtotalPence`. The dormant data-layer field stays untouched.
+- [lib/billing/invoice-pdf.ts](lib/billing/invoice-pdf.ts) — `drawTotals`
+- [components/billing/v2/BuildingInvoiceHero.tsx](components/billing/v2/BuildingInvoiceHero.tsx)
+- [components/billing/hub/BuildingInvoice.tsx](components/billing/hub/BuildingInvoice.tsx) — still in use by legacy `/agent/billing` until Stage 4
+**Worked examples post-fix:**
+- **Hartwell preview (VAT-on, 5 lines + £350 credit):** Subtotal £1018.00, Credits −£350.00, **Total £668.00** ✓
+- **VAT-off agency, no credits:** Subtotal row hidden (only renders when `creditsAppliedPence > 0`), **Total £X.XX** ✓
+- **VAT-off agency, £59 + £59 + £100 credit:** Subtotal £118.00, Credits −£100.00, **Total £18.00** ✓
+- **VAT-on agency, no credits:** Subtotal row hidden, **Total = sum of gross fees** ✓
+**Why it's revertable in isolation despite the bundle:** the three renderer edits are pure display-layer changes inside `drawTotals` / the totals JSX. They can be reverted by restoring the three `fmt(props.subtotalPence)` lines without touching anything else in commit `9e5b5b1`.
+
+---
+
+## TO FIX
+
 ### M5min — `/api/cron/metrics-5min` route comment claims a schedule that doesn't exist
 **Symptom:** [app/api/cron/metrics-5min/route.ts:7](app/api/cron/metrics-5min/route.ts#L7) starts with `// Runs every 5 minutes via Vercel Cron (see vercel.json).` but the route is NOT registered in `vercel.json` — confirmed by `grep "metrics-5min" vercel.json` returning nothing. The intent was live intra-day `DailyMetric` counts for the command centre.
 **Why not a regression:** the file is older code (added in PR 17, predates this week) and the command centre doesn't currently read intra-day rollups (only the nightly `/api/cron/rollup-metrics` output), so no user-facing feature is degraded. Flagged because a comment claiming a schedule that doesn't fire is the kind of thing that misleads the next person who reads it.

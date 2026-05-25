@@ -23,8 +23,9 @@ export async function upsertRecommendedSolicitorAction(
     create: { agencyId: session.user.agencyId, solicitorFirmId, defaultReferralFeePence },
     update: { defaultReferralFeePence },
   });
-
-  revalidatePath("/agent/settings");
+  // Stale /agent/settings revalidation removed in the Account-area cutover —
+  // settings hasn't rendered solicitor data for ages. See POST_LAUNCH_FIXES
+  // for the open question about whether /agent/solicitors needs the call.
 }
 
 export async function removeRecommendedSolicitorAction(solicitorFirmId: string) {
@@ -34,8 +35,7 @@ export async function removeRecommendedSolicitorAction(solicitorFirmId: string) 
   await db.agencyRecommendedSolicitor.deleteMany({
     where: { agencyId: session.user.agencyId, solicitorFirmId },
   });
-
-  revalidatePath("/agent/settings");
+  // Stale /agent/settings revalidation removed (see other functions in this file).
 }
 
 export async function createAndRecommendSolicitorAction(name: string) {
@@ -55,8 +55,7 @@ export async function createAndRecommendSolicitorAction(name: string) {
     create: { agencyId: session.user.agencyId, solicitorFirmId: firm.id },
     update: {},
   });
-
-  revalidatePath("/agent/settings");
+  // Stale /agent/settings revalidation removed in the Account-area cutover.
 }
 
 export async function addRecommendedSolicitorWithContactAction(input: {
@@ -106,6 +105,6 @@ export async function addRecommendedSolicitorWithContactAction(input: {
   });
 
   revalidatePath("/agent/solicitors");
-  revalidatePath("/agent/settings");
+  // Stale /agent/settings revalidation removed in the Account-area cutover.
   return { firmId, firmName };
 }

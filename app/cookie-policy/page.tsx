@@ -136,8 +136,8 @@ export default function CookiePolicyPage() {
       <p>
         If you have questions about how we use cookies or about your personal data, please
         email us at{" "}
-        <a href="mailto:hello@thesalesprogressor.co.uk" style={{ color: "#333" }}>
-          hello@thesalesprogressor.co.uk
+        <a href="mailto:support@thesalesprogressor.co.uk" style={{ color: "#333" }}>
+          support@thesalesprogressor.co.uk
         </a>
         .
       </p>

@@ -13,6 +13,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
+import { stampTrialState } from "@/lib/services/trial";
+import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
 import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -135,7 +137,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "purchaseType is required (mortgage, cash_buyer, or cash_from_proceeds)" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    let result: { transactionId: string };
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        // Payments: refuse new files if the agency has an overdue failed
+        // payment. For claim-signup (brand-new agency just created) this is
+        // always ok; for an existing agent claiming, throws PaymentBlockedError
+        // if their card is overdue.
+        await assertCanCreateFile(agencyId, tx);
+
+        // Stamp the frozen-trial state. For a brand-new claim-signup this is
+        // the agency's first-ever PropertyTransaction (Agency was created
+        // moments earlier by /api/register → createDirectorWithAgency), so
+        // firstSubmissionAt is set here and freeOnExchange returns true. For
+        // an existing agent claiming via /claim/login, the helper evaluates
+        // the 7-day window against their existing firstSubmissionAt.
+        const freeOnExchange = await stampTrialState(agencyId, tx);
+
       const newTxn = await tx.propertyTransaction.create({
         data: {
           propertyAddress: link.stubPropertyAddress ?? "",
@@ -146,6 +164,7 @@ export async function POST(req: NextRequest) {
           tenure: tenure as Tenure,
           purchaseType: purchaseType as PurchaseType,
           isShareOfFreehold: isShareOfFreehold === true,
+          freeOnExchange,
         },
       });
 
@@ -165,7 +184,16 @@ export async function POST(req: NextRequest) {
       });
 
       return { transactionId: newTxn.id };
-    });
+      });
+    } catch (err) {
+      if (err instanceof PaymentBlockedError) {
+        return NextResponse.json(
+          { error: err.message, code: err.code },
+          { status: 402 }, // Payment Required — fits the semantic
+        );
+      }
+      throw err;
+    }
 
     // Initialize milestone completions outside the transaction (uses global prisma client)
     await initializeMilestoneCompletions(

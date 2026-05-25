@@ -5,6 +5,7 @@ import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -52,6 +53,9 @@ export async function POST(req: NextRequest) {
       provider: "credentials",
       agencyId: undefined,
     });
+    // Fire-and-forget instant welcome. Helper handles its own errors so a
+    // SendGrid hiccup never fails the signup response.
+    void sendWelcomeEmailIfNotSent(userId);
     return NextResponse.json({ ok: true, id: userId }, { status: 201 });
   } catch (e: unknown) {
     // Prisma unique constraint on email — race between two simultaneous signups

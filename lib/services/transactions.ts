@@ -5,6 +5,8 @@ import type { Tenure, PurchaseType } from "@prisma/client";
 import { scopeTransactionWhere, scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
+import { stampTrialState } from "@/lib/services/trial";
+import { assertCanCreateFile } from "@/lib/billing/payment-block";
 
 export async function listTransactions(
   agencyId: string,
@@ -708,12 +710,28 @@ export async function createTransaction(input: CreateTransactionInput) {
 
   const chaseRuleSnapshot = await buildChaseRuleSnapshot();
 
-  const tx = await prisma.propertyTransaction.create({
+  const newTx = await prisma.$transaction(async (tx) => {
+    // Payments: refuse new files if the agency has an overdue failed payment
+    // (paymentFailedAt + 7d <= now AND newFileCreationBlockedAt set). Throws
+    // PaymentBlockedError which the caller surfaces as a "update your card"
+    // UX message. Existing files keep running regardless — block is strictly
+    // on NEW file creation. See lib/billing/payment-block.ts.
+    await assertCanCreateFile(input.agencyId, tx);
+
+    // Stamp the frozen-trial state. If this is the agency's first-ever
+    // PropertyTransaction, Agency.firstSubmissionAt is set inside this same
+    // tx; the returned boolean is persisted on the new row and NEVER
+    // recomputed. Atomic with the create below to avoid two parallel
+    // first-time creates both claiming to be the anchor file.
+    const freeOnExchange = await stampTrialState(input.agencyId, tx);
+
+    return tx.propertyTransaction.create({
     data: {
       propertyAddress: input.propertyAddress,
       agencyId: input.agencyId,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
       chaseRuleSnapshot,
+      freeOnExchange,
       assignedUserId: input.assignedUserId ?? null,
       // Match the post-create assignUserAction pattern: stamp assignedAt
       // whenever an assignee is set at create time. Anchored to createdAt so
@@ -743,7 +761,8 @@ export async function createTransaction(input: CreateTransactionInput) {
       purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
       twelveWeekTarget,
     },
+    });
   });
 
-  return tx;
+  return newTx;
 }

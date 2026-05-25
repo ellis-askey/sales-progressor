@@ -27,5 +27,5 @@ export async function updateProfileAction(data: { name: string; email: string; p
     data: { name, email, phone },
   });
 
-  revalidatePath("/agent/settings");
+  revalidatePath("/agent/account/profile");
 }

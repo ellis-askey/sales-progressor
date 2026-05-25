@@ -39,9 +39,9 @@ const STEPS: Step[] = [
   { label: "Add your first sale",            href: "/agent/transactions/new-v2", progressKey: "hasSale" },
   { label: "Add client contact details",     href: "/agent/transactions", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/transactions", progressKey: "hasContactDetails" },
   { label: "Share the portal with a client", href: "/agent/comms",            progressKey: "hasContactEmail" },
-  { label: "Add your phone number",          href: "/agent/settings",         progressKey: "hasPhone" },
-  { label: "Choose your branch theme",       href: "/agent/settings",         progressKey: "hasThemeSet" },
-  { label: "Verify your email address",      href: "/agent/settings",         progressKey: "hasVerifiedEmail" },
+  { label: "Add your phone number",          href: "/agent/account/profile", progressKey: "hasPhone" },
+  { label: "Choose your branch theme",       href: "/agent/account/profile", progressKey: "hasThemeSet" },
+  { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },
 ];
 
 export function OnboardingChecklist({ userId }: { userId: string }) {

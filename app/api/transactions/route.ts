@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/auth";
 import { createTransaction } from "@/lib/services/transactions";
+import { PaymentBlockedError } from "@/lib/billing/payment-block";
 import { evaluateTransactionReminders } from "@/lib/services/reminders";
 import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { prisma } from "@/lib/prisma";
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(tx, { status: 201 });
   } catch (err: unknown) {
+    // Surface payment-block refusal as 402 with the explicit error code so
+    // the UI can route the director to /agent/account/billing#payment-method.
+    if (err instanceof PaymentBlockedError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 402 },
+      );
+    }
     const message = err instanceof Error ? err.message : "Failed to create";
     return NextResponse.json({ error: message }, { status: 400 });
   }

@@ -274,7 +274,7 @@ export async function sendTestPushAction() {
   await pushToUser(session.user.id, {
     title: "Push notifications are on",
     body:  "You're all set, this is a test.",
-    url:   `${process.env.NEXTAUTH_URL ?? ""}/agent/settings`,
+    url:   `${process.env.NEXTAUTH_URL ?? ""}/agent/account/notifications`,
   });
 
   // pushToUser prunes any subscriptions that 404/410 — recount to report

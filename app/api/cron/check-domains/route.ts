@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
               ``,
               `This usually happens if the DNS records were removed or changed.`,
               ``,
-              `To fix it, go to Settings → Sending addresses and follow the DNS setup instructions again.`,
+              `To fix it, go to Account → Sending addresses and follow the DNS setup instructions again.`,
               ``,
-              `Settings: ${process.env.NEXTAUTH_URL}/agent/settings`,
+              `Account: ${process.env.NEXTAUTH_URL}/agent/account/profile`,
             ].join("\n"),
           }).catch(() => {});
         }

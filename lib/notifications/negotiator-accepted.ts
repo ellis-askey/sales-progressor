@@ -19,6 +19,6 @@ export async function notifyDirectorOfAcceptance(invitationId: string): Promise<
     directorName:    inv.invitedBy.name,
     negotiatorName:  inv.negotiatorName,
     agencyName:      inv.agency.name,
-    teamUrl:         `${appUrl}/agent/settings`,
+    teamUrl:         `${appUrl}/agent/account/team`,
   });
 }

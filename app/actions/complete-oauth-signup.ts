@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
+import { sendWelcomeEmailIfNotSent } from "@/lib/emails/send-welcome";
 
 function toTitleCase(str: string): string {
   return str.trim().replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -54,6 +55,11 @@ export async function completeOAuthSignup(formData: FormData): Promise<
     });
 
     console.log(`[AUDIT] oauth_signup_completed userId=${session.user.id} role=${rawRole}`);
+    // Fire-and-forget instant welcome — parallel path to /api/register's
+    // synchronous send. The helper dedupes via welcomeEmailSentAt so a
+    // theoretical concurrent caller (or a re-run of this action) can't
+    // double-send.
+    void sendWelcomeEmailIfNotSent(session.user.id);
     return { ok: true };
   } catch (e) {
     console.error("completeOAuthSignup error:", e);

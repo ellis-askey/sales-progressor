@@ -419,9 +419,13 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     for (const user of eligible) {
       const userData = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { createdAt: true },
+        select: { createdAt: true, welcomeEmailSentAt: true },
       });
       if (!userData || userData.createdAt > cutoff1d) continue;
+      // Skip users who already received the instant welcome from the
+      // synchronous /api/register or completeOAuthSignup paths. Cron is the
+      // fallback backstop only — instant send is the canonical path.
+      if (userData.welcomeEmailSentAt) continue;
 
       const txCount = await prisma.propertyTransaction.count({
         where: { agentUserId: user.id },

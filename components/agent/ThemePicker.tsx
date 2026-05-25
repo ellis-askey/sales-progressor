@@ -10,7 +10,7 @@ interface ThemePickerProps {
   currentMobileTheme: MobileAgentTheme;
 }
 
-const THEME_META: Record<AgentTheme, { name: string; tagline: string }> = {
+export const THEME_META: Record<AgentTheme, { name: string; tagline: string }> = {
   sunset:   { name: "Sunset",   tagline: "Warm and modern"     },
   coastal:  { name: "Coastal",  tagline: "Calm and fresh"      },
   heritage: { name: "Heritage", tagline: "Trustworthy classic" },
@@ -28,7 +28,7 @@ const MOBILE_THEME_META: Record<MobileAgentTheme, { name: string; tagline: strin
   blush:    { name: "Blush",    tagline: "Gentle and warm",     bg: "linear-gradient(135deg, #F5ECF0 0%, #ECDDE8 100%)", accent: "#A0607A" },
 };
 
-function ThemeTile({
+export function ThemeTile({
   isActive,
   onSelect,
   label,
@@ -75,7 +75,7 @@ function ThemeTile({
   );
 }
 
-function DesktopThemePreview({ theme, isActive }: { theme: AgentTheme; isActive: boolean }) {
+export function DesktopThemePreview({ theme, isActive }: { theme: AgentTheme; isActive: boolean }) {
   return (
     <div data-theme={theme} style={{ borderRadius: "var(--agent-radius-lg)", overflow: "hidden" }}>
       <div style={{
@@ -142,7 +142,7 @@ function DesktopThemePreview({ theme, isActive }: { theme: AgentTheme; isActive:
   );
 }
 
-function MobileThemePreview({ theme, isActive }: { theme: MobileAgentTheme; isActive: boolean }) {
+export function MobileThemePreview({ theme, isActive }: { theme: MobileAgentTheme; isActive: boolean }) {
   const meta = MOBILE_THEME_META[theme];
   return (
     <div style={{ borderRadius: "var(--agent-radius-lg)", overflow: "hidden" }}>

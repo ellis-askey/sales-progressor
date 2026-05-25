@@ -6,6 +6,8 @@ import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summa
 import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
+import { maybeStampExchange } from "@/lib/services/billing-trigger";
+import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
@@ -568,6 +570,14 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   }
 
   touchLastActivity(input.transactionId).catch(() => {});
+
+  // Payments: stamp exchangedAt + (for non-trial files) billedAtExchange + priceAtExchange.
+  // Runs inside the same tx as the completion write so the stamp is atomic with the
+  // milestone state change. Bilateral-safe: confirmMilestoneAction fires completeMilestone
+  // twice for VM19/PM26 (primary + counterpart) on the SAME PropertyTransaction; the
+  // helper's NULL-guarded updateMany ensures only the first call writes billedAtExchange.
+  // See lib/services/billing-trigger.ts for the full reasoning.
+  await maybeStampExchange(input.transactionId, def.code, tx);
 
   // Chain milestone notifications (fire-and-forget; deduped via OutboundEmailQueue)
   if (def.code === "VM19" || def.code === "PM26") {
@@ -1205,6 +1215,16 @@ export async function executeUndoMilestone(input: {
           },
         });
       }
+    }
+
+    // Payments: reverse the exchange stamp / write a CreditNote if invoice issued.
+    // Fires for every reversed milestone code; the helper short-circuits for
+    // non-VM19/PM26 codes. Bilateral-safe: VM19+PM26 both fire here in the same
+    // ptx, second call is a no-op via the helper's NULL guard (branch a) or
+    // existing-credit lookup (branch b). See lib/services/billing-reversal.ts.
+    for (const defId of allReverseIds) {
+      const code = idToCode.get(defId);
+      if (code) await handleExchangeReversal(transactionId, code, ptx);
     }
   });
 

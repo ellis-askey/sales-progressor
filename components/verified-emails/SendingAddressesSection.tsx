@@ -49,7 +49,13 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
     loadEmails();
     if (initialVerified) {
       setStep({ type: "success", email: "" });
-      router.replace("/agent/settings");
+      // Clears the ?verified=1 query string. Targets the new Account/Profile
+      // surface (the inventory'd migration home) so that completing
+      // verification from EITHER the legacy /agent/settings page OR the new
+      // /agent/account/profile page funnels users into the new home. The
+      // old settings page remains fully functional otherwise; this is a
+      // deliberate one-way migration nudge on success.
+      router.replace("/agent/account/profile");
     }
   }, [loadEmails, initialVerified, router]);
 
