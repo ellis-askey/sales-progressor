@@ -155,13 +155,24 @@ export async function POST(req: NextRequest) {
   const allTasks = [primaryTask, ...extraTasks];
   const tx = primaryTask.transaction;
 
-  const formatPrice = (pence: number | null) =>
-    pence ? `£${(pence / 100).toLocaleString("en-GB")}` : "Not provided";
-
   const formatDate = (d: Date | null | undefined) =>
     d
       ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
       : "Not provided";
+
+  // PII minimisation — send a shortened property reference (street line only)
+  // instead of the full address with postcode. The AI doesn't reproduce the
+  // postcode in chase messages; the street line is enough to anchor the
+  // reference. Drops town + postcode when a UK postcode is detected; falls
+  // back to dropping just the last comma-separated segment otherwise.
+  const shortenAddress = (full: string): string => {
+    const parts = full.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length <= 1) return full;
+    const POSTCODE_RE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
+    const hasPostcode = POSTCODE_RE.test(parts[parts.length - 1]);
+    if (hasPostcode && parts.length >= 3) return parts.slice(0, -2).join(", ");
+    return parts.slice(0, -1).join(", ");
+  };
 
   // Sender and firm
   const senderFirstName = session.user.name ? greetingName(session.user.name) : "Your progressor";
@@ -182,11 +193,25 @@ export async function POST(req: NextRequest) {
     ? resolveRecipientRole(primaryRecipient.roleType, recipientSide)
     : recipientSide;
 
-  // Other contacts (exclude primary recipient)
-  const otherContactsList = tx.contacts
-    .filter((c) => c.id !== primaryRecipient?.id)
-    .map((c) => `- ${c.name} — ${resolveRecipientRole(c.roleType, recipientSide)}`);
-  const otherContacts = otherContactsList.length > 0 ? otherContactsList.join("\n") : null;
+  // Other contacts (exclude primary recipient AND the CC'd solicitor — that's
+  // surfaced separately on its own line). PII minimisation: send role label +
+  // count only, never full names. The AI's only legitimate use is knowing
+  // which roles exist on the transaction (e.g. "is there a broker on this
+  // deal?") — not naming them in the message body. Confidentiality Boundaries
+  // in the system prompt already forbid surfacing other parties' internal status.
+  const otherContactsByRole = new Map<string, number>();
+  for (const c of tx.contacts) {
+    if (c.id === primaryRecipient?.id) continue;
+    if (showCc && solicitor && c.id === solicitor.id) continue;
+    const role = resolveRecipientRole(c.roleType, recipientSide);
+    otherContactsByRole.set(role, (otherContactsByRole.get(role) ?? 0) + 1);
+  }
+  const otherContacts =
+    otherContactsByRole.size > 0
+      ? Array.from(otherContactsByRole.entries())
+          .map(([role, count]) => `- ${count} ${role}${count === 1 ? "" : "s"}`)
+          .join("\n")
+      : null;
 
   // Exchange date — only surfaced when both solicitor gate milestones (VM18 + PM25) are confirmed
   const gateCodes = tx.milestoneCompletions.map((c) => c.milestoneDefinition.code);
@@ -311,24 +336,48 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
   const milestoneContextBlock =
     milestoneContextParts.length > 0 ? milestoneContextParts.join("\n\n") : null;
 
-  // Chase history
+  // Chase history — timing data only. The verbatim 300-char snippet of the
+  // last outbound message was REMOVED for PII minimisation (it could contain
+  // any PII the agent had previously typed: names, phone numbers, addresses,
+  // financial details). The tone guidance only ever needs WHEN previous
+  // contact was, not WHAT was said — "circling back on the message I sent
+  // N days ago" works fine from days-only continuity.
   const lastComm = tx.communications[0] ?? null;
   const daysSinceLastContact = lastComm
     ? Math.floor((Date.now() - new Date(lastComm.createdAt).getTime()) / 86400000)
     : null;
-  const lastOutboundMessage = lastComm?.content
-    ? lastComm.content.slice(0, 300) + (lastComm.content.length > 300 ? "..." : "")
-    : null;
 
-  // User message (§6 structure)
+  // User message (§6 structure, PII-minimised).
+  //
+  // Fields deliberately NOT sent to Anthropic:
+  //   - Full property address (only street line — town + postcode dropped)
+  //   - Sale price (not used by any tone band; removed entirely)
+  //   - Full names of contacts who aren't the primary recipient (role + count only)
+  //   - Full name of CC'd solicitor (role label only)
+  //   - Verbatim previous-message text (timing-only continuity signal)
+  //   - Email addresses, phone numbers, internal notes (never sent — were not in prior version either)
+  //
+  // Fields that DO go (each load-bearing for output quality):
+  //   - Recipient's first name (opener pattern requires it)
+  //   - Sending agent's first name + agency name (sign-off attribution)
+  //   - Property reference (first line only)
+  //   - Tenure / purchase type / expected exchange date (transaction framing)
+  //   - Milestone names / codes / days outstanding / blocks-exchange flag
+  //   - Milestone glossary text (from lib/chase/milestone-glossary.ts)
+  //   - Chase counts + days since last contact (structured continuity)
+  //   - Recipient role + role list of other parties (no names)
+  //
+  // Keep this list in sync with Terms §5 and the Privacy data-inventory.
+  const recipientShortAddress = shortenAddress(tx.propertyAddress);
+  const ccRoleLabel = recipientSide === "vendor" ? "vendor's solicitor" : "purchaser's solicitor";
+
   const userMessageParts: string[] = [
     `Generate ${channel === "whatsapp" ? "a WhatsApp" : "an email"} chase message for the following situation.`,
     ``,
     `# Transaction`,
-    `- Property: ${tx.propertyAddress}`,
+    `- Property reference: ${recipientShortAddress}`,
     `- Tenure: ${tx.tenure ?? "Not provided"}`,
     `- Purchase type: ${tx.purchaseType ?? "Not provided"}`,
-    `- Sale price: ${formatPrice(tx.purchasePrice ?? null)}`,
     ...(exchangeGatesConfirmed && tx.expectedExchangeDate
       ? [`- Expected exchange date: ${expectedExchangeDateStr} (${daysToExchangeStr})`]
       : []),
@@ -346,25 +395,17 @@ Return only the message body. No preamble, no explanation, no "Here is the messa
       : []),
     ``,
     `# Recipient`,
-    `- Name: ${recipientFirstName}`,
+    `- First name: ${recipientFirstName}`,
     `- Role: ${recipientRole}`,
-    ...(showCc && solicitor ? [`- Also CC: ${solicitor.name} (solicitor) — they will see this message`] : []),
+    ...(showCc && solicitor ? [`- Also CC: ${ccRoleLabel} — they will see this message`] : []),
   ];
 
   if (otherContacts) {
     userMessageParts.push(``);
     userMessageParts.push(
-      `# Other parties on this transaction (for context only — only mention if relevant)`
+      `# Other parties on this transaction (role context only — no names sent)`
     );
     userMessageParts.push(otherContacts);
-  }
-
-  if (lastOutboundMessage) {
-    userMessageParts.push(``);
-    userMessageParts.push(
-      `# Previous message to this recipient (for factual continuity only — do NOT mirror its tone, length, or phrasing)`
-    );
-    userMessageParts.push(`"${lastOutboundMessage}"`);
   }
 
   userMessageParts.push(``);
