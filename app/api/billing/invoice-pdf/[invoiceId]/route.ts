@@ -25,6 +25,7 @@ function formatMonth(d: Date): string {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ invoiceId: string }> }) {
+  try {
   const { invoiceId } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -99,4 +100,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ inv
       "Content-Disposition": `attachment; filename="invoice-${invoice.monthStart.toISOString().slice(0, 7)}.pdf"`,
     },
   });
+  } catch (err) {
+    console.error("[invoice-pdf/:invoiceId] FAILED:", err);
+    console.error("[invoice-pdf/:invoiceId] stack:", err instanceof Error ? err.stack : "no stack");
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "PDF render failed", stack: err instanceof Error ? err.stack : undefined },
+      { status: 500 },
+    );
+  }
 }

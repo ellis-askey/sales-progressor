@@ -31,6 +31,7 @@ function formatMonth(d: Date): string {
 }
 
 export async function GET(_req: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.user.role !== "director") {
@@ -100,4 +101,12 @@ export async function GET(_req: NextRequest) {
       "Content-Disposition": `attachment; filename="invoice-preview-${total.monthStart.toISOString().slice(0, 7)}.pdf"`,
     },
   });
+  } catch (err) {
+    console.error("[invoice-pdf/preview] FAILED:", err);
+    console.error("[invoice-pdf/preview] stack:", err instanceof Error ? err.stack : "no stack");
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "PDF render failed", stack: err instanceof Error ? err.stack : undefined },
+      { status: 500 },
+    );
+  }
 }
