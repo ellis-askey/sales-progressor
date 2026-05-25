@@ -19,18 +19,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User } from "@phosphor-icons/react";
+import { CreditCard, User, Users } from "@phosphor-icons/react";
 
 type Tab = {
   href: string;
   label: string;
   Icon: typeof CreditCard;
+  /** Roles that may see this tab. Directors get all listed; negotiators
+   *  see only tabs that include "negotiator". The Team tab has an extra
+   *  conditional gate for negotiators — see visibility filter below. */
   roles: UserRole[];
 };
 
-// Render order = display order. Director sees Billing → Profile;
-// negotiator sees only Profile. Future tabs (Team, Notifications) drop
-// in here in the right order without restructuring.
+// Render order = display order. Future tab (Notifications) drops in
+// here in the right slot without restructuring.
 const TABS: Tab[] = [
   {
     href: "/agent/account/billing",
@@ -44,14 +46,36 @@ const TABS: Tab[] = [
     Icon: User,
     roles: ["director", "negotiator"],
   },
-  // Stage 2+ will add:
-  //   { href: "/agent/account/team", label: "Team", Icon: Users, roles: ["director"] }
+  {
+    href: "/agent/account/team",
+    label: "Team",
+    Icon: Users,
+    // Listed for both so the negotiator branch (invite director) can show;
+    // hidden from negotiators whose agency already has a director — see
+    // the agencyHasDirector filter below.
+    roles: ["director", "negotiator"],
+  },
+  // Stage 4 will add:
   //   { href: "/agent/account/notifications", label: "Notifications", Icon: Bell, roles: ["director", "negotiator"] }
 ];
 
-export function AccountLeftNav({ role }: { role: UserRole }) {
+export function AccountLeftNav({
+  role,
+  agencyHasDirector,
+}: {
+  role: UserRole;
+  /** When false AND the viewer is a negotiator, the Team tab shows so
+   *  they can invite a director. Otherwise negotiators don't see Team. */
+  agencyHasDirector: boolean;
+}) {
   const pathname = usePathname();
-  const visible = TABS.filter((t) => t.roles.includes(role));
+  const visible = TABS.filter((t) => {
+    if (!t.roles.includes(role)) return false;
+    if (t.href === "/agent/account/team" && role === "negotiator" && agencyHasDirector) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <nav className="account-leftnav" aria-label="Account navigation">

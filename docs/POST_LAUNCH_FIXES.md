@@ -2,6 +2,27 @@
 
 ---
 
+## LOGGED BUNDLED CHANGES (billing-logic changes that didn't get their own commit)
+
+Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
+
+### 2026-05-25 — Building-invoice Subtotal display changed from ex-VAT to gross-before-credits (commit `9e5b5b1`)
+**Bundled with:** Stage 2 of the Account-area arc (Profile tab migration) — not its own commit.
+**The bug:** After the prior VAT sweep stripped the VAT row, the totals block read `Subtotal £848.34 / Credits −£350 / Total £668` on the Hartwell polish preview. The eye reads £848.34 − £350 = £498.34 ≠ £668. Production unaffected (no VAT-on agencies), but real for any VAT-on agency that ever has credits.
+**Root cause:** `running-total.ts` computes `subtotalPence` as the ex-VAT split (£1018 ÷ 1.20 = £848.34) for VAT-on agencies. The VAT row that used to bridge ex-VAT → gross was removed, but the renderers kept reading the (now-stale-for-display) ex-VAT field.
+**Fix:** Three renderers compute the displayed Subtotal as `totalPence + creditsAppliedPence` instead of reading `props.subtotalPence` / `input.subtotalPence`. The dormant data-layer field stays untouched.
+- [lib/billing/invoice-pdf.ts](lib/billing/invoice-pdf.ts) — `drawTotals`
+- [components/billing/v2/BuildingInvoiceHero.tsx](components/billing/v2/BuildingInvoiceHero.tsx)
+- [components/billing/hub/BuildingInvoice.tsx](components/billing/hub/BuildingInvoice.tsx) — still in use by legacy `/agent/billing` until Stage 4
+**Worked examples post-fix:**
+- **Hartwell preview (VAT-on, 5 lines + £350 credit):** Subtotal £1018.00, Credits −£350.00, **Total £668.00** ✓
+- **VAT-off agency, no credits:** Subtotal row hidden (only renders when `creditsAppliedPence > 0`), **Total £X.XX** ✓
+- **VAT-off agency, £59 + £59 + £100 credit:** Subtotal £118.00, Credits −£100.00, **Total £18.00** ✓
+- **VAT-on agency, no credits:** Subtotal row hidden, **Total = sum of gross fees** ✓
+**Why it's revertable in isolation despite the bundle:** the three renderer edits are pure display-layer changes inside `drawTotals` / the totals JSX. They can be reverted by restoring the three `fmt(props.subtotalPence)` lines without touching anything else in commit `9e5b5b1`.
+
+---
+
 ## TO FIX
 
 ### M5min — `/api/cron/metrics-5min` route comment claims a schedule that doesn't exist

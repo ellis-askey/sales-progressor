@@ -10,14 +10,16 @@
 // URLs: /agent/account/<tab> (route group is URL-invisible). Layout
 // inheritance: app/layout.tsx + this layout — NOT app/agent/layout.tsx.
 //
-// Stage 2: Profile lands as a both-roles tab, so the layout gate
-// relaxes from resolveDirectorSession to resolveAgentSession. Per-page
-// gating now does the work: Billing page calls notFound() for
-// non-directors, the left nav filters tabs by role. Negotiators landing
-// on the bare /agent/account/ index get redirected to their first
-// visible tab (Profile) rather than 404ing into Billing.
+// Stage 2 relaxed the gate from director-only to resolveAgentSession.
+// Stage 3 adds the Team tab — director-only as a roster manager, plus
+// a negotiator-only branch ("Invite your director") when the agency has
+// no director yet. Tab-visibility logic for the negotiator branch needs
+// to know agencyHasDirector at layout time so the nav can hide/show
+// Team accordingly, which is why we resolve director status here when
+// the viewer is a negotiator with an agencyId.
 
 import { resolveAgentSession } from "@/lib/agent-session";
+import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { AccountChromeHeader } from "@/components/account/chrome/AccountChromeHeader";
 import { AccountLeftNav } from "@/components/account/chrome/AccountLeftNav";
 import "@/app/agent/styles/themes.css";
@@ -28,7 +30,16 @@ export default async function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { role, theme } = await resolveAgentSession();
+  const { role, theme, session } = await resolveAgentSession();
+
+  // Only negotiators need this lookup — directors see Team unconditionally.
+  // Single cheap query (one User row), no React-cache wrapping needed for
+  // Stage 3 because no other call site reads this in the same request.
+  let agencyHasDirector = true;
+  if (role === "negotiator" && session.user.agencyId) {
+    const ds = await getAgencyDirectorStatus(session.user.agencyId);
+    agencyHasDirector = ds.hasDirector;
+  }
 
   return (
     <div
@@ -45,7 +56,7 @@ export default async function AccountLayout({
 
       <div className="account-shell-body">
         <aside className="account-shell-nav">
-          <AccountLeftNav role={role} />
+          <AccountLeftNav role={role} agencyHasDirector={agencyHasDirector} />
         </aside>
         <main className="account-shell-main">{children}</main>
       </div>
