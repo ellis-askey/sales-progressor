@@ -57,9 +57,8 @@ const PENDING_ENTITY = (
 const PENDING_ADDRESS = (
   <span className="pending">registered office address TBC</span>
 );
-const PENDING_SENTRY_REGION = (
-  <span className="pending">CONFIRM REGION</span>
-);
+// Sentry region confirmed by Ellis 2026-05-25: EU (ingest.eu.sentry.io).
+const SENTRY_REGION = "EU";
 
 const SECTIONS: PolicySection[] = [
   {
@@ -363,7 +362,7 @@ const SECTIONS: PolicySection[] = [
             <tr>
               <td>Sentry</td>
               <td>Error monitoring</td>
-              <td>{PENDING_SENTRY_REGION}</td>
+              <td>{SENTRY_REGION}</td>
             </tr>
           </tbody>
         </table>

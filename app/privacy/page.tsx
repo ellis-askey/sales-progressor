@@ -47,9 +47,9 @@ const PENDING_ENTITY = (
 const PENDING_ADDRESS = (
   <span className="pending">registered office TBC</span>
 );
-const PENDING_SENTRY_REGION = (
-  <span className="pending">CONFIRM SENTRY DATA REGION</span>
-);
+// Sentry region confirmed by Ellis 2026-05-25: EU (ingest.eu.sentry.io).
+// No SCCs/IDTA needed — EU is within UK Adequacy.
+const SENTRY_REGION = "EU";
 
 const SECTIONS: PolicySection[] = [
   {
@@ -262,7 +262,7 @@ const SECTIONS: PolicySection[] = [
                 Error monitoring. Receives technical error data which may include IP address, browser
                 information, and the URL where an error occurred.
               </td>
-              <td>{PENDING_SENTRY_REGION} (SCCs + UK IDTA if US)</td>
+              <td>{SENTRY_REGION}</td>
             </tr>
           </tbody>
         </table>

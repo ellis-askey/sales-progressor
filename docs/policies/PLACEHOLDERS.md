@@ -43,26 +43,11 @@ These stay in the source as inline `COUNSEL NOTES` comments (visible to the lawy
 
 ---
 
-## Needs-Ellis-input (1 placeholder, repeated across 3 pages)
+## Needs-Ellis-input — RESOLVED ✓
 
-| Page | Section | Visible text | What's needed |
-|---|---|---|---|
-| [/privacy](../../app/privacy/page.tsx) | §4 Sub-processors (Sentry row) | "CONFIRM SENTRY DATA REGION" | Sentry organisation's data region — visible in the Sentry dashboard at sentry.io → Settings → Data Storage Location. Likely US (default for new accounts) or EU (if explicitly chosen). |
-| [/cookie-policy](../../app/cookie-policy/page.tsx) | §8 Third-party processors (Sentry row) | "CONFIRM SENTRY REGION" | Same |
-| [/legal/dpa](../../app/legal/dpa/page.tsx) | Schedule B (Sentry row) | "CONFIRM REGION" | Same |
+**Sentry region resolved 2026-05-25**: confirmed EU (DSN host: `ingest.eu.sentry.io`). All three pages (Privacy §4, Cookies §8, DPA Schedule B) updated to render "EU". No SCCs/IDTA caveat needed since EU is within UK Adequacy.
 
-**Fill action:** look up Sentry data region in the Sentry dashboard (one-time check). Then update the constant `PENDING_SENTRY_REGION` in each of the three pages to the real value. If US: add "(SCCs + UK IDTA)" suffix to match the other US providers.
-
----
-
-## Sentry DSN check (one-time verification)
-
-The DSN format in `NEXT_PUBLIC_SENTRY_DSN` reveals the region:
-- `https://...ingest.sentry.io` → US region
-- `https://...ingest.de.sentry.io` → EU (Germany) region
-- `https://...ingest.eu.sentry.io` → EU region
-
-You can check by visiting the env var value in Vercel (Settings → Environment Variables → `NEXT_PUBLIC_SENTRY_DSN` → reveal). Or by checking the Sentry org's storage settings in the dashboard.
+No remaining items in this category. Every placeholder still outstanding is either incorporation-pending or counsel-pending.
 
 ---
 
