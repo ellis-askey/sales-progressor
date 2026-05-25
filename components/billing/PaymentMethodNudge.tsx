@@ -39,7 +39,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
       style={{
         background: "var(--agent-card-bg, white)",
         border: "1px solid var(--agent-border, #e5e7eb)",
-        borderLeft: "4px solid var(--agent-primary, #FF6B4A)",
+        borderLeft: "4px solid var(--agent-coral)",
         borderRadius: 8,
         padding: "14px 18px",
         margin: "0",
@@ -59,7 +59,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
       <Link
         href="/agent/billing#payment-method"
         style={{
-          background: "var(--agent-primary, #FF6B4A)", color: "white",
+          background: "var(--agent-coral)", color: "white",
           padding: "8px 14px", borderRadius: 6,
           fontSize: 13, fontWeight: 600, textDecoration: "none",
           whiteSpace: "nowrap",

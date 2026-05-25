@@ -117,9 +117,9 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
           cursor: "pointer",
           padding: "10px 12px",
           borderRadius: 8,
-          background: agreed ? "var(--agent-primary-tint, rgba(255,107,74,0.08))" : "transparent",
+          background: agreed ? "var(--agent-coral-bg-tint)" : "transparent",
           border: agreed
-            ? "1px solid var(--agent-primary, #FF6B4A)"
+            ? "1px solid var(--agent-coral)"
             : "1px solid var(--agent-border-subtle, rgba(0,0,0,0.08))",
           transition: "background 150ms, border-color 150ms",
         }}
@@ -132,7 +132,7 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
             marginTop: 2,
             width: 16,
             height: 16,
-            accentColor: "var(--agent-primary, #FF6B4A)",
+            accentColor: "var(--agent-coral)",
             cursor: "pointer",
           }}
         />
@@ -161,8 +161,7 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
         type="button"
         onClick={handleAcknowledge}
         disabled={!agreed || submitting}
-        className="agent-btn agent-btn-primary"
-        data-loading={submitting ? "" : undefined}
+        className="agent-btn agent-btn-primary agent-btn-md"
         style={{ alignSelf: "flex-start" }}
       >
         {submitting ? "Confirming…" : "Confirm & continue"}

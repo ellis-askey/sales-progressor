@@ -18,6 +18,11 @@ import { renderInvoicePdf, type PdfLine } from "@/lib/billing/invoice-pdf";
 import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
 import { billingMonthRange } from "@/lib/billing/period";
 
+// @react-pdf/renderer needs Node APIs (native deps for PDF rendering). Without
+// this, Vercel can default to Edge runtime → silent failures. Same pattern as
+// app/api/command/content/images/chart/route.tsx.
+export const runtime = "nodejs";
+
 function formatDateShort(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(d);
 }

@@ -149,7 +149,7 @@ function InnerForm() {
         disabled={submitting || !stripe || !elements}
         style={{
           padding: "12px 20px",
-          background: submitting ? "#94a3b8" : "var(--agent-primary, #FF6B4A)",
+          background: submitting ? "#94a3b8" : "var(--agent-coral)",
           color: "white",
           border: "none",
           borderRadius: 8,

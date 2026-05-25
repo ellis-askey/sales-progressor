@@ -71,7 +71,7 @@ export function PlanTermsPanel({ vatActive, trialState, agreed }: PlanTermsPanel
           <div
             style={{
               marginTop: 4,
-              color: trialState.kind === "in_trial" ? "var(--agent-primary, #FF6B4A)" : "var(--agent-text-primary)",
+              color: trialState.kind === "in_trial" ? "var(--agent-coral)" : "var(--agent-text-primary)",
               fontWeight: trialState.kind === "in_trial" ? 600 : 400,
             }}
           >

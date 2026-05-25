@@ -97,7 +97,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
             disabled={submitting}
             style={{
               padding: "12px 16px", textAlign: "left",
-              background: submitting ? "#f3f4f6" : "var(--agent-primary, #FF6B4A)",
+              background: submitting ? "#f3f4f6" : "var(--agent-coral)",
               color: submitting ? "#9ca3af" : "white",
               border: "none", borderRadius: 8,
               fontSize: 14, fontWeight: 600,
