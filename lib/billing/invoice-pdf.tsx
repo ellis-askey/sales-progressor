@@ -245,21 +245,17 @@ export function InvoicePdf(input: PdfInvoiceInput): ReactElement {
         {/* Totals */}
         <View style={styles.totalsBlock}>
           <View style={styles.totalsInner}>
-            {input.vatActive ? (
-              <>
-                <View style={styles.totalsRow}>
-                  <Text style={styles.totalsLabel}>Subtotal (ex-VAT)</Text>
-                  <Text style={styles.totalsValue}>{fmtPence(input.subtotalPence)}</Text>
-                </View>
-                <View style={styles.totalsRow}>
-                  <Text style={styles.totalsLabel}>VAT (20%)</Text>
-                  <Text style={styles.totalsValue}>{fmtPence(input.vatPence)}</Text>
-                </View>
-              </>
-            ) : (
+            {/* react-pdf reconciler doesn't accept React Fragments in
+                production builds (error #31). Each row rendered conditionally
+                as its own element instead. */}
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>{input.vatActive ? "Subtotal (ex-VAT)" : "Subtotal"}</Text>
+              <Text style={styles.totalsValue}>{fmtPence(input.subtotalPence)}</Text>
+            </View>
+            {input.vatActive && (
               <View style={styles.totalsRow}>
-                <Text style={styles.totalsLabel}>Subtotal</Text>
-                <Text style={styles.totalsValue}>{fmtPence(input.subtotalPence)}</Text>
+                <Text style={styles.totalsLabel}>VAT (20%)</Text>
+                <Text style={styles.totalsValue}>{fmtPence(input.vatPence)}</Text>
               </View>
             )}
             {input.creditsAppliedPence > 0 && (
