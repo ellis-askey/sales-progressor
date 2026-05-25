@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
         destination: "/agent/dashboard?filter=active",
         permanent: false,
       },
+      {
+        // Account-area cutover (Stage 5). /agent/settings has been split
+        // across /agent/account/{billing,profile,team,notifications}.
+        // Profile is the closest semantic match to the old settings
+        // surface, and it's a both-roles tab so the redirect is safe for
+        // every viewer. Exact-match source — does NOT cascade to
+        // /agent/settings/automation, which intentionally stays serving
+        // (orphan route, zero UI links, picked up by a future automation
+        // redesign). 302 (permanent: false) keeps the cutover reversible;
+        // promote to permanent: true once the Account area is proven.
+        source: "/agent/settings",
+        destination: "/agent/account/profile",
+        permanent: false,
+      },
     ];
   },
 };

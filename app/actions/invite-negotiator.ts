@@ -109,7 +109,7 @@ export async function inviteNegotiator(
   }
 
   console.log(`[AUDIT] negotiator_invitation_sent agencyId=${session.user.agencyId} invitedBy=${session.user.id} email=${negotiatorEmail}`);
-  revalidatePath("/agent/settings");
+  revalidatePath("/agent/account/team");
   return { ok: true };
 }
 
@@ -165,7 +165,7 @@ export async function resendNegotiatorInvitation(
   }
 
   console.log(`[AUDIT] negotiator_invitation_resent invitationId=${invitationId} invitedBy=${session.user.id}`);
-  revalidatePath("/agent/settings");
+  revalidatePath("/agent/account/team");
   return { ok: true };
 }
 
@@ -198,6 +198,6 @@ export async function cancelNegotiatorInvitation(
   });
 
   console.log(`[AUDIT] negotiator_invitation_cancelled invitationId=${invitationId} cancelledBy=${session.user.id}`);
-  revalidatePath("/agent/settings");
+  revalidatePath("/agent/account/team");
   return { ok: true };
 }

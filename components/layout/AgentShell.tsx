@@ -155,7 +155,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
               </p>
               <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
               <Link
-                href="/agent/settings"
+                href="/agent/account/profile"
                 onClick={() => setOpen(false)}
                 style={{
                   display: "flex", alignItems: "center", gap: 9,
@@ -534,7 +534,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
           </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <Link
-              href="/agent/settings"
+              href="/agent/account/profile"
               onClick={() => setMobileOpen(false)}
               className="hover:bg-black/[0.05]"
               style={{

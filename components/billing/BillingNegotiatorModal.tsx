@@ -111,7 +111,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
           </button>
 
           <Link
-            href="/agent/settings"
+            href="/agent/account/team"
             onClick={onClose}
             style={{
               padding: "12px 16px", textAlign: "left",

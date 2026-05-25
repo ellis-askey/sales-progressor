@@ -35,8 +35,13 @@ test.describe.serial("Agent app smoke tests (negotiator)", () => {
     await expectPageOk(agentPage, "/agent/completions")
   })
 
-  test("settings loads", async () => {
-    await expectPageOk(agentPage, "/agent/settings")
+  test("account profile loads", async () => {
+    // Stage 5 of the Account-area cutover replaced /agent/settings with
+    // /agent/account/{billing,profile,team,notifications}. Profile is the
+    // both-roles tab (negotiator visible — this test session is a
+    // negotiator) and is the redirect target from the old URL. Hitting
+    // the new URL directly avoids relying on the redirect for the smoke.
+    await expectPageOk(agentPage, "/agent/account/profile")
   })
 
   test("solicitors loads", async () => {
