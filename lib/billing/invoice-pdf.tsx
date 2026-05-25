@@ -283,7 +283,11 @@ export function InvoicePdf(input: PdfInvoiceInput): ReactElement {
 
 /**
  * Render the React PDF tree to a Node Buffer for the route handler to stream.
+ * Passes a JSX ELEMENT (not a pre-rendered tree) so react-pdf's reconciler
+ * mounts the component through its proper render lifecycle. Calling
+ * `InvoicePdf(input)` directly returns a Document element which can confuse
+ * the reconciler in production (minified React error #31).
  */
 export async function renderInvoicePdf(input: PdfInvoiceInput): Promise<Buffer> {
-  return renderToBuffer(InvoicePdf(input));
+  return renderToBuffer(<InvoicePdf {...input} />);
 }
