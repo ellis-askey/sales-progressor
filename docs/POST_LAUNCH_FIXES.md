@@ -2,18 +2,6 @@
 
 ---
 
-## TO FIX
-
-### Solicitor edits may not be revalidating their page
-**Found during:** Stage 5 of the Account-area cutover (2026-05-25).
-**Symptom:** `app/actions/solicitors.ts` had four `revalidatePath("/agent/settings")` calls, but `/agent/settings` has never rendered solicitor data — that lives at `/agent/solicitors`. The stale calls were removed in the Account cutover commit (they pointed at the wrong path AND `/agent/settings` is now a redirect anyway), but only one of the four functions (`addRecommendedSolicitorWithContactAction`) had a matching `revalidatePath("/agent/solicitors")` call. The other three (`upsertRecommendedSolicitorAction`, `removeRecommendedSolicitorAction`, `createAndRecommendSolicitorAction`) now have no revalidation at all.
-**Open question:** does `/agent/solicitors` need invalidation on every mutation, or does it re-query on each visit / use a different revalidation mechanism? If yes, those three functions need `revalidatePath("/agent/solicitors")` added.
-**Why not fixed in the cutover:** intentionally kept out of scope — would have widened a presentation/IA commit into a behaviour-change commit. The wrong-path calls were doing nothing useful, so removing them is strictly safer than leaving them in. The "is revalidation needed at all" question is the actual bug to investigate.
-**Files:**
-- [app/actions/solicitors.ts](app/actions/solicitors.ts) — the three functions missing `/agent/solicitors` revalidation
-
----
-
 ## LOGGED BUNDLED CHANGES (billing-logic changes that didn't get their own commit)
 
 Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
@@ -52,17 +40,6 @@ Going forward, billing-logic changes get their own commits — never folded into
 - **VAT-off agency, £59 + £59 + £100 credit:** Subtotal £118.00, Credits −£100.00, **Total £18.00** ✓
 - **VAT-on agency, no credits:** Subtotal row hidden, **Total = sum of gross fees** ✓
 **Why it's revertable in isolation despite the bundle:** the three renderer edits are pure display-layer changes inside `drawTotals` / the totals JSX. They can be reverted by restoring the three `fmt(props.subtotalPence)` lines without touching anything else in commit `9e5b5b1`.
-
----
-
-## TO FIX
-
-### M5min — `/api/cron/metrics-5min` route comment claims a schedule that doesn't exist
-**Symptom:** [app/api/cron/metrics-5min/route.ts:7](app/api/cron/metrics-5min/route.ts#L7) starts with `// Runs every 5 minutes via Vercel Cron (see vercel.json).` but the route is NOT registered in `vercel.json` — confirmed by `grep "metrics-5min" vercel.json` returning nothing. The intent was live intra-day `DailyMetric` counts for the command centre.
-**Why not a regression:** the file is older code (added in PR 17, predates this week) and the command centre doesn't currently read intra-day rollups (only the nightly `/api/cron/rollup-metrics` output), so no user-facing feature is degraded. Flagged because a comment claiming a schedule that doesn't fire is the kind of thing that misleads the next person who reads it.
-**Fix options (Monday):**
-- (a) Register the schedule in `vercel.json` (e.g. `*/5 * * * *`) if intra-day rollups are actually wanted.
-- (b) Delete the route + comment if not. Cleaner if nothing consumes intra-day rollups.
 
 ---
 

@@ -520,10 +520,10 @@ Once all three steps complete, PR 6 + PR 7 are both fully live in production.
 
 ## Future, deferred, not urgent
 
-- [ ] **Settings polish pass — consider tabbed layout once card count crosses ~8.** The notification-toggles work (shipped) pushes `/agent/settings` from 5 cards to 7. Polish pass should audit whether a tabbed layout (Profile / Notifications / Branch / Team / Account) becomes warranted; current single-column stack still scans fine. New cards used the existing ThemePicker glass-card pattern so they refit cleanly into tabs without code changes.
+- [x] ~~Settings polish pass — consider tabbed layout once card count crosses ~8.~~ **Done (2026-05-25)** — superseded by the Account-area arc that consolidated /agent/settings into /agent/account/{billing,profile,team,notifications}. Tabbed layout via left nav, not glass cards. Settings retired via 301 redirect.
 - [ ] External penetration test or security review (pre-launch, requires human security firm)
 - [ ] Engage with industry communities (Property Industry Eye, The Negotiator, Propertymark LinkedIn groups) — 30 min/day
-- [ ] Decide on Vercel Pro upgrade ($20/mo) when you want sub-hourly cron granularity (`/api/cron/metrics-5min` is built but unwired pending this)
+- [ ] ~~Decide on Vercel Pro upgrade ($20/mo) when you want sub-hourly cron granularity (`/api/cron/metrics-5min` is built but unwired pending this)~~ **Resolved (2026-05-25)** — route deleted; few exchanges a month doesn't justify 5-minute intra-day metrics rollups. Nightly `/api/cron/rollup-metrics` remains the only metrics aggregator.
 - [ ] Decide whether to enable strict RLS in Supabase (currently bypass policies in place; full activation = future sprint per `docs/active/TODO.md`)
 
 ---

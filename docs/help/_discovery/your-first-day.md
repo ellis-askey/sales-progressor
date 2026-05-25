@@ -182,19 +182,19 @@ If contacts are supplied at creation time, each contact record is created with a
 
 ---
 
-## 4. Settings — brand-new user
+## 4. Account area — brand-new user
 
-Settings page: `app/agent/settings/page.tsx`
+The Account area replaced the legacy `/agent/settings` page in May 2026 — old URL 301-redirects to `/agent/account/profile`. Four tabs in a left-nav shell at `/agent/account/{billing,profile,team,notifications}`. Layout: `app/(account)/layout.tsx`.
 
-### My profile
+### My profile (on /agent/account/profile)
 
-Pre-populated with: name (from session), email (from session), phone (from DB `user.phone` — blank for new users). All three fields are editable. Role is displayed as a non-editable badge; negotiators see "Role changes are managed by your director." (`components/agent/ProfileForm.tsx:75–77`). Email change takes effect only after sign-out and sign back in (confirmed via toast message).
+Pre-populated with: name (from session), email (from session), phone (from DB `user.phone` — blank for new users). All three fields are editable. Role is displayed as a non-editable badge; negotiators see "Role changes are managed by your director." (`components/account/v2/ProfileFormPlain.tsx`). Email change takes effect only after sign-out and sign back in (confirmed via toast message).
 
-### Sending addresses
+### Sending addresses (on /agent/account/profile)
 
 Available to both director and negotiator roles — the section is always shown.
 
-Verification flow (`components/verified-emails/SendingAddressesSection.tsx`):
+Verification flow (`components/verified-emails/SendingAddressesSection.tsx` — reused as-is from V1):
 1. User enters a work email address
 2. System calls `POST /api/agent/verified-emails/domain` — checks/creates a domain authentication record (DKIM/SPF/CNAME DNS records via SendGrid domain auth)
 3. If domain is already authenticated: goes straight to inbox verify step
@@ -205,27 +205,31 @@ Verification flow (`components/verified-emails/SendingAddressesSection.tsx`):
 
 For a brand-new user with no verified addresses, the list is empty with no placeholder text — just the "Add" UI.
 
-### Branch theme
+### Branch theme (on /agent/account/profile)
 
-Visible to both roles. Six themes: Sunset (default), Coastal, Heritage, Slate, Emerald, Claret (`components/agent/ThemePicker.tsx:12–19`). Changes apply instantly via `useAgentTheme()` hook. The onboarding checklist marks `hasThemeSet` as complete only after the user explicitly picks a theme; after 14 days the grace period removes this requirement regardless (`app/api/agent/onboarding-progress/route.ts:40–48`).
+Visible to both roles. Six themes: Sunset (default), Coastal, Heritage, Slate, Emerald, Claret (`components/agent/ThemePicker.tsx:12–19` — internals reused by `ThemePickerPlain`). Changes apply instantly via `useAgentTheme()` hook. The onboarding checklist marks `hasThemeSet` as complete only after the user explicitly picks a theme; after 14 days the grace period removes this requirement regardless (`app/api/agent/onboarding-progress/route.ts:40–48`).
 
-### Team (director only)
+### Team (on /agent/account/team — director only)
 
-Only rendered when `isDirector` is true (`app/agent/settings/page.tsx:124`). Shows existing director row (styled with crown icon) and negotiator rows. Empty negotiator state: "No negotiators yet. / Add a negotiator below to invite them to the portal." (`components/agent/TeamManagement.tsx:117–119`). Director can:
+Director branch renders the full roster (`components/account/v2/TeamManagementPlain.tsx`). Shows existing director row (styled with crown icon) and negotiator rows. Empty negotiator state: "No negotiators yet." Director can:
 - Invite a negotiator (name + email → sends invitation email)
 - Toggle "All files" vs "Own files" visibility for each negotiator
 - Remove a negotiator (confirm dialog via `window.confirm`)
-- Resend a pending invitation
+- Resend / cancel a pending invitation
 
-### Invite your director (negotiator only, no director yet)
+### Invite your director (on /agent/account/team — negotiator only, no director yet)
 
-`InviteDirector` component is shown when: `session.user.role === "negotiator"` AND `!directorStatus.hasDirector` (`app/agent/settings/page.tsx:33–34`). Allows the negotiator to enter a director's name and email to send an invitation. Shows status of the most recent invitation (pending, expired, accepted).
+`InviteDirectorPlain` (`components/account/v2/InviteDirectorPlain.tsx`) is shown when: `session.user.role === "negotiator"` AND `!directorStatus.hasDirector` (resolved in `app/(account)/layout.tsx` and `app/(account)/agent/account/team/page.tsx`). Tab visibility is also conditional — Team tab is hidden from the nav for negotiators whose agency already has a director. Allows the negotiator to enter a director's name and email to send an invitation.
 
-### Account / Danger zone
+### Account / Danger zone (on /agent/account/profile)
 
-`AccountDangerZone` component (`components/agent/AccountDangerZone.tsx`). Shown to all roles. Two actions:
+`AccountDangerZonePlain` component (`components/account/v2/AccountDangerZonePlain.tsx`). Shown to all roles. Two actions:
 - "Download my data" — exports a JSON file of the user's data
 - "Delete my account" — modal requiring user to type their email address to confirm; on confirmation deletes account and signs out
+
+### Email + push + silenced files (on /agent/account/notifications)
+
+`components/account/v2/EmailNotificationsSectionPlain.tsx` (5 toggles) + `components/agent/settings/MobilePushSection.tsx` (reused as-is from V1, iOS-PWA branching preserved) + `components/account/v2/SilencedFilesSectionPlain.tsx`. All both-roles.
 
 ---
 
@@ -271,9 +275,9 @@ Component: `components/agent/OnboardingChecklist.tsx`
 1. "Add your first sale" → `/agent/transactions/new` — complete when `hasSale: true`
 2. "Add client contact details" → `/agent/transactions/[firstTxId]` (or `/agent/dashboard` if no transaction yet) — complete when any contact on an agent's transactions has a phone or email
 3. "Share the portal with a client" → `/agent/comms` — complete when any contact on an agent's transactions has an email
-4. "Add your phone number" → `/agent/settings` — complete when `user.phone` is non-blank
-5. "Choose your branch theme" → `/agent/settings` — complete per theme grace logic (see section 4)
-6. "Verify your email address" → `/agent/settings` — complete when user has at least one `userVerifiedEmail` with `status: "verified"` (or account > 14 days old)
+4. "Add your phone number" → `/agent/account/profile` — complete when `user.phone` is non-blank
+5. "Choose your branch theme" → `/agent/account/profile` — complete per theme grace logic (see section 4)
+6. "Verify your email address" → `/agent/account/profile` — complete when user has at least one `userVerifiedEmail` with `status: "verified"` (or account > 14 days old)
 
 ### How each step is detected
 
