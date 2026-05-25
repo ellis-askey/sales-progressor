@@ -2,28 +2,15 @@
 //
 // Cookie Policy — Version 1.0, published 25 May 2026.
 //
-// COUNSEL NOTES (do NOT remove — internal markers, not rendered on the public
-// page; the lawyer reads them here in source):
+// All [COUNSEL TO CONFIRM] flags resolved by Ellis on 2026-05-25 to settled
+// positions and stripped from the public render. Sentry classified as
+// strictly-necessary error monitoring based on the factual finding that
+// it writes only one sessionStorage key (PREVIOUS_TRACE_KEY for distributed
+// trace continuity), no cookies, and Session Replay only initialises on
+// errors. See git log for the original draft.
 //
-// 1. [COUNSEL TO CONFIRM] — that the "strictly necessary" categorisation is
-//    defensible under ICO guidance for each cookie in the strictly-necessary
-//    table, in particular the `cookie-consent` preference cookie and the
-//    Stripe fraud-prevention cookies (__stripe_mid, __stripe_sid).
-//
-// 2. [COUNSEL TO CONFIRM] — whether Sentry's browser storage should be
-//    categorised as strictly necessary (error monitoring for service
-//    reliability) or treated as requiring consent. Confirm what Sentry
-//    actually sets in the browser and whether it should be consent-gated
-//    alongside analytics.
-//
-// 3. [COUNSEL TO CONFIRM] — consent is currently recorded on the user's
-//    device only (localStorage + cookie); there is no server-side audit
-//    record of who consented to what and when. Please advise whether a
-//    server-side consent record is required under PECR / UK GDPR, or
-//    whether device-side storage is sufficient at our scale.
-//
-// Source of truth for full annotated copy + observations:
-// docs/policies/cookie-policy.md
+// This page contains NO entity-name placeholders (the policy refers to
+// "we"/"us" throughout without naming the legal entity).
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -35,9 +22,6 @@ export const metadata: Metadata = {
   description:
     "What cookies and similar storage technologies we use, why, and how to control your preferences.",
 };
-
-// Sentry region confirmed by Ellis 2026-05-25: EU (ingest.eu.sentry.io).
-const SENTRY_REGION = "EU";
 
 const SECTIONS: PolicySection[] = [
   {
@@ -163,13 +147,27 @@ const SECTIONS: PolicySection[] = [
   },
   {
     id: "error-monitoring",
-    title: "5. Error monitoring",
+    title: "5. Error monitoring (strictly necessary)",
     body: (
-      <p>
-        We use Sentry to detect and diagnose errors so we can fix them. Sentry may set or read
-        identifiers in your browser and receives limited technical data (such as IP address and
-        browser information) when an error occurs.
-      </p>
+      <>
+        <p>
+          We use Sentry to detect and diagnose errors so we can fix them quickly. Error monitoring
+          is essential to keeping the platform reliable, so we classify it as strictly necessary
+          and it is not consent-gated.
+        </p>
+        <p>
+          What Sentry stores in your browser is limited to a single <code>sessionStorage</code> key{" "}
+          (<code>PREVIOUS_TRACE_KEY</code>) used to link error reports across in-app navigations.
+          This is cleared when you close your browser tab. Sentry does not set any cookies, and
+          does not use local storage. Sentry&rsquo;s session-replay feature is configured to
+          activate only when an error occurs; it does not initialise during a normal visit.
+        </p>
+        <p>
+          When an error is reported, Sentry receives technical data including your IP address,
+          browser information, and the URL where the error occurred. This is processed under a data
+          processing agreement; data is stored in the EU.
+        </p>
+      </>
     ),
   },
   {
@@ -228,8 +226,8 @@ const SECTIONS: PolicySection[] = [
             </tr>
             <tr>
               <td>Sentry</td>
-              <td>Error monitoring</td>
-              <td>{SENTRY_REGION}</td>
+              <td>Error monitoring (strictly necessary)</td>
+              <td>EU</td>
             </tr>
           </tbody>
         </table>

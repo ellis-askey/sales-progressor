@@ -2,35 +2,15 @@
 //
 // Privacy Policy — Version 1.0, published 25 May 2026.
 //
-// COUNSEL NOTES (do NOT remove — these are the open legal-review items that
-// must NOT render publicly; the lawyer reads them in source, the public page
-// just shows the prose).
+// All [COUNSEL TO CONFIRM] flags resolved by Ellis on 2026-05-25 to settled
+// positions and stripped from the public render. See git log for the
+// original draft + the open questions that were resolved. Solicitor will
+// still review the finished document.
 //
-// 1. [COUNSEL TO CONFIRM] — Section 1: the controller/processor split, and the
-//    direction of buyer/seller data-subject requests to the agency, reflects
-//    our understanding of the Art. 28 relationship. Please confirm this
-//    characterisation is correct.
-//
-// 2. [COUNSEL TO CONFIRM] — Section 3: the Art. 6 lawful-basis mapping,
-//    particularly the legitimate-interests entries (which may warrant a
-//    documented legitimate-interests assessment) and the reliance on the
-//    agency's lawful basis for transaction-contact data.
-//
-// 3. [COUNSEL TO CONFIRM] — Section 4: that a DPA is in place with each
-//    sub-processor, and the accuracy of each data-region and
-//    transfer-mechanism entry. Sentry region needs filling.
-//
-// 4. [COUNSEL TO CONFIRM] — Section 5: the 7-year and 3-year retention periods,
-//    the legal grounding cited for the 7-year period (AML + HMRC), and whether
-//    anonymisation satisfies the erasure right in this context.
-//
-// 5. [COUNSEL TO CONFIRM] — Section 11 / page tail: whether a DPIA is required
-//    given the scale and nature of property-transaction data processed, and
-//    whether a DPO appointment is required (likely not at current scale, but
-//    worth confirming).
-//
-// Source of truth for full annotated copy + observations:
-// docs/policies/privacy-policy.md
+// Only remaining placeholders on this page (tracked in
+// docs/policies/PLACEHOLDERS.md):
+//   - [Company number]            — § 1, § 11
+//   - [Registered office address] — § 1, § 11
 
 import type { Metadata } from "next";
 import { PolicyShell, type PolicySection } from "@/components/policies/PolicyShell";
@@ -41,16 +21,6 @@ export const metadata: Metadata = {
     "How we collect, use, and protect personal data, and the rights you have over your data.",
 };
 
-const PENDING_ENTITY = (
-  <span className="pending">The Sales Progressor Ltd — company number TBC on incorporation</span>
-);
-const PENDING_ADDRESS = (
-  <span className="pending">registered office TBC</span>
-);
-// Sentry region confirmed by Ellis 2026-05-25: EU (ingest.eu.sentry.io).
-// No SCCs/IDTA needed — EU is within UK Adequacy.
-const SENTRY_REGION = "EU";
-
 const SECTIONS: PolicySection[] = [
   {
     id: "who-we-are",
@@ -58,9 +28,10 @@ const SECTIONS: PolicySection[] = [
     body: (
       <>
         <p>
-          The Sales Progressor (&ldquo;Sales Progressor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) is a property
-          transaction management platform operated by {PENDING_ENTITY}, a company registered in
-          England and Wales, with its registered office at {PENDING_ADDRESS}.
+          The Sales Progressor (&ldquo;Sales Progressor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
+          &ldquo;our&rdquo;) is a property transaction management platform operated by{" "}
+          <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
+          company number [Company number], registered office [Registered office address].
         </p>
         <p>
           This policy explains how we collect, use, and protect personal data in connection with the
@@ -262,7 +233,7 @@ const SECTIONS: PolicySection[] = [
                 Error monitoring. Receives technical error data which may include IP address, browser
                 information, and the URL where an error occurred.
               </td>
-              <td>{SENTRY_REGION}</td>
+              <td>EU</td>
             </tr>
           </tbody>
         </table>
@@ -289,9 +260,9 @@ const SECTIONS: PolicySection[] = [
             <tr>
               <td>Transaction data</td>
               <td>
-                Retained for 7 years after the transaction completes or is cancelled, to support
-                estate agency record-keeping obligations under anti-money-laundering regulations and
-                HMRC tax-record requirements
+                Retained for 7 years after the transaction completes or is cancelled, to meet estate
+                agency record-keeping obligations under anti-money-laundering regulations and HMRC
+                tax-record requirements.
               </td>
             </tr>
             <tr>
@@ -299,21 +270,29 @@ const SECTIONS: PolicySection[] = [
               <td>
                 Retained while the account is active. Accounts inactive for 3 or more years with no
                 open transactions are automatically anonymised — name, email, and phone number are
-                replaced with placeholder values
+                replaced with placeholder values.
               </td>
             </tr>
             <tr>
               <td>Portal access</td>
-              <td>Portal links expire after the transaction is marked complete</td>
+              <td>Portal links expire after the transaction is marked complete.</td>
             </tr>
             <tr>
               <td>Billing records</td>
-              <td>Retained as required by tax and accounting law</td>
+              <td>Retained as required by tax and accounting law.</td>
             </tr>
           </tbody>
         </table>
         <p>
-          To request early deletion of your data, email{" "}
+          <strong>Erasure requests during the retention period.</strong> Where the law requires us to
+          retain transaction records (for example, under anti-money-laundering or tax rules), we
+          cannot fully delete them on request. In those cases we <strong>anonymise</strong> the
+          records instead — names, email addresses, and phone numbers are replaced with placeholder
+          values so that no personal identifiers remain. The underlying transaction record stays, in
+          anonymised form, for the rest of the legal retention period.
+        </p>
+        <p>
+          To request deletion or anonymisation of your data, email{" "}
           <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a> (see
           section 6).
         </p>
@@ -329,7 +308,7 @@ const SECTIONS: PolicySection[] = [
         <ul>
           <li><strong>Access</strong> the personal data we hold about you</li>
           <li><strong>Rectification</strong> — correct data that is inaccurate or incomplete</li>
-          <li><strong>Erasure</strong> — ask us to delete your data (&ldquo;right to be forgotten&rdquo;)</li>
+          <li><strong>Erasure</strong> — ask us to delete your data (&ldquo;right to be forgotten&rdquo;), subject to retention obligations described in section 5</li>
           <li><strong>Restriction</strong> — ask us to limit how we use your data</li>
           <li><strong>Portability</strong> — receive your data in a portable format</li>
           <li><strong>Object</strong> — object to processing based on legitimate interests</li>
@@ -416,7 +395,8 @@ const SECTIONS: PolicySection[] = [
           <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>
         </p>
         <p>
-          Data controller: {PENDING_ENTITY}, {PENDING_ADDRESS}
+          Data controller: The Sales Progressor Ltd, company number [Company number], registered
+          office [Registered office address].
         </p>
       </>
     ),

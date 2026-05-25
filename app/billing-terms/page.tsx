@@ -1,43 +1,32 @@
 // app/billing-terms/page.tsx
 //
-// Public preview of the Billing Terms — Version 2026-05-payments-v2.
+// Public preview of the Billing Terms — Version 2026-06-payments-v3.
 //
 // CRITICAL: the AUTHORITATIVE source of the live billing terms is the
 // TermsVersion DB row (rendered to directors via RedesignedDisclosure when
-// they save a card). This /billing-terms page is a READ-ONLY PREVIEW for:
-//   - the /legal hub to link to
-//   - anyone (or counsel) wanting to read the terms outside the card-save flow
-//   - search engines / customers comparing terms before signing up
+// they save a card). This /billing-terms page is a READ-ONLY PREVIEW.
 //
-// The text below MUST stay in sync with the v2 TermsVersion DB row + the
-// migration SQL + the insertion script. If you change the wording here without
-// shipping a new TermsVersion, users will see one set of terms in this preview
-// and a DIFFERENT set when they actually save a card — bad.
+// The text below MUST stay in sync with the v3 TermsVersion DB row + the
+// v3 migration SQL + the v3 insertion script. Changing the wording here
+// without shipping a new TermsVersion creates drift between what users see
+// in the public preview and what they actually acknowledge when saving a card.
 //
-// The four sources of v2 truth (keep in sync):
+// v3 was shipped 2026-05-25 to resolve [COUNSEL TO CONFIRM] flags that were
+// open on v2 (payment-failure mechanics + pricing-change notice period +
+// dispute wording — all written as settled positions). v2 is preserved in
+// the TermsVersion table for audit (existing acknowledgements stay valid
+// against v2 only). v3 becomes the active version on save.
+//
+// Four sources of v3 truth (keep in sync):
 //   1. This page — public preview
-//   2. prisma/migrations/<timestamp>_terms_version_v2/migration.sql — history
-//   3. scripts/insert-prod-terms-v2.ts — re-runnable seed for fresh envs
-//   4. TermsVersion DB row, versionTag = '2026-06-payments-v2'
+//   2. prisma/migrations/20260525210000_terms_version_v3/migration.sql
+//   3. scripts/insert-prod-terms-v3.ts
+//   4. TermsVersion DB row, versionTag = '2026-06-payments-v3'
 //
-// COUNSEL NOTES (do NOT remove — internal markers):
-//
-// 1. [COUNSEL TO CONFIRM] — Payment-failure section: whether to state the
-//    specific grace mechanics (14-day warning → 7-day grace → block) or keep
-//    the plainer wording. Plainer is more readable; specifics matter more if
-//    a charge is ever disputed.
-//
-// 2. [COUNSEL TO CONFIRM] — Pricing-change clause and notice period. A
-//    specific notice period (e.g. 30 days) is stronger than "advance notice"
-//    — please advise.
-//
-// 3. [COUNSEL TO CONFIRM] — Dispute/chargeback wording, and whether anything
-//    further is needed on cancellation of the billing relationship (what
-//    happens to completed-but-unbilled sales in the current month if a
-//    director removes their card or closes the account).
-//
-// Source of truth for full annotated copy + observations:
-// docs/policies/billing-terms.md
+// Only remaining placeholders on this page (tracked in
+// docs/policies/PLACEHOLDERS.md):
+//   - [Company number]            — "Sales Progressor — pricing"
+//   - [Registered office address] — "Sales Progressor — pricing"
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -49,13 +38,6 @@ export const metadata: Metadata = {
     "Pricing, billing cadence, your free trial, payment failures, and how we handle credit notes.",
 };
 
-const PENDING_ENTITY = (
-  <span className="pending">The Sales Progressor Ltd — company number TBC</span>
-);
-const PENDING_ADDRESS = (
-  <span className="pending">registered office address TBC</span>
-);
-
 const SECTIONS: PolicySection[] = [
   {
     id: "what-this-covers",
@@ -63,7 +45,8 @@ const SECTIONS: PolicySection[] = [
     body: (
       <p>
         By saving a payment card, you agree to the following pricing terms. Billing is operated by{" "}
-        {PENDING_ENTITY}, registered office {PENDING_ADDRESS}.
+        <strong>The Sales Progressor Ltd</strong>, company number [Company number], registered
+        office [Registered office address].
       </p>
     ),
   },
@@ -123,9 +106,11 @@ const SECTIONS: PolicySection[] = [
     title: "If a payment fails",
     body: (
       <p>
-        Sales already underway carry on as normal. We&rsquo;ll show you clearly that a payment
-        needs attention and how to fix it. If it remains unresolved, you won&rsquo;t be able to
-        add new sales until it&rsquo;s sorted — your existing sales are unaffected.
+        Sales already underway carry on as normal. If a payment doesn&rsquo;t go through, we&rsquo;ll
+        warn you for <strong>14 days</strong> and try the payment again, then allow a{" "}
+        <strong>7-day grace period</strong> for you to resolve it. If it&rsquo;s still unresolved
+        after that, you won&rsquo;t be able to add new sales until the payment is sorted — your
+        existing sales are unaffected throughout.
       </p>
     ),
   },
@@ -155,9 +140,10 @@ const SECTIONS: PolicySection[] = [
     title: "If pricing changes",
     body: (
       <p>
-        We may change our pricing in future. If we do, we&rsquo;ll give you advance notice and the
-        change will apply only to sales added after the new pricing takes effect — any sales
-        already in progress are honoured at the price that applied when they were added.
+        We may change our pricing in future. If we do, we&rsquo;ll give you at least{" "}
+        <strong>30 days&rsquo; notice</strong> and the change will apply only to sales added after
+        the new pricing takes effect — any sales already in progress are honoured at the price that
+        applied when they were added.
       </p>
     ),
   },
@@ -209,7 +195,7 @@ export default function BillingTermsPage() {
       title="Billing Terms"
       description="Pricing, billing cadence, your free trial, payment failures, and credit notes."
       lastUpdated="25 May 2026"
-      version="2026-06-payments-v2"
+      version="2026-06-payments-v3"
       sections={SECTIONS}
     />
   );

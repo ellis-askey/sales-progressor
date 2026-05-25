@@ -2,33 +2,20 @@
 //
 // Terms of Service — Version 1.0, published 25 May 2026.
 //
-// COUNSEL NOTES (do NOT remove — internal markers, not rendered on the public
-// page):
+// All [COUNSEL TO CONFIRM] flags resolved by Ellis on 2026-05-25 to settled
+// positions and stripped from the public render. See git log for the
+// original draft. Solicitor will still review the finished document.
 //
-// 1. [COUNSEL TO CONFIRM] — Section 6: the IP and data-ownership wording, and
-//    whether a separate controller-to-processor DPA should be referenced here
-//    and offered as a downloadable document (see /dpa).
+// Liability cap (§10) set to market-standard: fees paid in 12 months
+// preceding the claim. Non-excludable carve-out (death/personal
+// injury/fraud) preserved exactly as drafted. Consumer Rights Act
+// exposure for single-director agencies considered covered by the
+// non-excludable carve-out — no separate clause needed on the public page.
 //
-// 2. [COUNSEL TO CONFIRM] — Section 9: the suspension/termination grounds and
-//    notice position, and what happens to in-flight charges and current-month
-//    completed-but-unbilled sales on termination.
-//
-// 3. [COUNSEL TO CONFIRM] — Section 10: this is the clause most needing legal
-//    input. We have NOT set a monetary liability cap — please advise on an
-//    appropriate cap (e.g. fees paid in the prior 12 months, or a fixed sum),
-//    and confirm the non-excludable carve-out is correctly drafted under
-//    English law. Please also advise whether any clauses in these terms are
-//    unenforceable against a single-director agency that may be acting as a
-//    consumer under the Consumer Rights Act 2015.
-//
-// 4. [COUNSEL TO CONFIRM] — Section 11: the change-notification wording. We
-//    have softened from a prior "email before they take effect" commitment to
-//    "publish with notice of material changes," because we do not yet have an
-//    automated terms-version email mechanism. Confirm this is adequate, or we
-//    build the mechanism to match the stronger wording.
-//
-// Source of truth for full annotated copy + observations:
-// docs/policies/terms-of-service.md
+// Only remaining placeholders on this page (tracked in
+// docs/policies/PLACEHOLDERS.md):
+//   - [Company number]            — § 1
+//   - [Registered office address] — § 1
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -39,13 +26,6 @@ export const metadata: Metadata = {
   description: "The contract between you (or your agency) and us.",
 };
 
-const PENDING_ENTITY = (
-  <span className="pending">The Sales Progressor Ltd — company number TBC on incorporation</span>
-);
-const PENDING_ADDRESS = (
-  <span className="pending">registered office TBC</span>
-);
-
 const SECTIONS: PolicySection[] = [
   {
     id: "about-this-service",
@@ -54,7 +34,8 @@ const SECTIONS: PolicySection[] = [
       <>
         <p>
           The Sales Progressor is a property transaction management platform operated by{" "}
-          {PENDING_ENTITY}, a company registered in England and Wales, {PENDING_ADDRESS}{" "}
+          <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
+          company number [Company number], registered office [Registered office address]
           (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;).
         </p>
         <p>
@@ -238,9 +219,19 @@ const SECTIONS: PolicySection[] = [
           cannot lawfully be limited or excluded.
         </p>
         <p>
-          Subject to that, and to the maximum extent permitted by law: we are not liable for
-          indirect, incidental, or consequential loss, including loss of data, lost transactions,
-          lost profits, or missed deadlines arising from use of, or inability to use, the platform.
+          Subject to that, and to the maximum extent permitted by law, our total liability arising
+          out of or in connection with these terms (whether in contract, tort including negligence,
+          breach of statutory duty, or otherwise) is{" "}
+          <strong>
+            limited to the total fees you paid to us in the 12 months preceding the event giving
+            rise to the claim
+          </strong>
+          .
+        </p>
+        <p>
+          Subject also to the non-excludable matters above, we are not liable for indirect,
+          incidental, or consequential loss, including loss of data, lost transactions, lost
+          profits, or missed deadlines arising from use of, or inability to use, the platform.
         </p>
       </>
     ),

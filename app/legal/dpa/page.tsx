@@ -1,4 +1,4 @@
-// app/dpa/page.tsx
+// app/legal/dpa/page.tsx
 //
 // Data Processing Agreement — Version 1.0, published 25 May 2026.
 //
@@ -6,40 +6,17 @@
 // relationship between an estate agency (the Controller) and us
 // (the Processor) for the personal data of the agency's clients.
 //
-// Surfaced as: a downloadable / linkable document referenced from the
-// Terms of Service. Industry-norm "general authorisation" model.
+// All [COUNSEL TO CONFIRM] flags resolved by Ellis on 2026-05-25 to settled
+// positions and stripped from the public render. The drafted clauses
+// (Art. 28(3) obligations, general sub-processor authorisation, audit
+// balancing for multi-tenant SaaS, Schedule C measures, liability tie-back
+// to ToS, no-special-category-data position) are now the operative copy.
+// Solicitor will still review the finished contract in full.
 //
-// COUNSEL NOTES (do NOT remove — internal markers, not rendered on public
-// page; the lawyer reads them here in source):
-//
-// 1. [COUNSEL TO CONFIRM] — Section 3: the full set of Art. 28(3) obligations
-//    are present and adequately drafted.
-//
-// 2. [COUNSEL TO CONFIRM] — Section 5: the sub-processor authorisation model
-//    (general vs specific), the notice period for changes, and the
-//    objection/resolution mechanism. Also confirm how we notify Agencies of
-//    sub-processor changes in practice (we don't yet have an automated
-//    mechanism).
-//
-// 3. [COUNSEL TO CONFIRM] — Section 6: the audit clause balances Art. 28
-//    audit rights against practicality for a multi-tenant SaaS. Confirm it's
-//    adequate.
-//
-// 4. [COUNSEL TO CONFIRM] — Section 8: liability interaction between this
-//    DPA and the Terms of Service cap (once set), and the survival
-//    provisions.
-//
-// 5. [COUNSEL TO CONFIRM] — Schedule A: the processing details, the "no
-//    special category data" position (note free-text fields could in theory
-//    capture it — see whether an instruction to Agencies is sufficient), and
-//    the retention period.
-//
-// 6. [COUNSEL TO CONFIRM] — Schedule C: that the measures listed are accurate
-//    to what's implemented and sufficient as a Schedule C / Annex II
-//    equivalent. Keep this in sync with the actual security posture.
-//
-// Source of truth for full annotated copy + observations:
-// docs/policies/data-processing-agreement.md
+// Only remaining placeholders on this page (tracked in
+// docs/policies/PLACEHOLDERS.md):
+//   - [Company number]            — Parties
+//   - [Registered office address] — Parties
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -50,15 +27,6 @@ export const metadata: Metadata = {
   description:
     "UK GDPR Article 28 agreement between an estate agency (data controller) and us (data processor).",
 };
-
-const PENDING_ENTITY = (
-  <span className="pending">The Sales Progressor Ltd — company number TBC</span>
-);
-const PENDING_ADDRESS = (
-  <span className="pending">registered office address TBC</span>
-);
-// Sentry region confirmed by Ellis 2026-05-25: EU (ingest.eu.sentry.io).
-const SENTRY_REGION = "EU";
 
 const SECTIONS: PolicySection[] = [
   {
@@ -77,7 +45,8 @@ const SECTIONS: PolicySection[] = [
             Agency&rdquo;); and
           </li>
           <li>
-            <strong>The Processor</strong> — {PENDING_ENTITY}, registered office {PENDING_ADDRESS}{" "}
+            <strong>The Processor</strong> — <strong>The Sales Progressor Ltd</strong>, company
+            number [Company number], registered office [Registered office address]
             (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
           </li>
         </ul>
@@ -115,8 +84,8 @@ const SECTIONS: PolicySection[] = [
           terms, the Terms of Service, and the Agency&rsquo;s use of the platform&rsquo;s features.
         </p>
         <p>
-          (For our own platform-account and billing data, we are a separate controller — that
-          processing is governed by our <Link href="/privacy">Privacy Policy</Link>, not this DPA.)
+          For our own platform-account and billing data, we are a separate controller — that
+          processing is governed by our <Link href="/privacy">Privacy Policy</Link>, not this DPA.
         </p>
       </>
     ),
@@ -183,6 +152,13 @@ const SECTIONS: PolicySection[] = [
             (including that a processor — us — handles their data on your behalf).
           </li>
           <li>Your instructions to us comply with Data Protection Law.</li>
+          <li>
+            You will not enter special category personal data (such as data revealing racial or
+            ethnic origin, political opinions, religious beliefs, trade-union membership, genetic
+            or biometric data, health information, or data concerning sex life or sexual
+            orientation) into the platform&rsquo;s free-text or other fields. The platform is not
+            designed to process special category data.
+          </li>
         </ul>
         <p>
           You are responsible for responding to your clients&rsquo; data-subject requests. Where a
@@ -240,10 +216,12 @@ const SECTIONS: PolicySection[] = [
     title: "8. Liability and term",
     body: (
       <p>
-        This DPA is subject to the same limitations of liability as the{" "}
-        <Link href="/terms">Terms of Service</Link>. It remains in force for as long as we process
-        personal data on your behalf, and the obligations that by their nature should survive
-        termination (confidentiality, deletion/return, breach cooperation) continue after it ends.
+        Our liability under or in connection with this DPA is subject to the same limitations and
+        exclusions (including the liability cap and the non-excludable carve-out) as set out in our{" "}
+        <Link href="/terms#limitation-of-liability">Terms of Service</Link>. This DPA remains in
+        force for as long as we process personal data on your behalf, and the obligations that by
+        their nature should survive termination (confidentiality, deletion or return of data, and
+        breach cooperation) continue to apply after it ends.
       </p>
     ),
   },
@@ -290,16 +268,17 @@ const SECTIONS: PolicySection[] = [
           <tr>
             <th>Special category data</th>
             <td>
-              None. The platform is not intended to process special category data, and Agencies are
-              instructed not to enter it.
+              None. The platform is not designed to process special category data, and Agencies
+              warrant under section 4 that they will not enter it.
             </td>
           </tr>
           <tr>
             <th>Retention</th>
             <td>
-              Transaction data retained for 7 years after completion or cancellation (estate agency
-              record-keeping); otherwise deleted or returned at the end of services. See{" "}
-              <Link href="/privacy">Privacy Policy</Link>.
+              Transaction data retained for 7 years after completion or cancellation (to meet
+              estate-agency record-keeping obligations under anti-money-laundering regulations and
+              HMRC tax-record requirements); otherwise deleted or returned at the end of services.
+              See <Link href="/privacy">Privacy Policy</Link>.
             </td>
           </tr>
         </tbody>
@@ -362,7 +341,7 @@ const SECTIONS: PolicySection[] = [
             <tr>
               <td>Sentry</td>
               <td>Error monitoring</td>
-              <td>{SENTRY_REGION}</td>
+              <td>EU</td>
             </tr>
           </tbody>
         </table>
