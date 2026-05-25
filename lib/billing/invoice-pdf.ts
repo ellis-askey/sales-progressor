@@ -288,8 +288,14 @@ function drawTotals(page: PDFPage, fonts: Fonts, input: PdfInvoiceInput, yTop: n
   // VAT-registered and the headline fee IS the price (no breakdown, no
   // disclaimer). The fields remain on PdfInvoiceInput so route handlers stay
   // unchanged; they are dormant until VAT registration ever happens.
+  //
+  // Subtotal here means "sum of gross line fees before credits" — computed
+  // as totalPence + creditsAppliedPence rather than read from the dormant
+  // input.subtotalPence (which on VAT-on agencies is the ex-VAT amount and
+  // would visibly fail to add up with Credits to Total).
   if (input.creditsAppliedPence > 0) {
-    drawTotalRow("Subtotal", fmtPence(input.subtotalPence));
+    const grossBeforeCredits = input.totalPence + input.creditsAppliedPence;
+    drawTotalRow("Subtotal", fmtPence(grossBeforeCredits));
     drawTotalRow("Credits applied", `-${fmtPence(input.creditsAppliedPence)}`, COLOR_CREDIT_GREEN);
   }
 

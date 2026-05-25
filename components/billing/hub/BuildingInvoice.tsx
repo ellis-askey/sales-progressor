@@ -196,7 +196,11 @@ export function BuildingInvoice(props: BuildingInvoiceProps) {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-text-muted)" }}>
                   <span>Subtotal</span>
-                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(props.subtotalPence)}</span>
+                  {/* Sum of gross line fees before credits — computed from
+                      totalPence + creditsAppliedPence so the math reads
+                      regardless of VAT-on/off (props.subtotalPence is the
+                      dormant ex-VAT amount on VAT-on agencies). */}
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(props.totalPence + props.creditsAppliedPence)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-status-positive, #047857)" }}>
                   <span>Pending credit</span>

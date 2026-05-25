@@ -272,7 +272,11 @@ export function BuildingInvoiceHero(props: BuildingInvoiceHeroProps) {
                 >
                   <span>Subtotal</span>
                   <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {fmt(props.subtotalPence)}
+                    {/* Sum of gross line fees before credits — computed from
+                        totalPence + creditsAppliedPence so the math reads
+                        regardless of VAT-on/off (props.subtotalPence is the
+                        dormant ex-VAT amount on VAT-on agencies). */}
+                    {fmt(props.totalPence + props.creditsAppliedPence)}
                   </span>
                 </div>
                 <div

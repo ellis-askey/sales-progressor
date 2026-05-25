@@ -19,7 +19,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard } from "@phosphor-icons/react";
+import { CreditCard, User } from "@phosphor-icons/react";
 
 type Tab = {
   href: string;
@@ -28,6 +28,9 @@ type Tab = {
   roles: UserRole[];
 };
 
+// Render order = display order. Director sees Billing → Profile;
+// negotiator sees only Profile. Future tabs (Team, Notifications) drop
+// in here in the right order without restructuring.
 const TABS: Tab[] = [
   {
     href: "/agent/account/billing",
@@ -35,8 +38,13 @@ const TABS: Tab[] = [
     Icon: CreditCard,
     roles: ["director"],
   },
-  // Stage 2 will add:
-  //   { href: "/agent/account/profile", label: "Profile", Icon: User, roles: ["director", "negotiator"] }
+  {
+    href: "/agent/account/profile",
+    label: "Profile",
+    Icon: User,
+    roles: ["director", "negotiator"],
+  },
+  // Stage 2+ will add:
   //   { href: "/agent/account/team", label: "Team", Icon: Users, roles: ["director"] }
   //   { href: "/agent/account/notifications", label: "Notifications", Icon: Bell, roles: ["director", "negotiator"] }
 ];

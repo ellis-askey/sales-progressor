@@ -10,14 +10,14 @@
 // URLs: /agent/account/<tab> (route group is URL-invisible). Layout
 // inheritance: app/layout.tsx + this layout — NOT app/agent/layout.tsx.
 //
-// Stage 1 surface: only Billing exists as a tab, and Billing is
-// director-only — so the whole Account area is gated to directors via
-// resolveDirectorSession here. When Stage 2 adds Profile / Notifications
-// (both roles) and Team (director-only), this gate relaxes to
-// resolveAgentSession and per-page gating takes over. The left nav
-// already filters by role for that future, so no wiring change there.
+// Stage 2: Profile lands as a both-roles tab, so the layout gate
+// relaxes from resolveDirectorSession to resolveAgentSession. Per-page
+// gating now does the work: Billing page calls notFound() for
+// non-directors, the left nav filters tabs by role. Negotiators landing
+// on the bare /agent/account/ index get redirected to their first
+// visible tab (Profile) rather than 404ing into Billing.
 
-import { resolveDirectorSession } from "@/lib/agent-session";
+import { resolveAgentSession } from "@/lib/agent-session";
 import { AccountChromeHeader } from "@/components/account/chrome/AccountChromeHeader";
 import { AccountLeftNav } from "@/components/account/chrome/AccountLeftNav";
 import "@/app/agent/styles/themes.css";
@@ -28,7 +28,7 @@ export default async function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { role, theme } = await resolveDirectorSession();
+  const { role, theme } = await resolveAgentSession();
 
   return (
     <div
