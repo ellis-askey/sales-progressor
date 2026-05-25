@@ -2,18 +2,6 @@
 
 ---
 
-## TO FIX
-
-### Solicitor edits may not be revalidating their page
-**Found during:** Stage 5 of the Account-area cutover (2026-05-25).
-**Symptom:** `app/actions/solicitors.ts` had four `revalidatePath("/agent/settings")` calls, but `/agent/settings` has never rendered solicitor data — that lives at `/agent/solicitors`. The stale calls were removed in the Account cutover commit (they pointed at the wrong path AND `/agent/settings` is now a redirect anyway), but only one of the four functions (`addRecommendedSolicitorWithContactAction`) had a matching `revalidatePath("/agent/solicitors")` call. The other three (`upsertRecommendedSolicitorAction`, `removeRecommendedSolicitorAction`, `createAndRecommendSolicitorAction`) now have no revalidation at all.
-**Open question:** does `/agent/solicitors` need invalidation on every mutation, or does it re-query on each visit / use a different revalidation mechanism? If yes, those three functions need `revalidatePath("/agent/solicitors")` added.
-**Why not fixed in the cutover:** intentionally kept out of scope — would have widened a presentation/IA commit into a behaviour-change commit. The wrong-path calls were doing nothing useful, so removing them is strictly safer than leaving them in. The "is revalidation needed at all" question is the actual bug to investigate.
-**Files:**
-- [app/actions/solicitors.ts](app/actions/solicitors.ts) — the three functions missing `/agent/solicitors` revalidation
-
----
-
 ## LOGGED BUNDLED CHANGES (billing-logic changes that didn't get their own commit)
 
 Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
