@@ -49,7 +49,7 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
           </div>
         </div>
         <Link
-          href="/agent/billing/payment-method"
+          href="/agent/billing#payment-method"
           style={{
             background: "#dc2626", color: "white", padding: "8px 14px",
             borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: "none",

@@ -265,6 +265,17 @@ Chase drafting and problem flagging are thoughtful. But every AI invocation is a
 
 ---
 
+### 19. Direct listing links on PropertyIntelCard
+**The insight.** Today the Zoopla and Rightmove buttons on `PropertyIntelCard` land on postcode-level sold-prices pages, not the property's actual listing with photos. Agents and clients alike expect the button to open the listing.
+
+**What it looks like built.** A direct listing URL cannot be derived from address data alone — both platforms key their URLs by internal listing IDs that aren't returned by Land Registry, EPC, or any other free source. The only legitimate path is a paid third-party data API (PropertyData, Patma, or equivalent) that resolves an address to a current listing URL, and ideally also reports "not currently listed" so the button can gracefully fall back to sold prices.
+
+**Effort.** Small once an API is chosen. Cost is per-lookup or monthly subscription.
+
+**Dependencies.** Worth integrating once paying customer volume justifies the spend. Scraping is ruled out (ToS + robots.txt on both platforms). A manual `rightmoveListingUrl` / `zooplaListingUrl` field on the transaction was considered and rejected — agents would not reliably populate it, so the button would mostly behave as it does today.
+
+---
+
 ## Things deliberately not suggested
 
 - **Add a CRM.** Agencies use Reapit/Alto/Jupix. Integrate; don't duplicate.

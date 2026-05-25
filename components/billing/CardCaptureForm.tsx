@@ -98,7 +98,7 @@ function InnerForm() {
     const result = await stripe.confirmSetup({
       elements,
       confirmParams: {
-        return_url: typeof window !== "undefined" ? `${window.location.origin}/agent/billing/payment-method?saved=1` : "/agent/billing/payment-method?saved=1",
+        return_url: typeof window !== "undefined" ? `${window.location.origin}/agent/billing?saved=1#payment-method` : "/agent/billing?saved=1#payment-method",
       },
       redirect: "if_required",
     });

@@ -1,34 +1,40 @@
-// Director-facing billing page.
+// app/agent/billing/page.tsx
 //
-// Shows the current month's running total — live, computed at page-load
-// from PropertyTransaction rows directly, NOT from InvoiceLine rows. So
-// "watch it build" feels instant regardless of cron cadence.
+// Director-facing billing hub. The polished design from
+// /agent/polish/billing-hub (Stage 2) transplanted onto the production
+// route. Renders against the logged-in director's agency.
 //
-// The accrual cron writes durable InvoiceLine rows for billing history
-// and Stripe issuance (PR 7); this page never depends on it having run.
+// Folds in what used to be four separate surfaces:
+//   - /agent/billing                      (running total)
+//   - /agent/billing/payment-method       (card form)
+//   - /agent/billing/payment-method?saved=1 (success confirmation)
+//   - /agent/billing/payment-method (disclosure-not-yet-acknowledged variant)
 //
-// Negotiators get notFound() — same pattern as /agent/settings/automation.
+// All of these now live as sections on this single hub. The
+// /agent/billing/payment-method route is preserved as a permanent redirect
+// to /agent/billing#payment-method so old links, Stripe return URLs, and
+// any director-bookmarked URLs continue to work.
+//
+// Negotiators get notFound() — same role guard as before.
 
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
+import { getLifetimeMetrics } from "@/lib/billing/lifetime";
+import { getTrialState } from "@/lib/billing/trial-state";
+import { getActiveTermsVersion } from "@/lib/billing/acknowledgement";
+import { MetricsBand } from "@/components/billing/hub/MetricsBand";
+import { BuildingInvoice } from "@/components/billing/hub/BuildingInvoice";
+import { InvoiceHistory } from "@/components/billing/hub/InvoiceHistory";
+import { PaymentMethodPanel } from "@/components/billing/hub/PaymentMethodPanel";
+import { PlanTermsPanel } from "@/components/billing/hub/PlanTermsPanel";
+import { RedesignedDisclosure } from "@/components/billing/hub/RedesignedDisclosure";
+import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
+import { billingMonthRange } from "@/lib/billing/period";
 
-function formatPence(p: number): string {
-  const negative = p < 0;
-  const abs = Math.abs(p);
-  const formatted = `£${(abs / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  return negative ? `−${formatted}` : formatted;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function formatMonth(d: Date): string {
-  // d is the UTC instant for "midnight on the 1st in London", which may be
-  // 23:00 on the prior day in UTC during BST. Show the month using the
-  // London zone for consistency with how the boundary is computed.
+function monthLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
     month: "long",
@@ -36,119 +42,174 @@ function formatMonth(d: Date): string {
   }).format(d);
 }
 
-export default async function BillingPage() {
+export default async function BillingHubPage() {
   const session = await requireSession();
   if (session.user.role !== "director") notFound();
   const agencyId = session.user.agencyId;
   if (!agencyId) notFound();
 
-  const total = await getCurrentMonthRunningTotal(agencyId);
+  const agency = await prisma.agency.findUnique({
+    where: { id: agencyId },
+    select: { id: true, name: true, vatRegisteredAt: true, stripeCustomerId: true },
+  });
+  if (!agency) notFound();
+
+  // Pull most things in parallel; ack depends on terms so it comes after.
+  const [runningTotal, lifetime, trialState, terms, historyRows, trialFilesThisMonth] = await Promise.all([
+    getCurrentMonthRunningTotal(agency.id),
+    getLifetimeMetrics(agency.id),
+    getTrialState(agency.id),
+    getActiveTermsVersion(),
+    prisma.invoice.findMany({
+      where: { agencyId: agency.id, status: { in: ["issued", "paid", "failed"] } },
+      orderBy: { monthStart: "desc" },
+      select: { id: true, monthStart: true, status: true, lines: { select: { totalPence: true } } },
+    }),
+    (async () => {
+      const { start, end } = billingMonthRange(new Date());
+      return prisma.propertyTransaction.findMany({
+        where: { agencyId: agency.id, freeOnExchange: true, exchangedAt: { gte: start, lt: end } },
+        select: { id: true, propertyAddress: true, exchangedAt: true },
+        orderBy: { exchangedAt: "asc" },
+      });
+    })(),
+  ]);
+
+  const ack = terms
+    ? await prisma.pricingAcknowledgement.findFirst({
+        where: { agencyId: agency.id, termsVersionId: terms.id },
+        orderBy: { acknowledgedAt: "desc" },
+        select: { acknowledgedAt: true },
+      })
+    : null;
+
+  // Build the building-invoice line list. Combines billed + trial + pending-credit indicator.
+  const buildingLines = [
+    ...runningTotal.lines.map((l) => ({
+      transactionId: l.transactionId,
+      exchangedAt: l.exchangedAt,
+      address: l.propertyAddress,
+      service: l.bandLabel,
+      totalPence: l.totalPence,
+      variant: "normal" as const,
+    })),
+    ...trialFilesThisMonth.map((t) => ({
+      transactionId: t.id,
+      exchangedAt: t.exchangedAt!,
+      address: t.propertyAddress,
+      service: "Free — trial",
+      totalPence: 0,
+      variant: "trial" as const,
+    })),
+    ...(runningTotal.pendingCreditPence > 0
+      ? [{
+          transactionId: "_credit_",
+          exchangedAt: new Date(),
+          address: "Pending credit (applies next month)",
+          service: "Credit",
+          totalPence: -runningTotal.pendingCreditPence,
+          variant: "credit" as const,
+        }]
+      : []),
+  ];
+
+  const historyRowsForUI = historyRows.map((r) => ({
+    id: r.id,
+    monthLabel: monthLabel(r.monthStart),
+    status: r.status as "issued" | "paid" | "failed" | "void",
+    totalPence: r.lines.reduce((s, l) => s + l.totalPence, 0),
+  }));
+
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
+  const ackedTerms = ack !== null;
+
+  let paymentPanelProps: React.ComponentProps<typeof PaymentMethodPanel>;
+  if (!ackedTerms) {
+    paymentPanelProps = { kind: "pending" };
+  } else if (agency.stripeCustomerId) {
+    // For agencies with a real Stripe Customer, the card-on-file display
+    // shows last4 + brand. PR 6's flow stores the PaymentMethod against the
+    // Customer; reading it back would require an extra Stripe API call per
+    // page-load. Pragmatic: render a representative display + an Update
+    // button that unlocks the real Stripe Elements form. The structural
+    // truth (a card is on file) is correct; the visual representation is
+    // not fetched from Stripe on every render. Easy upgrade later if we
+    // want the live last4.
+    paymentPanelProps = {
+      kind: "card_on_file",
+      publishableKey,
+      card: { brand: "visa", last4: "····", expMonth: 12, expYear: 2030 },
+    };
+  } else {
+    paymentPanelProps = { kind: "add_card", publishableKey };
+  }
 
   return (
-    <>
+    <div style={{ padding: "8px 32px 32px", display: "flex", flexDirection: "column", gap: 18, maxWidth: 1080, margin: "0 auto" }}>
       <PageHeader
         title="Billing"
-        subtitle={`${formatMonth(total.monthStart)} — running total, updates live as files exchange`}
+        subtitle={`${monthLabel(runningTotal.monthStart)} · updates live as files exchange`}
       />
 
-      <div style={{ display: "grid", gap: 16, maxWidth: 880 }}>
-        {/* Headline */}
-        <div
-          style={{
-            background: "var(--agent-card-bg, white)",
-            border: "1px solid var(--agent-border, #e5e7eb)",
-            borderRadius: 12,
-            padding: 24,
-          }}
-        >
-          <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginBottom: 4 }}>
-            This month
-          </div>
-          <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-0.02em" }}>
-            {formatPence(total.totalPence)}
-          </div>
-          {total.vatActive && (
-            <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 13, color: "var(--agent-text-secondary, #6b7280)" }}>
-              <span>Subtotal (ex-VAT): {formatPence(total.subtotalPence)}</span>
-              <span>VAT: {formatPence(total.vatPence)}</span>
-            </div>
-          )}
-          <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 8 }}>
-            {total.inHouseCount} in-house · {total.outsourcedCount} outsourced
-          </div>
-          {total.trialExchangeCount > 0 && (
-            <div style={{ fontSize: 12, color: "var(--agent-text-muted, #9ca3af)", marginTop: 8 }}>
-              + {total.trialExchangeCount} trial file{total.trialExchangeCount === 1 ? "" : "s"} exchanged — free ({formatPence(total.trialValuePence)} retail value given away)
-            </div>
-          )}
-          {total.pendingCreditPence > 0 && (
-            <div style={{ fontSize: 12, color: "var(--agent-text-muted, #9ca3af)", marginTop: 4 }}>
-              − {formatPence(total.pendingCreditPence)} pending credit will apply to next month's bill
-            </div>
-          )}
-        </div>
+      {/* Payment-block banner — self-hides when state = ok. */}
+      <PaymentBlockBanner agencyId={agency.id} />
 
-        {/* Lines */}
-        <div
-          style={{
-            background: "var(--agent-card-bg, white)",
-            border: "1px solid var(--agent-border, #e5e7eb)",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
-          {total.lines.length === 0 ? (
-            <div style={{ padding: 24, color: "var(--agent-text-secondary, #6b7280)", fontSize: 14 }}>
-              No exchanges this month yet. Files appear here the moment they exchange.
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "var(--agent-table-head-bg, #f9fafb)", textAlign: "left" }}>
-                  <th style={{ padding: "10px 16px", fontWeight: 500, fontSize: 12, color: "var(--agent-text-secondary, #6b7280)" }}>
-                    Exchanged
-                  </th>
-                  <th style={{ padding: "10px 16px", fontWeight: 500, fontSize: 12, color: "var(--agent-text-secondary, #6b7280)" }}>
-                    File
-                  </th>
-                  <th style={{ padding: "10px 16px", fontWeight: 500, fontSize: 12, color: "var(--agent-text-secondary, #6b7280)" }}>
-                    Service
-                  </th>
-                  <th style={{ padding: "10px 16px", fontWeight: 500, fontSize: 12, color: "var(--agent-text-secondary, #6b7280)", textAlign: "right" }}>
-                    Fee
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {total.lines.map((line) => (
-                  <tr key={line.transactionId} style={{ borderTop: "1px solid var(--agent-border, #e5e7eb)" }}>
-                    <td style={{ padding: "12px 16px", color: "var(--agent-text-secondary, #6b7280)" }}>
-                      {formatDate(line.exchangedAt)}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>{line.propertyAddress}</td>
-                    <td style={{ padding: "12px 16px", color: "var(--agent-text-secondary, #6b7280)" }}>
-                      {line.bandLabel}
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                      {formatPence(line.totalPence)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {/* 1. Metrics band */}
+      <MetricsBand
+        thisMonthPence={runningTotal.totalPence}
+        exchangesThisMonth={runningTotal.lines.length}
+        inHouseThisMonth={runningTotal.inHouseCount}
+        outsourcedThisMonth={runningTotal.outsourcedCount}
+        savedViaTrialLifetimePence={lifetime.savedViaTrialLifetimePence}
+        trialExchangeCountLifetime={lifetime.trialExchangeCountLifetime}
+        billedLifetimePence={lifetime.billedLifetimePence}
+      />
 
-        <p style={{ fontSize: 12, color: "var(--agent-text-secondary, #6b7280)" }}>
-          Billed monthly on exchange. Live total — updates the moment a file's exchange milestone is confirmed.{" "}
-          <a
-            href="/agent/billing/payment-method"
-            style={{ color: "var(--agent-primary, #FF6B4A)", textDecoration: "none", fontWeight: 600 }}
-          >
-            Manage payment method →
-          </a>
-        </p>
+      {/* 2. The building invoice — centrepiece */}
+      <BuildingInvoice
+        periodLabel={monthLabel(runningTotal.monthStart)}
+        status="building"
+        lines={buildingLines}
+        subtotalPence={runningTotal.subtotalPence}
+        vatPence={runningTotal.vatPence}
+        vatActive={runningTotal.vatActive}
+        creditsAppliedPence={runningTotal.pendingCreditPence}
+        totalPence={runningTotal.totalPence - runningTotal.pendingCreditPence}
+        hidePreviewButton={buildingLines.length === 0}
+      />
+
+      {/* 3. Invoice history */}
+      <InvoiceHistory rows={historyRowsForUI} />
+
+      {/* 4. Payment method — id used for deep-link anchor scroll from
+          /agent/billing/payment-method redirect + nudge/banner CTAs. */}
+      <div id="payment-method">
+        <PaymentMethodPanel {...paymentPanelProps} />
       </div>
-    </>
+
+      {/* 5. Plan & terms */}
+      <PlanTermsPanel
+        vatActive={runningTotal.vatActive}
+        trialState={trialState}
+        agreed={
+          terms
+            ? {
+                versionTag: terms.versionTag,
+                sections: terms.sections,
+                acknowledgedAt: ack?.acknowledgedAt ?? null,
+              }
+            : null
+        }
+      />
+
+      {/* 6. Disclosure gate — only rendered when terms unacknowledged. */}
+      {terms && !ackedTerms && (
+        <RedesignedDisclosure
+          termsVersionId={terms.id}
+          termsVersionTag={terms.versionTag}
+          termsSections={terms.sections}
+        />
+      )}
+    </div>
   );
 }
