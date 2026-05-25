@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@prisma/client", "prisma", "@react-pdf/renderer"],
+  serverExternalPackages: ["@prisma/client", "prisma"],
   async redirects() {
     return [
       {
