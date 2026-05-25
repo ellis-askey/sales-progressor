@@ -69,13 +69,13 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">5. Data retention</h2>
             <p className="text-slate-600 leading-relaxed">Transaction data is retained for 7 years after completion or cancellation to support compliance with estate agency record-keeping requirements. Account data for agency staff is retained while the account is active. Accounts that have been inactive for 3 or more years with no open transactions are automatically anonymised — all personal identifiers (name, email, phone number) are replaced with placeholder values. Portal access links expire after the transaction is marked complete.</p>
-            <p className="text-slate-600 leading-relaxed mt-3">To request early deletion of your data, email <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a>.</p>
+            <p className="text-slate-600 leading-relaxed mt-3">To request early deletion of your data, email <a href="mailto:support@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">support@thesalesprogressor.co.uk</a>.</p>
           </section>
 
           {/* LEGAL REVIEW REQUIRED — confirm all UK GDPR data subject rights are listed (access, rectification, erasure, restriction, portability, objection, automated decision-making); verify complaint escalation path is accurate */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">6. Your rights</h2>
-            <p className="text-slate-600 leading-relaxed">Under UK GDPR you have the right to access, correct, or request deletion of your personal data. Buyers and sellers whose data has been entered by an agency should contact their estate agent in the first instance. Direct requests can be sent to: <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a></p>
+            <p className="text-slate-600 leading-relaxed">Under UK GDPR you have the right to access, correct, or request deletion of your personal data. Buyers and sellers whose data has been entered by an agency should contact their estate agent in the first instance. Direct requests can be sent to: <a href="mailto:support@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">support@thesalesprogressor.co.uk</a></p>
           </section>
 
           {/* LEGAL REVIEW REQUIRED — verify cookie disclosure matches the actual cookies set; confirm PECR compliance for any analytics cookies */}
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
           {/* LEGAL REVIEW REQUIRED — confirm ICO registration is in place; verify contact details are current */}
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">8. Contact and complaints</h2>
-            <p className="text-slate-600 leading-relaxed">Privacy questions: <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a></p>
+            <p className="text-slate-600 leading-relaxed">Privacy questions: <a href="mailto:support@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">support@thesalesprogressor.co.uk</a></p>
             <p className="text-slate-600 leading-relaxed mt-3">You also have the right to lodge a complaint with the Information Commissioner's Office (ICO) at <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">ico.org.uk</a>.</p>
           </section>
 

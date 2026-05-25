@@ -78,7 +78,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-slate-900 mb-3">9. Contact</h2>
-            <p className="text-slate-600 leading-relaxed">Questions about these terms: <a href="mailto:hello@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">hello@thesalesprogressor.co.uk</a></p>
+            <p className="text-slate-600 leading-relaxed">Questions about these terms: <a href="mailto:support@thesalesprogressor.co.uk" className="text-blue-600 hover:text-blue-700">support@thesalesprogressor.co.uk</a></p>
           </section>
 
         </div>

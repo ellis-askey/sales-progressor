@@ -419,7 +419,9 @@ Wait 4–6 weeks of zero production issues before the old form deletion PR. The 
 
 - [ ] **Confirm "Talk to us" email destination** for the trial paywall (Package A1)
   - When trial ends and user hits paywall, the modal CTA opens an email link
-  - Decide: `hello@thesalesprogressor.co.uk`? Different address?
+  - Decided 2026-05-25: use `support@thesalesprogressor.co.uk` (matches the
+    address users see in privacy / cookie / terms pages for data + GDPR
+    requests; `hello@` was a placeholder, not a real inbox).
 
 - [ ] **Confirm welcome + warning email copy** before Package A1's trial emails go live
   - Welcome email (sent on signup)
