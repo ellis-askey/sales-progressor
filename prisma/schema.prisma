@@ -114,6 +114,14 @@ model User {
   retentionEmailOptOut    Boolean   @default(false)
   emailUnsubscribedAt     DateTime?
 
+  // Set by sendWelcomeEmailIfNotSent when the user receives the instant
+  // welcome (password signup completion + OAuth signup completion). Used as
+  // the dedup mechanism: the helper atomically transitions NULL -> timestamp
+  // and short-circuits if already stamped. The day-1 retention cron skips
+  // any user where this is non-null, preventing the duplicate-send window
+  // where someone signed up + didn't add a sale by 09:00 UTC the next day.
+  welcomeEmailSentAt      DateTime?
+
   // In-app notification: negotiator sees this when their invited director accepts
   directorJoinedNotificationName String?
   directorJoinedNotificationAt   DateTime?
