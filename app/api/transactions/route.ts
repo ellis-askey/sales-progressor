@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(tx, { status: 201 });
   } catch (err: unknown) {
     // Surface payment-block refusal as 402 with the explicit error code so
-    // the UI can route the director to /agent/billing/payment-method.
+    // the UI can route the director to /agent/account/billing#payment-method.
     if (err instanceof PaymentBlockedError) {
       return NextResponse.json(
         { error: err.message, code: err.code },

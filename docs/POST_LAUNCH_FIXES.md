@@ -18,6 +18,26 @@
 
 Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
 
+### 2026-05-25 — /agent/billing cutover surfaced post-Stage-5 (Stage 6 bundle)
+**The miss:** Stage 5 of the Account-area arc retired /agent/settings but left the analogous V1 /agent/billing hub serving. The user noticed the symptom while walking the staging build — the "Billing" entry in the AgentShell user-dropdown was still landing on the legacy V1 glass-card hub instead of the v2 /agent/account/billing surface.
+**The gap:** Six runtime references to /agent/billing, not just the dropdown. Every "do something with payment" path in the app was still funneling into the V1 hub. The dropdown was the most visible offender; the rest were quieter (Stripe SetupIntent return URL, two PaymentBlockBanner CTAs, PaymentMethodNudge CTA, BillingNegotiatorModal post-promotion reload).
+**The fix (bundled in Stage 6):** Single atomic commit, mirrors the Stage 5 pattern.
+- All 6 runtime refs repointed to /agent/account/billing (with #payment-method anchor where applicable):
+  - components/layout/AgentShell.tsx — director dropdown Billing entry
+  - components/billing/BillingNegotiatorModal.tsx — post-promotion window.location.href reload
+  - components/billing/CardCaptureForm.tsx — Stripe SetupIntent return_url
+  - components/billing/PaymentBlockBanner.tsx — blocked-state CTA
+  - components/billing/PaymentBlockBanner.tsx — warning-state CTA (also normalised from /agent/billing/payment-method to the anchor form)
+  - components/billing/PaymentMethodNudge.tsx — trial-end nudge CTA
+- next.config.ts gains a 302 redirect /agent/billing → /agent/account/billing (exact source — does NOT cascade to /agent/billing/payment-method).
+- app/agent/billing/payment-method/page.tsx retargeted to redirect directly to /agent/account/billing#payment-method (single hop, not chained).
+- AgentShell dropdown label renamed Settings → Account (desktop + mobile-sidebar bottom) at the user's direction — "Settings" was narrower than what's inside the area now.
+- V1 page file (app/agent/billing/page.tsx) kept as rollback reference, same posture as the Stage 5 settings file.
+**Why bundled with the dropdown UX change rather than its own commit:** the user noticed the symptom AND wanted the dropdown redesign at the same time; doing two commits would have meant the dropdown commit pointing the new label at the old hub for a few minutes, then a follow-up cutover. Bundling kept the cutover atomic. This entry exists so the bundle is traceable.
+**Why it's revertable in isolation despite the bundle:** the 6 repoints are simple href / window.location.href / return_url string changes. Each can be reverted to its /agent/billing form individually. The next.config redirect can be removed in one line. The dropdown label rename is a one-string edit (Account ↔ Settings).
+
+---
+
 ### 2026-05-25 — Building-invoice Subtotal display changed from ex-VAT to gross-before-credits (commit `9e5b5b1`)
 **Bundled with:** Stage 2 of the Account-area arc (Profile tab migration) — not its own commit.
 **The bug:** After the prior VAT sweep stripped the VAT row, the totals block read `Subtotal £848.34 / Credits −£350 / Total £668` on the Hartwell polish preview. The eye reads £848.34 − £350 = £498.34 ≠ £668. Production unaffected (no VAT-on agencies), but real for any VAT-on agency that ever has credits.

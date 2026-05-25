@@ -29,6 +29,20 @@ const nextConfig: NextConfig = {
         destination: "/agent/account/profile",
         permanent: false,
       },
+      {
+        // Account-area cutover (Stage 6). The V1 /agent/billing hub
+        // (glass-card chrome) is retired in favour of /agent/account/billing
+        // (v2 hub, clean canvas, same data). All six runtime inbound refs
+        // are repointed in the same commit; this redirect is the safety
+        // net for director bookmarks, any cached Stripe-emailed receipt
+        // URLs, and straggler /agent/billing visits. Exact-match source —
+        // does NOT cascade to /agent/billing/payment-method, which has
+        // its own dedicated redirect that lands directly on
+        // /agent/account/billing#payment-method (single hop).
+        source: "/agent/billing",
+        destination: "/agent/account/billing",
+        permanent: false,
+      },
     ];
   },
 };

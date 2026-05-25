@@ -166,12 +166,12 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
                 className="hover:bg-black/[0.05]"
               >
                 <GearSix weight="regular" style={{ width: 15, height: 15, color: "var(--agent-text-muted)" }} />
-                Settings
+                Account
               </Link>
               {showBillingEntry && (
                 role === "director" ? (
                   <Link
-                    href="/agent/billing"
+                    href="/agent/account/billing"
                     onClick={() => setOpen(false)}
                     style={{
                       display: "flex", alignItems: "center", gap: 9,
@@ -545,7 +545,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
               }}
             >
               <GearSix weight="regular" style={{ width: 14, height: 14, flexShrink: 0 }} />
-              Settings
+              Account
             </Link>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}

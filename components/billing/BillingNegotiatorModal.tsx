@@ -44,7 +44,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
       }
       // Hard reload so the session JWT picks up the new role and the
       // Billing link starts working as a real link.
-      window.location.href = "/agent/billing";
+      window.location.href = "/agent/account/billing";
     } catch {
       setError("Couldn't reach the server — check your connection and try again");
       setSubmitting(false);

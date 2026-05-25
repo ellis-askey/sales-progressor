@@ -57,7 +57,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
         </div>
       </div>
       <Link
-        href="/agent/billing#payment-method"
+        href="/agent/account/billing#payment-method"
         style={{
           background: "var(--agent-coral)", color: "white",
           padding: "8px 14px", borderRadius: 6,

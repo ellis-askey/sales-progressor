@@ -16,8 +16,8 @@
 //
 // On success: User.role flipped to "director". Session JWT picks up the
 // new role on next reload — the modal triggers window.location.href
-// = "/agent/billing" so the role-aware nav re-renders and the now-
-// accessible billing page loads.
+// = "/agent/account/billing" so the role-aware nav re-renders and the
+// now-accessible Account/Billing page loads.
 
 import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
