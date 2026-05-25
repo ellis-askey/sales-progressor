@@ -78,14 +78,6 @@ export function PlanTermsPanel({ vatActive, trialState, agreed }: PlanTermsPanel
             {trialLine}
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: 11, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: 0.6 }}>
-            VAT
-          </div>
-          <div style={{ marginTop: 4, color: "var(--agent-text-primary)" }}>
-            {vatActive ? "Registered — VAT applied" : "Not VAT-registered"}
-          </div>
-        </div>
       </div>
 
       {/* Agreed terms — collapsible reading area */}

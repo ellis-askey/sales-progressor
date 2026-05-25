@@ -12,9 +12,9 @@ import { renderInvoicePdf } from "../lib/billing/invoice-pdf";
 
 async function main() {
   try {
-    console.log("Rendering test PDF...");
-    const pdf = await renderInvoicePdf({
-      invoiceLabel: "TEST-LOCAL",
+    console.log("Rendering test PDF (with credits)...");
+    const pdfWithCredits = await renderInvoicePdf({
+      invoiceLabel: "TEST-CREDITS",
       periodLabel: "May 2026",
       status: "building",
       agencyName: "Hartwell & Partners",
@@ -24,16 +24,35 @@ async function main() {
         { date: "15 May", description: "5 Birch Mews, Hartwell", service: "Free — trial", amountPence: 0, variant: "trial" },
         { date: "", description: "Pending credit (applies next month)", service: "Credit", amountPence: -35000, variant: "credit" },
       ],
-      subtotalPence: 9834,
-      vatPence: 1966,
-      vatActive: true,
+      subtotalPence: 11800,
+      vatPence: 0,
+      vatActive: false,
       creditsAppliedPence: 35000,
       totalPence: -23200,
       generatedAt: "Generated 25 May 2026",
     });
-    const outPath = "test-invoice-output.pdf";
-    writeFileSync(outPath, pdf);
-    console.log(`✓ PDF rendered ok, ${pdf.length} bytes, written to ${outPath}`);
+    writeFileSync("test-invoice-with-credits.pdf", pdfWithCredits);
+    console.log(`✓ with-credits PDF: ${pdfWithCredits.length} bytes`);
+
+    console.log("Rendering test PDF (no credits)...");
+    const pdfNoCredits = await renderInvoicePdf({
+      invoiceLabel: "TEST-NOCREDITS",
+      periodLabel: "May 2026",
+      status: "issued",
+      agencyName: "Marlow & Co",
+      lines: [
+        { date: "8 May", description: "12 Oak Lane, London", service: "In-house", amountPence: 5900, variant: "normal" },
+        { date: "12 May", description: "48 Elm Avenue, London", service: "In-house", amountPence: 5900, variant: "normal" },
+      ],
+      subtotalPence: 11800,
+      vatPence: 0,
+      vatActive: false,
+      creditsAppliedPence: 0,
+      totalPence: 11800,
+      generatedAt: "Generated 25 May 2026",
+    });
+    writeFileSync("test-invoice-no-credits.pdf", pdfNoCredits);
+    console.log(`✓ no-credits PDF: ${pdfNoCredits.length} bytes`);
   } catch (err) {
     console.error("✗ PDF render failed:");
     console.error(err);

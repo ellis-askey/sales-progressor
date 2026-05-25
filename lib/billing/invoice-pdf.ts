@@ -282,11 +282,14 @@ function drawTotals(page: PDFPage, fonts: Fonts, input: PdfInvoiceInput, yTop: n
     y += 10 + 8;
   };
 
-  drawTotalRow(input.vatActive ? "Subtotal (ex-VAT)" : "Subtotal", fmtPence(input.subtotalPence));
-  if (input.vatActive) {
-    drawTotalRow("VAT (20%)", fmtPence(input.vatPence));
-  }
+  // Subtotal + Credits rows only render when credits apply (math has to read).
+  // Otherwise the totals block collapses to just the grand Total. vatActive /
+  // vatPence are intentionally not rendered: Sales Progressor is not
+  // VAT-registered and the headline fee IS the price (no breakdown, no
+  // disclaimer). The fields remain on PdfInvoiceInput so route handlers stay
+  // unchanged; they are dormant until VAT registration ever happens.
   if (input.creditsAppliedPence > 0) {
+    drawTotalRow("Subtotal", fmtPence(input.subtotalPence));
     drawTotalRow("Credits applied", `-${fmtPence(input.creditsAppliedPence)}`, COLOR_CREDIT_GREEN);
   }
 

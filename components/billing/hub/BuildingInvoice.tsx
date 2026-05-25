@@ -192,28 +192,17 @@ export function BuildingInvoice(props: BuildingInvoiceProps) {
       {props.lines.length > 0 && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
           <div style={{ minWidth: 240, display: "flex", flexDirection: "column", gap: 4 }}>
-            {props.vatActive ? (
+            {props.creditsAppliedPence > 0 && (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-text-muted)" }}>
-                  <span>Subtotal (ex-VAT)</span>
+                  <span>Subtotal</span>
                   <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(props.subtotalPence)}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-text-muted)" }}>
-                  <span>VAT (20%)</span>
-                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(props.vatPence)}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-status-positive, #047857)" }}>
+                  <span>Pending credit</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>−{fmt(props.creditsAppliedPence)}</span>
                 </div>
               </>
-            ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-text-muted)" }}>
-                <span>Subtotal</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(props.subtotalPence)}</span>
-              </div>
-            )}
-            {props.creditsAppliedPence > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--agent-status-positive, #047857)" }}>
-                <span>Pending credit</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>−{fmt(props.creditsAppliedPence)}</span>
-              </div>
             )}
             <div
               style={{
