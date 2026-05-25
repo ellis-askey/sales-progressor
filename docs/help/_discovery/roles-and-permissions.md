@@ -35,20 +35,24 @@ UserRole enum values:
 
 ---
 
-## 3. Settings sections and role gates
+## 3. Account-area sections and role gates
 
-**File:** `app/agent/settings/page.tsx` lines 17, 55–93
+The legacy `/agent/settings` page was retired in May 2026 and replaced with the Account area at `/agent/account/{billing,profile,team,notifications}`. The old URL 301-redirects to `/agent/account/profile`.
 
-| Section | Role access |
-|---|---|
-| My profile | All roles |
-| Sending addresses | All roles |
-| Theme picker | All roles |
-| **Team** | **Director only** — gated by `session.user.role === "director"` (line 80) |
-| Account / danger zone | All roles |
+**Files:**
+- Layout + nav: `app/(account)/layout.tsx`, `components/account/chrome/AccountLeftNav.tsx`
+- Tabs: `app/(account)/agent/account/{billing,profile,team,notifications}/page.tsx`
 
-- No other settings subsections found beyond this single page
-- Negotiators who navigate directly to Settings see all sections except Team (Team section not rendered, no 403)
+| Tab | Role access | Per-page gate |
+|---|---|---|
+| Profile (my profile, sending addresses, branch theme, account danger zone) | All roles | None — both director and negotiator visible in nav |
+| Notifications (email prefs, mobile push, silenced files) | All roles | None |
+| Billing (running total, invoice history, payment method, plan & terms) | **Director only** | `notFound()` for non-directors |
+| Team (roster management for director; invite-director for negotiator-no-director) | **Director** always; **Negotiator** visible only when agency has no director | Nav conditionally hides for negotiators-with-director; page `notFound()`s for them |
+
+- Negotiators landing on the bare `/agent/account` redirect to their first visible tab (Profile)
+- Directors landing on the bare `/agent/account` redirect to Billing (their first tab)
+- Per-role tab visibility computed in `components/account/chrome/AccountLeftNav.tsx`
 
 ---
 
