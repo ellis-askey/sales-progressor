@@ -19,7 +19,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User, Users } from "@phosphor-icons/react";
+import { CreditCard, User, Users, Bell } from "@phosphor-icons/react";
 
 type Tab = {
   href: string;
@@ -55,8 +55,12 @@ const TABS: Tab[] = [
     // the agencyHasDirector filter below.
     roles: ["director", "negotiator"],
   },
-  // Stage 4 will add:
-  //   { href: "/agent/account/notifications", label: "Notifications", Icon: Bell, roles: ["director", "negotiator"] }
+  {
+    href: "/agent/account/notifications",
+    label: "Notifications",
+    Icon: Bell,
+    roles: ["director", "negotiator"],
+  },
 ];
 
 export function AccountLeftNav({
