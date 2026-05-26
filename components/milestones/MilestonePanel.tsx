@@ -8,6 +8,7 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
+import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
   "Onboarding":            { dot: "bg-blue-400",    label: "text-blue-600"    },
@@ -16,19 +17,6 @@ const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
   "Conveyancing":          { dot: "bg-amber-400",   label: "text-amber-700"   },
   "Exchange & Completion": { dot: "bg-emerald-500", label: "text-emerald-700" },
 };
-
-const VENDOR_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["VM1","VM2","VM3","VM4","VM5","VM6"] },
-  { label: "Conveyancing",          codes: ["VM7","VM8","VM9","VM10","VM11","VM12","VM13","VM14","VM15","VM16","VM17"] },
-  { label: "Exchange & Completion", codes: ["VM18","VM19","VM20"] },
-];
-
-const PURCHASER_SECTIONS: { label: string; codes: string[] }[] = [
-  { label: "Onboarding",            codes: ["PM1","PM2","PM3","PM4"] },
-  { label: "Finances",              codes: ["PM5","PM6","PM11","PM9","PM10"] },
-  { label: "Conveyancing",          codes: ["PM7","PM8","PM12","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24"] },
-  { label: "Exchange & Completion", codes: ["PM25","PM26","PM27"] },
-];
 
 type EnrichedDef = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
