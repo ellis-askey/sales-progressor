@@ -80,6 +80,11 @@ function addBusinessDays(from: Date, days: number): Date {
 function classifyActive(log: AgentReminderLog, todayStr: string, upcomingCutoffStr: string): UrgencyGroup | null {
   const openTask = log.chaseTasks[0] ?? null;
   if (openTask?.priority === "escalated") return "escalated";
+  // Once chased at least once, the row stays in Coming Up until the server
+  // flips priority to "escalated" (chaseCount >= escalateAfterChases).
+  // Mirrors the same rule in components/reminders/RemindersSection.tsx so
+  // the agent's mental model is consistent across surfaces.
+  if ((openTask?.chaseCount ?? 0) >= 1) return "upcoming";
   const dueStr = toUKDateStr(log.nextDueDate);
   const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
   if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
@@ -394,13 +399,19 @@ function SideColumn({
           const daysOverdue = isOverdue
             ? Math.floor((new Date(rowTodayStr).getTime() - new Date(dueStr).getTime()) / 86400000)
             : 0;
+          // Chased-but-not-escalated rows are calmer (muted) even when the
+          // bumped due-date has passed — the agent acted, we're not crying
+          // wolf until the server escalates.
+          const hasBeenChased = (task.chaseCount ?? 0) >= 1;
           const urgencyColor = task.priority === "escalated" ? "var(--agent-danger)"
+            : hasBeenChased ? "var(--agent-text-muted)"
             : isOverdue ? "#ea580c"
             : isDueToday ? "var(--agent-warning)"
             : "var(--agent-text-muted)";
           // Coming Up rows show the next-due date so the "Chased N×" badge
           // has context (and the user can see when the next chase fires).
           const urgencyLabel = task.priority === "escalated" ? "Escalated"
+            : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
             : `Next ${formatDate(log.nextDueDate)}`;

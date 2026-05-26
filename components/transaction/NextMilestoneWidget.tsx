@@ -149,7 +149,14 @@ function MilestoneSideRow({
   return (
     <div
       className={`agent-hover-row${flashed ? " agent-row-flash" : ""}`}
-      style={{ ...rowStyle, flexWrap: "wrap" }}
+      style={{
+        ...rowStyle,
+        flexWrap: "wrap",
+        // Whole-row fade on success — entire row dissolves before the
+        // parent's auto-animate unmounts it (keyed by milestone.id) and
+        // slides the next milestone up.
+        animation: justCompleted ? "completeRowFade 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards" : undefined,
+      }}
     >
       <div className="w-5 h-5 rounded-full bg-blue-50 border-2 border-blue-300 flex-shrink-0" />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -163,26 +170,40 @@ function MilestoneSideRow({
           className="agent-btn agent-btn-xs agent-btn-primary"
           style={{
             // Pulse while in flight (theme coral). Brief solid flash on
-            // success, then fade out as the row collapses (parent's
-            // useAutoAnimate handles the row collapse + below-row slide-up).
+            // success — the row animation handles the fade-out, button
+            // just shows the tick during that window.
             animation: loading
               ? "completeBtnPulse 900ms ease-in-out infinite"
               : justCompleted
-                ? "completeBtnFlashFade 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                ? "completeBtnFlash 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
                 : undefined,
             transition: "background 150ms",
+            minWidth: 64,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
           }}
         >
-          {justCompleted ? "Done" : "Complete"}
+          {justCompleted ? (
+            <span aria-hidden style={{ fontSize: 14, lineHeight: 1, fontWeight: 700 }}>✓</span>
+          ) : (
+            "Complete"
+          )}
           <style>{`
             @keyframes completeBtnPulse {
               0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,74,0.55); }
               50%      { box-shadow: 0 0 0 6px rgba(255,107,74,0); }
             }
-            @keyframes completeBtnFlashFade {
-              0%   { background: #FF6B4A; transform: scale(1.02); opacity: 1; }
-              30%  { background: #FF6B4A; transform: scale(1); opacity: 1; }
-              100% { background: #FF6B4A; transform: scale(1); opacity: 0; }
+            @keyframes completeBtnFlash {
+              0%   { transform: scale(1); }
+              50%  { transform: scale(1.08); }
+              100% { transform: scale(1); }
+            }
+            @keyframes completeRowFade {
+              0%   { opacity: 1; max-height: 200px; }
+              40%  { opacity: 1; max-height: 200px; }
+              100% { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; border-bottom-width: 0; }
             }
           `}</style>
         </button>
@@ -241,8 +262,22 @@ export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }
         <h3 className="agent-card-title">Next steps</h3>
       </div>
       <div ref={rowsRef}>
-        <MilestoneSideRow side={vendorSide} label="Vendor" transactionId={transactionId} />
-        <MilestoneSideRow side={purchaserSide} label="Purchaser" transactionId={transactionId} />
+        {/* Key by milestone ID + state-kind so React unmounts/remounts
+          * when the next milestone becomes a different row — auto-animate
+          * then animates the old row OUT and the new one IN as a single
+          * sliding motion, instead of mutating the row's content in-place. */}
+        <MilestoneSideRow
+          key={`v-${vendorSide.state === "hasNext" ? vendorSide.milestone.id : vendorSide.state}`}
+          side={vendorSide}
+          label="Vendor"
+          transactionId={transactionId}
+        />
+        <MilestoneSideRow
+          key={`p-${purchaserSide.state === "hasNext" ? purchaserSide.milestone.id : purchaserSide.state}`}
+          side={purchaserSide}
+          label="Purchaser"
+          transactionId={transactionId}
+        />
       </div>
     </div>
   );

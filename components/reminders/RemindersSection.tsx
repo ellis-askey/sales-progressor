@@ -145,9 +145,16 @@ function snoozeToastLabel(hours: number): string {
 
 function classifyActive(log: ReminderLog, todayStr: string, optimisticNextDue: Date | null): UrgencyGroup {
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
+  // Server-flipped escalation always wins (cron-driven after the chase-count
+  // cap). Agent sees red Escalated only at that point.
   if (openTask?.priority === "escalated") return "escalated";
-  // If the user just chased, treat the row as Coming Up immediately — the
-  // optimistic next-due-date is later than today.
+  // Once a row has been chased at least once, it stays in Coming Up
+  // regardless of nextDueDate. The agent has acted; the row shouldn't
+  // jump back to red Overdue every time the chase interval passes.
+  // Escalation will only fire once the server cron flips priority
+  // (chaseCount >= escalateAfterChases) — handled above.
+  if ((openTask?.chaseCount ?? 0) >= 1) return "upcoming";
+  // Original logic for never-chased rows.
   const effectiveDue = optimisticNextDue && optimisticNextDue > new Date(log.nextDueDate)
     ? optimisticNextDue
     : log.nextDueDate;
@@ -408,14 +415,16 @@ function ColumnSection({
           const isOverdue = dueDate < today;
           const isDueToday = dueDate.getTime() === today.getTime();
           const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
+          // Once chased, suppress the red Overdue / amber Due-today colors —
+          // the row stays muted in Coming Up until the server escalates.
+          const hasBeenChased = (task?.chaseCount ?? 0) >= 1;
           const urgencyColor = task?.priority === "escalated" ? "#dc2626"
+            : hasBeenChased ? "var(--agent-text-muted)"
             : isOverdue ? "#ea580c"
             : isDueToday ? "#d97706"
             : "var(--agent-text-muted)";
-          // For Coming Up rows (task exists, future due date) we still want
-          // to show the date — it gives context for the "Chased N×" badge
-          // and lets users see when the next chase will land.
           const urgencyLabel = task?.priority === "escalated" ? "Escalated"
+            : hasBeenChased ? `Next ${formatDate(effectiveNextDue)}`
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
             : task ? `Next ${formatDate(log.nextDueDate)}`

@@ -231,7 +231,8 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
 
       {resumeFor && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setResumeFor(null)} />
+          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setResumeFor(null)} style={{ zIndex: 0 }} />
+
           <div
             className="rounded-2xl w-full max-w-md"
             style={{
@@ -249,43 +250,77 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
               <button type="button" onClick={() => setResumeFor(null)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
             </div>
 
-            <div className="px-6 py-5">
-              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 4px", lineHeight: 1.5 }}>
-                <strong style={{ color: "var(--agent-text-primary)" }}>{resumeFor.address}</strong>
-              </p>
-              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
-                Should we also resume client chase emails, or keep them paused for now?
+            <div className="px-6 py-5 space-y-3">
+              <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
+                <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{resumeFor.address}</strong>
+                {" — pick one. You can always change later."}
               </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <button
-                  type="button"
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <ResumeOptionCard
+                  title="Resume automation"
+                  description="Client chase emails, reminders + escalations restart from where they left off."
                   onClick={() => doResume(resumeFor.id, false)}
-                  className="agent-btn-color-primary text-sm font-semibold rounded-xl"
-                  style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
-                >
-                  <span>Resume automation</span>
-                  <span style={{ fontSize: 11, opacity: 0.85 }}>Chases + reminders restart</span>
-                </button>
-                <button
-                  type="button"
+                />
+                <ResumeOptionCard
+                  title="Reactivate, keep emails paused"
+                  description="File is active again but no client emails fire. Manual chasing only — flip back on from the Automation card any time."
                   onClick={() => doResume(resumeFor.id, true)}
-                  className="rounded-xl text-sm font-medium"
-                  style={{ padding: "12px 16px", background: "var(--agent-surface-glass)", border: "0.5px solid rgba(15,23,42,0.10)", color: "var(--agent-text-primary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}
-                >
-                  <span>Reactivate, keep emails paused</span>
-                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Manual chasing only</span>
-                </button>
+                />
               </div>
+            </div>
 
-              <div className="pt-4 flex justify-end">
-                <button type="button" onClick={() => setResumeFor(null)} className="text-sm text-slate-900/50 hover:text-slate-900/80 py-2 px-2">Cancel</button>
-              </div>
+            <div style={{ padding: "0 20px 16px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setResumeFor(null)}
+                className="agent-link"
+                style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>,
         document.body,
       )}
     </div>
+  );
+}
+
+function ResumeOptionCard({
+  title,
+  description,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: "left",
+        padding: "12px 14px",
+        background: "var(--agent-surface-glass)",
+        border: "0.5px solid rgba(15,23,42,0.10)",
+        borderRadius: 12,
+        cursor: "pointer",
+        transition: "background 150ms, border-color 150ms",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--agent-hover-tint, rgba(255,107,74,0.06))";
+        e.currentTarget.style.borderColor = "rgba(255,107,74,0.30)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "var(--agent-surface-glass)";
+        e.currentTarget.style.borderColor = "rgba(15,23,42,0.10)";
+      }}
+    >
+      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>{title}</p>
+      <p style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5, margin: "4px 0 0" }}>{description}</p>
+    </button>
   );
 }
