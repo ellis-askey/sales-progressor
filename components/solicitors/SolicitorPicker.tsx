@@ -258,32 +258,30 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
             {loadingHandlers ? (
               <p className="text-xs text-slate-900/40">Loading handlers…</p>
             ) : (
-              <>
-                <select
-                  value={value?.contactId ?? ""}
-                  onChange={(e) => {
-                    const h = handlers.find((h) => h.id === e.target.value) ?? null;
-                    if (h) selectHandler(h);
-                    else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
-                  }}
-                  className="glass-input w-full px-3 py-2.5 text-sm"
-                >
-                  <option value="">
-                    {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
-                  </option>
-                  {handlers.map((h) => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleAddHandler}
-                  className="agent-link text-xs"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
-                >
-                  <span>+</span> Add new case handler
-                </button>
-              </>
+              <select
+                value={value?.contactId ?? ""}
+                onChange={(e) => {
+                  if (e.target.value === "__ADD_NEW__") {
+                    // Reset select back to current value before opening modal
+                    // so the dropdown doesn't display "__ADD_NEW__" briefly.
+                    e.target.value = value?.contactId ?? "";
+                    handleAddHandler();
+                    return;
+                  }
+                  const h = handlers.find((h) => h.id === e.target.value) ?? null;
+                  if (h) selectHandler(h);
+                  else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
+                }}
+                className="glass-input w-full px-3 py-2.5 text-sm"
+              >
+                <option value="">
+                  {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
+                </option>
+                {handlers.map((h) => (
+                  <option key={h.id} value={h.id}>{h.name}</option>
+                ))}
+                <option value="__ADD_NEW__">+ Add new case handler…</option>
+              </select>
             )}
 
             {value?.contactId && (

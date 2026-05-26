@@ -327,6 +327,15 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
+  // Local optimistic copies — initialized from prop. Updated immediately
+  // when the user saves a change so the row reflects the new firm/handler
+  // without waiting for the server roundtrip + page revalidation. Synced
+  // back to prop value once the prop refreshes (server data lands).
+  const [vendorState, setVendorState] = useState<SolicitorInfo>(vendor);
+  const [purchaserState, setPurchaserState] = useState<SolicitorInfo>(purchaser);
+  useEffect(() => { setVendorState(vendor); }, [vendor]);
+  useEffect(() => { setPurchaserState(purchaser); }, [purchaser]);
+
   const clientNames = (contacts ?? [])
     .filter((c) => c.roleType === "vendor" || c.roleType === "purchaser")
     .map((c) => c.name);
@@ -342,7 +351,21 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
     });
   }
 
+  // Optimistic firm/handler row shape from the picker selection. We don't
+  // have the full recommended-firm intel locally, but the picker's
+  // SolicitorSelection has everything the row's display needs.
+  function selectionToInfo(sel: SolicitorSelection | null): SolicitorInfo {
+    if (!sel) return { firm: null, contact: null };
+    return {
+      firm: { id: sel.firmId, name: sel.firmName },
+      contact: sel.contactId
+        ? { id: sel.contactId, name: sel.contactName ?? "", phone: sel.phone, email: sel.email }
+        : null,
+    };
+  }
+
   function handleVendorChange(sel: SolicitorSelection | null, referral: ReferralData) {
+    setVendorState(selectionToInfo(sel));
     save({
       vendorSolicitorFirmId: sel?.firmId ?? null,
       vendorSolicitorContactId: sel?.contactId ?? null,
@@ -351,6 +374,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   }
 
   function handlePurchaserChange(sel: SolicitorSelection | null, referral: ReferralData) {
+    setPurchaserState(selectionToInfo(sel));
     save({
       purchaserSolicitorFirmId: sel?.firmId ?? null,
       purchaserSolicitorContactId: sel?.contactId ?? null,
@@ -359,10 +383,12 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   }
 
   function handleVendorRemove() {
+    setVendorState({ firm: null, contact: null });
     save({ vendorSolicitorFirmId: null, vendorSolicitorContactId: null });
   }
 
   function handlePurchaserRemove() {
+    setPurchaserState({ firm: null, contact: null });
     save({ purchaserSolicitorFirmId: null, purchaserSolicitorContactId: null });
   }
 
@@ -378,7 +404,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
       <SolicitorCard
         label="Vendor solicitor"
         editLabel="Vendor solicitor firm"
-        info={vendor}
+        info={vendorState}
         recommendedFirms={recommendedFirms}
         address={address}
         clientNames={clientNames}
@@ -388,7 +414,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
       <SolicitorCard
         label="Purchaser solicitor"
         editLabel="Purchaser solicitor firm"
-        info={purchaser}
+        info={purchaserState}
         recommendedFirms={recommendedFirms}
         isLast
         address={address}

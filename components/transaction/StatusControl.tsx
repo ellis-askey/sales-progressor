@@ -36,12 +36,26 @@ type Props = {
   inChain?: boolean;
 };
 
+function formatDateInput(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+function tomorrow(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return formatDateInput(d);
+}
+
 export function StatusControl({ transactionId, currentStatus, inChain = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [open, setOpen]             = useState(false);
   const [saving, setSaving]         = useState(false);
   const [showModal, setShowModal]   = useState(false);
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [holdDate, setHoldDate]     = useState("");
   const [reason, setReason]         = useState("");
   const [customReason, setCustomReason] = useState("");
 
@@ -70,15 +84,22 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
       setShowModal(true);
       return;
     }
-    applyStatus(next, null);
+    if (next === "on_hold") {
+      // Ask for a return date so the file resurfaces in the hub's expired-
+      // holds card when due. Or "indefinitely" — same as passing null.
+      setHoldDate("");
+      setShowHoldModal(true);
+      return;
+    }
+    applyStatus(next, null, null);
   }
 
-  function applyStatus(status: TransactionStatus, fallThroughReason: string | null) {
+  function applyStatus(status: TransactionStatus, fallThroughReason: string | null, plannedEndAt: Date | null) {
     setSaving(true);
     startTransition(async () => {
       setOptimisticStatus(status);
       try {
-        await changeStatusAction(transactionId, status, fallThroughReason);
+        await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt);
         const label =
           status === "active"    ? "File active" :
           status === "on_hold"   ? "File on hold" :
@@ -102,7 +123,19 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   function confirmWithdrawal() {
     const finalReason = reason === "Other" ? (customReason.trim() || "Other") : reason;
     setShowModal(false);
-    applyStatus("withdrawn", finalReason || null);
+    applyStatus("withdrawn", finalReason || null, null);
+  }
+
+  function confirmHoldDate() {
+    if (!holdDate) return;
+    const d = new Date(holdDate);
+    d.setHours(9, 0, 0, 0);
+    setShowHoldModal(false);
+    applyStatus("on_hold", null, d);
+  }
+  function confirmHoldIndefinite() {
+    setShowHoldModal(false);
+    applyStatus("on_hold", null, null);
   }
 
   return (
@@ -233,6 +266,59 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 Confirm withdrawal
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── On-hold date modal ────────────────────────────────── */}
+      {showHoldModal && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowHoldModal(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl w-full max-w-sm p-6"
+            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900">Put file on hold</p>
+              <p className="text-xs text-slate-500 mt-1">Pick a return date and we&apos;ll surface this file on the hub when it&apos;s due — so it doesn&apos;t get forgotten.</p>
+            </div>
+
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Return date
+            </label>
+            <input
+              type="date"
+              value={holdDate}
+              onChange={(e) => setHoldDate(e.target.value)}
+              min={tomorrow()}
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
+            />
+
+            <div className="flex gap-2 pt-4">
+              <button
+                onClick={() => setShowHoldModal(false)}
+                className="flex-1 agent-btn-ghost-bordered"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmHoldDate}
+                disabled={!holdDate}
+                className="flex-1 py-2 text-sm font-semibold text-white bg-slate-700 rounded-lg hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Put on hold
+              </button>
+            </div>
+
+            <button
+              onClick={confirmHoldIndefinite}
+              className="w-full mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              Or hold indefinitely (won&apos;t auto-surface)
+            </button>
           </div>
         </div>,
         document.body

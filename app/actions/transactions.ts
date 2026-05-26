@@ -306,7 +306,11 @@ export async function saveCompletionDateAction(transactionId: string, completion
 export async function changeStatusAction(
   transactionId: string,
   status: TransactionStatus,
-  fallThroughReason?: string | null
+  fallThroughReason?: string | null,
+  // When status === "on_hold", the optional return date the user expects
+  // to come back to this file. NULL = indefinite (no auto-surface). Used
+  // by the hub's expired-holds card.
+  plannedEndAt?: Date | string | null,
 ) {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -342,12 +346,44 @@ export async function changeStatusAction(
     }
   }
 
-  await prisma.propertyTransaction.update({
-    where: { id: transactionId },
-    data: {
-      status,
-      fallThroughReason: status === "withdrawn" ? (fallThroughReason ?? null) : null,
-    },
+  // Hold-period lifecycle:
+  //   - When entering on_hold from any status: open a new TransactionHoldPeriod
+  //     row with the optional plannedEndAt. The hold-duration helpers, the
+  //     hub's expired-holds card, and the median-time calculations all need
+  //     this row to exist while status=on_hold.
+  //   - When leaving on_hold (to active/completed/withdrawn): close the
+  //     currently-open period (endedAt = now). updateMany handles the
+  //     defensive case of multiple open periods.
+  const enteringHold = status === "on_hold" && tx.status !== "on_hold";
+  const leavingHold  = tx.status === "on_hold" && status !== "on_hold";
+  const plannedEndAtDate: Date | null = plannedEndAt
+    ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
+    : null;
+
+  await prisma.$transaction(async (ptx) => {
+    await ptx.propertyTransaction.update({
+      where: { id: transactionId },
+      data: {
+        status,
+        fallThroughReason: status === "withdrawn" ? (fallThroughReason ?? null) : null,
+      },
+    });
+    if (enteringHold) {
+      await ptx.transactionHoldPeriod.create({
+        data: {
+          transactionId,
+          startedAt: new Date(),
+          startedById: session.user.id,
+          plannedEndAt: plannedEndAtDate,
+        },
+      });
+    }
+    if (leavingHold) {
+      await ptx.transactionHoldPeriod.updateMany({
+        where: { transactionId, endedAt: null },
+        data: { endedAt: new Date(), endedById: session.user.id },
+      });
+    }
   });
 
   const reasonNote = status === "withdrawn" && fallThroughReason

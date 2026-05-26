@@ -54,9 +54,6 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, step]);
 
-  function handleHoldQuickPick(days: number) {
-    onPick("hold", addDays(days));
-  }
   function handleHoldIndefinite() {
     onPick("hold", null);
   }
@@ -149,39 +146,42 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                 We&apos;ll surface this file on the hub when the date arrives — so it doesn&apos;t get forgotten.
               </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
-                <QuickPick label="7 days from now"  onClick={() => handleHoldQuickPick(7)}  disabled={isPending} />
-                <QuickPick label="14 days from now" onClick={() => handleHoldQuickPick(14)} disabled={isPending} />
-                <QuickPick label="30 days from now" onClick={() => handleHoldQuickPick(30)} disabled={isPending} />
-
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                  <input
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    min={formatDateInput(addDays(1))}
-                    className="glass-input"
-                    style={{ flex: 1, padding: "10px 12px", fontSize: 13 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleHoldCustom}
-                    disabled={isPending || !customDate}
-                    className="agent-btn agent-btn-sm agent-btn-primary"
-                  >
-                    Use this date
-                  </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
+                    Pick a return date
+                  </label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="date"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      min={formatDateInput(addDays(1))}
+                      className="glass-input"
+                      style={{ flex: 1, padding: "10px 12px", fontSize: 13 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleHoldCustom}
+                      disabled={isPending || !customDate}
+                      className="agent-btn agent-btn-sm agent-btn-primary"
+                    >
+                      Put on hold
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleHoldIndefinite}
-                  disabled={isPending}
-                  className="agent-link"
-                  style={{ marginTop: 4, fontSize: 12, color: "var(--agent-text-muted)", textAlign: "left", padding: "8px 6px" }}
-                >
-                  Or hold indefinitely (won&apos;t auto-surface)
-                </button>
+                <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={handleHoldIndefinite}
+                    disabled={isPending}
+                    className="agent-link"
+                    style={{ fontSize: 12, color: "var(--agent-text-muted)", textAlign: "left", padding: "4px 0" }}
+                  >
+                    Or hold indefinitely (won&apos;t auto-surface)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -265,45 +265,3 @@ function ChooserCard({
   );
 }
 
-function QuickPick({
-  label,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        textAlign: "left",
-        padding: "10px 14px",
-        background: "var(--agent-surface-glass)",
-        border: "0.5px solid rgba(15,23,42,0.10)",
-        borderRadius: 10,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-        fontSize: 13,
-        fontWeight: 500,
-        color: "var(--agent-text-primary)",
-        transition: "background 150ms, border-color 150ms",
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = "var(--agent-hover-tint, rgba(255,107,74,0.06))";
-          e.currentTarget.style.borderColor = "rgba(255,107,74,0.30)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "var(--agent-surface-glass)";
-        e.currentTarget.style.borderColor = "rgba(15,23,42,0.10)";
-      }}
-    >
-      {label}
-    </button>
-  );
-}

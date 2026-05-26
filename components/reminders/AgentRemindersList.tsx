@@ -320,6 +320,12 @@ function SideColumn({
   hideChase?: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Optimistic chase-count overlay so the ↻ Chased button feels instant.
+  const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
+  function optimisticChase(taskId: string, baseCount: number) {
+    setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
+    handleChased(taskId);
+  }
 
   const isSeller = side === "seller";
   const columnBg = isSeller ? "rgba(var(--agent-warning-rgb), 0.06)" : "rgba(var(--agent-info-rgb), 0.06)";
@@ -410,17 +416,20 @@ function SideColumn({
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
                   {name}
                 </p>
-                {(urgencyLabel || task.chaseCount > 0) && (
-                  <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
-                    {urgencyLabel}
-                    {urgencyLabel && task.chaseCount > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
-                    {task.chaseCount > 0 && (
-                      <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
-                        Chased {task.chaseCount}×
-                      </span>
-                    )}
-                  </p>
-                )}
+                {(() => {
+                  const displayedChases = Math.max(optimisticChases[task.id] ?? 0, task.chaseCount);
+                  return (urgencyLabel || displayedChases > 0) && (
+                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
+                      {urgencyLabel}
+                      {urgencyLabel && displayedChases > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
+                      {displayedChases > 0 && (
+                        <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
+                          Chased {displayedChases}×
+                        </span>
+                      )}
+                    </p>
+                  );
+                })()}
                 {/* Fallback-kind chip — set when the system handed this chase
                  * back to the agent (B3 of the client-chase arc). Five kinds
                  * today, all rendering the same amber chip with kind-specific
@@ -452,8 +461,8 @@ function SideColumn({
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
               <button
-                onClick={() => handleChased(task.id)}
-                disabled={loading === task.id || isExiting}
+                onClick={() => optimisticChase(task.id, task.chaseCount)}
+                disabled={isExiting}
                 title="Mark as chased — advances the next chase date without sending an email"
                 className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
                 style={{ flexShrink: 0, whiteSpace: "nowrap" }}

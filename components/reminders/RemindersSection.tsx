@@ -338,6 +338,15 @@ function ColumnSection({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
+  // Optimistic chase-count overlay per task. Click the ↻ Chased button →
+  // counter bumps in the UI immediately; the server action runs in
+  // background. When the props refresh (server data lands), the prop
+  // chaseCount is >= our optimistic value so the overlay falls back.
+  const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
+  function optimisticChase(taskId: string, baseCount: number) {
+    setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
+    handleChased(taskId);
+  }
   const isSeller = side === "seller";
   const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
   const labelColor = isSeller ? "#ea580c" : "#3b82f6";
@@ -401,17 +410,20 @@ function ColumnSection({
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="reminders-title" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
-                {(urgencyLabel || (task && task.chaseCount > 0)) && (
-                  <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
-                    {urgencyLabel}
-                    {urgencyLabel && task && task.chaseCount > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
-                    {task && task.chaseCount > 0 && (
-                      <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
-                        Chased {task.chaseCount}×
-                      </span>
-                    )}
-                  </p>
-                )}
+                {(() => {
+                  const displayedChases = task ? Math.max(optimisticChases[task.id] ?? 0, task.chaseCount) : 0;
+                  return (urgencyLabel || displayedChases > 0) && (
+                    <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
+                      {urgencyLabel}
+                      {urgencyLabel && displayedChases > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
+                      {displayedChases > 0 && (
+                        <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
+                          Chased {displayedChases}×
+                        </span>
+                      )}
+                    </p>
+                  );
+                })()}
                 {task?.fallbackKind && (
                   <span
                     style={{
@@ -436,8 +448,7 @@ function ColumnSection({
                 <>
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
-                    onClick={() => handleChased(task.id)}
-                    disabled={loading === task.id}
+                    onClick={() => optimisticChase(task.id, task.chaseCount)}
                     title="Mark as chased — advances the next chase date without sending an email"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
