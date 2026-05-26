@@ -160,27 +160,31 @@ function MilestoneSideRow({
         <button
           onClick={milestone.eventDateRequired ? () => setShowDatePicker(true) : handleClick}
           disabled={loading || justCompleted}
-          className={`agent-btn agent-btn-xs ${justCompleted ? "" : "agent-btn-primary"}`}
-          style={justCompleted ? {
-            background: "#10b981",
-            color: "white",
-            border: "none",
-            transition: "all 240ms cubic-bezier(0.16, 1, 0.3, 1)",
-            transform: "scale(1.02)",
-            boxShadow: "0 0 0 4px rgba(16,185,129,0.18)",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            cursor: "default",
-          } : undefined}
+          className="agent-btn agent-btn-xs agent-btn-primary"
+          style={{
+            // Pulse while in flight (theme coral). Brief solid flash on
+            // success, then fade out as the row collapses (parent's
+            // useAutoAnimate handles the row collapse + below-row slide-up).
+            animation: loading
+              ? "completeBtnPulse 900ms ease-in-out infinite"
+              : justCompleted
+                ? "completeBtnFlashFade 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                : undefined,
+            transition: "background 150ms",
+          }}
         >
-          {justCompleted ? (
-            <><span aria-hidden>✓</span> Completed</>
-          ) : loading ? (
-            "…"
-          ) : (
-            "Complete"
-          )}
+          {justCompleted ? "Done" : "Complete"}
+          <style>{`
+            @keyframes completeBtnPulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,74,0.55); }
+              50%      { box-shadow: 0 0 0 6px rgba(255,107,74,0); }
+            }
+            @keyframes completeBtnFlashFade {
+              0%   { background: #FF6B4A; transform: scale(1.02); opacity: 1; }
+              30%  { background: #FF6B4A; transform: scale(1); opacity: 1; }
+              100% { background: #FF6B4A; transform: scale(1); opacity: 0; }
+            }
+          `}</style>
         </button>
       )}
       {showDatePicker && (

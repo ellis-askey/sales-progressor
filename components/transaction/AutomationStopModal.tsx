@@ -68,9 +68,9 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
     <div
       data-theme={theme}
       data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} />
+      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} style={{ zIndex: 0 }} />
 
       <div
         style={{

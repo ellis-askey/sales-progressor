@@ -12,9 +12,10 @@
 // the prop is empty we render nothing — the card is opt-in by presence.
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
-import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
+import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ExpiredHoldItem } from "@/lib/services/hub";
 
@@ -62,11 +63,23 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
     });
   }
 
-  function handleTakeOff(transactionId: string) {
+  // Resume modal — fires when user clicks "Take off hold" so they can
+  // choose to resume client chases or keep them paused.
+  const [resumeFor, setResumeFor] = useState<{ id: string; address: string } | null>(null);
+
+  function openResume(transactionId: string, address: string) {
+    setResumeFor({ id: transactionId, address });
+  }
+  function doResume(transactionId: string, keepEmailsPaused: boolean) {
+    setResumeFor(null);
     startTransition(async () => {
       const result = await reactivateFile(transactionId);
       if (result.ok) {
-        toast.success("Taken off hold");
+        if (keepEmailsPaused) {
+          // fire-and-forget; the row is already animating out
+          pauseClientEmails(transactionId).catch(() => {});
+        }
+        toast.success(keepEmailsPaused ? "Off hold — emails stay paused" : "Off hold — automation resumed");
         removeRow(transactionId);
       } else {
         toast.error(result.error ?? "Couldn't reactivate — try again");
@@ -204,7 +217,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
               </div>
             ) : (
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => handleTakeOff(item.transactionId)} className="agent-btn agent-btn-sm agent-btn-primary">
+                <button onClick={() => openResume(item.transactionId, item.propertyAddress)} className="agent-btn agent-btn-sm agent-btn-primary">
                   Take off hold
                 </button>
                 <button onClick={() => openExtender(item.transactionId)} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">
@@ -215,6 +228,64 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
           </div>
         ))}
       </div>
+
+      {resumeFor && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setResumeFor(null)} />
+          <div
+            className="rounded-2xl w-full max-w-md"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              background: "var(--agent-surface-elevated)",
+              border: "0.5px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Take off hold</h2>
+              <button type="button" onClick={() => setResumeFor(null)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
+            </div>
+
+            <div className="px-6 py-5">
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 4px", lineHeight: 1.5 }}>
+                <strong style={{ color: "var(--agent-text-primary)" }}>{resumeFor.address}</strong>
+              </p>
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
+                Should we also resume client chase emails, or keep them paused for now?
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => doResume(resumeFor.id, false)}
+                  className="agent-btn-color-primary text-sm font-semibold rounded-xl"
+                  style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <span>Resume automation</span>
+                  <span style={{ fontSize: 11, opacity: 0.85 }}>Chases + reminders restart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => doResume(resumeFor.id, true)}
+                  className="rounded-xl text-sm font-medium"
+                  style={{ padding: "12px 16px", background: "var(--agent-surface-glass)", border: "0.5px solid rgba(15,23,42,0.10)", color: "var(--agent-text-primary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <span>Reactivate, keep emails paused</span>
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Manual chasing only</span>
+                </button>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button type="button" onClick={() => setResumeFor(null)} className="text-sm text-slate-900/50 hover:text-slate-900/80 py-2 px-2">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

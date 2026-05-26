@@ -1,10 +1,11 @@
 "use client";
 // components/transaction/StatusControl.tsx
 
-import { useState, useTransition, useOptimistic, useRef } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { changeStatusAction } from "@/app/actions/transactions";
+import { pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { TransactionStatus } from "@prisma/client";
 
@@ -55,14 +56,19 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   const [saving, setSaving]         = useState(false);
   const [showModal, setShowModal]   = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const [holdDate, setHoldDate]     = useState("");
   const [reason, setReason]         = useState("");
   const [customReason, setCustomReason] = useState("");
 
-  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
-    currentStatus,
-    (_current: TransactionStatus, next: TransactionStatus) => next
-  );
+  // Manual optimistic state — persists across the post-action gap
+  // before the parent currentStatus prop refreshes. useOptimistic's
+  // post-transition behaviour reverts to the (still-stale) prop, making
+  // the badge flicker back to "Active" for a moment.
+  const [optimisticStatus, setOptimisticStatus] = useState<TransactionStatus>(currentStatus);
+  useEffect(() => {
+    setOptimisticStatus(currentStatus);
+  }, [currentStatus]);
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -91,13 +97,24 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
       setShowHoldModal(true);
       return;
     }
+    // Coming off hold? Ask whether to resume client-email automation
+    // before flipping status. The two flows are independent server-side
+    // (status is on PropertyTransaction; emails are gated by
+    // clientEmailsPaused) — this prompt makes the user-facing choice
+    // explicit so they're not surprised when automation springs back on.
+    if (next === "active" && currentStatus === "on_hold") {
+      setShowResumeModal(true);
+      return;
+    }
     applyStatus(next, null, null);
   }
 
   function applyStatus(status: TransactionStatus, fallThroughReason: string | null, plannedEndAt: Date | null) {
     setSaving(true);
+    // Pre-transition optimistic flip so the badge updates the instant the
+    // modal closes — without waiting for the action's await to resolve.
+    setOptimisticStatus(status);
     startTransition(async () => {
-      setOptimisticStatus(status);
       try {
         await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt);
         const label =
@@ -124,6 +141,18 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     const finalReason = reason === "Other" ? (customReason.trim() || "Other") : reason;
     setShowModal(false);
     applyStatus("withdrawn", finalReason || null, null);
+  }
+
+  function resumeWithAutomation() {
+    setShowResumeModal(false);
+    applyStatus("active", null, null);
+  }
+  function resumeKeepingEmailsPaused() {
+    setShowResumeModal(false);
+    // Flip to active first, then immediately pause client emails so
+    // chases stay off. Both actions are idempotent / quick.
+    applyStatus("active", null, null);
+    pauseClientEmails(transactionId).catch(() => {});
   }
 
   function confirmHoldDate() {
@@ -336,6 +365,68 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               >
                 Or hold indefinitely (won&apos;t auto-surface)
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Resume-automation modal ───────────────────────────── */}
+      {showResumeModal && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setShowResumeModal(false)} />
+          <div
+            className="rounded-2xl w-full max-w-md"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              background: "var(--agent-surface-elevated)",
+              border: "0.5px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Take off hold</h2>
+              <button type="button" onClick={() => setShowResumeModal(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
+            </div>
+
+            <div className="px-6 py-5">
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
+                The file&apos;s about to come back to life. Should we also resume client chase emails, or keep them paused for now?
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={resumeWithAutomation}
+                  className="agent-btn-color-primary text-sm font-semibold rounded-xl"
+                  style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <span>Resume automation</span>
+                  <span style={{ fontSize: 11, opacity: 0.85 }}>Chases + reminders restart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={resumeKeepingEmailsPaused}
+                  className="rounded-xl text-sm font-medium"
+                  style={{ padding: "12px 16px", background: "var(--agent-surface-glass)", border: "0.5px solid rgba(15,23,42,0.10)", color: "var(--agent-text-primary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <span>Reactivate, keep emails paused</span>
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Manual chasing only</span>
+                </button>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowResumeModal(false)}
+                  className="text-sm text-slate-900/50 hover:text-slate-900/80 py-2 px-2"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>,

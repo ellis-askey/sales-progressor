@@ -143,12 +143,17 @@ function snoozeToastLabel(hours: number): string {
   return `Snoozed for ${days} ${days === 1 ? "day" : "days"}`;
 }
 
-function classifyActive(log: ReminderLog, todayStr: string): UrgencyGroup {
+function classifyActive(log: ReminderLog, todayStr: string, optimisticNextDue: Date | null): UrgencyGroup {
   const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
   if (openTask?.priority === "escalated") return "escalated";
-  const dueStr = toUKDateStr(log.nextDueDate);
+  // If the user just chased, treat the row as Coming Up immediately — the
+  // optimistic next-due-date is later than today.
+  const effectiveDue = optimisticNextDue && optimisticNextDue > new Date(log.nextDueDate)
+    ? optimisticNextDue
+    : log.nextDueDate;
+  const dueStr = toUKDateStr(effectiveDue);
   const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
-  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
+  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr && !optimisticNextDue)) return "overdue";
   if (dueStr === todayStr) return "due_today";
   return "upcoming";
 }
@@ -328,6 +333,7 @@ function ColumnSection({
   handleSnooze,
   handleSnoozeAll,
   handleChased,
+  optimisticNextDuePerLog,
 }: {
   logs: ReminderLog[];
   side: "seller" | "buyer";
@@ -339,6 +345,7 @@ function ColumnSection({
   handleSnooze: (logId: string, taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
   handleChased: (taskId: string, logId?: string) => void;
+  optimisticNextDuePerLog?: Map<string, Date>;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
@@ -393,7 +400,11 @@ function ColumnSection({
         {logs.map((log, i) => {
           const task = log.chaseTasks.find((t) => t.status === "pending");
           const name = stripChase(log.reminderRule.name);
-          const dueDate = new Date(log.nextDueDate); dueDate.setHours(0, 0, 0, 0);
+          // Optimistic override — chased rows show the new next-due-date
+          // immediately (the prop's nextDueDate updates after the server
+          // confirms a few seconds later).
+          const effectiveNextDue = optimisticNextDuePerLog?.get(log.id) ?? log.nextDueDate;
+          const dueDate = new Date(effectiveNextDue); dueDate.setHours(0, 0, 0, 0);
           const isOverdue = dueDate < today;
           const isDueToday = dueDate.getTime() === today.getTime();
           const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / 86400000) : 0;
@@ -539,14 +550,26 @@ export function RemindersSection({
   // the appropriate active bucket immediately (instead of staying in the
   // snoozed group during the server roundtrip).
   const [wokenUpIds, setWokenUpIds] = useState<Set<string>>(new Set());
+  // Optimistic destination-bucket placement so a row APPEARS where it's
+  // going immediately, not just disappears from its current bucket:
+  //   - optimisticSnoozedUntil: snooze action → row goes to Snoozed
+  //   - optimisticNextDueDate:  chase action  → row goes to Coming Up
+  const [optimisticSnoozedUntil, setOptimisticSnoozedUntil] = useState<Map<string, Date>>(new Map());
+  const [optimisticNextDueDate, setOptimisticNextDueDate] = useState<Map<string, Date>>(new Map());
   useEffect(() => {
     setHiddenIds(new Set());
     setOptimisticallySnoozedCodes(new Set());
     setWokenUpIds(new Set());
+    setOptimisticSnoozedUntil(new Map());
+    setOptimisticNextDueDate(new Map());
   }, [reminderLogs]);
   const [snoozedListRef] = useAutoAnimate<HTMLDivElement>();
   const [completedListRef] = useAutoAnimate<HTMLDivElement>();
   const [groupsRef] = useAutoAnimate<HTMLDivElement>();
+  // Wraps the whole reminder-list block (urgency groups + Snoozed +
+  // Completed) so when a section appears/disappears (e.g. Snoozed becomes
+  // non-empty for the first time) the siblings animate smoothly.
+  const [allSectionsRef] = useAutoAnimate<HTMLDivElement>();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     escalated: false,
     overdue: false,
@@ -559,13 +582,26 @@ export function RemindersSection({
   const now = new Date();
   const todayStr = toUKDateStr(now);
 
-  // wokenUpIds bypasses the snoozedUntil check so optimistically-woken
-  // logs appear in active immediately AND disappear from snoozed.
+  // Effective snooze state = optimistic override OR real prop value.
+  // The optimistic value wins because the user just clicked snooze and
+  // we want them to see the row in Snoozed before the server confirms.
+  function effectiveSnoozedUntil(l: ReminderLog): Date | null {
+    const opt = optimisticSnoozedUntil.get(l.id);
+    if (opt) return opt;
+    if (l.snoozedUntil) return new Date(l.snoozedUntil);
+    return null;
+  }
+  function isCurrentlySnoozed(l: ReminderLog): boolean {
+    if (wokenUpIds.has(l.id)) return false;
+    const until = effectiveSnoozedUntil(l);
+    return until !== null && until > now;
+  }
+
   const activeLogs = reminderLogs.filter((l) =>
-    !hiddenIds.has(l.id) && l.status === "active" && (wokenUpIds.has(l.id) || !(l.snoozedUntil && new Date(l.snoozedUntil) > now))
+    !hiddenIds.has(l.id) && l.status === "active" && !isCurrentlySnoozed(l)
   );
   const snoozedLogs = reminderLogs.filter(
-    (l) => !hiddenIds.has(l.id) && !wokenUpIds.has(l.id) && l.status === "active" && l.snoozedUntil && new Date(l.snoozedUntil) > now
+    (l) => !hiddenIds.has(l.id) && l.status === "active" && isCurrentlySnoozed(l)
   );
   const completedLogs = reminderLogs.filter(
     (l) => !hiddenIds.has(l.id) && (l.status === "completed" || l.status === "inactive")
@@ -587,7 +623,7 @@ export function RemindersSection({
 
   const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
   for (const log of activeLogs) {
-    grouped[classifyActive(log, todayStr)].push(log);
+    grouped[classifyActive(log, todayStr, optimisticNextDueDate.get(log.id) ?? null)].push(log);
   }
 
   function act(id: string, fn: () => Promise<unknown>) {
@@ -611,7 +647,11 @@ export function RemindersSection({
     // Skip if this task is already being snoozed (prevents the 5x-click
     // misfire when a user clicks the menu option in rapid succession).
     if (loading === taskId) return;
-    setHiddenIds((prev) => new Set([...prev, logId]));
+    // Optimistic: place the row in the Snoozed section immediately.
+    // No need to hide via hiddenIds — the snoozed filter will pick it up
+    // via optimisticSnoozedUntil and the active filter will exclude it.
+    const wakeUp = new Date(Date.now() + hours * 60 * 60 * 1000);
+    setOptimisticSnoozedUntil((prev) => new Map(prev).set(logId, wakeUp));
     // Stash the milestone code so the auto-emails preview can suppress
     // matching upcoming chases instantly.
     const log = reminderLogs.find((l) => l.id === logId);
@@ -627,8 +667,12 @@ export function RemindersSection({
 
   function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
     if (taskIds.length === 0) return;
-    setHiddenIds((prev) => new Set([...prev, ...logIds]));
-    // Same optimistic milestone-code suppression for bulk snooze.
+    const wakeUp = new Date(Date.now() + hours * 60 * 60 * 1000);
+    setOptimisticSnoozedUntil((prev) => {
+      const next = new Map(prev);
+      for (const id of logIds) next.set(id, wakeUp);
+      return next;
+    });
     const codes = logIds
       .map((id) => reminderLogs.find((l) => l.id === id)?.reminderRule.targetMilestoneCode)
       .filter((c): c is string => !!c);
@@ -657,19 +701,18 @@ export function RemindersSection({
   }
 
   function handleChased(taskId: string, logId?: string) {
-    // Optimistic hide — chased reminders disappear immediately; the
-    // server bumps nextDueDate by repeatEveryDays, so on the next prop
-    // refresh the row appears in the "Coming up" group instead of where
-    // it was. The user sees "I chased it → it's gone for now".
+    // Optimistic placement: the row moves to Coming Up immediately by
+    // setting an optimistic nextDueDate (now + repeatEveryDays). The
+    // classifyActive helper picks this up and the row appears in the
+    // upcoming bucket in the same frame.
     if (logId) {
-      setHiddenIds((prev) => new Set([...prev, logId]));
-      // Auto-expand Coming Up so the user sees the chased row land there
-      // (the section is collapsed by default).
-      setCollapsed((prev) => ({ ...prev, upcoming: false }));
-      // Toast confirmation — without this the row's collapse + reappearance
-      // in a (default-collapsed) group felt like "nothing happened".
       const log = reminderLogs.find((l) => l.id === logId);
       const repeat = log?.reminderRule.repeatEveryDays ?? 5;
+      const newDue = new Date(Date.now() + repeat * 86400000);
+      setOptimisticNextDueDate((prev) => new Map(prev).set(logId, newDue));
+      // Auto-expand Coming Up so the user sees the row land there
+      // (the section is collapsed by default).
+      setCollapsed((prev) => ({ ...prev, upcoming: false }));
       toast.success(`Chased — next in ${repeat} ${repeat === 1 ? "day" : "days"}`);
     }
     act(taskId, () => advanceChaseTaskAction(taskId, pathname));
@@ -730,9 +773,12 @@ export function RemindersSection({
         </div>
       )}
 
-      {/* Urgency groups — wrapped so when a whole group empties out
-        * (e.g. last row snoozed/chased), the sibling sections collapse
-        * smoothly instead of snapping. */}
+      {/* All reminder sections wrapped together so when Snoozed or
+        * Completed appear/disappear (e.g. first snooze adds the Snoozed
+        * card) the siblings shift smoothly instead of pop-in. */}
+      <div ref={allSectionsRef} className="space-y-3">
+      {/* Urgency groups — inner wrapper so individual groups animate
+        * out smoothly when emptied. */}
       <div ref={groupsRef} className="space-y-3">
       {(["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
         const logs = grouped[groupKey];
@@ -758,10 +804,10 @@ export function RemindersSection({
               <div className="agent-acc-in">
                 <div className="reminders-columns" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
                   {sellerLogs.length > 0
-                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+                    ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} optimisticNextDuePerLog={optimisticNextDueDate} />
                     : <EmptyColumn side="seller" />}
                   {buyerLogs.length > 0
-                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
+                    ? <ColumnSection logs={buyerLogs} side="buyer" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} optimisticNextDuePerLog={optimisticNextDueDate} />
                     : <EmptyColumn side="buyer" />}
                 </div>
               </div>
@@ -786,15 +832,20 @@ export function RemindersSection({
           <div className={`agent-acc ${!collapsed.snoozed ? "open" : ""}`}>
             <div className="agent-acc-in">
               <div ref={snoozedListRef} className="space-y-1.5 p-4">
-                {snoozedLogs.map((log) => (
+                {snoozedLogs.map((log) => {
+                  // Optimistic override — when the user just snoozed, show
+                  // the locally-chosen wake-up time instead of the (stale)
+                  // server value.
+                  const displaySnoozedUntil = optimisticSnoozedUntil.get(log.id) ?? log.snoozedUntil;
+                  return (
                   <div key={log.id} className="glass-subtle rounded-xl px-4 py-2.5 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-slate-900/80 truncate">
                         {stripChase(log.reminderRule.name)}
                       </p>
-                      {log.snoozedUntil && (
+                      {displaySnoozedUntil && (
                         <p className="text-xs text-slate-900/40 mt-0.5">
-                          Wakes {new Date(log.snoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          Wakes {new Date(displaySnoozedUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         </p>
                       )}
                     </div>
@@ -806,7 +857,8 @@ export function RemindersSection({
                       Wake up
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -841,6 +893,7 @@ export function RemindersSection({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }
