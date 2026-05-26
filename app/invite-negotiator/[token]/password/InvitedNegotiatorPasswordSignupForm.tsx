@@ -56,6 +56,7 @@ export function InvitedNegotiatorPasswordSignupForm({ token, negotiatorEmail, ne
     fd.set("token", token);
     fd.set("name", name.trim());
     fd.set("password", password);
+    fd.set("confirm", confirm);
 
     startTransition(async () => {
       const result = await acceptNegotiatorInvitationPassword(fd);
