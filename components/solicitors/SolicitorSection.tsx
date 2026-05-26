@@ -192,7 +192,7 @@ function SolicitorCard({
   return (
     <div style={rowStyle}>
       {/* Display row — always visible */}
-      <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
 
         {info.firm ? (
           <>
@@ -237,7 +237,7 @@ function SolicitorCard({
 
             {/* Actions — hidden when editing */}
             {!editing && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div className="agent-entity-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <button
                   type="button"
                   disabled

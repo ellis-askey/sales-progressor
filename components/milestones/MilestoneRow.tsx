@@ -335,43 +335,50 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         <div className="flex-1 min-w-0">
           <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
             {def.name}
-            {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
-            {slownessSignal && !isDone && !isBlocked && (
-              <span
-                className="ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
-                title={`Typical for this step: ${slownessSignal.median} days. This file is on day ${slownessSignal.daysAvailable}.`}
-              >
-                {slownessSignal.daysOver} days slower than typical
-              </span>
-            )}
-            {stalenessSignal && !isDone && !isBlocked && (
-              <span
-                className="ml-2 text-[10px] font-normal text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
-                title={`Chase rule allows ${stalenessSignal.graceDays} days before this is considered overdue. This file is on day ${stalenessSignal.daysAwaiting}.`}
-              >
-                Awaiting {stalenessSignal.daysAwaiting} days
-              </span>
-            )}
-            {/* Client-chase chip (B6 of the client-chase arc). One of three
-              * states. Same eligibility as slowness/staleness chips. */}
-            {clientChase && !isDone && !isBlocked && (() => {
-              const cn = clientChase.kind === "engaged"
-                ? "ml-2 text-[10px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5"
-                : clientChase.kind === "opted_out"
-                ? "ml-2 text-[10px] font-normal text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5"
-                : "ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5";
-              const text = clientChase.kind === "engaged"
-                ? `Client engaged ${formatRelative(clientChase.lastEngagedAt)}`
-                : clientChase.kind === "opted_out"
-                ? "Client opted out"
-                : `Client chased ${formatRelative(clientChase.lastChasedAt)}`;
-              const tooltip = [
-                clientChase.lastChasedAt ? `Last chased: ${formatDate(clientChase.lastChasedAt)}` : null,
-                clientChase.lastEngagedAt ? `Last engaged: ${formatDate(clientChase.lastEngagedAt)}` : null,
-                clientChase.contactCount > 1 ? `Across ${clientChase.contactCount} contacts` : null,
-              ].filter(Boolean).join(" • ");
-              return <span className={cn} title={tooltip}>{text}</span>;
-            })()}
+            {/* Chips wrapper — see .ms-pills-row in agent-system.css.
+             * Desktop: display:inline (chips render after name as today).
+             * Mobile (<=640px): display:flex flex-wrap, becomes a block-
+             * level row beneath the name so chips no longer wrap mid-
+             * sentence. */}
+            <span className="ms-pills-row">
+              {isGate && <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Exchange gate</span>}
+              {slownessSignal && !isDone && !isBlocked && (
+                <span
+                  className="ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5"
+                  title={`Typical for this step: ${slownessSignal.median} days. This file is on day ${slownessSignal.daysAvailable}.`}
+                >
+                  {slownessSignal.daysOver} days slower than typical
+                </span>
+              )}
+              {stalenessSignal && !isDone && !isBlocked && (
+                <span
+                  className="ml-2 text-[10px] font-normal text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5"
+                  title={`Chase rule allows ${stalenessSignal.graceDays} days before this is considered overdue. This file is on day ${stalenessSignal.daysAwaiting}.`}
+                >
+                  Awaiting {stalenessSignal.daysAwaiting} days
+                </span>
+              )}
+              {/* Client-chase chip (B6 of the client-chase arc). One of three
+                * states. Same eligibility as slowness/staleness chips. */}
+              {clientChase && !isDone && !isBlocked && (() => {
+                const cn = clientChase.kind === "engaged"
+                  ? "ml-2 text-[10px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5"
+                  : clientChase.kind === "opted_out"
+                  ? "ml-2 text-[10px] font-normal text-slate-600 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5"
+                  : "ml-2 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5";
+                const text = clientChase.kind === "engaged"
+                  ? `Client engaged ${formatRelative(clientChase.lastEngagedAt)}`
+                  : clientChase.kind === "opted_out"
+                  ? "Client opted out"
+                  : `Client chased ${formatRelative(clientChase.lastChasedAt)}`;
+                const tooltip = [
+                  clientChase.lastChasedAt ? `Last chased: ${formatDate(clientChase.lastChasedAt)}` : null,
+                  clientChase.lastEngagedAt ? `Last engaged: ${formatDate(clientChase.lastEngagedAt)}` : null,
+                  clientChase.contactCount > 1 ? `Across ${clientChase.contactCount} contacts` : null,
+                ].filter(Boolean).join(" • ");
+                return <span className={cn} title={tooltip}>{text}</span>;
+              })()}
+            </span>
           </p>
           {isDone && def.completion && (
             <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 2 }}>
