@@ -12,6 +12,8 @@ import type { Contact } from "@/components/reminders/ReminderCard";
 import { AutomatedEmailsCard } from "@/components/reminders/AutomatedEmailsCard";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
+import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 // Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
 // components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
@@ -127,6 +129,14 @@ function stripChase(name: string) {
   return name
     .replace(/^Chase:\s*/i, "")
     .replace(/\s*\((?:buyer|seller)\)\s*$/i, "");
+}
+
+// Short, friendly label for the snooze toast — matches the duration option
+// the user picked. Mirrors the SNOOZE_OPTIONS labels but in past tense.
+function snoozeToastLabel(hours: number): string {
+  if (hours < 24) return `Snoozed for ${hours}h`;
+  const days = Math.round(hours / 24);
+  return `Snoozed for ${days} ${days === 1 ? "day" : "days"}`;
 }
 
 function classifyActive(log: ReminderLog, todayStr: string): UrgencyGroup {
@@ -473,6 +483,8 @@ export function RemindersSection({
   automatedEmails,
 }: Props) {
   const pathname = usePathname();
+  const updateTabBadge = useTabBadge();
+  const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
   const [loading, setLoading] = useState<string | null>(null);
   // Optimistic hide: rows are dropped from the rendered list immediately on
@@ -507,6 +519,20 @@ export function RemindersSection({
     (l) => !hiddenIds.has(l.id) && (l.status === "completed" || l.status === "inactive")
   );
 
+  // Push the live tab badge count so the "Reminders" tab pill updates the
+  // instant a row is snoozed / completed (via optimistic hiddenIds) — no
+  // wait for the revalidation roundtrip. The server-side count drives the
+  // initial render; this overrides afterwards. Match the formula in
+  // app/agent/transactions/[id]/page.tsx reminderBadgeCount: active +
+  // not-snoozed + (escalated pending task OR due today/past).
+  const activeCount = activeLogs.filter((l) =>
+    l.chaseTasks.some((t) => t.status === "pending" && t.priority === "escalated") ||
+    toUKDateStr(l.nextDueDate) <= todayStr
+  ).length;
+  useEffect(() => {
+    if (updateTabBadge) updateTabBadge("reminders", activeCount);
+  }, [activeCount, updateTabBadge]);
+
   const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
   for (const log of activeLogs) {
     grouped[classifyActive(log, todayStr)].push(log);
@@ -522,6 +548,7 @@ export function RemindersSection({
   function handleComplete(logId: string, taskId: string) {
     setHiddenIds((prev) => new Set([...prev, logId]));
     setLoading(taskId);
+    toast.success("Marked done");
     startTransition(async () => {
       try { await completeTaskAction(taskId, pathname); }
       finally { setLoading(null); }
@@ -529,8 +556,12 @@ export function RemindersSection({
   }
 
   function handleSnooze(logId: string, taskId: string, hours: number) {
+    // Skip if this task is already being snoozed (prevents the 5x-click
+    // misfire when a user clicks the menu option in rapid succession).
+    if (loading === taskId) return;
     setHiddenIds((prev) => new Set([...prev, logId]));
     setLoading(taskId);
+    toast.success(snoozeToastLabel(hours));
     startTransition(async () => {
       try { await snoozeTaskAction(taskId, hours, pathname); }
       finally { setLoading(null); }
@@ -538,8 +569,10 @@ export function RemindersSection({
   }
 
   function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
+    if (taskIds.length === 0) return;
     setHiddenIds((prev) => new Set([...prev, ...logIds]));
     setLoading(taskIds[0] ?? "");
+    toast.success(`${taskIds.length} ${taskIds.length === 1 ? "reminder" : "reminders"} ${snoozeToastLabel(hours).toLowerCase()}`);
     startTransition(async () => {
       try { await Promise.all(taskIds.map((id) => snoozeTaskAction(id, hours, pathname))); }
       finally { setLoading(null); }
