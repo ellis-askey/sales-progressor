@@ -43,6 +43,12 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
   // every modal open so the "+ Add as new firm" path stays unaffected.
   const [modalLockFirm, setModalLockFirm] = useState(false);
   const [inputBlurred, setInputBlurred] = useState(false);
+  // Handler dropdown — custom open state + positioning so we can render
+  // a styled menu like the firm picker uses (rather than a native select).
+  const [handlerOpen, setHandlerOpen] = useState(false);
+  const [handlerDropPos, setHandlerDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const handlerTriggerRef = useRef<HTMLButtonElement>(null);
+  const handlerWrapperRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -52,8 +58,11 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
       }
+      if (handlerWrapperRef.current && !handlerWrapperRef.current.contains(e.target as Node)) {
+        setHandlerOpen(false);
+      }
     }
-    function handleScroll() { setShowDropdown(false); }
+    function handleScroll() { setShowDropdown(false); setHandlerOpen(false); }
     document.addEventListener("mousedown", handleClick);
     window.addEventListener("scroll", handleScroll, true);
     return () => {
@@ -61,6 +70,14 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       window.removeEventListener("scroll", handleScroll, true);
     };
   }, []);
+
+  function openHandlerDropdown() {
+    if (handlerTriggerRef.current) {
+      const rect = handlerTriggerRef.current.getBoundingClientRect();
+      setHandlerDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    setHandlerOpen(true);
+  }
 
   // Sync query text when firm is set externally (e.g. memo auto-fill)
   useEffect(() => {
@@ -252,36 +269,57 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
           )}
         </div>
 
-        {/* Case handler dropdown */}
+        {/* Case handler dropdown — custom popover that matches the firm
+          * typeahead's style so "+ Add new case handler" sits inside the
+          * visible menu (not below a native browser select). */}
         {firmSelected && (
-          <div className="pl-3 space-y-2 border-l-2 border-blue-200/60">
+          <div ref={handlerWrapperRef} className="pl-3 space-y-2 border-l-2 border-blue-200/60 relative">
             {loadingHandlers ? (
               <p className="text-xs text-slate-900/40">Loading handlers…</p>
             ) : (
-              <select
-                value={value?.contactId ?? ""}
-                onChange={(e) => {
-                  if (e.target.value === "__ADD_NEW__") {
-                    // Reset select back to current value before opening modal
-                    // so the dropdown doesn't display "__ADD_NEW__" briefly.
-                    e.target.value = value?.contactId ?? "";
-                    handleAddHandler();
-                    return;
-                  }
-                  const h = handlers.find((h) => h.id === e.target.value) ?? null;
-                  if (h) selectHandler(h);
-                  else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
-                }}
-                className="glass-input w-full px-3 py-2.5 text-sm"
-              >
-                <option value="">
-                  {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
-                </option>
-                {handlers.map((h) => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
-                ))}
-                <option value="__ADD_NEW__">+ Add new case handler…</option>
-              </select>
+              <>
+                <button
+                  ref={handlerTriggerRef}
+                  type="button"
+                  onClick={() => (handlerOpen ? setHandlerOpen(false) : openHandlerDropdown())}
+                  className="glass-input w-full px-3 py-2.5 text-sm text-left"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+                >
+                  <span style={{ color: value?.contactName ? "var(--agent-text-primary)" : "rgba(15,23,42,0.45)" }}>
+                    {value?.contactName ?? (handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…")}
+                  </span>
+                  <span aria-hidden style={{ color: "rgba(15,23,42,0.35)" }}>▾</span>
+                </button>
+
+                {handlerOpen && handlerDropPos && typeof document !== "undefined" && createPortal(
+                  <div className="agent-dropdown-in" style={{ position: "fixed", top: handlerDropPos.top, left: handlerDropPos.left, width: handlerDropPos.width, zIndex: 9999, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
+                    {handlers.length === 0 ? (
+                      <p className="px-4 py-2.5 text-sm text-slate-900/40">No case handlers yet</p>
+                    ) : (
+                      handlers.map((h) => (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-white/40 transition-colors"
+                        >
+                          {h.name}
+                        </button>
+                      ))
+                    )}
+                    <div className="border-t border-white/20">
+                      <button
+                        type="button"
+                        onMouseDown={() => { handleAddHandler(); setHandlerOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-blue-500 hover:bg-white/40 font-medium flex items-center gap-2"
+                      >
+                        <span>+</span> Add new case handler
+                      </button>
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </>
             )}
 
             {value?.contactId && (

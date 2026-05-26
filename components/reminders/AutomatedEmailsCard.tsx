@@ -15,6 +15,7 @@
 // belonged inline alongside the other accordion cards.
 
 import { useState, type ReactNode } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
@@ -33,6 +34,12 @@ type Props = {
   // the bottom of the accordion that deep-links into the platform-wide
   // automated-emails feed, filtered to just this transaction.
   transactionId?: string;
+  // Optimistic suppression — milestone codes the parent has just snoozed
+  // (server roundtrip still in flight). The Upcoming list filters these out
+  // locally so snoozed chases vanish instantly instead of sitting there
+  // "as if they're going to send" for the few seconds before revalidation
+  // catches up.
+  optimisticallySnoozedCodes?: Set<string>;
 };
 
 // Compact day-label for the inline summary.
@@ -230,7 +237,16 @@ function EmptyLine({ text }: { text: string }) {
 
 // ─── Card component ──────────────────────────────────────────────────────
 
-export function AutomatedEmailsCard({ data, transactionId }: Props) {
+export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozedCodes }: Props) {
+  // Local filter: drop any Upcoming chase whose milestoneCode the parent
+  // has just optimistically snoozed. Pending + Sent today are unaffected
+  // (those are real queue rows that have already been written to DB).
+  const visibleUpcoming = optimisticallySnoozedCodes && optimisticallySnoozedCodes.size > 0
+    ? data.upcoming.filter((u) => !optimisticallySnoozedCodes.has(u.milestoneCode))
+    : data.upcoming;
+  const [pendingRef] = useAutoAnimate<HTMLDivElement>();
+  const [sentRef] = useAutoAnimate<HTMLDivElement>();
+  const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
   const [open, setOpen] = useState(false);
   const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
   const text = summaryText(data);
@@ -286,55 +302,61 @@ export function AutomatedEmailsCard({ data, transactionId }: Props) {
         <div className="agent-acc-in">
           {/* Pending now */}
           <SectionHeader label="Pending now" count={data.pending.length} accent="rgba(254, 215, 170, 0.20)" />
-          {data.pending.length === 0 ? (
-            <EmptyLine text="Nothing queued right now." />
-          ) : (
-            data.pending.map((p: PendingEmail) => (
-              <Row
-                key={p.id}
-                category={p.category}
-                primary={p.subject}
-                secondary={<ToWithRole name={getShortName({ name: p.recipientName })} role={p.recipientRole} />}
-                trailing={`Send ${formatDayAndTime(p.scheduledFor)}`}
-                previewLabel={p.category === "chase" ? "View / Edit" : "View"}
-                onPreview={() => setPreviewEmailId(p.id)}
-              />
-            ))
-          )}
+          <div ref={pendingRef}>
+            {data.pending.length === 0 ? (
+              <EmptyLine text="Nothing queued right now." />
+            ) : (
+              data.pending.map((p: PendingEmail) => (
+                <Row
+                  key={p.id}
+                  category={p.category}
+                  primary={p.subject}
+                  secondary={<ToWithRole name={getShortName({ name: p.recipientName })} role={p.recipientRole} />}
+                  trailing={`Send ${formatDayAndTime(p.scheduledFor)}`}
+                  previewLabel={p.category === "chase" ? "View / Edit" : "View"}
+                  onPreview={() => setPreviewEmailId(p.id)}
+                />
+              ))
+            )}
+          </div>
 
           {/* Sent today */}
           <SectionHeader label="Sent today" count={data.sentToday.length} accent="rgba(187, 247, 208, 0.20)" />
-          {data.sentToday.length === 0 ? (
-            <EmptyLine text="Nothing sent today yet." />
-          ) : (
-            data.sentToday.map((s: SentEmail) => (
-              <Row
-                key={s.id}
-                category={s.category}
-                primary={s.subject}
-                secondary={<ToWithRole name={getShortName({ name: s.recipientName })} role={s.recipientRole} />}
-                trailing={`Sent ${formatTime(s.sentAt)}`}
-                previewLabel="View"
-                onPreview={() => setPreviewEmailId(s.id)}
-              />
-            ))
-          )}
+          <div ref={sentRef}>
+            {data.sentToday.length === 0 ? (
+              <EmptyLine text="Nothing sent today yet." />
+            ) : (
+              data.sentToday.map((s: SentEmail) => (
+                <Row
+                  key={s.id}
+                  category={s.category}
+                  primary={s.subject}
+                  secondary={<ToWithRole name={getShortName({ name: s.recipientName })} role={s.recipientRole} />}
+                  trailing={`Sent ${formatTime(s.sentAt)}`}
+                  previewLabel="View"
+                  onPreview={() => setPreviewEmailId(s.id)}
+                />
+              ))
+            )}
+          </div>
 
           {/* Upcoming */}
-          <SectionHeader label="Upcoming (predicted)" count={data.upcoming.length} accent="rgba(15, 23, 42, 0.04)" />
-          {data.upcoming.length === 0 ? (
-            <EmptyLine text="Nothing predicted in the next 14 days." />
-          ) : (
-            data.upcoming.map((u: UpcomingChase, i: number) => (
-              <Row
-                key={`${u.contactId}-${u.milestoneCode}-${i}`}
-                category="chase"
-                primary={`${u.milestoneLabel} chase`}
-                secondary={<><ToWithRole name={getShortName({ name: u.contactName })} role={u.contactRole} /><span>· chase {u.chaseNumber} of 2</span></>}
-                trailing={formatDayAndTime(u.predictedFireDate)}
-              />
-            ))
-          )}
+          <SectionHeader label="Upcoming (predicted)" count={visibleUpcoming.length} accent="rgba(15, 23, 42, 0.04)" />
+          <div ref={upcomingRef}>
+            {visibleUpcoming.length === 0 ? (
+              <EmptyLine text="Nothing predicted in the next 14 days." />
+            ) : (
+              visibleUpcoming.map((u: UpcomingChase, i: number) => (
+                <Row
+                  key={`${u.contactId}-${u.milestoneCode}-${i}`}
+                  category="chase"
+                  primary={`${u.milestoneLabel} chase`}
+                  secondary={<><ToWithRole name={getShortName({ name: u.contactName })} role={u.contactRole} /><span>· chase {u.chaseNumber} of 2</span></>}
+                  trailing={formatDayAndTime(u.predictedFireDate)}
+                />
+              ))
+            )}
+          </div>
 
           {/* Caveat */}
           <p style={{ padding: "14px 20px 8px", margin: 0, fontSize: 11, color: "var(--agent-text-muted, rgba(15,23,42,0.50))", lineHeight: 1.5 }}>

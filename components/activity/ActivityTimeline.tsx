@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { formatDate, formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction } from "@/app/actions/comms";
@@ -110,6 +111,17 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId]   = useState<string | null>(null);
+  // Optimistic delete: after the fade-out animation, drop the entry from
+  // the rendered list immediately rather than waiting for the server-side
+  // revalidate to bring fresh entries back. Reset when the prop entries
+  // refresh (server data caught up).
+  const [locallyRemovedIds, setLocallyRemovedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setLocallyRemovedIds(new Set());
+  }, [entries]);
+  // Auto-animate the entry list — siblings collapse smoothly when an
+  // entry is removed (delete) or when filter/search shrinks the set.
+  const [listRef] = useAutoAnimate<HTMLDivElement>();
   const [showAll, setShowAll]       = useState(false);
   const [filter, setFilter]         = useState<FilterKind>("all");
   const [search, setSearch]         = useState("");
@@ -126,6 +138,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   }
 
   const filtered = entries.filter((entry) => {
+    // Skip entries the user just deleted (server roundtrip in flight).
+    if (locallyRemovedIds.has(entry.id)) return false;
     if (!showPortalVisits && isPortalView(entry)) return false;
     if (filter === "milestones" && entry.kind !== "milestone") return false;
     if (filter === "comms"      && (entry.kind !== "comm" || entry.type === "internal_note" || entry.isAutomated)) return false;
@@ -148,6 +162,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   function deleteComm(id: string) {
     setExitingId(id);
     setTimeout(() => {
+      // Remove from local view immediately so the entry disappears even
+      // before the server-side revalidate brings fresh entries back.
+      // auto-animate on the list container handles the collapse.
+      setLocallyRemovedIds((prev) => new Set([...prev, id]));
       setDeletingId(id);
       startTransition(async () => {
         try { await deleteCommAction(id, transactionId); }
@@ -209,7 +227,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
           {/* Vertical line */}
           <div className="absolute top-2 bottom-2 w-px" style={{ left: 3, background: "var(--agent-border-default)" }} />
 
-          <div className="space-y-2">
+          <div ref={listRef} className="space-y-2">
             {visible.map((entry, idx) => (
               <div
                 key={entry.id}

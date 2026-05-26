@@ -312,19 +312,21 @@ function SideColumn({
   address: string;
   contacts: AgentReminderLog["transaction"]["contacts"];
   loading: string | null;
+  // Below allows the optimistic hide to also tell the parent which log to drop.
+  // handleChased signature carries an optional logId.
   exitingIds: Set<string>;
   handleComplete: (taskId: string) => void;
   handleSnooze: (taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
-  handleChased: (taskId: string) => void;
+  handleChased: (taskId: string, logId?: string) => void;
   hideChase?: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Optimistic chase-count overlay so the ↻ Chased button feels instant.
   const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
-  function optimisticChase(taskId: string, baseCount: number) {
+  function optimisticChase(taskId: string, logId: string, baseCount: number) {
     setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
-    handleChased(taskId);
+    handleChased(taskId, logId);
   }
 
   const isSeller = side === "seller";
@@ -461,7 +463,7 @@ function SideColumn({
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
               <button
-                onClick={() => optimisticChase(task.id, task.chaseCount)}
+                onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
                 disabled={isExiting}
                 title="Mark as chased — advances the next chase date without sending an email"
                 className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
@@ -543,7 +545,8 @@ function SideColumn({
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
           onSent={() => {
-            allTaskIds.forEach((id) => handleChased(id));
+            // Bulk chase via drawer — pass log IDs so all chased rows hide.
+            openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
             setDrawerOpen(false);
           }}
         />
@@ -820,7 +823,18 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
     }, 150);
   }
   function handleManualChase(taskId: string) { act(taskId, () => recordManualChaseAction(taskId, "/agent/work-queue")); }
-  function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, "/agent/work-queue")); }
+  function handleChased(taskId: string, logId?: string) {
+    // Optimistic hide — chased row vanishes from the work queue
+    // immediately. Server updates nextDueDate so it'll resurface in the
+    // upcoming bucket when due again.
+    if (logId) {
+      setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+      setTimeout(() => {
+        setHiddenIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
+      }, 150);
+    }
+    act(taskId, () => advanceChaseTaskAction(taskId, "/agent/work-queue"));
+  }
 
   function toggleCollapse(key: string) {
     setCollapsed((p) => ({ ...p, [key]: !p[key] }));

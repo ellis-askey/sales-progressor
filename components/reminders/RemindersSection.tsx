@@ -334,7 +334,7 @@ function ColumnSection({
   handleComplete: (logId: string, taskId: string) => void;
   handleSnooze: (logId: string, taskId: string, hours: number) => void;
   handleSnoozeAll: (logIds: string[], taskIds: string[], hours: number) => void;
-  handleChased: (taskId: string) => void;
+  handleChased: (taskId: string, logId?: string) => void;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
@@ -343,9 +343,9 @@ function ColumnSection({
   // background. When the props refresh (server data lands), the prop
   // chaseCount is >= our optimistic value so the overlay falls back.
   const [optimisticChases, setOptimisticChases] = useState<Record<string, number>>({});
-  function optimisticChase(taskId: string, baseCount: number) {
+  function optimisticChase(taskId: string, logId: string, baseCount: number) {
     setOptimisticChases((prev) => ({ ...prev, [taskId]: (prev[taskId] ?? baseCount) + 1 }));
-    handleChased(taskId);
+    handleChased(taskId, logId);
   }
   const isSeller = side === "seller";
   const columnBg = isSeller ? "rgba(251,146,60,0.06)" : "rgba(59,130,246,0.06)";
@@ -448,7 +448,7 @@ function ColumnSection({
                 <>
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
                   <button
-                    onClick={() => optimisticChase(task.id, task.chaseCount)}
+                    onClick={() => optimisticChase(task.id, log.id, task.chaseCount)}
                     title="Mark as chased — advances the next chase date without sending an email"
                     style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
                   >
@@ -493,7 +493,8 @@ function ColumnSection({
           milestones={milestones.length > 1 ? milestones : undefined}
           onClose={() => setDrawerOpen(false)}
           onSent={() => {
-            allTaskIds.forEach((id) => handleChased(id));
+            // Bulk chase via drawer — pass log IDs too so all rows hide.
+            openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
             setDrawerOpen(false);
           }}
         />
@@ -519,11 +520,19 @@ export function RemindersSection({
   // (attached to the list containers below) handles the fade-out + sibling
   // reflow. Reset whenever fresh server data arrives.
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  // Optimistic snooze → milestone code suppression. When a row is hidden
+  // by snooze, we also stash the row's target milestone code here so the
+  // AutomatedEmailsCard can locally filter its Upcoming list — the
+  // matching upcoming-chase entry vanishes the instant the snooze fires
+  // instead of sitting there during the server roundtrip.
+  const [optimisticallySnoozedCodes, setOptimisticallySnoozedCodes] = useState<Set<string>>(new Set());
   useEffect(() => {
     setHiddenIds(new Set());
+    setOptimisticallySnoozedCodes(new Set());
   }, [reminderLogs]);
   const [snoozedListRef] = useAutoAnimate<HTMLDivElement>();
   const [completedListRef] = useAutoAnimate<HTMLDivElement>();
+  const [groupsRef] = useAutoAnimate<HTMLDivElement>();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     escalated: false,
     overdue: false,
@@ -587,6 +596,11 @@ export function RemindersSection({
     // misfire when a user clicks the menu option in rapid succession).
     if (loading === taskId) return;
     setHiddenIds((prev) => new Set([...prev, logId]));
+    // Stash the milestone code so the auto-emails preview can suppress
+    // matching upcoming chases instantly.
+    const log = reminderLogs.find((l) => l.id === logId);
+    const code = log?.reminderRule.targetMilestoneCode;
+    if (code) setOptimisticallySnoozedCodes((prev) => new Set([...prev, code]));
     setLoading(taskId);
     toast.success(snoozeToastLabel(hours));
     startTransition(async () => {
@@ -598,6 +612,13 @@ export function RemindersSection({
   function handleSnoozeAll(logIds: string[], taskIds: string[], hours: number) {
     if (taskIds.length === 0) return;
     setHiddenIds((prev) => new Set([...prev, ...logIds]));
+    // Same optimistic milestone-code suppression for bulk snooze.
+    const codes = logIds
+      .map((id) => reminderLogs.find((l) => l.id === id)?.reminderRule.targetMilestoneCode)
+      .filter((c): c is string => !!c);
+    if (codes.length > 0) {
+      setOptimisticallySnoozedCodes((prev) => new Set([...prev, ...codes]));
+    }
     setLoading(taskIds[0] ?? "");
     toast.success(`${taskIds.length} ${taskIds.length === 1 ? "reminder" : "reminders"} ${snoozeToastLabel(hours).toLowerCase()}`);
     startTransition(async () => {
@@ -615,7 +636,14 @@ export function RemindersSection({
     });
   }
 
-  function handleChased(taskId: string) { act(taskId, () => advanceChaseTaskAction(taskId, pathname)); }
+  function handleChased(taskId: string, logId?: string) {
+    // Optimistic hide — chased reminders disappear immediately; the
+    // server bumps nextDueDate by repeatEveryDays, so on the next prop
+    // refresh the row appears in the "Coming up" group instead of where
+    // it was. The user sees "I chased it → it's gone for now".
+    if (logId) setHiddenIds((prev) => new Set([...prev, logId]));
+    act(taskId, () => advanceChaseTaskAction(taskId, pathname));
+  }
 
   async function runEngine() {
     setLoading("engine");
@@ -656,7 +684,11 @@ export function RemindersSection({
         * a right-side drawer with pending + sent today + predicted upcoming.
         * Only renders when the loader supplied data (optional prop). */}
       {automatedEmails && (
-        <AutomatedEmailsCard data={automatedEmails} transactionId={transactionId} />
+        <AutomatedEmailsCard
+          data={automatedEmails}
+          transactionId={transactionId}
+          optimisticallySnoozedCodes={optimisticallySnoozedCodes}
+        />
       )}
 
       {/* Empty state */}
@@ -667,7 +699,10 @@ export function RemindersSection({
         </div>
       )}
 
-      {/* Urgency groups */}
+      {/* Urgency groups — wrapped so when a whole group empties out
+        * (e.g. last row snoozed/chased), the sibling sections collapse
+        * smoothly instead of snapping. */}
+      <div ref={groupsRef} className="space-y-3">
       {(["escalated", "overdue", "due_today", "upcoming"] as const).map((groupKey) => {
         const logs = grouped[groupKey];
         if (logs.length === 0) return null;
@@ -703,6 +738,7 @@ export function RemindersSection({
           </div>
         );
       })}
+      </div>
 
       {/* Snoozed */}
       {snoozedLogs.length > 0 && (

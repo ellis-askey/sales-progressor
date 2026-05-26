@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X, CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { titleCase, normalizePhone } from "@/lib/utils";
+import { SavingPulse } from "@/components/ui/SavingPulse";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
 type Firm = { id: string; name: string };
@@ -276,8 +277,13 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
               type="submit"
               disabled={!firmName.trim() || !handlerName.trim() || !handlerPhone.trim() || !handlerEmail.trim() || loading}
               className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              {loading ? "Saving…" : "Save firm"}
+              {loading ? (
+                <SavingPulse label="Saving…" tone="muted" />
+              ) : (
+                <>Save firm</>
+              )}
             </button>
           </div>
         </form>

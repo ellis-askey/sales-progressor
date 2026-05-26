@@ -5,6 +5,7 @@ import { PencilSimple } from "@phosphor-icons/react";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { SavingPulse } from "@/components/ui/SavingPulse";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -397,7 +398,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Solicitors</h3>
-          {(saving || isPending) && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Saving…</span>}
+          {(saving || isPending) && <SavingPulse />}
         </div>
       </div>
 

@@ -271,54 +271,72 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
         document.body
       )}
 
-      {/* ── On-hold date modal ────────────────────────────────── */}
+      {/* ── On-hold date modal — matches AddFirmModal chrome ──── */}
       {showHoldModal && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowHoldModal(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setShowHoldModal(false)} />
+
           <div
-            className="relative bg-white rounded-2xl w-full max-w-sm p-6"
-            style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.12)", animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both" }}
+            className="rounded-2xl w-full max-w-md"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              background: "var(--agent-surface-elevated)",
+              border: "0.5px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900">Put file on hold</p>
-              <p className="text-xs text-slate-500 mt-1">Pick a return date and we&apos;ll surface this file on the hub when it&apos;s due — so it doesn&apos;t get forgotten.</p>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
+              <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Put file on hold</h2>
+              <button type="button" onClick={() => setShowHoldModal(false)} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">×</button>
             </div>
 
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Return date
-            </label>
-            <input
-              type="date"
-              value={holdDate}
-              onChange={(e) => setHoldDate(e.target.value)}
-              min={tomorrow()}
-              autoFocus
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
-            />
+            <div className="px-6 py-5">
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 16px", lineHeight: 1.5 }}>
+                Pick a return date and we&apos;ll surface this file on the hub when it&apos;s due — so it doesn&apos;t get forgotten.
+              </p>
 
-            <div className="flex gap-2 pt-4">
+              <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                Return date
+              </label>
+              <input
+                type="date"
+                value={holdDate}
+                onChange={(e) => setHoldDate(e.target.value)}
+                min={tomorrow()}
+                autoFocus
+                className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+              />
+
+              <div className="flex gap-3 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowHoldModal(false)}
+                  className="px-4 py-2.5 text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmHoldDate}
+                  disabled={!holdDate}
+                  className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
+                >
+                  Put on hold
+                </button>
+              </div>
+
               <button
-                onClick={() => setShowHoldModal(false)}
-                className="flex-1 agent-btn-ghost-bordered"
+                type="button"
+                onClick={confirmHoldIndefinite}
+                className="w-full mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                onClick={confirmHoldDate}
-                disabled={!holdDate}
-                className="flex-1 py-2 text-sm font-semibold text-white bg-slate-700 rounded-lg hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Put on hold
+                Or hold indefinitely (won&apos;t auto-surface)
               </button>
             </div>
-
-            <button
-              onClick={confirmHoldIndefinite}
-              className="w-full mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              Or hold indefinitely (won&apos;t auto-surface)
-            </button>
           </div>
         </div>,
         document.body

@@ -23,6 +23,7 @@ import {
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { ExpiredHoldsCard } from "@/components/hub/ExpiredHoldsCard";
+import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
@@ -342,14 +343,14 @@ export default async function HubPreviewPage() {
           </div>
         )}
 
-        {/* ── 3. Holds needing attention (only renders when non-empty) ────────── */}
-        <ExpiredHoldsCard initialItems={expiredHolds} />
-
-        {/* ── 4. Needs your attention ───────────────────────────────────────────── */}
-        <AttentionListView items={attentionItems} />
-
-        {/* ── 5. Unassigned outsourced files (admin only) ───────────────────────── */}
-        <UnassignedFilesView initialFiles={unassignedFiles} />
+        {/* ── 3-5. Attention stack — wrapped so when ExpiredHoldsCard
+          * collapses out, AttentionListView + UnassignedFilesView shift
+          * up smoothly instead of snapping. ────────────────────────── */}
+        <AnimatedSection>
+          <ExpiredHoldsCard initialItems={expiredHolds} />
+          <AttentionListView items={attentionItems} />
+          <UnassignedFilesView initialFiles={unassignedFiles} />
+        </AnimatedSection>
 
         {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
         <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
