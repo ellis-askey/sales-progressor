@@ -126,12 +126,15 @@ export default async function TransactionDetailPage({
     )
     .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
-  // Key event dates from completed milestones with event dates
+  // Key event dates — only milestones whose definition carries
+  // eventDateRequired (survey/valuation/mortgage offer/exchange/completion
+  // target). Without the eventDateRequired guard the sidebar surfaces every
+  // step that happens to have an eventDate populated — see PRODUCT_TRUTH.md.
   const keyDates = [
     ...(milestoneData?.vendor ?? []),
     ...(milestoneData?.purchaser ?? []),
   ]
-    .filter((m) => m.completion?.eventDate)
+    .filter((m) => m.eventDateRequired && m.completion?.eventDate)
     .map((m) => ({
       name: m.name,
       eventDate: m.completion!.eventDate as Date,
