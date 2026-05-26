@@ -23,7 +23,11 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
     select: {
       id: true,
       name: true,
+      // isMigrated:false on both sides — solicitor performance averages
+      // (avgWeeksToExchange, avgDaysSearches) would be polluted by backdated
+      // migration files whose timestamps were estimates, not real signals.
       vendorForTransactions: {
+        where: { isMigrated: false },
         select: {
           id: true,
           createdAt: true,
@@ -38,6 +42,7 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
         },
       },
       purchaserForTransactions: {
+        where: { isMigrated: false },
         select: {
           id: true,
           createdAt: true,

@@ -29,11 +29,12 @@ async function getSourceStats(start: Date, end: Date): Promise<{ baseline: numbe
 
   if (agencies.length === 0) return { baseline: 0, sources: [] };
 
-  // Check which agencies activated (created at least one transaction)
+  // Check which agencies activated (created at least one transaction).
+  // Migrated files don't count — they're admin-injected, not user activation.
   const activatedIds = new Set<string>();
   const activated = await prisma.propertyTransaction.groupBy({
     by: ["agencyId"],
-    where: { agencyId: { in: agencies.map((a) => a.id) } },
+    where: { agencyId: { in: agencies.map((a) => a.id) }, isMigrated: false },
     _count: { id: true },
   });
   for (const r of activated) if (r.agencyId) activatedIds.add(r.agencyId);

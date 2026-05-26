@@ -242,6 +242,15 @@ model PropertyTransaction {
   brokerReferralFee            Int?
   brokerReferralFeeReceived    Boolean               @default(false)
   purchaserBrokerReferral      Boolean               @default(false)
+
+  // True when this file was added via the admin Migrate Sale page rather
+  // than the standard create flow. Used to EXCLUDE backdated/historical
+  // files from milestone-velocity analytics — their completedAt timestamps
+  // are user-supplied estimates, not real-time signals, so averaging them
+  // against organic files pollutes "time between milestone X and Y"
+  // statistics. Set true by the migration action; defaults false.
+  isMigrated                   Boolean           @default(false)
+
   lastActivityAt               DateTime?
 
   // Per-file pause toggle for automated client-facing chase emails. When

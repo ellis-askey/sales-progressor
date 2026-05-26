@@ -53,7 +53,11 @@ export type AnalyticsData = {
 export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
   const [transactions, exchangeDefs] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      where: { agencyId, status: { not: "draft" } },
+      // isMigrated: false → exclude admin-migrated historical files from
+      // averages. Their milestone completedAt timestamps are user-supplied
+      // estimates, not real-time signals; averaging them against organic
+      // files pollutes "average days to exchange" etc.
+      where: { agencyId, status: { not: "draft" }, isMigrated: false },
       select: {
         id: true,
         status: true,
@@ -287,12 +291,14 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
 
   const [txsInWindow, exchangesInWindow] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      where: { ...txWhere, status: { not: "draft" }, createdAt: { gte: windowStart } },
+      // isMigrated:false — monthly created/exchanged trend must reflect
+      // activity in THIS system, not backdated historical data.
+      where: { ...txWhere, status: { not: "draft" }, isMigrated: false, createdAt: { gte: windowStart } },
       select: { createdAt: true },
     }),
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: { ...txWhere, status: { not: "draft" } },
+        transaction: { ...txWhere, status: { not: "draft" }, isMigrated: false },
         milestoneDefinitionId: { in: exchangeDefIds },
         state: "complete",
         reconciledAtClaim: false,
@@ -333,6 +339,9 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
   const txs = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhere,
+      // Migrated files have user-supplied completedAt estimates; excluding
+      // them keeps per-solicitor avgDaysToExchange honest.
+      isMigrated: false,
       OR: [{ vendorSolicitorFirmId: { not: null } }, { purchaserSolicitorFirmId: { not: null } }],
       milestoneCompletions: {
         some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
@@ -426,14 +435,17 @@ export async function getKpiTrendsForAgency(
 
   const [txsInWindow, exchangesInWindow, completionsInWindow] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      where: { ...txWhere, status: { not: DRAFT }, createdAt: { gte: windowStart, lt: rangeEnd } },
+      // isMigrated:false — migrated files have backdated createdAt that would
+      // inject fake submissions into past weekly buckets; KPI sparklines must
+      // reflect activity that actually happened in this system.
+      where: { ...txWhere, status: { not: DRAFT }, isMigrated: false, createdAt: { gte: windowStart, lt: rangeEnd } },
       select: { createdAt: true, purchasePrice: true },
     }),
     // Exclude reconciledAtExchange completions — Fix 5 risk callout: sweep completions
     // added during bilateral exchange reconciliation corrupt trend counts.
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: { ...txWhere, status: { not: DRAFT } },
+        transaction: { ...txWhere, status: { not: DRAFT }, isMigrated: false },
         milestoneDefinitionId: { in: exchangeDefIds },
         state: "complete",
         reconciledAtExchange: false,
@@ -444,7 +456,7 @@ export async function getKpiTrendsForAgency(
     }),
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: { ...txWhere, status: { not: DRAFT } },
+        transaction: { ...txWhere, status: { not: DRAFT }, isMigrated: false },
         milestoneDefinitionId: { in: completionDefIds },
         state: "complete",
         reconciledAtExchange: false,
@@ -542,7 +554,7 @@ export async function getAvgDaysToExchange(
 
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
-      transaction: { ...txWhere, status: { not: DRAFT } },
+      transaction: { ...txWhere, status: { not: DRAFT }, isMigrated: false },
       milestoneDefinitionId: { in: exchangeDefs.map((d) => d.id) },
       state: "complete",
       reconciledAtExchange: false,

@@ -37,7 +37,9 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
     }),
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: { agencyId },
+        // Weekly report excludes migrated files so "milestones completed
+        // this week" reflects work actually progressed in-system.
+        transaction: { agencyId, isMigrated: false },
         state: "complete",
         completedAt: { gte: periodStart },
       },
@@ -49,7 +51,7 @@ export async function getWeeklyReport(agencyId: string): Promise<WeeklyReport> {
       orderBy: { completedAt: "desc" },
     }),
     prisma.propertyTransaction.findMany({
-      where: { agencyId, status: { not: "draft" }, createdAt: { gte: periodStart } },
+      where: { agencyId, status: { not: "draft" }, isMigrated: false, createdAt: { gte: periodStart } },
       select: { id: true, propertyAddress: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),
