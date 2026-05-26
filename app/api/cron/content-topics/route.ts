@@ -14,9 +14,15 @@ export async function GET(req: NextRequest) {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  // Gather recent milestone completions
+  // Gather recent milestone completions (organic only — migrated rows are
+  // backdated bulk inserts that would suggest fake "activity" to the topic
+  // generator).
   const recentCompletions = await prisma.milestoneCompletion.findMany({
-    where: { completedAt: { gte: sevenDaysAgo }, state: "complete" },
+    where: {
+      completedAt: { gte: sevenDaysAgo },
+      state: "complete",
+      transaction: { isMigrated: false },
+    },
     select: {
       milestoneDefinition: { select: { name: true, side: true } },
     },
@@ -28,7 +34,7 @@ export async function GET(req: NextRequest) {
   const txnGroups = await prisma.propertyTransaction.groupBy({
     by: ["status"],
     _count: { id: true },
-    where: { status: { in: ["active", "on_hold"] } },
+    where: { status: { in: ["active", "on_hold"] }, isMigrated: false },
   });
 
   // How many pending topics already in queue

@@ -377,9 +377,12 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
       });
       if (!oldestTx || oldestTx.createdAt > cutoff3d) continue;
 
-      // Zero complete milestone completions on any of this user's transactions
+      // Zero complete milestone completions on any of this user's ORGANIC
+      // transactions (migrated files have bulk historical completions that
+      // would falsely mark a user as "active" — but they haven't progressed
+      // anything in-system yet, so the retention nudge still applies).
       const agentTxIds = await prisma.propertyTransaction.findMany({
-        where: { agentUserId: user.id },
+        where: { agentUserId: user.id, isMigrated: false },
         select: { id: true },
       });
       const txIds = agentTxIds.map((t) => t.id);

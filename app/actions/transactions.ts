@@ -135,6 +135,7 @@ export async function createTransactionAction(input: {
     brokerContactId: input.brokerContactId ?? null,
     brokerReferralFee: input.brokerReferralFee ?? null,
     purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
+    isMigrated: hasMigrationOverride,
   });
 
   if (input.contacts.length > 0) {

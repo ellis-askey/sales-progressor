@@ -125,9 +125,13 @@ async function computeMetricsForScope(
   // Transaction filter (agencyId + modeProfile + serviceType).
   // Always exclude transactions belonging to internal agencies so the global
   // and mode/serviceType-scoped rollups reflect real customer activity only.
+  // isMigrated: false excludes admin-migrated historical files — their
+  // createdAt + milestone completedAt are user estimates that would inject
+  // fake activity into past daily/weekly windows.
   const txFilter: Record<string, unknown> = {
     ...agencyFilter,
     ...excludeInternalAgency,
+    isMigrated: false,
     ...(scope.serviceType !== null && { serviceType: scope.serviceType }),
   };
 

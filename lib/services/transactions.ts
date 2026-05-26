@@ -651,6 +651,10 @@ export type CreateTransactionInput = {
   brokerContactId?: string | null;
   brokerReferralFee?: number | null;
   purchaserBrokerReferral?: boolean;
+  // True when the file is being created via the admin Migrate Sale page.
+  // Excludes the row from milestone-velocity analytics — backdated
+  // completedAt timestamps would pollute averages otherwise.
+  isMigrated?: boolean;
 };
 
 // Build a chaseRuleSnapshot from the current ReminderRule rows. Forward-only
@@ -744,6 +748,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       purchasePrice: input.purchasePrice ?? null,
       tenure: input.tenure ?? null,
       isShareOfFreehold: input.isShareOfFreehold ?? false,
+      isMigrated: input.isMigrated ?? false,
       purchaseType: input.purchaseType ?? null,
       notes: input.notes ?? null,
       vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,

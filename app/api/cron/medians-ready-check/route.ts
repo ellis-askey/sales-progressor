@@ -44,8 +44,15 @@ export async function GET(req: NextRequest) {
 
   // 2. Broad readiness check — count distinct transactions with ≥1
   //    non-reconciled completion. Cheap aggregate query.
+  //    Migrated files excluded: their user-supplied historical timestamps
+  //    would prematurely trip the 50-tx threshold without giving real
+  //    samples, and would skew the median when finally computed.
   const txnsWithActivity = await prisma.milestoneCompletion.findMany({
-    where: { state: "complete", reconciledAtClaim: false },
+    where: {
+      state: "complete",
+      reconciledAtClaim: false,
+      transaction: { isMigrated: false },
+    },
     select: { transactionId: true },
     distinct: ["transactionId"],
   });
@@ -57,8 +64,13 @@ export async function GET(req: NextRequest) {
   // 3. Threshold crossed — compute per-milestone median + sample size.
   //    Load all non-reconciled "complete" rows grouped by transaction so we
   //    can compute each milestone's becameAvailableAt proxy locally.
+  //    Migrated transactions excluded (matches the readiness check above).
   const allCompletions = await prisma.milestoneCompletion.findMany({
-    where: { state: "complete", reconciledAtClaim: false },
+    where: {
+      state: "complete",
+      reconciledAtClaim: false,
+      transaction: { isMigrated: false },
+    },
     select: {
       transactionId: true,
       completedAt: true,
