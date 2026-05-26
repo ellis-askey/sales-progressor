@@ -9,6 +9,41 @@ import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type A
 import { toUKDateStr } from "@/lib/utils";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 
+// ─── UK chase-time helper ───────────────────────────────────────────────────
+//
+// Normalises a Date to 09:30 in Europe/London on the same calendar day.
+// All chase tasks fire in the morning batch — the time component of
+// nextDueDate / chaseTask.dueDate / snoozedUntil should reflect that
+// intent rather than inheriting from arbitrary anchor timestamps (which
+// previously surfaced as "due 01:00" in the UI when a milestone happened
+// to be confirmed late at night).
+//
+// Implementation: get the UK calendar date string, construct a candidate
+// at 09:30 UTC on that date, then check what UK time the candidate
+// represents (BST = UTC+1 in summer, GMT = UTC+0 in winter) and adjust.
+// Idempotent — re-applying to an already-normalised date is a no-op.
+export function setUkChaseTime(d: Date): Date {
+  const ukDateStr = toUKDateStr(d);            // "YYYY-MM-DD" in Europe/London
+  const [y, m, dd] = ukDateStr.split("-").map(Number);
+
+  // Candidate at 09:30 UTC on the target UK calendar day.
+  const candidate = new Date(Date.UTC(y, (m as number) - 1, dd, 9, 30, 0, 0));
+
+  // Format candidate in Europe/London; if hour > 9 we're in BST and need
+  // to subtract the offset to land on 09:30 UK.
+  const ukHourStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    hour12: false,
+  }).format(candidate);
+  const ukHour = parseInt(ukHourStr, 10);
+  const offsetHours = ukHour - 9;
+  if (offsetHours !== 0) {
+    candidate.setUTCHours(candidate.getUTCHours() - offsetHours);
+  }
+  return candidate;
+}
+
 // ─── Public read helpers (server-only) ───────────────────────────────────────
 
 // Returns a map of milestone code → graceDays (smallest across active rules
@@ -311,13 +346,29 @@ export async function evaluateTransactionReminders(transactionId: string) {
       anchorDate = transaction.createdAt;
     }
 
-    // Calculate first due date: anchor + graceDays
-    const firstDueDate = addDays(anchorDate, rule.graceDays);
+    // Calculate first due date: anchor + graceDays, normalised to 09:30 UK
+    // on the resulting calendar day (so chases fire in the morning batch
+    // rather than at the random hour the anchor milestone was confirmed).
+    const firstDueDate = setUkChaseTime(addDays(anchorDate, rule.graceDays));
 
     // Find existing active log
     const existingLog = await prisma.reminderLog.findFirst({
       where: { transactionId, reminderRuleId: rule.id, status: "active" },
     });
+
+    // Wake snoozed-but-elapsed logs in-line. Previously a snoozed log only
+    // woke when the wake cron ran (or via wakeUpReminderLog called
+    // explicitly) — which left "wakes 26 May" reminders still snoozed on
+    // pages loaded on 26 May, until the next cron pass. Clearing here means
+    // every page render that touches evaluateTransactionReminders also
+    // wakes anything past its snooze.
+    if (existingLog && existingLog.snoozedUntil && existingLog.snoozedUntil.getTime() <= Date.now()) {
+      await prisma.reminderLog.update({
+        where: { id: existingLog.id },
+        data: { snoozedUntil: null },
+      });
+      existingLog.snoozedUntil = null;
+    }
 
     if (existingLog) {
       // Update if due date shifted significantly (e.g. event_date changed)
@@ -427,12 +478,14 @@ export async function createInitialRemindersInline(
     data: eligibleRules.map((rule) => {
       const dueDate = new Date(createdAt);
       dueDate.setDate(dueDate.getDate() + rule.graceDays);
-      dueDate.setUTCHours(0, 0, 0, 0);
+      // Normalise to 09:30 UK on the resulting day so the chase enters
+      // the morning batch (rather than inheriting createdAt's hour).
+      const normalised = setUkChaseTime(dueDate);
       return {
         transactionId,
         reminderRuleId: rule.id,
         status: "active" as const,
-        nextDueDate: dueDate,
+        nextDueDate: normalised,
         sourceDateUsed: createdAt,
       };
     }),
@@ -647,7 +700,11 @@ export async function snoozeReminderLog(taskId: string, snoozeHours: number, sco
   });
   if (!task) throw new Error("Task not found");
 
-  const snoozedUntil = new Date(Date.now() + snoozeHours * 60 * 60 * 1000);
+  // Snooze: add the requested hours from now, then normalise the resulting
+  // date+time to 09:30 UK on the wake-up calendar day. Without this,
+  // snoozing at e.g. 21:00 with snoozeHours=24 would set the wake at 21:00
+  // the next day — chase fires late evening instead of morning batch.
+  const snoozedUntil = setUkChaseTime(new Date(Date.now() + snoozeHours * 60 * 60 * 1000));
 
   await prisma.chaseTask.update({
     where: { id: taskId },
@@ -669,7 +726,7 @@ export async function wakeUpReminderLog(logId: string, scope: AccessScope) {
 
   await prisma.reminderLog.update({
     where: { id: logId },
-    data: { snoozedUntil: null, nextDueDate: new Date() },
+    data: { snoozedUntil: null, nextDueDate: setUkChaseTime(new Date()) },
   });
 }
 

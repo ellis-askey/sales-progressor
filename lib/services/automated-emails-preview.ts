@@ -15,6 +15,7 @@
 import { prisma } from "@/lib/prisma";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { CLIENT_CHASE_COUNT_CAP, CLIENT_CHASE_GRACE_FLOOR_DAYS } from "@/lib/services/client-chase-cron";
+import { setUkChaseTime } from "@/lib/services/reminders";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import type { ContactRole } from "@prisma/client";
 
@@ -264,7 +265,9 @@ export async function getAutomatedEmailsForTransaction(
     const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
     if (repeat == null) continue;
     const candidate = addDays(row.lastChasedAt, repeat);
-    const predicted = nextNonSundayFrom(candidate);
+    // Normalise to 09:30 UK so the preview matches the actual send time
+    // (cron uses setUkChaseTime when scheduling chase tasks).
+    const predicted = setUkChaseTime(nextNonSundayFrom(candidate));
     if (predicted > upcomingHorizon) continue;
     upcoming.push({
       contactId: row.contactId,
@@ -328,7 +331,7 @@ export async function getAutomatedEmailsForTransaction(
       let firstDue = addDays(anchorDate, grace);
       // Past-due → normalise to today; cron will fire on the next non-Sunday run.
       if (firstDue < todayStart) firstDue = todayStart;
-      firstDue = nextNonSundayFrom(firstDue);
+      firstDue = setUkChaseTime(nextNonSundayFrom(firstDue));
       if (firstDue > upcomingHorizon) continue;
 
       // Recipient side from code prefix (matches cron's sideForMilestoneCode)

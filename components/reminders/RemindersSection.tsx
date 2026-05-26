@@ -119,7 +119,14 @@ function addBusinessDays(from: Date, days: number): Date {
 }
 
 function stripChase(name: string) {
-  return name.replace(/^Chase:\s*/i, "");
+  // Strip the "Chase: " prefix AND any " (seller)" / " (buyer)" side suffix.
+  // Reminder rules in the DB are still disambiguated by side suffix (e.g.
+  // "Chase: Management pack received (buyer)" vs "(seller)") but the
+  // RemindersSection renders each card under an explicit Seller / Buyer
+  // column header, so the suffix is redundant in the row title.
+  return name
+    .replace(/^Chase:\s*/i, "")
+    .replace(/\s*\((?:buyer|seller)\)\s*$/i, "");
 }
 
 function classifyActive(log: ReminderLog, todayStr: string): UrgencyGroup {

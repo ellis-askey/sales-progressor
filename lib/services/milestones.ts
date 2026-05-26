@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
-import { autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
+import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
 import { touchLastActivity } from "@/lib/services/activity";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
@@ -816,6 +816,16 @@ export async function markNotRequired(
       content: `${completedByName} marked "${def?.name ?? "milestone"}" as not required. Reason: ${reason}`,
       createdById: completedById,
     },
+  });
+
+  // Re-evaluate reminders synchronously so any active reminder log whose
+  // target milestone is this one gets deactivated immediately (its target
+  // is now "not_required" — the engine's target-state check at
+  // reminders.ts:267-272 handles deactivation). Previously this waited for
+  // the next cron pass, which meant N/R'd milestones could leave active
+  // reminders visible on the property file for hours.
+  await evaluateTransactionReminders(transactionId).catch((err) => {
+    console.error(`[markNotRequired] evaluateTransactionReminders failed for ${transactionId}:`, err);
   });
 
   return completion;

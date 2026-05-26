@@ -53,7 +53,17 @@ function relativeDayLabel(target: Date, now: Date = new Date()): string {
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  // Always render in UK time. The Date is stored UTC; without an explicit
+  // timeZone the server-rendered string was Vercel's UTC and showed "01:00"
+  // when the chase actually fires at 09:30 UK (08:30 UTC under BST). All
+  // chase send times are normalised to 09:30 UK at the data layer
+  // (lib/services/reminders.ts setUkChaseTime); this aligns the render.
+  return d.toLocaleTimeString("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 function formatDayAndTime(d: Date, now: Date = new Date()): string {
