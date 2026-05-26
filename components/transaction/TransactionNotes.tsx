@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition, useOptimistic } from "react";
+import { useState, useEffect, useTransition, useOptimistic } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { relativeDate } from "@/lib/utils";
 import { addNoteAction, deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { withErrorToast } from "@/lib/agent/actionToast";
+import { SavingPulse } from "@/components/ui/SavingPulse";
 
 type Note = {
   id: string;
@@ -35,10 +36,19 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
     (current: Note[], newNote: Note) => [newNote, ...current]
   );
 
+  // Optimistic delete — keep IDs locally so the note disappears the
+  // instant the user clicks ×, without waiting for server revalidate to
+  // bring fresh data. Reset when the prop refreshes.
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setRemovedIds(new Set());
+  }, [initialNotes]);
+
   const [noteListRef] = useAutoAnimate<HTMLDivElement>();
 
-  const visible = expanded ? optimisticNotes : optimisticNotes.slice(0, PAGE_SIZE);
-  const hidden = optimisticNotes.length - PAGE_SIZE;
+  const filtered = optimisticNotes.filter((n) => !removedIds.has(n.id));
+  const visible = expanded ? filtered : filtered.slice(0, PAGE_SIZE);
+  const hidden = filtered.length - PAGE_SIZE;
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +78,11 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
   }
 
   function handleDelete(id: string) {
+    // Optimistic — note disappears immediately. The server call still
+    // runs; if it fails the prop refresh will bring the note back (and
+    // we'll have set removedIds to include it, which will then be reset
+    // by the useEffect — net effect: it briefly disappears and returns).
+    setRemovedIds((prev) => new Set([...prev, id]));
     setDeleting(id);
     startTransition(async () => {
       const result = await withErrorToast(
@@ -155,9 +170,9 @@ export function TransactionNotes({ transactionId, initialNotes, currentUserName 
             type="submit"
             disabled={isPending || !draft.trim()}
             className="agent-btn agent-btn-sm agent-btn-primary"
-            style={{ alignSelf: "flex-end" }}
+            style={{ alignSelf: "flex-end", display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            {isPending ? "Saving…" : "Add note"}
+            {isPending ? <SavingPulse label="Saving…" /> : "Add note"}
           </button>
         </form>
 

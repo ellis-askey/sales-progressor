@@ -630,6 +630,7 @@ export default async function AgentTransactionDetailPage({
                 .map((m) => m.code)
             )}
             automatedEmails={automatedEmails}
+            transactionStatus={transaction.status}
           />
         </div>
 

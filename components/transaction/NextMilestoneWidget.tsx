@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmMilestoneAction } from "@/app/actions/milestones";
@@ -37,6 +38,10 @@ function MilestoneSideRow({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [flashed, setFlashed] = useState(false);
+  // "completed" UI state — runs between the server confirm landing and
+  // the row disappearing (parent re-fetch). The button briefly turns
+  // green with a ✓ so the user has a clear "yes, done" reward.
+  const [justCompleted, setJustCompleted] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [desktopValuation, setDesktopValuation] = useState(false);
@@ -104,12 +109,15 @@ function MilestoneSideRow({
         milestoneDefinitionId: milestone.id,
       });
       toast.success(milestone.name);
+      setLoading(false);
+      setJustCompleted(true);
       setFlashed(true);
+      // Hold the "Completed ✓" state for ~700ms so the user sees the
+      // green button before the parent refresh removes the row.
       setTimeout(() => setFlashed(false), 700);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to confirm step";
       toast.error("Couldn't confirm step", { description: message });
-    } finally {
       setLoading(false);
     }
   }
@@ -125,14 +133,15 @@ function MilestoneSideRow({
       setShowDatePicker(false);
       setEventDate("");
       setDesktopValuation(false);
+      setLoading(false);
+      setJustCompleted(true);
       setFlashed(true);
-      setTimeout(() => setFlashed(false), 600);
+      setTimeout(() => setFlashed(false), 700);
       toast.success(milestone.name);
       router.refresh();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to confirm step";
       toast.error("Couldn't confirm step", { description: message });
-    } finally {
       setLoading(false);
     }
   }
@@ -150,10 +159,28 @@ function MilestoneSideRow({
       {!showDatePicker && (
         <button
           onClick={milestone.eventDateRequired ? () => setShowDatePicker(true) : handleClick}
-          disabled={loading}
-          className="agent-btn agent-btn-xs agent-btn-primary"
+          disabled={loading || justCompleted}
+          className={`agent-btn agent-btn-xs ${justCompleted ? "" : "agent-btn-primary"}`}
+          style={justCompleted ? {
+            background: "#10b981",
+            color: "white",
+            border: "none",
+            transition: "all 240ms cubic-bezier(0.16, 1, 0.3, 1)",
+            transform: "scale(1.02)",
+            boxShadow: "0 0 0 4px rgba(16,185,129,0.18)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: "default",
+          } : undefined}
         >
-          {loading ? "…" : "Complete"}
+          {justCompleted ? (
+            <><span aria-hidden>✓</span> Completed</>
+          ) : loading ? (
+            "…"
+          ) : (
+            "Complete"
+          )}
         </button>
       )}
       {showDatePicker && (
@@ -201,6 +228,7 @@ function MilestoneSideRow({
 }
 
 export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }: Props) {
+  const [rowsRef] = useAutoAnimate<HTMLDivElement>();
   if (vendorSide.state === "allComplete" && purchaserSide.state === "allComplete") return null;
 
   return (
@@ -208,7 +236,7 @@ export function NextMilestoneWidget({ transactionId, vendorSide, purchaserSide }
       <div className="agent-card-hdr">
         <h3 className="agent-card-title">Next steps</h3>
       </div>
-      <div>
+      <div ref={rowsRef}>
         <MilestoneSideRow side={vendorSide} label="Vendor" transactionId={transactionId} />
         <MilestoneSideRow side={purchaserSide} label="Purchaser" transactionId={transactionId} />
       </div>

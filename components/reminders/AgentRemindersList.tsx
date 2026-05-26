@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { toUKDateStr } from "@/lib/utils";
+import { toUKDateStr, formatDate } from "@/lib/utils";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -398,10 +398,12 @@ function SideColumn({
             : isOverdue ? "#ea580c"
             : isDueToday ? "var(--agent-warning)"
             : "var(--agent-text-muted)";
+          // Coming Up rows show the next-due date so the "Chased N×" badge
+          // has context (and the user can see when the next chase fires).
           const urgencyLabel = task.priority === "escalated" ? "Escalated"
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
-            : null;
+            : `Next ${formatDate(log.nextDueDate)}`;
 
           const isExiting = exitingIds.has(log.id);
           return (

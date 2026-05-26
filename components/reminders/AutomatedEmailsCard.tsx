@@ -40,6 +40,11 @@ type Props = {
   // "as if they're going to send" for the few seconds before revalidation
   // catches up.
   optimisticallySnoozedCodes?: Set<string>;
+  // When the parent file is on_hold, automation is paused at the cron
+  // level (client-chase-cron only processes active txs). The card
+  // reflects this with a paused state so the user sees "this is off"
+  // instead of stale predictions.
+  fileOnHold?: boolean;
 };
 
 // Compact day-label for the inline summary.
@@ -237,7 +242,7 @@ function EmptyLine({ text }: { text: string }) {
 
 // ─── Card component ──────────────────────────────────────────────────────
 
-export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozedCodes }: Props) {
+export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozedCodes, fileOnHold }: Props) {
   // Local filter: drop any Upcoming chase whose milestoneCode the parent
   // has just optimistically snoozed. Pending + Sent today are unaffected
   // (those are real queue rows that have already been written to DB).
@@ -249,8 +254,8 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
   const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
   const [open, setOpen] = useState(false);
   const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
-  const text = summaryText(data);
-  const hasAny = data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0;
+  const text = fileOnHold ? "Automation paused — file on hold" : summaryText(data);
+  const hasAny = !fileOnHold && (data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0);
 
   return (
     <div className="glass-card overflow-hidden rounded-[12px] mb-3">
@@ -300,6 +305,18 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
 
       <div className={`agent-acc ${open ? "open" : ""}`}>
         <div className="agent-acc-in">
+          {fileOnHold ? (
+            <div style={{ padding: "20px 20px 24px", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                <span aria-hidden style={{ fontSize: 14 }}>⏸</span>
+                Automation paused
+              </span>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+                This file is on hold — no client chases, no escalations, no scheduled emails will fire until it&apos;s reactivated. Pending sends are held until the file resumes.
+              </p>
+            </div>
+          ) : (
+            <>
           {/* Pending now */}
           <SectionHeader label="Pending now" count={data.pending.length} accent="rgba(254, 215, 170, 0.20)" />
           <div ref={pendingRef}>
@@ -374,6 +391,8 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
                 View all for this file →
               </Link>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

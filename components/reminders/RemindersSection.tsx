@@ -90,6 +90,10 @@ type Props = {
   // for callers that haven't yet wired it; defaults to empty (card
   // shows the muted "no automated emails" line).
   automatedEmails?: AutomatedEmailsPreview;
+  // Tx status — when "on_hold", the auto-emails card renders a paused
+  // state instead of pending/upcoming lists. When the file is reactivated
+  // automation resumes naturally.
+  transactionStatus?: "active" | "on_hold" | "completed" | "withdrawn" | "draft" | string;
 };
 
 type UrgencyGroup = "escalated" | "overdue" | "due_today" | "upcoming";
@@ -397,10 +401,13 @@ function ColumnSection({
             : isOverdue ? "#ea580c"
             : isDueToday ? "#d97706"
             : "var(--agent-text-muted)";
+          // For Coming Up rows (task exists, future due date) we still want
+          // to show the date — it gives context for the "Chased N×" badge
+          // and lets users see when the next chase will land.
           const urgencyLabel = task?.priority === "escalated" ? "Escalated"
             : isOverdue ? `${daysOverdue}d overdue`
             : isDueToday ? "Due today"
-            : task ? null
+            : task ? `Next ${formatDate(log.nextDueDate)}`
             : `From ${formatDate(log.nextDueDate)}`;
 
           return (
@@ -509,6 +516,7 @@ export function RemindersSection({
   contacts = [],
   propertyAddress = "",
   automatedEmails,
+  transactionStatus,
 }: Props) {
   const pathname = usePathname();
   const updateTabBadge = useTabBadge();
@@ -526,9 +534,15 @@ export function RemindersSection({
   // matching upcoming-chase entry vanishes the instant the snooze fires
   // instead of sitting there during the server roundtrip.
   const [optimisticallySnoozedCodes, setOptimisticallySnoozedCodes] = useState<Set<string>>(new Set());
+  // Optimistic wakeup: log IDs the user has just woken up. Overrides the
+  // snoozedUntil check in the active-logs filter so the row appears in
+  // the appropriate active bucket immediately (instead of staying in the
+  // snoozed group during the server roundtrip).
+  const [wokenUpIds, setWokenUpIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     setHiddenIds(new Set());
     setOptimisticallySnoozedCodes(new Set());
+    setWokenUpIds(new Set());
   }, [reminderLogs]);
   const [snoozedListRef] = useAutoAnimate<HTMLDivElement>();
   const [completedListRef] = useAutoAnimate<HTMLDivElement>();
@@ -545,11 +559,13 @@ export function RemindersSection({
   const now = new Date();
   const todayStr = toUKDateStr(now);
 
+  // wokenUpIds bypasses the snoozedUntil check so optimistically-woken
+  // logs appear in active immediately AND disappear from snoozed.
   const activeLogs = reminderLogs.filter((l) =>
-    !hiddenIds.has(l.id) && l.status === "active" && !(l.snoozedUntil && new Date(l.snoozedUntil) > now)
+    !hiddenIds.has(l.id) && l.status === "active" && (wokenUpIds.has(l.id) || !(l.snoozedUntil && new Date(l.snoozedUntil) > now))
   );
   const snoozedLogs = reminderLogs.filter(
-    (l) => !hiddenIds.has(l.id) && l.status === "active" && l.snoozedUntil && new Date(l.snoozedUntil) > now
+    (l) => !hiddenIds.has(l.id) && !wokenUpIds.has(l.id) && l.status === "active" && l.snoozedUntil && new Date(l.snoozedUntil) > now
   );
   const completedLogs = reminderLogs.filter(
     (l) => !hiddenIds.has(l.id) && (l.status === "completed" || l.status === "inactive")
@@ -628,7 +644,11 @@ export function RemindersSection({
   }
 
   function handleWakeup(logId: string) {
-    setHiddenIds((prev) => new Set([...prev, logId]));
+    // Optimistic: mark woken up so the row leaves snoozed and appears in
+    // the right active bucket immediately. Don't add to hiddenIds —
+    // hiddenIds removes from ALL groups (including the active bucket
+    // where the row should now appear).
+    setWokenUpIds((prev) => new Set([...prev, logId]));
     setLoading(logId);
     startTransition(async () => {
       try { await wakeupReminderAction(logId, pathname); }
@@ -641,7 +661,17 @@ export function RemindersSection({
     // server bumps nextDueDate by repeatEveryDays, so on the next prop
     // refresh the row appears in the "Coming up" group instead of where
     // it was. The user sees "I chased it → it's gone for now".
-    if (logId) setHiddenIds((prev) => new Set([...prev, logId]));
+    if (logId) {
+      setHiddenIds((prev) => new Set([...prev, logId]));
+      // Auto-expand Coming Up so the user sees the chased row land there
+      // (the section is collapsed by default).
+      setCollapsed((prev) => ({ ...prev, upcoming: false }));
+      // Toast confirmation — without this the row's collapse + reappearance
+      // in a (default-collapsed) group felt like "nothing happened".
+      const log = reminderLogs.find((l) => l.id === logId);
+      const repeat = log?.reminderRule.repeatEveryDays ?? 5;
+      toast.success(`Chased — next in ${repeat} ${repeat === 1 ? "day" : "days"}`);
+    }
     act(taskId, () => advanceChaseTaskAction(taskId, pathname));
   }
 
@@ -688,6 +718,7 @@ export function RemindersSection({
           data={automatedEmails}
           transactionId={transactionId}
           optimisticallySnoozedCodes={optimisticallySnoozedCodes}
+          fileOnHold={transactionStatus === "on_hold"}
         />
       )}
 
