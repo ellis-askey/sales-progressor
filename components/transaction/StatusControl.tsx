@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { changeStatusAction } from "@/app/actions/transactions";
 import { pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { TransactionStatus } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
@@ -52,6 +53,12 @@ function tomorrow(): string {
 export function StatusControl({ transactionId, currentStatus, inChain = false }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
+  // Modals are portal'd to document.body — the agent CSS variables
+  // (--agent-surface-elevated, --agent-text-primary, etc.) are scoped
+  // to elements carrying data-theme. Without these attributes on the
+  // portal root, the variables resolve to "" and the modal renders
+  // with NO background → text floating over the page (Ellis screenshot).
+  const { theme, isNight } = usePortalTheme();
   const [open, setOpen]             = useState(false);
   const [saving, setSaving]         = useState(false);
   const [showModal, setShowModal]   = useState(false);
@@ -225,7 +232,13 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
 
       {/* ── Withdrawal reason modal ────────────────────────────── */}
       {showModal && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 1500 }} onClick={() => setShowModal(false)}>
+        <div
+          data-theme={theme}
+          data-night={isNight ? "" : undefined}
+          className="nv2-night fixed inset-0 flex items-center justify-center p-4"
+          style={{ zIndex: 1500 }}
+          onClick={() => setShowModal(false)}
+        >
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           <div
             className="relative bg-white rounded-2xl w-full max-w-sm p-6"
@@ -302,7 +315,12 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
 
       {/* ── On-hold date modal — matches AddFirmModal chrome ──── */}
       {showHoldModal && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div
+          data-theme={theme}
+          data-night={isNight ? "" : undefined}
+          className="nv2-night"
+          style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
           <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setShowHoldModal(false)} />
 
           <div
@@ -373,7 +391,12 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
 
       {/* ── Resume-automation modal — matches AddFirmModal chrome ── */}
       {showResumeModal && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div
+          data-theme={theme}
+          data-night={isNight ? "" : undefined}
+          className="nv2-night"
+          style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
           <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setShowResumeModal(false)} style={{ zIndex: 0 }} />
 
           <div

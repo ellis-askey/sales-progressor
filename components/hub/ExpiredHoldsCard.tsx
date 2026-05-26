@@ -17,6 +17,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { ExpiredHoldItem } from "@/lib/services/hub";
 
 function formatDateInput(d: Date): string {
@@ -42,6 +43,7 @@ function daysAgo(d: Date): string {
 
 export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldItem[] }) {
   const { toast } = useAgentToast();
+  const { theme, isNight } = usePortalTheme();
   const [items, setItems] = useState<ExpiredHoldItem[]>(initialItems);
   const [showExtenderFor, setShowExtenderFor] = useState<string | null>(null);
   const [extenderDate, setExtenderDate] = useState<string>("");
@@ -230,7 +232,12 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
       </div>
 
       {resumeFor && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div
+          data-theme={theme}
+          data-night={isNight ? "" : undefined}
+          className="nv2-night"
+          style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
           <div className="fixed inset-0 agent-backdrop-overlay" onClick={() => setResumeFor(null)} style={{ zIndex: 0 }} />
 
           <div
