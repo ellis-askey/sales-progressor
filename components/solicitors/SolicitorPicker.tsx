@@ -21,9 +21,14 @@ type Props = {
   label: string;
   value: SolicitorSelection | null;
   onChange: (v: SolicitorSelection | null) => void;
+  // Fired ONLY when the user creates a brand-new firm via AddFirmModal.
+  // Parent uses this to commit the selection immediately (no second
+  // "Save" click on the outer card needed). For ordinary picks, only
+  // onChange fires.
+  onFirmCreated?: (v: SolicitorSelection) => void;
 };
 
-export function SolicitorPicker({ label, value, onChange }: Props) {
+export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -132,15 +137,17 @@ export function SolicitorPicker({ label, value, onChange }: Props) {
     setQuery(firm.name);
     setSearchError(null);
     setInputBlurred(false);
-    if (handler) {
-      onChange({ firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email });
-      setHandlers([handler]);
-    } else {
-      onChange({ firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null });
-      setHandlers([]);
-    }
+    const sel: SolicitorSelection = handler
+      ? { firmId: firm.id, firmName: firm.name, contactId: handler.id, contactName: handler.name, phone: handler.phone, email: handler.email }
+      : { firmId: firm.id, firmName: firm.name, contactId: null, contactName: null, phone: null, email: null };
+    onChange(sel);
+    setHandlers(handler ? [handler] : []);
     // Prime the firm list so it shows up immediately if user searches again
     setFirms([firm]);
+    // Signal "fresh create" to the parent so it can commit/save without
+    // requiring a second click. Existing pick-an-existing-firm flow is
+    // unaffected — only this modal path fires onFirmCreated.
+    if (onFirmCreated) onFirmCreated(sel);
   }
 
   function clear() {
