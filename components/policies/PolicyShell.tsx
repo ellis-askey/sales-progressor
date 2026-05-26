@@ -171,42 +171,46 @@ export function PolicyShell({
         <div className="policy-hero-divider" aria-hidden="true" />
       </div>
 
-      {/* Mobile "Jump to section" */}
+      {/* Mobile "Jump to section" — wrapper is sticky at <900px so the
+          section nav stays reachable as the reader scrolls; inner div keeps
+          the button+list centred under the same 720px gutter as the prose. */}
       <div className="policy-mobile-nav">
-        <button
-          type="button"
-          className="policy-mobile-nav-trigger"
-          onClick={() => setMobileNavOpen((v) => !v)}
-          aria-expanded={mobileNavOpen}
-        >
-          Jump to section
-          <span
-            aria-hidden="true"
-            style={{
-              display: "inline-block",
-              marginLeft: 6,
-              transform: mobileNavOpen ? "rotate(180deg)" : "none",
-              transition: "transform 180ms",
-            }}
+        <div className="policy-mobile-nav-inner">
+          <button
+            type="button"
+            className="policy-mobile-nav-trigger"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-expanded={mobileNavOpen}
           >
-            ▾
-          </span>
-        </button>
-        {mobileNavOpen && (
-          <ul className="policy-mobile-nav-list">
-            {sections.map((s) => (
-              <li key={s.id}>
-                <a
-                  href={`#${s.id}`}
-                  onClick={(e) => handleNavClick(e, s.id)}
-                  className={`policy-mobile-nav-item${activeId === s.id ? " is-active" : ""}`}
-                >
-                  {s.title}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+            Jump to section
+            <span
+              aria-hidden="true"
+              style={{
+                display: "inline-block",
+                marginLeft: 6,
+                transform: mobileNavOpen ? "rotate(180deg)" : "none",
+                transition: "transform 180ms",
+              }}
+            >
+              ▾
+            </span>
+          </button>
+          {mobileNavOpen && (
+            <ul className="policy-mobile-nav-list">
+              {sections.map((s) => (
+                <li key={s.id}>
+                  <a
+                    href={`#${s.id}`}
+                    onClick={(e) => handleNavClick(e, s.id)}
+                    className={`policy-mobile-nav-item${activeId === s.id ? " is-active" : ""}`}
+                  >
+                    {s.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Body: sidebar + content */}
@@ -535,9 +539,19 @@ export function PolicyShell({
           .policy-sidebar { display: none; }
           .policy-mobile-nav {
             display: block;
+            position: sticky;
+            top: 52px;                 /* sits flush under the sticky topbar */
+            z-index: 40;
+            margin: 0 0 16px;
+            padding: 10px 24px;
+            background: rgba(250, 250, 250, 0.92);
+            backdrop-filter: saturate(140%) blur(8px);
+            -webkit-backdrop-filter: saturate(140%) blur(8px);
+            border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+          }
+          .policy-mobile-nav-inner {
             max-width: 720px;
-            margin: 0 auto 16px;
-            padding: 0 24px;
+            margin: 0 auto;
           }
           .policy-mobile-nav-trigger {
             display: inline-flex;

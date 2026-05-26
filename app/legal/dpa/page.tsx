@@ -46,7 +46,8 @@ const SECTIONS: PolicySection[] = [
           </li>
           <li>
             <strong>The Processor</strong> — <strong>The Sales Progressor Ltd</strong>, company
-            number [Company number], registered office [Registered office address]
+            number <em className="pending">[Company number]</em>, registered office{" "}
+            <em className="pending">[Registered office address]</em>{" "}
             (&ldquo;we&rdquo;, &ldquo;us&rdquo;).
           </li>
         </ul>

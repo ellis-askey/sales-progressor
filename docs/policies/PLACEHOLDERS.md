@@ -1,6 +1,6 @@
 # Unfilled placeholders — final post-incorporation fill list
 
-Updated 25 May 2026 after all `[COUNSEL TO CONFIRM]` flags resolved with settled positions and stripped from the public render. Editorial scaffolding removed. The verbose "TBC on incorporation" placeholder language has been replaced with clean inline `[Company number]` / `[Registered office address]` placeholders.
+Updated 26 May 2026. All `[COUNSEL TO CONFIRM]` flags resolved with settled positions and stripped from the public render; editorial scaffolding removed. Verbose "TBC on incorporation" language replaced with clean inline `[Company number]` / `[Registered office address]` placeholders, now wrapped in the `.pending` chip (subtle yellow highlight in the public render — strips for print/PDF).
 
 **Only two placeholders remain across the entire legal pack**, both pending Companies House registration. Everything else is settled copy ready for solicitor review.
 
@@ -27,20 +27,20 @@ Both are filled by the same trigger: Ellis completes the Companies House registr
 | **/privacy** | § 11 Contact | [app/privacy/page.tsx](../../app/privacy/page.tsx) | "Data controller: The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]." |
 | **/terms** | § 1 About this service | [app/terms/page.tsx](../../app/terms/page.tsx) | "...operated by The Sales Progressor Ltd, a company registered in England and Wales, company number [Company number], registered office [Registered office address]..." |
 | **/legal/dpa** | Parties | [app/legal/dpa/page.tsx](../../app/legal/dpa/page.tsx) | "The Processor — The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]..." |
-| **/billing-terms** | Sales Progressor — pricing | [app/billing-terms/page.tsx](../../app/billing-terms/page.tsx) | "...Billing is operated by The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]." |
+| **/billing-terms** | About these terms | [app/billing-terms/page.tsx](../../app/billing-terms/page.tsx) | "...Billing is operated by The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]." |
 
-### DB-versioned billing terms — needs a NEW TermsVersion (v4)
+### DB-versioned billing terms — needs a NEW TermsVersion (v5)
 
-The current live billing acknowledgement is **v3** (`2026-06-payments-v3`), which embeds the placeholder language inline because Stripe Elements is gated by the disclosure tick at signup and we cannot edit a TermsVersion in place once it's been acknowledged. To fill the placeholders in the disclosure that directors actually see when saving a card, ship a **v4** TermsVersion with the entity values inline.
+The current live billing acknowledgement is **v4** (`2026-06-payments-v4`), which embeds the placeholder language inline because Stripe Elements is gated by the disclosure tick at signup and we cannot edit a TermsVersion in place once it's been acknowledged. To fill the placeholders in the disclosure that directors actually see when saving a card, ship a **v5** TermsVersion with the entity values inline.
 
-Process for v4 (when ready, post-incorporation):
+Process for v5 (when ready, post-incorporation):
 
 1. Update three files with the real values (single edit pattern, copy-paste between):
-   - **NEW** migration: `prisma/migrations/<timestamp>_terms_version_v4/migration.sql` — mirror of v3 with the real entity values substituted into the "Sales Progressor — pricing" section body.
-   - **NEW** script: `scripts/insert-prod-terms-v4.ts` — mirror of v3 with the same substitution.
+   - **NEW** migration: `prisma/migrations/<timestamp>_terms_version_v5/migration.sql` — mirror of v4 with the real entity values substituted into the "About these terms" section body.
+   - **NEW** script: `scripts/insert-prod-terms-v5.ts` — mirror of v4 with the same substitution.
    - **UPDATE**: `app/billing-terms/page.tsx` — change version string + the inline JSX to match.
-2. Run migration on staging → verify v4 disclosure renders correctly with real entity data.
-3. Run migration on prod → existing directors re-acknowledge v4 on next card action; v3 acknowledgements remain valid against v3 only.
+2. Run migration on staging → verify v5 disclosure renders correctly with real entity data.
+3. Run migration on prod → existing directors re-acknowledge v5 on next card action; v4 acknowledgements remain valid against v4 only.
 
 ---
 

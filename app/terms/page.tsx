@@ -35,7 +35,8 @@ const SECTIONS: PolicySection[] = [
         <p>
           The Sales Progressor is a property transaction management platform operated by{" "}
           <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
-          company number [Company number], registered office [Registered office address]
+          company number <em className="pending">[Company number]</em>, registered office{" "}
+          <em className="pending">[Registered office address]</em>{" "}
           (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;).
         </p>
         <p>

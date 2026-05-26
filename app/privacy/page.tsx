@@ -31,7 +31,8 @@ const SECTIONS: PolicySection[] = [
           The Sales Progressor (&ldquo;Sales Progressor&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;,
           &ldquo;our&rdquo;) is a property transaction management platform operated by{" "}
           <strong>The Sales Progressor Ltd</strong>, a company registered in England and Wales,
-          company number [Company number], registered office [Registered office address].
+          company number <em className="pending">[Company number]</em>, registered office{" "}
+          <em className="pending">[Registered office address]</em>.
         </p>
         <p>
           This policy explains how we collect, use, and protect personal data in connection with the
@@ -395,8 +396,9 @@ const SECTIONS: PolicySection[] = [
           <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>
         </p>
         <p>
-          Data controller: The Sales Progressor Ltd, company number [Company number], registered
-          office [Registered office address].
+          Data controller: The Sales Progressor Ltd, company number{" "}
+          <em className="pending">[Company number]</em>, registered office{" "}
+          <em className="pending">[Registered office address]</em>.
         </p>
       </>
     ),
