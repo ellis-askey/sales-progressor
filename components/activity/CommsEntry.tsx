@@ -3,6 +3,7 @@
 // Single-panel, channel-first comm entry. No multi-step flow.
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import type { CommType, CommMethod } from "@prisma/client";
 import { logCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -18,6 +19,16 @@ type Props = {
   solicitors?: Solicitor[];
   /** Gates the "Paste chat" entry in the overflow menu. Internal staff only (admin / sales_progressor). */
   canPasteChat?: boolean;
+  /** Optional optimistic-render callback. When supplied, fires after the
+   * server action resolves successfully — the parent appends an entry to
+   * the activity timeline immediately, without waiting for the server
+   * revalidation round-trip. */
+  onOptimisticAdd?: (
+    type: CommType,
+    method: CommMethod | null,
+    content: string,
+    contactIds: string[],
+  ) => void;
 };
 
 type CommChannel = "note" | "email" | "phone" | "sms" | "whatsapp" | "voicemail" | "post";
@@ -34,7 +45,7 @@ const OVERFLOW_CHANNELS: { value: CommChannel; label: string; icon: string }[] =
   { value: "post",      label: "Post",      icon: "📮" },
 ];
 
-export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false }: Props) {
+export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false, onOptimisticAdd }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
   const [channel, setChannel]         = useState<CommChannel | null>(null);
@@ -117,6 +128,11 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     const type = channel === "note" ? "internal_note" as const : direction === "outbound" ? "outbound" as const : "inbound" as const;
     const method = channel === "note" ? null : channel as Exclude<CommChannel, "note">;
     const snap = { type, method, contactIds: selected, content, visibleToClient };
+    // Fire optimistic add BEFORE we clear the form so the new row appears
+    // in the timeline at the same instant the user sees the toast.
+    if (onOptimisticAdd) {
+      onOptimisticAdd(type, method, content, selected);
+    }
     cancel();
     startTransition(async () => {
       try {

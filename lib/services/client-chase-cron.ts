@@ -248,6 +248,29 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
     },
   });
 
+  // Snooze suppression: if an agent has snoozed the ReminderLog for a
+  // milestone, suppress client chases on that milestone too. Snooze =
+  // "leave this alone until X" — applies symmetrically to agent reminders
+  // and client chases. Once snoozedUntil passes, normal chase resumes.
+  const snoozedReminders = await prisma.reminderLog.findMany({
+    where: {
+      transactionId: { in: txIds },
+      status: "active",
+      snoozedUntil: { gt: now },
+      reminderRule: { targetMilestoneCode: { in: Array.from(allCodes) } },
+    },
+    select: {
+      transactionId: true,
+      reminderRule: { select: { targetMilestoneCode: true } },
+    },
+  });
+  const snoozedTxCodes = new Set<string>();
+  for (const r of snoozedReminders) {
+    if (r.reminderRule.targetMilestoneCode) {
+      snoozedTxCodes.add(`${r.transactionId}:${r.reminderRule.targetMilestoneCode}`);
+    }
+  }
+
   // Index lookups
   const completionByTxAndDefId = new Map<string, typeof completions[number]>();
   for (const c of completions) {
@@ -303,6 +326,10 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
 
       // Skip if rule.requiresExchangeReady and transaction isn't ready.
       if (rule.requiresExchangeReady && !exchangeReadyByTx.get(transaction.id)) continue;
+
+      // Snooze suppression — agent has paused this milestone's reminder,
+      // don't chase clients about it until snooze expires.
+      if (snoozedTxCodes.has(`${transaction.id}:${targetCode}`)) continue;
 
       // Skip if target milestone already confirmed (or N/R).
       const targetComp = completionByTxAndDefId.get(`${transaction.id}:${targetDefId}`);

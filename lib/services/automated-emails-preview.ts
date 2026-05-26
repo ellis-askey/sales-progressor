@@ -170,7 +170,7 @@ export async function getAutomatedEmailsForTransaction(
   // completions + contacts + all-ccs-rows for this transaction) so the
   // total query count stays small.
 
-  const [allCcsRows, allActiveRules, allDefs, allCompletions, contacts, transaction] = await Promise.all([
+  const [allCcsRows, allActiveRules, allDefs, allCompletions, contacts, transaction, snoozedReminders] = await Promise.all([
     prisma.clientChaseState.findMany({
       where: { transactionId },
       select: {
@@ -221,7 +221,24 @@ export async function getAutomatedEmailsForTransaction(
       where: { id: transactionId },
       select: { createdAt: true, status: true, chaseRuleSnapshot: true },
     }),
+    // Snooze suppression: chases predicted here are hidden for milestones
+    // whose ReminderLog is currently snoozed. Matches the same suppression
+    // applied in findDueClientChases — preview reflects what will actually
+    // fire, not just what could theoretically fire.
+    prisma.reminderLog.findMany({
+      where: {
+        transactionId,
+        status: "active",
+        snoozedUntil: { gt: now },
+      },
+      select: { reminderRule: { select: { targetMilestoneCode: true } } },
+    }),
   ]);
+  const snoozedCodes = new Set(
+    snoozedReminders
+      .map((r) => r.reminderRule.targetMilestoneCode)
+      .filter((c): c is string => c !== null),
+  );
 
   // Per-transaction snapshot read (same source the cron uses for timing).
   // Settings edits to ReminderRule don't affect this file's predictions;
@@ -262,6 +279,8 @@ export async function getAutomatedEmailsForTransaction(
     if (!row.lastChasedAt) continue;
     // Engagement gate
     if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
+    // Snooze suppression — match the cron's chase-skip behaviour.
+    if (snoozedCodes.has(row.milestoneCode)) continue;
     const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
     if (repeat == null) continue;
     const candidate = addDays(row.lastChasedAt, repeat);
@@ -304,6 +323,9 @@ export async function getAutomatedEmailsForTransaction(
 
       // Exchange-ready gate (matches cron)
       if (rule.requiresExchangeReady && !exchangeReady) continue;
+
+      // Snooze suppression — match the cron's chase-skip behaviour.
+      if (snoozedCodes.has(code)) continue;
 
       // Compute anchor date with the same precedence as the cron's
       // computeAnchorDate (reconciledAtClaim → eventDate; useEventDate;

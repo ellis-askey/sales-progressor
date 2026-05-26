@@ -288,7 +288,25 @@ function SolicitorCard({
           className={exiting ? "agent-reveal-out" : "agent-reveal-in"}
           style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}
         >
-          <SolicitorPicker label="" value={draft} onChange={handlePickerChange} />
+          <SolicitorPicker
+            label=""
+            value={draft}
+            onChange={handlePickerChange}
+            onFirmCreated={(sel) => {
+              // Brand-new firm was just created via AddFirmModal. Commit
+              // immediately to the parent — no second "Save" click required.
+              // referral data is null because a newly-created firm isn't a
+              // "recommended firm" until added to the agency directory.
+              setDraft(sel);
+              setReferralFeeDraft(null);
+              onChange(sel, null);
+              setExiting(true);
+              setTimeout(() => {
+                setEditing(false);
+                setExiting(false);
+              }, 150);
+            }}
+          />
           {selectedRecommended && (
             <div>
               <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Referral fee</label>

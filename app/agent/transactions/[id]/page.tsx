@@ -17,8 +17,7 @@ import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
 import { RemindersSection } from "@/components/reminders/RemindersSection";
-import { CommsEntry } from "@/components/activity/CommsEntry";
-import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { ActivityTab } from "@/components/activity/ActivityTab";
 import { TransactionSidebar } from "@/components/transaction/TransactionSidebar";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
@@ -647,24 +646,23 @@ export default async function AgentTransactionDetailPage({
 
         {/* ── Tab 4: Activity ──────────────────────────────────────────── */}
         <div className="space-y-4">
-          <ActivityTimeline
+          <ActivityTab
             entries={activityEntries}
             transactionId={transaction.id}
             mosDocUrl={mosDocUrl}
-            beforeEntries={<CommsEntry
-              transactionId={transaction.id}
-              contacts={transaction.contacts}
-              solicitors={[
-                ...(transaction.vendorSolicitorContact
-                  ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }]
-                  : []),
-                ...(transaction.purchaserSolicitorContact
-                  ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }]
-                  : []),
-              ]}
-              canPasteChat={isProgressor || isAdminRole}
-            />}
             currentUserId={isProgressor ? session.user.id : undefined}
+            contacts={transaction.contacts}
+            solicitors={[
+              ...(transaction.vendorSolicitorContact
+                ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }]
+                : []),
+              ...(transaction.purchaserSolicitorContact
+                ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }]
+                : []),
+            ]}
+            canPasteChat={isProgressor || isAdminRole}
+            currentUserName={session.user.name ?? ""}
+            currentUserRole={session.user.role ?? ""}
           />
           {(!isInternal || spSenderIdentity !== undefined) && (
             <ComposeEmail transactionId={transaction.id} senderIdentity={spSenderIdentity} />
