@@ -9,6 +9,7 @@ import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
 import type { MilestoneDefinition, MilestoneCompletion } from "@prisma/client";
 import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
+import { NR_CASCADE } from "@/lib/milestone-nr-cascade";
 
 const SECTION_COLORS: Record<string, { dot: string; label: string }> = {
   "Onboarding":            { dot: "bg-blue-400",    label: "text-blue-600"    },
@@ -116,10 +117,17 @@ export function MilestonePanel({
   const [nrCollapsed, setNrCollapsed] = useState(true);
   const [optimisticallyUnlockedIds, setOptimisticallyUnlockedIds] = useState<Set<string>>(new Set());
   const [optimisticallyRelockedIds, setOptimisticallyRelockedIds] = useState<Set<string>>(new Set());
+  // Optimistic-NR-cascade: when the user N/Rs a milestone whose code maps
+  // to downstream codes in NR_CASCADE (e.g. PM9 → PM10), the downstream
+  // rows should disappear in the same render — not after a server round-
+  // trip. MilestoneRow already handles its OWN optimistic NR via
+  // useOptimistic; this set propagates to the cascade siblings.
+  const [optimisticallyNotRequiredIds, setOptimisticallyNotRequiredIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setOptimisticallyUnlockedIds(new Set());
     setOptimisticallyRelockedIds(new Set());
+    setOptimisticallyNotRequiredIds(new Set());
   }, [vendor, purchaser]);
 
   function handleTabChange(side: "vendor" | "purchaser") {
@@ -168,6 +176,20 @@ export function MilestonePanel({
 
   function handleNRStart(nrId: string, nrCode: string) {
     unlockDependents(nrId, nrCode);
+    // Cascade-NR any downstream milestones flagged in NR_CASCADE (e.g.
+    // PM9 → PM10). The server's markNotRequiredWithCascade applies the
+    // same mapping; this set just mirrors that decision on the client
+    // so the rows hide instantly instead of lingering for the round-trip.
+    const cascadeCodes = NR_CASCADE[nrCode] ?? [];
+    if (cascadeCodes.length > 0) {
+      const codeToId = new Map(milestones.map((m) => [m.code, m.id]));
+      const cascadeIds = cascadeCodes
+        .map((c) => codeToId.get(c))
+        .filter((id): id is string => !!id);
+      if (cascadeIds.length > 0) {
+        setOptimisticallyNotRequiredIds((prev) => new Set([...prev, ...cascadeIds]));
+      }
+    }
   }
 
   function handleUndoStart(undoneId: string, undoneCode: string) {
@@ -262,12 +284,15 @@ export function MilestonePanel({
           {sectionDefs.map((section) => {
             const sc = SECTION_COLORS[section.label] ?? SECTION_COLORS["Onboarding"];
             const codeSet = new Set(section.codes);
+            // Hide rows that are server-NR'd OR optimistically cascade-NR'd
+            // (see optimisticallyNotRequiredIds — kicks in the moment the
+            // user confirms N/R on a parent milestone like PM9).
             const rows = milestones
-              .filter((m) => codeSet.has(m.code) && !m.isNotRequired)
+              .filter((m) => codeSet.has(m.code) && !m.isNotRequired && !optimisticallyNotRequiredIds.has(m.id))
               .sort((a, b) => section.codes.indexOf(a.code) - section.codes.indexOf(b.code));
             const allInSection = milestones.filter((m) => codeSet.has(m.code));
             if (allInSection.length === 0) return null;
-            const sectionDone = allInSection.filter((m) => m.isComplete || m.isNotRequired).length;
+            const sectionDone = allInSection.filter((m) => m.isComplete || m.isNotRequired || optimisticallyNotRequiredIds.has(m.id)).length;
             const allDone = sectionDone === allInSection.length;
             const isCollapsed = collapsed[section.label] ?? false;
 

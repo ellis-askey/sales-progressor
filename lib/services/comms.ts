@@ -117,18 +117,32 @@ export async function getActivityTimeline(
   );
 }
 
-// Counts automated emails (cron-fired chases / notifications) per contact on
-// a transaction. Used by the contact rows on the file detail page to surface
-// "is this person being over-chased?" — a signal the agent can't see otherwise
-// because they didn't author these messages themselves.
+// Counts automated CHASE emails per contact on a transaction, in a rolling
+// 7-day window. Used by the contact rows on the file detail page to surface
+// "is this person being over-chased *right now*?" — a signal the agent
+// can't see otherwise because they didn't author these messages themselves.
 //
-// One round-trip + JS aggregation: per file there are typically <50 automated
-// rows and <8 contacts; not worth a groupBy or N count() queries.
+// Scope: purpose = "chase" only (confirmations, notifications, digests,
+// password resets etc. are explicitly excluded — the pill should only flag
+// repeat chasing of an unresponsive contact, not e.g. a milestone-confirmed
+// email that fires once). Window: rolling 7 days from now — so 20 chase
+// emails over 3 months is fine (no pill) but 6 chase emails in a single
+// week reads red.
+//
+// One round-trip + JS aggregation: per file there are typically <50 rows
+// in the window and <8 contacts; not worth a groupBy or N count() queries.
 export async function getAutomatedEmailCountsByContact(
   transactionId: string,
 ): Promise<Record<string, number>> {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const rows = await prisma.outboundMessage.findMany({
-    where: { transactionId, isAutomated: true, channel: "email" },
+    where: {
+      transactionId,
+      isAutomated: true,
+      channel: "email",
+      purpose: "chase",
+      sentAt: { gte: sevenDaysAgo },
+    },
     select: { contactIds: true },
   });
   const counts: Record<string, number> = {};
@@ -276,7 +290,15 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope) 
 
 export type SenderMapping = Record<
   string,
-  { kind: "me" } | { kind: "contact"; contactId: string } | { kind: "skip" }
+  // "me" carries an optional recipientContactId — when the user picks a
+  // specific contact as the recipient of their outbound messages, the
+  // contactId is stored on OutboundMessage.contactIds so the timeline
+  // reads "Outbound to {Recipient}" instead of just "Outbound". Null /
+  // omitted = no specific recipient (backwards-compatible with legacy
+  // imports).
+  | { kind: "me"; recipientContactId?: string | null }
+  | { kind: "contact"; contactId: string }
+  | { kind: "skip" }
 >;
 
 export type ImportMessageInput = {
@@ -368,7 +390,10 @@ export async function importWhatsAppChat(
     if (m.kind === "me") {
       toInsert.push({
         type: "outbound",
-        contactIds: [],
+        // If the user picked a specific recipient for their outbound
+        // messages, attach it. Falls back to an empty array (legacy
+        // behaviour) when no recipient was selected.
+        contactIds: m.recipientContactId ? [m.recipientContactId] : [],
         content: msg.content,
         sentAt: msg.whatsappTimestamp,
         status: "sent",

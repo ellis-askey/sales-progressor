@@ -72,11 +72,13 @@ const EMPTY_FORM = {
 const INPUT = "glass-input w-full px-3 py-2 text-sm";
 const SELECT = "glass-input w-full px-3 py-2 text-sm pr-8";
 
-// Threshold ladder for the per-contact automated-email pill. Tuned conservatively
-// — anything ≥5 warrants a glance, ≥10 likely needs intervention. Single source
-// of truth so the agent app feels consistent if the pill ever moves elsewhere.
-const AUTO_EMAIL_AMBER_AT = 5;
-const AUTO_EMAIL_RED_AT = 10;
+// Threshold ladder for the per-contact automated-email pill. The count is
+// "chase emails sent to this contact in the rolling 7 days" (see
+// getAutomatedEmailCountsByContact in lib/services/comms.ts). With a
+// 7-day window the thresholds tighten: 3+ in a week is worth a glance,
+// 5+ is approaching daily and likely needs intervention.
+const AUTO_EMAIL_AMBER_AT = 3;
+const AUTO_EMAIL_RED_AT = 5;
 
 function autoEmailTone(count: number): { bg: string; fg: string } | null {
   if (count <= 0) return null;
@@ -288,12 +290,14 @@ export function ContactsSection({
                         const n = automatedEmailCounts[contact.id] ?? 0;
                         const tone = autoEmailTone(n);
                         if (!tone) return null;
-                        const label = `${n} auto email${n === 1 ? "" : "s"}`;
+                        // Count is rolling-7-day chase emails — see
+                        // getAutomatedEmailCountsByContact + tooltip below.
+                        const label = `${n} chase${n === 1 ? "" : "s"} this week`;
                         const title = n >= AUTO_EMAIL_RED_AT
-                          ? `${label} — likely over-chasing; consider pausing client emails`
+                          ? `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days — likely over-chasing; consider pausing client emails`
                           : n >= AUTO_EMAIL_AMBER_AT
-                            ? `${label} — review chase cadence`
-                            : label;
+                            ? `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days — review chase cadence`
+                            : `${n} automated chase email${n === 1 ? "" : "s"} sent to this contact in the last 7 days`;
                         return (
                           <span
                             title={title}

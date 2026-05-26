@@ -32,9 +32,10 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 export { DIRECT_PREREQUISITES };
 
 // Only PM9 can be manually marked Not Required; PM10 cascades from it.
-export const NR_CASCADE: Record<string, string[]> = {
-  PM9: ["PM10"],
-};
+// Source of truth lives in lib/milestone-nr-cascade.ts (pure data, safely
+// importable by client components for optimistic-cascade hiding).
+export { NR_CASCADE } from "@/lib/milestone-nr-cascade";
+import { NR_CASCADE } from "@/lib/milestone-nr-cascade";
 
 // Exchange gate codes — start LOCKED; availability is computed in Deploy B.
 const EXCHANGE_GATE_CODES = new Set(["VM18", "PM25"]);
