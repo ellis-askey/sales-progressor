@@ -509,7 +509,12 @@
     color: var(--agent-text-disabled);
   }
   .agent-segment-pill.on .agent-segment-pill-note {
-    color: var(--agent-coral-deep);
+    /* Active pill has dark coral-deep background with white text. The count
+     * needs to read on that background — use white-at-75%-alpha for the
+     * subdued-secondary look (same pattern as muted text on chips elsewhere
+     * in the system). Previously fell back to coral-deep which is dark-on-
+     * dark and unreadable. */
+    color: rgba(255, 255, 255, 0.75);
   }
 
   /* ── Text link button ────────────────────────────────────────────────────── */
@@ -1673,6 +1678,92 @@
 @media (prefers-reduced-motion: reduce) {
   .v2-swap-btn:hover .v2-swap-arrow {
     transform: none;
+  }
+}
+
+/* ── Entity row (Contacts + Solicitors) — mobile stack ────────────────────
+ * Shared layout helpers used by ContactsSection + SolicitorSection. On
+ * desktop both render a single horizontal row (avatar + info column +
+ * action buttons). At <=640px the action buttons drop onto their own
+ * full-width line so the name + meta have the full row to themselves,
+ * and the inner name row also wraps so the "Viewed Nd ago" label can
+ * drop beneath a long name + role pill without truncating either. */
+.agent-entity-row {
+  /* Default: inherits flex from the inline style on the host div.
+   * Class is only present so the @media block below can target it. */
+}
+.agent-entity-name-row {
+  /* Inner row holding name + role pill + viewed-time. Desktop stays
+   * inline (gap: 6 from the inline style). */
+}
+.agent-entity-actions {
+  /* Action buttons cluster. Desktop sits right-aligned in the row. */
+}
+
+@media (max-width: 640px) {
+  .agent-entity-row {
+    flex-wrap: wrap;
+  }
+  .agent-entity-name-row {
+    flex-wrap: wrap;
+  }
+  .agent-entity-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    padding-top: 8px;
+    margin-top: 2px;
+    border-top: 0.5px dashed var(--agent-border-default);
+  }
+}
+
+/* ── Milestone step pills — mobile stack below name ────────────────────
+ * MilestoneRow renders up to four inline status chips (Exchange gate,
+ * slowness, staleness, client-chase) inside the step-name paragraph.
+ * On desktop they sit inline-right-of-name. On mobile they wrap mid-
+ * sentence, breaking readability — at <=640px they reflow onto their
+ * own row beneath the step name. */
+.ms-pills-row {
+  display: inline;
+}
+@media (max-width: 640px) {
+  .ms-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  /* Chips render with `ml-2` (Tailwind margin-left) on desktop — strip
+   * that on mobile so the gap utility owns spacing instead. */
+  .ms-pills-row > * {
+    margin-left: 0 !important;
+  }
+}
+
+/* ── Reminders mobile polish ────────────────────────────────────────────
+ * Reminders are rendered as two side-by-side columns (Seller / Buyer)
+ * inside each urgency group. On mobile the side-by-side layout halves
+ * the available width per card, which (a) truncates reminder titles
+ * with an ellipsis ("Lender valua…") and (b) pushes the Snooze button
+ * off-screen next to "Chase all (N)". Stacking the columns vertically
+ * at <=640px gives each card the full viewport, which solves both
+ * symptoms without touching the buttons themselves. */
+.reminders-columns {
+  /* Default: inherits flex from the inline style on the host div. */
+}
+.reminders-title {
+  /* Default: inherits -webkit-line-clamp:2 from the inline style. */
+}
+@media (max-width: 640px) {
+  .reminders-columns {
+    flex-direction: column;
+  }
+  .reminders-title {
+    /* Drop the 2-line clamp on mobile — reminder titles are short
+     * enough that any wrap is preferable to ellipsis on a content
+     * label the agent needs to read. */
+    -webkit-line-clamp: unset !important;
+    display: block !important;
+    overflow: visible !important;
   }
 }
 

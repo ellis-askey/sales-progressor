@@ -383,7 +383,7 @@ function ColumnSection({
               style={{ padding: "7px 12px", borderTop: i > 0 ? "0.5px solid var(--agent-border-default)" : undefined, display: "flex", alignItems: "center", gap: 8 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
+                <p className="reminders-title" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
                 {urgencyLabel && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
                 )}
@@ -623,7 +623,7 @@ export function RemindersSection({
             </div>
             <div className={`agent-acc ${!isCollapsed ? "open" : ""}`}>
               <div className="agent-acc-in">
-                <div style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
+                <div className="reminders-columns" style={{ padding: "12px 14px 14px", display: "flex", gap: 10 }}>
                   {sellerLogs.length > 0
                     ? <ColumnSection logs={sellerLogs} side="seller" transactionId={transactionId} propertyAddress={propertyAddress} contacts={contacts} loading={loading} handleComplete={handleComplete} handleSnooze={handleSnooze} handleSnoozeAll={handleSnoozeAll} handleChased={handleChased} />
                     : <EmptyColumn side="seller" />}

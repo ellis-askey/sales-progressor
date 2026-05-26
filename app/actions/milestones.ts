@@ -806,7 +806,7 @@ export async function migrateCompleteMilestonesAction(input: {
   const defIds = input.completions.map((c) => c.milestoneDefinitionId);
   const defs = await prisma.milestoneDefinition.findMany({
     where: { id: { in: defIds } },
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, eventDateRequired: true },
   });
   const defById = new Map(defs.map((d) => [d.id, d]));
 
@@ -826,6 +826,14 @@ export async function migrateCompleteMilestonesAction(input: {
     if (Number.isNaN(eventDateObj.getTime())) continue;
     if (eventDateObj.getTime() > latestEventTime) latestEventTime = eventDateObj.getTime();
 
+    // eventDate is a semantic real-world-event field per
+    // docs/reference/PRODUCT_TRUTH.md — it should only be populated for
+    // milestones whose definition carries eventDateRequired: true (survey,
+    // valuation, mortgage offer, exchange, completion target). For other
+    // milestones the user-supplied date is the historical completedAt only,
+    // not an event date — so we leave eventDate null.
+    const eventDateForCompletion = def.eventDateRequired ? eventDateObj : null;
+
     try {
       await prisma.milestoneCompletion.upsert({
         where: {
@@ -839,14 +847,14 @@ export async function migrateCompleteMilestonesAction(input: {
           milestoneDefinitionId: c.milestoneDefinitionId,
           state: "complete",
           completedAt: eventDateObj,
-          eventDate: eventDateObj,
+          eventDate: eventDateForCompletion,
           completedById: completerId,
           summaryText: null,
         },
         update: {
           state: "complete",
           completedAt: eventDateObj,
-          eventDate: eventDateObj,
+          eventDate: eventDateForCompletion,
           completedById: completerId,
           notRequiredReason: null,
           summaryText: null,

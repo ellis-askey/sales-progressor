@@ -31,11 +31,16 @@ export default function AgentTransactionLoading() {
         </div>
       </div>
 
-      {/* ── Two-column layout ─────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      {/* ── Responsive layout ─────────────────────────────────────────────
+       * Mobile (<768px): stack — main content first, sidebar beneath.
+       * Desktop (>=768px): two-column with sticky-ish sidebar to the right.
+       * Previously this was a hard-coded `display: flex` row with a fixed
+       * 288px sidebar, which on a phone produced the broken
+       * narrow-main + wide-sidebar shape the user spotted. */}
+      <div className="flex flex-col gap-4 md:flex-row md:gap-5 md:items-start">
 
         {/* Main content */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
 
           {/* Next steps card */}
           <div className="glass-card overflow-hidden rounded-[12px]">
@@ -98,8 +103,8 @@ export default function AgentTransactionLoading() {
           ))}
         </div>
 
-        {/* Sidebar */}
-        <div style={{ width: 288, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Sidebar — full width on mobile (stacks under main), 288px column at md+ */}
+        <div className="w-full md:w-72 md:flex-shrink-0 flex flex-col gap-4">
 
           {/* Progress card */}
           <div className="glass-card overflow-hidden rounded-[12px]" style={{ padding: "16px" }}>

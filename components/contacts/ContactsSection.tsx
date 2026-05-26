@@ -255,13 +255,13 @@ export function ContactsSection({
             return (
               <div key={contact.id} style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}>
                 {/* Display row — always visible */}
-                <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="agent-entity-row" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
                   {/* Avatar */}
                   <div className="agent-avatar agent-avatar-sm" style={{ flexShrink: 0 }}>{getInitials(contact.name)}</div>
 
                   {/* Name + contact details */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <div className="agent-entity-name-row" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                       <span data-sensitive="true" style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, borderRadius: 4, padding: "1px 6px", background: ROLE_PILL_BG[r], color: roleColour(r) }}>
                         <RoleIcon role={r} size={11} />
@@ -319,7 +319,7 @@ export function ContactsSection({
 
                   {/* Action buttons — portal + edit/remove when not editing */}
                   {!isEditing && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <div className="agent-entity-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                       {(role === "vendor" || role === "purchaser") && (
                         contact.portalToken ? (
                           <>

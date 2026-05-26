@@ -230,11 +230,18 @@ export default async function AgentTransactionDetailPage({
     )
     .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
 
+  // Key Dates surfaces real-world event dates only — survey/valuation/mortgage
+  // offer/exchange/completion target — never "the day we ticked this step done".
+  // The semantic flag is MilestoneDefinition.eventDateRequired (per
+  // docs/reference/PRODUCT_TRUTH.md). Without the eventDateRequired guard the
+  // sidebar previously surfaced every completion that happened to have an
+  // eventDate populated — which included migrated sales where eventDate had
+  // been written on every step.
   const keyDates = [
     ...(milestoneData?.vendor ?? []),
     ...(milestoneData?.purchaser ?? []),
   ]
-    .filter((m) => m.completion?.eventDate)
+    .filter((m) => m.eventDateRequired && m.completion?.eventDate)
     .map((m) => ({
       name: m.name,
       eventDate: m.completion!.eventDate as Date,
