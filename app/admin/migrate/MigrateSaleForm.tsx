@@ -7,11 +7,13 @@
 //   3. Both steps complete → reset form for the next file.
 // Throwaway page — minimal styling, function over polish.
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createTransactionAction } from "@/app/actions/transactions";
 import { migrateCompleteMilestonesAction } from "@/app/actions/milestones";
 import type { Tenure, PurchaseType } from "@prisma/client";
+import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
+import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
 
 type Agency = { id: string; name: string };
 type SP = { id: string; name: string; email: string };
@@ -95,6 +97,42 @@ export function MigrateSaleForm({
   const [purchaserTicks, setPurchaserTicks] = useState<MilestoneTick[]>(
     purchaserDefs.map((d) => ({ defId: d.id, checked: false, date: TODAY })),
   );
+
+  // Auto-NR codes from tenure + purchaseType (same rules as the agent file's
+  // initialiser). Recomputed whenever the user changes either selector.
+  // Source of truth: lib/milestone-auto-nr.ts.
+  const autoNrCodes = computeAutoNrCodes(
+    purchaseType || null,
+    tenure || null,
+  );
+
+  // When the user flips tenure or purchaseType in a way that newly auto-NR's
+  // a milestone they'd already ticked, silently un-tick it. Otherwise the
+  // migrate action would write a "complete" record over the system's
+  // about-to-be-NR record, leaving the file in a confused state.
+  useEffect(() => {
+    setVendorTicks((prev) =>
+      prev.map((t) => {
+        const def = vendorDefs.find((d) => d.id === t.defId);
+        if (def && autoNrCodes.has(def.code) && t.checked) {
+          return { ...t, checked: false };
+        }
+        return t;
+      }),
+    );
+    setPurchaserTicks((prev) =>
+      prev.map((t) => {
+        const def = purchaserDefs.find((d) => d.id === t.defId);
+        if (def && autoNrCodes.has(def.code) && t.checked) {
+          return { ...t, checked: false };
+        }
+        return t;
+      }),
+    );
+    // Recompute on tenure / purchaseType changes only. Vendor/purchaser
+    // defs are stable for the lifetime of the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenure, purchaseType]);
 
   function updateContact(list: ContactRow[], setList: (rows: ContactRow[]) => void, idx: number, patch: Partial<ContactRow>) {
     setList(list.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
@@ -367,10 +405,29 @@ export function MigrateSaleForm({
 
       {/* Section 5: Milestones already completed */}
       <Section title="5. Milestones already completed">
-        <p className={HINT}>Tick every milestone the file has already passed in the old system. Set a real-world date per tick. Untick = still pending — the reminder engine will pick them up.</p>
+        <p className={HINT}>
+          Tick every milestone the file has already passed in the old system. Set a real-world date per tick. Untick = still pending — the reminder engine will pick them up.
+          {autoNrCodes.size > 0 && (
+            <> Steps not required for this tenure / purchase type are shown struck-through and can&apos;t be ticked — they&apos;ll be auto-marked Not Required on file creation.</>
+          )}
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-          <MilestoneSide label="Vendor side" defs={vendorDefs} ticks={vendorTicks} onUpdate={(i, p) => updateTick(vendorTicks, setVendorTicks, i, p)} />
-          <MilestoneSide label="Purchaser side" defs={purchaserDefs} ticks={purchaserTicks} onUpdate={(i, p) => updateTick(purchaserTicks, setPurchaserTicks, i, p)} />
+          <MilestoneSide
+            label="Vendor side"
+            defs={vendorDefs}
+            ticks={vendorTicks}
+            sections={VENDOR_SECTIONS}
+            autoNrCodes={autoNrCodes}
+            onUpdate={(i, p) => updateTick(vendorTicks, setVendorTicks, i, p)}
+          />
+          <MilestoneSide
+            label="Purchaser side"
+            defs={purchaserDefs}
+            ticks={purchaserTicks}
+            sections={PURCHASER_SECTIONS}
+            autoNrCodes={autoNrCodes}
+            onUpdate={(i, p) => updateTick(purchaserTicks, setPurchaserTicks, i, p)}
+          />
         </div>
       </Section>
 
@@ -447,41 +504,80 @@ function ContactList({ label, rows, onUpdate, onAdd, onRemove }: {
   );
 }
 
-function MilestoneSide({ label, defs, ticks, onUpdate }: {
+function MilestoneSide({ label, defs, ticks, sections, autoNrCodes, onUpdate }: {
   label: string;
   defs: MilestoneDef[];
   ticks: MilestoneTick[];
+  sections: { label: string; codes: string[] }[];
+  autoNrCodes: Set<string>;
   onUpdate: (idx: number, patch: Partial<MilestoneTick>) => void;
 }) {
   const checkedCount = ticks.filter((t) => t.checked).length;
+
+  // Map defId → index in the ticks array, so we can look up state by code.
+  const idxByDefId = new Map<string, number>();
+  defs.forEach((d, i) => idxByDefId.set(d.id, i));
+
+  // Map code → def. Allows sections (which are code lists) to resolve to
+  // actual definitions in the right order.
+  const defByCode = new Map<string, MilestoneDef>();
+  defs.forEach((d) => defByCode.set(d.code, d));
+
   return (
     <div className="border border-slate-200 rounded-md overflow-hidden">
       <div className="px-3 py-2 bg-slate-50 flex items-center justify-between">
         <p className="text-xs font-bold text-slate-700">{label}</p>
         <p className="text-xs text-slate-500">{checkedCount} ticked</p>
       </div>
-      <div className="divide-y divide-slate-100 max-h-[480px] overflow-y-auto">
-        {defs.map((d, i) => {
-          const t = ticks[i];
-          if (!t) return null;
+      <div className="max-h-[640px] overflow-y-auto">
+        {sections.map((section) => {
+          const sectionDefs = section.codes
+            .map((code) => defByCode.get(code))
+            .filter((d): d is MilestoneDef => !!d);
+          if (sectionDefs.length === 0) return null;
           return (
-            <div key={d.id} className="flex items-center gap-2 px-3 py-2">
-              <input
-                type="checkbox"
-                checked={t.checked}
-                onChange={(e) => onUpdate(i, { checked: e.target.checked })}
-                className="flex-shrink-0"
-              />
-              <span className="text-xs text-slate-400 w-10 flex-shrink-0">{d.code}</span>
-              <span className="text-xs text-slate-800 flex-1 min-w-0 truncate">{d.name}</span>
-              <input
-                type="date"
-                value={t.date}
-                max={TODAY}
-                disabled={!t.checked}
-                onChange={(e) => onUpdate(i, { date: e.target.value })}
-                className="px-2 py-1 text-xs border border-slate-300 rounded disabled:opacity-30 disabled:bg-slate-50 flex-shrink-0"
-              />
+            <div key={section.label}>
+              <div className="px-3 py-1.5 bg-slate-100/70 border-y border-slate-200">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-600">{section.label}</p>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {sectionDefs.map((d) => {
+                  const i = idxByDefId.get(d.id);
+                  if (i === undefined) return null;
+                  const t = ticks[i];
+                  if (!t) return null;
+                  const isAutoNr = autoNrCodes.has(d.code);
+                  return (
+                    <div
+                      key={d.id}
+                      className={`flex items-start gap-2 px-3 py-2 ${isAutoNr ? "bg-slate-50/50" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={t.checked}
+                        disabled={isAutoNr}
+                        onChange={(e) => onUpdate(i, { checked: e.target.checked })}
+                        className="flex-shrink-0 mt-0.5"
+                      />
+                      <span className={`text-xs w-10 flex-shrink-0 mt-0.5 ${isAutoNr ? "text-slate-300 line-through" : "text-slate-400"}`}>{d.code}</span>
+                      <span
+                        className={`text-xs flex-1 min-w-0 leading-snug ${isAutoNr ? "text-slate-400 line-through" : "text-slate-800"}`}
+                        title={isAutoNr ? "Auto-marked Not Required on file creation for this tenure / purchase type" : undefined}
+                      >
+                        {d.name}
+                      </span>
+                      <input
+                        type="date"
+                        value={t.date}
+                        max={TODAY}
+                        disabled={!t.checked || isAutoNr}
+                        onChange={(e) => onUpdate(i, { date: e.target.value })}
+                        className="px-2 py-1 text-xs border border-slate-300 rounded disabled:opacity-30 disabled:bg-slate-50 flex-shrink-0"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
