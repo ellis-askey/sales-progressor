@@ -17,6 +17,7 @@ import {
   getUndoImpact,
   executeUndoMilestone,
   unlockDirectDependents,
+  maybeUnlockExchangeGate,
 } from "@/lib/services/milestones";
 export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
@@ -884,6 +885,18 @@ export async function migrateCompleteMilestonesAction(input: {
       console.error(`[migrateCompleteMilestonesAction] lastActivityAt bump failed:`, err),
     );
   }
+
+  // Exchange gate evaluation — unlockDirectDependents only handles
+  // predecessor-chain unlocks, but VM18 / PM25 are gates that depend on ALL
+  // side-blockers being complete. After bulk-ticking, run the gate check
+  // for both sides so any side that's now fully ready gets its gate flipped
+  // from "locked" to "available".
+  await maybeUnlockExchangeGate(input.transactionId, "vendor", completerId).catch((err) =>
+    console.error(`[migrateCompleteMilestonesAction] vendor gate unlock failed:`, err),
+  );
+  await maybeUnlockExchangeGate(input.transactionId, "purchaser", completerId).catch((err) =>
+    console.error(`[migrateCompleteMilestonesAction] purchaser gate unlock failed:`, err),
+  );
 
   // One reminder-engine pass against the new completion state — seeds the
   // reminders the file should have right now, no duplicates for completed ones.
