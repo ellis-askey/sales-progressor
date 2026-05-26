@@ -516,11 +516,6 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
-  const tx = await prisma.propertyTransaction.findFirst({
-    where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
-  });
-  if (!tx) throw new Error("Transaction not found");
 
   const { referredFirmId, referralFee, ...solicitorPatch } = patch;
   const data: Record<string, unknown> = { ...solicitorPatch };
@@ -529,9 +524,20 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
     data.referralFee = referralFee ?? null;
   }
 
-  await prisma.propertyTransaction.update({ where: { id: transactionId }, data });
+  // Single query for auth + update — updateMany with scope-where collapses
+  // the prior findFirst + update into one round-trip. count===0 means the
+  // row doesn't exist OR is out of scope; we treat both the same.
+  const result = await prisma.propertyTransaction.updateMany({
+    where: scopeOwnershipWhere(scope, transactionId),
+    data,
+  });
+  if (result.count === 0) throw new Error("Transaction not found");
 
-  await logActivity(transactionId, `${session.user.name} updated solicitor details`, session.user.id);
+  // Fire-and-forget audit log — the action returns faster, and the audit
+  // row lands on the next page render anyway (next revalidation pass).
+  void logActivity(transactionId, `${session.user.name} updated solicitor details`, session.user.id).catch((err) =>
+    console.error("[saveSolicitorsAction] logActivity failed:", err),
+  );
 
   revalidateTx(transactionId);
 }

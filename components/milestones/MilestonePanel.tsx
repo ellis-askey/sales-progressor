@@ -47,6 +47,9 @@ type Props = {
   // in docs/active/client-chase-discovery.md). The chip renders silently
   // when the wiring lands.
   clientChaseByCode?: Record<string, AggregatedClientChase>;
+  // PurchaseType for the transaction — drives conditional N/R eligibility
+  // (cash buyers can mark PM8 search milestones as not required).
+  purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
 };
 
 export function MilestonePanel({
@@ -58,6 +61,7 @@ export function MilestonePanel({
   purchaserGateReady,
   graceDaysByCode,
   clientChaseByCode,
+  purchaseType,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
 
@@ -358,6 +362,7 @@ export function MilestonePanel({
                             slownessSignal={slownessSignal}
                             stalenessSignal={stalenessSignal}
                             clientChase={clientChase}
+                            purchaseType={purchaseType}
                           />
                         );
                       })

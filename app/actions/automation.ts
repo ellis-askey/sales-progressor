@@ -70,7 +70,12 @@ export async function resumeClientEmails(transactionId: string): Promise<ActionR
   return { ok: true };
 }
 
-export async function putFileOnHold(transactionId: string): Promise<ActionResult> {
+export async function putFileOnHold(
+  transactionId: string,
+  // Planned return date (UI: "Come back to this on") — null/undefined means
+  // "indefinitely" (no auto-surface in the hub's expired-holds widget).
+  plannedEndAt?: Date | string | null,
+): Promise<ActionResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const where = scopeOwnershipWhere(scope, transactionId);
@@ -79,6 +84,11 @@ export async function putFileOnHold(transactionId: string): Promise<ActionResult
   if (!tx) return { ok: false, error: "Not found" };
   if (tx.status === "on_hold") return { ok: true }; // already on hold; idempotent
   if (tx.status !== "active") return { ok: false, error: "Only active files can be put on hold." };
+
+  // Normalise the planned date arg — accept string or Date, coerce or null.
+  const plannedEndAtDate: Date | null = plannedEndAt
+    ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
+    : null;
 
   // Status flip + open a new hold period in one transaction so the period
   // row exists from the moment the status changes. The hold-duration
@@ -94,12 +104,46 @@ export async function putFileOnHold(transactionId: string): Promise<ActionResult
         transactionId: tx.id,
         startedAt: now,
         startedById: session.user.id,
+        plannedEndAt: plannedEndAtDate,
       },
     }),
   ]);
 
   revalidatePath(`/agent/transactions/${transactionId}`);
   revalidatePath(`/transactions/${transactionId}`);
+  revalidatePath(`/agent/hub`);
+  return { ok: true };
+}
+
+// Update the OPEN hold period's plannedEndAt. Used by the hub's expired-
+// holds card when the agent chooses "Extend hold" instead of "Take off hold".
+// Pass null for "indefinitely".
+export async function extendHoldAction(
+  transactionId: string,
+  plannedEndAt: Date | string | null,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const where = scopeOwnershipWhere(scope, transactionId);
+
+  const tx = await prisma.propertyTransaction.findFirst({ where, select: { id: true, status: true } });
+  if (!tx) return { ok: false, error: "Not found" };
+  if (tx.status !== "on_hold") return { ok: false, error: "File is not on hold." };
+
+  const newDate: Date | null = plannedEndAt
+    ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
+    : null;
+
+  // Update the currently-open period (endedAt is null). updateMany handles
+  // the defensive case where multiple open periods exist (shouldn't happen).
+  await prisma.transactionHoldPeriod.updateMany({
+    where: { transactionId: tx.id, endedAt: null },
+    data: { plannedEndAt: newDate },
+  });
+
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/transactions/${transactionId}`);
+  revalidatePath(`/agent/hub`);
   return { ok: true };
 }
 

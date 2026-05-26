@@ -410,9 +410,15 @@ function SideColumn({
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
                   {name}
                 </p>
-                {urgencyLabel && (
+                {(urgencyLabel || task.chaseCount > 0) && (
                   <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
                     {urgencyLabel}
+                    {urgencyLabel && task.chaseCount > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
+                    {task.chaseCount > 0 && (
+                      <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
+                        Chased {task.chaseCount}×
+                      </span>
+                    )}
                   </p>
                 )}
                 {/* Fallback-kind chip — set when the system handed this chase
@@ -445,6 +451,15 @@ function SideColumn({
                 )}
               </div>
               <RowSnoozeMenu taskId={task.id} onSnooze={handleSnooze} />
+              <button
+                onClick={() => handleChased(task.id)}
+                disabled={loading === task.id || isExiting}
+                title="Mark as chased — advances the next chase date without sending an email"
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                ↻ Chased
+              </button>
               {/* OLD: title="Confirm milestone done" — Rule 2 schema jargon (milestone → step) */}
               <button
                 onClick={() => handleComplete(task.id)}

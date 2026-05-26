@@ -48,10 +48,17 @@ type Props = {
   // row eligibility as slowness/staleness applies (available + not done +
   // not NR).
   clientChase?: AggregatedClientChase | null;
+  // PurchaseType drives conditional N/R availability. For cash_buyer and
+  // cash_from_proceeds files, PM8 (searches ordered) becomes manually
+  // N/R-able too — searches aren't needed for cash. Cascades to PM13 via
+  // NR_CASCADE.
+  purchaseType?: "mortgage" | "cash_buyer" | "cash_from_proceeds" | null;
 };
 
-// Only PM9 (mortgage application) can be manually marked N/R
-const NR_ALLOWED = new Set(["PM9"]);
+// Codes that can be manually marked N/R regardless of purchaseType.
+const NR_ALLOWED_BASE = new Set(["PM9"]);
+// Codes that become manually N/R-able when purchaseType is cash.
+const NR_ALLOWED_CASH = new Set(["PM8"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
@@ -69,7 +76,7 @@ function formatRelative(d: Date | null): string {
   return `${weeks}w ago`;
 }
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, onUndoStart, optimisticallyAvailable, optimisticallyRelocked, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType }: Props) {
   const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [optimisticState, addOptimistic] = useOptimistic(
@@ -309,7 +316,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
 
   const isPM6 = def.code === "PM6";
   const isBlocked = !isDone && !effectivelyAvailable;
-  const canBeNR = NR_ALLOWED.has(def.code);
+  const isCashFile = purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds";
+  const canBeNR = NR_ALLOWED_BASE.has(def.code) || (isCashFile && NR_ALLOWED_CASH.has(def.code));
 
   let rowBg = "";
   if (isDone) rowBg = "bg-green-50/30";

@@ -383,6 +383,58 @@ export async function getHubFlags(vis: AgentVisibility): Promise<HubFlag[]> {
 
 // ── Momentum ──────────────────────────────────────────────────────────────────
 
+// ── Hold-expired files ────────────────────────────────────────────────────
+// Surfaces files that are on_hold AND the OPEN hold period's plannedEndAt
+// has passed. Used by the hub's ExpiredHoldsCard — only renders when the
+// list is non-empty, so the card disappears once everything's been
+// actioned. Indefinite holds (plannedEndAt = NULL) never appear here.
+
+export type ExpiredHoldItem = {
+  transactionId: string;
+  propertyAddress: string;
+  plannedEndAt: Date;
+  startedAt: Date;
+  agencyName: string | null;
+};
+
+export async function getExpiredHolds(vis: AgentVisibility): Promise<ExpiredHoldItem[]> {
+  const now = new Date();
+  const txNested = buildTxNested(vis);
+
+  // Open hold periods whose planned date has passed, on transactions still
+  // in on_hold status. Filter the parent tx via the nested visibility clause
+  // so internal staff see their assigned files and agents see their agency.
+  const rows = await prisma.transactionHoldPeriod.findMany({
+    where: {
+      endedAt: null,
+      plannedEndAt: { not: null, lt: now },
+      transaction: { ...txNested, status: "on_hold" },
+    },
+    select: {
+      transactionId: true,
+      plannedEndAt: true,
+      startedAt: true,
+      transaction: {
+        select: {
+          propertyAddress: true,
+          agency: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { plannedEndAt: "asc" },
+  });
+
+  return rows
+    .filter((r) => r.plannedEndAt !== null)
+    .map((r) => ({
+      transactionId: r.transactionId,
+      propertyAddress: r.transaction.propertyAddress,
+      plannedEndAt: r.plannedEndAt as Date,
+      startedAt: r.startedAt,
+      agencyName: r.transaction.agency?.name ?? null,
+    }));
+}
+
 export async function getHubMomentum(vis: AgentVisibility) {
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);

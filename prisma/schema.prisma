@@ -343,6 +343,11 @@ model TransactionHoldPeriod {
   startedById   String
   endedAt       DateTime?
   endedById     String?
+  // Planned return date — when the user expects this hold to expire. NULL
+  // means "indefinitely" (no auto-surface). Used by the hub's "expired
+  // holds" widget: surfaces files whose plannedEndAt has passed but no
+  // human has yet decided to take off hold or extend.
+  plannedEndAt  DateTime?
   createdAt     DateTime            @default(now())
 
   transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -350,6 +355,7 @@ model TransactionHoldPeriod {
   endedBy       User?               @relation("HoldEndedBy",   fields: [endedById],   references: [id])
 
   @@index([transactionId, endedAt])
+  @@index([endedAt, plannedEndAt])
 }
 
 enum TransactionStatus {

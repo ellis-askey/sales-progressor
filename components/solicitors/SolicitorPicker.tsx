@@ -38,6 +38,10 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
   const [loadingHandlers, setLoadingHandlers] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalPrefill, setModalPrefill] = useState("");
+  // When true, the firm field in the modal is locked — we're adding a
+  // case handler to a firm that's already selected. Reset to false on
+  // every modal open so the "+ Add as new firm" path stays unaffected.
+  const [modalLockFirm, setModalLockFirm] = useState(false);
   const [inputBlurred, setInputBlurred] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -128,8 +132,19 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
     const cased = titleCase(query);
     setQuery(cased);
     setModalPrefill(cased);
+    setModalLockFirm(false);
     setShowModal(true);
     setShowDropdown(false);
+  }
+
+  // Open the modal to add a NEW case handler to the firm that's
+  // currently picked. Firm name is locked in the modal so the user can
+  // only fill in the handler's details.
+  function handleAddHandler() {
+    if (!value?.firmName) return;
+    setModalPrefill(value.firmName);
+    setModalLockFirm(true);
+    setShowModal(true);
   }
 
   function handleFirmCreated(firm: Firm, handler: Handler | null) {
@@ -243,22 +258,32 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
             {loadingHandlers ? (
               <p className="text-xs text-slate-900/40">Loading handlers…</p>
             ) : (
-              <select
-                value={value?.contactId ?? ""}
-                onChange={(e) => {
-                  const h = handlers.find((h) => h.id === e.target.value) ?? null;
-                  if (h) selectHandler(h);
-                  else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
-                }}
-                className="glass-input w-full px-3 py-2.5 text-sm"
-              >
-                <option value="">
-                  {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
-                </option>
-                {handlers.map((h) => (
-                  <option key={h.id} value={h.id}>{h.name}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={value?.contactId ?? ""}
+                  onChange={(e) => {
+                    const h = handlers.find((h) => h.id === e.target.value) ?? null;
+                    if (h) selectHandler(h);
+                    else onChange({ ...value!, contactId: null, contactName: null, phone: null, email: null });
+                  }}
+                  className="glass-input w-full px-3 py-2.5 text-sm"
+                >
+                  <option value="">
+                    {handlers.length === 0 ? "No case handlers saved yet" : "Select case handler…"}
+                  </option>
+                  {handlers.map((h) => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddHandler}
+                  className="agent-link text-xs"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
+                >
+                  <span>+</span> Add new case handler
+                </button>
+              </>
             )}
 
             {value?.contactId && (
@@ -276,8 +301,9 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated }: Props
       {showModal && (
         <AddFirmModal
           prefillName={modalPrefill}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setModalLockFirm(false); }}
           onCreated={handleFirmCreated}
+          lockFirm={modalLockFirm}
         />
       )}
     </>

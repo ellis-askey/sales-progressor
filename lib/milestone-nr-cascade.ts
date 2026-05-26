@@ -10,7 +10,9 @@
 //
 // Current pairs:
 //   PM9 (Survey booking) Not Required → PM10 (Survey report) also N/R
+//   PM8 (Searches ordered) Not Required → PM13 (Search results) also N/R
 
 export const NR_CASCADE: Record<string, string[]> = {
   PM9: ["PM10"],
+  PM8: ["PM13"],
 };

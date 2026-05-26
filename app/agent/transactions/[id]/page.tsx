@@ -610,6 +610,7 @@ export default async function AgentTransactionDetailPage({
               purchaserGateReady={milestoneData.purchaserGateReady}
               graceDaysByCode={graceDaysByCode}
               clientChaseByCode={clientChaseByCode}
+              purchaseType={transaction.purchaseType}
             />
           ) : (
             <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>

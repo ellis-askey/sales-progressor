@@ -13,9 +13,14 @@ type Props = {
   prefillName: string;
   onClose: () => void;
   onCreated: (firm: Firm, handler: Handler | null) => void;
+  // When true, the firm name field is read-only and the modal acts as
+  // "add a case handler to this existing firm". Submit hits the same
+  // endpoint — POST /api/solicitor-firms find-or-creates the firm and
+  // attaches the new handler.
+  lockFirm?: boolean;
 };
 
-export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
+export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [firmName, setFirmName] = useState(prefillName);
   const [handlerName, setHandlerName] = useState("");
@@ -24,8 +29,9 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [touched, setTouched] = useState({ firm: false, name: false, phone: false, email: false });
+  const [touched, setTouched] = useState({ firm: lockFirm, name: false, phone: false, email: false });
   const inputRef = useRef<HTMLInputElement>(null);
+  const handlerInputRef = useRef<HTMLInputElement>(null);
 
   const firmValid = touched.firm && firmName.trim().length >= 2;
   const nameValid = touched.name && handlerName.trim().length >= 2;
@@ -51,9 +57,15 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
   }
 
   useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
+    // When firm is locked (adding a handler to an existing firm), skip
+    // focusing the firm name field — go straight to the handler name input.
+    if (lockFirm) {
+      handlerInputRef.current?.focus();
+    } else {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [lockFirm]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -115,7 +127,14 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create firm");
 
-      const handler: Handler | null = data.handlers?.[0] ?? null;
+      // When adding to an existing firm (lockFirm), the endpoint returns
+      // [...existingHandlers, newHandler] — find the just-created one by
+      // name match against the form input rather than blindly taking [0].
+      // For new firms the handlers array has only the new one anyway.
+      const handlers: Handler[] = Array.isArray(data.handlers) ? data.handlers : [];
+      const handler: Handler | null = lockFirm
+        ? handlers.find((h) => h.name.trim().toLowerCase() === titleCase(handlerName).toLowerCase()) ?? handlers[handlers.length - 1] ?? null
+        : handlers[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong — try again");
@@ -146,7 +165,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-          <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add solicitor firm</h2>
+          <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{lockFirm ? "Add case handler" : "Add solicitor firm"}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
             <X size={16} weight="bold" />
           </button>
@@ -169,7 +188,8 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
               onChange={(e) => { setFirmName(e.target.value); clearFieldError("firmName"); }}
               onBlur={blurFirm}
               placeholder="e.g. Carter & Wells Solicitors"
-              className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.firmName ? " agent-input-error" : ""}`}
+              readOnly={lockFirm}
+              className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.firmName ? " agent-input-error" : ""}${lockFirm ? " !bg-white/30 !text-slate-900/60" : ""}`}
             />
             {errors.firmName && <p className="agent-helper-error">{errors.firmName}</p>}
           </div>
@@ -190,6 +210,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated }: Props) {
                         : null}
                   </label>
                   <input
+                    ref={handlerInputRef}
                     value={handlerName}
                     onChange={(e) => { setHandlerName(e.target.value); clearFieldError("handlerName"); }}
                     onBlur={blurName}

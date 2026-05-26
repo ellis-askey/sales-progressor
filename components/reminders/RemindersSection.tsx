@@ -401,8 +401,16 @@ function ColumnSection({
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="reminders-title" style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{name}</p>
-                {urgencyLabel && (
-                  <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>{urgencyLabel}</p>
+                {(urgencyLabel || (task && task.chaseCount > 0)) && (
+                  <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
+                    {urgencyLabel}
+                    {urgencyLabel && task && task.chaseCount > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
+                    {task && task.chaseCount > 0 && (
+                      <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
+                        Chased {task.chaseCount}×
+                      </span>
+                    )}
+                  </p>
                 )}
                 {task?.fallbackKind && (
                   <span
@@ -427,6 +435,14 @@ function ColumnSection({
               {task && (
                 <>
                   <RowSnoozeMenu logId={log.id} taskId={task.id} onSnooze={handleSnooze} />
+                  <button
+                    onClick={() => handleChased(task.id)}
+                    disabled={loading === task.id}
+                    title="Mark as chased — advances the next chase date without sending an email"
+                    style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                  >
+                    ↻ Chased
+                  </button>
                   <button
                     onClick={() => handleComplete(log.id, task.id)}
                     disabled={loading === task.id}

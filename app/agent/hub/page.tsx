@@ -12,7 +12,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
-  getHubUnassignedFiles,
+  getHubUnassignedFiles, getExpiredHolds,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -22,6 +22,7 @@ import {
 } from "@/components/hub/HubCharts";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
+import { ExpiredHoldsCard } from "@/components/hub/ExpiredHoldsCard";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
@@ -90,7 +91,7 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -100,6 +101,7 @@ export default async function HubPreviewPage() {
       getHubRecentActivity(vis),
       getHubDiary(vis),
       getHubUnassignedFiles(vis),
+      getExpiredHolds(vis),
     ]);
 
   // Derived values
@@ -340,10 +342,13 @@ export default async function HubPreviewPage() {
           </div>
         )}
 
-        {/* ── 3. Needs your attention ───────────────────────────────────────────── */}
+        {/* ── 3. Holds needing attention (only renders when non-empty) ────────── */}
+        <ExpiredHoldsCard initialItems={expiredHolds} />
+
+        {/* ── 4. Needs your attention ───────────────────────────────────────────── */}
         <AttentionListView items={attentionItems} />
 
-        {/* ── 4. Unassigned outsourced files (admin only) ───────────────────────── */}
+        {/* ── 5. Unassigned outsourced files (admin only) ───────────────────────── */}
         <UnassignedFilesView initialFiles={unassignedFiles} />
 
         {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
