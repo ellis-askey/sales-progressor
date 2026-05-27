@@ -7,6 +7,7 @@ import Link from "next/link";
 import { CaretDown, CheckCircle, Clock } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { toUKDateStr, formatDate } from "@/lib/utils";
+import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
@@ -77,19 +78,19 @@ function addBusinessDays(from: Date, days: number): Date {
   return result;
 }
 
-function classifyActive(log: AgentReminderLog, todayStr: string, upcomingCutoffStr: string): UrgencyGroup | null {
-  const openTask = log.chaseTasks[0] ?? null;
-  if (openTask?.priority === "escalated") return "escalated";
-  // Once chased at least once, the row stays in Coming Up until the server
-  // flips priority to "escalated" (chaseCount >= escalateAfterChases).
-  // Mirrors the same rule in components/reminders/RemindersSection.tsx so
-  // the agent's mental model is consistent across surfaces.
-  if ((openTask?.chaseCount ?? 0) >= 1) return "upcoming";
-  const dueStr = toUKDateStr(log.nextDueDate);
-  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
-  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
-  if (dueStr === todayStr) return "due_today";
-  if (dueStr <= upcomingCutoffStr) return "upcoming";
+function classifyActive(log: AgentReminderLog, now: Date, upcomingCutoffStr: string): UrgencyGroup | null {
+  // Defer to the canonical classifier (lib/reminders/classify.ts) for the
+  // overdue / due_today / escalated / upcoming decision. The work queue
+  // then additionally filters "upcoming" by a 3-business-day window so
+  // far-future reminders don't crowd the list.
+  const bucket = classifyReminder(log, now);
+  if (bucket === "escalated") return "escalated";
+  if (bucket === "overdue") return "overdue";
+  if (bucket === "due_today") return "due_today";
+  if (bucket === "upcoming") {
+    const dueStr = toUKDateStr(log.nextDueDate);
+    if (dueStr <= upcomingCutoffStr) return "upcoming";
+  }
   return null;
 }
 
@@ -733,7 +734,6 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
   }, [logs]);
 
   const now = new Date();
-  const todayStr = toUKDateStr(now);
   const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
   const snoozedLogs    = logs.filter((l) => !hiddenIds.has(l.id) && l.snoozedUntil && new Date(l.snoozedUntil) > now);
@@ -780,7 +780,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
 
   const grouped: Record<UrgencyGroup, AgentReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
   for (const log of filteredActive) {
-    const g = classifyActive(log, todayStr, upcomingCutoffStr);
+    const g = classifyActive(log, now, upcomingCutoffStr);
     if (g) grouped[g].push(log);
   }
   grouped.escalated.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());

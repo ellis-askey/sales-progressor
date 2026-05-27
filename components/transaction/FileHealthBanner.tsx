@@ -5,11 +5,16 @@ import { useTabContext } from "./TabContext";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 type Props = {
+  // Rows that need attention right now — overdue + due_today + escalated.
+  // This is what the tab badge shows.
+  actionableCount: number;
+  // Subset of actionableCount where nextDueDate is strictly past — used to
+  // pick between "X overdue" copy and "X need attention" copy.
   overdueCount: number;
   onTrack: "on_track" | "at_risk" | "off_track" | "unknown" | "on_hold";
 };
 
-export function FileHealthBanner({ overdueCount, onTrack }: Props) {
+export function FileHealthBanner({ actionableCount, overdueCount, onTrack }: Props) {
   const { setActiveTab } = useTabContext();
 
   // On-hold files don't get the health banner — the OnHoldBanner above it
@@ -18,20 +23,23 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
   if (onTrack === "on_hold") return null;
 
   const isBehind = onTrack === "at_risk" || onTrack === "off_track";
-  if (overdueCount === 0 && !isBehind) return null;
+  if (actionableCount === 0 && !isBehind) return null;
 
-  const isRed = overdueCount > 0 && isBehind;
+  const isRed = actionableCount > 0 && isBehind;
   const kind = isRed ? "danger" : "warning";
 
+  // Copy nuance: if any of the actionable rows are real-overdue (past their
+  // date, never chased), use "overdue" — agents recognise that. Otherwise
+  // the count is escalated / due-today only, so "need attention" is accurate.
   const title =
-    overdueCount > 0
-      ? `${overdueCount} reminder${overdueCount !== 1 ? "s" : ""} overdue`
+    actionableCount > 0
+      ? overdueCount > 0
+        ? `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} overdue`
+        : `${actionableCount} reminder${actionableCount !== 1 ? "s" : ""} need${actionableCount === 1 ? "s" : ""} attention`
       : "File may be behind schedule";
   const body =
-    overdueCount > 0 && isBehind
+    actionableCount > 0 && isBehind
       ? "File may be behind schedule too — take a look."
-      : isBehind && overdueCount === 0
-      ? undefined
       : undefined;
 
   return (
@@ -41,7 +49,7 @@ export function FileHealthBanner({ overdueCount, onTrack }: Props) {
       title={title}
       body={body}
       action={
-        overdueCount > 0
+        actionableCount > 0
           ? { label: "View reminders →", onClick: () => setActiveTab("reminders") }
           : undefined
       }

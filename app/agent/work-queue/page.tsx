@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
 import { toUKDateStr } from "@/lib/utils";
+import { classifyReminder } from "@/lib/reminders/classify";
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -24,14 +25,18 @@ function addBusinessDays(from: Date, days: number): Date {
   return result;
 }
 
-function classifyForStats(log: AgentLog, todayStr: string, upcomingCutoffStr: string): "overdue" | "due_today" | "coming_up" | null {
-  const openTask = log.chaseTasks[0] ?? null;
-  if (openTask?.priority === "escalated") return "overdue";
-  const dueStr = toUKDateStr(log.nextDueDate);
-  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
-  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr)) return "overdue";
-  if (dueStr === todayStr) return "due_today";
-  if (dueStr <= upcomingCutoffStr) return "coming_up";
+function classifyForStats(log: AgentLog, now: Date, upcomingCutoffStr: string): "overdue" | "due_today" | "coming_up" | null {
+  // Delegates to the canonical helper so the work queue header agrees with
+  // the file-page badges + the hub. Escalated rolls into "overdue" for the
+  // header (it's all urgent). "coming up" is its own narrower window —
+  // anything in the next ~3 business days, not just everything future.
+  const bucket = classifyReminder(log, now);
+  if (bucket === "escalated" || bucket === "overdue") return "overdue";
+  if (bucket === "due_today") return "due_today";
+  if (bucket === "upcoming") {
+    const dueStr = toUKDateStr(log.nextDueDate);
+    if (dueStr <= upcomingCutoffStr) return "coming_up";
+  }
   return null;
 }
 
@@ -49,14 +54,13 @@ export default async function WorkQueuePage() {
   ]);
 
   const now = new Date();
-  const todayStr = toUKDateStr(now);
   const upcomingCutoffStr = toUKDateStr(addBusinessDays(now, 3));
 
-  // Compute header stat row (exclude snoozed logs)
-  const activeForStats = reminderLogs.filter((l) => !(l.snoozedUntil && new Date(l.snoozedUntil) > now));
+  // Compute header stat row. classifyForStats handles snoozed-filtering
+  // via classifyReminder (snoozed → "snoozed" → returns null here).
   let overdueCount = 0, dueTodayCount = 0, comingUpCount = 0;
-  for (const l of activeForStats) {
-    const g = classifyForStats(l, todayStr, upcomingCutoffStr);
+  for (const l of reminderLogs) {
+    const g = classifyForStats(l, now, upcomingCutoffStr);
     if (g === "overdue") overdueCount++;
     else if (g === "due_today") dueTodayCount++;
     else if (g === "coming_up") comingUpCount++;

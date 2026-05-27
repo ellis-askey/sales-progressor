@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
+import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -143,26 +144,22 @@ function snoozeToastLabel(hours: number): string {
   return `Snoozed for ${days} ${days === 1 ? "day" : "days"}`;
 }
 
-function classifyActive(log: ReminderLog, todayStr: string, optimisticNextDue: Date | null): UrgencyGroup {
-  const openTask = log.chaseTasks.find((t) => t.status === "pending") ?? null;
-  // Server-flipped escalation always wins (cron-driven after the chase-count
-  // cap). Agent sees red Escalated only at that point.
-  if (openTask?.priority === "escalated") return "escalated";
-  // Once a row has been chased at least once, it stays in Coming Up
-  // regardless of nextDueDate. The agent has acted; the row shouldn't
-  // jump back to red Overdue every time the chase interval passes.
-  // Escalation will only fire once the server cron flips priority
-  // (chaseCount >= escalateAfterChases) — handled above.
-  if ((openTask?.chaseCount ?? 0) >= 1) return "upcoming";
-  // Original logic for never-chased rows.
-  const effectiveDue = optimisticNextDue && optimisticNextDue > new Date(log.nextDueDate)
-    ? optimisticNextDue
-    : log.nextDueDate;
-  const dueStr = toUKDateStr(effectiveDue);
-  const taskDueStr = openTask ? toUKDateStr(openTask.dueDate) : null;
-  if (dueStr < todayStr || (taskDueStr && taskDueStr < todayStr && !optimisticNextDue)) return "overdue";
-  if (dueStr === todayStr) return "due_today";
-  return "upcoming";
+function classifyActive(log: ReminderLog, now: Date, optimisticNextDue: Date | null): UrgencyGroup {
+  // Defer to the canonical classifier (lib/reminders/classify.ts) so the
+  // visible bucket and every count formula stay in lock-step.
+  //
+  // The classifier doesn't know about optimistic state — when the user
+  // chases a row, we want it to *visually* move to Coming Up immediately
+  // even though the underlying log.chaseTasks prop hasn't refreshed yet.
+  // Apply the optimistic future-nextDueDate on top of the server data
+  // before classifying, so an active chase pushes the row out of overdue.
+  const effective: typeof log = optimisticNextDue && optimisticNextDue > new Date(log.nextDueDate)
+    ? { ...log, nextDueDate: optimisticNextDue }
+    : log;
+  const bucket = classifyReminder(effective, now);
+  // The bucket "snoozed" can't reach here — caller filters snoozed logs out.
+  // "inactive" also can't reach here — caller restricts to status=active.
+  return bucket === "snoozed" || bucket === "inactive" ? "upcoming" : bucket;
 }
 
 function RowSnoozeMenu({ logId, taskId, onSnooze }: { logId: string; taskId: string; onSnooze: (logId: string, taskId: string, hours: number) => void }) {
@@ -589,7 +586,6 @@ export function RemindersSection({
   });
 
   const now = new Date();
-  const todayStr = toUKDateStr(now);
 
   // Effective snooze state = optimistic override OR real prop value.
   // The optimistic value wins because the user just clicked snooze and
@@ -616,24 +612,22 @@ export function RemindersSection({
     (l) => !hiddenIds.has(l.id) && (l.status === "completed" || l.status === "inactive")
   );
 
+  // Bucket every active log first — same call we'd use for the tab badge
+  // count, ensuring the visible count and the bucket placements agree.
+  const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
+  for (const log of activeLogs) {
+    grouped[classifyActive(log, now, optimisticNextDueDate.get(log.id) ?? null)].push(log);
+  }
+
   // Push the live tab badge count so the "Reminders" tab pill updates the
   // instant a row is snoozed / completed (via optimistic hiddenIds) — no
-  // wait for the revalidation roundtrip. The server-side count drives the
-  // initial render; this overrides afterwards. Match the formula in
-  // app/agent/transactions/[id]/page.tsx reminderBadgeCount: active +
-  // not-snoozed + (escalated pending task OR due today/past).
-  const activeCount = activeLogs.filter((l) =>
-    l.chaseTasks.some((t) => t.status === "pending" && t.priority === "escalated") ||
-    toUKDateStr(l.nextDueDate) <= todayStr
-  ).length;
+  // wait for the revalidation roundtrip. Count = rows landing in any of
+  // the actionable buckets (escalated + overdue + due_today). Stays in
+  // lock-step with what's visible above.
+  const activeCount = grouped.escalated.length + grouped.overdue.length + grouped.due_today.length;
   useEffect(() => {
     if (updateTabBadge) updateTabBadge("reminders", activeCount);
   }, [activeCount, updateTabBadge]);
-
-  const grouped: Record<UrgencyGroup, ReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
-  for (const log of activeLogs) {
-    grouped[classifyActive(log, todayStr, optimisticNextDueDate.get(log.id) ?? null)].push(log);
-  }
 
   function act(id: string, fn: () => Promise<unknown>) {
     setLoading(id);

@@ -4,6 +4,7 @@ import { getTransaction, getTransactionByScope } from "@/lib/services/transactio
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
+import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
@@ -251,26 +252,12 @@ export default async function AgentTransactionDetailPage({
   const todayUKStr = toUKDateStr(now);
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
-  const activeReminderCount = activeReminders.filter((l) =>
-    l.chaseTasks.some((t: { status: string }) => t.status === "pending")
-  ).length;
-
-  const overdueCount = activeReminders.filter((l) => {
-    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
-    return toUKDateStr(l.nextDueDate) < todayUKStr;
-  }).length;
-
-  const reminderBadgeCount = reminderLogs.filter((l) => {
-    if (l.status !== "active") return false;
-    if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
-    // Mirror classifyActive in RemindersSection: an open task with chaseCount>=1
-    // sits in "Coming up" (the agent has acted; row shouldn't read as actionable
-    // until the server escalates it). Escalated rows still count.
-    const openTask = l.chaseTasks.find((t: { status: string; priority: string; chaseCount: number }) => t.status === "pending");
-    if (openTask?.priority === "escalated") return true;
-    if ((openTask?.chaseCount ?? 0) >= 1) return false;
-    return toUKDateStr(l.nextDueDate) <= todayUKStr;
-  }).length;
+  // One source of truth — see lib/reminders/classify.ts. Used by the tab
+  // badge, the FileHealthBanner, the RemindersWidget summary, and the hub.
+  // overdueCount is only for the banner's copy nuance ("X overdue" vs
+  // "X need attention").
+  const actionableCount = countActionable(reminderLogs, now);
+  const overdueCount    = countOverdue(reminderLogs, now);
 
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
     id: l.id,
@@ -358,7 +345,7 @@ export default async function AgentTransactionDetailPage({
   const tabs = [
     { key: "overview",   label: "Overview" },
     { key: "milestones", label: "Steps" },
-    { key: "reminders",  label: "Reminders", badge: reminderBadgeCount },
+    { key: "reminders",  label: "Reminders", badge: actionableCount },
     { key: "todos",      label: "To-Do", badge: openTodoCount },
     { key: "activity",   label: "Activity" },
   ];
@@ -517,7 +504,7 @@ export default async function AgentTransactionDetailPage({
       <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab} heroConnected>
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
-          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
+          <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           {(transaction.status === "active" || transaction.status === "on_hold") && (
             <AutomationControls
@@ -545,7 +532,7 @@ export default async function AgentTransactionDetailPage({
             purchaserSide={purchaserSideState}
           />
 
-          <RemindersWidget reminders={topReminders} totalActive={overdueCount} />
+          <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
           <RecentActivityWidget entries={activityEntries} />
 
           <div id="chain-section" className="glass-card overflow-hidden rounded-[12px]">

@@ -6,6 +6,7 @@ import { getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
+import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { getPortalViewDates } from "@/lib/services/portal";
@@ -142,19 +143,12 @@ export default async function TransactionDetailPage({
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
   // Reminder counts + widget data
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-
+  const nowForClassify = new Date();
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
-  const activeReminderCount = activeReminders.filter((l) => {
-    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due <= today || l.chaseTasks.some((t: { status: string }) => t.status === "pending");
-  }).length;
-
-  const overdueCount = activeReminders.filter((l) => {
-    const due = new Date(l.nextDueDate); due.setHours(0, 0, 0, 0);
-    return due < today;
-  }).length;
+  // One source of truth — see lib/reminders/classify.ts.
+  const actionableCount = countActionable(reminderLogs, nowForClassify);
+  const overdueCount    = countOverdue(reminderLogs, nowForClassify);
 
   // Top 2 reminders for widget (sorted by nextDueDate asc — already sorted from service)
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
@@ -222,7 +216,7 @@ export default async function TransactionDetailPage({
   const tabs = [
     { key: "overview",   label: "Overview" },
     { key: "milestones", label: "Milestones" },
-    { key: "reminders",  label: "Reminders", badge: activeReminderCount },
+    { key: "reminders",  label: "Reminders", badge: actionableCount },
     { key: "todos",      label: "To-Do", badge: openTodoCount },
     { key: "activity",   label: "Activity" },
   ];
@@ -282,7 +276,7 @@ export default async function TransactionDetailPage({
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           {/* File health banner (conditional) */}
-          <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
+          <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
 
           {/* Compact meta strip */}
           <div className="glass-card" style={{ clipPath: "inset(0 round 20px)" }}>
@@ -339,7 +333,7 @@ export default async function TransactionDetailPage({
           <div className="grid grid-cols-2 gap-5">
             <RemindersWidget
               reminders={topReminders}
-              totalActive={activeReminders.length}
+              totalActive={actionableCount}
             />
             <RecentActivityWidget entries={activityEntries} />
           </div>

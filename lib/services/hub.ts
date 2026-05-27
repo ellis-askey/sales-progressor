@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
+import { classifyReminder } from "@/lib/reminders/classify";
 
 const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   chase_unanswered:          "overdue",
@@ -558,9 +559,8 @@ export async function getHubAttentionItems(
   vis: AgentVisibility
 ): Promise<HubAttentionItem[]> {
   const now = new Date();
-  const todayStr = toUKDateStr(now);
-  // Generous DB upper bound — catches anything that could be "today UK" regardless of DST.
-  // Final precise filter happens in JS using toUKDateStr below.
+  // Generous DB upper bound — catches anything that could be "today UK"
+  // regardless of DST. Final classification happens in JS via classifyReminder.
   const dbUpperBound = new Date(now.getTime() + 26 * 60 * 60 * 1000);
   const txNested = buildTxNested(vis);
 
@@ -586,31 +586,33 @@ export async function getHubAttentionItems(
       nextDueDate: true,
       reminderRule: { select: { name: true } },
       transaction: { select: { id: true, propertyAddress: true } },
+      // status + snoozedUntil + chase fields all needed by classifyReminder.
+      status: true,
+      snoozedUntil: true,
       chaseTasks: {
         where: { status: "pending" },
-        select: { priority: true },
+        select: { status: true, priority: true, chaseCount: true },
         take: 1,
       },
     },
   });
 
+  // Apply the canonical classifier — chased rows (chaseCount >= 1) live
+  // in Coming up and shouldn't surface on the hub attention card. Only
+  // escalated / overdue / due_today land here.
   const items: HubAttentionItem[] = logs
-    .filter((log) => toUKDateStr(log.nextDueDate) <= todayStr)
     .map((log) => {
-      const openTask = log.chaseTasks[0] ?? null;
-      const dueStr = toUKDateStr(log.nextDueDate);
-      const urgency: HubAttentionItem["urgency"] =
-        openTask?.priority === "escalated" ? "escalated"
-        : dueStr < todayStr ? "overdue"
-        : "due_today";
+      const bucket = classifyReminder(log, now);
+      if (bucket !== "escalated" && bucket !== "overdue" && bucket !== "due_today") return null;
       return {
         id: log.id,
-        urgency,
+        urgency: bucket as HubAttentionItem["urgency"],
         reminderName: log.reminderRule.name.replace(/^Chase:\s*/i, ""),
         transaction: log.transaction,
         nextDueDate: log.nextDueDate,
       };
-    });
+    })
+    .filter((x): x is HubAttentionItem => x !== null);
 
   const order = { escalated: 0, overdue: 1, due_today: 2 };
   items.sort((a, b) => {
