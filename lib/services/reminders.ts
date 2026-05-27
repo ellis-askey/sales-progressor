@@ -120,30 +120,55 @@ export async function getReminderLogsForTransaction(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const logs = await prisma.reminderLog.findMany({
-    where: { transactionId },
-    orderBy: { nextDueDate: "asc" },
-    include: {
-      reminderRule: {
-        select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, anchorMilestone: { select: { name: true } } },
-      },
-      chaseTasks: {
-        select: {
-          id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
-          communications: {
-            where: { type: "outbound" },
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { createdAt: true, method: true },
-          },
+  const [logs, completedCodes] = await Promise.all([
+    prisma.reminderLog.findMany({
+      where: { transactionId },
+      orderBy: { nextDueDate: "asc" },
+      include: {
+        reminderRule: {
+          select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, anchorMilestone: { select: { name: true } } },
         },
-        orderBy: { createdAt: "desc" },
+        chaseTasks: {
+          select: {
+            id: true, status: true, priority: true, chaseCount: true, dueDate: true, fallbackKind: true,
+            communications: {
+              where: { type: "outbound" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { createdAt: true, method: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
-    },
-  }) as ReminderLogWithRule[];
+    }) as Promise<ReminderLogWithRule[]>,
+    prisma.milestoneCompletion.findMany({
+      where: { transactionId, state: "complete" },
+      select: { milestoneDefinition: { select: { code: true } } },
+    }).then((rows) => new Set(rows.map((r) => r.milestoneDefinition.code))),
+  ]);
+
+  // Orphan cleanup: any active log whose target milestone is already
+  // complete is stuck data (migration race, missed engine pass, or any
+  // future "edit while on hold" flow). Filter them out of the response
+  // AND fire-and-forget mark them completed in the DB so the next read
+  // doesn't have to re-filter. Mirrors the existing self-heal pattern
+  // below for "active log with no pending ChaseTask".
+  const orphans = logs.filter((l) =>
+    l.status === "active"
+    && l.reminderRule.targetMilestoneCode
+    && completedCodes.has(l.reminderRule.targetMilestoneCode),
+  );
+  if (orphans.length > 0) {
+    const orphanCodes = Array.from(new Set(orphans.map((o) => o.reminderRule.targetMilestoneCode!)));
+    Promise.all(orphanCodes.map((code) => autoCompleteRemindersForMilestone(transactionId, code)))
+      .catch((err) => console.error("[getReminderLogsForTransaction] orphan cleanup failed:", err));
+  }
+  const orphanIds = new Set(orphans.map((o) => o.id));
+  const visible = logs.filter((l) => !orphanIds.has(l.id));
 
   const todayUKStr = toUKDateStr(new Date());
-  const dueWithNoTask = logs.filter((l) => {
+  const dueWithNoTask = visible.filter((l) => {
     return l.status === "active" && !l.chaseTasks.some((t) => t.status === "pending") && toUKDateStr(l.nextDueDate) <= todayUKStr;
   });
   if (dueWithNoTask.length > 0) {
@@ -157,7 +182,7 @@ export async function getReminderLogsForTransaction(
     return getReminderLogsForTransaction(transactionId, agencyId);
   }
 
-  return logs;
+  return visible;
 }
 
 export async function getAgentReminderLogs(vis: AgentVisibility) {
@@ -206,14 +231,30 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
           id: true,
           propertyAddress: true,
           contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true } },
+          // Pulled solely so we can filter out orphan logs whose target
+          // milestone is already complete (migration race, etc.). Read-only —
+          // the per-file getReminderLogsForTransaction does the DB cleanup.
+          milestoneCompletions: {
+            where: { state: "complete" },
+            select: { milestoneDefinition: { select: { code: true } } },
+          },
         },
       },
     },
     orderBy: { nextDueDate: "asc" },
   });
 
+  // Filter orphan logs: rule has targetMilestoneCode that's already complete
+  // on this transaction. Don't write here — the work queue is hot. The DB
+  // heals when the per-file page next loads.
+  const visibleLogs = logs.filter((l) => {
+    const target = l.reminderRule.targetMilestoneCode;
+    if (!target) return true;
+    return !l.transaction.milestoneCompletions.some((c) => c.milestoneDefinition.code === target);
+  });
+
   const todayUKStr = toUKDateStr(new Date());
-  const dueWithNoTask = logs.filter((l) => {
+  const dueWithNoTask = visibleLogs.filter((l) => {
     return l.chaseTasks.length === 0 && toUKDateStr(l.nextDueDate) <= todayUKStr;
   });
   if (dueWithNoTask.length > 0) {
@@ -227,7 +268,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
     return getAgentReminderLogs(vis);
   }
 
-  return logs;
+  return visibleLogs;
 }
 
 export async function getChaseTasksForTransaction(transactionId: string, scope: AccessScope) {
