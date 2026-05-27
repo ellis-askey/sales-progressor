@@ -90,6 +90,14 @@ export async function putFileOnHold(
     ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
     : null;
 
+  // Reject past dates outright — a past plannedEndAt would surface the
+  // file in the hub's expired-holds widget immediately (or never resolve
+  // cleanly) and silently lose the file in the user's mental model.
+  // Client validates too; this is the defence-in-depth guard.
+  if (plannedEndAtDate && plannedEndAtDate.getTime() <= Date.now()) {
+    return { ok: false, error: "Return date must be in the future." };
+  }
+
   // Status flip + open a new hold period in one transaction so the period
   // row exists from the moment the status changes. The hold-duration
   // helpers rely on the open period being present while status=on_hold.
@@ -133,6 +141,12 @@ export async function extendHoldAction(
   const newDate: Date | null = plannedEndAt
     ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
     : null;
+
+  // Same defence-in-depth as putFileOnHold — a past plannedEndAt would
+  // re-trip the hub's expired-holds widget the moment it lands.
+  if (newDate && newDate.getTime() <= Date.now()) {
+    return { ok: false, error: "Return date must be in the future." };
+  }
 
   // Update the currently-open period (endedAt is null). updateMany handles
   // the defensive case where multiple open periods exist (shouldn't happen).

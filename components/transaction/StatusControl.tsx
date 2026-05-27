@@ -162,8 +162,14 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     pauseClientEmails(transactionId).catch(() => {});
   }
 
+  // True when the typed/picked date is today or earlier. The browser's
+  // `min` attribute only constrains the picker UI — users can still type
+  // a past date by hand, so we also guard here (and the server rejects
+  // too, as final defence).
+  const holdDateInPast = holdDate !== "" && holdDate < tomorrow();
+
   function confirmHoldDate() {
-    if (!holdDate) return;
+    if (!holdDate || holdDateInPast) return;
     const d = new Date(holdDate);
     d.setHours(9, 0, 0, 0);
     setShowHoldModal(false);
@@ -357,6 +363,11 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 autoFocus
                 className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
               />
+              {holdDateInPast && (
+                <p style={{ fontSize: 11, color: "#b45309", margin: "6px 0 0", fontWeight: 500 }}>
+                  Pick a future date — the file needs to come back to you, not behind you.
+                </p>
+              )}
 
               <div className="flex gap-3 pt-5">
                 <button
@@ -369,7 +380,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 <button
                   type="button"
                   onClick={confirmHoldDate}
-                  disabled={!holdDate}
+                  disabled={!holdDate || holdDateInPast}
                   className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
                 >
                   Put on hold

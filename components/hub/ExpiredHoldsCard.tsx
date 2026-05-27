@@ -202,8 +202,17 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                   autoFocus
                 />
                 <button
-                  onClick={() => extenderDate && handleExtend(item.transactionId, new Date(extenderDate))}
-                  disabled={!extenderDate}
+                  onClick={() => {
+                    if (!extenderDate) return;
+                    // Guard against hand-typed past dates — `min` is only a
+                    // picker hint. Server also rejects, this is the fast UX.
+                    if (extenderDate < formatDateInput(tomorrowAt9())) {
+                      toast.error("Pick a future date");
+                      return;
+                    }
+                    handleExtend(item.transactionId, new Date(extenderDate));
+                  }}
+                  disabled={!extenderDate || extenderDate < formatDateInput(tomorrowAt9())}
                   className="agent-btn agent-btn-xs agent-btn-primary"
                 >
                   Set date
