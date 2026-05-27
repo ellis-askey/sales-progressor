@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
@@ -224,17 +226,13 @@ export function MilestonePanel({
     <section>
       {/* ── Exchange readiness banner ──────────────────────────────────────────── */}
       {exchangeReady ? (
-        <div className="mb-5 px-4 py-3 rounded-xl bg-[var(--agent-success-bg)] border border-[var(--agent-success-border)] flex items-center gap-3 agent-reveal-in">
-          <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-green-800">Ready to exchange</p>
-            <p className="text-xs text-green-600">All blocking steps are complete on both sides</p>
-          </div>
-        </div>
+        <AgentBanner
+          kind="success"
+          icon={<CheckCircle size={18} weight="fill" />}
+          title="Ready to exchange"
+          body="All blocking steps are complete on both sides"
+          className="mb-5"
+        />
       ) : (
         /* ── Progress bar card ───────────────────────────────────────────────── */
         <div className="glass-card mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
