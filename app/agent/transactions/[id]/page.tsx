@@ -514,14 +514,13 @@ export default async function AgentTransactionDetailPage({
         <div className="space-y-5">
           <FileHealthBanner overdueCount={overdueCount} onTrack={progress.onTrack} />
 
-          {transaction.serviceType === "self_managed" &&
-            (transaction.status === "active" || transaction.status === "on_hold") && (
-              <AutomationControls
-                transactionId={transaction.id}
-                initialClientEmailsPaused={transaction.clientEmailsPaused}
-                status={transaction.status as "active" | "on_hold"}
-              />
-            )}
+          {(transaction.status === "active" || transaction.status === "on_hold") && (
+            <AutomationControls
+              transactionId={transaction.id}
+              initialClientEmailsPaused={transaction.clientEmailsPaused}
+              status={transaction.status as "active" | "on_hold"}
+            />
+          )}
 
           <ContactsSection
             transactionId={transaction.id}

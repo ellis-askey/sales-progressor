@@ -31,10 +31,14 @@ export async function pauseClientEmails(transactionId: string): Promise<ActionRe
   const scope = getAccessScope(session);
   const where = scopeOwnershipWhere(scope, transactionId);
 
-  const tx = await prisma.propertyTransaction.findFirst({ where, select: { id: true, status: true, serviceType: true } });
+  const tx = await prisma.propertyTransaction.findFirst({ where, select: { id: true, status: true } });
   if (!tx) return { ok: false, error: "Not found" };
-  if (tx.serviceType !== "self_managed") return { ok: false, error: "Automation controls only apply to self-managed files." };
 
+  // No serviceType gate — the resume-from-hold modal lets users pick
+  // "keep emails paused" regardless of tier, and the AutomationControls
+  // toggle is now surfaced on outsourced files too so they have a way to
+  // flip it back. The clientEmailsPaused flag is honoured by the chase
+  // cron whether or not the file is self-managed.
   await prisma.propertyTransaction.update({
     where: { id: tx.id },
     data: {
