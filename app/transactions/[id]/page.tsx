@@ -146,9 +146,11 @@ export default async function TransactionDetailPage({
   const nowForClassify = new Date();
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
-  // One source of truth — see lib/reminders/classify.ts.
-  const actionableCount = countActionable(reminderLogs, nowForClassify);
-  const overdueCount    = countOverdue(reminderLogs, nowForClassify);
+  // One source of truth — see lib/reminders/classify.ts. On-hold files zero
+  // out so the badge doesn't contradict the OnHoldBanner.
+  const onHold = transaction.status === "on_hold";
+  const actionableCount = onHold ? 0 : countActionable(reminderLogs, nowForClassify);
+  const overdueCount    = onHold ? 0 : countOverdue(reminderLogs, nowForClassify);
 
   // Top 2 reminders for widget (sorted by nextDueDate asc — already sorted from service)
   const topReminders = activeReminders.slice(0, 2).map((l) => ({

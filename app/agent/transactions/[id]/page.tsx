@@ -256,8 +256,12 @@ export default async function AgentTransactionDetailPage({
   // badge, the FileHealthBanner, the RemindersWidget summary, and the hub.
   // overdueCount is only for the banner's copy nuance ("X overdue" vs
   // "X need attention").
-  const actionableCount = countActionable(reminderLogs, now);
-  const overdueCount    = countOverdue(reminderLogs, now);
+  //
+  // On-hold files zero out — the OnHoldBanner above already says "everything
+  // is frozen". A non-zero badge would contradict that.
+  const onHold = transaction.status === "on_hold";
+  const actionableCount = onHold ? 0 : countActionable(reminderLogs, now);
+  const overdueCount    = onHold ? 0 : countOverdue(reminderLogs, now);
 
   const topReminders = activeReminders.slice(0, 2).map((l) => ({
     id: l.id,

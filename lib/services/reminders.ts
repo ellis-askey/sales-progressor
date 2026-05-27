@@ -163,13 +163,17 @@ export async function getReminderLogsForTransaction(
 export async function getAgentReminderLogs(vis: AgentVisibility) {
   // Internal staff paths: no agencyId filter; serviceType filter reversed (their files are outsourced).
   // Agent paths: existing agencyId + serviceType (self_managed only) logic unchanged.
+  //
+  // On-hold files are excluded — the work queue is a "what should I act on
+  // right now" surface and on-hold means paused everywhere. The cron + engine
+  // also skip on-hold files so nothing fires automatically while they're frozen.
   let txWhere: Record<string, unknown>;
   if (vis.internalMode === "admin_all") {
-    txWhere = { status: { in: ["active" as const, "on_hold" as const] } };
+    txWhere = { status: "active" as const };
   } else if (vis.internalMode === "assigned") {
-    txWhere = { assignedUserId: vis.userId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: "outsourced" as const };
+    txWhere = { assignedUserId: vis.userId, status: "active" as const, serviceType: "outsourced" as const };
   } else {
-    const baseTxWhere = { agencyId: vis.agencyId, status: { in: ["active" as const, "on_hold" as const] }, serviceType: { not: "outsourced" as const } };
+    const baseTxWhere = { agencyId: vis.agencyId, status: "active" as const, serviceType: { not: "outsourced" as const } };
     txWhere = vis.seeAll
       ? vis.firmName
         ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }

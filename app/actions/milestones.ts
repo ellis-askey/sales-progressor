@@ -28,7 +28,7 @@ import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
-import { evaluateTransactionReminders } from "@/lib/services/reminders";
+import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 
 export type NotificationStatus = {
   role: "seller" | "buyer" | "agent" | "progressor";
@@ -864,6 +864,15 @@ export async function migrateCompleteMilestonesAction(input: {
 
       await unlockDirectDependents(input.transactionId, def.code).catch((err) =>
         console.error(`[migrateCompleteMilestonesAction] unlock failed for ${def.code}:`, err),
+      );
+
+      // Flip any chase reminders targeting this milestone to status="completed".
+      // The trailing evaluateTransactionReminders pass can race (or no-op if the
+      // file is already on hold), and even when it runs it uses deactivateLog
+      // which lands as "inactive" — the wrong terminal state for "we have proof
+      // this milestone happened". Mirrors completeMilestoneAction's flow.
+      await autoCompleteRemindersForMilestone(input.transactionId, def.code).catch((err) =>
+        console.error(`[migrateCompleteMilestonesAction] reminder auto-complete failed for ${def.code}:`, err),
       );
 
       applied++;

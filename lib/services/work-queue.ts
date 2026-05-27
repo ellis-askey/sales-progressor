@@ -58,7 +58,9 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
       ...txWhereWorkQueue(vis),
-      status: { in: ["active", "on_hold"] as TransactionStatus[] },
+      // On-hold files don't surface on the work queue — see lib/services/reminders.ts
+      // getAgentReminderLogs for the matching exclusion.
+      status: "active" as TransactionStatus,
     },
     select: {
       id: true,
