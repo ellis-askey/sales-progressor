@@ -333,6 +333,15 @@ export async function reverseMilestoneAction(input: {
     downstreamIds: input.downstreamIds,
     newPurchaseType: input.newPurchaseType,
   });
+
+  // Re-evaluate reminders so freshly-reinstated milestones (and any
+  // cascaded reinstatements) get their chase rules re-seeded immediately.
+  // Without this, the user has to wait for the next cron tick — but the
+  // click on "Reinstate" is an explicit request for the chase to resume.
+  await evaluateTransactionReminders(input.transactionId).catch((err) => {
+    console.error(`[reverseMilestoneAction] evaluate failed:`, err);
+  });
+
   void trackServerEvent(session.user.id, ANALYTICS_EVENTS.MILESTONE_UNCONFIRMED, {
     transactionId: input.transactionId,
     milestoneId:   input.milestoneDefinitionId,

@@ -526,7 +526,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   });
 
   await unlockDirectDependents(input.transactionId, def.code, tx);
-  await autoCompleteRemindersForMilestone(input.transactionId, def.code, tx);
+  await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
   await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq

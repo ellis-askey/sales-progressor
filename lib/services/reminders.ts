@@ -143,26 +143,44 @@ export async function getReminderLogsForTransaction(
       },
     }) as Promise<ReminderLogWithRule[]>,
     prisma.milestoneCompletion.findMany({
-      where: { transactionId, state: "complete" },
-      select: { milestoneDefinition: { select: { code: true } } },
-    }).then((rows) => new Set(rows.map((r) => r.milestoneDefinition.code))),
+      // Both complete AND not_required count as "this milestone is satisfied".
+      // The engine treats them equivalently at evaluateTransactionReminders
+      // line ~304, and so must the read-time filter.
+      where: { transactionId, state: { in: ["complete", "not_required"] } },
+      select: { state: true, milestoneDefinition: { select: { code: true } } },
+    }).then((rows) => new Map(rows.map((r) => [r.milestoneDefinition.code, r.state]))),
   ]);
 
   // Orphan cleanup: any active log whose target milestone is already
-  // complete is stuck data (migration race, missed engine pass, or any
-  // future "edit while on hold" flow). Filter them out of the response
-  // AND fire-and-forget mark them completed in the DB so the next read
-  // doesn't have to re-filter. Mirrors the existing self-heal pattern
-  // below for "active log with no pending ChaseTask".
+  // complete/not_required is stuck data (migration race, missed engine
+  // pass, or any "edit while on hold" flow). Filter them out of the
+  // response AND fire-and-forget mark them completed in the DB so the
+  // next read doesn't have to re-filter. Mirrors the existing self-heal
+  // pattern below for "active log with no pending ChaseTask".
   const orphans = logs.filter((l) =>
     l.status === "active"
     && l.reminderRule.targetMilestoneCode
     && completedCodes.has(l.reminderRule.targetMilestoneCode),
   );
   if (orphans.length > 0) {
-    const orphanCodes = Array.from(new Set(orphans.map((o) => o.reminderRule.targetMilestoneCode!)));
-    Promise.all(orphanCodes.map((code) => autoCompleteRemindersForMilestone(transactionId, code)))
-      .catch((err) => console.error("[getReminderLogsForTransaction] orphan cleanup failed:", err));
+    // Bucket by reason so the audit-log statusReason matches what
+    // actually closed the milestone (Complete vs Not required).
+    const byReason = new Map<string, Set<string>>();
+    for (const o of orphans) {
+      const code = o.reminderRule.targetMilestoneCode!;
+      const state = completedCodes.get(code);
+      const reason = state === "not_required" ? "Milestone marked not required" : "Milestone completed";
+      const codes = byReason.get(reason) ?? new Set<string>();
+      codes.add(code);
+      byReason.set(reason, codes);
+    }
+    Promise.all(
+      Array.from(byReason.entries()).flatMap(([reason, codes]) =>
+        Array.from(codes).map((code) =>
+          autoCompleteRemindersForMilestone(transactionId, code, reason),
+        ),
+      ),
+    ).catch((err) => console.error("[getReminderLogsForTransaction] orphan cleanup failed:", err));
   }
   const orphanIds = new Set(orphans.map((o) => o.id));
   const visible = logs.filter((l) => !orphanIds.has(l.id));
@@ -232,10 +250,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
           propertyAddress: true,
           contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true } },
           // Pulled solely so we can filter out orphan logs whose target
-          // milestone is already complete (migration race, etc.). Read-only —
-          // the per-file getReminderLogsForTransaction does the DB cleanup.
+          // milestone is already complete OR not_required (migration race,
+          // edit-while-on-hold, etc.). Read-only — the per-file
+          // getReminderLogsForTransaction does the DB cleanup.
           milestoneCompletions: {
-            where: { state: "complete" },
+            where: { state: { in: ["complete", "not_required"] } },
             select: { milestoneDefinition: { select: { code: true } } },
           },
         },
@@ -785,7 +804,12 @@ export async function wakeUpReminderLog(logId: string, scope: AccessScope) {
 export async function autoCompleteRemindersForMilestone(
   transactionId: string,
   milestoneCode: string,
-  tx?: Prisma.TransactionClient
+  // Audit-trail reason for the status flip. Defaults to the common case
+  // (milestone marked Complete). Pass "Milestone marked not required"
+  // when the trigger was an NR flip, so the log's statusReason matches
+  // what actually closed the milestone.
+  reason: string = "Milestone completed",
+  tx?: Prisma.TransactionClient,
 ) {
   const db = tx ?? prisma;
 
@@ -808,7 +832,7 @@ export async function autoCompleteRemindersForMilestone(
 
   await db.reminderLog.updateMany({
     where: { id: { in: logIds } },
-    data: { status: "completed", statusReason: "Milestone completed" },
+    data: { status: "completed", statusReason: reason },
   });
 }
 
