@@ -444,7 +444,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
         });
         await writeEngineAudit(
           transactionId,
-          `Reminder engine: due date updated for "${rule.name}" — new due date ${formatEngineDate(firstDueDate)}.`,
+          `"${rule.name}" chase moved to ${formatEngineDate(firstDueDate)}.`,
           assignedUserId
         );
       }
@@ -460,7 +460,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
       });
       await writeEngineAudit(
         transactionId,
-        `Reminder engine: reminder created for "${rule.name}" — due ${formatEngineDate(firstDueDate)}.`,
+        `Automated chase scheduled for "${rule.name}" — first reminder ${formatEngineDate(firstDueDate)}.`,
         assignedUserId
       );
     }
@@ -509,11 +509,9 @@ export async function evaluateTransactionReminders(transactionId: string) {
             chaseCount: 0,
           },
         });
-        await writeEngineAudit(
-          transactionId,
-          `Reminder engine: chase task created for "${rule.name}" — due ${formatEngineDate(log.nextDueDate)}.`,
-          assignedUserId
-        );
+        // No audit entry — duplicates the "Automated chase scheduled…"
+        // line written when the reminder log was created. Agents don't
+        // need to see both events.
       }
     }
   }
@@ -648,15 +646,14 @@ async function deactivateLog(
     data: { status: "inactive", statusReason: reason },
   });
 
-  const deactivatedTasks = await prisma.chaseTask.updateMany({
+  await prisma.chaseTask.updateMany({
     where: { reminderLogId: existing.id, status: "pending" },
     data: { status: "inactive" },
   });
 
-  const taskNote = deactivatedTasks.count > 0 ? ` Chase task also deactivated.` : "";
   await writeEngineAudit(
     transactionId,
-    `Reminder engine: reminder deactivated for "${existing.reminderRule.name}" — ${reason}.${taskNote}`,
+    `"${existing.reminderRule.name}" chase closed — ${reason}.`,
     assignedUserId
   );
 }

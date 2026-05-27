@@ -1207,7 +1207,7 @@ export async function executeUndoMilestone(input: {
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `Milestone reversed: ${defName}${modeNote}`,
+          content: `${completedByName} undid "${defName}".${modeNote}`,
           createdById: completedById,
         },
       });
@@ -1221,7 +1221,7 @@ export async function executeUndoMilestone(input: {
             transactionId,
             type: "internal_note",
             contactIds: [],
-            content: `Milestone reversed: ${item.name} — cascaded from undo of ${targetDef.name}`,
+            content: `"${item.name}" reset — cascaded from ${completedByName}'s undo of "${targetDef.name}".`,
             createdById: completedById,
           },
         });

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `Purchase price updated from ${oldFormatted} to ${newFormatted}`,
+          content: `${session.user.name} updated purchase price from ${oldFormatted} to ${newFormatted}.`,
           createdById: session.user.id,
         },
       });

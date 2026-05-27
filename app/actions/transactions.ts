@@ -429,7 +429,7 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
     await prisma.outboundMessage.create({
       data: {
         transactionId, type: "internal_note", contactIds: [],
-        content: `Purchase price updated from ${oldFmt} to ${newFmt}`,
+        content: `${session.user.name} updated purchase price from ${oldFmt} to ${newFmt}.`,
         createdById: session.user.id,
       },
     });
