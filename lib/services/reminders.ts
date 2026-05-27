@@ -624,7 +624,14 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
     ? "escalated"
     : "normal";
   const justEscalated = task.priority !== "escalated" && newPriority === "escalated";
-  const nextDue = new Date(task.reminderLog.nextDueDate);
+  // Base the new due date on max(today, currentDue) so chasing an overdue
+  // row always lands the next chase in the future — early/proactive chases
+  // still preserve the rule's cadence.
+  const nowTs = Date.now();
+  const base = task.reminderLog.nextDueDate.getTime() > nowTs
+    ? task.reminderLog.nextDueDate
+    : new Date(nowTs);
+  const nextDue = new Date(base);
   nextDue.setDate(nextDue.getDate() + repeatDays);
 
   await prisma.$transaction([

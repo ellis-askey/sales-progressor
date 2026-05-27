@@ -263,7 +263,12 @@ export default async function AgentTransactionDetailPage({
   const reminderBadgeCount = reminderLogs.filter((l) => {
     if (l.status !== "active") return false;
     if (l.snoozedUntil && new Date(l.snoozedUntil) > now) return false;
-    if (l.chaseTasks.some((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")) return true;
+    // Mirror classifyActive in RemindersSection: an open task with chaseCount>=1
+    // sits in "Coming up" (the agent has acted; row shouldn't read as actionable
+    // until the server escalates it). Escalated rows still count.
+    const openTask = l.chaseTasks.find((t: { status: string; priority: string; chaseCount: number }) => t.status === "pending");
+    if (openTask?.priority === "escalated") return true;
+    if ((openTask?.chaseCount ?? 0) >= 1) return false;
     return toUKDateStr(l.nextDueDate) <= todayUKStr;
   }).length;
 
