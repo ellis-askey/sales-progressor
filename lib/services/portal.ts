@@ -3,6 +3,20 @@ import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+// ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
+//
+// When the feature flag is enabled AND the milestoneCode has a registered
+// skeleton, the recipient copy is assembled from Section[] sources via
+// the email-assembler. Otherwise the legacy emailCopy fires unchanged.
+//
+// Default (flag unset / not "on") behaviour: zero call to the assembler,
+// zero schema lookups beyond the existing path, zero observable change.
+// Confirmed by the resolveRecipientCopy helper below — if shape is null
+// (which it is when the flag is off), the function returns the legacy
+// emailCopy entry directly with no detour.
+import { SKELETON_REGISTRY, isSkeletonModeEnabled } from "@/lib/email-skeletons/registry";
+import { assembleEmail, type FileShape, type ConfirmerRoute, type HandoffDirection } from "@/lib/email-assembler";
+import { BILATERAL_PAIR_OF, HANDOFF_DEFAULT_ACTOR } from "@/lib/email-skeletons/journey-order";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -454,6 +468,11 @@ export async function logPortalMilestoneConfirm(
     select: {
       propertyAddress: true,
       serviceType: true,
+      // tenure + purchaseType added 2026-05-27 for Model B skeleton mode.
+      // Used by resolveRecipientCopy via the FileShape construction below.
+      // Nullable on the schema; null short-circuits the assembler path.
+      tenure: true,
+      purchaseType: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
@@ -465,6 +484,31 @@ export async function logPortalMilestoneConfirm(
 
   // Use client-facing portal copy label for all client communications
   const portalLabel = milestoneCode ? (getMilestoneCopy(milestoneCode).label ?? milestoneLabel) : milestoneLabel;
+
+  // ── Model B FileShape — for the client-portal-confirmed email pipeline ──
+  //
+  // The client confirmed via their portal. Route is always "client_portal"
+  // on this path (only clients reach logPortalMilestoneConfirm). Direction
+  // is computed from whether the bilateral counterpart is already complete.
+  //
+  // Strict no-op when EMAIL_SKELETON_MODE is off OR tenure/purchaseType
+  // are null on the tx — fileShape stays null and resolveRecipientCopy
+  // falls through to legacy emailCopy[recipientKey] for every recipient.
+  const portalCounterpartComplete = milestoneCode
+    ? await isBilateralCounterpartComplete(transactionId, milestoneCode)
+    : false;
+  const portalDirection = milestoneCode
+    ? computeHandoffDirection(milestoneCode, portalCounterpartComplete)
+    : undefined;
+  const portalFileShape: FileShape | null =
+    isSkeletonModeEnabled() && tx.tenure && tx.purchaseType
+      ? {
+          tenure: tx.tenure,
+          purchaseType: tx.purchaseType,
+          route: "client_portal",
+          direction: portalDirection,
+        }
+      : null;
 
   const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
 
@@ -585,11 +629,21 @@ export async function logPortalMilestoneConfirm(
 
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
+    //
+    // ── Model B switch (2026-05-27): use resolveRecipientCopy so the
+    // assembler fires when EMAIL_SKELETON_MODE is on AND the milestone
+    // has a registered skeleton AND tenure+purchaseType are set. The
+    // client_portal route variant of bilateral acted-side bodies (the ψ
+    // menu — "Thanks — your solicitor's…", "You've just confirmed…",
+    // etc.) is ONLY reachable via this path, so without this swap, that
+    // entire route variant set is unreachable in production.
     const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
       const recipientKey = c.roleType as "vendor" | "purchaser";
-      const copy = richCopy[recipientKey];
+      const copy = milestoneCode
+        ? resolveRecipientCopy(milestoneCode, recipientKey, richCopy, portalFileShape)
+        : richCopy[recipientKey];
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
@@ -739,11 +793,26 @@ export async function logPortalMilestoneConfirm(
 
 // Called from confirmMilestoneAction — emails all vendor/purchaser contacts when
 // the progressor/agent confirms any milestone, regardless of which side it's on.
+//
+// ── Skeleton-mode parameters (added 2026-05-27) ──────────────────────────
+// confirmerRoute    — derived from session.user.role at the caller via
+//                     roleToConfirmerRoute(). Passes through to the
+//                     assembler so bilateral acted-side route variants
+//                     (client_portal / agent / sales_progressor) match
+//                     correctly. Undefined for non-bilateral codes.
+// handoffDirection  — computed by the caller via computeHandoffDirection()
+//                     + isBilateralCounterpartComplete(). Passes through so
+//                     bilateral default/inverse direction-gated bodies
+//                     match correctly. Undefined for non-bilateral codes.
+// Both are NO-OP when the flag is off (sendRichMilestoneEmails only uses
+// them when constructing the FileShape, and shape is null when flag off).
 export async function sendAdminMilestoneNotificationToPortal(
   transactionId: string,
   milestoneCode: string,
   eventDate?: string | null,
   confirmerId?: string,
+  confirmerRoute?: ConfirmerRoute,
+  handoffDirection?: HandoffDirection,
 ): Promise<void> {
   // Exchange gets the rich "what happens next" pack — delegate entirely
   if (milestoneCode === "VM19" || milestoneCode === "PM26") {
@@ -766,7 +835,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
   if (milestoneCopy.emailCopy) {
-    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate);
+    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate, confirmerRoute, handoffDirection);
     return;
   }
 
@@ -975,20 +1044,150 @@ function richMilestoneEmailHtml({
 </body></html>`;
 }
 
+// ── Bilateral hand-off direction computation ────────────────────────────
+//
+// Given a bilateral milestone code being confirmed now, determine whether
+// the pair is firing in NATURAL order (first-actor first → "default") or
+// REVERSED order (second-actor first → "inverse"). Returns undefined for
+// non-bilateral codes — the assembler treats undefined as "no direction
+// gating applies to this body".
+//
+// The rule:
+//   - currentIsNaturalFirst = HANDOFF_DEFAULT_ACTOR[code] matches code's V/P prefix
+//   - If currentIsNaturalFirst AND counterpart NOT complete: default (we're first, natural)
+//   - If currentIsNaturalFirst AND counterpart IS complete:    inverse (we're catching up)
+//   - If !currentIsNaturalFirst AND counterpart NOT complete: inverse (we went first)
+//   - If !currentIsNaturalFirst AND counterpart IS complete:    default (natural completion)
+//
+// counterpartComplete is passed in by the caller (which already has the
+// MilestoneCompletion row state for the file).
+export function computeHandoffDirection(
+  currentCode: string,
+  counterpartComplete: boolean,
+): HandoffDirection | undefined {
+  const pairFirstActor = HANDOFF_DEFAULT_ACTOR[currentCode];
+  if (!pairFirstActor) return undefined; // not a bilateral code
+  const currentActedSide: "vendor" | "purchaser" =
+    currentCode.startsWith("V") ? "vendor" : "purchaser";
+  const currentIsNaturalFirst = pairFirstActor === currentActedSide;
+  if (currentIsNaturalFirst) {
+    return counterpartComplete ? "inverse" : "default";
+  }
+  return counterpartComplete ? "default" : "inverse";
+}
+
+// Look up whether a bilateral milestone's counterpart is already complete.
+// Returns false for non-bilateral codes (the value is unused but the call
+// shape is preserved for the caller).
+export async function isBilateralCounterpartComplete(
+  transactionId: string,
+  currentCode: string,
+): Promise<boolean> {
+  const counterCode = BILATERAL_PAIR_OF[currentCode];
+  if (!counterCode) return false;
+  const counterDef = await prisma.milestoneDefinition.findFirst({
+    where: { code: counterCode },
+    select: { id: true },
+  });
+  if (!counterDef) return false;
+  const completion = await prisma.milestoneCompletion.findUnique({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId,
+        milestoneDefinitionId: counterDef.id,
+      },
+    },
+    select: { state: true },
+  });
+  return completion?.state === "complete";
+}
+
+// Map session.user.role → ConfirmerRoute. Used by callers of
+// sendAdminMilestoneNotificationToPortal to derive the route that the
+// assembler needs. The portal-confirm path passes "client_portal"
+// directly (no role lookup needed — only clients reach that path).
+//
+// Role taxonomy (from CLAUDE.md):
+//   director / negotiator / viewer       → customer agency staff → "agent"
+//   sales_progressor / admin / superadmin → internal staff      → "sales_progressor"
+export function roleToConfirmerRoute(
+  role: string | undefined,
+): ConfirmerRoute | undefined {
+  if (!role) return undefined;
+  if (role === "director" || role === "negotiator" || role === "viewer") {
+    return "agent";
+  }
+  if (role === "sales_progressor" || role === "admin" || role === "superadmin") {
+    return "sales_progressor";
+  }
+  return undefined;
+}
+
 // Builds and sends all per-recipient emails for a milestone that has emailCopy defined.
 // Returns true if emails were sent, false if emailCopy is absent (caller uses fallback).
+// ── Skeleton-aware recipient copy resolver (no-op when flag is off) ─────
+//
+// Returns either an assembled-from-skeleton RecipientEmailCopy, OR the
+// legacy emailCopy entry, depending on whether:
+//   1. EMAIL_SKELETON_MODE is "on" in env (flag gate)
+//   2. SKELETON_REGISTRY has this milestoneCode
+//   3. shape is non-null (i.e. tenure + purchaseType were set on the tx)
+//
+// All three must be true for the assembler path. Otherwise fall through
+// to legacy. This is the load-bearing line of the no-op contract.
+function resolveRecipientCopy(
+  milestoneCode: string,
+  recipientKey: "vendor" | "purchaser" | "vendorAgent" | "progressor",
+  emailCopy: MilestoneEmailCopy,
+  shape: FileShape | null,
+): RecipientEmailCopy | undefined {
+  if (shape) {
+    const skeletonField = SKELETON_REGISTRY[milestoneCode]?.[recipientKey];
+    if (skeletonField) {
+      const a = assembleEmail(skeletonField, shape);
+      return {
+        subject:      a.subject,
+        heroLabel:    a.heroLabel,
+        opening:      a.opening,
+        whatHappened: a.whatHappened,
+        // Empty string → null so the existing truthy-check (`copy.whatNext`)
+        // at line ~1047 keeps working as today (the bracket-spread expression
+        // skips when whatNext is null).
+        whatNext:     a.whatNext || null,
+        // Empty string → null so the ?? "View your portal" fallback fires.
+        action:       a.action   || null,
+      };
+    }
+  }
+  return emailCopy[recipientKey];
+}
+
 async function sendRichMilestoneEmails(
   transactionId: string,
   milestoneCode: string,
   emailCopy: MilestoneEmailCopy,
   confirmerId?: string,
   eventDate?: string | null,
+  // ── Skeleton-mode plumbing (optional; no-op when flag is off) ────────
+  // confirmerRoute    — bilateral acted-side route (client_portal / agent / SP)
+  // handoffDirection  — bilateral hand-off direction ("default" / "inverse")
+  // These two parameters are wired through so the assembler can pick the
+  // right Section[] entries. Callers (confirmMilestoneAction) can leave
+  // them undefined for non-bilateral milestones or until skeleton mode is
+  // enabled. They have no effect when shape is null below.
+  confirmerRoute?: ConfirmerRoute,
+  handoffDirection?: HandoffDirection,
 ): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
       propertyAddress: true,
       serviceType: true,
+      // tenure + purchaseType added for the skeleton-mode FileShape build.
+      // Nullable on the schema; resolveRecipientCopy guards against nulls
+      // by returning legacy copy when shape can't be constructed.
+      tenure: true,
+      purchaseType: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
@@ -998,6 +1197,20 @@ async function sendRichMilestoneEmails(
     },
   });
   if (!tx) return false;
+
+  // Skeleton-mode FileShape — null when the flag is off OR when tenure/
+  // purchaseType aren't both set on the tx. Null shape means
+  // resolveRecipientCopy will fall through to legacy emailCopy for every
+  // recipient regardless of registry contents — strict no-op.
+  const fileShape: FileShape | null =
+    isSkeletonModeEnabled() && tx.tenure && tx.purchaseType
+      ? {
+          tenure: tx.tenure,
+          purchaseType: tx.purchaseType,
+          route: confirmerRoute,
+          direction: handoffDirection,
+        }
+      : null;
 
   const base             = process.env.NEXTAUTH_URL ?? "";
   const address          = tx.propertyAddress;
@@ -1035,7 +1248,7 @@ async function sendRichMilestoneEmails(
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
     const recipientKey = c.roleType as "vendor" | "purchaser";
-    const copy = emailCopy[recipientKey];
+    const copy = resolveRecipientCopy(milestoneCode, recipientKey, emailCopy, fileShape);
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
@@ -1062,8 +1275,9 @@ async function sendRichMilestoneEmails(
 
   // Agent notification — only on outsourced files; self-managed agents manage their own files
   const skipAgentEmail = serviceType === "self_managed";
-  if (tx.agentUser?.email && emailCopy.vendorAgent && !skipAgentEmail) {
-    const copy    = emailCopy.vendorAgent;
+  const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", emailCopy, fileShape);
+  if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail) {
+    const copy    = vendorAgentCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
     const greeting = buildGreeting(tx.agentUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
@@ -1074,8 +1288,9 @@ async function sendRichMilestoneEmails(
 
   // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
   const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
-  if (tx.assignedUser?.email && emailCopy.progressor && !skipProgressorEmail) {
-    const copy    = emailCopy.progressor;
+  const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", emailCopy, fileShape);
+  if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail) {
+    const copy    = progressorCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
     const greeting = buildGreeting(tx.assignedUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });

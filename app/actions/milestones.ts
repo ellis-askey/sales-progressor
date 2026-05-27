@@ -24,7 +24,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
+import { sendAdminMilestoneNotificationToPortal, computeHandoffDirection, isBilateralCounterpartComplete, roleToConfirmerRoute } from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -177,12 +177,26 @@ export async function confirmMilestoneAction(input: {
       urlPath: "/progress",
     }).catch(() => {});
 
-    // Email all vendor/purchaser portal contacts with a translated progress update
+    // Email all vendor/purchaser portal contacts with a translated progress update.
+    //
+    // ── Skeleton-mode wiring (added 2026-05-27) ───────────────────────
+    // Derive the confirmer's route (agent / sales_progressor) from
+    // session.user.role and compute the bilateral handoff direction from
+    // whether the paired milestone is already complete. Both pass through
+    // to the assembler so route-varied and direction-gated Section
+    // entries match correctly. Strictly no-op when the flag is off (the
+    // assembler doesn't construct a FileShape at all in that case).
+    const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
+    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code);
+    const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
+
     sendAdminMilestoneNotificationToPortal(
       input.transactionId,
       code,
       input.eventDate ?? null,
       session.user.id,
+      confirmerRoute_self,
+      handoffDirection_self,
     ).catch(() => {});
 
     // Retention email: fire first-exchange celebration for the agent who owns the file
@@ -651,11 +665,20 @@ export async function confirmExchangeReconciliationAction(input: {
   }
 
   pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+
+  // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
+  // at the top callsite of sendAdminMilestoneNotificationToPortal above.
+  const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
+  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code);
+  const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
+
   sendAdminMilestoneNotificationToPortal(
     input.transactionId,
     code,
     input.eventDate ?? null,
     session.user.id,
+    confirmerRoute_re,
+    handoffDirection_re,
   ).catch(() => {});
 
   const isExchangeCode = def.code === "VM19" || def.code === "PM26";
