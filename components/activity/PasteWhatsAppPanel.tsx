@@ -33,7 +33,10 @@ type Props = {
 type Mode = "paste" | "preview" | "done";
 
 type SenderResolution =
-  | { kind: "me"; recipientContactId: string | null }
+  // Multi-recipient: most real conversations are group chats, so
+  // "Me (outbound)" can land on multiple contactIds at once. The
+  // service flattens this array directly into OutboundMessage.contactIds.
+  | { kind: "me"; recipientContactIds: string[] }
   | { kind: "contact"; contactId: string }
   | { kind: "skip" }
   | { kind: "unmapped" };
@@ -125,32 +128,33 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
 
   function setResolution(sender: string, value: string) {
     let next: SenderResolution;
-    if (value === "me") next = { kind: "me", recipientContactId: null };
+    if (value === "me") next = { kind: "me", recipientContactIds: [] };
     else if (value === "skip") next = { kind: "skip" };
     else if (value === "unmapped") next = { kind: "unmapped" };
     else next = { kind: "contact", contactId: value };
     setResolutions((prev) => ({ ...prev, [sender]: next }));
   }
 
-  function setMeRecipient(sender: string, contactId: string) {
+  function toggleMeRecipient(sender: string, contactId: string) {
     setResolutions((prev) => {
       const cur = prev[sender];
       if (cur?.kind !== "me") return prev;
-      return {
-        ...prev,
-        [sender]: { kind: "me", recipientContactId: contactId || null },
-      };
+      const ids = cur.recipientContactIds;
+      const nextIds = ids.includes(contactId)
+        ? ids.filter((x) => x !== contactId)
+        : [...ids, contactId];
+      return { ...prev, [sender]: { kind: "me", recipientContactIds: nextIds } };
     });
   }
 
   const allMapped = uniqueSenders.every((s) => resolutions[s]?.kind !== "unmapped");
-  // Every "me" row must have a recipient selected (otherwise the timeline
-  // would read just "Outbound" with no addressee). User explicitly asked
-  // for this gate — outbound parsing was unhelpful before because there
-  // was no way to record who the message was to.
+  // Every "me" row must have at least one recipient selected (otherwise
+  // the timeline would read just "Outbound" with no addressee). User
+  // explicitly asked for this gate — outbound parsing was unhelpful
+  // before because there was no way to record who the message was to.
   const allMeHaveRecipient = uniqueSenders.every((s) => {
     const r = resolutions[s];
-    return r?.kind !== "me" || !!r.recipientContactId;
+    return r?.kind !== "me" || r.recipientContactIds.length > 0;
   });
   const willInsertCount = parsed.filter((m) => {
     const r = resolutions[m.rawSender];
@@ -159,19 +163,18 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
 
   function handleConfirm() {
     if (!allMapped || !allMeHaveRecipient) return;
-    // Build mapping in service-expected shape — pass through the recipient
-    // contactId when sender is "me" so the timeline records who the
-    // outbound went to.
+    // Build mapping in service-expected shape — pass the full recipient
+    // list when sender is "me" so each row records every addressee.
     const mapping: Record<
       string,
-      | { kind: "me"; recipientContactId?: string | null }
+      | { kind: "me"; recipientContactIds?: string[] }
       | { kind: "contact"; contactId: string }
       | { kind: "skip" }
     > = {};
     for (const [sender, res] of Object.entries(resolutions)) {
       if (res.kind === "unmapped") continue;
       if (res.kind === "me") {
-        mapping[sender] = { kind: "me", recipientContactId: res.recipientContactId };
+        mapping[sender] = { kind: "me", recipientContactIds: res.recipientContactIds };
       } else {
         mapping[sender] = res;
       }
@@ -272,7 +275,7 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
             const res = resolutions[sender];
             const isUnmapped = res?.kind === "unmapped";
             const isMe = res?.kind === "me";
-            const meNeedsRecipient = isMe && !res.recipientContactId;
+            const meNeedsRecipient = isMe && res.recipientContactIds.length === 0;
             const currentValue =
               res?.kind === "me" ? "me" :
               res?.kind === "skip" ? "skip" :
@@ -318,22 +321,33 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
                   <option value="skip">Skip these messages</option>
                 </select>
                 {isMe && (
-                  <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexBasis: "100%", flexWrap: "wrap" }}>
                     <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>sent to</span>
-                    <select
-                      value={res.recipientContactId ?? ""}
-                      onChange={(e) => setMeRecipient(sender, e.target.value)}
-                      className="glass-input"
-                      style={{ fontSize: 12, padding: "4px 8px", minWidth: 200 }}
-                    >
-                      <option value="">— pick recipient —</option>
-                      {contacts.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.roleLabel.toLowerCase()})
-                        </option>
-                      ))}
-                    </select>
-                  </>
+                    {contacts.map((c) => {
+                      const on = res.recipientContactIds.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleMeRecipient(sender, c.id)}
+                          style={{
+                            padding: "3px 10px",
+                            borderRadius: 20,
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 500,
+                            background: on ? "rgba(255,107,74,0.12)" : "var(--agent-surface-glass)",
+                            color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                            transition: "background 80ms, color 80ms",
+                          }}
+                          aria-pressed={on}
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             );
@@ -355,9 +369,11 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
               !res || res.kind === "unmapped" ? "needs mapping" :
               res.kind === "skip" ? "skip" :
               res.kind === "me"
-                ? (res.recipientContactId
-                    ? `outbound to ${contacts.find((c) => c.id === res.recipientContactId)?.name ?? "?"}`
-                    : "outbound (pick recipient)")
+                ? (res.recipientContactIds.length > 0
+                    ? `outbound to ${res.recipientContactIds
+                        .map((rid) => contacts.find((c) => c.id === rid)?.name ?? "?")
+                        .join(", ")}`
+                    : "outbound (pick recipients)")
                 : `inbound from ${contacts.find((c) => c.id === res.contactId)?.name ?? "?"}`;
             return (
               <div
@@ -414,7 +430,7 @@ export function PasteWhatsAppPanel({ transactionId, contacts, onClose }: Props) 
         )}
         {allMapped && !allMeHaveRecipient && (
           <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-danger)" }}>
-            Pick a recipient for every &ldquo;Me (outbound)&rdquo; sender — the timeline needs to know who you sent the message to.
+            Pick at least one recipient for every &ldquo;Me (outbound)&rdquo; sender — the timeline needs to know who you sent the message to.
           </p>
         )}
       </div>
