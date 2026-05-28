@@ -73,7 +73,11 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
   if (!task) throw new Error("Task not found");
   await prisma.chaseTask.update({
     where: { id: taskId },
-    data: { chaseCount: task.chaseCount + 1 },
+    data: {
+      chaseCount: task.chaseCount + 1,
+      lastChasedAt: new Date(),
+      priority: "normal",
+    },
   });
   await prisma.outboundMessage.create({
     data: {

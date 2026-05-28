@@ -478,23 +478,29 @@ export async function evaluateTransactionReminders(transactionId: string) {
     });
 
     if (openTask) {
-      const taskAge = Math.floor((today.getTime() - openTask.dueDate.getTime()) / 86400000);
-      if (taskAge > 0 && taskAge % rule.repeatEveryDays === 0) {
-        const newChaseCount = openTask.chaseCount + 1;
-        const newPriority: TaskPriority = newChaseCount >= rule.escalateAfterChases ? "escalated" : "normal";
-        const justEscalated = openTask.priority !== "escalated" && newPriority === "escalated";
+      // Escalation gate (honest-chase-count, 2026-05-28):
+      // chaseCount is NEVER incremented on calendar arithmetic alone.
+      // Escalation flips only when the agent has chased the threshold
+      // number of times AND another full cycle has elapsed since the
+      // last actual chase (lastChasedAt + repeatEveryDays ago).
+      // Dormant files just accumulate days-overdue indefinitely.
+      const threshold = rule.escalateAfterChases;
+      const chasedEnough = openTask.chaseCount >= threshold;
+      const cycleMs = rule.repeatEveryDays * 86400000;
+      const cycleElapsedSinceLastChase = openTask.lastChasedAt
+        ? (today.getTime() - openTask.lastChasedAt.getTime()) >= cycleMs
+        : false;
+      const shouldEscalate =
+        openTask.priority !== "escalated" &&
+        chasedEnough &&
+        cycleElapsedSinceLastChase;
+      if (shouldEscalate) {
         await prisma.chaseTask.update({
           where: { id: openTask.id },
-          data: {
-            chaseCount: newChaseCount,
-            priority: newPriority,
-            dueDate: addDays(openTask.dueDate, rule.repeatEveryDays),
-          },
+          data: { priority: "escalated" },
         });
-        if (justEscalated) {
-          const milestoneLabel = rule.name.replace(/^Chase:\s*/i, "");
-          pushChaseEscalation(transactionId, milestoneLabel).catch(() => {});
-        }
+        const milestoneLabel = rule.name.replace(/^Chase:\s*/i, "");
+        pushChaseEscalation(transactionId, milestoneLabel).catch(() => {});
       }
     } else {
       if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
@@ -681,10 +687,9 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
 
   const newChaseCount = task.chaseCount + 1;
   const repeatDays = task.reminderLog.reminderRule.repeatEveryDays;
-  const newPriority: TaskPriority = newChaseCount >= task.reminderLog.reminderRule.escalateAfterChases
-    ? "escalated"
-    : "normal";
-  const justEscalated = task.priority !== "escalated" && newPriority === "escalated";
+  // Honest-chase-count: a real chase always resets priority to normal.
+  // Escalation re-evaluation happens in runReminderEngine and only flips
+  // back to escalated when another full cycle has elapsed without action.
   // Base the new due date on max(today, currentDue) so chasing an overdue
   // row always lands the next chase in the future — early/proactive chases
   // still preserve the rule's cadence.
@@ -698,18 +703,17 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
   await prisma.$transaction([
     prisma.chaseTask.update({
       where: { id: taskId },
-      data: { chaseCount: newChaseCount, priority: newPriority },
+      data: {
+        chaseCount: newChaseCount,
+        priority: "normal",
+        lastChasedAt: new Date(nowTs),
+      },
     }),
     prisma.reminderLog.update({
       where: { id: task.reminderLog.id },
       data: { nextDueDate: nextDue },
     }),
   ]);
-
-  if (justEscalated) {
-    const milestoneLabel = task.reminderLog.reminderRule.name.replace(/^Chase:\s*/i, "");
-    pushChaseEscalation(task.transactionId, milestoneLabel).catch(() => {});
-  }
 }
 
 export async function completeChaseTask(
