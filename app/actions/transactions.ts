@@ -1248,3 +1248,38 @@ export async function confirmSaleDetailsAction(input: {
 
   revalidateTx(input.transactionId);
 }
+
+// Temporary internal-staff toggle: when set to true on a transaction, the
+// buyer/seller portal confirmation email is skipped on milestone confirms.
+// All other side effects of a confirm continue to fire. The toggle lives
+// on the transaction (per-file), but only sales_progressor / admin /
+// superadmin can change it via the UI. See docs/active/honest-chase-count
+// area / the plan file for context.
+export async function toggleSuppressPortalConfirmEmailsAction(
+  transactionId: string,
+  next: boolean,
+  pathname: string,
+): Promise<void> {
+  const session = await requireSession();
+  const role = session.user.role;
+  if (role !== "sales_progressor" && role !== "admin" && role !== "superadmin") {
+    throw new Error("Only internal staff can toggle the portal confirm email suppression.");
+  }
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(getAccessScope(session), transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  await prisma.propertyTransaction.update({
+    where: { id: tx.id },
+    data: {
+      suppressPortalConfirmEmails: next,
+      suppressPortalConfirmEmailsSetAt: next ? new Date() : null,
+      suppressPortalConfirmEmailsSetById: next ? session.user.id : null,
+    },
+  });
+
+  revalidatePath(pathname, "page");
+}

@@ -14,6 +14,7 @@ import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
+import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
 import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
@@ -505,7 +506,25 @@ export default async function AgentTransactionDetailPage({
         inChain={!!transaction.chainLinkId}
       />
 
-      <PropertyFileTabs tabs={tabs} sidebar={sidebar} initialTab={initialTab} heroConnected>
+      <PropertyFileTabs
+        tabs={tabs}
+        sidebar={sidebar}
+        initialTab={initialTab}
+        heroConnected
+        rightSlot={
+          (session.user.role === "sales_progressor" ||
+           session.user.role === "admin" ||
+           session.user.role === "superadmin")
+            ? (
+              <PortalConfirmEmailToggle
+                transactionId={transaction.id}
+                initialValue={transaction.suppressPortalConfirmEmails}
+                pathname={`/agent/transactions/${transaction.id}`}
+              />
+            )
+            : null
+        }
+      >
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />

@@ -56,7 +56,7 @@ export async function confirmMilestoneAction(input: {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true },
+    select: { id: true, propertyAddress: true, serviceType: true, assignedUserId: true, suppressPortalConfirmEmails: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -177,13 +177,20 @@ export async function confirmMilestoneAction(input: {
       urlPath: "/progress",
     }).catch(() => {});
 
-    // Email all vendor/purchaser portal contacts with a translated progress update
-    sendAdminMilestoneNotificationToPortal(
-      input.transactionId,
-      code,
-      input.eventDate ?? null,
-      session.user.id,
-    ).catch(() => {});
+    // Email all vendor/purchaser portal contacts with a translated progress update.
+    //
+    // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
+    // by internal staff, the portal confirm email is skipped. All other
+    // side effects of a confirm (chain notifications, celebrations, SP
+    // bell, reminder engine knock-on) still fire.
+    if (!tx.suppressPortalConfirmEmails) {
+      sendAdminMilestoneNotificationToPortal(
+        input.transactionId,
+        code,
+        input.eventDate ?? null,
+        session.user.id,
+      ).catch(() => {});
+    }
 
     // Retention email: fire first-exchange celebration for the agent who owns the file
     if (code === "VM19" || code === "PM26") {

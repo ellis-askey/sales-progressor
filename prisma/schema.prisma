@@ -262,6 +262,16 @@ model PropertyTransaction {
   pausedAt                     DateTime?         // When clientEmailsPaused was last set to true
   pausedById                   String?           // Which user toggled the pause on
 
+  // Temporary internal-staff debug toggle. When true, the buyer/seller
+  // portal confirmation email (sendAdminMilestoneNotificationToPortal)
+  // is skipped on milestone confirms — all other side effects (chain
+  // notifications, celebrations, reminder knock-on, DB writes) still
+  // fire. SP/admin/superadmin only via the UI. Audit fields below let
+  // us SQL-audit forgotten toggles. Default false = emails send.
+  suppressPortalConfirmEmails       Boolean   @default(false)
+  suppressPortalConfirmEmailsSetAt  DateTime?
+  suppressPortalConfirmEmailsSetById String?
+
   // Per-transaction snapshot of chase rule values at creation time. JSON
   // map keyed by milestone code: { graceDays, repeatEveryDays,
   // useEventDate, anchorMilestoneCode, requiresExchangeReady }. The
