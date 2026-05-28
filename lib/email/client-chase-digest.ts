@@ -415,5 +415,36 @@ export async function enqueueClientChaseDigest(input: {
     });
   }
 
+  // Honest-chase-count (2026-05-28): an enqueued client digest is a real
+  // chase from the agent's POV — bump the agent-side ChaseTask for each
+  // milestone in the digest, stamp lastChasedAt, reset priority to normal.
+  // The reminder engine's escalation gate handles re-escalation on the
+  // next cycle if there's still no resolution.
+  //
+  // We resolve ChaseTask via the ReminderLog → ReminderRule → targetMilestoneCode
+  // chain. Only pending tasks are bumped; cancelled/done are left alone.
+  if (milestoneCodes.length > 0) {
+    const pendingTasks = await prisma.chaseTask.findMany({
+      where: {
+        transactionId,
+        status: "pending",
+        reminderLog: {
+          reminderRule: { targetMilestoneCode: { in: milestoneCodes } },
+        },
+      },
+      select: { id: true },
+    });
+    if (pendingTasks.length > 0) {
+      await prisma.chaseTask.updateMany({
+        where: { id: { in: pendingTasks.map((t) => t.id) } },
+        data: {
+          chaseCount: { increment: 1 },
+          lastChasedAt: now,
+          priority: "normal",
+        },
+      });
+    }
+  }
+
   return { enqueued: true, rowId: row.id };
 }

@@ -204,11 +204,18 @@ export async function createCommunicationRecord(input: CreateCommInput) {
     },
   });
 
-  // Increment chaseCount on the linked task when an outbound chase is logged
+  // Honest-chase-count: a real outbound chase bumps the counter, stamps
+  // lastChasedAt, and resets priority to normal. Re-escalation happens
+  // only in runReminderEngine after another full repeat cycle elapses
+  // without action.
   if (input.chaseTaskId && input.type === "outbound") {
     await prisma.chaseTask.update({
       where: { id: input.chaseTaskId },
-      data: { chaseCount: { increment: 1 } },
+      data: {
+        chaseCount: { increment: 1 },
+        lastChasedAt: new Date(),
+        priority: "normal",
+      },
     });
   }
 

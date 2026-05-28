@@ -659,6 +659,14 @@ model ChaseTask {
   status        ChaseTaskStatus @default(pending)
   priority      TaskPriority    @default(normal)
   chaseCount    Int             @default(0)
+  // Set on every real chase increment. NULL means "never chased yet".
+  // Escalation requires chaseCount >= rule.escalateAfterChases AND
+  // (now - lastChasedAt) >= rule.repeatEveryDays — i.e. another full
+  // cycle has elapsed since the last actual chase. The engine NEVER
+  // ticks chaseCount on calendar arithmetic alone; only real chase
+  // actions (button click, manual record, outbound email, client-chase
+  // digest enqueue) move it. See docs/active/honest-chase-count.
+  lastChasedAt  DateTime?
   notes         String?
   // Discrete-kind marker for tasks the system handed to the agent because
   // automated chasing failed. Null for normal engine-created tasks. First
