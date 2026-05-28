@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { listAllTasksForAgent, listProgressorInboxTasks } from "@/lib/services/manual-tasks";
+import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
 import { AgentTodoList } from "@/components/agent/AgentTodoList";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
@@ -10,10 +10,17 @@ export default async function AgentTodoPage() {
   const session = await requireSession();
   const role = session.user.role;
   const isProgressor = role === "sales_progressor";
+  const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
 
-  const ownTasks = await listAllTasksForAgent(session.user.id, session.user.agencyId ?? "");
+  // Agent-side tasks are agency-scoped; internal staff have agencyId=null
+  // so listAllTasksForAgent returns empty for them. Internal tasks come
+  // from listInternalSelfAssignedTasks (no agency filter).
+  const ownTasks = session.user.agencyId
+    ? await listAllTasksForAgent(session.user.id, session.user.agencyId)
+    : [];
   const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
-  const tasks = [...ownTasks, ...inboxTasks];
+  const internalTasks = isInternal ? await listInternalSelfAssignedTasks() : [];
+  const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
 
   const todayStr = toUKDateStr(new Date());
 

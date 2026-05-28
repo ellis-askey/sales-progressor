@@ -6,11 +6,16 @@ export function AddManualTaskForm({
   transactionId,
   transactionAddress,
   showOwnership = false,
+  internalMode = false,
   onAdd,
 }: {
   transactionId?: string;
   transactionAddress?: string;
   showOwnership?: boolean;
+  // Internal-staff variant — hides the ownership toggle, relabels the
+  // primary button, and the caller is responsible for setting
+  // isInternalSelfAssigned on the POST.
+  internalMode?: boolean;
   onAdd: (task: {
     title: string;
     notes?: string;
@@ -89,7 +94,7 @@ export function AddManualTaskForm({
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
-        Add to-do
+        {internalMode ? "Add internal to-do" : "Add to-do"}
       </button>
     );
   }

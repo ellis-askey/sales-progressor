@@ -11,7 +11,7 @@ import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/ser
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { getPortalViewDates } from "@/lib/services/portal";
 import type { ActivityEntry } from "@/lib/services/comms";
-import { listManualTasksForTransaction, countManualTasksDueToday } from "@/lib/services/manual-tasks";
+import { listManualTasksForTransaction, countManualTasksDueToday, listInternalSelfAssignedTasksForTransaction } from "@/lib/services/manual-tasks";
 import { calculateProgress } from "@/lib/services/fees";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { AppShell } from "@/components/layout/AppShell";
@@ -411,6 +411,7 @@ export default async function TransactionDetailPage({
         <div>
           <ManualTaskList
             initialTasks={manualTasks}
+            initialInternalTasks={await listInternalSelfAssignedTasksForTransaction(id).catch(() => [])}
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
             showDone

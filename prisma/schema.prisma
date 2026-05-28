@@ -874,7 +874,11 @@ model TransactionDocument {
 
 model ManualTask {
   id             String           @id @default(cuid())
-  agencyId       String
+  // Nullable since 2026-05-28: internal-staff self-assigned tasks
+  // (isInternalSelfAssigned=true) can exist without an agency context
+  // (e.g. a global personal note from /agent/to-do, no transaction link).
+  // Agent-created tasks continue to require an agencyId.
+  agencyId       String?
   transactionId  String?
   title            String
   notes            String?
@@ -884,17 +888,23 @@ model ManualTask {
   assignedToId   String?
   dueDate        DateTime?
   isAgentRequest Boolean          @default(false)
+  // Internal self-assigned to-do — created by internal staff
+  // (sales_progressor / admin / superadmin) and visible to every
+  // internal staff member, regardless of creator. Mutually exclusive
+  // in practice with isAgentRequest.
+  isInternalSelfAssigned Boolean   @default(false)
   createdById    String
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  agency      Agency               @relation(fields: [agencyId], references: [id])
+  agency      Agency?              @relation(fields: [agencyId], references: [id])
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   assignedTo  User?                @relation("ManualTaskAssignee", fields: [assignedToId], references: [id])
   createdBy   User                 @relation("ManualTaskCreator", fields: [createdById], references: [id])
 
   @@index([agencyId, status])
   @@index([transactionId])
+  @@index([isInternalSelfAssigned, status])
 }
 
 enum ManualTaskStatus {

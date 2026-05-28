@@ -75,6 +75,7 @@ function AgentRequestRow({ task }: { task: ManualTaskWithRelations }) {
 
 export function ManualTaskList({
   initialTasks,
+  initialInternalTasks = [],
   transactionId,
   transactionAddress,
   showDone = true,
@@ -82,6 +83,9 @@ export function ManualTaskList({
   perspective = "progressor",
 }: {
   initialTasks: ManualTaskWithRelations[];
+  // Internal-self-assigned tasks for this transaction, visible to all
+  // internal staff. Only passed when the viewer is internal.
+  initialInternalTasks?: ManualTaskWithRelations[];
   transactionId?: string;
   transactionAddress?: string;
   showDone?: boolean;
@@ -89,8 +93,10 @@ export function ManualTaskList({
   perspective?: "agent" | "progressor";
 }) {
   const [tasks, setTasks] = useState(initialTasks);
+  const [internalTasks, setInternalTasks] = useState(initialInternalTasks);
   const [filter, setFilter] = useState<"open" | "all">("open");
   const [showAgentDone, setShowAgentDone] = useState(false);
+  const [showInternalDone, setShowInternalDone] = useState(false);
   const updateBadge = useTabBadge();
   const { toast } = useAgentToast();
 
@@ -118,6 +124,7 @@ export function ManualTaskList({
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       createdAt: new Date(),
       isAgentRequest: data.isAgentRequest ?? false,
+      isInternalSelfAssigned: false,
       transactionId: data.transactionId ?? null,
       transaction: null,
       assignedTo: null,
@@ -150,19 +157,66 @@ export function ManualTaskList({
     });
     if (!res.ok) return;
     const updated = await res.json();
-    const newTasks = tasks.map((t) => (t.id === id ? updated : t));
-    setTasks(newTasks);
-    updateBadge?.("todos", countForBadge(newTasks));
+    if (updated.isInternalSelfAssigned) {
+      setInternalTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } else {
+      const newTasks = tasks.map((t) => (t.id === id ? updated : t));
+      setTasks(newTasks);
+      updateBadge?.("todos", countForBadge(newTasks));
+    }
     if (newStatus === "done") toast.success("To-do completed");
   }
 
   async function handleDelete(id: string) {
     const res = await fetch(`/api/manual-tasks/${id}`, { method: "DELETE" });
     if (!res.ok) return;
+    // Try both task lists — the row could be in either.
+    setInternalTasks((prev) => prev.filter((t) => t.id !== id));
     const newTasks = tasks.filter((t) => t.id !== id);
     setTasks(newTasks);
     updateBadge?.("todos", countForBadge(newTasks));
     toast.success("To-do removed");
+  }
+
+  async function handleAddInternal(data: {
+    title: string;
+    notes?: string;
+    dueDate?: string;
+    transactionId?: string;
+    isAgentRequest?: boolean;
+  }) {
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: ManualTaskWithRelations = {
+      id: tempId,
+      title: data.title,
+      notes: data.notes ?? null,
+      progressorNote: null,
+      progressorNoteAt: null,
+      status: "open",
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      createdAt: new Date(),
+      isAgentRequest: false,
+      isInternalSelfAssigned: true,
+      transactionId: data.transactionId ?? null,
+      transaction: null,
+      assignedTo: null,
+      createdBy: { id: "", name: "" },
+    };
+    setInternalTasks((prev) => [optimistic, ...prev]);
+
+    const res = await fetch("/api/manual-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, isInternalSelfAssigned: true }),
+    });
+    if (!res.ok) {
+      console.error("Failed to save internal to-do:", res.status, await res.text());
+      setInternalTasks((prev) => prev.filter((t) => t.id !== tempId));
+      return;
+    }
+    const saved = await res.json();
+    setInternalTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+    toast.success("Internal to-do added");
   }
 
   const myTasks    = tasks.filter((t) => !t.isAgentRequest);
@@ -287,10 +341,75 @@ export function ManualTaskList({
     </div>
   ) : null;
 
+  const internalOpen = internalTasks.filter((t) => t.status === "open");
+  const internalDone = internalTasks.filter((t) => t.status === "done");
+
+  // Internal-self-assigned tasks card. Only rendered when the viewer is
+  // internal staff (perspective="progressor" is used as the internal-staff
+  // signal — see app/agent/transactions/[id]/page.tsx where perspective is
+  // derived from isInternalStaff).
+  const internalTasksCard = perspective === "progressor" ? (
+    <div className="glass-card overflow-hidden rounded-[12px]">
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
+      >
+        <div className="flex items-center gap-2">
+          <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>
+            Internal to-do
+          </h3>
+          {internalOpen.length > 0 && <span className="agent-badge">{internalOpen.length}</span>}
+        </div>
+        <AddManualTaskForm
+          transactionId={transactionId}
+          transactionAddress={transactionAddress}
+          internalMode
+          onAdd={handleAddInternal}
+        />
+      </div>
+
+      {internalOpen.length === 0 && internalDone.length === 0 ? (
+        <div style={{ padding: "20px 16px", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+            No internal to-dos on this file yet.
+          </p>
+        </div>
+      ) : (
+        <div>
+          {internalOpen.map((task) => (
+            <ManualTaskCard key={task.id} task={task} isNew={task.id.startsWith("temp-")} onToggle={handleToggle} onDelete={handleDelete} />
+          ))}
+          {showInternalDone && internalDone.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "8px 16px 4px", borderTop: "0.5px solid var(--agent-border-default)" }}>
+                Done
+              </div>
+              {internalDone.map((task) => (
+                <ManualTaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} />
+              ))}
+            </>
+          )}
+          {internalDone.length > 0 && (
+            <div style={{ padding: "8px 16px", borderTop: internalOpen.length > 0 ? "none" : "0.5px solid var(--agent-border-default)" }}>
+              <button
+                onClick={() => setShowInternalDone((v) => !v)}
+                className="agent-link agent-link-muted"
+                style={{ fontSize: 11 }}
+              >
+                {showInternalDone ? "Hide done" : `Show ${internalDone.length} done`}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4">
       {perspective === "progressor" ? (
         <>
+          {internalTasksCard}
           {agentRequestsCard}
           {myTasksCard}
         </>
