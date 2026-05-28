@@ -81,16 +81,29 @@ export async function importWhatsAppChatAction(input: {
   if (!PASTE_CHAT_ALLOWED_ROLES.has(session.user.role)) {
     throw new Error("Not available for this role");
   }
-  const result = await importWhatsAppChat(
-    input.transactionId,
-    input.messages,
-    input.mapping,
-    session.user.id,
-    session.user.role,
-    getAccessScope(session),
-  );
-  revalidateTx(input.transactionId);
-  return result;
+  try {
+    const result = await importWhatsAppChat(
+      input.transactionId,
+      input.messages,
+      input.mapping,
+      session.user.id,
+      session.user.role,
+      getAccessScope(session),
+    );
+    revalidateTx(input.transactionId);
+    return result;
+  } catch (err) {
+    // Surface the failure to Vercel logs so the Next.js production
+    // "Server Components render" digest can be matched to an actual
+    // error message. The PasteWhatsAppPanel still catches and toasts.
+    console.error("[importWhatsAppChatAction] failed", {
+      transactionId: input.transactionId,
+      messageCount: input.messages.length,
+      userId: session.user.id,
+      err: err instanceof Error ? { message: err.message, stack: err.stack } : err,
+    });
+    throw err;
+  }
 }
 
 export async function undoWhatsAppImportAction(

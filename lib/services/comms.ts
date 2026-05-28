@@ -297,13 +297,14 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope) 
 
 export type SenderMapping = Record<
   string,
-  // "me" carries an optional recipientContactId — when the user picks a
-  // specific contact as the recipient of their outbound messages, the
-  // contactId is stored on OutboundMessage.contactIds so the timeline
-  // reads "Outbound to {Recipient}" instead of just "Outbound". Null /
-  // omitted = no specific recipient (backwards-compatible with legacy
-  // imports).
-  | { kind: "me"; recipientContactId?: string | null }
+  // "me" carries an optional list of recipient contact IDs. Group chats
+  // almost always have multiple recipients on the same outbound message,
+  // so the field is an array. Each id is stored on
+  // OutboundMessage.contactIds so the timeline reads
+  // "Outbound to {names…}" rather than just "Outbound". Empty / omitted
+  // = no specific recipient (backwards-compatible with legacy single-id
+  // callers and pre-multi-recipient imports).
+  | { kind: "me"; recipientContactIds?: string[] }
   | { kind: "contact"; contactId: string }
   | { kind: "skip" }
 >;
@@ -357,6 +358,13 @@ export async function importWhatsAppChat(
     if (m.kind === "contact" && !validContactIds.has(m.contactId)) {
       throw new Error(`Contact ID for "${sender}" does not belong to this transaction`);
     }
+    if (m.kind === "me" && m.recipientContactIds) {
+      for (const rid of m.recipientContactIds) {
+        if (!validContactIds.has(rid)) {
+          throw new Error(`Recipient contact ID for "${sender}" does not belong to this transaction`);
+        }
+      }
+    }
   }
 
   // Dedupe against existing whatsapp comms on this tx in last 30 days.
@@ -397,10 +405,11 @@ export async function importWhatsAppChat(
     if (m.kind === "me") {
       toInsert.push({
         type: "outbound",
-        // If the user picked a specific recipient for their outbound
-        // messages, attach it. Falls back to an empty array (legacy
-        // behaviour) when no recipient was selected.
-        contactIds: m.recipientContactId ? [m.recipientContactId] : [],
+        // Multi-recipient outbound. Every selected contact id ends up on
+        // the row's contactIds; the timeline renders them as a
+        // comma-joined "Outbound to A, B" line. Empty array stays
+        // backwards-compatible with legacy "no recipient" imports.
+        contactIds: m.recipientContactIds ?? [],
         content: msg.content,
         sentAt: msg.whatsappTimestamp,
         status: "sent",
@@ -422,27 +431,30 @@ export async function importWhatsAppChat(
 
   const importBatchId = crypto.randomUUID();
 
-  await prisma.$transaction(async (txDb) => {
-    for (const row of toInsert) {
-      await txDb.outboundMessage.create({
-        data: {
-          transactionId,
-          agencyId: tx.agencyId,
-          type: row.type,
-          method: "whatsapp",
-          channel: "other",         // explicit — no WhatsApp value in OutboundChannel
-          purpose: "other",         // manual log, not a chase
-          status: row.status,       // sent for outbound, delivered for inbound
-          contactIds: row.contactIds,
-          content: row.content,
-          // createdAt LEFT TO DEFAULT (now()) — this row was logged just now.
-          sentAt: row.sentAt,       // actual WhatsApp message time
-          createdById,
-          createdByRole,
-          importBatchId,
-        },
-      });
-    }
+  // Single batched insert — one round-trip to the pooler regardless of
+  // the message count. The previous implementation looped sequential
+  // creates inside a $transaction which could exceed Prisma's default
+  // 5 s transaction timeout on bigger pastes (39+ messages over a slow
+  // pooler), causing the whole import to abort. createMany is a single
+  // statement, internally atomic, and orders of magnitude faster.
+  // Undo path is unaffected: every row carries the same importBatchId.
+  await prisma.outboundMessage.createMany({
+    data: toInsert.map((row) => ({
+      transactionId,
+      agencyId: tx.agencyId,
+      type: row.type,
+      method: "whatsapp" as const,
+      channel: "other" as const,         // explicit — no WhatsApp value in OutboundChannel
+      purpose: "other" as const,         // manual log, not a chase
+      status: row.status,                // sent for outbound, delivered for inbound
+      contactIds: row.contactIds,
+      content: row.content,
+      // createdAt LEFT TO DEFAULT (now()) — these rows were logged just now.
+      sentAt: row.sentAt,                // actual WhatsApp message time
+      createdById,
+      createdByRole,
+      importBatchId,
+    })),
   });
 
   touchLastActivity(transactionId).catch(() => {});
