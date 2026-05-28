@@ -17,12 +17,15 @@ type Props = {
   sidebar: React.ReactNode;
   initialTab?: string;
   heroConnected?: boolean;
+  // Optional right-aligned slot next to the tab bar. Used for internal-staff
+  // controls (e.g. PortalConfirmEmailToggle). Hidden when null.
+  rightSlot?: React.ReactNode;
 };
 
 // Module-scoped: persists across SPA navigations for the browser session
 let _sessionSidebarOpen = false;
 
-export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected }: Props) {
+export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConnected, rightSlot }: Props) {
   const [active, setActive] = useState(() => {
     if (initialTab && tabs.some((t) => t.key === initialTab)) return initialTab;
     return tabs[0].key;
@@ -101,50 +104,64 @@ export function PropertyFileTabs({ tabs, children, sidebar, initialTab, heroConn
     <TabContext.Provider value={{ setActiveTab: setActive }}>
       <TabBadgeContext.Provider value={updateBadge}>
         <div ref={tabBarRef} className={`sticky top-0 z-20${heroConnected ? "" : " glass-nav"}`}>
-          <div ref={scrollRef} className={`${heroConnected ? "" : "px-4 md:px-8 "}agent-tab-bar overflow-x-auto scrollbar-hide`}>
-            {/* Sliding underline indicator */}
-            {ind && (
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: ind.left,
-                  width: ind.width,
-                  height: 2,
-                  background: "var(--agent-coral)",
-                  borderRadius: "1px 1px 0 0",
-                  transition: prefersReducedMotion ? "none" : "left 200ms ease, width 200ms ease",
-                  pointerEvents: "none",
-                }}
-              />
+          <div
+            className={heroConnected ? "" : "px-4 md:px-8"}
+            style={{ display: "flex", alignItems: "center", gap: 12 }}
+          >
+            <div
+              ref={scrollRef}
+              className="agent-tab-bar overflow-x-auto scrollbar-hide"
+              style={{ flex: 1, minWidth: 0 }}
+            >
+              {/* Sliding underline indicator */}
+              {ind && (
+                <div
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: ind.left,
+                    width: ind.width,
+                    height: 2,
+                    background: "var(--agent-coral)",
+                    borderRadius: "1px 1px 0 0",
+                    transition: prefersReducedMotion ? "none" : "left 200ms ease, width 200ms ease",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+              {tabs.map((tab, i) => {
+                const isActive = active === tab.key;
+                const badgeCount = badges[tab.key] ?? 0;
+                return (
+                  <button
+                    key={tab.key}
+                    ref={(el) => { btnRefs.current[i] = el; }}
+                    onClick={() => setActive(tab.key)}
+                    aria-selected={isActive}
+                    className="agent-tab flex-shrink-0"
+                  >
+                    {tab.label}
+                    {badgeCount > 0 && (
+                      <span
+                        className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
+                        style={isActive
+                          ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral)" }
+                          : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }
+                        }
+                      >
+                        {badgeCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {rightSlot && (
+              <div style={{ flexShrink: 0, paddingRight: heroConnected ? 12 : 0 }}>
+                {rightSlot}
+              </div>
             )}
-            {tabs.map((tab, i) => {
-              const isActive = active === tab.key;
-              const badgeCount = badges[tab.key] ?? 0;
-              return (
-                <button
-                  key={tab.key}
-                  ref={(el) => { btnRefs.current[i] = el; }}
-                  onClick={() => setActive(tab.key)}
-                  aria-selected={isActive}
-                  className="agent-tab flex-shrink-0"
-                >
-                  {tab.label}
-                  {badgeCount > 0 && (
-                    <span
-                      className="text-xs rounded-full px-1.5 py-0.5 font-medium leading-none"
-                      style={isActive
-                        ? { background: "var(--agent-coral)", color: "var(--agent-text-on-coral)" }
-                        : { background: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" }
-                      }
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
 

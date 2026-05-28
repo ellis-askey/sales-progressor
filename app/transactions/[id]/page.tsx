@@ -18,6 +18,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
+import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
 import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
@@ -274,7 +275,23 @@ export default async function TransactionDetailPage({
       />
       <NewTransactionToast />
 
-      <PropertyFileTabs tabs={tabs} sidebar={sidebar}>
+      <PropertyFileTabs
+        tabs={tabs}
+        sidebar={sidebar}
+        rightSlot={
+          (session.user.role === "sales_progressor" ||
+           session.user.role === "admin" ||
+           session.user.role === "superadmin")
+            ? (
+              <PortalConfirmEmailToggle
+                transactionId={transaction.id}
+                initialValue={transaction.suppressPortalConfirmEmails}
+                pathname={`/transactions/${transaction.id}`}
+              />
+            )
+            : null
+        }
+      >
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
         <div className="space-y-5">
           {/* File health banner (conditional) */}
