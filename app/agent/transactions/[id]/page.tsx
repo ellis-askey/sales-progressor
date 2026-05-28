@@ -8,7 +8,7 @@ import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
-import { listManualTasksForTransaction } from "@/lib/services/manual-tasks";
+import { listManualTasksForTransaction, listInternalSelfAssignedTasksForTransaction } from "@/lib/services/manual-tasks";
 import { toUKDateStr } from "@/lib/utils";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { totalHoldMs } from "@/lib/services/hold-duration";
@@ -91,6 +91,13 @@ export default async function AgentTransactionDetailPage({
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
+
+  // Internal-staff self-assigned to-dos for this transaction. Only fetched
+  // when the viewer is internal (sales_progressor / admin / superadmin /
+  // viewer). Customer agency users never see this list.
+  const internalManualTasks = isInternalStaff
+    ? await listInternalSelfAssignedTasksForTransaction(id).catch(() => [])
+    : [];
 
   if (!transaction) notFound();
   const isDirectorRole = session.user.role === "director";
@@ -652,6 +659,7 @@ export default async function AgentTransactionDetailPage({
         <div>
           <ManualTaskList
             initialTasks={manualTasks}
+            initialInternalTasks={internalManualTasks}
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
             showDone

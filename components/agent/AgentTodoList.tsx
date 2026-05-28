@@ -66,9 +66,11 @@ function groupByTransaction(tasks: Task[]): Group[] {
 
 export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; role?: string }) {
   const isProgressor = role === "sales_progressor";
+  const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
   const [tasks, setTasks] = useState(initialTasks);
   const [showOwnDone, setShowOwnDone] = useState(false);
   const [showProgDone, setShowProgDone] = useState(false);
+  const [showInternalDone, setShowInternalDone] = useState(false);
 
   async function handleToggle(id: string, newStatus: "open" | "done") {
     const res = await fetch(`/api/manual-tasks/${id}`, {
@@ -87,6 +89,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
     dueDate?: string;
     transactionId?: string;
     isAgentRequest?: boolean;
+    isInternalSelfAssigned?: boolean;
   }) {
     const res = await fetch("/api/manual-tasks", {
       method: "POST",
@@ -98,25 +101,45 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
     setTasks((prev) => [created, ...prev]);
   }
 
+  async function handleAddInternal(input: {
+    title: string;
+    notes?: string;
+    dueDate?: string;
+    transactionId?: string;
+  }) {
+    await handleAdd({ ...input, isInternalSelfAssigned: true });
+  }
+
   const todayStr = toUKDateStr(new Date());
 
-  const ownTasks  = tasks.filter((t) => !t.isAgentRequest);
-  const progTasks = tasks.filter((t) =>  t.isAgentRequest);
+  // Three-way partition. Internal tasks take precedence — a task can't be
+  // both an agent-request and internal-self-assigned in practice.
+  const internalTasks = tasks.filter((t) =>  t.isInternalSelfAssigned);
+  const ownTasks      = tasks.filter((t) => !t.isInternalSelfAssigned && !t.isAgentRequest);
+  const progTasks     = tasks.filter((t) => !t.isInternalSelfAssigned &&  t.isAgentRequest);
 
   const ownOpen  = sortTasks(ownTasks.filter((t) => t.status === "open"));
   const ownDone  = sortTasks(ownTasks.filter((t) => t.status === "done"));
   const progOpen = sortTasks(progTasks.filter((t) => t.status === "open"));
   const progDone = sortTasks(progTasks.filter((t) => t.status === "done"));
+  const internalOpen = sortTasks(internalTasks.filter((t) => t.status === "open"));
+  const internalDone = sortTasks(internalTasks.filter((t) => t.status === "done"));
 
-  const ownOverdue   = ownOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
-  const ownUpcoming  = ownOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
-  const progOverdue  = progOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
-  const progUpcoming = progOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
+  const ownOverdue        = ownOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
+  const ownUpcoming       = ownOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
+  const progOverdue       = progOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
+  const progUpcoming      = progOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
+  const internalOverdue   = internalOpen.filter((t) => t.dueDate && toUKDateStr(t.dueDate) < todayStr);
+  const internalUpcoming  = internalOpen.filter((t) => !t.dueDate || toUKDateStr(t.dueDate) >= todayStr);
 
   if (tasks.length === 0) {
     return (
       <div className="space-y-8">
-        <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+        {isInternal ? (
+          <AddManualTaskForm internalMode onAdd={handleAddInternal} />
+        ) : (
+          <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+        )}
         <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted)" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }}>
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -124,8 +147,8 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
           </svg>
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
           <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-            {isProgressor
-              ? "Your personal notes and agent requests will appear here."
+            {isInternal
+              ? "Add an internal to-do above — visible to your whole internal team."
               : "Add a task or send your progressor a request."}
           </p>
         </div>
@@ -158,21 +181,47 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
 
   return (
     <div className="space-y-8">
-      <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+      {/* Agency users get the regular Add form; internal staff see an
+          internal-self-assigned Add form (no ownership toggle — the kind
+          is fixed). Both call /api/manual-tasks but with different flags. */}
+      {isInternal ? (
+        <AddManualTaskForm internalMode onAdd={handleAddInternal} />
+      ) : (
+        <AddManualTaskForm showOwnership={!isProgressor} onAdd={handleAdd} />
+      )}
 
-      {/* ── My to-dos / My notes ── */}
-      <Section
-        id="section-mine"
-        title={isProgressor ? "My notes" : "My to-dos"}
-        overdueGroups={groupByTransaction(ownOverdue)}
-        openGroups={groupByTransaction(ownUpcoming)}
-        doneGroups={groupByTransaction(ownDone)}
-        doneCount={ownDone.length}
-        showDone={showOwnDone}
-        onToggleShowDone={() => setShowOwnDone((v) => !v)}
-        onToggle={handleToggle}
-        isProgressorView={isProgressor}
-      />
+      {/* ── My to-dos / My notes (agency users only) ── */}
+      {!isInternal && (
+        <Section
+          id="section-mine"
+          title="My to-dos"
+          overdueGroups={groupByTransaction(ownOverdue)}
+          openGroups={groupByTransaction(ownUpcoming)}
+          doneGroups={groupByTransaction(ownDone)}
+          doneCount={ownDone.length}
+          showDone={showOwnDone}
+          onToggleShowDone={() => setShowOwnDone((v) => !v)}
+          onToggle={handleToggle}
+          isProgressorView={false}
+        />
+      )}
+
+      {/* ── Internal to-dos (internal staff only) ── */}
+      {isInternal && (
+        <Section
+          id="section-internal"
+          title="Internal to-dos"
+          overdueGroups={groupByTransaction(internalOverdue)}
+          openGroups={groupByTransaction(internalUpcoming)}
+          doneGroups={groupByTransaction(internalDone)}
+          doneCount={internalDone.length}
+          showDone={showInternalDone}
+          onToggleShowDone={() => setShowInternalDone((v) => !v)}
+          onToggle={handleToggle}
+          isProgressorView={isProgressor}
+          emptyText="No internal to-dos yet — add one above to get started."
+        />
+      )}
 
       {/* ── With your progressor / From agents ── */}
       {progTasks.length > 0 && (

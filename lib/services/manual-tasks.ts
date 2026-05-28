@@ -12,6 +12,7 @@ export type ManualTaskWithRelations = {
   dueDate: Date | null;
   createdAt: Date;
   isAgentRequest: boolean;
+  isInternalSelfAssigned: boolean;
   transactionId: string | null;
   transaction: { propertyAddress: string } | null;
   assignedTo: { id: string; name: string } | null;
@@ -49,7 +50,7 @@ export async function listManualTasksForTransaction(transactionId: string, agenc
 }
 
 export async function createManualTask(data: {
-  agencyId: string;
+  agencyId: string | null;
   createdById: string;
   title: string;
   notes?: string;
@@ -57,6 +58,7 @@ export async function createManualTask(data: {
   assignedToId?: string;
   dueDate?: string;
   isAgentRequest?: boolean;
+  isInternalSelfAssigned?: boolean;
 }) {
   const task = await prisma.manualTask.create({
     data: {
@@ -68,6 +70,7 @@ export async function createManualTask(data: {
       assignedToId: data.assignedToId ?? null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       isAgentRequest: data.isAgentRequest ?? false,
+      isInternalSelfAssigned: data.isInternalSelfAssigned ?? false,
     },
     include: {
       transaction: { select: { propertyAddress: true } },
@@ -77,6 +80,72 @@ export async function createManualTask(data: {
   });
   if (data.transactionId) touchLastActivity(data.transactionId).catch(() => {});
   return task;
+}
+
+// Internal-staff self-assigned to-dos — visible to all internal staff,
+// regardless of creator. Used by the third bucket on /agent/to-do and on
+// the property-file To-Do tab when viewed by internal staff.
+export async function listInternalSelfAssignedTasks(): Promise<ManualTaskWithRelations[]> {
+  return prisma.manualTask.findMany({
+    where: { isInternalSelfAssigned: true },
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
+export async function listInternalSelfAssignedTasksForTransaction(transactionId: string): Promise<ManualTaskWithRelations[]> {
+  return prisma.manualTask.findMany({
+    where: { isInternalSelfAssigned: true, transactionId },
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
+// Mutation helper for internal tasks — ownership shape is role-based
+// (any internal staff member can touch any internal task), not
+// agencyId-based. The API route is responsible for the role check
+// before calling this.
+export async function updateInternalManualTask(
+  id: string,
+  data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null }>
+) {
+  const task = await prisma.manualTask.findFirst({
+    where: { id, isInternalSelfAssigned: true },
+  });
+  if (!task) throw new Error("Task not found");
+
+  const updated = await prisma.manualTask.update({
+    where: { id },
+    data: {
+      ...(data.status  !== undefined && { status: data.status }),
+      ...(data.title   !== undefined && { title: data.title }),
+      ...(data.notes   !== undefined && { notes: data.notes }),
+      ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
+    },
+    include: {
+      transaction: { select: { propertyAddress: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  });
+  if (task.transactionId) touchLastActivity(task.transactionId).catch(() => {});
+  return updated;
+}
+
+export async function deleteInternalManualTask(id: string) {
+  const task = await prisma.manualTask.findFirst({
+    where: { id, isInternalSelfAssigned: true },
+  });
+  if (!task) throw new Error("Task not found");
+  await prisma.manualTask.delete({ where: { id } });
 }
 
 export async function updateManualTask(
