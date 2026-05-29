@@ -398,64 +398,62 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                                 value={editDraft.content}
                                 onChange={(e) => setEditDraft({ ...editDraft, content: e.target.value })}
                                 rows={Math.max(3, Math.min(10, editDraft.content.split("\n").length + 1))}
-                                style={{
-                                  width: "100%", resize: "vertical",
-                                  fontSize: 12, lineHeight: 1.45,
-                                  padding: "8px 10px", borderRadius: 8,
-                                  border: "0.5px solid var(--agent-border-default)",
-                                  background: "white", color: "var(--agent-text-primary)",
-                                  fontFamily: "inherit",
-                                }}
+                                className="glass-input w-full px-3 py-2.5 text-sm resize-none"
                                 autoFocus
                               />
-                              {/* Contact picker */}
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                {contacts.map((c) => {
-                                  const on = editDraft.contactIds.includes(c.id);
-                                  return (
-                                    <button
-                                      key={c.id}
-                                      type="button"
-                                      onClick={() => toggleEditContact(c.id)}
-                                      style={{
-                                        fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 10,
-                                        background: on ? "rgba(255,107,74,0.15)" : "rgba(15,23,42,0.04)",
-                                        color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
-                                        border: on ? "0.5px solid var(--agent-coral)" : "0.5px solid transparent",
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      {extractFirstName(c.name)}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {/* Visibility toggle */}
-                              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--agent-text-muted)", cursor: "pointer" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={editDraft.visibleToClient}
-                                  onChange={(e) => setEditDraft({ ...editDraft, visibleToClient: e.target.checked })}
-                                />
-                                Visible in client portal
-                              </label>
-                              {/* Save / Cancel */}
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => saveEdit(entry.id)}
-                                  disabled={!editDraft.content.trim() || savingId === entry.id}
-                                  className="agent-btn agent-btn-sm"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={cancelEdit}
-                                  className="agent-btn agent-btn-sm agent-btn-ghost"
-                                >
-                                  Cancel
-                                </button>
+                              {/* Bottom row — pills + visibility on the left, Cancel/Save on the right */}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                  {/* Contact picker */}
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                    {contacts.map((c) => {
+                                      const on = editDraft.contactIds.includes(c.id);
+                                      return (
+                                        <button
+                                          key={c.id}
+                                          type="button"
+                                          onClick={() => toggleEditContact(c.id)}
+                                          style={{
+                                            fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 10,
+                                            background: on ? "rgba(255,107,74,0.15)" : "rgba(15,23,42,0.04)",
+                                            color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                                            border: on ? "0.5px solid var(--agent-coral)" : "0.5px solid transparent",
+                                            cursor: "pointer",
+                                          }}
+                                        >
+                                          {extractFirstName(c.name)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* Visibility checkbox — same minimal styling as the create form's label */}
+                                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--agent-text-muted)", cursor: "pointer" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={editDraft.visibleToClient}
+                                      onChange={(e) => setEditDraft({ ...editDraft, visibleToClient: e.target.checked })}
+                                    />
+                                    Visible in client portal
+                                  </label>
+                                </div>
+                                {/* Cancel left of Save; both on the right edge */}
+                                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={cancelEdit}
+                                    className="agent-btn agent-btn-sm agent-btn-secondary"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => saveEdit(entry.id)}
+                                    disabled={!editDraft.content.trim() || savingId === entry.id}
+                                    className="agent-btn agent-btn-sm agent-btn-primary"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ) : (
