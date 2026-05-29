@@ -64,7 +64,7 @@ export default async function TransactionDetailPage({
     getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
     // Automated-emails preview for the AutomatedEmailsCard at the top of
     // the Reminders tab. Same data shape as the agent file-detail page.
-    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
+    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })),
     // Per-contact automated-email tally for the ContactsSection over-chase pill.
     getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
   ]);

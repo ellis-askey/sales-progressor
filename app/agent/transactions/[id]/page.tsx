@@ -82,7 +82,7 @@ export default async function AgentTransactionDetailPage({
     getClientChaseStatesForTransaction(id).catch(() => ({})),
     // Automated-emails preview — pending + sent today + predicted upcoming
     // for the AutomatedEmailsCard at the top of the Reminders tab.
-    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
+    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })),
     // Per-contact tally of automated emails fired against this file. Drives
     // the small "5 auto emails" pill on each ContactsSection row so an
     // over-chased recipient is visible at a glance.

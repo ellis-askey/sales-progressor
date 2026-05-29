@@ -209,7 +209,7 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     // Pre-launch ~25 in-scope tx max so the per-tx call fan-out is fine.
     const previews = await Promise.all(
       txIds.map((id) =>
-        getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [] })),
+        getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })),
       ),
     );
     rows = previews.flatMap((preview, idx) => {

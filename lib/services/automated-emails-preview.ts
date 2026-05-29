@@ -50,11 +50,36 @@ export type UpcomingChase = {
   chaseNumber: number;
 };
 
+// Pause-state visibility for the auto-emails surface. Three independent
+// layers can each suppress the chase cron; we collapse to a single
+// activePauseReason for display (most-global wins — see
+// AutomatedEmailsCard for the rationale). When activePauseReason is null
+// the file's chase pipeline is healthy.
+//
+// globalDisabled  — CLIENT_CHASE_ENABLED env var off (no file fires anywhere)
+// agencyDisabled  — agency.chaseEmailsEnabled = false (no file in this agency fires)
+// fileDisabled    — propertyTransaction.clientEmailsPaused = true (this single file)
+export type PauseState = {
+  globalDisabled: boolean;
+  agencyDisabled: boolean;
+  fileDisabled: boolean;
+  activePauseReason: "global" | "agency" | "file" | null;
+  // Only populated when activePauseReason === "agency", for the pill label.
+  agencyName: string | null;
+};
+
 export type AutomatedEmailsPreview = {
   pending: PendingEmail[];
   sentToday: SentEmail[];
   upcoming: UpcomingChase[];
+  pauseState: PauseState;
 };
+
+// Strict-equals match for the chase cron's own gate (lib/api/cron/client-chase).
+// Anything other than the literal string "true" leaves chases globally dormant.
+function getChaseGlobalDisabled(): boolean {
+  return process.env.CLIENT_CHASE_ENABLED !== "true";
+}
 
 const UPCOMING_WINDOW_DAYS = 14;
 
@@ -219,7 +244,14 @@ export async function getAutomatedEmailsForTransaction(
     }),
     prisma.propertyTransaction.findUnique({
       where: { id: transactionId },
-      select: { createdAt: true, status: true, chaseRuleSnapshot: true },
+      select: {
+        createdAt: true,
+        status: true,
+        chaseRuleSnapshot: true,
+        // Pause-state inputs (added 2026-05-29 for the auto-emails honesty pass)
+        clientEmailsPaused: true,
+        agency: { select: { name: true, chaseEmailsEnabled: true } },
+      },
     }),
     // Snooze suppression: chases predicted here are hidden for milestones
     // whose ReminderLog is currently snoozed. Matches the same suppression
@@ -385,5 +417,24 @@ export async function getAutomatedEmailsForTransaction(
   // Earliest-firing first
   upcoming.sort((a, b) => a.predictedFireDate.getTime() - b.predictedFireDate.getTime());
 
-  return { pending, sentToday, upcoming };
+  // Pause-state — three independent layers collapsed to one display reason
+  // with most-global priority. Used by AutomatedEmailsCard to show the
+  // pause pill + per-row chips.
+  const globalDisabled = getChaseGlobalDisabled();
+  const agencyDisabled = transaction?.agency?.chaseEmailsEnabled === false;
+  const fileDisabled = transaction?.clientEmailsPaused === true;
+  const activePauseReason: PauseState["activePauseReason"] =
+    globalDisabled ? "global"
+    : agencyDisabled ? "agency"
+    : fileDisabled ? "file"
+    : null;
+  const pauseState: PauseState = {
+    globalDisabled,
+    agencyDisabled,
+    fileDisabled,
+    activePauseReason,
+    agencyName: activePauseReason === "agency" ? transaction?.agency?.name ?? null : null,
+  };
+
+  return { pending, sentToday, upcoming, pauseState };
 }

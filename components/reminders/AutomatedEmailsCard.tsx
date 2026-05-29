@@ -23,6 +23,7 @@ import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type {
   AutomatedEmailsPreview,
+  PauseState,
   PendingEmail,
   SentEmail,
   UpcomingChase,
@@ -78,7 +79,8 @@ function formatTime(d: Date): string {
   });
 }
 
-function formatDayAndTime(d: Date, now: Date = new Date()): string {
+function formatDayAndTime(d: Date, now: Date = new Date(), missedSlot = false): string {
+  if (missedSlot) return `earlier today (didn't fire)`;
   const startOfNow = new Date(now);
   startOfNow.setUTCHours(0, 0, 0, 0);
   const startOfTarget = new Date(d);
@@ -90,6 +92,77 @@ function formatDayAndTime(d: Date, now: Date = new Date()): string {
   if (diffDays < 0) return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${time}`;
   if (diffDays < 7) return `${d.toLocaleDateString("en-GB", { weekday: "short" })} ${time}`;
   return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${time}`;
+}
+
+// A predicted chase fire is "missed" when its calendar day equals today
+// AND the predicted wall-clock time is already in the past. See PR1 sketch:
+// once a chase fires successfully, ClientChaseState updates and the next
+// prediction shifts forward, so a stale "Today HH:MM" past its time is
+// exactly the signal that nothing fired — paused or otherwise.
+function isMissedSlot(predictedFireDate: Date, now: Date = new Date()): boolean {
+  if (predictedFireDate >= now) return false;
+  const startOfNow = new Date(now);
+  startOfNow.setUTCHours(0, 0, 0, 0);
+  const startOfTarget = new Date(predictedFireDate);
+  startOfTarget.setUTCHours(0, 0, 0, 0);
+  return startOfTarget.getTime() === startOfNow.getTime();
+}
+
+// Header pill for the active pause reason. Most-global wins (see preview
+// service comment for the priority rationale). Returns null when no pause
+// is active so the healthy default stays clean.
+function PauseStatusPill({ pauseState }: { pauseState: PauseState }) {
+  if (!pauseState.activePauseReason) return null;
+  const label =
+    pauseState.activePauseReason === "global"
+      ? "Auto chases paused — system-wide"
+      : pauseState.activePauseReason === "agency"
+      ? `Auto chases paused — agency-wide${pauseState.agencyName ? ` (${pauseState.agencyName})` : ""}`
+      : "Auto chases paused — this file";
+  return (
+    <div
+      style={{
+        margin: "10px 20px 0",
+        padding: "6px 10px",
+        background: "rgba(254, 215, 170, 0.30)",
+        border: "0.5px solid rgba(234, 88, 12, 0.25)",
+        borderRadius: 6,
+        fontSize: 11,
+        fontWeight: 600,
+        color: "#9a3412",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        letterSpacing: "0.02em",
+      }}
+      role="status"
+    >
+      <span aria-hidden style={{ fontSize: 11 }}>⏸</span>
+      {label}
+    </div>
+  );
+}
+
+// Tiny per-row chip — minimal because the header pill already carries
+// the why. Sits next to the trailing time on Upcoming rows.
+function PauseChip() {
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        padding: "1px 5px",
+        borderRadius: 4,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        background: "rgba(254, 215, 170, 0.35)",
+        color: "#9a3412",
+        flexShrink: 0,
+      }}
+    >
+      paused
+    </span>
+  );
 }
 
 function summaryText(data: AutomatedEmailsPreview): string {
@@ -164,6 +237,8 @@ function Row({
   primary,
   secondary,
   trailing,
+  trailingChip,
+  trailingMuted,
   previewLabel,
   onPreview,
 }: {
@@ -171,6 +246,14 @@ function Row({
   primary: string;
   secondary: ReactNode;
   trailing: string;
+  // Optional inline chip rendered immediately before the trailing text
+  // (e.g. the "paused" pill on Upcoming chases when the file/agency/env
+  // is off). Kept minimal — header pill carries the explanation.
+  trailingChip?: ReactNode;
+  // When true the trailing label uses a more-muted colour, signalling a
+  // missed/non-fired prediction. Distinguishes "earlier today (didn't fire)"
+  // from "Today 09:30" upcoming items at a glance.
+  trailingMuted?: boolean;
   // When provided, shows a small "View →" / "View / Edit →" link on the
   // trailing line that opens the preview modal. Predicted-upcoming rows
   // don't have a queue row to preview — they call without onPreview.
@@ -197,13 +280,22 @@ function Row({
         <div style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary, rgba(15,23,42,0.65))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}>
           {secondary}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {previewLabel && onPreview && (
             <button type="button" onClick={onPreview} className="agent-link" style={{ fontSize: 11, fontWeight: 600 }}>
               {previewLabel}
             </button>
           )}
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted, rgba(15,23,42,0.50))" }}>
+          {trailingChip}
+          <p style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 500,
+            color: trailingMuted
+              ? "var(--agent-text-muted, rgba(15,23,42,0.40))"
+              : "var(--agent-text-muted, rgba(15,23,42,0.50))",
+            fontStyle: trailingMuted ? "italic" : undefined,
+          }}>
             {trailing}
           </p>
         </div>
@@ -317,6 +409,11 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
             </div>
           ) : (
             <>
+          {/* Pause-state pill — only renders when a pause is actually
+              active (env off / agency off / file paused). Most-global
+              wins so the user sees the operative blocker. */}
+          <PauseStatusPill pauseState={data.pauseState} />
+
           {/* Pending now */}
           <SectionHeader label="Pending now" count={data.pending.length} accent="rgba(254, 215, 170, 0.20)" />
           <div ref={pendingRef}>
@@ -363,15 +460,21 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
             {visibleUpcoming.length === 0 ? (
               <EmptyLine text="Nothing predicted in the next 14 days." />
             ) : (
-              visibleUpcoming.map((u: UpcomingChase, i: number) => (
-                <Row
-                  key={`${u.contactId}-${u.milestoneCode}-${i}`}
-                  category="chase"
-                  primary={`${u.milestoneLabel} chase`}
-                  secondary={<><ToWithRole name={getShortName({ name: u.contactName })} role={u.contactRole} /><span>· chase {u.chaseNumber} of 2</span></>}
-                  trailing={formatDayAndTime(u.predictedFireDate)}
-                />
-              ))
+              visibleUpcoming.map((u: UpcomingChase, i: number) => {
+                const missed = isMissedSlot(u.predictedFireDate);
+                const paused = data.pauseState.activePauseReason !== null;
+                return (
+                  <Row
+                    key={`${u.contactId}-${u.milestoneCode}-${i}`}
+                    category="chase"
+                    primary={`${u.milestoneLabel} chase`}
+                    secondary={<><ToWithRole name={getShortName({ name: u.contactName })} role={u.contactRole} /><span>· chase {u.chaseNumber} of 2</span></>}
+                    trailing={formatDayAndTime(u.predictedFireDate, new Date(), missed)}
+                    trailingChip={paused ? <PauseChip /> : undefined}
+                    trailingMuted={missed}
+                  />
+                );
+              })
             )}
           </div>
 
