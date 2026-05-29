@@ -397,4 +397,17 @@ describe("getMilestoneDigestLine", () => {
   test("throws on unknown milestone code (defensive)", () => {
     expect(() => getMilestoneDigestLine("XX99", "vendor")).toThrow(/no digest line/);
   });
+
+  // Regression guard for Job B's three new counterpart sides — the digest
+  // lookup must return non-empty for the new sides, otherwise the drain
+  // assembler throws and the whole group fails (see audit §5 finding C1
+  // which caught this exact gap before this commit).
+  test("Job B counterpart lines: VM9.purchaser, VM17.purchaser, PM10.vendor", () => {
+    expect(getMilestoneDigestLine("VM9",  "purchaser"))
+      .toBe("The seller's solicitor has received the management pack.");
+    expect(getMilestoneDigestLine("VM17", "purchaser"))
+      .toBe("The seller has signed and returned their contracts.");
+    expect(getMilestoneDigestLine("PM10", "vendor"))
+      .toBe("The buyer's survey report is in.");
+  });
 });

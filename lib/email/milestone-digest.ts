@@ -79,10 +79,16 @@ function classifyForRecipient(
 // a complete sentence so the bulleted list in the digest is parseable
 // without re-reading.
 //
-// Codes that fire vendor-only (VM9, VM17, VM19, VM20) only need the
-// acted-side line; the counterpart string is empty and the classifier
-// guarantees no counterpart-side delivery exists for these codes anyway.
-// Same for purchaser-only codes (PM2, PM10, PM16, PM19, PM26, PM27).
+// Codes that fire vendor-only (VM19, VM20) only need the acted-side
+// line; the counterpart string is empty and the classifier guarantees
+// no counterpart-side delivery exists for these codes anyway. Same for
+// purchaser-only codes (PM2, PM16, PM19, PM26, PM27).
+//
+// Job B (2026-05-29) added a counterpart side on three codes that were
+// previously one-sided: VM9.purchaser (leasehold management pack landed
+// seller-side), VM17.purchaser (seller has signed contracts), and
+// PM10.vendor (buyer's survey report has landed). Their counterpart
+// strings are no longer empty.
 
 const DIGEST_LINES: Record<string, readonly [string, string]> = {
   // Phase 1 — Instruction
@@ -114,7 +120,7 @@ const DIGEST_LINES: Record<string, readonly [string, string]> = {
 
   // Phase 7 — Management pack (leasehold only)
   VM8: ["Your solicitor has requested the management pack from your freeholder.", "The seller's solicitor has requested the management pack."],
-  VM9: ["The management pack is back with your solicitor.", ""],
+  VM9: ["The management pack is back with your solicitor.", "The seller's solicitor has received the management pack."],
   PM12: ["Your solicitor has the management pack.", "The buyer's solicitor has the management pack."],
 
   // Phase 8 — Searches
@@ -123,7 +129,7 @@ const DIGEST_LINES: Record<string, readonly [string, string]> = {
 
   // Phase 9 — Survey
   PM9: ["Your survey is booked.", "The buyer has booked their survey."],
-  PM10: ["Your survey report has landed.", ""],
+  PM10: ["Your survey report has landed.", "The buyer's survey report is in."],
 
   // Phase 10 — Initial enquiries
   PM14: ["Your solicitor has raised the initial enquiries.", "The buyer's solicitor has raised the initial enquiries."],
@@ -145,7 +151,7 @@ const DIGEST_LINES: Record<string, readonly [string, string]> = {
   // Phase 12 — Final report and contract sign-off
   PM21: ["Your solicitor's final report has landed.", "The buyer has the final report."],
   VM16: ["Your contracts are ready for signing.", "The seller's contracts are with them for signing."],
-  VM17: ["Your signed contracts are back with your solicitor.", ""],
+  VM17: ["Your signed contracts are back with your solicitor.", "The seller has signed and returned their contracts."],
   PM22: ["Your contracts are ready for signing.", "The buyer has their contracts."],
   PM23: ["Your signed contracts are back with your solicitor.", "The buyer's signed contracts are back."],
 
