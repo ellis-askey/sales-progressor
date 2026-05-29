@@ -135,11 +135,17 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const count = milestones.length;
 
   // ─── Classify each item; split into DIY / NUDGE groups ──────────────────
+  // Prefer chaseLabel where the copy defines it — it's phrased for the
+  // chase opener ("sitting with your solicitor: <chaseLabel>" or
+  // "Yours to do: <chaseLabel>"). Falls back to the canonical label
+  // when chaseLabel is unset (i.e. milestones whose label already reads
+  // naturally as an imperative action — VM1, VM4, VM6, etc).
   const diy: { code: string; label: string }[] = [];
   const nudge: { code: string; label: string; party: NudgeParty }[] = [];
   for (const m of milestones) {
     const { tone, party } = classifyTone(m.code);
-    const label = getMilestoneCopy(m.code).label;
+    const copy = getMilestoneCopy(m.code);
+    const label = copy.chaseLabel ?? copy.label;
     if (tone === "diy") {
       diy.push({ code: m.code, label });
     } else {

@@ -21,6 +21,11 @@ export type MilestoneEmailCopy = {
 export type PortalCopy = {
   label: string;
   labelOther?: string;  // third-person version shown when the other party views this milestone
+  // Used by the client-chase digest when this milestone appears as a bullet
+  // under "sitting with your solicitor / lender" (NUDGE) or "Yours to do"
+  // (DIY-passive). Phrased to describe the awaited action rather than a
+  // past-tense state. Falls back to `label` when unset.
+  chaseLabel?: string;
   who: "you" | "solicitor" | "agent" | "lender";
   typicalDuration?: string;
   description?: string;
@@ -78,7 +83,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM2: {
-    label: "Receive memorandum of sale", who: "solicitor",
+    label: "Receive memorandum of sale", chaseLabel: "Memorandum of sale arriving from the agent", who: "solicitor",
     description: "Your estate agent sends a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process.",
     emailCopy: {
       vendor: {
@@ -109,7 +114,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM3: {
-    label: "Receive welcome pack from solicitor", labelOther: "Seller received welcome pack from solicitor", who: "you",
+    label: "Receive welcome pack from solicitor", labelOther: "Seller received welcome pack from solicitor", chaseLabel: "Confirm the welcome pack from your solicitor has arrived", who: "you",
     description: "Your solicitor sends you a welcome pack containing their terms of business, a questionnaire, and ID requirements. Return it promptly — delays here slow down the whole transaction.",
     emailCopy: {
       purchaser: {
@@ -171,7 +176,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM5: {
-    label: "Receive property information forms", labelOther: "Seller received property information forms", who: "you",
+    label: "Receive property information forms", labelOther: "Seller received property information forms", chaseLabel: "Confirm the property information forms have arrived", who: "you",
     description: "Your solicitor will send you property information forms (TA6 and TA10) asking about the property — fixtures included in the sale, disputes, planning consents, and more. Complete these carefully and honestly.",
     emailCopy: {
       purchaser: {
@@ -233,7 +238,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM7: {
-    label: "Draft contract pack issued", who: "solicitor",
+    label: "Draft contract pack issued", chaseLabel: "Draft contract pack going out to the buyer's side", who: "solicitor",
     description: "Your solicitor sends the draft contract pack to the buyer's solicitor. This includes the contract, property information forms, title documents, and any relevant certificates.",
     emailCopy: {
       vendor: {
@@ -272,7 +277,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM8: {
-    label: "Management pack requested", who: "solicitor",
+    label: "Management pack requested", chaseLabel: "Management pack request going to the freeholder", who: "solicitor",
     description: "If the property is leasehold or share of freehold, your solicitor requests a management pack from the freeholder or managing agent. This contains details about service charges, ground rent, and building insurance.",
     emailCopy: {
       purchaser: {
@@ -303,7 +308,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM9: {
-    label: "Management pack received", who: "solicitor", typicalDuration: "can take 4–8 weeks",
+    label: "Management pack received", chaseLabel: "Management pack coming back from the freeholder", who: "solicitor", typicalDuration: "can take 4–8 weeks",
     description: "The management pack has arrived from the freeholder or managing agent. These often take weeks to arrive and are one of the most common causes of delays in leasehold transactions.",
     emailCopy: {
       vendor: {
@@ -334,7 +339,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM10: {
-    label: "Initial enquiries received", who: "solicitor",
+    label: "Initial enquiries received", chaseLabel: "Buyer's initial enquiries arriving", who: "solicitor",
     description: "The buyer's solicitor has raised questions about the property — these might cover planning history, building works, boundaries, or anything in the documents that needs clarification.",
     emailCopy: {
       purchaser: {
@@ -396,7 +401,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM12: {
-    label: "Replies sent to buyer's solicitor", who: "solicitor",
+    label: "Replies sent to buyer's solicitor", chaseLabel: "Replies going back to the buyer's side", who: "solicitor",
     description: "Your solicitor has sent replies to the buyer's enquiries. The buyer's solicitor will review these and may raise further questions.",
     emailCopy: {
       vendor: {
@@ -427,7 +432,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM13: {
-    label: "Additional enquiries received", who: "solicitor",
+    label: "Additional enquiries received", chaseLabel: "Buyer's additional enquiries arriving", who: "solicitor",
     description: "A second round of questions has arrived from the buyer's solicitor. This is completely normal — most transactions have at least two rounds of enquiries.",
     emailCopy: {
       purchaser: {
@@ -489,7 +494,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM15: {
-    label: "Additional replies sent", who: "solicitor",
+    label: "Additional replies sent", chaseLabel: "Additional replies going back to the buyer's side", who: "solicitor",
     description: "Your solicitor has replied to the additional enquiries. Once both solicitors are satisfied, you're moving towards exchange.",
     emailCopy: {
       vendor: {
@@ -520,7 +525,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM16: {
-    label: "Contract documents issued to you", labelOther: "Contract documents issued to seller", who: "you",
+    label: "Contract documents issued to you", labelOther: "Contract documents issued to seller", chaseLabel: "Confirm the contract documents have arrived", who: "you",
     description: "Your solicitor has sent you the final contract to review and sign. Read it carefully — check the price, completion date, and what's included in the sale.",
     emailCopy: {
       purchaser: {
@@ -727,7 +732,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM2: {
-    label: "Receive memorandum of sale", who: "solicitor",
+    label: "Receive memorandum of sale", chaseLabel: "Memorandum of sale arriving from the agent", who: "solicitor",
     description: "The estate agent sends a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
     emailCopy: {
       purchaser: {
@@ -843,7 +848,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM6: {
-    label: "Lender valuation booked", who: "lender", typicalDuration: "usually 1–2 weeks after application",
+    label: "Lender valuation booked", chaseLabel: "Valuation being booked", who: "lender", typicalDuration: "usually 1–2 weeks after application",
     description: "Your mortgage lender has booked a valuation of the property to confirm it's worth what you're paying. This is not a structural survey — it's for the lender's benefit, not yours. Consider booking your own survey separately.",
     emailCopy: {
       vendor: {
@@ -874,7 +879,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM7: {
-    label: "Draft contract pack received", who: "solicitor",
+    label: "Draft contract pack received", chaseLabel: "Draft contract pack arriving from the seller's side", who: "solicitor",
     description: "Your solicitor has received the contract pack from the seller's solicitor. This includes the draft contract, title documents, and property information forms. Your solicitor will review everything carefully.",
     emailCopy: {
       purchaser: {
@@ -905,7 +910,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM8: {
-    label: "Searches ordered", who: "solicitor", typicalDuration: "results in 2–4 weeks",
+    label: "Searches ordered", chaseLabel: "Searches being ordered", who: "solicitor", typicalDuration: "results in 2–4 weeks",
     description: "Your solicitor has applied for searches — checks with the local council, water authority, and other bodies. These reveal planning permissions, flood risk, drainage, and other factors affecting the property.",
     emailCopy: {
       vendor: {
@@ -967,7 +972,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM10: {
-    label: "Survey report received", who: "you",
+    label: "Survey report received", chaseLabel: "Confirm the survey report has arrived", who: "you",
     description: "Your surveyor has delivered their report. Read it carefully. Most reports flag some issues — many are minor. If anything significant is raised, speak to your solicitor who can advise on the appropriate next steps.",
     emailCopy: {
       vendor: {
@@ -998,7 +1003,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM11: {
-    label: "Mortgage offer received", who: "lender", typicalDuration: "typically 1–3 weeks after valuation",
+    label: "Mortgage offer received", chaseLabel: "Mortgage offer coming through", who: "lender", typicalDuration: "typically 1–3 weeks after valuation",
     description: "Your mortgage lender has formally offered you the loan. Check the amount, interest rate, term, and any conditions. Your solicitor will receive a copy — they'll need to check it against the property title.",
     emailCopy: {
       purchaser: {
@@ -1037,7 +1042,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM12: {
-    label: "Management pack received", who: "solicitor",
+    label: "Management pack received", chaseLabel: "Management pack arriving from the seller's side", who: "solicitor",
     description: "If the property is leasehold, the management pack from the freeholder or managing agent has arrived. Your solicitor will review service charge accounts, ground rent, building insurance, and any planned major works.",
     emailCopy: {
       vendor: {
@@ -1068,7 +1073,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM13: {
-    label: "Search results received", who: "solicitor", typicalDuration: "usually 2–6 weeks",
+    label: "Search results received", chaseLabel: "Search results coming back", who: "solicitor", typicalDuration: "usually 2–6 weeks",
     description: "The search results have come back from the local authority and other bodies. Your solicitor will review them and flag anything that needs attention or further investigation.",
     emailCopy: {
       vendor: {
@@ -1107,7 +1112,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM14: {
-    label: "Initial enquiries raised", who: "solicitor",
+    label: "Initial enquiries raised", chaseLabel: "Initial enquiries going out to the seller's side", who: "solicitor",
     description: "Your solicitor has sent questions to the seller's solicitor about the property. This is a normal part of the process — they're checking everything is in order before you exchange.",
     emailCopy: {
       vendor: {
@@ -1146,7 +1151,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM15: {
-    label: "Initial replies received", who: "solicitor",
+    label: "Initial replies received", chaseLabel: "Initial replies coming back from the seller's side", who: "solicitor",
     description: "The seller's solicitor has replied to your solicitor's questions. Your solicitor will review the answers and decide whether further questions are needed.",
     emailCopy: {
       vendor: {
@@ -1177,7 +1182,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM16: {
-    label: "Initial replies reviewed", who: "solicitor",
+    label: "Initial replies reviewed", chaseLabel: "Initial replies being reviewed", who: "solicitor",
     description: "Your solicitor has reviewed the replies to their enquiries. They may raise further questions, or they may be satisfied and move towards exchange.",
     emailCopy: {
       // PM16.vendor intentionally absent — PM16 is an internal buyer-side
@@ -1204,7 +1209,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM17: {
-    label: "Additional enquiries raised", who: "solicitor",
+    label: "Additional enquiries raised", chaseLabel: "Additional enquiries going out to the seller's side", who: "solicitor",
     description: "Your solicitor has raised a second round of questions. This is completely normal — most transactions go through two or three rounds of enquiries before all points are resolved.",
     emailCopy: {
       vendor: {
@@ -1235,7 +1240,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM18: {
-    label: "Additional replies received", who: "solicitor",
+    label: "Additional replies received", chaseLabel: "Additional replies coming back from the seller's side", who: "solicitor",
     description: "Replies to the additional enquiries have arrived from the seller's solicitor. Your solicitor will review them.",
     emailCopy: {
       vendor: {
@@ -1266,7 +1271,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM19: {
-    label: "Additional replies reviewed", who: "solicitor",
+    label: "Additional replies reviewed", chaseLabel: "Additional replies being reviewed", who: "solicitor",
     description: "Your solicitor has reviewed all outstanding replies. They should now have everything they need to report to you and move towards exchange.",
     emailCopy: {
       // PM19.vendor intentionally absent — PM19 is an internal buyer-side
@@ -1292,7 +1297,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM20: {
-    label: "All enquiries satisfied", who: "solicitor",
+    label: "All enquiries satisfied", chaseLabel: "Final sign-off on all enquiries", who: "solicitor",
     description: "All legal questions about the property have been answered to your solicitor's satisfaction. This is a significant milestone — you're now in the final stretch before exchange.",
     emailCopy: {
       vendor: {
@@ -1331,7 +1336,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM21: {
-    label: "Final report received from solicitor", who: "you",
+    label: "Final report received from solicitor", chaseLabel: "Confirm the final report from your solicitor has arrived", who: "you",
     description: "Your solicitor has sent you their final report summarising everything about the property, the title, the searches, and any conditions on your mortgage offer. Read it and raise any questions before signing.",
     emailCopy: {
       vendor: {
@@ -1362,7 +1367,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM22: {
-    label: "Contract documents issued to you", labelOther: "Contract documents issued to buyer", who: "you",
+    label: "Contract documents issued to you", labelOther: "Contract documents issued to buyer", chaseLabel: "Confirm the contract documents have arrived", who: "you",
     description: "Your solicitor has sent you the contract to review and sign. Check the price, completion date, and included fixtures. Signing doesn't commit you yet — that happens at exchange.",
     emailCopy: {
       vendor: {
