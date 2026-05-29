@@ -9,6 +9,15 @@
 
 const COMMAND_PATTERN = /(?:^|\/)(?:lib|app)\/command\//;
 
+// Sanctioned event-log write bridge. The Command Centre's analytics pipeline
+// needs `recordEvent()` callable from anywhere a domain mutation happens
+// (auth, transactions, milestones, etc.). This is the ONE documented exception
+// to the no-cross-import boundary — every other lib/command/* import from
+// outside the command centre remains forbidden.
+const ALLOWLISTED_IMPORTS = new Set([
+  "@/lib/command/events/write",
+]);
+
 /** @type {import('eslint').Rule.RuleModule} */
 module.exports = {
   meta: {
@@ -31,6 +40,7 @@ module.exports = {
 
     return {
       ImportDeclaration(node) {
+        if (ALLOWLISTED_IMPORTS.has(node.source.value)) return;
         if (COMMAND_PATTERN.test(node.source.value)) {
           context.report({ node, messageId: "noCommandImport" });
         }

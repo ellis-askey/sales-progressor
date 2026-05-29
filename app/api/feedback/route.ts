@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/command/events/write";
 import sgMail from "@sendgrid/mail";
 import { createClient } from "@supabase/supabase-js";
 
@@ -125,6 +126,17 @@ export async function POST(req: NextRequest) {
       screenshotUrl,
       screenshotFilename: screenshotFilename ?? null,
     },
+  });
+
+  // Command Centre event log.
+  await recordEvent({
+    type: "feedback_submitted",
+    agencyId: agencyId ?? undefined,
+    userId: userId ?? undefined,
+    isInternalUser: userRole === "admin" || userRole === "superadmin" || userRole === "sales_progressor",
+    entityType: "FeedbackSubmission",
+    entityId: submission.id,
+    metadata: { category },
   });
 
   // ── Email (fire-and-forget — never block the response) ────────────────────

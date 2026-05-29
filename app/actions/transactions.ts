@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction } from "@/lib/services/transactions";
 import { createChainV2 } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
@@ -386,6 +387,29 @@ export async function changeStatusAction(
       });
     }
   });
+
+  // Command Centre event log. Fires once per status mutation. Note: sale_completed
+  // is emitted from the milestone path (VM20/PM27 confirmation) per DECISION 4, NOT
+  // here when status → "completed". The status path is canonical for transaction_archived
+  // (status → "withdrawn") since there is no equivalent milestone for archiving.
+  await recordEvent({
+    type: "transaction_status_changed",
+    agencyId: session.user.agencyId || undefined,
+    userId: session.user.id,
+    entityType: "PropertyTransaction",
+    entityId: transactionId,
+    metadata: { from: tx.status, to: status },
+  });
+  if (status === "withdrawn") {
+    await recordEvent({
+      type: "transaction_archived",
+      agencyId: session.user.agencyId || undefined,
+      userId: session.user.id,
+      entityType: "PropertyTransaction",
+      entityId: transactionId,
+      metadata: fallThroughReason ? { reason: fallThroughReason } : undefined,
+    });
+  }
 
   const reasonNote = status === "withdrawn" && fallThroughReason
     ? ` Reason: ${fallThroughReason}.`

@@ -30,6 +30,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
+import { recordEvent } from "@/lib/command/events/write";
 import { buildContactUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -411,6 +412,24 @@ export async function enqueueClientChaseDigest(input: {
     select: { id: true },
   });
   if (!row) return { enqueued: false, rowId: null };
+
+  // Command Centre event log. The (transaction, contact, day) row is dedup-
+  // unique at the queue level via P2002, but if the cron re-invokes this
+  // function for the same tuple later in the day the recordEvent call below
+  // could fire again citing the same entityId. Downstream consumers should
+  // dedupe by (type, entityId, DATE(createdAt)) when exact-once counting is
+  // needed. We're not adding a guard query here per the additive-only rule.
+  await recordEvent({
+    type: "chase_message_generated",
+    entityType: "OutboundEmailQueue",
+    entityId: row.id,
+    metadata: {
+      transactionId,
+      contactId,
+      milestoneCodes,
+      recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
+    },
+  });
 
   // Update ClientChaseState for each milestone in the digest. Upsert so the
   // first chase for a (transaction, contact, milestone) tuple creates the

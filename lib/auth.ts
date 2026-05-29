@@ -9,6 +9,7 @@ import { checkAuthLimit } from "@/lib/ratelimit";
 import type { UserRole } from "@prisma/client";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { recordEvent } from "@/lib/command/events/write";
 
 declare module "next-auth" {
   interface Session {
@@ -157,6 +158,19 @@ export const authOptions: NextAuthOptions = {
           // viewer + no agencyId = net-new OAuth user who hasn't completed signup
           token.needsSignupCompletion = !dbUser?.agencyId && dbUser?.role === "viewer";
         }
+
+        // Command Centre event log — fires only on initial sign-in (when
+        // `user` is present), not on subsequent JWT refreshes.
+        await recordEvent({
+          type: "user_logged_in",
+          userId: user.id,
+          agencyId: token.agencyId || undefined,
+          isInternalUser:
+            token.role === "admin" ||
+            token.role === "superadmin" ||
+            token.role === "sales_progressor",
+          metadata: { provider: account?.provider ?? "credentials" },
+        });
       }
 
       // On every request: if signup is still incomplete, re-check the DB.

@@ -5,6 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed } from "@/lib/email";
+import { recordEvent } from "@/lib/command/events/write";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
 
@@ -225,6 +226,21 @@ export async function drainOutboundQueue(): Promise<{
         data: { sentAt: new Date() },
       });
       console.log(`[EMAIL_SENT] type=${record.emailType} to=${record.recipientEmail}`);
+      // Command Centre event log. Only CLIENT_CHASE rows emit chase_sent — the
+      // queue drain handles many email types but only chases map to the
+      // chase_sent EventType.
+      if (record.emailType === "CLIENT_CHASE") {
+        await recordEvent({
+          type: "chase_sent",
+          userId: record.recipientUserId ?? undefined,
+          entityType: "OutboundEmailQueue",
+          entityId: record.id,
+          metadata: {
+            recipientContactId: record.recipientContactId,
+            recipientEmail: record.recipientEmail,
+          },
+        });
+      }
       sent++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";

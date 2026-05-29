@@ -7,6 +7,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
+import { recordEvent } from "@/lib/command/events/write";
 
 export async function listTransactions(
   agencyId: string,
@@ -767,6 +768,20 @@ export async function createTransaction(input: CreateTransactionInput) {
       twelveWeekTarget,
     },
     });
+  });
+
+  // Command Centre event log — fires after the $transaction commits.
+  await recordEvent({
+    type: "transaction_created",
+    agencyId: input.agencyId,
+    userId: input.agentUserId ?? input.assignedUserId ?? undefined,
+    entityType: "PropertyTransaction",
+    entityId: newTx.id,
+    metadata: {
+      progressedBy: newTx.progressedBy,
+      serviceType: newTx.serviceType,
+      isMigrated: newTx.isMigrated,
+    },
   });
 
   return newTx;

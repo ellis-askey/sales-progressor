@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/command/events/write";
 import { sendEmail, parseEmailMessage, resolveSenderForTransaction } from "@/lib/email";
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
@@ -48,6 +49,16 @@ export async function POST(req: NextRequest) {
         content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}${ccSuffix}: ${messageText}`,
         createdById: session.user.id,
       },
+    });
+
+    // Command Centre event log — manual chase send from the agent surface.
+    await recordEvent({
+      type: "chase_sent",
+      agencyId: session.user.agencyId || undefined,
+      userId: session.user.id,
+      entityType: "PropertyTransaction",
+      entityId: transactionId,
+      metadata: { via: "manual", toEmail, ccCount: validCcEmails.length, chaseTaskId: chaseTaskId ?? null },
     });
 
     return NextResponse.json({ ok: true, subject: fullSubject });

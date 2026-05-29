@@ -8,6 +8,7 @@ import { touchLastActivity } from "@/lib/services/activity";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
 import { handleExchangeReversal } from "@/lib/services/billing-reversal";
+import { recordEvent } from "@/lib/command/events/write";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
 
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
@@ -262,6 +263,16 @@ export async function maybeUnlockExchangeGate(
       content: `${sideLabel} side ready to exchange — all required milestones complete`,
       createdById,
     },
+  });
+
+  // Command Centre event log. The state→"available" update above is the real
+  // mutation. Fires once per side that flips from locked→available.
+  await recordEvent({
+    type: "exchange_gate_unlocked",
+    userId: createdById ?? undefined,
+    entityType: "PropertyTransaction",
+    entityId: transactionId,
+    metadata: { side },
   });
 }
 
@@ -588,6 +599,35 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
     maybeEnqueueCelebration(input.transactionId).catch(console.error);
   }
 
+  // Command Centre event log. Fires for EVERY completion (including bilateral
+  // counterpart auto-confirms — each side IS a milestone confirmation per DECISION 4).
+  // contracts_exchanged / sale_completed are gated to the vendor-side code only to
+  // ensure each real-world occurrence emits exactly once across the bilateral pair.
+  await recordEvent({
+    type: "milestone_confirmed",
+    userId: completedById ?? undefined,
+    entityType: "PropertyTransaction",
+    entityId: input.transactionId,
+    metadata: { code: def.code, side: def.side, confirmedByPortal },
+  });
+  if (def.code === "VM19") {
+    await recordEvent({
+      type: "contracts_exchanged",
+      userId: completedById ?? undefined,
+      entityType: "PropertyTransaction",
+      entityId: input.transactionId,
+      metadata: { eventDate: input.eventDate?.toISOString() ?? null },
+    });
+  } else if (def.code === "VM20") {
+    await recordEvent({
+      type: "sale_completed",
+      userId: completedById ?? undefined,
+      entityType: "PropertyTransaction",
+      entityId: input.transactionId,
+      metadata: { eventDate: input.eventDate?.toISOString() ?? null },
+    });
+  }
+
   return completion;
 }
 
@@ -827,6 +867,17 @@ export async function markNotRequired(
   // reminders visible on the property file for hours.
   await evaluateTransactionReminders(transactionId).catch((err) => {
     console.error(`[markNotRequired] evaluateTransactionReminders failed for ${transactionId}:`, err);
+  });
+
+  // Command Centre event log — fires for the primary NR mark only.
+  // bulkMarkNotRequired (cascade) intentionally does NOT emit: one user action
+  // = one event. Cascade NRs are deterministic consequences of the primary mark.
+  await recordEvent({
+    type: "milestone_marked_not_required",
+    userId: completedById,
+    entityType: "PropertyTransaction",
+    entityId: transactionId,
+    metadata: { code: def?.code, side: def?.side, reason },
   });
 
   return completion;
@@ -1240,6 +1291,16 @@ export async function executeUndoMilestone(input: {
   });
 
   touchLastActivity(transactionId).catch(() => {});
+
+  // Command Centre event log — one event per user undo action. Bilateral partner
+  // + cascade are downstream effects of the single user action; they don't emit.
+  await recordEvent({
+    type: "milestone_reversed",
+    userId: completedById,
+    entityType: "PropertyTransaction",
+    entityId: transactionId,
+    metadata: { code: targetDef.code, side: targetDef.side, mode },
+  });
 }
 
 // ── reverseMilestoneWithCascade ──────────────────────────────────────────────
@@ -1299,5 +1360,16 @@ export async function reverseMilestoneWithCascade(input: {
     if (def?.side) {
       await maybeLockExchangeGate(input.transactionId, def.side, tx);
     }
+  });
+
+  // Command Centre event log — one event per user undo action. The cascade and
+  // bilateral helpers above are downstream effects of the single user action
+  // and intentionally don't emit on their own.
+  await recordEvent({
+    type: "milestone_reversed",
+    userId: input.completedById,
+    entityType: "PropertyTransaction",
+    entityId: input.transactionId,
+    metadata: { code: def?.code, side: def?.side, viaCascade: true },
   });
 }

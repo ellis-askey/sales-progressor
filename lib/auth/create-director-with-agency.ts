@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { UserRole } from "@prisma/client";
+import { recordEvent } from "@/lib/command/events/write";
 
 interface CreateDirectorWithAgencyInput {
   userId?: string;       // if provided, updates existing user (OAuth path)
@@ -29,7 +30,7 @@ interface CreateDirectorWithAgencyResult {
 export async function createDirectorWithAgency(
   input: CreateDirectorWithAgencyInput
 ): Promise<CreateDirectorWithAgencyResult> {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const agency = await tx.agency.create({
       data: {
         name: input.agencyName,
@@ -74,4 +75,18 @@ export async function createDirectorWithAgency(
 
     return { userId, agencyId: agency.id };
   });
+
+  // Command Centre event log — fires after the transaction commits so
+  // the Event row never references an Agency that rolled back.
+  await recordEvent({
+    type: "agency_created",
+    agencyId: result.agencyId,
+    userId: result.userId,
+    isInternalUser: false,
+    entityType: "Agency",
+    entityId: result.agencyId,
+    metadata: { role: input.role, via: input.userId ? "oauth" : "password" },
+  });
+
+  return result;
 }

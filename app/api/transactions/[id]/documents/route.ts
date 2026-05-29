@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/command/events/write";
 import { uploadToStorage, getSignedUrl } from "@/lib/supabase-storage";
 
 const ALLOWED_MIME = new Set([
@@ -88,6 +89,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         mimeType: file.type,
         source: "admin",
       },
+    });
+    // Command Centre event log.
+    await recordEvent({
+      type: "file_uploaded",
+      agencyId: session.user.agencyId || undefined,
+      userId: session.user.id,
+      entityType: "TransactionDocument",
+      entityId: doc.id,
+      metadata: { transactionId: id, source: "admin", mimeType: file.type },
     });
     results.push(doc);
   }

@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { recordEvent } from "@/lib/command/events/write";
 import { uploadToStorage } from "@/lib/supabase-storage";
 
 const ALLOWED_MIME = new Set([
@@ -63,6 +64,19 @@ export async function POST(req: NextRequest) {
         fileSize: file.size,
         mimeType: file.type,
         source: "portal",
+      },
+    });
+
+    // Command Centre event log — portal upload, no admin userId in scope.
+    await recordEvent({
+      type: "file_uploaded",
+      entityType: "TransactionDocument",
+      entityId: doc.id,
+      metadata: {
+        transactionId: contact.propertyTransactionId,
+        contactId: contact.id,
+        source: "portal",
+        mimeType: file.type,
       },
     });
 
