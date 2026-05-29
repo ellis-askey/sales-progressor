@@ -218,6 +218,7 @@ async function main() {
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken! },
     milestones: TEST_CODES.map((code) => ({ code })),
+    agencyName: "Test Agency",
   });
 
   console.log("");

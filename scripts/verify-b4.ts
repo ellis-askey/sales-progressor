@@ -27,6 +27,7 @@ async function main() {
     transaction: { id: "txn_pure", propertyAddress: "42 Test Lane, London, SW1 1AA" },
     contact: { id: "ctc_pure", name: "Trace Vendor", portalToken: "pure-token-abc" },
     milestones: [{ code: "PM5" }, { code: "PM9" }],
+    agencyName: "Test Agency",
   });
   console.log(`[b4] Pure assembly:`);
   console.log(`     subject: ${pure.subject}`);

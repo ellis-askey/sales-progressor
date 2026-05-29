@@ -44,6 +44,9 @@ export type AssembleDigestInput = {
   transaction: { id: string; propertyAddress: string };
   contact: { id: string; name: string; portalToken: string };
   milestones: DigestMilestone[];
+  // White-labelling: header label + sign-off come from the agency that
+  // owns the file. Resolved by the caller via transaction.agency.name.
+  agencyName: string;
 };
 
 export type AssembledDigest = {
@@ -116,7 +119,7 @@ function nudgeBlockHeading(nudgeParties: NudgeParty[]): string {
 }
 
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
-  const { transaction, contact, milestones } = input;
+  const { transaction, contact, milestones, agencyName } = input;
   const base = portalBase();
 
   // Deep-link with milestone codes as a query-param hint. B5's respond page
@@ -218,7 +221,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     ...bodyLines,
     ``,
     `Thanks,`,
-    `Sales Progressor`,
+    agencyName,
     ``,
     `If you'd rather we stop sending these, unsubscribe here:`,
     unsubscribeUrl,
@@ -278,7 +281,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     <tr><td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="560" style="background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
         <tr><td>
-          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">Sales Progressor</p>${htmlInner}
+          <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#FF6B4A;text-transform:uppercase;margin:0 0 16px;">${escapeHtml(agencyName)}</p>${htmlInner}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr><td style="border-radius:8px;background:#FF6B4A;">
               <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:white;text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
@@ -327,11 +330,16 @@ export async function enqueueClientChaseDigest(input: {
   }
 
   // Pull everything in one round-trip-ish — the assembler is pure so we
-  // hand it resolved data.
+  // hand it resolved data. Agency name is pulled in for white-labelled
+  // header + sign-off (replaces "Sales Progressor" branding).
   const [transaction, contact] = await Promise.all([
     prisma.propertyTransaction.findUnique({
       where: { id: transactionId },
-      select: { id: true, propertyAddress: true },
+      select: {
+        id: true,
+        propertyAddress: true,
+        agency: { select: { name: true } },
+      },
     }),
     prisma.contact.findUnique({
       where: { id: contactId },
@@ -352,6 +360,7 @@ export async function enqueueClientChaseDigest(input: {
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
     milestones: milestoneCodes.map((code) => ({ code })),
+    agencyName: transaction.agency?.name ?? "Sales Progressor",
   });
 
   const today = new Date();
