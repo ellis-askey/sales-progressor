@@ -13,6 +13,7 @@ export async function sendEmail({
   html,
   from,
   replyTo,
+  queueId,
 }: {
   to: string;
   cc?: string[];
@@ -21,6 +22,11 @@ export async function sendEmail({
   html?: string;
   from?: string;
   replyTo?: string;
+  // Echoes back on every SendGrid Event Webhook event for this message
+  // via customArgs. /api/webhooks/sendgrid-bounce uses it to join events
+  // to the originating OutboundEmailQueue row for delivery-status writes.
+  // Omit for direct/non-queued sends; the webhook just skips them.
+  queueId?: string;
 }) {
   return sgMail.send({
     to,
@@ -30,6 +36,7 @@ export async function sendEmail({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
+    ...(queueId ? { customArgs: { queueId } } : {}),
   });
 }
 
@@ -43,11 +50,15 @@ export async function sendChainEmail({
   subject,
   text,
   html,
+  queueId,
 }: {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  // Same purpose as sendEmail.queueId — see comment there. Drain functions
+  // pass the OutboundEmailQueue row id; the webhook joins events back.
+  queueId?: string;
 }): Promise<void> {
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
   const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
@@ -66,6 +77,7 @@ export async function sendChainEmail({
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
     ...(asmGroupId ? { asm: { groupId: asmGroupId } } : {}),
+    ...(queueId ? { customArgs: { queueId } } : {}),
     mailSettings: { sandboxMode: { enable: isSandbox } },
   });
 }

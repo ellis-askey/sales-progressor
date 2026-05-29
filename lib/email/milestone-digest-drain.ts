@@ -149,6 +149,7 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           subject: decision.payload.subject,
           text: decision.payload.text,
           html: decision.payload.html,
+          queueId: decision.row.id,
         });
         await prisma.outboundEmailQueue.update({
           where: { id: decision.row.id },
@@ -168,11 +169,16 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
         }
         singleSends++;
       } else {
+        // Digest mode: one SendGrid send covers N queue rows. Pass all row
+        // ids as a comma-joined customArg so the webhook can fan delivery
+        // events out to every bundled row (bounce on the digest =
+        // bounce on every row in the bundle).
         await sendEmail({
           to: recipientEmail,
           subject: decision.assembled.subject,
           text: decision.assembled.text,
           html: decision.assembled.html,
+          queueId: decision.rows.map((r) => r.id).join(","),
         });
         await prisma.outboundEmailQueue.updateMany({
           where: { id: { in: decision.rows.map((r) => r.id) } },

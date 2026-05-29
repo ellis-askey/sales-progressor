@@ -30,6 +30,12 @@ export type PendingEmail = {
   scheduledFor: Date;
 };
 
+// Truthful delivery state derived from SendGrid Event Webhook columns.
+// "unknown" means we handed the message off but no event has come back
+// yet — covers historical rows pre-PR-3 too. Most-bad-wins ordering:
+// bounced/blocked dominate, then deferred (unresolved), then delivered.
+export type DeliveryStatus = "delivered" | "deferred" | "bounced" | "blocked" | "unknown";
+
 export type SentEmail = {
   id: string;
   emailType: string;
@@ -38,6 +44,16 @@ export type SentEmail = {
   recipientRole: string;
   subject: string;
   sentAt: Date;
+  // PR 3 — populated from OutboundEmailQueue delivery columns
+  deliveryStatus: DeliveryStatus;
+  deliveredAt: Date | null;
+  deferredAt: Date | null;
+  deferredCount: number;
+  deferredReason: string | null;
+  bouncedAt: Date | null;
+  bouncedReason: string | null;
+  blockedAt: Date | null;
+  blockedReason: string | null;
 };
 
 export type UpcomingChase = {
@@ -104,6 +120,25 @@ function nextNonSundayFrom(d: Date): Date {
 // milestone confirm emails, etc.).
 function categoriseEmailType(emailType: string): "chase" | "notification" {
   return emailType === "CLIENT_CHASE" ? "chase" : "notification";
+}
+
+// Derive truthful delivery status from the SendGrid webhook columns.
+// Priority: bounced/blocked > deferred (unresolved) > delivered >
+// unknown. "deferred AND delivered" reads as delivered (SendGrid
+// retried successfully). "bounced AND delivered" shouldn't happen but
+// we treat bounced as winning (something went wrong after delivery).
+type DeliveryColumns = {
+  deliveredAt: Date | null;
+  deferredAt: Date | null;
+  bouncedAt: Date | null;
+  blockedAt: Date | null;
+};
+function deriveDeliveryStatus(r: DeliveryColumns): DeliveryStatus {
+  if (r.bouncedAt) return "bounced";
+  if (r.blockedAt) return "blocked";
+  if (r.deliveredAt) return "delivered";
+  if (r.deferredAt) return "deferred";
+  return "unknown";
 }
 
 // London-zone start of day. Approximation good enough for "today" buckets —
@@ -203,6 +238,15 @@ export async function getAutomatedEmailsForTransaction(
         recipientRole: r.recipientContact?.roleType ?? "",
         subject: payload.subject ?? "(no subject)",
         sentAt: r.sentAt!,
+        deliveryStatus: deriveDeliveryStatus(r),
+        deliveredAt: r.deliveredAt,
+        deferredAt: r.deferredAt,
+        deferredCount: r.deferredCount,
+        deferredReason: r.deferredReason,
+        bouncedAt: r.bouncedAt,
+        bouncedReason: r.bouncedReason,
+        blockedAt: r.blockedAt,
+        blockedReason: r.blockedReason,
       });
       continue;
     }
@@ -219,6 +263,10 @@ export async function getAutomatedEmailsForTransaction(
       // Defensive: keep the bundled row visible with a generic subject
       // rather than dropping it from the feed.
     }
+    // Bundle delivery status: the webhook fans events out to every row
+    // in the bundle (via the comma-joined queueId customArg), so all
+    // rows in the group should already share the same delivery state.
+    // Reading from `first` is correct.
     collapsedMilestone.push({
       id: first.id,
       emailType: first.emailType,
@@ -227,6 +275,15 @@ export async function getAutomatedEmailsForTransaction(
       recipientRole: first.recipientContact?.roleType ?? "",
       subject: digestSubject,
       sentAt: first.sentAt!,
+      deliveryStatus: deriveDeliveryStatus(first),
+      deliveredAt: first.deliveredAt,
+      deferredAt: first.deferredAt,
+      deferredCount: first.deferredCount,
+      deferredReason: first.deferredReason,
+      bouncedAt: first.bouncedAt,
+      bouncedReason: first.bouncedReason,
+      blockedAt: first.blockedAt,
+      blockedReason: first.blockedReason,
     });
   }
 
@@ -240,6 +297,15 @@ export async function getAutomatedEmailsForTransaction(
       recipientRole: r.recipientContact?.roleType ?? "",
       subject: payload.subject ?? "(no subject)",
       sentAt: r.sentAt!,
+      deliveryStatus: deriveDeliveryStatus(r),
+      deliveredAt: r.deliveredAt,
+      deferredAt: r.deferredAt,
+      deferredCount: r.deferredCount,
+      deferredReason: r.deferredReason,
+      bouncedAt: r.bouncedAt,
+      bouncedReason: r.bouncedReason,
+      blockedAt: r.blockedAt,
+      blockedReason: r.blockedReason,
     };
   });
 

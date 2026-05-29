@@ -23,6 +23,7 @@ import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type {
   AutomatedEmailsPreview,
+  DeliveryStatus,
   PauseState,
   PendingEmail,
   SentEmail,
@@ -163,6 +164,66 @@ function PauseChip() {
       paused
     </span>
   );
+}
+
+// Delivery-status chip on Sent Today rows. Reflects what SendGrid's
+// Event Webhook told us happened AFTER we handed the message off —
+// truthful, not just "sent". Hidden when status is "delivered" (the
+// healthy default) to keep happy rows uncluttered; only abnormal
+// states show a chip.
+function DeliveryChip({ status, deferredCount, reason }: {
+  status: DeliveryStatus;
+  deferredCount: number;
+  reason: string | null;
+}) {
+  if (status === "delivered") return null; // happy path stays clean
+  if (status === "unknown") return null;   // pre-webhook rows / events not yet in
+  let label: string;
+  let style: { bg: string; fg: string };
+  if (status === "deferred") {
+    label = deferredCount > 1 ? `deferred (${deferredCount}x)` : "deferred";
+    style = { bg: "rgba(254, 215, 170, 0.35)", fg: "#9a3412" };
+  } else if (status === "bounced") {
+    label = "bounced";
+    style = { bg: "rgba(254, 202, 202, 0.40)", fg: "#991b1b" };
+  } else {
+    label = "blocked";
+    style = { bg: "rgba(254, 202, 202, 0.40)", fg: "#991b1b" };
+  }
+  return (
+    <span
+      title={reason ?? undefined}
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        padding: "1px 5px",
+        borderRadius: 4,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        background: style.bg,
+        color: style.fg,
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+// Sent-row trailing label — replaces "Sent HH:MM" with a state-aware
+// variant when delivery info is in. Delivered shows ✓; deferred shows
+// the latest deferral time; bounced/blocked show the bounce time.
+function sentTrailingLabel(s: SentEmail): string {
+  const sentTime = s.sentAt.toLocaleTimeString("en-GB", {
+    timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  if (s.deliveryStatus === "delivered" && s.deliveredAt) {
+    const deliveredTime = s.deliveredAt.toLocaleTimeString("en-GB", {
+      timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+    return `Delivered ${deliveredTime}`;
+  }
+  return `Sent ${sentTime}`;
 }
 
 function summaryText(data: AutomatedEmailsPreview): string {
@@ -440,17 +501,27 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
             {data.sentToday.length === 0 ? (
               <EmptyLine text="Nothing sent today yet." />
             ) : (
-              data.sentToday.map((s: SentEmail) => (
-                <Row
-                  key={s.id}
-                  category={s.category}
-                  primary={s.subject}
-                  secondary={<ToWithRole name={getShortName({ name: s.recipientName })} role={s.recipientRole} />}
-                  trailing={`Sent ${formatTime(s.sentAt)}`}
-                  previewLabel="View"
-                  onPreview={() => setPreviewEmailId(s.id)}
-                />
-              ))
+              data.sentToday.map((s: SentEmail) => {
+                const reason = s.bouncedReason ?? s.blockedReason ?? s.deferredReason;
+                return (
+                  <Row
+                    key={s.id}
+                    category={s.category}
+                    primary={s.subject}
+                    secondary={<ToWithRole name={getShortName({ name: s.recipientName })} role={s.recipientRole} />}
+                    trailing={sentTrailingLabel(s)}
+                    trailingChip={
+                      <DeliveryChip
+                        status={s.deliveryStatus}
+                        deferredCount={s.deferredCount}
+                        reason={reason}
+                      />
+                    }
+                    previewLabel="View"
+                    onPreview={() => setPreviewEmailId(s.id)}
+                  />
+                );
+              })
             )}
           </div>
 

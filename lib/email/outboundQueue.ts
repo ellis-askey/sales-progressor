@@ -218,6 +218,7 @@ export async function drainOutboundQueue(): Promise<{
         subject: payload.subject as string,
         text: payload.text as string,
         html: payload.html as string | undefined,
+        queueId: record.id,
       });
       await prisma.outboundEmailQueue.update({
         where: { id: record.id },

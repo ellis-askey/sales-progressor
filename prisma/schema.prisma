@@ -1091,6 +1091,20 @@ model OutboundEmailQueue {
   errorMessage        String?
   createdAt           DateTime  @default(now())
 
+  // SendGrid Event Webhook delivery status. Populated by
+  // /api/webhooks/sendgrid-bounce when delivery / deferred / bounce /
+  // dropped events fire for a message we sent with customArgs.queueId.
+  // sentAt = handed to SendGrid; these = what actually happened after.
+  // All nullable → existing rows ("Sent (status unknown)") work unchanged.
+  deliveredAt         DateTime?
+  deferredAt          DateTime?
+  deferredCount       Int       @default(0)
+  deferredReason      String?
+  bouncedAt           DateTime?
+  bouncedReason       String?
+  blockedAt           DateTime?
+  blockedReason       String?
+
   // Audit: when an agent edits the pending payload via the email preview
   // modal, these track who/when. Null on rows that were never edited.
   // The edit overwrites payload in place — the drain reads JSON so edits

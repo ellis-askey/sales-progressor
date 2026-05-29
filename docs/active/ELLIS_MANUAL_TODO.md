@@ -4,7 +4,31 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-05-22
+Last updated: 2026-05-29
+
+---
+
+## SendGrid Event Webhook — completed 2026-05-29
+
+The auto-emails delivery-status surface now reads from the SendGrid Event Webhook. Configured against the existing `Sales Progressor` webhook (no new endpoint added).
+
+### What was done
+
+- ~~Enable Signed Event Webhook on the existing SendGrid webhook (`https://portal.thesalesprogressor.co.uk/api/webhooks/sendgrid-bounce`)~~ ✓ 2026-05-29
+- ~~Tick deliverability events: Delivered, Deferred (Bounced + Dropped already on)~~ ✓ 2026-05-29
+- ~~Copy verification public key into Vercel env vars as `SENDGRID_WEBHOOK_PUBLIC_KEY` (Production + Preview, marked Sensitive)~~ ✓ 2026-05-29
+
+### Open follow-up — promote env var to production runtime
+
+When the next production deploy goes out (any push to `master`), the production runtime will start verifying webhook signatures against `SENDGRID_WEBHOOK_PUBLIC_KEY`. **No action needed if you only ever changed it via Vercel UI** — Vercel injects it on the next build. If you used the Vercel CLI to set it locally, run `vercel env pull .env.production` afterwards to sync.
+
+### How to test end-to-end
+
+After production has the env var + new code:
+1. SendGrid dashboard → Mail Settings → Event Webhook → Edit → **Test Your Integration** button at the bottom
+2. Should return 200 from `/api/webhooks/sendgrid-bounce`
+3. Send a real test email to a gmail address (use `/agent/transactions/<id>` to confirm a milestone manually). Within 30s the auto-emails card on that file should show `Delivered HH:MM` on the row, no chip
+4. Send a test to a fake address (e.g. `nonsense@thissubdomainwillneverexist.invalid`). Within a minute it should show `bounced` chip + reason on hover
 
 ---
 
