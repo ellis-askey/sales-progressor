@@ -21,7 +21,7 @@ export const VM16_SKELETON: MilestoneSkeleton = {
     whatHappened: [],
     whatNext: [
       {
-        text: "Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.",
+        text: "Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in readiness for exchange.",
       },
     ],
     action: [
@@ -37,7 +37,7 @@ export const VM16_SKELETON: MilestoneSkeleton = {
       { text: "Seller signing contracts" },
     ],
     opening: [
-      { text: "The seller's contracts are with them for signing. Their solicitor has sent the contract documents to the seller, and will hold the signed documents in escrow once they're back." },
+      { text: "The seller's contracts are with them for signing. Their solicitor has sent the contract documents to the seller, and will hold the signed documents in readiness once they're back." },
     ],
     whatHappened: [],
     action: [

@@ -1,9 +1,11 @@
 // PM10 — Buyer has received the survey report.
 //
-// Unilateral buyer-side. Purchaser only (no vendor email per FINAL).
-// Shape-stable across all six shapes.
+// Job B addition (2026-05-29): adds a vendor block telling the seller
+// the buyer's survey report has landed. Existence-only — never describes
+// what's in the report. Fires on all six shapes.
 //
-// Source: FINAL email matrix.
+// Source: FINAL email matrix; vendor block from three-new-counterpart-
+// emails.md.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -34,7 +36,26 @@ export const PM10_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  // No vendor block per FINAL — PM10 fires to purchaser only.
+  vendor: {
+    subject: [
+      { text: "Buyer's survey report is in, {address}" },
+    ],
+    heroLabel: [
+      { text: "Buyer's survey report received" },
+    ],
+    opening: [
+      { text: "The buyer's survey report has landed with them." },
+    ],
+    whatHappened: [],
+    whatNext: [
+      {
+        text: "The surveyor has produced their report and it's now with the buyer to read and review. No news is generally good news on a survey report. If anything in it does need to be raised with your side, your solicitor may be asked for documents through the normal enquiry process, and we'll be in touch directly if there's anything else from our side that needs your input.",
+      },
+    ],
+    action: [
+      { text: "View your portal" },
+    ],
+  },
 
   progressor: {
     subject: [

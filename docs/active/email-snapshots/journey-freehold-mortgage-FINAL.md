@@ -282,7 +282,7 @@ Hi Alex,
 
 Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, the mortgage deed, and any other documents that need your signature. This is the formal signing step before exchange.
 
-Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.
+Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in readiness for exchange.
 
 → View your portal
 ```
@@ -294,7 +294,7 @@ Read through everything before signing. Your solicitor should have walked you th
 ```
 Hi Alex,
 
-Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side.
+Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in readiness and finalise the exchange coordination with the seller's side.
 
 The remaining step before exchange is your deposit reaching your solicitor, ready to transfer on exchange. With your mortgage offer already in place, that's the last piece before the two solicitors can agree the exchange moment. Your solicitor will let you know the deposit amount and timing if they haven't already.
 
@@ -360,7 +360,7 @@ Hi Alex,
 
 Your solicitor has confirmed they're ready to exchange.
 
-Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, mortgage offer in, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.
+Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, mortgage offer in, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.
 
 Exchange happens when both solicitors are ready and agree the moment. The next time you hear from us, exchange will have happened.
 

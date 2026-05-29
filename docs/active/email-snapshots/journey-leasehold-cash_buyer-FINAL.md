@@ -243,7 +243,9 @@ The freeholder typically takes 2 to 6 weeks to send the pack back to the seller'
 → View your portal
 ```
 
-### VM9 — Vendor (no purchaser email)
+### VM9 — Vendor + Purchaser *(purchaser added Job B 2026-05-29; leasehold-only)*
+
+**Vendor — to the seller:**
 
 **Subject:** Management pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
@@ -253,6 +255,20 @@ Hi Alex,
 The management pack from your freeholder has landed with your solicitor. That clears one of the slowest pieces on a leasehold sale.
 
 Your solicitor will now fold it into the contract pack and forward to the buyer's solicitor for review. From here, the file moves at the pace of the buyer's solicitor working through the full pack and raising enquiries.
+
+→ View your portal
+```
+
+**Purchaser — to the buyer:** *(leasehold-only — never fires on freehold; Phase 7 is also auto-NR on freehold via lib/milestone-auto-nr.ts)*
+
+**Subject:** Management pack received seller-side, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Movement on the leasehold side. The management pack from the freeholder has landed with the seller's solicitor.
+
+That clears one of the slowest pieces on a leasehold sale. The seller's solicitor will now fold it into the contract pack and forward to your solicitor for review. Nothing for you to do right now. We'll be in touch again once your solicitor confirms receipt in the coming days.
 
 → View your portal
 ```

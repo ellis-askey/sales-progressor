@@ -572,7 +572,19 @@ The report usually lands within a week or two of the visit. Once you have it, re
 
 ### PM10 — Buyer has received the survey report
 
-*Vendor: no email defined for this milestone (asymmetric variant set).*
+**Vendor:**
+
+**Subject:** Buyer's survey report is in, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+The buyer's survey report has landed with them.
+
+The surveyor has produced their report and it's now with the buyer to read and review. No news is generally good news on a survey report. If anything in it does need to be raised with your side, your solicitor may be asked for documents through the normal enquiry process, and we'll be in touch directly if there's anything else from our side that needs your input.
+
+→ View your portal
+```
 
 **Purchaser:**
 
@@ -1187,7 +1199,7 @@ Hi Alex,
 
 Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, and any other documents that need your signature. This is the formal signing step before exchange.
 
-Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.
+Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in readiness for exchange.
 
 → View your portal
 ```
@@ -1199,7 +1211,7 @@ Read through everything before signing. Your solicitor should have walked you th
 ```
 Hi Alex,
 
-The seller's contracts are with them for signing. Their solicitor has sent the contract documents to the seller, and will hold the signed documents in escrow once they're back.
+The seller's contracts are with them for signing. Their solicitor has sent the contract documents to the seller, and will hold the signed documents in readiness once they're back.
 
 → View your portal
 ```
@@ -1217,12 +1229,24 @@ Hi Alex,
 
 Your signed contracts are back with your solicitor.
 
-Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow. Once both sides are signed, the two solicitors can begin coordinating the actual exchange moment.
+Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in readiness. Once both sides are signed, the two solicitors can begin coordinating the actual exchange moment.
 
 → View your portal
 ```
 
-*Purchaser: no email defined for this milestone (asymmetric variant set).*
+**Purchaser:**
+
+**Subject:** Seller has signed the contracts, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+The seller has signed their contracts and returned them to their solicitor.
+
+That's the seller's half of contract sign-off complete. Their solicitor is now holding the signed documents in readiness. Once your own contracts are signed and back with your solicitor, both sides will be ready to begin coordinating the actual exchange moment. From here, the file moves at the pace of your contract sign-off and exchange readiness on your related sale.
+
+→ View your portal
+```
 
 ---
 
@@ -1251,7 +1275,7 @@ Hi Alex,
 
 Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, and any other documents that need your signature. This is the formal signing step before exchange.
 
-Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.
+Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in readiness for exchange.
 
 A reminder on your related sale: it has to exchange before this purchase can. If your sale isn't yet at the signed-and-ready stage, that's the remaining piece in front of exchange. Your solicitor will coordinate the two transactions to exchange together.
 
@@ -1269,7 +1293,7 @@ A reminder on your related sale: it has to exchange before this purchase can. If
 ```
 Hi Alex,
 
-The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in escrow.
+The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in readiness.
 
 The two solicitors will coordinate the exchange moment from here.
 
@@ -1283,7 +1307,7 @@ The two solicitors will coordinate the exchange moment from here.
 ```
 Hi Alex,
 
-Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side.
+Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in readiness and finalise the exchange coordination with the seller's side.
 
 Exchange happens when both solicitors confirm everyone's ready: both sides signed, completion date agreed, and on your side, your related sale at the same signed-and-ready stage. Your solicitor coordinates both transactions and will let you know if your sale's timeline needs nudging to keep the two in step.
 
@@ -1313,7 +1337,7 @@ Hi Alex,
 
 Your solicitor has confirmed they're ready to exchange.
 
-Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the buyer's side is also there.
+Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the buyer's side is also there.
 
 Exchange happens when both solicitors are ready and agree the moment. If the buyer's side is also there, exchange is imminent. If they're not yet, it follows as soon as they confirm. Either way, the next time you hear from us, exchange will have happened, and that's the legal commitment moment.
 
@@ -1363,7 +1387,7 @@ Hi Alex,
 
 Your solicitor has confirmed they're ready to exchange.
 
-Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side, and your related sale, are also there.
+Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side, and your related sale, are also there.
 
 Exchange happens when both solicitors are ready and agree the moment. Because your purchase exchange has to be coordinated with your related sale's exchange, your solicitor will be working with both sets of solicitors to land all the moving pieces together. The next time you hear from us, exchange will have happened.
 

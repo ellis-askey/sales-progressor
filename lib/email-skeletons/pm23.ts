@@ -19,7 +19,7 @@ export const PM23_SKELETON: MilestoneSkeleton = {
       { text: "Buyer's contracts signed" },
     ],
     opening: [
-      { text: "The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in escrow." },
+      { text: "The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in readiness." },
     ],
     whatHappened: [],
     whatNext: [
@@ -40,7 +40,7 @@ export const PM23_SKELETON: MilestoneSkeleton = {
       { text: "Signed contracts in" },
     ],
     opening: [
-      { text: "Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side." },
+      { text: "Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in readiness and finalise the exchange coordination with the seller's side." },
     ],
     whatHappened: [],
     whatNext: [

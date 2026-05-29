@@ -4,6 +4,90 @@ Generated from `lib/email-skeletons/vm9.ts` by `scripts/render-email-snapshot.ts
 
 ---
 
+## Purchaser — confirmation email
+
+Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning — this milestone is not bilateral.
+
+### Freehold × Mortgage
+
+**Subject:** 
+
+```
+Hi Alex,
+
+
+
+→ 
+```
+
+### Freehold × Cash buyer
+
+**Subject:** 
+
+```
+Hi Alex,
+
+
+
+→ 
+```
+
+### Freehold × Cash from proceeds
+
+**Subject:** 
+
+```
+Hi Alex,
+
+
+
+→ 
+```
+
+### Leasehold × Mortgage
+
+**Subject:** Management pack received seller-side, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Movement on the leasehold side. The management pack from the freeholder has landed with the seller's solicitor.
+
+That clears one of the slowest pieces on a leasehold sale. The seller's solicitor will now fold it into the contract pack and forward to your solicitor for review. Nothing for you to do right now. We'll be in touch again once your solicitor confirms receipt in the coming days.
+
+→ View your portal
+```
+
+### Leasehold × Cash buyer
+
+**Subject:** Management pack received seller-side, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Movement on the leasehold side. The management pack from the freeholder has landed with the seller's solicitor.
+
+That clears one of the slowest pieces on a leasehold sale. The seller's solicitor will now fold it into the contract pack and forward to your solicitor for review. Nothing for you to do right now. We'll be in touch again once your solicitor confirms receipt in the coming days.
+
+→ View your portal
+```
+
+### Leasehold × Cash from proceeds
+
+**Subject:** Management pack received seller-side, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Movement on the leasehold side. The management pack from the freeholder has landed with the seller's solicitor.
+
+That clears one of the slowest pieces on a leasehold sale. The seller's solicitor will now fold it into the contract pack and forward to your solicitor for review. Nothing for you to do right now. We'll be in touch again once your solicitor confirms receipt in the coming days.
+
+→ View your portal
+```
+
+---
+
 ## Vendor — confirmation email
 
 Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning — this milestone is not bilateral.

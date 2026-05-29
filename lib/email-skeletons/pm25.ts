@@ -59,17 +59,17 @@ export const PM25_SKELETON: MilestoneSkeleton = {
     whatHappened: [
       // Cash buyer — basic readiness list.
       {
-        text: "Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.",
+        text: "Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.",
         when: { purchaseType: "cash_buyer" },
       },
       // Mortgage — adds mortgage offer in.
       {
-        text: "Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, mortgage offer in, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.",
+        text: "Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, mortgage offer in, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.",
         when: { purchaseType: "mortgage" },
       },
       // Cash-from-proceeds — adds related sale to readiness condition.
       {
-        text: "Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side, and your related sale, are also there.",
+        text: "Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side, and your related sale, are also there.",
         when: { purchaseType: "cash_from_proceeds" },
       },
     ],

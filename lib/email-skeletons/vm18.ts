@@ -20,7 +20,7 @@ export const VM18_SKELETON: MilestoneSkeleton = {
     ],
     whatHappened: [
       {
-        text: "Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the buyer's side is also there.",
+        text: "Everything on your side is in place: contracts signed and held in readiness, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the buyer's side is also there.",
       },
     ],
     whatNext: [

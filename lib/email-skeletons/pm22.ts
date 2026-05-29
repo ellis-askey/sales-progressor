@@ -52,7 +52,7 @@ export const PM22_SKELETON: MilestoneSkeleton = {
     ],
     whatHappened: [
       {
-        text: "Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.",
+        text: "Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in readiness for exchange.",
       },
     ],
     whatNext: [
