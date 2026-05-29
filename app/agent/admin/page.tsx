@@ -16,8 +16,10 @@
 // Cards 2 and 3 carry NO logic changes — same Prisma queries, same data, just
 // the agent-surface visual system applied.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AgencyFeeCard } from "./AgencyFeeCard";
@@ -27,6 +29,7 @@ const ADMIN_PAGE_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 export default async function AgentAdminPage() {
   const session = await requireSession();
   if (!ADMIN_PAGE_EMAILS.has(session.user.email ?? "")) notFound();
+  const showCommandCentreLink = hasSuperAdminPowers(session);
 
   const [agencies, milestoneDefs, reminderRules] = await Promise.all([
     prisma.agency.findMany({
@@ -78,7 +81,17 @@ export default async function AgentAdminPage() {
       <PageHeader
         title="Admin"
         subtitle="Per-agency fee overrides plus a live view of milestones and reminder rules."
-      />
+      >
+        {showCommandCentreLink && (
+          <Link
+            href="/command/overview"
+            className="text-xs font-semibold px-3 py-1.5 rounded-md text-white hover:opacity-90 transition-opacity"
+            style={{ background: "#FF6B4A" }}
+          >
+            Open Command Centre →
+          </Link>
+        )}
+      </PageHeader>
 
       {/* PageHeader has its own internal padding (24/32/16); cards sit in a
        * dedicated wrapper that picks up from where the header ends, with a

@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 
 async function assertSuperadmin() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "superadmin") {
+  if (!session?.user || !hasSuperAdminPowers(session)) {
     throw new Error("Unauthorised");
   }
 }

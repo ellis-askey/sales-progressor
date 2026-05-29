@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
 import { commandDb } from "@/lib/command/prisma";
 import { recordAdminAction } from "@/lib/command/audit/write";
@@ -25,9 +26,13 @@ export default async function CommandProtectedLayout({
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "superadmin") {
+  if (!session?.user || !hasSuperAdminPowers(session)) {
     redirect("/dashboard");
   }
+
+  // Hybrid superadmin (e.g. ellis as SP) skips the 2FA/step-up flow per
+  // product decision. Real superadmins still go through it.
+  const isHybridSuperadmin = session.user.role !== "superadmin";
 
   const user = (await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -35,17 +40,20 @@ export default async function CommandProtectedLayout({
   })) as UserWithTotp | null;
 
   if (!user) redirect("/dashboard");
-  if (!user.totpActivatedAt) redirect("/command/setup-2fa");
 
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get(COOKIE_NAME)?.value ?? "";
-  const payload = verifySession(cookie);
+  if (!isHybridSuperadmin) {
+    if (!user.totpActivatedAt) redirect("/command/setup-2fa");
 
-  if (!payload) redirect("/command/auth/step-up");
+    const cookieStore = await cookies();
+    const cookie = cookieStore.get(COOKIE_NAME)?.value ?? "";
+    const payload = verifySession(cookie);
 
-  const now = Date.now();
-  if (now - payload.issuedAt > SESSION_HARD_MAX_MS) redirect("/login");
-  if (now - payload.stepUpAt > STEP_UP_MAX_AGE_MS) redirect("/command/auth/step-up");
+    if (!payload) redirect("/command/auth/step-up");
+
+    const now = Date.now();
+    if (now - payload.issuedAt > SESSION_HARD_MAX_MS) redirect("/login");
+    if (now - payload.stepUpAt > STEP_UP_MAX_AGE_MS) redirect("/command/auth/step-up");
+  }
 
   const headerStore = await headers();
   await recordAdminAction({
@@ -75,6 +83,7 @@ export default async function CommandProtectedLayout({
         savedMode={savedMode}
         savedAgencyIds={savedAgencyIds}
         adminEmail={(session as Session).user?.email ?? ""}
+        showBackToAdmin={isHybridSuperadmin}
       />
       <main
         className="flex-1 overflow-y-auto"

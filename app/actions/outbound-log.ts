@@ -2,13 +2,14 @@
 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { redirect } from "next/navigation";
 import { commandDb } from "@/lib/command/prisma";
 import { recordAdminAction } from "@/lib/command/audit/write";
 
 async function requireSuperAdmin() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "superadmin") redirect("/dashboard");
+  if (!session?.user || !hasSuperAdminPowers(session)) redirect("/dashboard");
   return session;
 }
 

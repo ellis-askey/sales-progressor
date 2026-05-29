@@ -241,11 +241,13 @@ export function CommandSidebar({
   savedMode,
   savedAgencyIds,
   adminEmail,
+  showBackToAdmin = false,
 }: {
   agencies: Agency[];
   savedMode: CommandMode;
   savedAgencyIds: string[];
   adminEmail: string;
+  showBackToAdmin?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -253,6 +255,14 @@ export function CommandSidebar({
     <aside className="w-[220px] flex-shrink-0 flex flex-col h-screen bg-[#111111] border-r border-[#1f1f1f] overflow-y-auto">
       {/* Header */}
       <div className="px-4 pt-5 pb-4 border-b border-[#1f1f1f]">
+        {showBackToAdmin && (
+          <Link
+            href="/agent/admin"
+            className="inline-flex items-center gap-1 text-[10px] text-[#525252] hover:text-[#a3a3a3] transition-colors mb-2"
+          >
+            ← Back to admin
+          </Link>
+        )}
         <div className="flex items-center gap-2 mb-0.5">
           <span className="w-2 h-2 rounded-full bg-[#2563eb] flex-shrink-0" />
           <span className="text-[13px] font-semibold text-[#fafafa] tracking-tight leading-none">

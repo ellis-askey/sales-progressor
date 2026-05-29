@@ -1,5 +1,6 @@
 ﻿import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -33,11 +34,15 @@ export default withAuth(
   async function middleware(req) {
     const { pathname, searchParams } = req.nextUrl;
     const role = req.nextauth.token?.role;
+    const email = req.nextauth.token?.email;
+    const isHybridSuperadmin = isHybridSuperadminEmail(email);
 
     // â”€â”€ Command centre gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (pathname.startsWith("/command")) {
-      // 1. Superadmin role required
-      if (role !== "superadmin") {
+      // 1. Superadmin role required — or a hybrid-superadmin email (one-off
+      //    exception for the platform owner). The 2FA step-up flow below is
+      //    skipped for hybrid users per product decision.
+      if (role !== "superadmin" && !isHybridSuperadmin) {
         return NextResponse.redirect(new URL("/agent/hub", req.url));
       }
 
@@ -65,7 +70,9 @@ export default withAuth(
         pathname.startsWith("/api/command/setup-2fa");
       const isServerAction = req.headers.has("next-action");
 
-      if (!isStepUpPath && !isServerAction) {
+      // Hybrid superadmin (ellis) skips the entire 2FA step-up flow per product
+      // decision. Real superadmins still go through it.
+      if (!isStepUpPath && !isServerAction && !isHybridSuperadmin) {
         // 3. Cookie presence
         const cookie = req.cookies.get(COMMAND_COOKIE)?.value ?? "";
         const dot = cookie.lastIndexOf(".");

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { anthropic } from "@/lib/anthropic";
 import { commandDb } from "@/lib/command/prisma";
 import { buildSystemPrompt, PROMPT_VERSION } from "@/lib/command/content/prompts/system-prompt";
@@ -13,7 +14,7 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "superadmin") {
+  if (!session?.user || !hasSuperAdminPowers(session)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

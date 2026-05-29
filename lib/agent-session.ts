@@ -32,19 +32,26 @@ const AGENT_ROLES = new Set<UserRole>([
   "viewer",
 ]);
 
-// Hybrid users — sales_progressor accounts that also get admin-level visibility
-// and functionality. Layered additively on top of the SP role: every isProgressor
-// check still resolves true, but hasAdminPowers also resolves true. Keeps the SP
-// daily UX (assigned-files lane, SP-shaped nav) while unlocking cross-cutting
-// admin powers (see all files, assignment, paste-chat already inherited via SP).
-const HYBRID_ADMIN_EMAILS = new Set<string>(["ellis@thesalesprogressor.co.uk"]);
+// Hybrid users — sales_progressor accounts that get additional powers layered
+// on top of their SP role. Email allowlists live in lib/security/hybrid-emails.ts
+// (edge-safe, no Node imports) so the middleware can read the same lists. Keep
+// both allowlists tiny — they exist as a per-user exception, not a policy.
+
+import { isHybridAdminEmail, isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
 
 export function hasAdminPowers(session: Session): boolean {
   const role = session.user.role as UserRole;
   if (role === "admin" || role === "superadmin") return true;
-  if (role === "sales_progressor" && HYBRID_ADMIN_EMAILS.has(session.user.email ?? "")) {
-    return true;
-  }
+  if (role === "sales_progressor" && isHybridAdminEmail(session.user.email)) return true;
+  return false;
+}
+
+// Hybrid superadmin — same idea, one level up. Lets the listed email reach
+// /command/* despite role=sales_progressor. Bypasses the 2FA step-up flow per
+// product decision (single trusted user, friction trade).
+export function hasSuperAdminPowers(session: Session): boolean {
+  if (session.user.role === "superadmin") return true;
+  if (isHybridSuperadminEmail(session.user.email)) return true;
   return false;
 }
 
