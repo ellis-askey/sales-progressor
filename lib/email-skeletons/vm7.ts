@@ -1,58 +1,40 @@
 // VM7 — Seller's solicitor has issued the draft contract pack.
 //
-// First FULL bilateral authored after the PM7 spike. VM7 is the NATURAL
-// first actor in the (VM7, PM7) pair (HANDOFF_DEFAULT_ACTOR.VM7 = vendor),
-// so the directional logic mirrors PM7 inverted:
+// Bilateral milestone. VM7 is the natural first-actor in the (VM7, PM7)
+// pair. The vendor (acted side) gets four variants — route (portal /
+// internal) × direction (default / inverse). The purchaser gets the
+// default-direction hand-off nudge only; in inverse direction PM7 fired
+// first and the nudge belongs there.
 //
-//   • Vendor — acted-side acknowledgement. Fires on every VM7 confirmation
-//     regardless of direction (the seller just confirmed; they always get
-//     their ack). Varied by route × tenure. No funding conditioning on the
-//     seller side at this stage — the funding shape matters to the buyer.
+// Tenure conditioning sits on the pack-composition paragraphs (TA7 and
+// management pack added on leasehold). PurchaseType doesn't condition
+// VM7 — funding only enters the story on the buyer's side, and even
+// there it's deferred to PM7's ack.
 //
-//   • Purchaser — default-direction hand-off NUDGE. Fires only when VM7
-//     confirms FIRST in the pair (direction = default). Deliberately
-//     SLIM — opening + CTA + a short leasehold-only note. The pack
-//     composition explainer, the buyer's next-steps detail, and the
-//     funding-tail content all live in PM7's acted-side ack, NOT here.
-//
-//     Why: this nudge fires immediately before PM7's ack on the same
-//     reader in default-direction journeys. If both bodies carried the
-//     substantive content, the buyer would receive the pack composition
-//     and the funding tail twice in close sequence — exactly the noise
-//     the hand-off feature exists to prevent. VM7's job per Artifact 2
-//     is a baton-pass nudge: tell the buyer the pack is en route, point
-//     them at the highlighted confirm button, get out of the way.
-//     PM7's ack carries the substance once the baton actually lands.
-//
-//     Suppressed on direction = inverse (PM7 already fired its acted-
-//     side ack to the buyer first, so a nudge would be backward).
-//
-// All four condition keys still exercised across the skeleton: tenure
-// (leasehold add-ons on vendor; short leasehold note on purchaser),
-// purchaseType (no longer conditions the purchaser nudge — funding tail
-// belongs in PM7), route (three confirmer paths on the vendor ack),
-// direction (gates the purchaser nudge to default-only).
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const VM7_SKELETON: MilestoneSkeleton = {
 
-  // ── Vendor: acted-side acknowledgement ────────────────────────────────
-  //
-  // Always fires when VM7 confirms. Route-varied opening (first-person
-  // client_portal vs third-person agent/SP). Tenure add-ons describe the
-  // pack contents on leasehold (additional leasehold-specific bundle in
-  // the same pack) and flag the management pack as a separate moving
-  // piece in whatNext.
+  // ── Vendor: acted-side acknowledgement (4 variants) ───────────────────
   vendor: {
     subject: [
       {
-        text: "You've confirmed the contract pack has gone out — {address}",
-        when: { route: "client_portal" },
+        text: "You've confirmed the contract pack has gone out, {address}",
+        when: { route: "client_portal", direction: "default" },
       },
       {
-        text: "Contract pack issued to the buyer's side — {address}",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "Contract pack issued to the buyer's side, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      {
+        text: "You've confirmed the contract pack went out, {address}",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      {
+        text: "Contract pack issuance logged, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
@@ -61,37 +43,72 @@ export const VM7_SKELETON: MilestoneSkeleton = {
     ],
 
     opening: [
+      // Default × Portal.
       {
-        text: "Thanks — your solicitor's sent the draft contract pack across to the buyer's solicitor.",
-        when: { route: "client_portal" },
+        text: "Thanks. You've confirmed that your solicitor's sent the draft contract pack across to the buyer's side.",
+        when: { route: "client_portal", direction: "default" },
       },
+      // Default × Internal.
       {
-        text: "The draft contract pack has gone across to the buyer's solicitor — your solicitor issued it today.",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "The draft contract pack has gone across to the buyer's solicitor. We've logged it on your sale.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      // Inverse × Portal — the buyer side already logged receipt.
+      {
+        text: "Thanks. You've confirmed your solicitor sent the contract pack across, and the buyer's side has already logged receipt on their end.",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      // Inverse × Internal — same fact, third-person framing.
+      {
+        text: "The draft contract pack has been issued by your solicitor. We've logged it on your sale. The buyer's side had already confirmed receipt before this came in, so the two are now in sync.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
     whatHappened: [
-      // Universal — what's in the pack and why it matters.
+      // Default direction — full pack-composition explainer. Freehold.
       {
-        text: "The draft contract pack is the bundle of documents your solicitor sends across as the legal foundation of the sale — the draft contract itself, the title documents, the property information forms you completed (TA6 and TA10), and any relevant certificates or guarantees.",
+        text: "The contract pack is the bundle that forms the legal foundation of the sale: the draft contract, the title documents, and the property information forms you completed (TA6 and TA10).",
+        when: { direction: "default", tenure: "freehold" },
       },
-      // Leasehold addendum — TA7 inclusion + management pack note.
+      // Default direction — leasehold variant adds TA7 and management pack.
       {
-        text: "The TA7 leasehold information form is in the pack alongside TA6 and TA10. The management pack from your freeholder is the one remaining piece that travels separately — if it's already back, your solicitor will have folded it in; if not, it'll follow on its own clock.",
-        when: { tenure: "leasehold" },
+        text: "The contract pack is the bundle that forms the legal foundation of the sale: the draft contract, the title documents, the property information forms you completed (TA6, TA10, and TA7), and the management pack from your freeholder once that's in.",
+        when: { direction: "default", tenure: "leasehold" },
       },
+      // Inverse × Portal — abbreviated pack-composition paragraph. Freehold.
+      {
+        text: "The contract pack is the bundle that forms the legal foundation of the sale: the draft contract, title documents, and the property forms you completed.",
+        when: { direction: "inverse", route: "client_portal", tenure: "freehold" },
+      },
+      // Inverse × Portal — leasehold variant mentions management pack.
+      {
+        text: "The contract pack is the bundle that forms the legal foundation of the sale: the draft contract, title documents, the property forms you completed, and the management pack from your freeholder.",
+        when: { direction: "inverse", route: "client_portal", tenure: "leasehold" },
+      },
+      // Inverse × Internal — no pack-composition paragraph at all (the
+      // body stays at 2 paragraphs: opening + next-steps).
     ],
 
     whatNext: [
-      // Universal — buyer's solicitor reviews; enquiries follow.
+      // Default direction — full "enquiries follow in 1–2 weeks" framing.
       {
-        text: "The buyer's solicitor will now review the pack carefully and, typically over the next week or two, raise enquiries about anything they want clarified. Your solicitor will handle those — expect them to come to you on any specific point that needs your read.",
+        text: "The buyer's solicitor will now review everything and raise enquiries about anything they want clarified. Their first round typically lands with your solicitor within a week or two. Your solicitor will handle the formal back-and-forth and come to you on any specific point that needs your read.",
+        when: { direction: "default", route: "client_portal" },
       },
-      // Leasehold addendum — management pack as the chase point.
       {
-        text: "If the management pack from your freeholder hasn't arrived yet, that's the piece worth chasing yourself — the buyer's enquiries will be held up if it's still outstanding when they want to review the leasehold detail.",
-        when: { tenure: "leasehold" },
+        text: "The buyer's solicitor will now review everything and raise enquiries with your solicitor within a week or two. Your solicitor will handle the formal back-and-forth and come to you on any specific point that needs your read.",
+        when: { direction: "default", route: { in: ["agent", "sales_progressor"] } },
+      },
+      // Inverse direction — single shared next-steps paragraph across
+      // both routes (the buyer's solicitor is already reviewing).
+      {
+        text: "Because the buyer's solicitor already has it, they'll be starting their review now. Their first round of enquiries typically lands with your solicitor within a week or two.",
+        when: { direction: "inverse", route: "client_portal" },
+      },
+      {
+        text: "The buyer's solicitor will be starting their review now. Their first round of enquiries typically lands with your solicitor within a week or two.",
+        when: { direction: "inverse", route: { in: ["agent", "sales_progressor"] } },
       },
     ],
 
@@ -100,24 +117,16 @@ export const VM7_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  // ── Purchaser: default-direction hand-off nudge (SLIM) ────────────────
+  // ── Purchaser: default-direction hand-off nudge ───────────────────────
   //
-  // Per Ellis batch-3 (A) call: a baton-pass nudge, not a status update.
-  // Three logical pieces only:
-  //   1. Opening — the pack has been issued, it's en route
-  //   2. CTA (in whatHappened) — highlighted confirm button + what it
-  //      does. Universal. No pack composition explainer.
-  //   3. Leasehold-only short note (in whatNext) — one sentence flagging
-  //      the management pack as a separate piece on its own clock. Short
-  //      version; the fuller leasehold explainer lives in PM7's ack.
-  //
-  // Densest shape (leasehold) renders at 3 paragraphs. Freehold renders
-  // at 2. The funding tail and the pack composition both live in PM7
-  // and fire once, on receipt — not here.
+  // Fires only when VM7 confirms FIRST (direction = default). In inverse
+  // direction PM7 fired first and the nudge belongs on PM7's vendor block.
+  // No tenure or funding conditioning on the FINAL hand-off — kept slim
+  // on purpose; the substantive content lives in PM7's acted-side ack.
   purchaser: {
     subject: [
       {
-        text: "The contract pack is on its way to your solicitor — {address}",
+        text: "Contract pack on its way to your solicitor, {address}",
         when: { direction: "default" },
       },
     ],
@@ -128,28 +137,15 @@ export const VM7_SKELETON: MilestoneSkeleton = {
 
     opening: [
       {
-        text: "Draft contract pack on its way to your solicitor — issued by the seller's side today.",
+        text: "The draft contract pack has been issued by the seller's side, and it's on its way to your solicitor.",
         when: { direction: "default" },
       },
     ],
 
     whatHappened: [
-      // Universal CTA — the whole point of this email. The highlighted
-      // confirm button is the baton-pass; the next-step framing tells
-      // the reader why ten seconds of action matters.
       {
-        text: "When your solicitor lets you know it's landed, open your portal and tap the highlighted confirm button — that logs it on the file and triggers the next steps. Takes about ten seconds.",
+        text: "When your solicitor lets you know it's landed, open your portal and tap the highlighted confirm button. That logs receipt on the file and triggers the next steps. Takes about ten seconds.",
         when: { direction: "default" },
-      },
-    ],
-
-    whatNext: [
-      // Leasehold-only short flag — one sentence. Short version on
-      // purpose. PM7's ack carries the fuller leasehold framing
-      // (management pack on the seller's side, folding into enquiries).
-      {
-        text: "The management pack from the freeholder is a separate piece on its own clock — your solicitor will flag it when it lands.",
-        when: { direction: "default", tenure: "leasehold" },
       },
     ],
 
@@ -158,7 +154,7 @@ export const VM7_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  // ── Progressor: internal log (shape-stable, single body) ──────────────
+  // ── Progressor: internal log (preserved unchanged) ────────────────────
   progressor: {
     subject: [
       { text: "VM7 complete: Contract pack issued — {address}" },

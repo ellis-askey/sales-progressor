@@ -10,110 +10,88 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-Keep your mortgage application progressing in parallel — the sooner it's in, the sooner the valuation and offer follow.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-Your concurrent sale matters here too — the timing of that sale's exchange is the gating step for your purchase. Keep us posted on its progress; your solicitor will want to coordinate the two.
+Your related sale matters here too: it has to exchange before this purchase can. Keep us posted, and your solicitor will coordinate the timing of both.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-Keep your mortgage application progressing in parallel — the sooner it's in, the sooner the valuation and offer follow.
-
-The seller's solicitor will be requesting a management pack from the freeholder around now — those packs often take several weeks to come back on their own clock, so the wait isn't a surprise.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-The seller's solicitor will be requesting a management pack from the freeholder around now — those packs often take several weeks to come back on their own clock, so the wait isn't a surprise.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-Your concurrent sale matters here too — the timing of that sale's exchange is the gating step for your purchase. Keep us posted on its progress; your solicitor will want to coordinate the two.
-
-The seller's solicitor will be requesting a management pack from the freeholder around now — those packs often take several weeks to come back on their own clock, so the wait isn't a surprise.
+Your related sale matters here too: it has to exchange before this purchase can. Keep us posted, and your solicitor will coordinate the timing of both.
 
 → View your portal
 ```

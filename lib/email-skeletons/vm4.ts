@@ -1,11 +1,11 @@
 // VM4 — Seller has completed ID and AML checks with their solicitor.
 //
-// Functionally universal across shapes — ID/AML is a legal requirement
-// regardless of tenure or funding. Mild tenure variant on the vendor's
-// "what next" to flag the property-information-form sequence that's
-// about to begin (and on leasehold, the TA7 form alongside TA6/TA10).
+// Non-bilateral, no route/direction conditioning. Vendor branches on
+// tenure (leasehold lists TA7 alongside TA6/TA10 and frames the delay
+// risk as leasehold-specific). Purchaser branches on tenure (leasehold
+// extends the wait to "a few weeks" and mentions the management pack).
 //
-// No bilateral pair.
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -13,27 +13,23 @@ export const VM4_SKELETON: MilestoneSkeleton = {
 
   vendor: {
     subject: [
-      { text: "ID checks complete — {address}" },
+      { text: "ID checks complete, {address}" },
     ],
     heroLabel: [
       { text: "ID & AML checks done" },
     ],
     opening: [
-      { text: "You've cleared an important legal requirement." },
+      { text: "ID and AML checks are done. That clears the way for your solicitor to begin substantive work." },
     ],
     whatHappened: [
+      // Freehold — TA6 + TA10 only.
       {
-        text: "Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.",
+        text: "They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow a sale down.",
+        when: { tenure: "freehold" },
       },
-    ],
-    whatNext: [
-      // Universal — property info forms are next.
+      // Leasehold — adds TA7 and frames delays as a leasehold concern.
       {
-        text: "Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.",
-      },
-      // Leasehold note — TA7 alongside the standard forms.
-      {
-        text: "Fill in the TA7 leasehold information form promptly when it lands too — that's the one covering the lease itself, your relationship with the freeholder, and service-charge details. It joins TA6 and TA10 in the property forms pack.",
+        text: "They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6, TA7 for the leasehold side, and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow leasehold sales down.",
         when: { tenure: "leasehold" },
       },
     ],
@@ -44,22 +40,24 @@ export const VM4_SKELETON: MilestoneSkeleton = {
 
   purchaser: {
     subject: [
-      { text: "Seller's ID checks complete — {address}" },
+      { text: "Seller's ID checks complete, {address}" },
     ],
     heroLabel: [
       { text: "Seller's ID & AML complete" },
     ],
     opening: [
-      { text: "The seller has cleared their ID and AML checks." },
+      { text: "The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale." },
     ],
     whatHappened: [
+      // Freehold — "a week or two" wait.
       {
-        text: "The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.",
+        text: "Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a week or two away while the seller completes their property information forms.",
+        when: { tenure: "freehold" },
       },
-    ],
-    whatNext: [
+      // Leasehold — "a few weeks" wait, mentions the management pack.
       {
-        text: "Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.",
+        text: "Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a few weeks away while the seller completes their property information forms and waits on the management pack from the freeholder.",
+        when: { tenure: "leasehold" },
       },
     ],
     action: [

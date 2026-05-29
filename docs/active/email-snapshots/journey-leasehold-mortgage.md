@@ -14,36 +14,32 @@ Authored so far: 47 / 47 milestones. Unauthored milestones show as placeholders.
 
 **Vendor:**
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's conveyancing formally underway on your side.
 
-You've formally instructed your solicitor to act on the sale. They'll now start the conveyancing process — preparing the contract pack, gathering title documents, and handling any questions that come in from the buyer's solicitor.
+They'll start preparing the contract pack now: title documents, the property forms you'll need to fill in (TA6, TA10, and TA7, the leasehold one), and anything else that needs to go to the buyer's solicitor. The next thing you'll see from them is their welcome pack landing in the next few days.
 
-Your solicitor will prepare the contract pack over the coming weeks. The file moves on its own clock from here until the next meaningful event on your side.
-
-The management pack from your freeholder or managing agent is the next leasehold-specific piece in flight — your solicitor will be requesting it around now, and those packs typically take several weeks to come back on their own clock.
+One thing worth knowing now, because it's a leasehold sale: the management pack from your freeholder is the slowest piece, and it can take several weeks. Your solicitor will request it around now, but if you have a direct relationship with your freeholder or managing agent, a polite follow-up call from you a couple of weeks in often helps move it along.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** The seller has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The seller's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller's solicitor is in place.
+The seller's solicitor is instructed. Conveyancing is now underway on their side.
 
-The seller has formally instructed their solicitor to act on the sale. This is an important early step — things are now moving on the seller's side of the transaction.
+They'll start preparing the contract pack: title documents, property forms, and the leasehold paperwork. The management pack from the freeholder is the slowest piece on a leasehold sale. It can take several weeks, and it's the most common cause of delay early in the process.
 
-Nothing for you to do right now. The seller's solicitor will prepare the contract pack and send it to your solicitor in the coming weeks.
-
-While the seller's solicitor gets started, they'll also need to request a management pack from the freeholder — that piece often takes several weeks to come back on its own clock and is a common cause of delay in leasehold transactions.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your own solicitor.
 
 → View your portal
 ```
@@ -54,36 +50,32 @@ While the seller's solicitor gets started, they'll also need to request a manage
 
 **Vendor:**
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks, getting funds on account with their solicitor, and submitting their mortgage application. The mortgage runs in parallel with the conveyancing: application, then the lender's valuation, then the formal offer. We'll keep you posted as the financing side progresses.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in. Get those back as soon as you can. Your solicitor can't start substantive work until they have your ID cleared and your payment on account.
 
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-If you haven't already submitted your mortgage application, that's the other early piece to push on. Your lender will need to instruct their valuation as part of the application, so the sooner that goes in, the sooner the financing side starts moving.
-
-One thing worth flagging on the leasehold side — you'll see a management pack come into the process. That's leasehold-specific paperwork from the freeholder, and it often takes several weeks to come back on its own clock. Worth knowing now so it's not a surprise later.
+If you haven't already started your mortgage application, now's the time. The sooner it's in, the sooner the lender's valuation and formal offer follow, and the financing side moves in parallel with the conveyancing.
 
 → View your portal
 ```
@@ -96,38 +88,28 @@ One thing worth flagging on the leasehold side — you'll see a management pack 
 
 **Vendor:**
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has the green light to start.
+The memorandum of sale has gone out. It's the document confirming the agreed price and the names of both parties, and it formally kicks off conveyancing on your side.
 
-The memorandum of sale has been sent to all solicitors, confirming the agreed price and the details of both parties — that's the document that formally kicks off conveyancing on your side.
-
-Your solicitor will now begin preparing the contract pack. Returning your solicitor's welcome pack quickly is the single biggest thing you can do this week to keep the transaction moving.
-
-While the contract pack's being prepared, your solicitor will also be requesting the management pack from your freeholder or managing agent. Those packs can take several weeks to come back on their own clock.
+Your solicitor will now begin assembling the contract pack and chasing the management pack from your freeholder. If you've already had the welcome pack from your solicitor, getting that back is the single biggest thing you can do this week to keep the sale moving. If it hasn't landed yet, expect it imminently.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller's solicitor has the memorandum of sale.
+The memorandum of sale has gone out, confirming the agreed purchase price and the names of both parties. With it issued, conveyancing is now formally underway on both sides.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties. With the seller's solicitor now in the loop, conveyancing is formally underway on both sides.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-If you're at the application stage on your mortgage, keep that progressing too — the sooner it's submitted, the sooner the valuation and offer follow.
-
-One thing to flag on a leasehold purchase like this — the seller's solicitor will be requesting a management pack from the freeholder around now. Those packs often take several weeks to come back on their own clock, so worth knowing now rather than later.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started on your purchase until those are in.
 
 → View your portal
 ```
@@ -140,20 +122,14 @@ One thing to flag on a leasehold purchase like this — the seller's solicitor w
 
 **Purchaser:**
 
-**Subject:** Memorandum of sale issued — 22 Example Road, London SW1A 1AA
+**Subject:** Memorandum of sale issued, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The memorandum of sale is with your solicitor.
+The memorandum of sale is with your solicitor, confirming the agreed purchase price and the names of both parties. That formally kicks off conveyancing.
 
-The MoS has been sent to all solicitors, confirming the agreed purchase price and the details of both parties — it's the document that formally kicks off conveyancing. Your solicitor now has formal confirmation to begin.
-
-If you haven't already, return your solicitor's welcome pack and complete your ID checks — your solicitor can't get fully started on your purchase until these are done.
-
-Keep your mortgage application progressing in parallel — the sooner it's in, the sooner the valuation and offer follow.
-
-The seller's solicitor will be requesting a management pack from the freeholder around now — those packs often take several weeks to come back on their own clock, so the wait isn't a surprise.
+If you haven't already, return your solicitor's welcome pack and complete your ID checks. They can't get fully started until those are in.
 
 → View your portal
 ```
@@ -166,34 +142,30 @@ The seller's solicitor will be requesting a management pack from the freeholder 
 
 **Vendor:**
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
-
-Get the welcome pack back quickly — your solicitor will also be requesting the management pack from your freeholder around now, and that piece typically takes several weeks to come back on its own clock. The sooner the welcome side is sorted, the better positioned you'll be when the management pack lands.
+If you haven't yet, this is also the moment to start chasing your freeholder for the management pack. It's the slowest piece on a leasehold sale, and starting that conversation now will save weeks later.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
@@ -204,34 +176,28 @@ Nothing for you to do right now. The seller will return the forms to their solic
 
 **Vendor:**
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
-
-Fill in the TA7 leasehold information form promptly when it lands too — that's the one covering the lease itself, your relationship with the freeholder, and service-charge details. It joins TA6 and TA10 in the property forms pack.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6, TA7 for the leasehold side, and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow leasehold sales down.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a few weeks away while the seller completes their property information forms and waits on the management pack from the freeholder.
 
 → View your portal
 ```
@@ -242,34 +208,28 @@ Nothing for you to do right now — this is one of the early signals that things
 
 **Vendor:**
 
-**Subject:** Buyer's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's ID and AML checks are done.
+The buyer's ID and AML checks are done. Their solicitor can now begin substantive work on the purchase.
 
-The buyer has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the purchase.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the buyer's side.
+Nothing for you to do right now. This is one of the early signals that things are moving properly on the buyer's side.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work on your purchase.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This allows them to begin substantive work on your purchase.
-
-Your solicitor is now able to work on your case fully. If you haven't yet paid money on account to your solicitor, do that as soon as you can — they'll need it before they can order searches on your behalf.
-
-Your lender will reference your completed ID and AML as part of their underwriting too, so keep your mortgage application progressing in parallel — the sooner that's in, the sooner the valuation and offer follow.
+If you haven't yet paid money on account to your solicitor, do that as soon as you can. They'll need it before they can order searches on your behalf. And if your mortgage application isn't in yet, push on it now. The sooner it's submitted, the sooner the valuation and offer follow.
 
 → View your portal
 ```
@@ -280,34 +240,28 @@ Your lender will reference your completed ID and AML as part of their underwriti
 
 **Vendor:**
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
-
-Your lender's clock matters too — keep your mortgage application progressing in parallel. The valuation tends to be the lender's first move after submission, and the formal offer typically follows within 1–3 weeks of that.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority. Keep your mortgage application progressing in parallel too, so the financing and the conveyancing move together rather than one waiting on the other.
 
 → View your portal
 ```
@@ -320,34 +274,28 @@ Your lender's clock matters too — keep your mortgage application progressing i
 
 **Vendor:**
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (general property questionnaire), TA10 (fittings and contents), and TA7 (the leasehold information form, covering the lease itself, your relationship with the freeholder, and service charge details).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-The forms in your pack are TA6 (the general property questionnaire), TA10 (fittings and contents) and TA7 (the leasehold information form — covering the lease itself, the freeholder relationship, service charges, and similar leasehold-specific details). The TA7 in particular needs care; the buyer's solicitor will scrutinise the leasehold answers closely.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, especially on the TA7, call your solicitor before leaving anything blank. The buyer's solicitor will scrutinise the leasehold answers closely.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, planning history, and on a leasehold sale, the lease, freeholder relationship, and service charges. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
@@ -358,36 +306,28 @@ Nothing for you to do right now. The seller will complete and return these to th
 
 **Vendor:**
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents and (once it lands) the management pack from your freeholder.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
-
-Chase the freeholder yourself if the management pack's still outstanding — that's the piece the contract pack needs before it can go out in full. If it's already back, your solicitor will fold it in and issue the contract pack imminently. If not, it's the remaining piece holding things up.
+The contract pack goes to the buyer's solicitor once everything's in. If the management pack hasn't arrived yet, that's likely to be the remaining piece holding the contract pack back. A polite nudge to your freeholder this week is worth doing if you haven't already.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
-
-One thing to be aware of on a leasehold purchase — the seller's solicitor also needs the management pack from the freeholder before the full contract pack can come across. If that hasn't landed on the seller's side yet, that's the remaining piece you're waiting on.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across, though on a leasehold sale they may be waiting on the management pack from the freeholder before they can send everything together.
 
 → View your portal
 ```
@@ -400,34 +340,32 @@ One thing to be aware of on a leasehold purchase — the seller's solicitor also
 
 **Vendor:**
 
-**Subject:** Buyer has submitted their mortgage application — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has submitted their mortgage application, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 The buyer's mortgage application has gone in.
 
-The buyer has submitted their mortgage application to their lender. The lender will now begin underwriting and instruct a valuation on the property.
+The buyer has submitted their application to their lender. The lender will now begin underwriting and instruct a valuation on the property. The valuation visit is usually the next step on their side, and the formal mortgage offer follows within a few weeks once underwriting is complete.
 
-The valuation visit (or desktop check) is usually the next step on the lender's side. The formal mortgage offer typically follows within a few weeks once underwriting is complete.
+The surveyor doing the valuation may be in touch to arrange access. It's a brief visit, typically 30 to 60 minutes.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Mortgage application submitted — 22 Example Road, London SW1A 1AA
+**Subject:** Mortgage application submitted, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your mortgage application is with the lender.
 
-Your mortgage application has been submitted to the lender. They'll now begin underwriting — checking your finances, employment, and the property itself against their lending criteria.
+They'll now begin underwriting, checking your finances, employment, and the property itself against their lending criteria. The lender will instruct a valuation on the property, which is usually the first thing they do after submission, often within a week or two. Once the valuation is back, the underwriter reviews everything together, and the formal mortgage offer normally follows within 1 to 3 weeks of that.
 
-The lender will instruct a valuation on the property — that's typically the first thing they do after submission, often within a week or two. Once the valuation comes back, the underwriter reviews everything together; the formal mortgage offer normally follows within 1–3 weeks of that, though it varies by lender.
-
-Respond quickly to any document requests from the lender or your broker — chasing missing payslips or bank statements is the most common cause of delay at this stage.
+Respond quickly to any document requests from the lender or your broker. Chasing missing payslips or bank statements is the most common cause of delay at this stage.
 
 → View your portal
 ```
@@ -438,34 +376,32 @@ Respond quickly to any document requests from the lender or your broker — chas
 
 **Vendor:**
 
-**Subject:** Buyer's lender valuation booked — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's lender valuation booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's lender has booked the valuation.
+The buyer's lender has booked the valuation for Tuesday 3 June.
 
-The buyer's lender has booked the valuation for Tuesday 3 June. The surveyor will visit the property to carry out the inspection. They'll be in touch directly to arrange access if they haven't already — typically a 30 to 60 minute visit.
+The surveyor will visit the property to carry out the inspection. They'll be in touch directly to arrange access if they haven't already — typically a 30 to 60 minute visit.
 
-Once the valuation report is back with the lender, underwriting can finish and the formal mortgage offer typically follows within a few weeks.
+Once the valuation report is back with the lender, underwriting can finish, and the formal mortgage offer follows within a few weeks.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Lender valuation booked — 22 Example Road, London SW1A 1AA
+**Subject:** Lender valuation booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your lender's valuation is scheduled.
+Your lender's valuation is scheduled for Tuesday 3 June.
 
-Your lender has booked the valuation for Tuesday 3 June. This is a physical valuation, so the surveyor will visit the property in person. The seller's side will coordinate access directly with the surveyor.
+This is a physical valuation, so the surveyor will visit the property in person. The seller's side will coordinate access directly with the surveyor. Worth knowing: this is the lender's valuation, carried out for their risk assessment, not the same as your own survey. If you want a fuller picture of the property's condition for your own peace of mind, that's a separate survey you book yourself.
 
-Once the valuation is done, the report goes back to your lender's underwriter and feeds into the final decision. The formal mortgage offer typically follows within 1–3 weeks of the valuation, depending on the lender.
-
-Keep your survey and conveyancing progressing in parallel — those run on their own clocks and shouldn't wait for the mortgage offer to land.
+Once the valuation is done, the report goes back to your lender's underwriter and feeds into the final decision. The formal mortgage offer follows within 1 to 3 weeks of the valuation, depending on the lender.
 
 → View your portal
 ```
@@ -476,34 +412,32 @@ Keep your survey and conveyancing progressing in parallel — those run on their
 
 **Vendor:**
 
-**Subject:** Buyer's mortgage offer is in — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's mortgage offer is in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 The buyer's mortgage offer has landed.
 
-The buyer's solicitor has received the formal mortgage offer from the lender. That's one of the last remaining buyer-side blockers to exchange — funding is now committed.
+The buyer's solicitor has received the formal mortgage offer from the lender. That clears one of the last remaining buyer-side blockers to exchange. Their funding is now committed.
 
-With the offer in place, the remaining steps are largely the conveyancing pieces — enquiries, searches, and the final contract sign-off. Exchange becomes a realistic prospect once those land.
+With the offer in place, the remaining steps are largely the conveyancing pieces: enquiries, searches, the leasehold review, and the final contract sign-off. Exchange becomes a realistic prospect once those land.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Mortgage offer received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Mortgage offer received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Big milestone — your mortgage offer is with your solicitor.
+Your mortgage offer is with your solicitor.
 
-Your formal mortgage offer has been received by your solicitor. This is a significant step — the lender has committed to funding your purchase on the terms set out in the offer.
+This is a significant step. The lender has committed to funding your purchase on the terms set out in the offer. Your solicitor will review the offer's conditions, check them against the property and your purchase, and fold the offer into the contract pack and final report. Nothing to do from your side right now unless your solicitor raises a query about a specific condition.
 
-Your solicitor will review the offer's conditions, check it against the property and your purchase, and incorporate it into the contract pack and final report. There's nothing to do from your side right now unless your solicitor raises a query about a specific condition.
-
-Read your mortgage offer yourself when you get a copy. The conditions are binding — if there's anything you don't understand or that doesn't match what you expected (the loan amount, the rate, the term, any special conditions), flag it with your broker or solicitor now rather than later.
+Read your mortgage offer yourself when you get a copy. The conditions are binding. If anything doesn't match what you expected, the loan amount, the rate, the term, or any special conditions, flag it with your broker or solicitor now rather than later. On a leasehold purchase, lenders sometimes attach conditions about the lease (a minimum number of years remaining, or ground rent terms), so check for anything of that kind in particular.
 
 → View your portal
 ```
@@ -518,76 +452,50 @@ Read your mortgage offer yourself when you get a copy. The conditions are bindin
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Thanks — your solicitor's sent the draft contract pack across to the buyer's solicitor.
 
-The draft contract pack is the bundle of documents your solicitor sends across as the legal foundation of the sale — the draft contract itself, the title documents, the property information forms you completed (TA6 and TA10), and any relevant certificates or guarantees.
-
-The TA7 leasehold information form is in the pack alongside TA6 and TA10. The management pack from your freeholder is the one remaining piece that travels separately — if it's already back, your solicitor will have folded it in; if not, it'll follow on its own clock.
-
-The buyer's solicitor will now review the pack carefully and, typically over the next week or two, raise enquiries about anything they want clarified. Your solicitor will handle those — expect them to come to you on any specific point that needs your read.
-
-If the management pack from your freeholder hasn't arrived yet, that's the piece worth chasing yourself — the buyer's enquiries will be held up if it's still outstanding when they want to review the leasehold detail.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Contract pack issued to the buyer's side — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The draft contract pack has gone across to the buyer's solicitor — your solicitor issued it today.
 
-The draft contract pack is the bundle of documents your solicitor sends across as the legal foundation of the sale — the draft contract itself, the title documents, the property information forms you completed (TA6 and TA10), and any relevant certificates or guarantees.
-
-The TA7 leasehold information form is in the pack alongside TA6 and TA10. The management pack from your freeholder is the one remaining piece that travels separately — if it's already back, your solicitor will have folded it in; if not, it'll follow on its own clock.
-
-The buyer's solicitor will now review the pack carefully and, typically over the next week or two, raise enquiries about anything they want clarified. Your solicitor will handle those — expect them to come to you on any specific point that needs your read.
-
-If the management pack from your freeholder hasn't arrived yet, that's the piece worth chasing yourself — the buyer's enquiries will be held up if it's still outstanding when they want to review the leasehold detail.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Contract pack issued to the buyer's side — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The draft contract pack has gone across to the buyer's solicitor — your solicitor issued it today.
 
-The draft contract pack is the bundle of documents your solicitor sends across as the legal foundation of the sale — the draft contract itself, the title documents, the property information forms you completed (TA6 and TA10), and any relevant certificates or guarantees.
-
-The TA7 leasehold information form is in the pack alongside TA6 and TA10. The management pack from your freeholder is the one remaining piece that travels separately — if it's already back, your solicitor will have folded it in; if not, it'll follow on its own clock.
-
-The buyer's solicitor will now review the pack carefully and, typically over the next week or two, raise enquiries about anything they want clarified. Your solicitor will handle those — expect them to come to you on any specific point that needs your read.
-
-If the management pack from your freeholder hasn't arrived yet, that's the piece worth chasing yourself — the buyer's enquiries will be held up if it's still outstanding when they want to review the leasehold detail.
 
 → View your portal
 ```
 
 **Purchaser — hand-off nudge (default direction):**
 
-**Subject:** The contract pack is on its way to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack on its way to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Draft contract pack on its way to your solicitor — issued by the seller's side today.
+The draft contract pack has been issued by the seller's side, and it's on its way to your solicitor.
 
-When your solicitor lets you know it's landed, open your portal and tap the highlighted confirm button — that logs it on the file and triggers the next steps. Takes about ten seconds.
-
-The management pack from the freeholder is a separate piece on its own clock — your solicitor will flag it when it lands.
+When your solicitor lets you know it's landed, open your portal and tap the highlighted confirm button. That logs receipt on the file and triggers the next steps. Takes about ten seconds.
 
 → Open your portal
 ```
@@ -602,60 +510,36 @@ The management pack from the freeholder is a separate piece on its own clock —
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
-
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
-
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
-
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
 
 → View your portal
 ```
@@ -668,34 +552,32 @@ In parallel, keep your mortgage application and survey progressing — both want
 
 **Vendor:**
 
-**Subject:** Management pack requested from your freeholder — 22 Example Road, London SW1A 1AA
+**Subject:** Management pack requested from your freeholder, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has requested the management pack.
+Your solicitor has formally requested the management pack from your freeholder (or managing agent).
 
-Your solicitor has formally written to your freeholder (or managing agent) requesting the management pack — the bundle the buyer's side needs to review the leasehold side of the sale. It typically covers the lease itself, service charge accounts, ground rent, building insurance, any planned major works, and any disputes or arrears on the building.
+It's the bundle the buyer's side needs to review the leasehold side of the sale: the lease itself, service charge accounts, ground rent, building insurance, planned major works, and any disputes or arrears on the building.
 
-Freeholders or managing agents usually take 2–6 weeks to send the pack across, and most charge a fee for compiling it (often £200–£500, sometimes more). On a leasehold sale this is one of the most common places things slow down — if you have an existing relationship with your freeholder or managing agent, a polite follow-up call from you a couple of weeks in often helps move it along.
-
-Your solicitor will fold the pack into the contract pack as soon as it arrives. If you've already had to pay a fee directly, let your solicitor know — the cost is often passed on to the buyer or factored into the sale.
+Freeholders or managing agents typically take 2 to 6 weeks to send the pack across, and most charge a fee for compiling it (often £200 to £500, sometimes more). This is one of the most common places things slow down on a leasehold sale. If you have an existing relationship with your freeholder or managing agent, a polite follow-up call from you a couple of weeks in often helps move it along.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller's solicitor has requested the management pack — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's solicitor has requested the management pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 The seller's solicitor has written to the freeholder for the management pack.
 
-The seller's solicitor has written to the freeholder (or managing agent) to request the management pack — the bundle your solicitor needs to review the leasehold side of the property. It covers the lease itself, service charges, ground rent, building insurance, planned works, and any disputes on the building.
+That's the bundle your solicitor needs to review the leasehold side of the property: the lease, service charges, ground rent, building insurance, planned works, and any disputes on the building.
 
-The freeholder typically takes 2–6 weeks to send the pack back to the seller's solicitor. Once it's with them, they'll forward it to your solicitor to review. There's nothing for you to do right now — but this is often the slowest piece on a leasehold sale, so it's worth knowing it's now in flight.
+The freeholder typically takes 2 to 6 weeks to send the pack back to the seller's solicitor. Once it's with them, they'll forward it to your solicitor to review. Nothing for you to do right now, but this is often the slowest piece on a leasehold sale.
 
 → View your portal
 ```
@@ -706,35 +588,19 @@ The freeholder typically takes 2–6 weeks to send the pack back to the seller's
 
 **Vendor:**
 
-**Subject:** Management pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** Management pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The management pack is back from the freeholder.
+The management pack from your freeholder has landed with your solicitor. That clears one of the slowest pieces on a leasehold sale.
 
-Your solicitor has now received the management pack and will fold it into the contract pack going across to the buyer's side. That's typically the slowest piece on a leasehold sale, so getting it back is meaningful progress.
-
-Your solicitor will forward the pack across to the buyer's solicitor in the next day or two. The next milestone on this trail is the buyer's side confirming receipt.
+Your solicitor will now fold it into the contract pack and forward to the buyer's solicitor for review. From here, the file moves at the pace of the buyer's solicitor working through the full pack and raising enquiries.
 
 → View your portal
 ```
 
-**Purchaser:**
-
-**Subject:** Management pack is back on the seller's side — 22 Example Road, London SW1A 1AA
-
-```
-Hi Alex,
-
-Movement on the management pack.
-
-The seller's solicitor has now received the management pack from the freeholder. That's the leasehold bottleneck cleared on their side.
-
-The seller's solicitor will send the pack across to your solicitor over the next day or two.
-
-→ View your portal
-```
+*Purchaser: no email defined for this milestone (asymmetric variant set).*
 
 ---
 
@@ -742,34 +608,28 @@ The seller's solicitor will send the pack across to your solicitor over the next
 
 **Vendor:**
 
-**Subject:** Buyer's solicitor has the management pack — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's solicitor has the management pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The management pack is now with the buyer's solicitor.
+The buyer's solicitor now has the management pack. That's the complete leasehold picture across to their side.
 
-The buyer's solicitor has confirmed receipt of the management pack. With the rest of the contract pack already on their side, they can now review the leasehold detail in full.
-
-Expect leasehold-specific enquiries to come back from the buyer's solicitor over the next week or two. Your solicitor will handle those, but may need your input on points the freeholder is best placed to answer — planned works, service charge history, anything the management pack didn't cover cleanly.
+They'll review it alongside the rest of the contract pack and raise enquiries with your solicitor on anything that needs clarifying. Leasehold enquiries often focus on service charges, ground rent, planned major works, and the terms of the lease, so expect those areas to come up.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Your solicitor has the management pack — 22 Example Road, London SW1A 1AA
+**Subject:** Management pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has the management pack.
+Your solicitor now has the management pack. With the contract pack and the management pack both in, they have everything they need to do the full review of the leasehold side of the purchase.
 
-The management pack has been forwarded across from the seller's solicitor and is now with your solicitor. They can review the leasehold side of the property in full alongside the rest of the contract pack.
-
-Your solicitor will work through the pack carefully and is likely to raise leasehold-specific enquiries with the seller's side over the next week or two. The leasehold detail is where buyer's solicitors tend to scrutinise most closely, so don't be surprised if the enquiries list is meaningful — that's the job being done properly.
-
-If your solicitor flags anything significant to you (a major works charge coming, an unusually short lease, a service charge arrears, a restrictive clause), that's the moment to read carefully and ask questions before deciding how to proceed.
+Expect enquiries to go across to the seller's solicitor over the next week or two, especially on service charges, ground rent, any planned major works, and the lease terms themselves. Your solicitor will surface anything material once they've worked through it.
 
 → View your portal
 ```
@@ -782,32 +642,28 @@ If your solicitor flags anything significant to you (a major works charge coming
 
 **Vendor:**
 
-**Subject:** Buyer's solicitor has ordered searches — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's solicitor has ordered searches, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has placed the searches.
+The buyer's solicitor has placed the property searches: the standard package of Local Authority, Drainage & Water, and Environmental, plus any area-specific ones. Buyers don't pay for searches until their solicitor has the funds in place, so this is one of the clearest commitment signals on the buyer's side.
 
-The buyer's solicitor has ordered the property searches — the standard package of Local Authority, Drainage & Water, and Environmental, plus any area-specific ones. Buyers don't pay for searches until their solicitor has the funds in place, so this is one of the clearest commitment signals on the buyer's side.
-
-Results typically come back over the following 2–4 weeks. Your solicitor will field anything that flows from them, but if something material turns up (a planning matter, a drainage issue, anything the buyer's solicitor wants the seller's side to clarify), it'll come through as an enquiry — and your solicitor will reach you on any point that needs your input.
+Results take 2 to 4 weeks to come back. Your solicitor will field anything material that flows from them, and if a specific point needs your input (a planning matter, a drainage question, anything property-specific), they'll be in touch directly.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Searches ordered — 22 Example Road, London SW1A 1AA
+**Subject:** Searches ordered, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has ordered the property searches.
+Your solicitor has ordered the property searches. The standard package covers the Local Authority search (planning, road adoption, restrictions, building control), a Drainage & Water search, and an Environmental search. Depending on the area, they may also order Chancel Repair, Coal Mining, or other location-specific searches.
 
-Your solicitor has placed the property searches — usually a Local Authority search (covering planning, road adoption, restrictions, building control), a Drainage & Water search, and an Environmental search. Depending on the area, they may also order Chancel Repair, Coal Mining, or other location-specific searches.
-
-Results typically take 2–4 weeks to come back, though the Local Authority search is often the slowest piece and can stretch longer in some areas. Your solicitor will review everything once it's all in and flag anything material. This one runs in the background while the enquiries side progresses.
+Results take 2 to 4 weeks to come back, though the Local Authority search is often the slowest piece and can stretch longer in some areas. Your solicitor will review everything once it's all in and flag anything material. This one runs in the background while the enquiries side progresses.
 
 → View your portal
 ```
@@ -818,34 +674,32 @@ Results typically take 2–4 weeks to come back, though the Local Authority sear
 
 **Vendor:**
 
-**Subject:** Buyer's solicitor has the search results — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's search results are in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's search results are in.
+The buyer's solicitor has the search results back.
 
-The buyer's solicitor has now received the search results and will review them. Most files come back without surprises; occasionally something the searches flag turns into an enquiry the buyer's side wants the seller's side to clarify.
+They'll review them alongside the contract pack and the management pack to build the full picture of the property.
 
-The buyer's solicitor's review usually takes a few days to a week. Any enquiries flowing from the results will land soon after — if anything needs seller-side input only you can answer (planning history you remember, drainage you've maintained, anything property-specific), your solicitor will reach you.
+If anything material surfaces that needs clarification from your side, it'll come through as an enquiry, and your solicitor will reach you directly on any point that needs your input.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Search results are back with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Search results received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your search results are with your solicitor.
+Your solicitor has the search results back.
 
-Your solicitor has now received the search results and will review them. Most files come back clean or with minor administrative notes; occasionally something material turns up — a planning matter, a road that hasn't been formally adopted, a drainage issue, an environmental flag — that needs to be looked into before exchange.
+They'll review them now alongside the contract pack and the management pack.
 
-If your solicitor flags anything significant to you, read what's in the report carefully and ask questions before deciding how to proceed. Most findings are workable — either the seller's side answers an enquiry that satisfies the point, an indemnity policy covers it, or the issue is one buyers reasonably accept. But it's worth knowing what you're accepting and why.
-
-One thing worth knowing if you're on a mortgage: your lender may want to see how any material findings are being resolved before they're comfortable releasing funds. That's not unusual — your solicitor will handle the lender liaison if it comes up — but it's worth knowing search findings can ripple into the offer side, not just the conveyancing side.
+The review typically takes a few days to a week. Any enquiries that flow from the results will land with the seller's solicitor soon after. One thing worth knowing on a mortgage purchase: if a search throws up something material, your lender may want to see how it's being resolved before they're comfortable releasing funds. That's not unusual, and your solicitor handles the lender liaison if it comes up. It's just worth knowing search findings can touch the financing side, not only the conveyancing.
 
 → View your portal
 ```
@@ -858,32 +712,28 @@ One thing worth knowing if you're on a mortgage: your lender may want to see how
 
 **Vendor:**
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3. This is your own survey, separate from the lender's valuation, and it's the one that gives you the real picture of the property's condition.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
@@ -892,36 +742,20 @@ The surveyor will visit the property and produce the report within about a week 
 
 ### PM10 — Buyer has received the survey report
 
-**Vendor:**
-
-**Subject:** Buyer's survey is back — 22 Example Road, London SW1A 1AA
-
-```
-Hi Alex,
-
-The buyer's survey report has come back.
-
-The buyer now has their survey report. They'll be reading through it over the next few days and deciding what (if anything) to take up with your side.
-
-Most surveys lead to a conversation rather than a problem — buyers often ask for clarification on specific findings or, occasionally, a modest price adjustment. If something does come through, we'll talk it through with you honestly — what's worth giving on, what isn't, what's reasonable for a buyer to ask given the property's age and price.
-
-→ View your portal
-```
+*Vendor: no email defined for this milestone (asymmetric variant set).*
 
 **Purchaser:**
 
-**Subject:** Your survey report is in — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey report is in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your survey report has landed.
 
-The surveyor has issued the report. Most reports group findings by priority — items that need urgent attention, items that are significant but not urgent, and items the surveyor flags for awareness only. Read all three sections, not just the urgent one.
+Read it carefully. The surveyor's findings are organised by traffic-light condition ratings: green is fine, amber is something to be aware of, red is something to act on. Focus on the reds and the ambers. Call your surveyor on anything you don't understand or aren't sure how to weigh. They'll usually explain over the phone, and they can tell you whether a specific finding is genuinely material or whether it's a standard observation for a property of this type.
 
-This is your decision point. With the findings in front of you, there are four reasonable paths — accept and proceed as-is, ask the seller to put specific things right before exchange, negotiate the price down to reflect the work needed, or walk away if it's revealed something you didn't sign up for. Most surveys land somewhere in the middle, and most sales continue after a conversation. But the report is the moment to actually think it through, not later.
-
-If you're not sure how to read something or what's worth pushing back on, call your surveyor and ask — they'll usually explain over the phone, and they've seen enough properties to give you a sense of whether a finding is meaningful or routine. Your solicitor will route any conversation with the seller's side once you've decided what (if anything) you want to ask for.
+If anything from the report needs to be raised with the seller's side (a defect that affects price or completion, evidence of something the property forms didn't mention), your solicitor is the right route. Decide first what you actually want to ask for, then talk to your solicitor about how to put it across.
 
 → View your portal
 ```
@@ -934,16 +768,14 @@ If you're not sure how to read something or what's worth pushing back on, call y
 
 **Vendor — hand-off nudge (default direction):**
 
-**Subject:** Enquiries raised on your sale — please confirm receipt — 22 Example Road, London SW1A 1AA
+**Subject:** Initial enquiries on the way, please confirm receipt, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Initial enquiries en route to your solicitor — raised today by the buyer's side.
+The buyer's solicitor has raised the initial enquiries, and they're on their way to your solicitor.
 
-When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button — that logs receipt and keeps the file in sync. Takes about ten seconds.
-
-Worth flagging on the leasehold side: enquiry lists usually run longer than on a freehold. Your solicitor will let you know what (if anything) they need from you.
+When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button. That logs receipt on the file and triggers the next steps. Takes about ten seconds.
 
 → Open your portal
 ```
@@ -952,54 +784,36 @@ Worth flagging on the leasehold side: enquiry lists usually run longer than on a
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed your solicitor has raised the enquiries — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-You've just confirmed the initial enquiries are with the seller's side — raised by your solicitor today.
 
-Enquiries are the formal questions your solicitor raises after reading through the contract pack — clarifications about title, planning matters, what's included in the sale, anything in the property forms that needs more detail. They're how the buyer's side gets comfortable with the legal and practical side of what you're buying.
-
-There's also a leasehold scope to factor in — the enquiry list tends to run longer because the lease itself, the service charges, the freeholder relationship, and the management pack detail all need combing through. That's normal — not a sign anything's wrong — and it's the work that protects you from inheriting issues you didn't know about.
-
-The seller's solicitor will receive the enquiries and work through them with the seller — typical turnaround is 1–4 weeks, though more complex points can take longer. This is back-of-house work from your side; the file moves on its own clock now.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Initial enquiries raised on your purchase — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Initial enquiries raised — your solicitor has sent them across to the seller's side, kicking off the question-and-response phase.
 
-Enquiries are the formal questions your solicitor raises after reading through the contract pack — clarifications about title, planning matters, what's included in the sale, anything in the property forms that needs more detail. They're how the buyer's side gets comfortable with the legal and practical side of what you're buying.
-
-There's also a leasehold scope to factor in — the enquiry list tends to run longer because the lease itself, the service charges, the freeholder relationship, and the management pack detail all need combing through. That's normal — not a sign anything's wrong — and it's the work that protects you from inheriting issues you didn't know about.
-
-The seller's solicitor will receive the enquiries and work through them with the seller — typical turnaround is 1–4 weeks, though more complex points can take longer. This is back-of-house work from your side; the file moves on its own clock now.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Initial enquiries raised on your purchase — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Initial enquiries raised — your solicitor has sent them across to the seller's side, kicking off the question-and-response phase.
 
-Enquiries are the formal questions your solicitor raises after reading through the contract pack — clarifications about title, planning matters, what's included in the sale, anything in the property forms that needs more detail. They're how the buyer's side gets comfortable with the legal and practical side of what you're buying.
-
-There's also a leasehold scope to factor in — the enquiry list tends to run longer because the lease itself, the service charges, the freeholder relationship, and the management pack detail all need combing through. That's normal — not a sign anything's wrong — and it's the work that protects you from inheriting issues you didn't know about.
-
-The seller's solicitor will receive the enquiries and work through them with the seller — typical turnaround is 1–4 weeks, though more complex points can take longer. This is back-of-house work from your side; the file moves on its own clock now.
 
 → View your portal
 ```
@@ -1012,54 +826,36 @@ The seller's solicitor will receive the enquiries and work through them with the
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed your solicitor has the enquiries — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-You've just confirmed the initial enquiries are with your solicitor — landed from the buyer's side.
 
-Enquiries are the formal questions the buyer's solicitor raises after reading the contract pack — clarifications about title, planning, what's included in the sale, anything in the property forms that needs more detail. They're a normal part of every conveyancing process, not a sign anything's wrong.
-
-There's the leasehold scope on top too — even smooth leasehold sales generate sizeable enquiry lists because the lease, the service charges, the freeholder relationship, and the management pack detail all need to be worked through.
-
-Your solicitor will work through the list and draft replies. They'll come to you for input on points only you can answer — details about works you've had done, neighbour relationships, planning consents you've used, anything where the property's history matters. Try to respond promptly when they reach out; the file moves at the speed of these answers.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Buyer's enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Logged on your sale: your solicitor has received the initial enquiries from the buyer's solicitor.
 
-Enquiries are the formal questions the buyer's solicitor raises after reading the contract pack — clarifications about title, planning, what's included in the sale, anything in the property forms that needs more detail. They're a normal part of every conveyancing process, not a sign anything's wrong.
-
-There's the leasehold scope on top too — even smooth leasehold sales generate sizeable enquiry lists because the lease, the service charges, the freeholder relationship, and the management pack detail all need to be worked through.
-
-Your solicitor will work through the list and draft replies. They'll come to you for input on points only you can answer — details about works you've had done, neighbour relationships, planning consents you've used, anything where the property's history matters. Try to respond promptly when they reach out; the file moves at the speed of these answers.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Buyer's enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Logged on your sale: your solicitor has received the initial enquiries from the buyer's solicitor.
 
-Enquiries are the formal questions the buyer's solicitor raises after reading the contract pack — clarifications about title, planning, what's included in the sale, anything in the property forms that needs more detail. They're a normal part of every conveyancing process, not a sign anything's wrong.
-
-There's the leasehold scope on top too — even smooth leasehold sales generate sizeable enquiry lists because the lease, the service charges, the freeholder relationship, and the management pack detail all need to be worked through.
-
-Your solicitor will work through the list and draft replies. They'll come to you for input on points only you can answer — details about works you've had done, neighbour relationships, planning consents you've used, anything where the property's history matters. Try to respond promptly when they reach out; the file moves at the speed of these answers.
 
 → View your portal
 ```
@@ -1072,32 +868,28 @@ Your solicitor will work through the list and draft replies. They'll come to you
 
 **Vendor:**
 
-**Subject:** Replies to enquiries — your part is done — 22 Example Road, London SW1A 1AA
+**Subject:** Your input on the enquiries is in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-That's your part of the enquiry response done — your input's now with your solicitor for the formal replies.
+Your part of the enquiry response is done. The answers and information you sent to your solicitor cover the points the buyer's side raised in the first round.
 
-The answers and information you sent across cover the points the buyer's solicitor raised in the first round of enquiries.
-
-Your solicitor will now compile your input into the formal written replies and send them across to the buyer's solicitor — typically within a few days.
+Your solicitor will now compile your input into the formal written replies and send them across to the buyer's solicitor, typically within a few days.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller has provided their input on the enquiries — 22 Example Road, London SW1A 1AA
+**Subject:** Seller has provided their input on the enquiries, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Movement on the enquiries.
+Movement on the enquiries. The seller has given their solicitor the input needed to draft the formal replies, which will then come across to your solicitor.
 
-The seller has provided their input to their solicitor on the initial enquiries. Their solicitor will now compile the formal written replies and send them across to your solicitor.
-
-Expect the replies to land with your solicitor in the next few days.
+Expect the replies to land in the next few days.
 
 → View your portal
 ```
@@ -1110,62 +902,50 @@ Expect the replies to land with your solicitor in the next few days.
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the replies have gone out — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The formal replies are out — confirmed by you on the file, your solicitor has sent them to the buyer's side.
 
-The first round of enquiry handling is now in the buyer's solicitor's hands.
-
-The buyer's solicitor will review the replies over the next few days to a week. If your answers satisfy them, the file moves on to the next stage. If anything's left open, they'll come back with follow-up enquiries — your solicitor will handle those if they do, and may come to you again on points that need fresh input. Your solicitor will surface where the review lands once it's complete.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Replies to enquiries issued by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Your active part of the enquiry response is done on your side — your solicitor has issued the formal replies to the buyer's side.
 
-The first round of enquiry handling is now in the buyer's solicitor's hands.
-
-The buyer's solicitor will review the replies over the next few days to a week. If your answers satisfy them, the file moves on to the next stage. If anything's left open, they'll come back with follow-up enquiries — your solicitor will handle those if they do, and may come to you again on points that need fresh input. Your solicitor will surface where the review lands once it's complete.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Replies to enquiries issued by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Your active part of the enquiry response is done on your side — your solicitor has issued the formal replies to the buyer's side.
 
-The first round of enquiry handling is now in the buyer's solicitor's hands.
-
-The buyer's solicitor will review the replies over the next few days to a week. If your answers satisfy them, the file moves on to the next stage. If anything's left open, they'll come back with follow-up enquiries — your solicitor will handle those if they do, and may come to you again on points that need fresh input. Your solicitor will surface where the review lands once it's complete.
 
 → View your portal
 ```
 
 **Purchaser — hand-off nudge (default direction):**
 
-**Subject:** Replies to your enquiries are on their way — 22 Example Road, London SW1A 1AA
+**Subject:** Replies to your enquiries are on the way, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller's solicitor has issued the formal replies to your initial enquiries — they're on their way to your solicitor now.
+The seller's solicitor has issued the formal replies to your initial enquiries, and they're on their way to your solicitor.
 
-When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button — that logs receipt and triggers the review step. Takes about ten seconds.
+When your solicitor confirms they've landed, open your portal and tap the highlighted confirm button. Takes about ten seconds.
 
 → Open your portal
 ```
@@ -1180,48 +960,36 @@ When your solicitor lets you know they've landed, open your portal and tap the h
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the replies have arrived — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-That's the first round of replies in — the seller's formal replies are now with your solicitor.
 
-Your solicitor will work through them carefully — checking that each answer satisfies the question raised, flagging anything unclear or left open, and identifying anything that needs follow-up.
-
-The review usually takes a few days to a week. Your solicitor will surface anything material once they've worked through it.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Replies to your enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The first round of enquiries is back on your side for review — your solicitor has received the seller's formal replies.
 
-Your solicitor will work through them carefully — checking that each answer satisfies the question raised, flagging anything unclear or left open, and identifying anything that needs follow-up.
-
-The review usually takes a few days to a week. Your solicitor will surface anything material once they've worked through it.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Replies to your enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The first round of enquiries is back on your side for review — your solicitor has received the seller's formal replies.
 
-Your solicitor will work through them carefully — checking that each answer satisfies the question raised, flagging anything unclear or left open, and identifying anything that needs follow-up.
-
-The review usually takes a few days to a week. Your solicitor will surface anything material once they've worked through it.
 
 → View your portal
 ```
@@ -1234,18 +1002,16 @@ The review usually takes a few days to a week. Your solicitor will surface anyth
 
 **Purchaser:**
 
-**Subject:** Your solicitor has reviewed the seller's replies — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor has reviewed the seller's replies, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your solicitor has finished reviewing the seller's replies.
 
-A review of this kind typically lands in one of three places: the replies satisfied everything and your solicitor's comfortable to move the file forward; some points need follow-up and additional enquiries will be raised; or something material has surfaced that warrants a conversation with you before deciding how to proceed.
+A review of this kind usually lands in one of three places. Either the replies satisfied everything and your solicitor's comfortable to move the file forward, or some points need follow-up and additional enquiries will be raised, or something material has surfaced that warrants a conversation with you before deciding how to proceed.
 
-Your solicitor will be in touch (or already has been) about which of those applies to your file. If it's all clear, the file moves to the next stage. If it's follow-up enquiries, expect that to add a couple of weeks to the conveyancing timeline. If it's a material concern, your solicitor will walk you through what they've found and what your options are.
-
-If this round produced follow-up enquiries that extend the timeline, keep an eye on your mortgage offer's validity period — offers typically last 3–6 months from issue. Most files come in well within that, but if the conveyancing's already been running a while, your broker or solicitor will flag if an extension or re-offer becomes worth thinking about.
+Your solicitor will be in touch about which applies to your file. If it's all clear, the file moves to the next stage. If follow-up enquiries are needed, expect that to add a couple of weeks to the timeline. If a material concern has surfaced, your solicitor will walk you through what they've found and what your options are.
 
 → View your portal
 ```
@@ -1258,12 +1024,12 @@ If this round produced follow-up enquiries that extend the timeline, keep an eye
 
 **Vendor — hand-off nudge (default direction):**
 
-**Subject:** Follow-up enquiries on the way — please confirm receipt — 22 Example Road, London SW1A 1AA
+**Subject:** Follow-up enquiries on the way, please confirm receipt, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Round 2 of enquiries inbound — the buyer's solicitor has raised them today, heading to your solicitor.
+Round 2 of enquiries is inbound. The buyer's solicitor has raised them today, and they're heading to your solicitor.
 
 When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button. Takes about ten seconds.
 
@@ -1274,48 +1040,36 @@ When your solicitor lets you know they've landed, open your portal and tap the h
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the follow-up enquiries have gone out — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The additional enquiries are out — your confirmation's in, and your solicitor has raised them with the seller's side.
 
-After reviewing the initial replies, your solicitor flagged specific points that needed more follow-up — these are the focused questions tightening up anything the first round didn't fully close out. Typically a shorter, more specific list than the initial enquiries.
-
-Turnaround on follow-up enquiries is usually faster than the initial round — 1–3 weeks is typical — because the seller's side has done the heavy lifting and these are more targeted.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Additional enquiries raised on your purchase — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Logged on your purchase: your solicitor has raised the additional enquiries with the seller's side.
 
-After reviewing the initial replies, your solicitor flagged specific points that needed more follow-up — these are the focused questions tightening up anything the first round didn't fully close out. Typically a shorter, more specific list than the initial enquiries.
-
-Turnaround on follow-up enquiries is usually faster than the initial round — 1–3 weeks is typical — because the seller's side has done the heavy lifting and these are more targeted.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Additional enquiries raised on your purchase — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Logged on your purchase: your solicitor has raised the additional enquiries with the seller's side.
 
-After reviewing the initial replies, your solicitor flagged specific points that needed more follow-up — these are the focused questions tightening up anything the first round didn't fully close out. Typically a shorter, more specific list than the initial enquiries.
-
-Turnaround on follow-up enquiries is usually faster than the initial round — 1–3 weeks is typical — because the seller's side has done the heavy lifting and these are more targeted.
 
 → View your portal
 ```
@@ -1328,48 +1082,36 @@ Turnaround on follow-up enquiries is usually faster than the initial round — 1
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the follow-up enquiries have landed — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Thanks — your solicitor's now got the follow-up enquiries from the buyer's side.
 
-These are the buyer's solicitor's follow-up questions after working through the initial replies — typically a shorter list focused on specific points the first round didn't fully close out.
-
-Your solicitor will work through them and come to you if any need fresh input. Turnaround on follow-up rounds is usually faster than the initial enquiries — fewer points, more focused — so this should move more quickly.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Buyer's follow-up enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The follow-up enquiries are now with your solicitor, raised by the buyer's solicitor today.
 
-These are the buyer's solicitor's follow-up questions after working through the initial replies — typically a shorter list focused on specific points the first round didn't fully close out.
-
-Your solicitor will work through them and come to you if any need fresh input. Turnaround on follow-up rounds is usually faster than the initial enquiries — fewer points, more focused — so this should move more quickly.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Buyer's follow-up enquiries received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The follow-up enquiries are now with your solicitor, raised by the buyer's solicitor today.
 
-These are the buyer's solicitor's follow-up questions after working through the initial replies — typically a shorter list focused on specific points the first round didn't fully close out.
-
-Your solicitor will work through them and come to you if any need fresh input. Turnaround on follow-up rounds is usually faster than the initial enquiries — fewer points, more focused — so this should move more quickly.
 
 → View your portal
 ```
@@ -1382,28 +1124,28 @@ Your solicitor will work through them and come to you if any need fresh input. T
 
 **Vendor:**
 
-**Subject:** Follow-up replies — your part is done — 22 Example Road, London SW1A 1AA
+**Subject:** Your input on the follow-ups is in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Round 2 of your input is in — your solicitor will now compile and issue the formal follow-up replies.
+Your part on the follow-up enquiries is done. Your solicitor will now compile your input into the formal written replies and send them across.
 
-Same rhythm as round 1 — typically a few days for the compilation.
+Same rhythm as round one. A few days for the compilation, then the replies go to the buyer's side.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller has provided their follow-up input — 22 Example Road, London SW1A 1AA
+**Subject:** Seller has provided their input on the follow-ups, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Quick one on the follow-ups.
+The seller has given their solicitor the input for the follow-up replies, which will then come across to your solicitor.
 
-The seller's input on the follow-up points is now with their solicitor. Expect the formal replies to land with your solicitor in the next few days.
+Expect them to land in the next few days.
 
 → View your portal
 ```
@@ -1416,62 +1158,50 @@ The seller's input on the follow-up points is now with their solicitor. Expect t
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the follow-up replies have gone out — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-You've just confirmed the follow-up replies are out — your solicitor's sent them across to the buyer's side.
 
-The enquiry phase on your side of the file is now wrapped up.
-
-The buyer's solicitor will review the replies over the next few days. In the great majority of files, this closes the enquiry phase out and the file moves on to the final report and contract sign-off. A rare third round is possible if something specific is still open, but at this stage it's unusual — your solicitor will handle it if it does come up.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Follow-up replies issued by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Follow-up replies issued — your solicitor has sent them across to the buyer's side, which leaves the file in the buyer's-side-review window.
 
-The enquiry phase on your side of the file is now wrapped up.
-
-The buyer's solicitor will review the replies over the next few days. In the great majority of files, this closes the enquiry phase out and the file moves on to the final report and contract sign-off. A rare third round is possible if something specific is still open, but at this stage it's unusual — your solicitor will handle it if it does come up.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Follow-up replies issued by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-Follow-up replies issued — your solicitor has sent them across to the buyer's side, which leaves the file in the buyer's-side-review window.
 
-The enquiry phase on your side of the file is now wrapped up.
-
-The buyer's solicitor will review the replies over the next few days. In the great majority of files, this closes the enquiry phase out and the file moves on to the final report and contract sign-off. A rare third round is possible if something specific is still open, but at this stage it's unusual — your solicitor will handle it if it does come up.
 
 → View your portal
 ```
 
 **Purchaser — hand-off nudge (default direction):**
 
-**Subject:** Follow-up replies on the way to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Follow-up replies on the way to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Follow-up replies are on their way to your solicitor.
+The follow-up replies are on their way to your solicitor, issued by the seller's side today.
 
-When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button. Takes about ten seconds.
+When your solicitor confirms they've landed, open your portal and tap the highlighted confirm button. Takes about ten seconds.
 
 → Open your portal
 ```
@@ -1486,42 +1216,36 @@ When your solicitor lets you know they've landed, open your portal and tap the h
 
 *Route: Buyer/seller via portal*
 
-**Subject:** You've confirmed the follow-up replies have arrived — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The follow-up replies are back — you've just flagged them as received, your solicitor now has them.
 
-Your solicitor will work through them and let you know what they conclude — typically faster than the initial review since there are fewer points to consider.
 
 → View your portal
 ```
 
 *Route: Agent on behalf*
 
-**Subject:** Follow-up replies received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The seller's follow-up replies have landed with your solicitor — issued from the seller's side today.
 
-Your solicitor will work through them and let you know what they conclude — typically faster than the initial review since there are fewer points to consider.
 
 → View your portal
 ```
 
 *Route: Sales Progressor on behalf*
 
-**Subject:** Follow-up replies received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** 
 
 ```
 Hi Alex,
 
-The seller's follow-up replies have landed with your solicitor — issued from the seller's side today.
 
-Your solicitor will work through them and let you know what they conclude — typically faster than the initial review since there are fewer points to consider.
 
 → View your portal
 ```
@@ -1534,16 +1258,16 @@ Your solicitor will work through them and let you know what they conclude — ty
 
 **Purchaser:**
 
-**Subject:** Your solicitor has reviewed the follow-up replies — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor has reviewed the follow-up replies, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your solicitor has finished reviewing the follow-up replies.
 
-By this stage in the enquiry process, the most common landing is that the follow-up replies satisfy everything and the file moves on to the final report and contract sign-off. Occasionally one or two points remain open and a tight third round of enquiries is needed — that's unusual this late but not unheard-of. Very occasionally something material surfaces that warrants a serious conversation about how to proceed.
+By this stage in the enquiry process, the most common landing is that the follow-up replies satisfy everything and the file moves on to the final report and contract sign-off. Occasionally one or two points remain open and a tight third round of enquiries is needed. That's unusual this late but not unheard of. Very occasionally something material surfaces that warrants a serious conversation about how to proceed.
 
-Whichever applies, expect your solicitor to come to you directly — and if it's material concerns, expect a proper sit-down conversation rather than just an email update.
+Whichever applies, your solicitor will come to you directly. If it's material concerns, expect a proper sit-down conversation rather than just an email update.
 
 → View your portal
 ```
@@ -1554,32 +1278,32 @@ Whichever applies, expect your solicitor to come to you directly — and if it's
 
 **Vendor:**
 
-**Subject:** Enquiries are all satisfied — 22 Example Road, London SW1A 1AA
+**Subject:** Enquiries are all satisfied, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Real milestone on your sale — the buyer's solicitor has confirmed all enquiries are satisfied.
+A real moment on your sale. The buyer's solicitor has confirmed all enquiries are satisfied.
 
-The buyer's side is now comfortable with the answers they've received. Your side's work on the enquiries is fully complete — no more questions coming back from this round or any future round on this file.
+The buyer's side is now comfortable with the answers they've received. Your side's work on the enquiries is fully complete. No more questions coming back from this round or any future round on this file.
 
-The file moves to contract sign-off on both sides. The remaining steps from here are more procedural — final reports, contracts, deposit, exchange — and the file's tempo typically picks up once the enquiries phase is closed.
+The file moves to contract sign-off on both sides. The remaining steps are more procedural: final reports, contracts, deposit, exchange. The pace typically picks up once the enquiries phase is closed.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Enquiries are all satisfied — 22 Example Road, London SW1A 1AA
+**Subject:** Enquiries are all satisfied, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Real milestone on your purchase — all enquiries are now satisfied.
+A real moment on your purchase. All enquiries are now satisfied.
 
-Your solicitor has confirmed they're comfortable with the answers and that nothing else is outstanding on the enquiry side. The conveyancing's heaviest stretch — combing through the contract pack, raising and resolving questions — is behind you.
+Your solicitor has confirmed they're comfortable with the answers and that nothing else is outstanding on the enquiry side. The heaviest stretch of conveyancing, combing through the contract pack, raising and resolving questions, the management pack, is behind you.
 
-The file now moves to the final report stage, where your solicitor pulls together everything they've learned about the property and walks you through it before exchange. The remaining steps from here are real but more procedural: final report, contract sign-off, deposit, exchange.
+The file now moves to the final report stage, where your solicitor pulls together everything they've learned about the property and walks you through it before exchange. The remaining steps are real but procedural: final report, contract sign-off, deposit, exchange.
 
 → View your portal
 ```
@@ -1592,14 +1316,12 @@ The file now moves to the final report stage, where your solicitor pulls togethe
 
 **Vendor:**
 
-**Subject:** Buyer has the final report — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has the final report, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has the final report now.
-
-The buyer's solicitor has sent them the final report — the structured summary of everything that's come out of the conveyancing process. The buyer is now in the reading-and-deciding window before contracts go out for signing.
+The buyer has the final report from their solicitor. That's the structured summary of everything that came out of the conveyancing process. The buyer is now in the reading-and-deciding window before contracts go out for signing.
 
 Contract documents typically follow within a few days of the buyer being comfortable with the report. Your side's contract documents will be issued by your solicitor in parallel.
 
@@ -1608,16 +1330,16 @@ Contract documents typically follow within a few days of the buyer being comfort
 
 **Purchaser:**
 
-**Subject:** Your final report is in — 22 Example Road, London SW1A 1AA
+**Subject:** Your final report is in, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your solicitor's final report has landed.
 
-The report is your solicitor's structured summary of everything they've found out about the property through searches, enquiries, and the contract pack — title, planning, lease (if applicable), service charges, anything material that surfaced along the way. It's not new investigation; it's the digest.
+The report is your solicitor's structured summary of everything they've found out about the property: title, planning, the lease, service charges, ground rent, the management pack from the freeholder, your mortgage offer and its conditions, and anything material that surfaced along the way. It's not new investigation. It's the digest.
 
-Read it carefully — this is your considered moment before signing the contracts. Write down anything that's unclear or that you want to talk through, and call your solicitor before you sign rather than after. Once you're comfortable, your solicitor will issue the contracts for you to sign; the final report is the last substantial reading moment before the file enters execution mode.
+Read it carefully. This is your considered moment before signing the contracts. Write down anything that's unclear or you want to talk through, and call your solicitor before you sign rather than after. Once you're comfortable, your solicitor will issue the contracts for you to sign.
 
 → View your portal
 ```
@@ -1628,30 +1350,26 @@ Read it carefully — this is your considered moment before signing the contract
 
 **Vendor:**
 
-**Subject:** Contracts ready for your signature — 22 Example Road, London SW1A 1AA
+**Subject:** Contracts ready for your signature, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your contracts are ready for signing.
+Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, and any other documents that need your signature. This is the formal signing step before exchange.
 
-Your solicitor has issued the contract pack to you — the final draft contract, the transfer deed, and any other documents that need your signature. This is the formal signing step before exchange.
-
-Read through everything before signing — your solicitor should have walked you through anything notable, but it's worth checking the price, the names, the property address, and any agreed inclusions/exclusions match what you're expecting. Sign and return promptly; your solicitor will hold the signed documents in escrow until the exchange moment.
+Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller is signing the contracts — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is signing the contracts, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller's contracts are with them for signing.
-
-The seller's solicitor has sent the contract documents to the seller for signing. Their solicitor will hold the signed documents in escrow once they're back.
+The seller's contracts are with them for signing. Their solicitor has sent the contract documents to the seller, and will hold the signed documents in escrow once they're back.
 
 → View your portal
 ```
@@ -1662,33 +1380,19 @@ The seller's solicitor has sent the contract documents to the seller for signing
 
 **Vendor:**
 
-**Subject:** Signed contracts received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Signed contracts received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your signed contracts are back with your solicitor.
 
-Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow; once both sides are signed, the two solicitors can begin coordinating the actual exchange moment.
-
-Exchange happens when both solicitors confirm they're ready — both sides signed, deposit funds in place, completion date agreed. Exchange is the next moment on the file's timeline.
+Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow. Once both sides are signed, the two solicitors can begin coordinating the actual exchange moment.
 
 → View your portal
 ```
 
-**Purchaser:**
-
-**Subject:** Seller has signed the contracts — 22 Example Road, London SW1A 1AA
-
-```
-Hi Alex,
-
-The seller has signed and returned their contracts.
-
-The seller has signed and returned their contract documents. Their solicitor is now holding the signed contracts in escrow. The seller's side is committed; exchange follows once both sides are signed.
-
-→ View your portal
-```
+*Purchaser: no email defined for this milestone (asymmetric variant set).*
 
 ---
 
@@ -1696,30 +1400,28 @@ The seller has signed and returned their contract documents. Their solicitor is 
 
 **Vendor:**
 
-**Subject:** Buyer is signing the contracts — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has the contracts, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Buyer's side is at signing stage.
+The buyer now has their contract documents from their solicitor. Like you, they're in their signing window.
 
-The buyer's solicitor has sent the contract documents to the buyer for signing. Once they sign and return, the two solicitors can start agreeing an exchange moment.
+Once their signed documents are back with their solicitor, both sides are ready to begin coordinating exchange.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Contracts ready for your signature — 22 Example Road, London SW1A 1AA
+**Subject:** Contracts ready for your signature, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your contracts are ready for signing.
+Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, the mortgage deed, and any other documents that need your signature. This is the formal signing step before exchange.
 
-Your solicitor has issued the contract pack — the final draft contract, the transfer deed, and any other documents needing your signature. You've already done the thinking through the final report; this step is execution.
-
-Read through everything before signing — your solicitor will have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions/exclusions look right. Sign and return promptly; your solicitor will hold the signed contracts and start coordinating exchange timing with the seller's side. Your solicitor will also be in touch separately about the deposit transfer — that's the next active step on your side.
+Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.
 
 → View your portal
 ```
@@ -1730,32 +1432,28 @@ Read through everything before signing — your solicitor will have walked you t
 
 **Vendor:**
 
-**Subject:** Buyer has signed the contracts — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's signed contracts received by their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has signed.
+The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in escrow.
 
-The buyer has signed and returned their contract documents. The conveyancing work on the buyer's side is done; once both sides' signed contracts are in escrow, exchange is the next moment.
-
-If the seller's side is also signed, the two solicitors can move straight to agreeing an exchange moment — usually within a few days, sometimes the same day. If their signing is still in flight, exchange follows as soon as that lands. Either way, exchange is the next milestone we'll fire on this file.
+The two solicitors will coordinate the exchange moment from here.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Your signed contracts are back with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your signed contracts are back with your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your signed contracts are back with your solicitor.
+Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side.
 
-Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side.
-
-Exchange happens when both solicitors confirm everyone's ready — deposit funds with your solicitor, both sides signed, completion date agreed. If you haven't already transferred the deposit, your solicitor will be coordinating that with you separately. We'll let you know the moment exchange happens.
+The remaining step before exchange is your deposit reaching your solicitor, ready to transfer on exchange. With your mortgage offer already in place, that's the last piece before the two solicitors can agree the exchange moment. Your solicitor will let you know the deposit amount and timing if they haven't already.
 
 → View your portal
 ```
@@ -1768,32 +1466,32 @@ Exchange happens when both solicitors confirm everyone's ready — deposit funds
 
 **Vendor:**
 
-**Subject:** Buyer has transferred the deposit — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's deposit is with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The deposit is with the buyer's solicitor.
+The buyer's deposit is now with their solicitor, ready to be released on exchange. That's one of the strongest commitment signals in the whole process.
 
-The buyer has transferred the deposit funds to their solicitor's client account. With contracts signed on both sides and the deposit now in place, the last meaningful buyer-side input is done.
+With their mortgage offer already in place and the deposit now committed, the buyer's funding is fully lined up.
 
-Exchange now sits with the two solicitors to agree timing — usually within a few days.
+The remaining step is the two solicitors agreeing the exchange moment. Exchange is close.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Deposit transferred — 22 Example Road, London SW1A 1AA
+**Subject:** Your deposit is with your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your deposit is with your solicitor.
+Your deposit is now with your solicitor, ready for exchange.
 
-You've transferred the deposit funds to your solicitor's client account. They'll hold them in escrow alongside your signed contracts until the exchange moment, when the deposit transfers across to the seller's solicitor as the binding part of the agreement.
+This is the deposit (usually around 10% of the purchase price) that's released to the seller's side at the moment of exchange. It's held safely by your solicitor until then. Your mortgage advance, which makes up the rest of the funds, is drawn down from your lender at completion, not at exchange.
 
-With the deposit in place and contracts signed, exchange becomes a procedural decision between the two solicitors on timing. Exchange typically follows within a few days from here.
+With your deposit in place, your mortgage offer in, and your contracts signed, you're ready for exchange. Your solicitor will coordinate the exact moment with the seller's side.
 
 → View your portal
 ```
@@ -1808,7 +1506,7 @@ With the deposit in place and contracts signed, exchange becomes a procedural de
 
 **Vendor:**
 
-**Subject:** Your solicitor is ready to exchange — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor is ready to exchange, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
@@ -1817,21 +1515,21 @@ Your solicitor has confirmed they're ready to exchange.
 
 Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the buyer's side is also there.
 
-Exchange happens when both solicitors are ready and agree the moment. If the buyer's side is also there, exchange is imminent; if they're not yet, it follows as soon as they confirm. Either way, the next time you hear from us, exchange will have happened — and that's the legal commitment moment.
+Exchange happens when both solicitors are ready and agree the moment. If the buyer's side is also there, exchange is imminent. If they're not yet, it follows as soon as they confirm. Either way, the next time you hear from us, exchange will have happened, and that's the legal commitment moment.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Seller's side is ready to exchange — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's side is ready to exchange, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller's side has confirmed they're ready to exchange.
+The seller's solicitor has formally confirmed everything on their side is in place.
 
-The seller's solicitor has formally confirmed everything on their side is in place. Once both sides have formally confirmed, exchange follows — it's a procedural decision between the two solicitors at that point.
+Once both sides have formally confirmed, exchange follows. It's a procedural decision between the two solicitors at that point.
 
 → View your portal
 ```
@@ -1844,30 +1542,30 @@ The seller's solicitor has formally confirmed everything on their side is in pla
 
 **Vendor:**
 
-**Subject:** Buyer's side is ready to exchange — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side is ready to exchange, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's side has confirmed they're ready to exchange.
+The buyer's solicitor has formally confirmed everything on their side is in place: contracts signed, conveyancing complete, mortgage offer in, deposit transferred and held ready.
 
-The buyer's solicitor has formally confirmed everything on their side is in place — contracts signed, deposit transferred, conveyancing complete. Once both sides have formally confirmed, exchange follows.
+Once both sides have formally confirmed, exchange follows.
 
 → View your portal
 ```
 
 **Purchaser:**
 
-**Subject:** Your solicitor is ready to exchange — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor is ready to exchange, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Your solicitor has confirmed they're ready to exchange.
 
-Everything on your side is in place: contracts signed and held in escrow, deposit transferred, conveyancing complete, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.
+Everything on your side is in place: contracts signed and held in escrow, conveyancing complete, mortgage offer in, deposit transferred and ready, completion date agreed. Your solicitor has formally confirmed they're ready to proceed to exchange whenever the seller's side is also there.
 
-Exchange happens when both solicitors are ready and agree the moment. If the seller's side is also there, exchange is imminent; if they're not yet, it follows as soon as they confirm. The next time you hear from us, exchange will have happened — and that's the legal commitment moment.
+Exchange happens when both solicitors are ready and agree the moment. The next time you hear from us, exchange will have happened.
 
 → View your portal
 ```
@@ -1882,16 +1580,16 @@ Exchange happens when both solicitors are ready and agree the moment. If the sel
 
 **Vendor:**
 
-**Subject:** Contracts have exchanged — your sale is now legally binding — 22 Example Road, London SW1A 1AA
+**Subject:** Contracts have exchanged, your sale is now legally binding, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Exchange has happened — your sale is now legally binding.
+Exchange has happened. Your sale is now legally binding.
 
-The two solicitors have formally exchanged contracts. The buyer's deposit is now released to the seller's side, and the agreed completion date is locked in. Neither party can pull out without significant legal and financial consequences — the sale is essentially certain at this point.
+The two solicitors have formally exchanged contracts. The buyer's deposit is now released to the seller's side, and the agreed completion date is locked in. Neither party can pull out without significant legal and financial consequences. The sale is essentially certain at this point.
 
-The next major moment is completion — when the balance funds transfer, ownership formally moves to the buyer, and keys are handed over. Closer to the date, expect another email with completion-day specifics — key handover, meter readings, vacating the property.
+The next major moment is completion: when the balance funds transfer, ownership formally moves to the buyer, and keys are handed over. Closer to the date, expect another email with completion-day specifics: key handover, meter readings, vacating the property.
 
 → View your portal
 ```
@@ -1908,16 +1606,16 @@ The next major moment is completion — when the balance funds transfer, ownersh
 
 **Purchaser:**
 
-**Subject:** Contracts have exchanged — your purchase is now legally binding — 22 Example Road, London SW1A 1AA
+**Subject:** Contracts have exchanged, your purchase is now legally binding, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Exchange has happened — your purchase is now legally binding.
+Exchange has happened. Your purchase is now legally binding.
 
-The two solicitors have formally exchanged contracts. Your deposit has transferred across to the seller's side, and the agreed completion date is locked in. You're now contractually entitled to buy the property on that date, and the seller is contractually obliged to sell.
+The two solicitors have formally exchanged contracts. Your deposit has transferred to the seller's side, and the agreed completion date is locked in. You're now contractually entitled to buy the property on that date, and the seller is contractually obliged to sell.
 
-The next big moment is completion — when the balance funds transfer to the seller, ownership formally becomes yours, and the keys are handed over. Your solicitor will be in touch about the final balance transfer (and, if you're on a mortgage, the mortgage advance comes in at this point too). Closer to the date, look out for the next email — practical completion-day specifics: timing on the day, where to collect keys, what to do about utilities.
+The next big moment is completion: the balance funds transfer to the seller, ownership formally becomes yours, and the keys are handed over. Your solicitor will be in touch about coordinating your mortgage advance, which your lender draws down for completion day, alongside the balance funds. Closer to the date, expect another email with completion-day specifics: timing on the day, where to collect keys, what to do about utilities.
 
 → View your portal
 ```
@@ -1932,16 +1630,16 @@ The next big moment is completion — when the balance funds transfer to the sel
 
 **Vendor:**
 
-**Subject:** Completion — your sale is done — 22 Example Road, London SW1A 1AA
+**Subject:** Completion, your sale is done, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Completion has happened. Your sale is done.
 
-The balance funds have transferred to your solicitor, ownership has formally moved to the buyer, and the keys have been handed over. The legal and financial side of selling your property is now finalised — your solicitor will be in touch shortly with the completion statement showing exactly how the funds have been distributed (mortgage redemption if applicable, fees, anything else), and the net amount that's coming to you.
+The balance funds have transferred to your solicitor, ownership has formally moved to the buyer, and the keys have been handed over. The legal and financial side of selling your property is now finalised. Your solicitor will be in touch shortly with the completion statement showing how the funds have been distributed, and the net amount that's coming to you.
 
-From our side, this is where we step back — but if anything comes up post-completion (utility queries, post handover questions, anything where you need a pointer), do get in touch. Thank you for trusting us with your sale.
+From our side, this is where we step back. If anything comes up post-completion (utility queries, post-handover questions, anything where you need a pointer), do get in touch. Thank you for trusting us with your sale.
 
 → View your portal
 ```
@@ -1958,18 +1656,18 @@ From our side, this is where we step back — but if anything comes up post-comp
 
 **Purchaser:**
 
-**Subject:** Completion — the property is yours — 22 Example Road, London SW1A 1AA
+**Subject:** Completion, the property is yours, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Completion has happened. The property is yours.
 
-The balance funds have transferred to the seller's side, ownership has formally moved across to you, and the keys are now yours. Everything from the offer-accepted moment to this one — the conveyancing, the enquiries, the searches, the survey, the contracts — all of it was the work that gets you to here.
+The balance funds, including your mortgage advance drawn down from your lender, have transferred to the seller's side, ownership has formally moved across to you, and the keys are now yours. Everything from the offer-accepted moment to this one, the conveyancing, the enquiries, the searches, the survey, the mortgage, the management pack, the contracts, all of it was the work that gets you to here.
 
-Your solicitor will register the transfer with the Land Registry over the coming weeks — that's the formal legal record-keeping step, behind the scenes, no action from you. Practically: pick up the keys, switch the utilities into your name (your solicitor's completion statement will have the meter readings taken on the day), update your address with the bank, employer, DVLA, and the rest. Get the locks changed if you're inclined.
+Your solicitor will register the transfer with the Land Registry over the coming weeks, including your lender's charge on the property. That's the formal legal record-keeping step, behind the scenes, no action from you. Practically: pick up the keys, switch the utilities into your name (your solicitor's completion statement will have the meter readings taken on the day), update your address with the bank, employer, DVLA, and the rest. Get the locks changed if you're inclined.
 
-From our side, this is where we step back. Thank you for letting us help you through it — it's a real moment, and we hope the place becomes everything you wanted it to be.
+From our side, this is where we step back. Thank you for letting us help you through it. It's a real moment, and we hope the place becomes everything you wanted it to be.
 
 → View your portal
 ```

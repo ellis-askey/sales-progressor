@@ -1,38 +1,29 @@
 // PM22 — Buyer's solicitor has issued contract documents to the buyer.
 //
-// Universal across shape. Substantive beat for the buyer (here are the
-// documents to sign). Mirror of VM16 on the buyer side. The buyer's
-// signing moment lands AFTER they've read the final report (PM21), so
-// the distinctive framing here is "you've done the thinking; this is
-// execution." Don't re-explain what contracts are — that's clear from
-// the milestone itself.
+// Vendor: shape-stable. Purchaser: mortgage delta adds "the mortgage deed"
+// to the signing list; cash_from_proceeds delta adds the chain-coordination
+// reminder paragraph.
 //
-// Vendor body brief — VM16 vendor was the seller's own signing moment;
-// PM22 vendor body is the heads-up that the buyer is now at their
-// signing stage. Distinct from VM16 vendor by audience perspective.
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM22_SKELETON: MilestoneSkeleton = {
 
-  purchaser: {
+  vendor: {
     subject: [
-      { text: "Contracts ready for your signature — {address}" },
+      { text: "Buyer has the contracts, {address}" },
     ],
     heroLabel: [
-      { text: "Contracts to sign" },
+      { text: "Buyer signing contracts" },
     ],
     opening: [
-      { text: "Your contracts are ready for signing." },
+      { text: "The buyer now has their contract documents from their solicitor. Like you, they're in their signing window." },
     ],
-    whatHappened: [
-      {
-        text: "Your solicitor has issued the contract pack — the final draft contract, the transfer deed, and any other documents needing your signature. You've already done the thinking through the final report; this step is execution.",
-      },
-    ],
+    whatHappened: [],
     whatNext: [
       {
-        text: "Read through everything before signing — your solicitor will have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions/exclusions look right. Sign and return promptly; your solicitor will hold the signed contracts and start coordinating exchange timing with the seller's side. Your solicitor will also be in touch separately about the deposit transfer — that's the next active step on your side.",
+        text: "Once their signed documents are back with their solicitor, both sides are ready to begin coordinating exchange.",
       },
     ],
     action: [
@@ -40,22 +31,38 @@ export const PM22_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  vendor: {
+  purchaser: {
     subject: [
-      { text: "Buyer is signing the contracts — {address}" },
+      { text: "Contracts ready for your signature, {address}" },
     ],
     heroLabel: [
-      { text: "Buyer signing" },
+      { text: "Contracts ready to sign" },
     ],
     opening: [
-      { text: "Buyer's side is at signing stage." },
+      // Cash / cash-from-proceeds — no mortgage deed.
+      {
+        text: "Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, and any other documents that need your signature. This is the formal signing step before exchange.",
+        when: { purchaseType: { in: ["cash_buyer", "cash_from_proceeds"] } },
+      },
+      // Mortgage — adds the mortgage deed.
+      {
+        text: "Your contracts are ready for signing. Your solicitor has issued the contract pack to you: the final draft contract, the transfer deed, the mortgage deed, and any other documents that need your signature. This is the formal signing step before exchange.",
+        when: { purchaseType: "mortgage" },
+      },
     ],
     whatHappened: [
       {
-        text: "The buyer's solicitor has sent the contract documents to the buyer for signing. Once they sign and return, the two solicitors can start agreeing an exchange moment.",
+        text: "Read through everything before signing. Your solicitor should have walked you through anything notable, but check the price, the names, the property address, and any agreed inclusions or exclusions match what you're expecting. Sign and return promptly. Your solicitor will hold the signed documents in escrow until exchange.",
       },
     ],
-    // No whatNext — held brief, parallel to VM16 purchaser's structure.
+    whatNext: [
+      // Cash-from-proceeds — chain-coordination reminder fires.
+      {
+        text: "A reminder on your related sale: it has to exchange before this purchase can. If your sale isn't yet at the signed-and-ready stage, that's the remaining piece in front of exchange. Your solicitor will coordinate the two transactions to exchange together.",
+        when: { purchaseType: "cash_from_proceeds" },
+      },
+      // Cash buyer + mortgage — no closing paragraph.
+    ],
     action: [
       { text: "View your portal" },
     ],
@@ -72,7 +79,7 @@ export const PM22_SKELETON: MilestoneSkeleton = {
       { text: "Logged on {address}." },
     ],
     whatHappened: [
-      { text: "Purchaser solicitor has confirmed issue of contract documents to purchaser for signing." },
+      { text: "Buyer's solicitor has confirmed issuing contract documents to the buyer for signature." },
     ],
     action: [
       { text: "View transaction" },

@@ -1,48 +1,40 @@
 // PM14 — Buyer's solicitor has raised initial enquiries to the seller's
 // solicitor.
 //
-// Bilateral first-actor in the (PM14, VM10) pair. HANDOFF_DEFAULT_ACTOR
-// for both is "purchaser" — the buyer's side raises enquiries first
-// (natural order). Directional logic:
+// Bilateral natural first-actor in the (PM14, VM10) pair (buyer raises,
+// seller receives). PM14's purchaser block is the acted-side (4 variants:
+// route × direction). PM14's vendor block is the default-direction hand-
+// off nudge only.
 //
-//   • Purchaser — acted-side ack. Route-varied (3 routes × tenure ×
-//     funding). No direction gate; always fires when PM14 is confirmed.
-//     This body owns the "what enquiries are" explainer for the buyer's
-//     side of the whole Phase 10 arc — PM15 (replies received) and
-//     PM16 (review complete) refer to "the enquiries" without re-
-//     explaining what they are.
+// Tenure delta on natural-direction acted-side: enquiries-scope list
+// includes "the lease and service charges on the leasehold side" on
+// leasehold files. Inverse-direction acted-side has no scope paragraph
+// at all (tight 2-3 paragraph body).
 //
-//   • Vendor — default-direction hand-off NUDGE. Fires only when PM14
-//     confirms FIRST in the pair (direction = default). Deliberately
-//     SLIM per the bilateral paired-read rule: opening + CTA + a short
-//     leasehold-only flag. The substantive "what to expect from
-//     enquiries" content lives in VM10's acted-side ack (which fires
-//     when the seller's side confirms receipt), not here.
-//
-// Tenure conditioning: leasehold gets an addendum on the buyer side
-// (leasehold sales typically generate longer enquiry lists because the
-// management pack and lease-specific points need to be combed through),
-// and a short flag on the vendor nudge.
-//
-// No funding conditioning on PM14 — the enquiry-process delay vs.
-// mortgage-offer-window concern is real but PM16 is the natural place
-// for it (when the review is complete and timing implications become
-// concrete), not at the moment enquiries are raised.
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM14_SKELETON: MilestoneSkeleton = {
 
-  // ── Purchaser: acted-side acknowledgement ─────────────────────────────
+  // ── Purchaser: acted-side acknowledgement (4 variants) ────────────────
   purchaser: {
     subject: [
       {
-        text: "You've confirmed your solicitor has raised the enquiries — {address}",
-        when: { route: "client_portal" },
+        text: "You've confirmed the initial enquiries have gone out, {address}",
+        when: { route: "client_portal", direction: "default" },
       },
       {
-        text: "Initial enquiries raised on your purchase — {address}",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "Initial enquiries raised on your purchase, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      {
+        text: "You've confirmed the initial enquiries have gone out, {address}",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      {
+        text: "Initial enquiries raise logged, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
@@ -52,31 +44,57 @@ export const PM14_SKELETON: MilestoneSkeleton = {
 
     opening: [
       {
-        text: "You've just confirmed the initial enquiries are with the seller's side — raised by your solicitor today.",
-        when: { route: "client_portal" },
+        text: "Thanks. You've confirmed your solicitor has raised the initial enquiries with the seller's side.",
+        when: { route: "client_portal", direction: "default" },
       },
       {
-        text: "Initial enquiries raised — your solicitor has sent them across to the seller's side, kicking off the question-and-response phase.",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "Your solicitor has raised the initial enquiries with the seller's side. We've logged it on your purchase.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      {
+        text: "Thanks. You've confirmed your solicitor has raised the initial enquiries, and the seller's side has already logged receipt on their end.",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      {
+        text: "Your solicitor has raised the initial enquiries with the seller's side. We've logged it on your purchase. The seller's side had already confirmed receipt before this came in, so the two are now in sync.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
     whatHappened: [
-      // Universal — explains what enquiries are. PM15 + PM16 refer to
-      // "the enquiries" / "the replies" without re-explaining this.
+      // Default direction — enquiries-scope explainer. Freehold.
       {
-        text: "Enquiries are the formal questions your solicitor raises after reading through the contract pack — clarifications about title, planning matters, what's included in the sale, anything in the property forms that needs more detail. They're how the buyer's side gets comfortable with the legal and practical side of what you're buying.",
+        text: "Enquiries are the formal questions your solicitor sends after reading the contract pack. They cover anything that needs clarifying about title, planning, what's included in the sale, and anything in the seller's property forms that needs more detail.",
+        when: { direction: "default", tenure: "freehold" },
       },
-      // Leasehold addendum — distinct beat (leasehold-specific scope).
+      // Default direction — leasehold variant adds lease + service charges.
       {
-        text: "There's also a leasehold scope to factor in — the enquiry list tends to run longer because the lease itself, the service charges, the freeholder relationship, and the management pack detail all need combing through. That's normal — not a sign anything's wrong — and it's the work that protects you from inheriting issues you didn't know about.",
-        when: { tenure: "leasehold" },
+        text: "Enquiries are the formal questions your solicitor sends after reading the contract pack. They cover anything that needs clarifying about title, planning, what's included in the sale, the lease and service charges on the leasehold side, and anything in the seller's property forms that needs more detail.",
+        when: { direction: "default", tenure: "leasehold" },
       },
+      // Inverse direction — no scope paragraph (body collapses).
     ],
 
     whatNext: [
+      // Default × Portal.
       {
-        text: "The seller's solicitor will receive the enquiries and work through them with the seller — typical turnaround is 1–4 weeks, though more complex points can take longer. This is back-of-house work from your side; the file moves on its own clock now.",
+        text: "Typical turnaround for the first round is 1 to 4 weeks. Your solicitor will surface anything material once the replies come back.",
+        when: { direction: "default", route: "client_portal" },
+      },
+      // Default × Internal.
+      {
+        text: "Turnaround for the first round is 1 to 4 weeks. Your solicitor will surface anything material once the replies are back.",
+        when: { direction: "default", route: { in: ["agent", "sales_progressor"] } },
+      },
+      // Inverse × Portal.
+      {
+        text: "Both sides are now in sync. The seller's solicitor will work through the questions with the seller. Typical turnaround for the first round is 1 to 4 weeks.",
+        when: { direction: "inverse", route: "client_portal" },
+      },
+      // Inverse × Internal.
+      {
+        text: "Typical turnaround for the first round is 1 to 4 weeks. Your solicitor will surface anything material once the replies are back.",
+        when: { direction: "inverse", route: { in: ["agent", "sales_progressor"] } },
       },
     ],
 
@@ -85,45 +103,30 @@ export const PM14_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  // ── Vendor: default-direction hand-off nudge (SLIM) ───────────────────
-  //
-  // Fires only on direction = default (PM14 confirmed first in the pair).
-  // Per the bilateral paired-read rule: opening + CTA + minimal flag.
-  // VM10's acted-side ack carries the substantive "what enquiries are
-  // and what to expect" content; this is a baton-pass.
+  // ── Vendor: default-direction hand-off nudge ──────────────────────────
   vendor: {
     subject: [
       {
-        text: "Enquiries raised on your sale — please confirm receipt — {address}",
+        text: "Initial enquiries on the way, please confirm receipt, {address}",
         when: { direction: "default" },
       },
     ],
 
     heroLabel: [
-      { text: "Enquiries raised by buyer's side", when: { direction: "default" } },
+      { text: "Initial enquiries inbound", when: { direction: "default" } },
     ],
 
     opening: [
       {
-        text: "Initial enquiries en route to your solicitor — raised today by the buyer's side.",
+        text: "The buyer's solicitor has raised the initial enquiries, and they're on their way to your solicitor.",
         when: { direction: "default" },
       },
     ],
 
     whatHappened: [
       {
-        text: "When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button — that logs receipt and keeps the file in sync. Takes about ten seconds.",
+        text: "When your solicitor lets you know they've landed, open your portal and tap the highlighted confirm button. That logs receipt on the file and triggers the next steps. Takes about ten seconds.",
         when: { direction: "default" },
-      },
-    ],
-
-    whatNext: [
-      // Short leasehold flag — the longer "leasehold enquiries are
-      // bigger" framing lives in PM14 purchaser and VM10 vendor; here
-      // it's just a one-sentence heads-up.
-      {
-        text: "Worth flagging on the leasehold side: enquiry lists usually run longer than on a freehold. Your solicitor will let you know what (if anything) they need from you.",
-        when: { direction: "default", tenure: "leasehold" },
       },
     ],
 
@@ -143,7 +146,7 @@ export const PM14_SKELETON: MilestoneSkeleton = {
       { text: "Logged on {address}." },
     ],
     whatHappened: [
-      { text: "Purchaser solicitor has confirmed initial enquiries raised with vendor solicitor." },
+      { text: "Buyer's solicitor has confirmed raising of initial enquiries to the seller's solicitor." },
     ],
     action: [
       { text: "View transaction" },

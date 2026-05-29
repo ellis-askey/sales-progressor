@@ -1,13 +1,10 @@
 // PM3 — Buyer has completed ID and AML checks with their solicitor.
 //
-// Mirror of VM4 but for the buyer side. Shape relevance:
-//   - Funding: mortgage-only paragraph about the parallel lender-side
-//     work (the lender will reference ID/AML status when underwriting);
-//     cash-from-proceeds paragraph about the concurrent-sale dependency
-//     since both timelines need to align.
-//   - Tenure: no purchaser-side tenure conditioning here — the leasehold
-//     management-pack story is the seller's solicitor's job, not the
-//     buyer's at this stage.
+// Non-bilateral, no route/direction conditioning. Purchaser branches on
+// purchaseType: mortgage adds the "push on the mortgage application"
+// sentence to the closing paragraph. Vendor universal across shapes.
+//
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -15,33 +12,24 @@ export const PM3_SKELETON: MilestoneSkeleton = {
 
   purchaser: {
     subject: [
-      { text: "ID checks complete — {address}" },
+      { text: "ID checks complete, {address}" },
     ],
     heroLabel: [
       { text: "ID & AML checks done" },
     ],
     opening: [
-      { text: "You've cleared an important legal requirement." },
+      { text: "ID and AML checks are done. That clears the way for your solicitor to begin substantive work on your purchase." },
     ],
     whatHappened: [
+      // Cash buyer + cash-from-proceeds — money-on-account ask only.
       {
-        text: "Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This allows them to begin substantive work on your purchase.",
+        text: "If you haven't yet paid money on account to your solicitor, do that as soon as you can. They'll need it before they can order searches on your behalf.",
+        when: { purchaseType: { in: ["cash_buyer", "cash_from_proceeds"] } },
       },
-    ],
-    whatNext: [
-      // Universal — payment on account is the foundational ask.
+      // Mortgage — adds the "push on the mortgage application" line.
       {
-        text: "Your solicitor is now able to work on your case fully. If you haven't yet paid money on account to your solicitor, do that as soon as you can — they'll need it before they can order searches on your behalf.",
-      },
-      // Mortgage variant — opens "Your lender…" not "Because…".
-      {
-        text: "Your lender will reference your completed ID and AML as part of their underwriting too, so keep your mortgage application progressing in parallel — the sooner that's in, the sooner the valuation and offer follow.",
+        text: "If you haven't yet paid money on account to your solicitor, do that as soon as you can. They'll need it before they can order searches on your behalf. And if your mortgage application isn't in yet, push on it now. The sooner it's submitted, the sooner the valuation and offer follow.",
         when: { purchaseType: "mortgage" },
-      },
-      // Cash-from-proceeds variant — opens "Your concurrent sale…".
-      {
-        text: "Your concurrent sale is part of the picture too — that sale's exchange is what funds your deposit, so keep us posted on its progress. Your solicitor will want to coordinate the two timelines as exchange approaches.",
-        when: { purchaseType: "cash_from_proceeds" },
       },
     ],
     action: [
@@ -51,22 +39,17 @@ export const PM3_SKELETON: MilestoneSkeleton = {
 
   vendor: {
     subject: [
-      { text: "Buyer's ID checks complete — {address}" },
+      { text: "Buyer's ID checks complete, {address}" },
     ],
     heroLabel: [
       { text: "Buyer's ID & AML complete" },
     ],
     opening: [
-      { text: "The buyer's ID and AML checks are done." },
+      { text: "The buyer's ID and AML checks are done. Their solicitor can now begin substantive work on the purchase." },
     ],
     whatHappened: [
       {
-        text: "The buyer has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the purchase.",
-      },
-    ],
-    whatNext: [
-      {
-        text: "Nothing for you to do right now — this is one of the early signals that things are moving properly on the buyer's side.",
+        text: "Nothing for you to do right now. This is one of the early signals that things are moving properly on the buyer's side.",
       },
     ],
     action: [

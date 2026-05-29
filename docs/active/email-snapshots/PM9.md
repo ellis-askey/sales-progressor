@@ -10,96 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3. This is your own survey, separate from the lender's valuation, and it's the one that gives you the real picture of the property's condition.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3. This is your own survey, separate from the lender's valuation, and it's the one that gives you the real picture of the property's condition.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** Your survey is booked, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your survey is in the diary.
+Your property survey is booked. The surveyor will go through the property in person and produce their report directly to you. A Level 2 (homebuyer) typically takes 1 to 2 hours on site; a Level 3 (full structural) can take 2 to 3.
 
-Your surveyor has been booked. A Level 2 (HomeBuyer Report) gives a clear visual assessment with a defect summary; a Level 3 (Building Survey) is the more thorough option, more typical on older or unusual properties. This is separate from the lender's valuation — it's for your peace of mind, not the lender's risk assessment.
-
-The surveyor will visit the property and produce the report within about a week of the visit. If you have specific concerns — damp you noticed on viewings, a roof you weren't sure about, an extension you want checked — write them down and email them to the surveyor before the visit. A surveyor told what to look at tends to find more than one left to a generic sweep.
+The report usually lands within a week or two of the visit. Once you have it, read it carefully. If anything looks material, call your surveyor before deciding what to do. They've seen enough properties to give you a real sense of whether a finding is meaningful or routine.
 
 → View your portal
 ```
@@ -112,96 +100,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Buyer has booked their survey — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has booked their survey, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer has booked their survey.
+The buyer has booked their property survey. The surveyor will be in touch directly to arrange access. A typical visit is 1 to 3 hours depending on whether it's a Level 2 (homebuyer) or Level 3 (full structural) inspection.
 
-The buyer has booked their property survey. The surveyor will be in touch directly to arrange access — typically a 1–3 hour visit depending on whether it's a Level 2 or Level 3 inspection.
-
-Give the surveyor reasonable access on the agreed date. The report goes to the buyer about a week after the visit; if anything material comes up that affects the sale, it'll come through to your side as questions or a renegotiation conversation.
+Nothing for you to do beyond letting the surveyor in when they come. The report goes to the buyer directly, and any findings that affect the sale will come back to your solicitor as enquiries.
 
 → View your portal
 ```
@@ -210,14 +186,14 @@ Give the surveyor reasonable access on the agreed date. The report goes to the b
 
 ## Progressor — internal log (shape-stable)
 
-**Subject:** PM9 complete: Buyer's survey booked — 22 Example Road, London SW1A 1AA
+**Subject:** PM9 complete: Survey booked — 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
 Logged on 22 Example Road, London SW1A 1AA.
 
-Purchaser has confirmed survey booking.
+Buyer has confirmed booking of property survey.
 
 → View transaction
 ```

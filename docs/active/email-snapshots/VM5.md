@@ -10,96 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, and its planning history. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, and its planning history. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, and its planning history. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, planning history, and on a leasehold sale, the lease, freeholder relationship, and service charges. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, planning history, and on a leasehold sale, the lease, freeholder relationship, and service charges. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Seller is gathering property information — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is gathering property information, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller is gathering property information.
+The seller has their property information forms from their solicitor. Those capture details about the property's history, what's included in the sale, planning history, and on a leasehold sale, the lease, freeholder relationship, and service charges. Their answers go into the contract pack your solicitor will review.
 
-The seller has been sent their property information forms by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history. Their answers will end up in the contract pack your solicitor reviews.
-
-Nothing for you to do right now. The seller will complete and return these to their solicitor in the coming days.
+Nothing for you to do right now. The seller will complete and return the forms in the coming days.
 
 → View your portal
 ```
@@ -112,102 +100,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (the general property questionnaire) and TA10 (fittings and contents).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving anything blank rather than guessing.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (the general property questionnaire) and TA10 (fittings and contents).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving anything blank rather than guessing.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (the general property questionnaire) and TA10 (fittings and contents).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving anything blank rather than guessing.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (general property questionnaire), TA10 (fittings and contents), and TA7 (the leasehold information form, covering the lease itself, your relationship with the freeholder, and service charge details).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-The forms in your pack are TA6 (the general property questionnaire), TA10 (fittings and contents) and TA7 (the leasehold information form — covering the lease itself, the freeholder relationship, service charges, and similar leasehold-specific details). The TA7 in particular needs care; the buyer's solicitor will scrutinise the leasehold answers closely.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, especially on the TA7, call your solicitor before leaving anything blank. The buyer's solicitor will scrutinise the leasehold answers closely.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (general property questionnaire), TA10 (fittings and contents), and TA7 (the leasehold information form, covering the lease itself, your relationship with the freeholder, and service charge details).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-The forms in your pack are TA6 (the general property questionnaire), TA10 (fittings and contents) and TA7 (the leasehold information form — covering the lease itself, the freeholder relationship, service charges, and similar leasehold-specific details). The TA7 in particular needs care; the buyer's solicitor will scrutinise the leasehold answers closely.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, especially on the TA7, call your solicitor before leaving anything blank. The buyer's solicitor will scrutinise the leasehold answers closely.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Property information forms received — 22 Example Road, London SW1A 1AA
+**Subject:** Property information forms received, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor needs information from you.
+Your solicitor needs information from you. The property information forms have arrived: TA6 (general property questionnaire), TA10 (fittings and contents), and TA7 (the leasehold information form, covering the lease itself, your relationship with the freeholder, and service charge details).
 
-Your solicitor has sent you the property information forms. These ask about the property's history, what's included in the sale, any disputes or planning permissions, and more — they're the foundation the buyer's solicitor will use to ask their questions, and your answers go into the contract pack.
-
-The forms in your pack are TA6 (the general property questionnaire), TA10 (fittings and contents) and TA7 (the leasehold information form — covering the lease itself, the freeholder relationship, service charges, and similar leasehold-specific details). The TA7 in particular needs care; the buyer's solicitor will scrutinise the leasehold answers closely.
-
-Complete the forms as thoroughly and accurately as you can — these are legal documents and your answers are part of the contract. Return them to your solicitor promptly. If you're unsure about any question, call your solicitor before leaving it blank.
+Complete these as thoroughly and accurately as you can. They're legal documents and your answers become part of the contract. Return them to your solicitor promptly. If you're unsure about any question, especially on the TA7, call your solicitor before leaving anything blank. The buyer's solicitor will scrutinise the leasehold answers closely.
 
 → View your portal
 ```

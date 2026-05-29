@@ -6,352 +6,564 @@ Generated from `lib/email-skeletons/pm7.ts` by `scripts/render-email-snapshot.ts
 
 ## Purchaser — acted-side acknowledgement
 
-Varies by **route × tenure × purchaseType** (3 × 2 × 3 = 18 bodies).
+Varies by **direction × route × tenure × purchaseType** (2 × 3 × 2 × 3 = 36 bodies). Natural-order copy fires when this code confirms first in its pair; inverse-order copy fires when the counterpart confirmed first.
 
-### Route: Buyer/seller via portal (`client_portal`)
+### Direction: Natural order (this code confirmed first) (`default`)
 
-#### Freehold × Mortgage
+#### Route: Buyer/seller via portal (`client_portal`)
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+##### Freehold × Mortgage
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, keep your mortgage application and your survey progressing in parallel. Both want to be moving while your solicitor works through the pack.
 
 → View your portal
 ```
 
-#### Freehold × Cash buyer
+##### Freehold × Cash buyer
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.
 
 → View your portal
 ```
 
-#### Freehold × Cash from proceeds
+##### Freehold × Cash from proceeds
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.
 
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+A reminder on your related sale: it has to exchange before this purchase can. Keep us posted on how it's progressing.
 
 → View your portal
 ```
 
-#### Leasehold × Mortgage
+##### Leasehold × Mortgage
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, keep your mortgage application and your survey progressing in parallel. Both want to be moving while your solicitor works through the pack.
 
 → View your portal
 ```
 
-#### Leasehold × Cash buyer
+##### Leasehold × Cash buyer
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.
 
 → View your portal
 ```
 
-#### Leasehold × Cash from proceeds
+##### Leasehold × Cash from proceeds
 
-**Subject:** You've confirmed the contract pack has arrived — 22 Example Road, London SW1A 1AA
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thanks — your solicitor has the draft contract pack from the seller's solicitor.
+Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
+Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+A reminder on your related sale: it has to exchange before this purchase can. Keep us posted on how it's progressing.
 
 → View your portal
 ```
 
-### Route: Agent on behalf (`agent`)
+#### Route: Agent on behalf (`agent`)
 
-#### Freehold × Mortgage
+##### Freehold × Mortgage
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel while that's in flight.
 
 → View your portal
 ```
 
-#### Freehold × Cash buyer
+##### Freehold × Cash buyer
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
 
 → View your portal
 ```
 
-#### Freehold × Cash from proceeds
+##### Freehold × Cash from proceeds
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel. And on your related sale: it has to exchange before this purchase can, so keep us posted on how that's moving.
 
 → View your portal
 ```
 
-#### Leasehold × Mortgage
+##### Leasehold × Mortgage
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel while that's in flight.
 
 → View your portal
 ```
 
-#### Leasehold × Cash buyer
+##### Leasehold × Cash buyer
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
 
 → View your portal
 ```
 
-#### Leasehold × Cash from proceeds
+##### Leasehold × Cash from proceeds
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel. And on your related sale: it has to exchange before this purchase can, so keep us posted on how that's moving.
 
 → View your portal
 ```
 
-### Route: Sales Progressor on behalf (`sales_progressor`)
+#### Route: Sales Progressor on behalf (`sales_progressor`)
 
-#### Freehold × Mortgage
+##### Freehold × Mortgage
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel while that's in flight.
 
 → View your portal
 ```
 
-#### Freehold × Cash buyer
+##### Freehold × Cash buyer
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
 
 → View your portal
 ```
 
-#### Freehold × Cash from proceeds
+##### Freehold × Cash from proceeds
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel. And on your related sale: it has to exchange before this purchase can, so keep us posted on how that's moving.
 
 → View your portal
 ```
 
-#### Leasehold × Mortgage
+##### Leasehold × Mortgage
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel while that's in flight.
 
 → View your portal
 ```
 
-#### Leasehold × Cash buyer
+##### Leasehold × Cash buyer
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
-
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
-
-In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
 
 → View your portal
 ```
 
-#### Leasehold × Cash from proceeds
+##### Leasehold × Cash from proceeds
 
-**Subject:** The contract pack is with your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Contract pack received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.
+Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.
 
-That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.
+That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.
 
-The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel. And on your related sale: it has to exchange before this purchase can, so keep us posted on how that's moving.
 
-Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.
+→ View your portal
+```
 
-In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.
+### Direction: Inverse order (counterpart confirmed first) (`inverse`)
+
+#### Route: Buyer/seller via portal (`client_portal`)
+
+##### Freehold × Mortgage
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash buyer
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash from proceeds
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
+
+→ View your portal
+```
+
+##### Leasehold × Mortgage
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash buyer
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash from proceeds
+
+**Subject:** You've confirmed the contract pack has arrived, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.
+
+Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
+
+→ View your portal
+```
+
+#### Route: Agent on behalf (`agent`)
+
+##### Freehold × Mortgage
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash buyer
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash from proceeds
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
+
+→ View your portal
+```
+
+##### Leasehold × Mortgage
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash buyer
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash from proceeds
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
+
+→ View your portal
+```
+
+#### Route: Sales Progressor on behalf (`sales_progressor`)
+
+##### Freehold × Mortgage
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash buyer
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Freehold × Cash from proceeds
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
+
+→ View your portal
+```
+
+##### Leasehold × Mortgage
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash buyer
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.
+
+→ View your portal
+```
+
+##### Leasehold × Cash from proceeds
+
+**Subject:** Contract pack receipt logged, 22 Example Road, London SW1A 1AA
+
+```
+Hi Alex,
+
+Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.
+
+Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.
 
 → View your portal
 ```
@@ -364,102 +576,84 @@ Direction-stable, varies by **tenure × purchaseType** (2 × 3 = 6 bodies).
 
 ### Freehold × Mortgage
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
-
-If you're selling a leasehold, the management pack from your freeholder is a separate moving piece. Your solicitor will let you know when it's in.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
-
-If you're selling a leasehold, the management pack from your freeholder is a separate moving piece. Your solicitor will let you know when it's in.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Please confirm the contract pack has gone out — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer's side has confirmed receipt of the contract pack, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.
+The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.
 
-If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.
-
-The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.
-
-If you're selling a leasehold, the management pack from your freeholder is a separate moving piece. Your solicitor will let you know when it's in.
+When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.
 
 → Open your portal
 ```

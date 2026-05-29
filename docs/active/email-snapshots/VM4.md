@@ -10,96 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a week or two away while the seller completes their property information forms.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a week or two away while the seller completes their property information forms.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a week or two away while the seller completes their property information forms.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a few weeks away while the seller completes their property information forms and waits on the management pack from the freeholder.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a few weeks away while the seller completes their property information forms and waits on the management pack from the freeholder.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Seller's ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** Seller's ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has cleared their ID and AML checks.
+The seller's ID and AML checks are done. Their solicitor can now begin substantive work on the sale.
 
-The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.
-
-Nothing for you to do right now — this is one of the early signals that things are moving properly on the seller's side. The next milestone you'll hear about on this trail is the contract pack going across to your solicitor.
+Nothing for you to do right now. The next thing you'll see on this trail is the contract pack arriving with your solicitor, likely a few weeks away while the seller completes their property information forms and waits on the management pack from the freeholder.
 
 → View your portal
 ```
@@ -112,102 +100,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow a sale down.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow a sale down.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow a sale down.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
-
-Fill in the TA7 leasehold information form promptly when it lands too — that's the one covering the lease itself, your relationship with the freeholder, and service-charge details. It joins TA6 and TA10 in the property forms pack.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6, TA7 for the leasehold side, and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow leasehold sales down.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
-
-Fill in the TA7 leasehold information form promptly when it lands too — that's the one covering the lease itself, your relationship with the freeholder, and service-charge details. It joins TA6 and TA10 in the property forms pack.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6, TA7 for the leasehold side, and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow leasehold sales down.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** ID checks complete — 22 Example Road, London SW1A 1AA
+**Subject:** ID checks complete, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've cleared an important legal requirement.
+ID and AML checks are done. That clears the way for your solicitor to begin substantive work.
 
-Your identity has been verified and your solicitor has completed the anti-money laundering checks required by law. This clears the way for them to begin substantive work on your behalf.
-
-Your solicitor will now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6 and TA10) — fill them in promptly when they arrive. Delays at that stage are one of the main things that slow transactions down.
-
-Fill in the TA7 leasehold information form promptly when it lands too — that's the one covering the lease itself, your relationship with the freeholder, and service-charge details. It joins TA6 and TA10 in the property forms pack.
+They'll now move on to preparing the contract pack. Within the next week or two you'll receive the property information forms (TA6, TA7 for the leasehold side, and TA10). Fill them in promptly when they arrive. Delays at that stage are one of the main things that slow leasehold sales down.
 
 → View your portal
 ```

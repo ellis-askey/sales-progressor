@@ -147,19 +147,28 @@ function renderActedSideBlock(
   if (iterateRoutes) {
     out.push(`## ${recipientLabel} — acted-side acknowledgement`);
     out.push("");
-    out.push("Varies by **route × tenure × purchaseType** (3 × 2 × 3 = 18 bodies).");
+    out.push("Varies by **direction × route × tenure × purchaseType** (2 × 3 × 2 × 3 = 36 bodies). Natural-order copy fires when this code confirms first in its pair; inverse-order copy fires when the counterpart confirmed first.");
     out.push("");
-    for (const route of ROUTES) {
-      out.push(`### Route: ${ROUTE_LABELS[route]} (\`${route}\`)`);
+    const DIRECTIONS: HandoffDirection[] = ["default", "inverse"];
+    const DIR_LABELS: Record<HandoffDirection, string> = {
+      default: "Natural order (this code confirmed first)",
+      inverse: "Inverse order (counterpart confirmed first)",
+    };
+    for (const direction of DIRECTIONS) {
+      out.push(`### Direction: ${DIR_LABELS[direction]} (\`${direction}\`)`);
       out.push("");
-      for (const tenure of TENURES) {
-        for (const pt of PURCHASE_TYPES) {
-          const shape: FileShape = { tenure, purchaseType: pt, route };
-          const assembled = assembleEmail(skeleton, shape);
-          out.push(`#### ${SHAPE_LABELS[tenure]} × ${FUNDING_LABELS[pt]}`);
-          out.push("");
-          out.push(renderEmail(assembled, SNAPSHOT_VARS));
-          out.push("");
+      for (const route of ROUTES) {
+        out.push(`#### Route: ${ROUTE_LABELS[route]} (\`${route}\`)`);
+        out.push("");
+        for (const tenure of TENURES) {
+          for (const pt of PURCHASE_TYPES) {
+            const shape: FileShape = { tenure, purchaseType: pt, route, direction };
+            const assembled = assembleEmail(skeleton, shape);
+            out.push(`##### ${SHAPE_LABELS[tenure]} × ${FUNDING_LABELS[pt]}`);
+            out.push("");
+            out.push(renderEmail(assembled, SNAPSHOT_VARS));
+            out.push("");
+          }
         }
       }
     }

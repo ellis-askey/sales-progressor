@@ -10,96 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Seller is engaging with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Seller is engaging with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The seller has their welcome pack.
+The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side.
 
-The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.
-
-Nothing for you to do right now. The seller will return the forms to their solicitor in due course.
+Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.
 
 → View your portal
 ```
@@ -112,102 +100,90 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
-
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
-
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
-
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
-
-Get the welcome pack back quickly — your solicitor will also be requesting the management pack from your freeholder around now, and that piece typically takes several weeks to come back on its own clock. The sooner the welcome side is sorted, the better positioned you'll be when the management pack lands.
+If you haven't yet, this is also the moment to start chasing your freeholder for the management pack. It's the slowest piece on a leasehold sale, and starting that conversation now will save weeks later.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
-
-Get the welcome pack back quickly — your solicitor will also be requesting the management pack from your freeholder around now, and that piece typically takes several weeks to come back on its own clock. The sooner the welcome side is sorted, the better positioned you'll be when the management pack lands.
+If you haven't yet, this is also the moment to start chasing your freeholder for the management pack. It's the slowest piece on a leasehold sale, and starting that conversation now will save weeks later.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Welcome pack received from your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Welcome pack received from your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your solicitor has made contact.
+Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you.
 
-Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.
+Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.
 
-Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.
-
-Get the welcome pack back quickly — your solicitor will also be requesting the management pack from your freeholder around now, and that piece typically takes several weeks to come back on its own clock. The sooner the welcome side is sorted, the better positioned you'll be when the management pack lands.
+If you haven't yet, this is also the moment to start chasing your freeholder for the management pack. It's the slowest piece on a leasehold sale, and starting that conversation now will save weeks later.
 
 → View your portal
 ```

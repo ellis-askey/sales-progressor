@@ -10,110 +10,92 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in. Get those back as soon as you can. Your solicitor can't start substantive work until they have your ID cleared and your payment on account.
 
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-If you haven't already submitted your mortgage application, that's the other early piece to push on. Your lender will need to instruct their valuation as part of the application, so the sooner that goes in, the sooner the financing side starts moving.
+If you haven't already started your mortgage application, now's the time. The sooner it's in, the sooner the lender's valuation and formal offer follow, and the financing side moves in parallel with the conveyancing.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
-
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in. Get those back as soon as you can. Your solicitor can't start substantive work until they have your ID cleared and your payment on account.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in.
 
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-Your deposit comes from your concurrent sale, so keep us posted on progress over there — that sale's exchange is the gating step for your purchase's exchange, and your solicitor will want to be aware of how it's moving.
+Because your deposit comes from your related sale, that sale has to exchange before this purchase can. The two are tied together at that point. Keep us posted on how the related sale is progressing. Your solicitor will be coordinating the timing of both, and the more visibility everyone has on the other side, the smoother that coordination is.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in. Get those back as soon as you can. Your solicitor can't start substantive work until they have your ID cleared and your payment on account.
 
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-If you haven't already submitted your mortgage application, that's the other early piece to push on. Your lender will need to instruct their valuation as part of the application, so the sooner that goes in, the sooner the financing side starts moving.
-
-One thing worth flagging on the leasehold side — you'll see a management pack come into the process. That's leasehold-specific paperwork from the freeholder, and it often takes several weeks to come back on its own clock. Worth knowing now so it's not a surprise later.
+If you haven't already started your mortgage application, now's the time. The sooner it's in, the sooner the lender's valuation and formal offer follow, and the financing side moves in parallel with the conveyancing.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
-
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-One thing worth flagging on the leasehold side — you'll see a management pack come into the process. That's leasehold-specific paperwork from the freeholder, and it often takes several weeks to come back on its own clock. Worth knowing now so it's not a surprise later.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in. Get those back as soon as you can. Your solicitor can't start substantive work until they have your ID cleared and your payment on account.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** You've instructed your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Your solicitor's instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-You've taken the first step.
+Your solicitor's instructed. That's the start of conveyancing on your purchase.
 
-You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.
+They'll be in touch shortly with their welcome pack: terms of business, ID requirements, and the first forms you'll need to fill in.
 
-Return your solicitor's welcome pack and complete your ID checks as quickly as possible — your solicitor cannot begin substantive work on your purchase until both are in place.
-
-Your deposit comes from your concurrent sale, so keep us posted on progress over there — that sale's exchange is the gating step for your purchase's exchange, and your solicitor will want to be aware of how it's moving.
-
-One thing worth flagging on the leasehold side — you'll see a management pack come into the process. That's leasehold-specific paperwork from the freeholder, and it often takes several weeks to come back on its own clock. Worth knowing now so it's not a surprise later.
+Because your deposit comes from your related sale, that sale has to exchange before this purchase can. The two are tied together at that point. Keep us posted on how the related sale is progressing. Your solicitor will be coordinating the timing of both, and the more visibility everyone has on the other side, the smoother that coordination is.
 
 → View your portal
 ```
@@ -126,96 +108,96 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks, getting funds on account with their solicitor, and submitting their mortgage application. The mortgage runs in parallel with the conveyancing: application, then the lender's valuation, then the formal offer. We'll keep you posted as the financing side progresses.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks and getting funds on account with their solicitor, which covers the cost of searches and disbursements during conveyancing. The buyer is purchasing in cash, so there's no mortgage to arrange. That removes one of the most common sources of delay and uncertainty in a sale.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks and getting funds on account with their solicitor, which covers the cost of searches and disbursements during conveyancing. They're funding this purchase from their own sale's equity, so their related sale is running alongside this one, and their solicitor will be coordinating both transactions.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks, getting funds on account with their solicitor, and submitting their mortgage application. The mortgage runs in parallel with the conveyancing: application, then the lender's valuation, then the formal offer. We'll keep you posted as the financing side progresses.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks and getting funds on account with their solicitor, which covers the cost of searches and disbursements during conveyancing. The buyer is purchasing in cash, so there's no mortgage to arrange. That removes one of the most common sources of delay and uncertainty in a sale.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** The buyer has instructed their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** The buyer's solicitor is instructed, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer is now formally instructed.
+The buyer's solicitor is instructed. Both sides are now formally in motion.
 
-The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.
+The buyer's next steps are their ID checks and getting funds on account with their solicitor, which covers the cost of searches and disbursements during conveyancing. They're funding this purchase from their own sale's equity, so their related sale is running alongside this one, and their solicitor will be coordinating both transactions.
 
-Nothing for you to do right now. We'll keep you updated as the buyer's side progresses through the early steps — ID checks, mortgage application if applicable, and payment on account to their solicitor.
+Nothing for you to do right now. The next thing you'll see on your side is the welcome pack from your solicitor.
 
 → View your portal
 ```

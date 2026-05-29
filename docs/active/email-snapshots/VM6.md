@@ -10,102 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across shortly.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across shortly.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across shortly.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
-
-One thing to be aware of on a leasehold purchase — the seller's solicitor also needs the management pack from the freeholder before the full contract pack can come across. If that hasn't landed on the seller's side yet, that's the remaining piece you're waiting on.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across, though on a leasehold sale they may be waiting on the management pack from the freeholder before they can send everything together.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
-
-One thing to be aware of on a leasehold purchase — the seller's solicitor also needs the management pack from the freeholder before the full contract pack can come across. If that hasn't landed on the seller's side yet, that's the remaining piece you're waiting on.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across, though on a leasehold sale they may be waiting on the management pack from the freeholder before they can send everything together.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** The seller has returned their property information forms — 22 Example Road, London SW1A 1AA
+**Subject:** The seller has returned their property information forms, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Property forms returned on the seller's side.
+The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor.
 
-The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.
-
-Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.
-
-One thing to be aware of on a leasehold purchase — the seller's solicitor also needs the management pack from the freeholder before the full contract pack can come across. If that hasn't landed on the seller's side yet, that's the remaining piece you're waiting on.
+Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across, though on a leasehold sale they may be waiting on the management pack from the freeholder before they can send everything together.
 
 → View your portal
 ```
@@ -118,102 +100,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
+Once everything's assembled, the contract pack goes across to the buyer's solicitor, and the substantive review on their side begins.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
+Once everything's assembled, the contract pack goes across to the buyer's solicitor, and the substantive review on their side begins.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
+Once everything's assembled, the contract pack goes across to the buyer's solicitor, and the substantive review on their side begins.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents and (once it lands) the management pack from your freeholder.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
-
-Chase the freeholder yourself if the management pack's still outstanding — that's the piece the contract pack needs before it can go out in full. If it's already back, your solicitor will fold it in and issue the contract pack imminently. If not, it's the remaining piece holding things up.
+The contract pack goes to the buyer's solicitor once everything's in. If the management pack hasn't arrived yet, that's likely to be the remaining piece holding the contract pack back. A polite nudge to your freeholder this week is worth doing if you haven't already.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents and (once it lands) the management pack from your freeholder.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
-
-Chase the freeholder yourself if the management pack's still outstanding — that's the piece the contract pack needs before it can go out in full. If it's already back, your solicitor will fold it in and issue the contract pack imminently. If not, it's the remaining piece holding things up.
+The contract pack goes to the buyer's solicitor once everything's in. If the management pack hasn't arrived yet, that's likely to be the remaining piece holding the contract pack back. A polite nudge to your freeholder this week is worth doing if you haven't already.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Property forms returned to your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Property forms returned to your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Your forms are back with your solicitor.
+Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents and (once it lands) the management pack from your freeholder.
 
-Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.
-
-Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.
-
-Chase the freeholder yourself if the management pack's still outstanding — that's the piece the contract pack needs before it can go out in full. If it's already back, your solicitor will fold it in and issue the contract pack imminently. If not, it's the remaining piece holding things up.
+The contract pack goes to the buyer's solicitor once everything's in. If the management pack hasn't arrived yet, that's likely to be the remaining piece holding the contract pack back. A polite nudge to your freeholder this week is worth doing if you haven't already.
 
 → View your portal
 ```

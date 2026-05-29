@@ -1,18 +1,9 @@
 // VM11 — Seller has provided initial replies to their solicitor.
 //
 // Non-bilateral, internal seller-side step between VM10 (enquiries
-// received) and VM12 (replies issued to buyer's side). The seller has
-// done their part — answered the questions their solicitor put to them
-// — and now the solicitor will compile the formal response.
+// received) and VM12 (replies issued to buyer's side). Shape-stable.
 //
-// Cross-milestone discipline: VM10 already explained what enquiries are
-// and that the seller would be asked for input. VM12 will cover the
-// "replies sent across" moment. This body's distinct beat is "your
-// work on this is done; your solicitor is now writing it up formally."
-// Short and focused.
-//
-// Buyer-side: a heads-up that the seller has provided their input.
-// Buyer's solicitor doesn't yet have the formal replies — that's VM12.
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -20,26 +11,18 @@ export const VM11_SKELETON: MilestoneSkeleton = {
 
   vendor: {
     subject: [
-      { text: "Replies to enquiries — your part is done — {address}" },
+      { text: "Your input on the enquiries is in, {address}" },
     ],
     heroLabel: [
-      { text: "Replies provided to solicitor" },
+      { text: "Replies drafted with you" },
     ],
     opening: [
-      { text: "That's your part of the enquiry response done — your input's now with your solicitor for the formal replies." },
+      { text: "Your part of the enquiry response is done. The answers and information you sent to your solicitor cover the points the buyer's side raised in the first round." },
     ],
-    whatHappened: [
-      // Trimmed: opening now carries "your part done" + "input with
-      // solicitor"; whatHappened restated both. Dropped the restatement
-      // sentence; kept the substance about what kind of answers were
-      // provided.
-      {
-        text: "The answers and information you sent across cover the points the buyer's solicitor raised in the first round of enquiries.",
-      },
-    ],
+    whatHappened: [],
     whatNext: [
       {
-        text: "Your solicitor will now compile your input into the formal written replies and send them across to the buyer's solicitor — typically within a few days.",
+        text: "Your solicitor will now compile your input into the formal written replies and send them across to the buyer's solicitor, typically within a few days.",
       },
     ],
     action: [
@@ -49,22 +32,18 @@ export const VM11_SKELETON: MilestoneSkeleton = {
 
   purchaser: {
     subject: [
-      { text: "Seller has provided their input on the enquiries — {address}" },
+      { text: "Seller has provided their input on the enquiries, {address}" },
     ],
     heroLabel: [
-      { text: "Seller's replies in progress" },
+      { text: "Replies being drafted" },
     ],
     opening: [
-      { text: "Movement on the enquiries." },
+      { text: "Movement on the enquiries. The seller has given their solicitor the input needed to draft the formal replies, which will then come across to your solicitor." },
     ],
-    whatHappened: [
-      {
-        text: "The seller has provided their input to their solicitor on the initial enquiries. Their solicitor will now compile the formal written replies and send them across to your solicitor.",
-      },
-    ],
+    whatHappened: [],
     whatNext: [
       {
-        text: "Expect the replies to land with your solicitor in the next few days.",
+        text: "Expect the replies to land in the next few days.",
       },
     ],
     action: [
@@ -74,16 +53,16 @@ export const VM11_SKELETON: MilestoneSkeleton = {
 
   progressor: {
     subject: [
-      { text: "VM11 complete: Seller provided replies to solicitor — {address}" },
+      { text: "VM11 complete: Seller input on enquiries provided — {address}" },
     ],
     heroLabel: [
-      { text: "VM11 — Seller's replies provided" },
+      { text: "VM11 — Seller input provided" },
     ],
     opening: [
       { text: "Logged on {address}." },
     ],
     whatHappened: [
-      { text: "Vendor has confirmed provision of replies to enquiries to vendor solicitor." },
+      { text: "Vendor has confirmed providing input to solicitor for initial enquiry replies." },
     ],
     action: [
       { text: "View transaction" },

@@ -1,43 +1,30 @@
 // PM23 — Buyer's solicitor has received the signed contract documents
 // back from the buyer.
 //
-// Universal across shape (except funding: CFP gets a brief concurrent-
-// sale note because the buyer's purchase contracts being signed has to
-// align with their sale's contracts being signed for exchange to happen).
-// Mirror of VM17 on the buyer side, but carries more weight as the
-// emotional moment: with both sides now signed, exchange becomes the
-// next imminent step.
+// Vendor: shape-stable. Purchaser: closing paragraph branches three ways
+// by purchaseType (cash deposit-next / mortgage offer-in-place / chain
+// coordination).
+//
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM23_SKELETON: MilestoneSkeleton = {
 
-  purchaser: {
+  vendor: {
     subject: [
-      { text: "Your signed contracts are back with your solicitor — {address}" },
+      { text: "Buyer's signed contracts received by their solicitor, {address}" },
     ],
     heroLabel: [
-      { text: "Contracts signed" },
+      { text: "Buyer's contracts signed" },
     ],
     opening: [
-      { text: "Your signed contracts are back with your solicitor." },
+      { text: "The buyer's signed contracts are back with their solicitor. Both sides are now signed and held in escrow." },
     ],
-    whatHappened: [
-      {
-        text: "Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side.",
-      },
-    ],
+    whatHappened: [],
     whatNext: [
-      // Universal — exchange-imminent framing + deposit reminder.
       {
-        text: "Exchange happens when both solicitors confirm everyone's ready — deposit funds with your solicitor, both sides signed, completion date agreed. If you haven't already transferred the deposit, your solicitor will be coordinating that with you separately. We'll let you know the moment exchange happens.",
-      },
-      // CFP variant — concurrent sale must be at the same stage. Real
-      // gating concern at this milestone (you can't exchange your
-      // purchase without your sale exchanging in parallel).
-      {
-        text: "On your concurrent sale, your side has to be at the same signed-and-ready stage for exchange to happen — your solicitor coordinates both transactions and will let you know if your sale's timeline needs nudging to keep the two in step.",
-        when: { purchaseType: "cash_from_proceeds" },
+        text: "The two solicitors will coordinate the exchange moment from here.",
       },
     ],
     action: [
@@ -45,30 +32,32 @@ export const PM23_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  vendor: {
+  purchaser: {
     subject: [
-      { text: "Buyer has signed the contracts — {address}" },
+      { text: "Your signed contracts are back with your solicitor, {address}" },
     ],
     heroLabel: [
-      { text: "Buyer signed" },
+      { text: "Signed contracts in" },
     ],
     opening: [
-      { text: "The buyer has signed." },
+      { text: "Your signed contracts are back with your solicitor. Your active part of the contract sign-off is complete. Your solicitor will hold the signed documents in escrow and finalise the exchange coordination with the seller's side." },
     ],
-    whatHappened: [
-      // Order-agnostic — VM17 and PM23 can fire in either order. Earlier
-      // draft said "Both sides are now at the signed-and-held-in-escrow
-      // stage", which presupposes the seller has already signed.
-      {
-        text: "The buyer has signed and returned their contract documents. The conveyancing work on the buyer's side is done; once both sides' signed contracts are in escrow, exchange is the next moment.",
-      },
-    ],
+    whatHappened: [],
     whatNext: [
-      // Order-agnostic — earlier draft said "the two solicitors will now
-      // agree the exchange timing — usually within a few days", which
-      // assumes the seller has already signed.
+      // Cash buyer — deposit-next.
       {
-        text: "If the seller's side is also signed, the two solicitors can move straight to agreeing an exchange moment — usually within a few days, sometimes the same day. If their signing is still in flight, exchange follows as soon as that lands. Either way, exchange is the next milestone we'll fire on this file.",
+        text: "The remaining step before exchange is your deposit reaching your solicitor, ready to transfer on exchange. Your solicitor will let you know the amount and timing if they haven't already.",
+        when: { purchaseType: "cash_buyer" },
+      },
+      // Mortgage — same deposit-next plus mortgage-already-in-place.
+      {
+        text: "The remaining step before exchange is your deposit reaching your solicitor, ready to transfer on exchange. With your mortgage offer already in place, that's the last piece before the two solicitors can agree the exchange moment. Your solicitor will let you know the deposit amount and timing if they haven't already.",
+        when: { purchaseType: "mortgage" },
+      },
+      // Cash-from-proceeds — chain coordination framing replaces deposit-next.
+      {
+        text: "Exchange happens when both solicitors confirm everyone's ready: both sides signed, completion date agreed, and on your side, your related sale at the same signed-and-ready stage. Your solicitor coordinates both transactions and will let you know if your sale's timeline needs nudging to keep the two in step.",
+        when: { purchaseType: "cash_from_proceeds" },
       },
     ],
     action: [
@@ -78,16 +67,16 @@ export const PM23_SKELETON: MilestoneSkeleton = {
 
   progressor: {
     subject: [
-      { text: "PM23 complete: Buyer signed contracts returned — {address}" },
+      { text: "PM23 complete: Buyer's signed contracts received — {address}" },
     ],
     heroLabel: [
-      { text: "PM23 — Buyer signed contracts received" },
+      { text: "PM23 — Buyer's signed contracts received" },
     ],
     opening: [
       { text: "Logged on {address}." },
     ],
     whatHappened: [
-      { text: "Purchaser solicitor has confirmed receipt of signed contract documents from purchaser. Both sides now signed and ready for exchange." },
+      { text: "Buyer's solicitor has confirmed receipt of signed contract documents from the buyer." },
     ],
     action: [
       { text: "View transaction" },

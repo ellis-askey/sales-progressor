@@ -1,14 +1,10 @@
 // VM3 — Seller has received the welcome pack from their solicitor.
 //
-// Mostly universal — the welcome pack itself is the same regardless of
-// shape (terms of business + property questionnaire + ID list). Shape
-// relevance is minor:
-//   - Tenure: vendor whatNext adds a brief leasehold heads-up about the
-//     management pack request that's running in parallel.
-//   - Funding: none — buyer-side funding doesn't affect the seller's
-//     welcome-pack experience.
+// Non-bilateral, no route/direction conditioning. Vendor's "what next"
+// branches on tenure (leasehold adds the management-pack-chase paragraph).
+// Purchaser is universal — no shape conditioning in the FINAL.
 //
-// No bilateral pair. Single fan-out per side.
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -16,27 +12,23 @@ export const VM3_SKELETON: MilestoneSkeleton = {
 
   vendor: {
     subject: [
-      { text: "Welcome pack received from your solicitor — {address}" },
+      { text: "Welcome pack received from your solicitor, {address}" },
     ],
     heroLabel: [
       { text: "Welcome pack received" },
     ],
     opening: [
-      { text: "Your solicitor has made contact." },
+      { text: "Your solicitor's welcome pack has landed. That's their terms of business, the property questionnaire, and the ID requirements they need from you." },
     ],
     whatHappened: [
       {
-        text: "Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.",
+        text: "Get this back as quickly as you can. Your solicitor can't do substantive work on your sale until your ID is cleared, the AML checks are done, and the forms are returned. A few days is the right benchmark. Longer than that and the sale starts losing pace.",
       },
     ],
     whatNext: [
-      // Universal — return the pack.
+      // Leasehold — adds the management-pack chase paragraph.
       {
-        text: "Complete the forms and return them as soon as you can — ideally within a few days. Your solicitor cannot begin substantive work on your sale until these are back with them.",
-      },
-      // Leasehold note — the parallel management-pack request.
-      {
-        text: "Get the welcome pack back quickly — your solicitor will also be requesting the management pack from your freeholder around now, and that piece typically takes several weeks to come back on its own clock. The sooner the welcome side is sorted, the better positioned you'll be when the management pack lands.",
+        text: "If you haven't yet, this is also the moment to start chasing your freeholder for the management pack. It's the slowest piece on a leasehold sale, and starting that conversation now will save weeks later.",
         when: { tenure: "leasehold" },
       },
     ],
@@ -47,22 +39,17 @@ export const VM3_SKELETON: MilestoneSkeleton = {
 
   purchaser: {
     subject: [
-      { text: "Seller is engaging with their solicitor — {address}" },
+      { text: "Seller is engaging with their solicitor, {address}" },
     ],
     heroLabel: [
       { text: "Seller received welcome pack" },
     ],
     opening: [
-      { text: "The seller has their welcome pack." },
+      { text: "The seller has their welcome pack from their solicitor. That's the kick-off paperwork for conveyancing on their side." },
     ],
     whatHappened: [
       {
-        text: "The seller has received their welcome pack from their solicitor — the kick-off paperwork for conveyancing on their side.",
-      },
-    ],
-    whatNext: [
-      {
-        text: "Nothing for you to do right now. The seller will return the forms to their solicitor in due course.",
+        text: "Nothing for you to do right now. The seller will return the forms to their solicitor in the coming days.",
       },
     ],
     action: [

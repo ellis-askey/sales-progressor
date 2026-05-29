@@ -1,50 +1,40 @@
 // PM7 — Buyer's solicitor has received the draft contract pack.
 //
-// Spike skeleton authored in Model B (composition). The proof spike for
-// whether per-paragraph conditional sections assemble into prose that
-// reads as polished as a hand-written email.
+// Bilateral milestone, counterpart to VM7. PM7 is the natural second-actor
+// in the (VM7, PM7) pair. The purchaser (acted side) gets four variants —
+// route (portal / internal) × direction (default / inverse). The vendor
+// gets the inverse-direction hand-off nudge only; in default direction
+// VM7 fired its own vendor ack and no nudge is needed.
 //
-// PM7 exercises all three condition dimensions:
-//   • tenure       — leasehold-only paragraph re. the management pack
-//                    arriving separately
-//   • purchaseType — three branches of the "what's the other thing in
-//                    flight while enquiries run" sentence (mortgage /
-//                    cash buyer / cash from proceeds)
-//   • route        — three confirmer paths for the acted-side (purchaser)
-//                    acknowledgement opening
+// Tenure conditioning sits on the pack-composition paragraph (management
+// pack added on leasehold). PurchaseType conditioning is on the closing
+// "what's in flight in parallel" paragraph — three branches, one per
+// purchaseType.
 //
-// And the inverse direction:
-//   • direction=inverse — vendor receives a hand-off nudge when PM7
-//                          confirms before VM7 (buyer's sol logged
-//                          receipt before seller's sol logged dispatch)
-//
-// Recipient set (matches existing PM7 emailCopy in lib/portal-copy.ts):
-//   purchaser (acted-side ack — varies by route × shape)
-//   vendor    (inverse-direction hand-off nudge — varies by shape)
-//   progressor (universal internal log — shape-stable)
-//   no vendorAgent variant (matches current code — no change in this spike)
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM7_SKELETON: MilestoneSkeleton = {
 
-  // ── Purchaser: acted-side acknowledgement ─────────────────────────────
-  //
-  // Fires when PM7 itself is confirmed. Opening varies by who clicked:
-  // first-person "you've confirmed" for client-via-portal; third-person
-  // "we've recorded that your solicitor" for agent/SP on behalf.
-  // whatHappened universal. whatNext branches on funding (the previous
-  // flat-string assumed mortgage; this fixes that for cash buyers and
-  // cash-from-proceeds buyers). Leasehold note added to whatHappened.
+  // ── Purchaser: acted-side acknowledgement (4 variants) ────────────────
   purchaser: {
     subject: [
       {
-        text: "You've confirmed the contract pack has arrived — {address}",
-        when: { route: "client_portal" },
+        text: "You've confirmed the contract pack has arrived, {address}",
+        when: { route: "client_portal", direction: "default" },
       },
       {
-        text: "The contract pack is with your solicitor — {address}",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "Contract pack received by your solicitor, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      {
+        text: "You've confirmed the contract pack has arrived, {address}",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      {
+        text: "Contract pack receipt logged, {address}",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
@@ -53,53 +43,103 @@ export const PM7_SKELETON: MilestoneSkeleton = {
     ],
 
     opening: [
+      // Default × Portal.
       {
-        text: "Thanks — your solicitor has the draft contract pack from the seller's solicitor.",
-        when: { route: "client_portal" },
+        text: "Thanks. You've confirmed your solicitor has the draft contract pack from the seller's side.",
+        when: { route: "client_portal", direction: "default" },
       },
+      // Default × Internal.
       {
-        text: "Your solicitor now has everything they need to start the legal review — the draft contract pack has arrived from the seller's solicitor.",
-        when: { route: { in: ["agent", "sales_progressor"] } },
+        text: "Your solicitor now has the draft contract pack from the seller's solicitor. We've logged it on your purchase.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "default" },
+      },
+      // Inverse × Portal.
+      {
+        text: "Thanks. You've confirmed your solicitor has the contract pack from the seller's side, ahead of the seller's confirmation that it went out. Both sides are now in sync on the file.",
+        when: { route: "client_portal", direction: "inverse" },
+      },
+      // Inverse × Internal.
+      {
+        text: "Your solicitor has the contract pack from the seller's side. We've logged it on your purchase, ahead of the seller's side logging that it went out.",
+        when: { route: { in: ["agent", "sales_progressor"] }, direction: "inverse" },
       },
     ],
 
     whatHappened: [
-      // Universal — the substantive description of the event. Note:
-      // trimmed in v2 to drop the trailing "and start raising enquiries"
-      // mention, because whatNext's universal first paragraph already
-      // covers that — and across every assembled shape both sections fire,
-      // so the original was a duplication every reader saw.
+      // Default direction — pack-composition paragraph fires. Freehold.
       {
-        text: "That's the bundle of documents that forms the legal foundation of your purchase — the draft contract, title documents, property information forms, and any relevant certificates. Your solicitor will now review everything carefully.",
+        text: "That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, and the seller's property information forms.",
+        when: { direction: "default", tenure: "freehold" },
       },
-      // Leasehold addendum — separate paragraph, only on leasehold files.
+      // Default direction — leasehold variant adds management pack.
       {
-        text: "The management pack from the freeholder is a separate delivery — that can take several weeks longer to arrive than the rest of the contract pack, and your solicitor will fold it into the enquiries when it lands.",
-        when: { tenure: "leasehold" },
+        text: "That's the bundle of documents that forms the legal foundation of your purchase: the draft contract, title documents, the seller's property information forms, and the management pack from the freeholder.",
+        when: { direction: "default", tenure: "leasehold" },
       },
+      // Inverse direction — no pack-composition paragraph at all. The
+      // body collapses to opening + whatNext.
     ],
 
     whatNext: [
-      // Universal — the "your solicitor will work through it" + searches
-      // reminder. Applies on every shape.
+      // Default × Portal × cash_buyer.
       {
-        text: "Your solicitor will work through the contract pack and raise enquiries with the seller's side. If you haven't already ordered searches, make sure that's in hand — your solicitor needs your payment on account before they can do so.",
+        text: "Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.",
+        when: { direction: "default", route: "client_portal", purchaseType: "cash_buyer" },
       },
-      // Mortgage variant — calls out the mortgage application + survey.
+      // Default × Portal × mortgage.
       {
-        text: "In parallel, keep your mortgage application and survey progressing — both want to be moving while the enquiries are in flight.",
-        when: { purchaseType: "mortgage" },
+        text: "Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, keep your mortgage application and your survey progressing in parallel. Both want to be moving while your solicitor works through the pack.",
+        when: { direction: "default", route: "client_portal", purchaseType: "mortgage" },
       },
-      // Cash buyer variant — drops the mortgage reference, keeps survey.
+      // Default × Portal × cash_from_proceeds.
       {
-        text: "In parallel, your survey is the other big thing in flight — make sure that's progressing while the enquiries are out.",
-        when: { purchaseType: "cash_buyer" },
+        text: "Your solicitor will now review everything carefully and raise enquiries with the seller's solicitor over the next week or two. While that's in flight, your survey is the other big piece worth keeping moving in parallel.\n\nA reminder on your related sale: it has to exchange before this purchase can. Keep us posted on how it's progressing.",
+        when: { direction: "default", route: "client_portal", purchaseType: "cash_from_proceeds" },
       },
-      // Cash-from-proceeds variant — survey + the concurrent-sale deposit
-      // dependency, which is the real gating step for this funding shape.
+      // Default × Internal × cash_buyer.
       {
-        text: "In parallel, your survey is the other piece in flight — and your concurrent sale's exchange is the gating step on your end, since your deposit comes from those proceeds.",
-        when: { purchaseType: "cash_from_proceeds" },
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.",
+        when: { direction: "default", route: { in: ["agent", "sales_progressor"] }, purchaseType: "cash_buyer" },
+      },
+      // Default × Internal × mortgage.
+      {
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel while that's in flight.",
+        when: { direction: "default", route: { in: ["agent", "sales_progressor"] }, purchaseType: "mortgage" },
+      },
+      // Default × Internal × cash_from_proceeds.
+      {
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel. And on your related sale: it has to exchange before this purchase can, so keep us posted on how that's moving.",
+        when: { direction: "default", route: { in: ["agent", "sales_progressor"] }, purchaseType: "cash_from_proceeds" },
+      },
+      // Inverse × Portal × cash_buyer.
+      {
+        text: "Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.",
+        when: { direction: "inverse", route: "client_portal", purchaseType: "cash_buyer" },
+      },
+      // Inverse × Portal × mortgage.
+      {
+        text: "Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.",
+        when: { direction: "inverse", route: "client_portal", purchaseType: "mortgage" },
+      },
+      // Inverse × Portal × cash_from_proceeds.
+      {
+        text: "Your solicitor will review the pack carefully and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.",
+        when: { direction: "inverse", route: "client_portal", purchaseType: "cash_from_proceeds" },
+      },
+      // Inverse × Internal × cash_buyer.
+      {
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel.",
+        when: { direction: "inverse", route: { in: ["agent", "sales_progressor"] }, purchaseType: "cash_buyer" },
+      },
+      // Inverse × Internal × mortgage.
+      {
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your mortgage application and your survey progressing in parallel.",
+        when: { direction: "inverse", route: { in: ["agent", "sales_progressor"] }, purchaseType: "mortgage" },
+      },
+      // Inverse × Internal × cash_from_proceeds.
+      {
+        text: "Your solicitor will now review everything and raise enquiries with the seller's solicitor over the next week or two. Keep your survey progressing in parallel, and keep us posted on your related sale, which has to exchange before this purchase can.",
+        when: { direction: "inverse", route: { in: ["agent", "sales_progressor"] }, purchaseType: "cash_from_proceeds" },
       },
     ],
 
@@ -110,22 +150,12 @@ export const PM7_SKELETON: MilestoneSkeleton = {
 
   // ── Vendor: inverse-direction hand-off nudge ──────────────────────────
   //
-  // Fires when PM7 confirms BEFORE VM7 — i.e. the buyer's sol logged
-  // receipt before the seller's sol logged dispatch. The platform infers
-  // the seller's side dispatched the pack (you can't receive what wasn't
-  // sent) and asks the seller to log it on their portal.
-  //
-  // Direction-stable: this vendor body only fires under direction=inverse.
-  // When direction=default (VM7 confirmed first), VM7 fires its own
-  // vendor ack via VM7's skeleton, and this nudge doesn't apply.
-  //
-  // Shape variation: leasehold adds a note about the management pack
-  // being a separate moving piece, so the seller is primed to expect it
-  // arriving on its own clock.
+  // Fires only when PM7 confirms BEFORE VM7. Direction-stable: shape-
+  // agnostic body — no tenure or purchaseType conditioning per FINAL.
   vendor: {
     subject: [
       {
-        text: "Please confirm the contract pack has gone out — {address}",
+        text: "Buyer's side has confirmed receipt of the contract pack, {address}",
         when: { direction: "inverse" },
       },
     ],
@@ -136,28 +166,15 @@ export const PM7_SKELETON: MilestoneSkeleton = {
 
     opening: [
       {
-        text: "The buyer's solicitor has already logged receipt of the draft contract pack on their side — so it sounds like your solicitor sent it across as planned, even if that hasn't reached us yet.",
+        text: "The buyer's side has logged receipt of the contract pack ahead of your side confirming it was issued.",
         when: { direction: "inverse" },
       },
     ],
 
     whatHappened: [
       {
-        text: "If you've got ten seconds, open your portal and confirm you're aware the pack has been sent — the button's already highlighted and waiting. That brings our records back in step with theirs.",
+        text: "When you've spoken to your solicitor and they've confirmed it's gone out, open your portal and tap the highlighted confirm button to bring the two in sync. Takes about ten seconds.",
         when: { direction: "inverse" },
-      },
-    ],
-
-    whatNext: [
-      // Universal forward-look: enquiries are next.
-      {
-        text: "The buyer's solicitor will be reviewing the pack now and is likely to raise enquiries in the next week or two. Your solicitor will handle those — expect them to come to you directly on any specific point that needs your read.",
-        when: { direction: "inverse" },
-      },
-      // Leasehold addendum — separate paragraph.
-      {
-        text: "If you're selling a leasehold, the management pack from your freeholder is a separate moving piece. Your solicitor will let you know when it's in.",
-        when: { direction: "inverse", tenure: "leasehold" },
       },
     ],
 
@@ -166,11 +183,7 @@ export const PM7_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  // ── Progressor: internal log (shape-stable, single body) ──────────────
-  //
-  // Mirrors the existing PM7 progressor variant verbatim. No shape or
-  // route conditioning — internal audience reads codes and short factual
-  // bodies; they don't need shape-specific framing.
+  // ── Progressor: internal log (preserved unchanged) ────────────────────
   progressor: {
     subject: [
       { text: "PM7 complete: Contract pack received — {address}" },
@@ -184,7 +197,6 @@ export const PM7_SKELETON: MilestoneSkeleton = {
     whatHappened: [
       { text: "Buyer's solicitor has confirmed receipt of draft contract pack." },
     ],
-    // No whatNext for progressor — by convention.
     action: [
       { text: "View transaction" },
     ],

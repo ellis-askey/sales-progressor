@@ -1,9 +1,11 @@
 // VM6 — Seller has returned completed property information forms.
 //
-// Positive milestone — the forms are back with the solicitor and the
-// contract pack is next. Mostly universal; leasehold note flags the
-// pending management pack as the remaining piece before the full
-// contract pack can go out.
+// Non-bilateral, no route/direction conditioning. Vendor branches on
+// tenure (leasehold rewrites both body paragraphs around the management
+// pack as the remaining gating piece). Purchaser branches on tenure
+// (leasehold adds the "may be waiting on the management pack" clause).
+//
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
@@ -11,27 +13,32 @@ export const VM6_SKELETON: MilestoneSkeleton = {
 
   vendor: {
     subject: [
-      { text: "Property forms returned to your solicitor — {address}" },
+      { text: "Property forms returned to your solicitor, {address}" },
     ],
     heroLabel: [
       { text: "Property forms returned" },
     ],
     opening: [
-      { text: "Your forms are back with your solicitor." },
+      // Freehold — straightforward fold-in framing.
+      {
+        text: "Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents.",
+        when: { tenure: "freehold" },
+      },
+      // Leasehold — mentions the management pack as part of the fold-in.
+      {
+        text: "Your completed property information forms are back with your solicitor. They'll now fold them into the contract pack alongside the title documents and (once it lands) the management pack from your freeholder.",
+        when: { tenure: "leasehold" },
+      },
     ],
     whatHappened: [
+      // Freehold — contract pack goes once forms returned.
       {
-        text: "Your completed property information forms have been received by your solicitor. They'll now incorporate these into the contract pack and send everything to the buyer's solicitor.",
+        text: "Once everything's assembled, the contract pack goes across to the buyer's solicitor, and the substantive review on their side begins.",
+        when: { tenure: "freehold" },
       },
-    ],
-    whatNext: [
-      // Universal — contract pack next.
+      // Leasehold — management pack as the gating piece.
       {
-        text: "Your solicitor will issue the draft contract pack to the buyer's solicitor over the coming days; the next email on this trail will be the issuance confirmation.",
-      },
-      // Leasehold note — the management pack is the remaining piece.
-      {
-        text: "Chase the freeholder yourself if the management pack's still outstanding — that's the piece the contract pack needs before it can go out in full. If it's already back, your solicitor will fold it in and issue the contract pack imminently. If not, it's the remaining piece holding things up.",
+        text: "The contract pack goes to the buyer's solicitor once everything's in. If the management pack hasn't arrived yet, that's likely to be the remaining piece holding the contract pack back. A polite nudge to your freeholder this week is worth doing if you haven't already.",
         when: { tenure: "leasehold" },
       },
     ],
@@ -42,29 +49,23 @@ export const VM6_SKELETON: MilestoneSkeleton = {
 
   purchaser: {
     subject: [
-      { text: "The seller has returned their property information forms — {address}" },
+      { text: "The seller has returned their property information forms, {address}" },
     ],
     heroLabel: [
       { text: "Property forms returned" },
     ],
     opening: [
-      { text: "Property forms returned on the seller's side." },
+      { text: "The seller has returned their completed property information forms to their solicitor. Those will be included in the contract pack that comes to your solicitor." },
     ],
     whatHappened: [
+      // Freehold — clean handoff, no extra wait described.
       {
-        text: "The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.",
+        text: "Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across shortly.",
+        when: { tenure: "freehold" },
       },
-    ],
-    whatNext: [
-      // Universal — wait for contract pack.
+      // Leasehold — adds the "may be waiting on the management pack" clause.
       {
-        text: "Nothing to do from your side right now. The seller's solicitor will now finalise the contract pack and send it across to your solicitor.",
-      },
-      // Leasehold note — management pack is the remaining gating piece
-      // on the seller's side, so the buyer knows why there might still
-      // be a wait before the contract pack lands.
-      {
-        text: "One thing to be aware of on a leasehold purchase — the seller's solicitor also needs the management pack from the freeholder before the full contract pack can come across. If that hasn't landed on the seller's side yet, that's the remaining piece you're waiting on.",
+        text: "Nothing to do from your side right now. The seller's solicitor will finalise the contract pack and send it across, though on a leasehold sale they may be waiting on the management pack from the freeholder before they can send everything together.",
         when: { tenure: "leasehold" },
       },
     ],

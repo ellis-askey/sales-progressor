@@ -1,41 +1,51 @@
 // PM24 — Buyer has transferred the deposit.
 //
-// Auto-NR'd on cash_from_proceeds (deposit comes from the concurrent
-// sale's equity at completion, not a pre-exchange transfer). Fires on
-// mortgage and cash_buyer files only — but the deposit transfer itself
-// works the same way on both shapes (it's the buyer's own funds going
-// into their solicitor's client account before exchange, separate from
-// any lender advance, which lands at completion). So no funding
-// conditioning needed inside the skeleton; the milestone is suppressed
-// for the shape where it doesn't apply.
+// Auto-NR'd on cash_from_proceeds (deposit comes from the related sale's
+// equity at completion, not a pre-exchange transfer). Author copy for the
+// two firing shapes (cash_buyer, mortgage).
 //
-// Substantive moment for both readers: the deposit is the last buyer-
-// side input before exchange becomes a procedural decision between the
-// two solicitors. From the seller's side, this is one of the clearest
-// commitment signals on the whole file.
+// Vendor: purchaseType delta — mortgage adds "With their mortgage offer
+// already in place".
+// Purchaser: purchaseType delta — mortgage advance mention at completion.
+//
+// Source: FINAL email matrix.
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM24_SKELETON: MilestoneSkeleton = {
 
-  purchaser: {
+  vendor: {
     subject: [
-      { text: "Deposit transferred — {address}" },
+      { text: "Buyer's deposit is with their solicitor, {address}" },
     ],
     heroLabel: [
-      { text: "Deposit transferred" },
+      { text: "Deposit received" },
     ],
     opening: [
-      { text: "Your deposit is with your solicitor." },
+      { text: "The buyer's deposit is now with their solicitor, ready to be released on exchange. That's one of the strongest commitment signals in the whole process." },
     ],
     whatHappened: [
+      // Cash buyer.
       {
-        text: "You've transferred the deposit funds to your solicitor's client account. They'll hold them in escrow alongside your signed contracts until the exchange moment, when the deposit transfers across to the seller's solicitor as the binding part of the agreement.",
+        text: "Money is committed and in place.",
+        when: { purchaseType: "cash_buyer" },
+      },
+      // Mortgage — adds mortgage-in-place line.
+      {
+        text: "With their mortgage offer already in place and the deposit now committed, the buyer's funding is fully lined up.",
+        when: { purchaseType: "mortgage" },
       },
     ],
     whatNext: [
+      // Cash buyer.
       {
-        text: "With the deposit in place and contracts signed, exchange becomes a procedural decision between the two solicitors on timing. Exchange typically follows within a few days from here.",
+        text: "With the deposit held and contracts signed on both sides, the remaining step is the two solicitors agreeing the exchange moment. Exchange is close.",
+        when: { purchaseType: "cash_buyer" },
+      },
+      // Mortgage.
+      {
+        text: "The remaining step is the two solicitors agreeing the exchange moment. Exchange is close.",
+        when: { purchaseType: "mortgage" },
       },
     ],
     action: [
@@ -43,24 +53,38 @@ export const PM24_SKELETON: MilestoneSkeleton = {
     ],
   },
 
-  vendor: {
+  purchaser: {
     subject: [
-      { text: "Buyer has transferred the deposit — {address}" },
+      { text: "Your deposit is with your solicitor, {address}" },
     ],
     heroLabel: [
-      { text: "Buyer's deposit in" },
+      { text: "Deposit in" },
     ],
     opening: [
-      { text: "The deposit is with the buyer's solicitor." },
+      { text: "Your deposit is now with your solicitor, ready for exchange." },
     ],
     whatHappened: [
+      // Cash buyer.
       {
-        text: "The buyer has transferred the deposit funds to their solicitor's client account. With contracts signed on both sides and the deposit now in place, the last meaningful buyer-side input is done.",
+        text: "This is the deposit (usually around 10% of the purchase price) that's released to the seller's side at the moment of exchange. It's held safely by your solicitor until then. The balance of the purchase price follows at completion.",
+        when: { purchaseType: "cash_buyer" },
+      },
+      // Mortgage — mortgage advance mentioned at completion.
+      {
+        text: "This is the deposit (usually around 10% of the purchase price) that's released to the seller's side at the moment of exchange. It's held safely by your solicitor until then. Your mortgage advance, which makes up the rest of the funds, is drawn down from your lender at completion, not at exchange.",
+        when: { purchaseType: "mortgage" },
       },
     ],
     whatNext: [
+      // Cash buyer.
       {
-        text: "Exchange now sits with the two solicitors to agree timing — usually within a few days.",
+        text: "With your deposit in place and your contracts signed, you're ready for exchange. Your solicitor will coordinate the exact moment with the seller's side.",
+        when: { purchaseType: "cash_buyer" },
+      },
+      // Mortgage.
+      {
+        text: "With your deposit in place, your mortgage offer in, and your contracts signed, you're ready for exchange. Your solicitor will coordinate the exact moment with the seller's side.",
+        when: { purchaseType: "mortgage" },
       },
     ],
     action: [
@@ -70,7 +94,7 @@ export const PM24_SKELETON: MilestoneSkeleton = {
 
   progressor: {
     subject: [
-      { text: "PM24 complete: Buyer deposit transferred — {address}" },
+      { text: "PM24 complete: Deposit transferred — {address}" },
     ],
     heroLabel: [
       { text: "PM24 — Deposit transferred" },
@@ -79,7 +103,7 @@ export const PM24_SKELETON: MilestoneSkeleton = {
       { text: "Logged on {address}." },
     ],
     whatHappened: [
-      { text: "Purchaser has confirmed transfer of deposit to purchaser solicitor's client account." },
+      { text: "Buyer has confirmed transfer of deposit to their solicitor, ready for exchange." },
     ],
     action: [
       { text: "View transaction" },

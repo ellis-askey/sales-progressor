@@ -10,100 +10,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
-
-Your lender's clock matters too — keep your mortgage application progressing in parallel. The valuation tends to be the lender's first move after submission, and the formal offer typically follows within 1–3 weeks of that.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority. Keep your mortgage application progressing in parallel too, so the financing and the conveyancing move together rather than one waiting on the other.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
-
-Your lender's clock matters too — keep your mortgage application progressing in parallel. The valuation tends to be the lender's first move after submission, and the formal offer typically follows within 1–3 weeks of that.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority. Keep your mortgage application progressing in parallel too, so the financing and the conveyancing move together rather than one waiting on the other.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Payment on account received by your solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Payment on account received by your solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-Thank you — your solicitor has received your payment on account.
+Your solicitor has your payment on account. That covers searches and disbursements they'll incur on your behalf during conveyancing. It's separate from your deposit.
 
-Your initial payment to your solicitor has been received. This covers the cost of searches and other disbursements they'll incur on your behalf during the conveyancing process. This is separate from your deposit.
-
-Your solicitor can now order searches and proceed with the full conveyancing process. Searches typically take 2–4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
+They can now order searches and proceed with the full conveyancing process. Searches take 2 to 4 weeks to come back depending on the local authority, so the sooner they're in, the sooner that piece is moving in the background.
 
 → View your portal
 ```
@@ -116,96 +100,84 @@ Varies by **tenure × purchaseType** (2 × 3 = 6 bodies). No route conditioning 
 
 ### Freehold × Mortgage
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 ### Freehold × Cash buyer
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 ### Freehold × Cash from proceeds
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 ### Leasehold × Mortgage
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 ### Leasehold × Cash buyer
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```
 
 ### Leasehold × Cash from proceeds
 
-**Subject:** Buyer has put funds with their solicitor — 22 Example Road, London SW1A 1AA
+**Subject:** Buyer has put funds with their solicitor, 22 Example Road, London SW1A 1AA
 
 ```
 Hi Alex,
 
-The buyer's funds are with their solicitor.
+The buyer's funds are with their solicitor. That's the money on account that covers searches and disbursements during conveyancing. Buyers committing funds this early is one of the clearest signals they intend to proceed.
 
-The buyer has transferred money on account to their solicitor — funds that cover the cost of searches and disbursements during conveyancing. Buyers committing money this early is one of the clearest signals they intend to proceed.
-
-Searches will typically be ordered shortly — that's usually the next major step on the buyer's side.
+Searches will be ordered shortly, and that's usually the next major step on the buyer's side.
 
 → View your portal
 ```

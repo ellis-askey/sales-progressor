@@ -4,63 +4,42 @@
 // desktop sub-state is intentionally NOT modelled as a condition key —
 // that would be a fifth dimension and break the four-key rule. Instead
 // the runtime fills `{vendorVisitNote}` / `{purchaserPhysicalNote}` and
-// `{eventDate}` / `{eventDateClause}` as inline interpolation, so the
-// skeleton stays shape-stable and the physical/desktop distinction
-// remains a render-time variable rather than a composition branch.
+// `{eventDateClause}` as inline interpolation, so the skeleton stays
+// shape-stable and the physical/desktop distinction remains a render-
+// time variable rather than a composition branch.
 //
 // Tenure is irrelevant at this stage — the lender's valuation process
 // doesn't differ by freehold vs leasehold from the booking moment.
+//
+// Source: FINAL email matrix (journey-freehold-mortgage-FINAL.md).
 
 import type { MilestoneSkeleton } from "@/lib/email-assembler";
 
 export const PM6_SKELETON: MilestoneSkeleton = {
 
-  purchaser: {
-    subject: [
-      { text: "Lender valuation booked — {address}" },
-    ],
-    heroLabel: [
-      { text: "Valuation booked" },
-    ],
-    opening: [
-      { text: "Your lender's valuation is scheduled." },
-    ],
-    whatHappened: [
-      {
-        text: "Your lender has booked the valuation{eventDateClause}. {purchaserPhysicalNote}",
-      },
-    ],
-    whatNext: [
-      {
-        text: "Once the valuation is done, the report goes back to your lender's underwriter and feeds into the final decision. The formal mortgage offer typically follows within 1–3 weeks of the valuation, depending on the lender.",
-      },
-      {
-        text: "Keep your survey and conveyancing progressing in parallel — those run on their own clocks and shouldn't wait for the mortgage offer to land.",
-      },
-    ],
-    action: [
-      { text: "View your portal" },
-    ],
-  },
-
+  // ── Vendor: seller hearing the buyer's lender valuation is booked ─────
   vendor: {
     subject: [
-      { text: "Buyer's lender valuation booked — {address}" },
+      { text: "Buyer's lender valuation booked, {address}" },
     ],
     heroLabel: [
       { text: "Lender valuation booked" },
     ],
     opening: [
-      { text: "The buyer's lender has booked the valuation." },
+      { text: "The buyer's lender has booked the valuation{eventDateClause}." },
     ],
     whatHappened: [
       {
-        text: "The buyer's lender has booked the valuation{eventDateClause}. {vendorVisitNote}",
+        // Runtime placeholder. The send path fills this with the visit-
+        // specific copy ("the surveyor will visit the property...") on
+        // physical valuations, or the desktop variant when there's no
+        // physical visit. Preserves the four-condition-key discipline.
+        text: "{vendorVisitNote}",
       },
     ],
     whatNext: [
       {
-        text: "Once the valuation report is back with the lender, underwriting can finish and the formal mortgage offer typically follows within a few weeks.",
+        text: "Once the valuation report is back with the lender, underwriting can finish, and the formal mortgage offer follows within a few weeks.",
       },
     ],
     action: [
@@ -68,6 +47,35 @@ export const PM6_SKELETON: MilestoneSkeleton = {
     ],
   },
 
+  // ── Purchaser: buyer's own acknowledgement that the valuation is set ──
+  purchaser: {
+    subject: [
+      { text: "Lender valuation booked, {address}" },
+    ],
+    heroLabel: [
+      { text: "Valuation booked" },
+    ],
+    opening: [
+      { text: "Your lender's valuation is scheduled{eventDateClause}." },
+    ],
+    whatHappened: [
+      {
+        // Runtime placeholder fills the physical-vs-desktop opening
+        // sentences. The "worth knowing" tail below is shape-stable.
+        text: "{purchaserPhysicalNote} Worth knowing: this is the lender's valuation, carried out for their risk assessment, not the same as your own survey. If you want a fuller picture of the property's condition for your own peace of mind, that's a separate survey you book yourself.",
+      },
+    ],
+    whatNext: [
+      {
+        text: "Once the valuation is done, the report goes back to your lender's underwriter and feeds into the final decision. The formal mortgage offer follows within 1 to 3 weeks of the valuation, depending on the lender.",
+      },
+    ],
+    action: [
+      { text: "View your portal" },
+    ],
+  },
+
+  // ── Progressor: internal log (preserved unchanged) ────────────────────
   progressor: {
     subject: [
       { text: "PM6 complete: Lender valuation booked — {address}" },
