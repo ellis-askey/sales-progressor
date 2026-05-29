@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ClockCountdown } from "@phosphor-icons/react/dist/ssr";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentCompletions, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   CompletionsGroupList,
@@ -46,9 +47,9 @@ export default async function AgentCompletionsPage() {
   const session = await requireSession();
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
-  const isAdmin = session.user.role === "admin";
+  const isAdmin = hasAdminPowers(session);
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const files = await getAgentCompletions(vis);
 
@@ -112,8 +113,8 @@ export default async function AgentCompletionsPage() {
       <PageHeader
         title="Completions"
         subtitle={
-          isProgressor ? "Your assigned outsourced files, tracking to completion." :
           isAdmin      ? "All exchanged files across the platform." :
+          isProgressor ? "Your assigned outsourced files, tracking to completion." :
                          "Exchanged files, tracking to completion."
         }
       >

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
@@ -83,13 +84,13 @@ export default async function HubPreviewPage() {
   const role = session.user.role;
   const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
   const isProgressor    = role === "sales_progressor";
-  const isAdmin         = role === "admin";
+  const isAdmin         = hasAdminPowers(session);
   const canCreateSale   = role === "director" || role === "negotiator" || role === "admin";
 
   // Internal staff use a separate visibility resolver (no DB query, scope set by role).
   // Agent callers (director/negotiator) use the original resolver unchanged.
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, role)
+    ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds] =
@@ -361,7 +362,7 @@ export default async function HubPreviewPage() {
               <div>
                 <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Pipeline health</p>
                 <p className="agent-card-subtitle">
-                  {isProgressor ? "Your assigned files at a glance." : isAdmin ? "Platform-wide pipeline at a glance." : "Where your business stands today."}
+                  {isAdmin ? "Platform-wide pipeline at a glance." : isProgressor ? "Your assigned files at a glance." : "Where your business stands today."}
                 </p>
               </div>
             </div>
@@ -613,14 +614,14 @@ export default async function HubPreviewPage() {
 
         {/* ── 4. Exchange forecast + Service split ───────────────────────────────── */}
         {/* Service split is hidden for sales_progressor (all their files are outsourced by definition) */}
-        <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: isProgressor ? "1fr" : "1fr 1fr", gap: 16 }}>
+        <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: (isProgressor && !isAdmin) ? "1fr" : "1fr 1fr", gap: 16 }}>
 
           {/* Exchange forecast */}
           <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchange forecast</p>
               <p className="agent-card-subtitle">
-                {isProgressor ? "Exchange forecast for your assigned files." : isAdmin ? "Platform-wide exchange forecast." : "When your files are due to exchange."}
+                {isAdmin ? "Platform-wide exchange forecast." : isProgressor ? "Exchange forecast for your assigned files." : "When your files are due to exchange."}
               </p>
             </div>
 
@@ -687,7 +688,7 @@ export default async function HubPreviewPage() {
           </div>
 
           {/* Service split — hidden for sales_progressor; relabelled for admin */}
-          {!isProgressor && <div className="agent-glass" style={{ padding: "20px 24px" }}>
+          {(!isProgressor || isAdmin) && <div className="agent-glass" style={{ padding: "20px 24px" }}>
             <div className="agent-card-hdr-internal">
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>{isAdmin ? "Service split" : "Who’s managing"}</p>
               <p className="agent-card-subtitle">{isAdmin ? "Self-managed by agencies vs. outsourced to us." : "Files you manage and files our team handles."}</p>

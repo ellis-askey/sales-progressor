@@ -13,15 +13,16 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { listAutomatedEmails, type EmailListTab } from "@/lib/services/automated-emails-list";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming"] as const;
 
-function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null): string {
+function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
   if (fileLabel) return `Automated emails for ${fileLabel}.`;
-  if (role === "admin" || role === "superadmin") return "All automated emails across the platform.";
+  if (role === "admin" || role === "superadmin" || isHybridAdmin) return "All automated emails across the platform.";
   if (role === "sales_progressor") return "Automated emails for files assigned to you.";
   if (role === "negotiator") return "Automated emails for files assigned to you.";
   if (role === "director") {
@@ -69,6 +70,7 @@ export default async function AutomatedEmailsPage({
     role,
     userId: session.user.id,
     agencyId: session.user.agencyId || null,
+    hasAdminPowers: hasAdminPowers(session),
     mineOnly: role === "director" ? mineOnly : false,
     fileId,
     tab,
@@ -84,7 +86,7 @@ export default async function AutomatedEmailsPage({
     <div className="p-6 max-w-6xl mx-auto">
       <PageHeader
         title="Automated emails"
-        subtitle={subtitleFor(role, mineOnly, fileLabel)}
+        subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       />
       <AutomatedEmailsListView
         rows={rows}

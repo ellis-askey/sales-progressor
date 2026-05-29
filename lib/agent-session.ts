@@ -32,6 +32,22 @@ const AGENT_ROLES = new Set<UserRole>([
   "viewer",
 ]);
 
+// Hybrid users — sales_progressor accounts that also get admin-level visibility
+// and functionality. Layered additively on top of the SP role: every isProgressor
+// check still resolves true, but hasAdminPowers also resolves true. Keeps the SP
+// daily UX (assigned-files lane, SP-shaped nav) while unlocking cross-cutting
+// admin powers (see all files, assignment, paste-chat already inherited via SP).
+const HYBRID_ADMIN_EMAILS = new Set<string>(["ellis@thesalesprogressor.co.uk"]);
+
+export function hasAdminPowers(session: Session): boolean {
+  const role = session.user.role as UserRole;
+  if (role === "admin" || role === "superadmin") return true;
+  if (role === "sales_progressor" && HYBRID_ADMIN_EMAILS.has(session.user.email ?? "")) {
+    return true;
+  }
+  return false;
+}
+
 export type AgentSessionContext = {
   session: Session;
   role: UserRole;

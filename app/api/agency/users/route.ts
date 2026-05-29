@@ -6,13 +6,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const isAdmin = session.user.role === "admin" || session.user.role === "superadmin";
+  const isAdmin = hasAdminPowers(session);
 
   const users = isAdmin
     ? await prisma.user.findMany({

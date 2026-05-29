@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { getAgentMilestoneActivity, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -32,9 +33,9 @@ export default async function AgentCommsPage({
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
-  const isAdmin = session.user.role === "admin";
+  const isAdmin = hasAdminPowers(session);
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const milestones = await getAgentMilestoneActivity(vis, portalOnly);
 
@@ -81,8 +82,8 @@ export default async function AgentCommsPage({
       <PageHeader
         title="Updates"
         subtitle={
-          isProgressor ? "What's happened on your assigned files." :
           isAdmin      ? "What's happened across the platform." :
+          isProgressor ? "What's happened on your assigned files." :
                          "What's happened across your files."
         }
       >
@@ -119,10 +120,10 @@ export default async function AgentCommsPage({
                   : "Completed milestones across your files will appear here." */}
                 {portalOnly
                   ? "When clients confirm steps themselves, they'll appear here."
-                  : isProgressor
-                    ? "Confirmed steps on your assigned files appear here."
-                    : isAdmin
-                      ? "Confirmed steps appear here as they happen across the platform."
+                  : isAdmin
+                    ? "Confirmed steps appear here as they happen across the platform."
+                    : isProgressor
+                      ? "Confirmed steps on your assigned files appear here."
                       : "Confirmed steps appear here as they happen."}
               </p>
             </div>

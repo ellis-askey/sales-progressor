@@ -17,6 +17,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 
@@ -331,7 +332,7 @@ export async function updateEmailPayload(
   // Plus the gates above: emailType=CLIENT_CHASE + still pending.
   const role = session.user.role;
   let inScope = false;
-  if (role === "admin" || role === "superadmin") {
+  if (hasAdminPowers(session)) {
     inScope = true;
   } else if (role === "sales_progressor") {
     inScope = tx.assignedUserId === session.user.id;
@@ -426,7 +427,7 @@ export async function getEmailForPreview(emailId: string): Promise<{
   // negotiator sees their own files.
   const role = session.user.role;
   let inScope = false;
-  if (role === "admin" || role === "superadmin") {
+  if (hasAdminPowers(session)) {
     inScope = true;
   } else if (role === "sales_progressor") {
     inScope = tx.assignedUserId === session.user.id;

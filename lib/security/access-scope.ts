@@ -12,6 +12,7 @@
 
 import type { Session } from "next-auth";
 import type { Prisma } from "@prisma/client";
+import { hasAdminPowers } from "@/lib/agent-session";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,11 @@ export type AccessScope =
 export function getAccessScope(session: Session): AccessScope {
   const { role, agencyId, id } = session.user;
 
-  if (role === "admin" || role === "superadmin") {
+  // hasAdminPowers covers admin, superadmin, and the hybrid sales_progressor
+  // exception (ellis). Hybrid users get full-platform visibility while keeping
+  // role = "sales_progressor" so the SP daily UX (hub assigned lane, isProgressor
+  // checks) stays intact.
+  if (hasAdminPowers(session)) {
     return { kind: "all" };
   }
 

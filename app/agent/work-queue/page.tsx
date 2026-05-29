@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getWorkQueueItems, txWhereWorkQueue } from "@/lib/services/work-queue";
 import { getAgentReminderLogs } from "@/lib/services/reminders";
@@ -45,7 +46,7 @@ export default async function WorkQueuePage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role)
+    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session))
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const [items, reminderLogs, activeFileCount] = await Promise.all([
     getWorkQueueItems(vis),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
 import { getSolicitorExchangeStats, getMonthlyActivity, getKpiTrendsForAgency, getFilesAtRisk, getReferralStats, getBrokerReferralStats } from "@/lib/services/analytics";
 import { AnalyticsFilterClient } from "@/components/agent/AnalyticsFilterClient";
@@ -60,7 +61,7 @@ export default async function AgentAnalyticsPage({
     : "month";
 
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role)
+    ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session))
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
   const effectiveVis = isDirector && filterUserId
     ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }

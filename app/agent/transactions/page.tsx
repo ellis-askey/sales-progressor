@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listTransactions, countTransactionsByStatus, getExchangeForecast } from "@/lib/services/transactions";
@@ -77,12 +78,13 @@ export default async function AllTransactionsPage({
   const { filter, exchanging } = await searchParams;
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
+  const isAdminPowers = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
   // Internal staff use resolveInternalVisibility (for hub-filtered ID queries).
   // Agent callers use the original resolver unchanged.
   const vis = isInternalStaff
-    ? resolveInternalVisibility(session.user.id, session.user.role)
+    ? resolveInternalVisibility(session.user.id, session.user.role, isAdminPowers)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
   const opts = !isInternalStaff && vis.seeAll ? { allAgentFiles: true, firmName: vis.firmName } : undefined;
@@ -133,9 +135,9 @@ export default async function AllTransactionsPage({
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
        * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
       <PageHeader
-        title={isDirector || session.user.role === "admin" ? "All Files" : "My Files"}
+        title={isDirector || isAdminPowers ? "All Files" : "My Files"}
         subtitle={
-          session.user.role === "admin"     ? "Every file across the platform." :
+          isAdminPowers                      ? "Every file across the platform." :
           isDirector                         ? "Every file across the agency." :
           session.user.role === "sales_progressor" ? "Files assigned to you." :
           "Files assigned to you."

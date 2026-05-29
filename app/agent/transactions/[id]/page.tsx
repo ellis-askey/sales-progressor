@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { getTransaction, getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
@@ -60,7 +61,7 @@ export default async function AgentTransactionDetailPage({
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
-  const isAdminRole  = session.user.role === "admin";
+  const isAdminRole  = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts] = await Promise.all([
@@ -464,7 +465,7 @@ export default async function AgentTransactionDetailPage({
         serviceType: transaction.serviceType ?? null,
       }}
       recommendedFirms={recommendedFirms}
-      showOurFee={session.user.role === "director" || session.user.role === "admin"}
+      showOurFee={session.user.role === "director" || isAdminRole}
       assignedUser={assignedUser}
       agentUser={agentUser}
       progress={progress}
@@ -472,7 +473,7 @@ export default async function AgentTransactionDetailPage({
       exchangeConfirmed={exchangeConfirmed}
       fileTime={fileTime}
       isInternal={isInternal}
-      hideCommercialFields={isProgressor}
+      hideCommercialFields={isProgressor && !isAdminRole}
     />
   );
 

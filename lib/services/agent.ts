@@ -31,16 +31,20 @@ export async function resolveAgentVisibility(
 /**
  * Resolve visibility for internal staff (admin, sales_progressor, viewer).
  * Synchronous — reads only from the session, no DB query.
- * admin → "admin_all": sees every transaction across all agencies.
+ * admin (or hybrid SP via hasAdminPowers) → "admin_all": sees every transaction across all agencies.
  * sales_progressor / viewer → "assigned": sees transactions where assignedUserId = userId.
  */
-export function resolveInternalVisibility(userId: string, role: string): AgentVisibility {
+export function resolveInternalVisibility(
+  userId: string,
+  role: string,
+  hasAdminPowers: boolean = false,
+): AgentVisibility {
   return {
     userId,
     agencyId: "",
     seeAll: false,
     firmName: null,
-    internalMode: role === "admin" ? "admin_all" : "assigned",
+    internalMode: (role === "admin" || hasAdminPowers) ? "admin_all" : "assigned",
   };
 }
 

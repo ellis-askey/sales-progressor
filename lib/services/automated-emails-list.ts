@@ -29,6 +29,9 @@ export type EmailListInput = {
   role: "director" | "negotiator" | "sales_progressor" | "admin" | "superadmin" | "viewer";
   userId: string;
   agencyId: string | null;
+  // True for admin/superadmin AND for the hybrid sales_progressor exception
+  // (ellis). Lets a hybrid SP see the platform-wide list while keeping role=SP.
+  hasAdminPowers?: boolean;
   mineOnly?: boolean;       // director's "my files only" toggle
   fileId?: string;          // when present, list filtered to one transaction
   tab: EmailListTab;
@@ -67,8 +70,8 @@ export type EmailListResponse = {
 function buildTxWhere(input: EmailListInput): Prisma.PropertyTransactionWhereInput {
   const where: Prisma.PropertyTransactionWhereInput = {};
 
-  if (input.role === "admin" || input.role === "superadmin") {
-    // No agency filter — admin sees the whole platform.
+  if (input.hasAdminPowers) {
+    // No agency filter — admin (and hybrid SP) sees the whole platform.
   } else if (input.role === "sales_progressor") {
     where.assignedUserId = input.userId;
   } else if (input.role === "negotiator" || input.role === "viewer") {

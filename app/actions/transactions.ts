@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { requireSession } from "@/lib/session";
+import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { createTransaction } from "@/lib/services/transactions";
@@ -73,7 +74,7 @@ export async function createTransactionAction(input: {
 }) {
   const session = await requireSession();
   const isAgent = session.user.role === "negotiator" || session.user.role === "director";
-  const isAdmin = session.user.role === "admin";
+  const isAdmin = hasAdminPowers(session);
   const resolvedProgressedBy = isAgent ? input.progressedBy : "progressor";
 
   // Admin-only migration overrides. Block any non-admin from passing them.
