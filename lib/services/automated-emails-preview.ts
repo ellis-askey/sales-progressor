@@ -17,6 +17,7 @@ import { getMilestoneCopy } from "@/lib/portal-copy";
 import { CLIENT_CHASE_COUNT_CAP, CLIENT_CHASE_GRACE_FLOOR_DAYS } from "@/lib/services/client-chase-cron";
 import { setUkChaseTime } from "@/lib/services/reminders";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
+import { assembleMilestoneDigest, type MilestoneDigestPayload } from "@/lib/email/milestone-digest";
 import type { ContactRole } from "@prisma/client";
 
 export type PendingEmail = {
@@ -163,11 +164,38 @@ export async function getAutomatedEmailsForTransaction(
     };
   });
 
-  const sentToday: SentEmail[] = sentTodayRows
-    .filter((r) => r.sentAt != null)
-    .map((r) => {
+  // ─── Sent today: collapse digest bundles into one row per send ──────
+  //
+  // MILESTONE_CONFIRMATION rows are drained in groups (one per recipient
+  // contact per drain run); when N >= 2 rows for the same contact are
+  // drained together, they're sent as ONE digest email but each queue
+  // row still gets sentAt = the drain's `new Date()`. So same
+  // (recipientContactId, sentAt-ms) = same physical SendGrid send.
+  //
+  // We collapse by that pair: groups of 1 keep the per-event subject;
+  // groups of >=2 re-assemble the digest subject so the UI shows what
+  // landed in the inbox rather than what was queued. Other emailTypes
+  // (CLIENT_CHASE, RETENTION_*, chain notifications) are never bundled
+  // by the drain — they pass through one-row-per-row unchanged.
+  const sentTodayValid = sentTodayRows.filter((r) => r.sentAt != null);
+  const milestoneRows = sentTodayValid.filter((r) => r.emailType === "MILESTONE_CONFIRMATION");
+  const otherRows = sentTodayValid.filter((r) => r.emailType !== "MILESTONE_CONFIRMATION");
+
+  const milestoneGroups = new Map<string, typeof milestoneRows>();
+  for (const r of milestoneRows) {
+    if (!r.recipientContactId || !r.sentAt) continue;
+    const key = `${r.recipientContactId}:${r.sentAt.getTime()}`;
+    const existing = milestoneGroups.get(key) ?? [];
+    existing.push(r);
+    milestoneGroups.set(key, existing);
+  }
+
+  const collapsedMilestone: SentEmail[] = [];
+  for (const group of milestoneGroups.values()) {
+    if (group.length === 1) {
+      const r = group[0];
       const payload = (r.payload ?? {}) as { subject?: string };
-      return {
+      collapsedMilestone.push({
         id: r.id,
         emailType: r.emailType,
         category: categoriseEmailType(r.emailType),
@@ -175,8 +203,49 @@ export async function getAutomatedEmailsForTransaction(
         recipientRole: r.recipientContact?.roleType ?? "",
         subject: payload.subject ?? "(no subject)",
         sentAt: r.sentAt!,
-      };
+      });
+      continue;
+    }
+    // Bundled — re-derive the digest subject from the same payloads the
+    // drain assembled. Wrap in try/catch in case any payload is malformed
+    // (would otherwise crash the whole preview).
+    const first = group[0];
+    let digestSubject = "Updates";
+    try {
+      const payloads = group.map((r) => r.payload as unknown as MilestoneDigestPayload);
+      const assembled = assembleMilestoneDigest(payloads);
+      digestSubject = assembled.subject;
+    } catch {
+      // Defensive: keep the bundled row visible with a generic subject
+      // rather than dropping it from the feed.
+    }
+    collapsedMilestone.push({
+      id: first.id,
+      emailType: first.emailType,
+      category: categoriseEmailType(first.emailType),
+      recipientName: first.recipientContact?.name ?? "(unknown)",
+      recipientRole: first.recipientContact?.roleType ?? "",
+      subject: digestSubject,
+      sentAt: first.sentAt!,
     });
+  }
+
+  const otherSent: SentEmail[] = otherRows.map((r) => {
+    const payload = (r.payload ?? {}) as { subject?: string };
+    return {
+      id: r.id,
+      emailType: r.emailType,
+      category: categoriseEmailType(r.emailType),
+      recipientName: r.recipientContact?.name ?? "(unknown)",
+      recipientRole: r.recipientContact?.roleType ?? "",
+      subject: payload.subject ?? "(no subject)",
+      sentAt: r.sentAt!,
+    };
+  });
+
+  // Merged + most-recent-first to match the existing UI ordering.
+  const sentToday: SentEmail[] = [...collapsedMilestone, ...otherSent]
+    .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
 
   // ─── Upcoming (predicted) — two kinds combined ──────────────────────
   //
