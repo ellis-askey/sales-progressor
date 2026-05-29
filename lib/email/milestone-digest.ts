@@ -295,22 +295,39 @@ export function assembleMilestoneDigest(
   textLines.push(`→ View your portal: ${portalUrl}`);
   const text = textLines.join("\n");
 
-  // ── HTML body ───────────────────────────────────────────────────────
-  const htmlParts: string[] = [`<p>Hi ${escapeHtml(firstName)},</p>`];
-  if (acted.items.length > 0) {
-    htmlParts.push(`<p><strong>${escapeHtml(acted.heading)}</strong></p>`);
-    htmlParts.push("<ul>");
-    for (const item of acted.items) htmlParts.push(`<li>${escapeHtml(item.line)}</li>`);
-    htmlParts.push("</ul>");
+  // ── HTML body — branded shell matching the single-event wrapper ────
+  //
+  // Matches the gradient-header + body-pad + orange-CTA pattern used by
+  // richMilestoneEmailHtml in lib/services/portal.ts so single and
+  // digest emails read as the same family in the inbox. Without the
+  // single-event's per-milestone heroLabel we render "Updates" as the
+  // H1 and let the address eyebrow plus the section bullets carry the
+  // specifics.
+  const sectionHtmls: string[] = [];
+  function renderSection(section: DigestSection): void {
+    if (section.items.length === 0) return;
+    sectionHtmls.push(
+      `<p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1a1d29">${escapeHtml(section.heading)}</p>`,
+    );
+    const lis = section.items
+      .map((item) => `<li style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#4a5162">${escapeHtml(item.line)}</li>`)
+      .join("");
+    sectionHtmls.push(`<ul style="margin:0 0 20px;padding-left:20px">${lis}</ul>`);
   }
-  if (counterpart.items.length > 0) {
-    htmlParts.push(`<p><strong>${escapeHtml(counterpart.heading)}</strong></p>`);
-    htmlParts.push("<ul>");
-    for (const item of counterpart.items) htmlParts.push(`<li>${escapeHtml(item.line)}</li>`);
-    htmlParts.push("</ul>");
-  }
-  htmlParts.push(`<p><a href="${escapeHtml(portalUrl)}">→ View your portal</a></p>`);
-  const html = htmlParts.join("\n");
+  renderSection(acted);
+  renderSection(counterpart);
+
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;padding:0;color:#1a1d29;background:#fff">
+<div style="background:linear-gradient(135deg,#FF8A65 0%,#FFB74D 100%);padding:32px 32px 28px;border-radius:0 0 24px 24px">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.75)">${escapeHtml(address)}</p>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;line-height:1.3">Updates</h1>
+</div>
+<div style="padding:28px 32px">
+  <p style="margin:0 0 16px;font-size:15px">Hi ${escapeHtml(firstName)},</p>
+  ${sectionHtmls.join("\n  ")}
+  <p style="margin:0 0 28px"><a href="${escapeHtml(portalUrl)}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">View your portal</a></p>
+</div>
+</body></html>`;
 
   const subject = `Updates on ${address}`;
 
