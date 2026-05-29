@@ -168,3 +168,37 @@ export const AGENT_ONLY_CONFIRM_CODES: ReadonlySet<string> = new Set([
   "VM19", "PM26",
   "VM20", "PM27",
 ]);
+
+// Bilateral pair-complete suppression — per SHAPE-NOTES (docs/active/
+// email-snapshots/SHAPE-NOTES.md "Bilateral firing & suppression"):
+//
+// > on the second confirmation of a pair, only the side that just acted
+// > is emailed. The side that acted first is never re-notified.
+//
+// When a bilateral milestone fires in INVERSE direction (its counterpart
+// was already complete), the side that acted on the counterpart was
+// emailed at that moment and must NOT be re-emailed now.
+//
+// Derivation: V* codes are acted on by the vendor; P* codes by the
+// purchaser. If the counterpart is V*, the vendor acted first → suppress
+// vendor. If P*, suppress purchaser.
+//
+// Returns null when no suppression applies:
+//   - The milestone has no bilateral pair (BILATERAL_PAIR_OF lookup misses).
+//   - direction is "default" (natural opener — counterpart hasn't fired yet).
+//   - direction is undefined (non-bilateral context).
+//
+// Only the five enquiry/contract-pack pairs in BILATERAL_HANDOFF_CODES
+// are subject to this rule. The agent-only AGENT_ONLY_CONFIRM_CODES
+// pairs (readiness / exchange / completion) have no BILATERAL_PAIR_OF
+// entry and therefore always return null — they fire to both sides as
+// today.
+export function computeBilateralSuppressedRecipient(
+  milestoneCode: string,
+  direction: "default" | "inverse" | undefined,
+): "vendor" | "purchaser" | null {
+  if (direction !== "inverse") return null;
+  const counterpartCode = BILATERAL_PAIR_OF[milestoneCode];
+  if (!counterpartCode) return null;
+  return counterpartCode.startsWith("V") ? "vendor" : "purchaser";
+}

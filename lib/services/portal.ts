@@ -16,7 +16,7 @@ import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type Recipien
 // emailCopy entry directly with no detour.
 import { SKELETON_REGISTRY, isSkeletonModeEnabled } from "@/lib/email-skeletons/registry";
 import { assembleEmail, type FileShape, type ConfirmerRoute, type HandoffDirection } from "@/lib/email-assembler";
-import { BILATERAL_PAIR_OF, HANDOFF_DEFAULT_ACTOR } from "@/lib/email-skeletons/journey-order";
+import { BILATERAL_PAIR_OF, HANDOFF_DEFAULT_ACTOR, computeBilateralSuppressedRecipient } from "@/lib/email-skeletons/journey-order";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -1242,12 +1242,20 @@ async function sendRichMilestoneEmails(
       : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
     : "";
 
+  // Bilateral pair-complete suppression. See computeBilateralSuppressedRecipient
+  // for the rule. When a bilateral milestone fires in INVERSE direction,
+  // the side that acted on the counterpart is suppressed — they were
+  // emailed when they confirmed and must not be re-notified now.
+  const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, handoffDirection);
+
   // Vendor and purchaser contacts
   const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
     const recipientKey = c.roleType as "vendor" | "purchaser";
+    // Skip the first-actor side on inverse-direction bilateral completions.
+    if (suppressedRecipient && recipientKey === suppressedRecipient) continue;
     const copy = resolveRecipientCopy(milestoneCode, recipientKey, emailCopy, fileShape);
     if (!copy) continue;
 
