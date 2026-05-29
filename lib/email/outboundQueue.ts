@@ -92,6 +92,12 @@ export function scheduleForBusinessHours(now: Date): Date {
 // notifications). recipientContactId path is new in A5 of the client-chase
 // arc — used by Sub-arc B's digest sender when targeting vendor / purchaser
 // / solicitor / broker contacts.
+//
+// scheduledFor override: callers that want to bypass the business-hours
+// window can pass an explicit Date. Used by the milestone-confirmation
+// batching layer — transactional client emails should fire 24/7 within
+// a short batching window rather than waiting for next business hours.
+// Pass undefined (default) for the existing business-hours behaviour.
 export async function enqueueEmail({
   emailType,
   sourceId,
@@ -99,6 +105,7 @@ export async function enqueueEmail({
   recipientUserId,
   recipientContactId,
   payload,
+  scheduledFor,
 }: {
   emailType: string;
   sourceId: string;
@@ -106,6 +113,7 @@ export async function enqueueEmail({
   recipientUserId?: string;
   recipientContactId?: string;
   payload: Record<string, unknown>;
+  scheduledFor?: Date;
 }): Promise<void> {
   // Exactly-one-recipient invariant — catches developer error before the DB
   // CHECK constraint would. The constraint is the source of truth; this is
@@ -119,7 +127,7 @@ export async function enqueueEmail({
     );
   }
 
-  const scheduledFor = scheduleForBusinessHours(new Date());
+  const resolvedScheduledFor = scheduledFor ?? scheduleForBusinessHours(new Date());
   try {
     await prisma.outboundEmailQueue.create({
       data: {
@@ -129,7 +137,7 @@ export async function enqueueEmail({
         recipientUserId: recipientUserId ?? null,
         recipientContactId: recipientContactId ?? null,
         payload: payload as Prisma.InputJsonValue,
-        scheduledFor,
+        scheduledFor: resolvedScheduledFor,
       },
     });
   } catch (e: unknown) {
@@ -147,7 +155,15 @@ export async function drainOutboundQueue(): Promise<{
 }> {
   const now = new Date();
   const due = await prisma.outboundEmailQueue.findMany({
-    where: { sentAt: null, errorAt: null, scheduledFor: { lte: now } },
+    where: {
+      sentAt: null,
+      errorAt: null,
+      scheduledFor: { lte: now },
+      // MILESTONE_CONFIRMATION rows are drained by the dedicated 3-minute
+      // /api/cron/send-milestone-digests cron (digest assembly + send).
+      // Excluded here to avoid double-processing under the hourly drain.
+      emailType: { not: "MILESTONE_CONFIRMATION" },
+    },
     take: 50,
   });
 

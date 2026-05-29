@@ -69,6 +69,10 @@
       "schedule": "0 * * * 1-6"
     },
     {
+      "path": "/api/cron/send-milestone-digests",
+      "schedule": "*/3 * * * *"
+    },
+    {
       "path": "/api/cron/drain-withdrawal-notifications",
       "schedule": "0 * * * 1-6"
     },

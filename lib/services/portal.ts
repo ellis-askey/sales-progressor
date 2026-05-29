@@ -17,6 +17,8 @@ import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type Recipien
 import { SKELETON_REGISTRY, isSkeletonModeEnabled } from "@/lib/email-skeletons/registry";
 import { assembleEmail, type FileShape, type ConfirmerRoute, type HandoffDirection } from "@/lib/email-assembler";
 import { BILATERAL_PAIR_OF, HANDOFF_DEFAULT_ACTOR, computeBilateralSuppressedRecipient } from "@/lib/email-skeletons/journey-order";
+import { enqueueEmail } from "@/lib/email/outboundQueue";
+import type { MilestoneDigestPayload } from "@/lib/email/milestone-digest";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -1245,10 +1247,18 @@ async function sendRichMilestoneEmails(
   // Bilateral pair-complete suppression. See computeBilateralSuppressedRecipient
   // for the rule. When a bilateral milestone fires in INVERSE direction,
   // the side that acted on the counterpart is suppressed — they were
-  // emailed when they confirmed and must not be re-notified now.
+  // emailed when they confirmed and must not be re-notified now. Runs
+  // BEFORE the enqueue so suppressed sides never get a queue row, exactly
+  // as suppression ran before the send call pre-batching.
   const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, handoffDirection);
 
-  // Vendor and purchaser contacts
+  // Vendor and purchaser contacts — enqueued for the 3-minute batching
+  // window rather than sent synchronously. /api/cron/send-milestone-digests
+  // drains every 3 minutes: N=1 sends the row's payload as-is (today's
+  // locked single-event copy); N>=2 assembles a digest (see
+  // lib/email/milestone-digest.ts). vendorAgent + progressor sends below
+  // remain synchronous — those are internal-audience and would change the
+  // working contract if deferred.
   const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
 
   for (const c of tx.contacts) {
@@ -1267,7 +1277,31 @@ async function sendRichMilestoneEmails(
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
-    sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
+    // Source key: (transactionId, milestoneCode) is unique per confirmation
+    // event and stable under retry. The unique index on
+    // (emailType, sourceId, recipientContactId) makes the enqueue idempotent;
+    // a re-confirm within the 3-minute window silently no-ops.
+    const sourceId = `${transactionId}:${milestoneCode}`;
+    const payload: MilestoneDigestPayload = {
+      subject,
+      text,
+      html,
+      milestoneCode,
+      recipientSide: recipientKey,
+      address,
+      firstName: extractFirstName(c.name),
+      portalUrl,
+    };
+    enqueueEmail({
+      emailType: "MILESTONE_CONFIRMATION",
+      sourceId,
+      recipientEmail: c.email,
+      recipientContactId: c.id,
+      payload: payload as unknown as Record<string, unknown>,
+      // 3-minute batching window. NOT routed through scheduleForBusinessHours —
+      // transactional client emails fire 24/7 within the batching window.
+      scheduledFor: new Date(Date.now() + 3 * 60 * 1000),
+    }).catch(() => {});
 
     const existing = sideLog.get(recipientKey);
     if (existing) {
