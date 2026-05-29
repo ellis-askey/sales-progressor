@@ -74,11 +74,16 @@ export default async function AgentAdminPage() {
   const legacyCount = agencies.filter((a) => a.feeTier === "legacy").length;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto pb-6">
       <PageHeader
         title="Admin"
         subtitle="Per-agency fee overrides plus a live view of milestones and reminder rules."
       />
+
+      {/* PageHeader has its own internal padding (24/32/16); cards sit in a
+       * dedicated wrapper that picks up from where the header ends, with a
+       * tighter top gap so subtitle → first card reads as one block. */}
+      <div className="px-6 pt-1 space-y-5">
 
       {/* ── Card 1 — Agency fees (the only editable surface on this page) */}
       <AgencyFeeCard
@@ -202,6 +207,8 @@ export default async function AgentAdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
       </div>
     </div>
   );
