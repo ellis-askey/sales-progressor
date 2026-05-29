@@ -58,7 +58,7 @@ export type PortalUpdate = {
   method: string | null;
 };
 
-async function logAutomatedEmail(
+export async function logAutomatedEmail(
   transactionId: string,
   contactIds: string[],
   subject: string,
@@ -1333,6 +1333,12 @@ async function sendRichMilestoneEmails(
       if (!customerSuppressedByStaleness) {
         sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
       }
+      const existing = sideLog.get(recipientKey);
+      if (existing) {
+        existing.ids.push(c.id);
+      } else {
+        sideLog.set(recipientKey, { ids: [c.id], subject, text });
+      }
     } else {
       // Standard path: enqueue into the 3-minute batching window.
       // Source key: (transactionId, milestoneCode) is unique per confirmation
@@ -1360,16 +1366,15 @@ async function sendRichMilestoneEmails(
         // transactional client emails fire 24/7 within the batching window.
         scheduledFor: new Date(Date.now() + 3 * 60 * 1000),
       }).catch(() => {});
-    }
-
-    const existing = sideLog.get(recipientKey);
-    if (existing) {
-      existing.ids.push(c.id);
-    } else {
-      sideLog.set(recipientKey, { ids: [c.id], subject, text });
+      // Queue path does NOT write to sideLog. The comms-log entry is
+      // written by drainMilestoneDigests at send-time so the activity
+      // feed records the actual body that landed (single or digest)
+      // rather than the per-event intent at confirm-time.
     }
   }
 
+  // sideLog only contains the exchange/completion synchronous-send
+  // entries — the queue path logs at drain-time, not here.
   for (const { ids, subject, text } of sideLog.values()) {
     logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }

@@ -16,10 +16,18 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { isContactEmailSuppressed } from "@/lib/email";
+import { logAutomatedEmail } from "@/lib/services/portal";
 import {
   assembleMilestoneDigest,
   type MilestoneDigestPayload,
 } from "@/lib/email/milestone-digest";
+
+// sourceId for MILESTONE_CONFIRMATION rows is `${transactionId}:${milestoneCode}`.
+// All rows in a per-contact group share the same transactionId.
+function transactionIdFromSourceId(sourceId: string): string | null {
+  const idx = sourceId.indexOf(":");
+  return idx > 0 ? sourceId.slice(0, idx) : null;
+}
 
 const RUN_CAP = 200; // upper bound per drain run to prevent runaway cost
 
@@ -146,6 +154,18 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           where: { id: decision.row.id },
           data: { sentAt: now },
         });
+        // Write the comms-log entry now that the email has actually been
+        // handed to SendGrid. The activity feed shows the real body that
+        // the recipient received (single-event matrix copy).
+        const txId = transactionIdFromSourceId(decision.row.sourceId);
+        if (txId) {
+          await logAutomatedEmail(
+            txId,
+            [contactId],
+            decision.payload.subject,
+            decision.payload.text,
+          ).catch(() => {});
+        }
         singleSends++;
       } else {
         await sendEmail({
@@ -158,6 +178,17 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
           where: { id: { in: decision.rows.map((r) => r.id) } },
           data: { sentAt: now },
         });
+        // Activity feed gets the digest body — one row per recipient
+        // contact, matching exactly what landed in their inbox.
+        const txId = transactionIdFromSourceId(decision.rows[0].sourceId);
+        if (txId) {
+          await logAutomatedEmail(
+            txId,
+            [contactId],
+            decision.assembled.subject,
+            decision.assembled.text,
+          ).catch(() => {});
+        }
         digestSends++;
       }
     } catch (err) {
