@@ -24,7 +24,14 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { sendAdminMilestoneNotificationToPortal, computeHandoffDirection, isBilateralCounterpartComplete, roleToConfirmerRoute } from "@/lib/services/portal";
+import {
+  sendAdminMilestoneNotificationToPortal,
+  computeHandoffDirection,
+  isBilateralCounterpartComplete,
+  roleToConfirmerRoute,
+  fireAutoCounterpartEmails,
+  scheduleOrSendCompletionPack,
+} from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -203,6 +210,27 @@ export async function confirmMilestoneAction(input: {
         confirmerRoute_self,
         handoffDirection_self,
       ).catch(() => {});
+
+      // Auto-counterpart fan-out for the four exchange/completion codes
+      // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
+      // completed inside the prisma.$transaction above; this fires its
+      // customer-facing email so the non-confirming side is notified.
+      // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
+      // to keep queue-bypass + staleness + suppression rules in one place.
+      // Non-counterpart codes are a no-op inside the helper.
+      fireAutoCounterpartEmails(
+        input.transactionId,
+        code,
+        session.user.id,
+        confirmerRoute_self,
+      ).catch(() => {});
+
+      // Completion-pack scheduling for exchange confirmations only.
+      // Fires now (E2/E3), schedules for completionDate - 3 days (E1),
+      // or skips if completion is in the past.
+      if (code === "VM19" || code === "PM26") {
+        scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+      }
     }
 
     // Retention email: fire first-exchange celebration for the agent who owns the file
@@ -686,6 +714,18 @@ export async function confirmExchangeReconciliationAction(input: {
     confirmerRoute_re,
     handoffDirection_re,
   ).catch(() => {});
+
+  // Auto-counterpart fan-out + completion-pack scheduling on the
+  // reconciliation path too — same rules as the standard confirm path.
+  fireAutoCounterpartEmails(
+    input.transactionId,
+    code,
+    session.user.id,
+    confirmerRoute_re,
+  ).catch(() => {});
+  if (code === "VM19" || code === "PM26") {
+    scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+  }
 
   const isExchangeCode = def.code === "VM19" || def.code === "PM26";
   return {
