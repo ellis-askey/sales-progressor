@@ -37,6 +37,13 @@ export type ActivityEntry =
       createdByName: string | null;
       createdByRole: string | null;
       contactNames: string[];
+      // Raw fields exposed so the inline edit form on ActivityTimeline can
+      // pre-populate without a second round-trip. contactIds drives the
+      // contact picker; visibleToClient drives the toggle; wasEdited drives
+      // the "(edited)" indicator next to the timestamp.
+      contactIds: string[];
+      visibleToClient: boolean;
+      wasEdited: boolean;
       wasAiGenerated: boolean;
       isAutomated: boolean;
       tone: string | null;
@@ -107,6 +114,9 @@ export async function getActivityTimeline(
     contactNames: c.contactIds
       .map((id) => contactMap.get(id))
       .filter(Boolean) as string[],
+    contactIds: c.contactIds,
+    visibleToClient: c.visibleToClient,
+    wasEdited: c.wasEdited,
     wasAiGenerated: c.wasAiGenerated,
     isAutomated: c.isAutomated,
     tone: c.tone,
@@ -288,6 +298,54 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope) 
   const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true } });
   if (!comm) throw new Error("Not found");
   return prisma.outboundMessage.delete({ where: { id } });
+}
+
+export type UpdateCommInput = {
+  id: string;
+  content: string;
+  contactIds: string[];
+  visibleToClient: boolean;
+  scope: AccessScope;
+};
+
+// Edits a manually-logged comms entry (phone / WhatsApp / note / etc.).
+// Automated entries (system-fired emails) are not editable — they're
+// already-sent transactional sends; pre-send edits happen via the
+// email-preview modal on the queue row, not here.
+//
+// Scope semantics match deleteCommunicationRecord exactly:
+//   admin / superadmin  → any file
+//   sales_progressor    → assigned files
+//   director / negotiator / viewer → their agency's files
+//
+// `wasEdited` flips to true on the first edit and stays true (no audit
+// trail of individual edits in v1 — updatedAt + the flag is enough).
+// Returns the updated row.
+export async function updateCommunicationRecord(input: UpdateCommInput) {
+  const { id, content, contactIds, visibleToClient, scope } = input;
+  const where =
+    scope.kind === "all"      ? { id } :
+    scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+                                { id, transaction: { agencyId: scope.agencyIds[0] } };
+  const comm = await prisma.outboundMessage.findFirst({
+    where,
+    select: { id: true, isAutomated: true, transactionId: true },
+  });
+  if (!comm) throw new Error("Not found");
+  if (comm.isAutomated) throw new Error("Automated comms cannot be edited");
+  const updated = await prisma.outboundMessage.update({
+    where: { id },
+    data: {
+      content,
+      contactIds,
+      visibleToClient,
+      wasEdited: true,
+    },
+  });
+  if (comm.transactionId) {
+    touchLastActivity(comm.transactionId).catch(() => {});
+  }
+  return updated;
 }
 
 // ─── WhatsApp chat bulk-import ────────────────────────────────────────────────

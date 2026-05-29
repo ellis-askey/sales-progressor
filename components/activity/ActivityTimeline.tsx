@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { formatDate, formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
-import { deleteCommAction } from "@/app/actions/comms";
+import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 type Props = {
@@ -13,6 +13,10 @@ type Props = {
   mosDocUrl?: string | null;
   beforeEntries?: React.ReactNode;
   currentUserId?: string;
+  // Contact list for the inline edit form's contact picker. Optional —
+  // when omitted (e.g. global comms surfaces that don't pass contacts),
+  // edit is disabled.
+  contacts?: { id: string; name: string }[];
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
@@ -107,10 +111,17 @@ function ContactPill({ name }: { name: string }) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId]   = useState<string | null>(null);
+  // Inline edit state. editingId names the entry being edited; editDraft
+  // holds the form values. Optimistic local overrides keep edits visible
+  // before the server revalidate lands.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ content: string; contactIds: string[]; visibleToClient: boolean } | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [localEdits, setLocalEdits] = useState<Record<string, { content: string; contactIds: string[]; visibleToClient: boolean; wasEdited: true }>>({});
   // Optimistic delete: after the fade-out animation, drop the entry from
   // the rendered list immediately rather than waiting for the server-side
   // revalidate to bring fresh entries back. Reset when the prop entries
@@ -118,6 +129,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [locallyRemovedIds, setLocallyRemovedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     setLocallyRemovedIds(new Set());
+    // Drop optimistic edits once the server-side revalidate has caught up.
+    setLocalEdits({});
   }, [entries]);
   // Auto-animate the entry list — siblings collapse smoothly when an
   // entry is removed (delete) or when filter/search shrinks the set.
@@ -158,6 +171,58 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
 
   const visible = showAll ? filtered : filtered.slice(0, 10);
   const hasMore = filtered.length > 10;
+
+  function startEdit(entry: Extract<ActivityEntry, { kind: "comm" }>) {
+    const override = localEdits[entry.id];
+    setEditingId(entry.id);
+    setEditDraft({
+      content: override?.content ?? entry.content,
+      contactIds: override?.contactIds ?? entry.contactIds,
+      visibleToClient: override?.visibleToClient ?? entry.visibleToClient,
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft(null);
+  }
+
+  function saveEdit(id: string) {
+    if (!editDraft) return;
+    const trimmed = editDraft.content.trim();
+    if (!trimmed) return;
+    const payload = { content: trimmed, contactIds: editDraft.contactIds, visibleToClient: editDraft.visibleToClient };
+    // Optimistic — render the new content immediately, clear when revalidate lands.
+    setLocalEdits((prev) => ({ ...prev, [id]: { ...payload, wasEdited: true } }));
+    setEditingId(null);
+    setEditDraft(null);
+    setSavingId(id);
+    startTransition(async () => {
+      try {
+        await editCommAction({ id, transactionId, ...payload });
+      } catch {
+        // Roll back the optimistic edit on failure.
+        setLocalEdits((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      } finally {
+        setSavingId((cur) => (cur === id ? null : cur));
+      }
+    });
+  }
+
+  function toggleEditContact(contactId: string) {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      const has = prev.contactIds.includes(contactId);
+      return {
+        ...prev,
+        contactIds: has ? prev.contactIds.filter((cid) => cid !== contactId) : [...prev.contactIds, contactId],
+      };
+    });
+  }
 
   function deleteComm(id: string) {
     setExitingId(id);
@@ -285,6 +350,27 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     // ── Comm card ───────────────────────────────────────────
                     (() => {
                       const badge = getCommBadge(entry);
+                      // Apply any optimistic local edit so the row reflects
+                      // the save immediately even before the revalidate.
+                      const override = localEdits[entry.id];
+                      const displayContent = override?.content ?? entry.content;
+                      const displayContactIds = override?.contactIds ?? entry.contactIds;
+                      const displayContactNames = override
+                        ? (displayContactIds
+                            .map((cid) => contacts?.find((c) => c.id === cid)?.name)
+                            .filter(Boolean) as string[])
+                        : entry.contactNames;
+                      const isEdited = override?.wasEdited || entry.wasEdited;
+                      const isEditing = editingId === entry.id;
+                      // Edit is available to anyone in scope (server
+                      // enforces) but only for manual entries — automated
+                      // emails go through the queue's pre-send edit modal,
+                      // not this surface. Optimistic entries (id starts
+                      // "optimistic-") aren't editable until they get a
+                      // real id from the server.
+                      const canEdit = !entry.isAutomated
+                        && !entry.id.startsWith("optimistic-")
+                        && contacts !== undefined;
                       return (
                         <div
                           className="relative group"
@@ -300,35 +386,125 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               <span>{badge.icon}</span>
                               {badge.label}
                             </span>
-                            {entry.contactNames.map((name) => (
+                            {!isEditing && displayContactNames.map((name) => (
                               <ContactPill key={name} name={name} />
                             ))}
                           </div>
 
-                          {/* Content */}
-                          <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                            {entry.content}
-                          </p>
+                          {/* Content — either static paragraph or editable form */}
+                          {isEditing && editDraft && contacts ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              <textarea
+                                value={editDraft.content}
+                                onChange={(e) => setEditDraft({ ...editDraft, content: e.target.value })}
+                                rows={Math.max(3, Math.min(10, editDraft.content.split("\n").length + 1))}
+                                style={{
+                                  width: "100%", resize: "vertical",
+                                  fontSize: 12, lineHeight: 1.45,
+                                  padding: "8px 10px", borderRadius: 8,
+                                  border: "0.5px solid var(--agent-border-default)",
+                                  background: "white", color: "var(--agent-text-primary)",
+                                  fontFamily: "inherit",
+                                }}
+                                autoFocus
+                              />
+                              {/* Contact picker */}
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                {contacts.map((c) => {
+                                  const on = editDraft.contactIds.includes(c.id);
+                                  return (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => toggleEditContact(c.id)}
+                                      style={{
+                                        fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 10,
+                                        background: on ? "rgba(255,107,74,0.15)" : "rgba(15,23,42,0.04)",
+                                        color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                                        border: on ? "0.5px solid var(--agent-coral)" : "0.5px solid transparent",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {extractFirstName(c.name)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {/* Visibility toggle */}
+                              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--agent-text-muted)", cursor: "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={editDraft.visibleToClient}
+                                  onChange={(e) => setEditDraft({ ...editDraft, visibleToClient: e.target.checked })}
+                                />
+                                Visible in client portal
+                              </label>
+                              {/* Save / Cancel */}
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => saveEdit(entry.id)}
+                                  disabled={!editDraft.content.trim() || savingId === entry.id}
+                                  className="agent-btn agent-btn-sm"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  className="agent-btn agent-btn-sm agent-btn-ghost"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
+                              {displayContent}
+                            </p>
+                          )}
 
-                          {/* Footer: author pill + timestamp */}
+                          {/* Footer: author pill + timestamp + edited indicator */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
                             <AuthorPill name={entry.createdByName} role={entry.createdByRole} />
                             <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
                               {formatTimestamp(entry.at)}
                             </span>
+                            {isEdited && (
+                              <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+                                (edited)
+                              </span>
+                            )}
                           </div>
 
-                          {/* Delete */}
-                          {(!currentUserId || entry.createdById === currentUserId) && (
-                            <button
-                              onClick={() => deleteComm(entry.id)}
-                              disabled={deletingId === entry.id || isPending || exitingId === entry.id}
-                              className="agent-icon-btn agent-icon-btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                              style={{ position: "absolute", top: 8, right: 10 }}
-                              aria-label="Delete"
+                          {/* Action buttons — hidden during edit to keep the form clean */}
+                          {!isEditing && (
+                            <div
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ position: "absolute", top: 8, right: 10, display: "flex", gap: 2 }}
                             >
-                              ×
-                            </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => startEdit(entry)}
+                                  disabled={isPending || savingId === entry.id}
+                                  className="agent-icon-btn agent-icon-btn-sm"
+                                  aria-label="Edit"
+                                  title="Edit"
+                                >
+                                  ✎
+                                </button>
+                              )}
+                              {(!currentUserId || entry.createdById === currentUserId) && (
+                                <button
+                                  onClick={() => deleteComm(entry.id)}
+                                  disabled={deletingId === entry.id || isPending || exitingId === entry.id}
+                                  className="agent-icon-btn agent-icon-btn-sm"
+                                  aria-label="Delete"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       );

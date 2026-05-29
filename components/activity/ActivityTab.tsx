@@ -69,6 +69,9 @@ export function ActivityTab(props: Props) {
         createdByName: props.currentUserName,
         createdByRole: props.currentUserRole,
         contactNames,
+        contactIds,
+        visibleToClient: false,
+        wasEdited: false,
         wasAiGenerated: false,
         isAutomated: false,
         tone: null,
@@ -83,6 +86,7 @@ export function ActivityTab(props: Props) {
       transactionId={props.transactionId}
       mosDocUrl={props.mosDocUrl}
       currentUserId={props.currentUserId}
+      contacts={props.contacts}
       beforeEntries={
         <CommsEntry
           transactionId={props.transactionId}

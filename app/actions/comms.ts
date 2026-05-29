@@ -10,6 +10,7 @@ import { requireSession } from "@/lib/session";
 import {
   createCommunicationRecord,
   deleteCommunicationRecord,
+  updateCommunicationRecord,
   importWhatsAppChat,
   undoWhatsAppImport,
   type SenderMapping,
@@ -43,6 +44,28 @@ export async function deleteCommAction(id: string, transactionId: string) {
   const session = await requireSession();
   await deleteCommunicationRecord(id, getAccessScope(session));
   revalidateTx(transactionId);
+}
+
+// Edit a manually-logged comms entry (phone / WhatsApp / note). Scope
+// gating mirrors deleteCommAction — anyone who can access the file can
+// edit any manual entry on it, regardless of who originally created it.
+// Automated entries reject inside the service layer.
+export async function editCommAction(input: {
+  id: string;
+  transactionId: string;
+  content: string;
+  contactIds: string[];
+  visibleToClient: boolean;
+}) {
+  const session = await requireSession();
+  await updateCommunicationRecord({
+    id: input.id,
+    content: input.content,
+    contactIds: input.contactIds,
+    visibleToClient: input.visibleToClient,
+    scope: getAccessScope(session),
+  });
+  revalidateTx(input.transactionId);
 }
 
 export async function logCommAction(input: {
