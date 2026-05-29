@@ -632,14 +632,12 @@ const copy: Record<string, PortalCopy> = {
         whatNext: "Between now and completion, you should arrange to have everything ready to leave the property by the agreed time on completion day. Your solicitor will manage the legal transfer of funds — you'll hear from them on the day.",
         action: "View your portal",
       },
-      purchaser: {
-        subject: "Contracts exchanged — your purchase is legally committed — {address}",
-        heroLabel: "Contracts exchanged",
-        opening: "Contracts have exchanged on your purchase.",
-        whatHappened: "Both solicitors have formally exchanged signed contracts, and your purchase is now legally binding. The completion date is fixed.",
-        whatNext: "Now is the time to confirm your removal firm and start planning your move in detail. Buildings insurance: risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building. Your solicitor will manage the final transfer of funds on completion day.",
-        action: "View your portal",
-      },
+      // VM19.purchaser intentionally absent — the buyer is notified via PM26
+      // (auto-completed as VM19's bilateral counterpart in
+      // app/actions/milestones.ts:69 and lib/services/portal.ts:303). The
+      // FINAL VM19 skeleton is vendor-only by design. Removing the legacy
+      // fallback prevents the assembler from double-sending an exchange
+      // email to the buyer.
       vendorAgent: {
         subject: "Exchange confirmed — {address}",
         heroLabel: "Contracts exchanged",
@@ -671,14 +669,11 @@ const copy: Record<string, PortalCopy> = {
         whatNext: "Your solicitor will send you a completion statement showing the final figures. If you're also buying, the net proceeds will be passed to your purchase solicitor. Keep your completion statement safely for your records — you may need it for tax purposes.",
         action: "View your portal",
       },
-      purchaser: {
-        subject: "Sale completed — {address}",
-        heroLabel: "Sale completed",
-        opening: "Completion confirmed on your purchase property.",
-        whatHappened: "The sale of {address} has completed. The property now belongs to your seller and the transaction is legally concluded.",
-        whatNext: null,
-        action: "View your portal",
-      },
+      // VM20.purchaser intentionally absent — the buyer is notified via PM27
+      // (auto-completed as VM20's bilateral counterpart). The FINAL VM20
+      // skeleton is vendor-only by design. Removing the legacy fallback
+      // prevents the assembler from double-sending a completion email to
+      // the buyer.
       vendorAgent: {
         subject: "Completion confirmed — {address}",
         heroLabel: "Sale completed",
@@ -1185,14 +1180,10 @@ const copy: Record<string, PortalCopy> = {
     label: "Initial replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed the replies to their enquiries. They may raise further questions, or they may be satisfied and move towards exchange.",
     emailCopy: {
-      vendor: {
-        subject: "Buyer's solicitor has reviewed the enquiry replies — {address}",
-        heroLabel: "Replies reviewed",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer's solicitor has reviewed your solicitor's replies to their enquiries and is assessing whether all points have been answered satisfactorily.",
-        whatNext: "There may be a further round of questions — this is normal. We'll keep you updated.",
-        action: "View your portal",
-      },
+      // PM16.vendor intentionally absent — PM16 is an internal buyer-side
+      // review step; the seller has no actionable update on it. Per FINAL
+      // the milestone is purchaser-only. Removing the legacy fallback
+      // stops a noise email going to the seller every enquiry round.
       purchaser: {
         subject: "Your solicitor has reviewed the seller's replies — {address}",
         heroLabel: "Replies reviewed",
@@ -1278,14 +1269,9 @@ const copy: Record<string, PortalCopy> = {
     label: "Additional replies reviewed", who: "solicitor",
     description: "Your solicitor has reviewed all outstanding replies. They should now have everything they need to report to you and move towards exchange.",
     emailCopy: {
-      vendor: {
-        subject: "Buyer's solicitor has reviewed all outstanding replies — {address}",
-        heroLabel: "All replies reviewed",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer's solicitor has reviewed all outstanding enquiry replies and is working through the remaining legal points.",
-        whatNext: "If satisfied, the buyer's solicitor will prepare their final report to the buyer, moving towards contract sign-off and exchange.",
-        action: "View your portal",
-      },
+      // PM19.vendor intentionally absent — PM19 is an internal buyer-side
+      // review step; the seller has no actionable update on it. Per FINAL
+      // the milestone is purchaser-only.
       purchaser: {
         subject: "Your solicitor has reviewed all replies — {address}",
         heroLabel: "All replies reviewed",
@@ -1519,14 +1505,9 @@ const copy: Record<string, PortalCopy> = {
         whatNext: "Now is the time to confirm your removal firm and start planning your move in detail. Buildings insurance: risk in the property usually passes to you on exchange — check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building. Your solicitor will manage the final transfer of funds on completion day.",
         action: "View your portal",
       },
-      vendor: {
-        subject: "Contracts exchanged — your sale is legally committed — {address}",
-        heroLabel: "Contracts exchanged",
-        opening: "Contracts have exchanged on your sale.",
-        whatHappened: "Both solicitors have formally exchanged signed contracts, and your sale is now legally binding. The completion date is fixed — neither side can withdraw without significant financial penalty.",
-        whatNext: "Between now and completion, arrange to have everything ready to leave the property by the agreed time on completion day. Your solicitor will manage the legal transfer of funds.",
-        action: "View your portal",
-      },
+      // PM26.vendor intentionally absent — the seller is notified via VM19
+      // (auto-completed as PM26's bilateral counterpart). The FINAL PM26
+      // skeleton is purchaser-only by design.
       progressor: {
         subject: "PM26 complete: Contracts exchanged — {address}",
         heroLabel: "PM26 — Contracts exchanged",
@@ -1550,14 +1531,9 @@ const copy: Record<string, PortalCopy> = {
         whatNext: "Keep your completion statement and transfer documents safely for your records — you may need them for future legal or tax purposes. Your solicitor will send confirmation of Land Registry registration once it's been processed, which can take several months.",
         action: "View your portal",
       },
-      vendor: {
-        subject: "Completion confirmed on your sale — {address}",
-        heroLabel: "Sale completed",
-        opening: "Completion confirmed.",
-        whatHappened: "The purchase of {address} has completed. The property has transferred to the buyer and the transaction is legally concluded.",
-        whatNext: null,
-        action: "View your portal",
-      },
+      // PM27.vendor intentionally absent — the seller is notified via VM20
+      // (auto-completed as PM27's bilateral counterpart). The FINAL PM27
+      // skeleton is purchaser-only by design.
       progressor: {
         subject: "PM27 complete: Purchase completed — {address}",
         heroLabel: "PM27 — Purchase completed",

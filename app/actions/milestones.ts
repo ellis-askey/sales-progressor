@@ -24,7 +24,14 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { sendAdminMilestoneNotificationToPortal } from "@/lib/services/portal";
+import {
+  sendAdminMilestoneNotificationToPortal,
+  computeHandoffDirection,
+  isBilateralCounterpartComplete,
+  roleToConfirmerRoute,
+  fireAutoCounterpartEmails,
+  scheduleOrSendCompletionPack,
+} from "@/lib/services/portal";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -179,6 +186,17 @@ export async function confirmMilestoneAction(input: {
 
     // Email all vendor/purchaser portal contacts with a translated progress update.
     //
+    // ── Skeleton-mode wiring (added 2026-05-27) ───────────────────────
+    // Derive the confirmer's route (agent / sales_progressor) from
+    // session.user.role and compute the bilateral handoff direction from
+    // whether the paired milestone is already complete. Both pass through
+    // to the assembler so route-varied and direction-gated Section
+    // entries match correctly. Strictly no-op when the flag is off (the
+    // assembler doesn't construct a FileShape at all in that case).
+    const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
+    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code);
+    const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
+
     // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
     // by internal staff, the portal confirm email is skipped. All other
     // side effects of a confirm (chain notifications, celebrations, SP
@@ -189,7 +207,30 @@ export async function confirmMilestoneAction(input: {
         code,
         input.eventDate ?? null,
         session.user.id,
+        confirmerRoute_self,
+        handoffDirection_self,
       ).catch(() => {});
+
+      // Auto-counterpart fan-out for the four exchange/completion codes
+      // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
+      // completed inside the prisma.$transaction above; this fires its
+      // customer-facing email so the non-confirming side is notified.
+      // Internal-to-internal call (NOT through sendAdminMilestoneNotificationToPortal)
+      // to keep queue-bypass + staleness + suppression rules in one place.
+      // Non-counterpart codes are a no-op inside the helper.
+      fireAutoCounterpartEmails(
+        input.transactionId,
+        code,
+        session.user.id,
+        confirmerRoute_self,
+      ).catch(() => {});
+
+      // Completion-pack scheduling for exchange confirmations only.
+      // Fires now (E2/E3), schedules for completionDate - 3 days (E1),
+      // or skips if completion is in the past.
+      if (code === "VM19" || code === "PM26") {
+        scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+      }
     }
 
     // Retention email: fire first-exchange celebration for the agent who owns the file
@@ -658,12 +699,33 @@ export async function confirmExchangeReconciliationAction(input: {
   }
 
   pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});
+
+  // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
+  // at the top callsite of sendAdminMilestoneNotificationToPortal above.
+  const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
+  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code);
+  const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
+
   sendAdminMilestoneNotificationToPortal(
     input.transactionId,
     code,
     input.eventDate ?? null,
     session.user.id,
+    confirmerRoute_re,
+    handoffDirection_re,
   ).catch(() => {});
+
+  // Auto-counterpart fan-out + completion-pack scheduling on the
+  // reconciliation path too — same rules as the standard confirm path.
+  fireAutoCounterpartEmails(
+    input.transactionId,
+    code,
+    session.user.id,
+    confirmerRoute_re,
+  ).catch(() => {});
+  if (code === "VM19" || code === "PM26") {
+    scheduleOrSendCompletionPack(input.transactionId, code).catch(() => {});
+  }
 
   const isExchangeCode = def.code === "VM19" || def.code === "PM26";
   return {

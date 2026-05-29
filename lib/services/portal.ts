@@ -3,6 +3,28 @@ import { extractPostcode } from "@/lib/services/property-intel";
 import { sendEmail } from "@/lib/email";
 import { pushToContact, pushToTransaction, pushToUser } from "@/lib/services/push";
 import { getMilestoneCopy, buildGreeting, type MilestoneEmailCopy, type RecipientEmailCopy } from "@/lib/portal-copy";
+// ── Model B (composition) integration — no-op until EMAIL_SKELETON_MODE=on ──
+//
+// When the feature flag is enabled AND the milestoneCode has a registered
+// skeleton, the recipient copy is assembled from Section[] sources via
+// the email-assembler. Otherwise the legacy emailCopy fires unchanged.
+//
+// Default (flag unset / not "on") behaviour: zero call to the assembler,
+// zero schema lookups beyond the existing path, zero observable change.
+// Confirmed by the resolveRecipientCopy helper below — if shape is null
+// (which it is when the flag is off), the function returns the legacy
+// emailCopy entry directly with no detour.
+import { SKELETON_REGISTRY, isSkeletonModeEnabled } from "@/lib/email-skeletons/registry";
+import { assembleEmail, type FileShape, type ConfirmerRoute, type HandoffDirection } from "@/lib/email-assembler";
+import { BILATERAL_PAIR_OF, HANDOFF_DEFAULT_ACTOR, computeBilateralSuppressedRecipient } from "@/lib/email-skeletons/journey-order";
+import { enqueueEmail } from "@/lib/email/outboundQueue";
+import type { MilestoneDigestPayload } from "@/lib/email/milestone-digest";
+import {
+  EXCHANGE_COMPLETION_CODES,
+  AUTO_COUNTERPART_OF,
+  isExchangeCompletionStale,
+  decideCompletionPackTiming,
+} from "@/lib/services/exchange-completion-rules";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -434,8 +456,20 @@ export async function portalCompleteMilestone(input: {
     input.eventDate ?? null
   ).catch(() => {});
 
+  // Auto-counterpart fan-out for the four exchange/completion codes
+  // (VM19↔PM26, VM20↔PM27). The DB row for the counterpart was already
+  // completed inside the prisma.$transaction above; this fires its
+  // customer-facing email so the non-confirming side is notified.
+  // confirmerRoute is "client_portal" on this path (clients reach
+  // logPortalMilestoneConfirm from their portal). Non-counterpart codes
+  // are a no-op inside the helper.
+  fireAutoCounterpartEmails(contact.propertyTransactionId, def.code, undefined, "client_portal").catch(() => {});
+
+  // Completion-pack scheduling for exchange confirmations only. Fires
+  // now (E2/E3), schedules for completionDate - 3 days (E1), or skips
+  // if completion is in the past. See decideCompletionPackTiming.
   if (def.code === "VM19" || def.code === "PM26") {
-    sendExchangeCompletionPack(contact.propertyTransactionId).catch(() => {});
+    scheduleOrSendCompletionPack(contact.propertyTransactionId, def.code).catch(() => {});
   }
 
   return completion;
@@ -454,6 +488,11 @@ export async function logPortalMilestoneConfirm(
     select: {
       propertyAddress: true,
       serviceType: true,
+      // tenure + purchaseType added 2026-05-27 for Model B skeleton mode.
+      // Used by resolveRecipientCopy via the FileShape construction below.
+      // Nullable on the schema; null short-circuits the assembler path.
+      tenure: true,
+      purchaseType: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
@@ -465,6 +504,31 @@ export async function logPortalMilestoneConfirm(
 
   // Use client-facing portal copy label for all client communications
   const portalLabel = milestoneCode ? (getMilestoneCopy(milestoneCode).label ?? milestoneLabel) : milestoneLabel;
+
+  // ── Model B FileShape — for the client-portal-confirmed email pipeline ──
+  //
+  // The client confirmed via their portal. Route is always "client_portal"
+  // on this path (only clients reach logPortalMilestoneConfirm). Direction
+  // is computed from whether the bilateral counterpart is already complete.
+  //
+  // Strict no-op when EMAIL_SKELETON_MODE is off OR tenure/purchaseType
+  // are null on the tx — fileShape stays null and resolveRecipientCopy
+  // falls through to legacy emailCopy[recipientKey] for every recipient.
+  const portalCounterpartComplete = milestoneCode
+    ? await isBilateralCounterpartComplete(transactionId, milestoneCode)
+    : false;
+  const portalDirection = milestoneCode
+    ? computeHandoffDirection(milestoneCode, portalCounterpartComplete)
+    : undefined;
+  const portalFileShape: FileShape | null =
+    isSkeletonModeEnabled() && tx.tenure && tx.purchaseType
+      ? {
+          tenure: tx.tenure,
+          purchaseType: tx.purchaseType,
+          route: "client_portal",
+          direction: portalDirection,
+        }
+      : null;
 
   const content = `${contactName} confirmed "${milestoneLabel}" via the client portal`;
 
@@ -585,11 +649,21 @@ export async function logPortalMilestoneConfirm(
 
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
+    //
+    // ── Model B switch (2026-05-27): use resolveRecipientCopy so the
+    // assembler fires when EMAIL_SKELETON_MODE is on AND the milestone
+    // has a registered skeleton AND tenure+purchaseType are set. The
+    // client_portal route variant of bilateral acted-side bodies (the ψ
+    // menu — "Thanks — your solicitor's…", "You've just confirmed…",
+    // etc.) is ONLY reachable via this path, so without this swap, that
+    // entire route variant set is unreachable in production.
     const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
       const recipientKey = c.roleType as "vendor" | "purchaser";
-      const copy = richCopy[recipientKey];
+      const copy = milestoneCode
+        ? resolveRecipientCopy(milestoneCode, recipientKey, richCopy, portalFileShape)
+        : richCopy[recipientKey];
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
@@ -739,16 +813,34 @@ export async function logPortalMilestoneConfirm(
 
 // Called from confirmMilestoneAction — emails all vendor/purchaser contacts when
 // the progressor/agent confirms any milestone, regardless of which side it's on.
+//
+// ── Skeleton-mode parameters (added 2026-05-27) ──────────────────────────
+// confirmerRoute    — derived from session.user.role at the caller via
+//                     roleToConfirmerRoute(). Passes through to the
+//                     assembler so bilateral acted-side route variants
+//                     (client_portal / agent / sales_progressor) match
+//                     correctly. Undefined for non-bilateral codes.
+// handoffDirection  — computed by the caller via computeHandoffDirection()
+//                     + isBilateralCounterpartComplete(). Passes through so
+//                     bilateral default/inverse direction-gated bodies
+//                     match correctly. Undefined for non-bilateral codes.
+// Both are NO-OP when the flag is off (sendRichMilestoneEmails only uses
+// them when constructing the FileShape, and shape is null when flag off).
 export async function sendAdminMilestoneNotificationToPortal(
   transactionId: string,
   milestoneCode: string,
   eventDate?: string | null,
   confirmerId?: string,
+  confirmerRoute?: ConfirmerRoute,
+  handoffDirection?: HandoffDirection,
 ): Promise<void> {
-  // Exchange gets the rich "what happens next" pack — delegate entirely
-  if (milestoneCode === "VM19" || milestoneCode === "PM26") {
-    return sendExchangeCompletionPack(transactionId, milestoneCode, confirmerId);
-  }
+  // 2026-05-29: delegation to sendExchangeCompletionPack removed. The
+  // FINAL VM19/PM26 skeletons were dead code under the old delegation.
+  // Now VM19/PM26 take the normal sendRichMilestoneEmails path (which
+  // applies the queue-bypass + staleness rules in
+  // exchange-completion-rules.ts). The completion-pack ("what to expect
+  // on completion day") is scheduled separately via
+  // scheduleOrSendCompletionPack from the agent and portal call sites.
 
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -766,7 +858,7 @@ export async function sendAdminMilestoneNotificationToPortal(
   // Use per-recipient rich email when available
   const milestoneCopy = getMilestoneCopy(milestoneCode);
   if (milestoneCopy.emailCopy) {
-    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate);
+    await sendRichMilestoneEmails(transactionId, milestoneCode, milestoneCopy.emailCopy, confirmerId, eventDate, confirmerRoute, handoffDirection);
     return;
   }
 
@@ -975,20 +1067,155 @@ function richMilestoneEmailHtml({
 </body></html>`;
 }
 
+// ── Bilateral hand-off direction computation ────────────────────────────
+//
+// Given a bilateral milestone code being confirmed now, determine whether
+// the pair is firing in NATURAL order (first-actor first → "default") or
+// REVERSED order (second-actor first → "inverse"). Returns undefined for
+// non-bilateral codes — the assembler treats undefined as "no direction
+// gating applies to this body".
+//
+// The rule:
+//   - currentIsNaturalFirst = HANDOFF_DEFAULT_ACTOR[code] matches code's V/P prefix
+//   - If currentIsNaturalFirst AND counterpart NOT complete: default (we're first, natural)
+//   - If currentIsNaturalFirst AND counterpart IS complete:    inverse (we're catching up)
+//   - If !currentIsNaturalFirst AND counterpart NOT complete: inverse (we went first)
+//   - If !currentIsNaturalFirst AND counterpart IS complete:    default (natural completion)
+//
+// counterpartComplete is passed in by the caller (which already has the
+// MilestoneCompletion row state for the file).
+export function computeHandoffDirection(
+  currentCode: string,
+  counterpartComplete: boolean,
+): HandoffDirection | undefined {
+  const pairFirstActor = HANDOFF_DEFAULT_ACTOR[currentCode];
+  if (!pairFirstActor) return undefined; // not a bilateral code
+  const currentActedSide: "vendor" | "purchaser" =
+    currentCode.startsWith("V") ? "vendor" : "purchaser";
+  const currentIsNaturalFirst = pairFirstActor === currentActedSide;
+  if (currentIsNaturalFirst) {
+    return counterpartComplete ? "inverse" : "default";
+  }
+  return counterpartComplete ? "default" : "inverse";
+}
+
+// Look up whether a bilateral milestone's counterpart is already complete.
+// Returns false for non-bilateral codes (the value is unused but the call
+// shape is preserved for the caller).
+export async function isBilateralCounterpartComplete(
+  transactionId: string,
+  currentCode: string,
+): Promise<boolean> {
+  const counterCode = BILATERAL_PAIR_OF[currentCode];
+  if (!counterCode) return false;
+  const counterDef = await prisma.milestoneDefinition.findFirst({
+    where: { code: counterCode },
+    select: { id: true },
+  });
+  if (!counterDef) return false;
+  const completion = await prisma.milestoneCompletion.findUnique({
+    where: {
+      transactionId_milestoneDefinitionId: {
+        transactionId,
+        milestoneDefinitionId: counterDef.id,
+      },
+    },
+    select: { state: true },
+  });
+  return completion?.state === "complete";
+}
+
+// Map session.user.role → ConfirmerRoute. Used by callers of
+// sendAdminMilestoneNotificationToPortal to derive the route that the
+// assembler needs. The portal-confirm path passes "client_portal"
+// directly (no role lookup needed — only clients reach that path).
+//
+// Role taxonomy (from CLAUDE.md):
+//   director / negotiator / viewer       → customer agency staff → "agent"
+//   sales_progressor / admin / superadmin → internal staff      → "sales_progressor"
+export function roleToConfirmerRoute(
+  role: string | undefined,
+): ConfirmerRoute | undefined {
+  if (!role) return undefined;
+  if (role === "director" || role === "negotiator" || role === "viewer") {
+    return "agent";
+  }
+  if (role === "sales_progressor" || role === "admin" || role === "superadmin") {
+    return "sales_progressor";
+  }
+  return undefined;
+}
+
 // Builds and sends all per-recipient emails for a milestone that has emailCopy defined.
 // Returns true if emails were sent, false if emailCopy is absent (caller uses fallback).
+// ── Skeleton-aware recipient copy resolver (no-op when flag is off) ─────
+//
+// Returns either an assembled-from-skeleton RecipientEmailCopy, OR the
+// legacy emailCopy entry, depending on whether:
+//   1. EMAIL_SKELETON_MODE is "on" in env (flag gate)
+//   2. SKELETON_REGISTRY has this milestoneCode
+//   3. shape is non-null (i.e. tenure + purchaseType were set on the tx)
+//
+// All three must be true for the assembler path. Otherwise fall through
+// to legacy. This is the load-bearing line of the no-op contract.
+function resolveRecipientCopy(
+  milestoneCode: string,
+  recipientKey: "vendor" | "purchaser" | "vendorAgent" | "progressor",
+  emailCopy: MilestoneEmailCopy,
+  shape: FileShape | null,
+): RecipientEmailCopy | undefined {
+  if (shape) {
+    const skeletonField = SKELETON_REGISTRY[milestoneCode]?.[recipientKey];
+    if (skeletonField) {
+      const a = assembleEmail(skeletonField, shape);
+      return {
+        subject:      a.subject,
+        heroLabel:    a.heroLabel,
+        opening:      a.opening,
+        whatHappened: a.whatHappened,
+        // Empty string → null so the existing truthy-check (`copy.whatNext`)
+        // at line ~1047 keeps working as today (the bracket-spread expression
+        // skips when whatNext is null).
+        whatNext:     a.whatNext || null,
+        // Empty string → null so the ?? "View your portal" fallback fires.
+        action:       a.action   || null,
+      };
+    }
+  }
+  return emailCopy[recipientKey];
+}
+
 async function sendRichMilestoneEmails(
   transactionId: string,
   milestoneCode: string,
   emailCopy: MilestoneEmailCopy,
   confirmerId?: string,
   eventDate?: string | null,
+  // ── Skeleton-mode plumbing (optional; no-op when flag is off) ────────
+  // confirmerRoute    — bilateral acted-side route (client_portal / agent / SP)
+  // handoffDirection  — bilateral hand-off direction ("default" / "inverse")
+  // These two parameters are wired through so the assembler can pick the
+  // right Section[] entries. Callers (confirmMilestoneAction) can leave
+  // them undefined for non-bilateral milestones or until skeleton mode is
+  // enabled. They have no effect when shape is null below.
+  confirmerRoute?: ConfirmerRoute,
+  handoffDirection?: HandoffDirection,
 ): Promise<boolean> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
       propertyAddress: true,
       serviceType: true,
+      // tenure + purchaseType added for the skeleton-mode FileShape build.
+      // Nullable on the schema; resolveRecipientCopy guards against nulls
+      // by returning legacy copy when shape can't be constructed.
+      tenure: true,
+      purchaseType: true,
+      // Added 2026-05-29: needed for the staleness check on the four
+      // exchange/completion codes (VM19/PM26/VM20/PM27) — see
+      // isExchangeCompletionStale in exchange-completion-rules.ts.
+      expectedExchangeDate: true,
+      completionDate: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
@@ -998,6 +1225,20 @@ async function sendRichMilestoneEmails(
     },
   });
   if (!tx) return false;
+
+  // Skeleton-mode FileShape — null when the flag is off OR when tenure/
+  // purchaseType aren't both set on the tx. Null shape means
+  // resolveRecipientCopy will fall through to legacy emailCopy for every
+  // recipient regardless of registry contents — strict no-op.
+  const fileShape: FileShape | null =
+    isSkeletonModeEnabled() && tx.tenure && tx.purchaseType
+      ? {
+          tenure: tx.tenure,
+          purchaseType: tx.purchaseType,
+          route: confirmerRoute,
+          direction: handoffDirection,
+        }
+      : null;
 
   const base             = process.env.NEXTAUTH_URL ?? "";
   const address          = tx.propertyAddress;
@@ -1029,13 +1270,42 @@ async function sendRichMilestoneEmails(
       : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
     : "";
 
-  // Vendor and purchaser contacts
+  // Bilateral pair-complete suppression. See computeBilateralSuppressedRecipient
+  // for the rule. When a bilateral milestone fires in INVERSE direction,
+  // the side that acted on the counterpart is suppressed — they were
+  // emailed when they confirmed and must not be re-notified now. Runs
+  // BEFORE the enqueue so suppressed sides never get a queue row, exactly
+  // as suppression ran before the send call pre-batching.
+  const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, handoffDirection);
+
+  // Exchange/completion handling. The four codes VM19/PM26/VM20/PM27
+  // bypass the 3-minute digest queue (always discrete single-event
+  // customer emails) AND respect a staleness rule: if the agent is
+  // catching up well after the recorded date, the customer-facing email
+  // is suppressed. Internal-audience emails (vendorAgent, progressor)
+  // are never suppressed by either rule.
+  const isExchangeCompletion = EXCHANGE_COMPLETION_CODES.has(milestoneCode);
+  const customerSuppressedByStaleness = isExchangeCompletion && isExchangeCompletionStale(
+    milestoneCode,
+    { expectedExchangeDate: tx.expectedExchangeDate, completionDate: tx.completionDate },
+  );
+
+  // Vendor and purchaser contacts — enqueued for the 3-minute batching
+  // window rather than sent synchronously, EXCEPT for the four exchange/
+  // completion codes which always send immediately as discrete emails.
+  // /api/cron/send-milestone-digests drains every 3 minutes: N=1 sends
+  // the row's payload as-is (today's locked single-event copy); N>=2
+  // assembles a digest (see lib/email/milestone-digest.ts). vendorAgent
+  // + progressor sends below remain synchronous — those are internal-
+  // audience and would change the working contract if deferred.
   const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
     const recipientKey = c.roleType as "vendor" | "purchaser";
-    const copy = emailCopy[recipientKey];
+    // Skip the first-actor side on inverse-direction bilateral completions.
+    if (suppressedRecipient && recipientKey === suppressedRecipient) continue;
+    const copy = resolveRecipientCopy(milestoneCode, recipientKey, emailCopy, fileShape);
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
@@ -1046,7 +1316,51 @@ async function sendRichMilestoneEmails(
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
-    sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
+    // Empty-body guard — belt-and-braces against shape-conditional blocks
+    // whose sections all gate out (e.g. VM9.purchaser on freehold if auto-
+    // NR were ever bypassed). assembleEmail returns empty strings in that
+    // case; resolveRecipientCopy returns a truthy object with empty fields;
+    // without this guard an empty-bodied email would enqueue/send.
+    if (!subject.trim() && !interpolate(copy.opening, vars).trim() && !interpolate(copy.whatHappened, vars).trim()) {
+      continue;
+    }
+
+    if (isExchangeCompletion) {
+      // Queue bypass + staleness check. Always discrete, never bundled.
+      // logAutomatedEmail still writes the comms-log entry below (via
+      // sideLog) regardless of whether the actual send happens — so
+      // staleness suppression doesn't hide the intent from the timeline.
+      if (!customerSuppressedByStaleness) {
+        sendEmail({ to: c.email, subject, text, html, replyTo }).catch(() => {});
+      }
+    } else {
+      // Standard path: enqueue into the 3-minute batching window.
+      // Source key: (transactionId, milestoneCode) is unique per confirmation
+      // event and stable under retry. The unique index on
+      // (emailType, sourceId, recipientContactId) makes the enqueue idempotent;
+      // a re-confirm within the 3-minute window silently no-ops.
+      const sourceId = `${transactionId}:${milestoneCode}`;
+      const payload: MilestoneDigestPayload = {
+        subject,
+        text,
+        html,
+        milestoneCode,
+        recipientSide: recipientKey,
+        address,
+        firstName: extractFirstName(c.name),
+        portalUrl,
+      };
+      enqueueEmail({
+        emailType: "MILESTONE_CONFIRMATION",
+        sourceId,
+        recipientEmail: c.email,
+        recipientContactId: c.id,
+        payload: payload as unknown as Record<string, unknown>,
+        // 3-minute batching window. NOT routed through scheduleForBusinessHours —
+        // transactional client emails fire 24/7 within the batching window.
+        scheduledFor: new Date(Date.now() + 3 * 60 * 1000),
+      }).catch(() => {});
+    }
 
     const existing = sideLog.get(recipientKey);
     if (existing) {
@@ -1062,8 +1376,9 @@ async function sendRichMilestoneEmails(
 
   // Agent notification — only on outsourced files; self-managed agents manage their own files
   const skipAgentEmail = serviceType === "self_managed";
-  if (tx.agentUser?.email && emailCopy.vendorAgent && !skipAgentEmail) {
-    const copy    = emailCopy.vendorAgent;
+  const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", emailCopy, fileShape);
+  if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail) {
+    const copy    = vendorAgentCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
     const greeting = buildGreeting(tx.agentUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
@@ -1074,8 +1389,9 @@ async function sendRichMilestoneEmails(
 
   // Progressor notification — BUG2: suppress self-notification on outsourced when SP is the confirmer
   const skipProgressorEmail = serviceType === "outsourced" && tx.assignedUser?.id === confirmerId;
-  if (tx.assignedUser?.email && emailCopy.progressor && !skipProgressorEmail) {
-    const copy    = emailCopy.progressor;
+  const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", emailCopy, fileShape);
+  if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail) {
+    const copy    = progressorCopy;
     const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
     const greeting = buildGreeting(tx.assignedUser.name);
     const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
@@ -1087,115 +1403,243 @@ async function sendRichMilestoneEmails(
   return true;
 }
 
-async function sendExchangeCompletionPack(transactionId: string, milestoneCode = "VM19", confirmerId?: string): Promise<void> {
-  const tx = await prisma.propertyTransaction.findUnique({
-    where: { id: transactionId },
-    select: {
-      propertyAddress: true,
-      completionDate: true,
-      serviceType: true,
-      contacts: {
-        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
-      },
-      agentUser: { select: { id: true, name: true, email: true } },
-      assignedUser: { select: { name: true, email: true } },
-    },
-  });
-  if (!tx) return;
+// ── Completion-pack timing + scheduling ───────────────────────────────────
+//
+// The "what to expect on completion day" pack (practicals: meters, keys,
+// insurance handover) fires on EXCHANGE confirmation (VM19/PM26) but is
+// timed to land 3 days before the recorded completion date — so the
+// prep content arrives when it's actually useful.
+//
+// Per decideCompletionPackTiming in lib/services/exchange-completion-rules.ts:
+//   completion in past         → skip entirely
+//   completion ≤ 3 days        → send now (E2)
+//   no completion date         → send now (E3 — tick is source of truth)
+//   completion > 3 days away   → schedule for completionDate - 3 days (E1)
+//
+// Agent operational email is NOT in this function — it fires from the
+// normal sendRichMilestoneEmails fan-out via VM19.vendorAgent (the
+// pre-existing delegation in sendAdminMilestoneNotificationToPortal
+// was removed on 2026-05-29; the FINAL VM19 skeleton + legacy fallback
+// now reach the agent through the standard path).
 
-  const base        = process.env.NEXTAUTH_URL ?? "";
-  const address     = tx.propertyAddress;
-  const completionStr = tx.completionDate
-    ? new Date(tx.completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+type CompletionPackContact = {
+  id: string;
+  name: string;
+  email: string;
+  portalToken: string | null;
+};
+
+function renderCompletionPackBody(args: {
+  side: "vendor" | "purchaser";
+  contact: CompletionPackContact;
+  address: string;
+  completionDate: Date | null;
+  agentName: string;
+}): { subject: string; text: string; html: string; recipientEmail: string } {
+  const { side, contact, address, completionDate, agentName } = args;
+  const base = process.env.NEXTAUTH_URL ?? "";
+  const completionStr = completionDate
+    ? new Date(completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : null;
   const dateBlurb = completionStr ? ` on <strong>${completionStr}</strong>` : "";
   const datePlain = completionStr ? ` on ${completionStr}` : "";
+  const portalUrl = contact.portalToken ? `${base}/portal/${contact.portalToken}` : base;
 
-  const vendors    = tx.contacts.filter((c) => c.roleType === "vendor"    && c.email);
-  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser" && c.email);
-
-  const vendorBodyHtml = `
+  const bodyHtml = side === "vendor"
+    ? `
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. The sale is now legally committed.</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Your solicitor will handle the transfer of funds — you don't need to be at the property.</li>
       <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
-      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${tx.agentUser?.name ?? "your agent"} or a member of our team).</li>
+      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${agentName} or a member of our team).</li>
       <li>Leave appliance manuals, warranties, and service records — the buyer is entitled to these.</li>
       <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
-    </ul>`;
-  const vendorBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${tx.agentUser?.name ?? "your agent"} or a member of our team).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`;
-
-  const purchaserBodyHtml = `
+    </ul>`
+    : `
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. Your purchase is now legally committed.</p>
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
-      <li>Keys are usually available from midday, once your solicitor confirms completion. ${tx.agentUser?.name ?? "Your agent"} or a member of our team will let you know.</li>
+      <li>Keys are usually available from midday, once your solicitor confirms completion. ${agentName} or a member of our team will let you know.</li>
       <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
       <li>From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.</li>
       <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
     </ul>`;
-  const purchaserBodyPlain = `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${tx.agentUser?.name ?? "Your agent"} or a member of our team will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+
+  const bodyPlain = side === "vendor"
+    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${agentName} or a member of our team).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
+    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${agentName} or a member of our team will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+
+  const subject = side === "vendor"
+    ? `Contracts exchanged — what happens next for your sale`
+    : `Contracts exchanged — what happens next for your purchase`;
+
+  const greeting = buildGreeting(contact.name);
+  const text = `${greeting}\n\n${bodyPlain}\n\nView your portal: ${portalUrl}`;
+  const html = portalEmailHtml({
+    greeting,
+    body: bodyHtml,
+    ctaText: "View your portal",
+    ctaUrl: portalUrl,
+  });
+
+  return { subject, text, html, recipientEmail: contact.email };
+}
+
+async function loadCompletionPackContext(transactionId: string): Promise<{
+  address: string;
+  completionDate: Date | null;
+  agentName: string;
+  vendors: CompletionPackContact[];
+  purchasers: CompletionPackContact[];
+} | null> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      propertyAddress: true,
+      completionDate: true,
+      agentUser: { select: { name: true } },
+      contacts: {
+        select: { id: true, name: true, email: true, roleType: true, portalToken: true },
+      },
+    },
+  });
+  if (!tx) return null;
+  const narrow = (c: typeof tx.contacts[number]): CompletionPackContact | null =>
+    c.email ? { id: c.id, name: c.name, email: c.email, portalToken: c.portalToken } : null;
+  const vendors    = tx.contacts.filter((c) => c.roleType === "vendor")   .map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  const purchasers = tx.contacts.filter((c) => c.roleType === "purchaser").map(narrow).filter((c): c is CompletionPackContact => c !== null);
+  return {
+    address: tx.propertyAddress,
+    completionDate: tx.completionDate,
+    agentName: tx.agentUser?.name ?? "your agent",
+    vendors,
+    purchasers,
+  };
+}
+
+// Sends the completion-pack to vendor + purchaser contacts NOW. Used by
+// scheduleOrSendCompletionPack for E2 (completion ≤3 days away) and E3
+// (no completion date). Comms-log entries written per side.
+async function sendCustomerCompletionPackNow(transactionId: string): Promise<void> {
+  const ctx = await loadCompletionPackContext(transactionId);
+  if (!ctx) return;
 
   const vendorIds: string[] = [];
-  for (const c of vendors) {
-    const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
-    await sendEmail({
-      to: c.email!,
-      subject: `Contracts exchanged — what happens next for your sale`,
-      text: `${buildGreeting(c.name)}\n\n${vendorBodyPlain}\n\nView your portal: ${portalUrl}`,
-      html: portalEmailHtml({
-        greeting: buildGreeting(c.name),
-        body: vendorBodyHtml,
-        ctaText: "View your portal",
-        ctaUrl: portalUrl,
-      }),
-    }).catch(() => {});
+  let vendorPlainForLog = "";
+  for (const c of ctx.vendors) {
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html }).catch(() => {});
     vendorIds.push(c.id);
+    if (!vendorPlainForLog) vendorPlainForLog = body.text;
   }
   if (vendorIds.length > 0) {
-    logAutomatedEmail(transactionId, vendorIds, "Contracts exchanged — what happens next for your sale", vendorBodyPlain).catch(() => {});
+    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged — what happens next for your sale`, vendorPlainForLog).catch(() => {});
   }
 
   const purchaserIds: string[] = [];
-  for (const c of purchasers) {
-    const portalUrl = c.portalToken ? `${base}/portal/${c.portalToken}` : base;
-    await sendEmail({
-      to: c.email!,
-      subject: `Contracts exchanged — what happens next for your purchase`,
-      text: `${buildGreeting(c.name)}\n\n${purchaserBodyPlain}\n\nView your portal: ${portalUrl}`,
-      html: portalEmailHtml({
-        greeting: buildGreeting(c.name),
-        body: purchaserBodyHtml,
-        ctaText: "View your portal",
-        ctaUrl: portalUrl,
-      }),
-    }).catch(() => {});
+  let purchaserPlainForLog = "";
+  for (const c of ctx.purchasers) {
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    await sendEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html }).catch(() => {});
     purchaserIds.push(c.id);
+    if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
   }
   if (purchaserIds.length > 0) {
-    logAutomatedEmail(transactionId, purchaserIds, "Contracts exchanged — what happens next for your purchase", purchaserBodyPlain).catch(() => {});
+    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged — what happens next for your purchase`, purchaserPlainForLog).catch(() => {});
+  }
+}
+
+// Enqueues the completion-pack for delivery at scheduledFor. Used by
+// scheduleOrSendCompletionPack for E1 (completion > 3 days away). Each
+// contact gets its own OutboundEmailQueue row with the pre-rendered
+// payload; the existing hourly /api/cron/drain-outbound-email cron
+// picks them up at scheduledFor and sends via sendChainEmail.
+async function enqueueCustomerCompletionPack(transactionId: string, milestoneCode: string, scheduledFor: Date): Promise<void> {
+  const ctx = await loadCompletionPackContext(transactionId);
+  if (!ctx) return;
+
+  const sourceIdBase = `${transactionId}:${milestoneCode}`;
+  for (const c of ctx.vendors) {
+    const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    await enqueueEmail({
+      emailType: "COMPLETION_PACK",
+      sourceId: sourceIdBase,
+      recipientEmail: body.recipientEmail,
+      recipientContactId: c.id,
+      payload: { subject: body.subject, text: body.text, html: body.html },
+      scheduledFor,
+    }).catch(() => {});
+  }
+  for (const c of ctx.purchasers) {
+    const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    await enqueueEmail({
+      emailType: "COMPLETION_PACK",
+      sourceId: sourceIdBase,
+      recipientEmail: body.recipientEmail,
+      recipientContactId: c.id,
+      payload: { subject: body.subject, text: body.text, html: body.html },
+      scheduledFor,
+    }).catch(() => {});
   }
 
-  // Agent email — once only, on VM19 (PM26 is suppressed), outsourced files only
-  if (milestoneCode === "VM19" && tx.agentUser?.email && tx.serviceType !== "self_managed") {
-    const completionDateStr = tx.completionDate
-      ? new Date(tx.completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-      : "to be confirmed";
-    const dashUrl = `${base}/transactions/${transactionId}`;
-    const agentCopy = getMilestoneCopy("VM19").emailCopy?.vendorAgent;
-    if (agentCopy) {
-      const greeting = buildGreeting(tx.agentUser.name);
-      const progressorName = tx.assignedUser?.name ?? "Your sales progressor";
-      const progressorEmail = tx.assignedUser?.email ?? "";
-      const extraVars = { address, completionDate: completionDateStr };
-      const html = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType: tx.serviceType ?? undefined, extraVars });
-      const subject = interpolate(agentCopy.subject, { address });
-      const text = [greeting, "", interpolate(agentCopy.whatHappened, extraVars)].join("\n");
-      sendEmail({ to: tx.agentUser.email, subject, text, html }).catch(() => {});
-    }
+  // Comms-log entry written at enqueue time. The drain will actually
+  // send at scheduledFor; the timeline shows the intent immediately.
+  // (Same convention as MILESTONE_CONFIRMATION enqueue logging.)
+  const vendorIds = ctx.vendors.map((c) => c.id);
+  const purchaserIds = ctx.purchasers.map((c) => c.id);
+  if (vendorIds.length > 0) {
+    const sampleBody = renderCompletionPackBody({ side: "vendor", contact: ctx.vendors[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged — what happens next for your sale`, sampleBody.text).catch(() => {});
   }
+  if (purchaserIds.length > 0) {
+    const sampleBody = renderCompletionPackBody({ side: "purchaser", contact: ctx.purchasers[0], address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName });
+    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged — what happens next for your purchase`, sampleBody.text).catch(() => {});
+  }
+}
+
+// Public entry-point: from the agent or portal exchange-confirm path,
+// schedule (E1), send-now (E2/E3), or skip (past completion).
+export async function scheduleOrSendCompletionPack(transactionId: string, milestoneCode: string): Promise<void> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { completionDate: true },
+  });
+  if (!tx) return;
+  const decision = decideCompletionPackTiming(tx.completionDate);
+  switch (decision.action) {
+    case "skip":
+      return;
+    case "send-now":
+      return sendCustomerCompletionPackNow(transactionId);
+    case "schedule":
+      return enqueueCustomerCompletionPack(transactionId, milestoneCode, decision.scheduledFor);
+  }
+}
+
+// Public entry-point: for the four auto-completing exchange/completion
+// codes (VM19, PM26, VM20, PM27), the auto-counterpart's DB row is
+// completed in the same prisma.$transaction as the primary, but the
+// counterpart's email never fired before 2026-05-29. This helper runs
+// the standard fan-out for the counterpart, so the other side gets
+// their customer-facing email exactly once.
+//
+// For non-auto-counterpart codes, returns immediately — safe to call
+// unconditionally from the confirm paths.
+export async function fireAutoCounterpartEmails(
+  transactionId: string,
+  primaryCode: string,
+  confirmerId?: string,
+  confirmerRoute?: ConfirmerRoute,
+): Promise<void> {
+  const counterCode = AUTO_COUNTERPART_OF[primaryCode];
+  if (!counterCode) return;
+  const counterCopy = getMilestoneCopy(counterCode).emailCopy;
+  if (!counterCopy) return;
+  // handoffDirection undefined: these four codes aren't in BILATERAL_PAIR_OF
+  // so they're not subject to PR 2 hand-off direction or its suppression.
+  await sendRichMilestoneEmails(transactionId, counterCode, counterCopy, confirmerId, null, confirmerRoute, undefined);
 }
 
 export type TimelineEntry =
