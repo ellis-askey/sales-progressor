@@ -83,7 +83,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   VM2: {
-    label: "Receive memorandum of sale", chaseLabel: "Memorandum of sale arriving from the agent", who: "solicitor",
+    label: "Receive memorandum of sale", labelOther: "Seller received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
     description: "Your estate agent sends a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process.",
     emailCopy: {
       vendor: {
@@ -732,7 +732,7 @@ const copy: Record<string, PortalCopy> = {
   },
 
   PM2: {
-    label: "Receive memorandum of sale", chaseLabel: "Memorandum of sale arriving from the agent", who: "solicitor",
+    label: "Receive memorandum of sale", labelOther: "Buyer received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
     description: "The estate agent sends a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
     emailCopy: {
       purchaser: {
