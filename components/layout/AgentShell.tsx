@@ -35,7 +35,9 @@ function formatAgentTime(d: Date): string {
   }
 }
 
-function buildNavGroups(role: UserRole) {
+const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
+
+function buildNavGroups(role: UserRole, email: string | null | undefined) {
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
     ...(role !== "admin" ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray }] : []),
@@ -45,6 +47,7 @@ function buildNavGroups(role: UserRole) {
     { href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope },
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen },
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar      },
+    ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/agent/admin", label: "Admin", Icon: GearSix }] : []),
   ];
   return {
     main,
@@ -233,7 +236,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
   const role            = session.user.role as UserRole;
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
-  const navGroups   = buildNavGroups(role);
+  const navGroups   = buildNavGroups(role, session.user.email);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);

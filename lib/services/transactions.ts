@@ -35,7 +35,7 @@ export async function listTransactions(
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
-      agency: { select: { id: true, name: true } },
+      agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
@@ -176,7 +176,7 @@ export async function getTransaction(id: string, agencyId: string) {
   return prisma.propertyTransaction.findFirst({
     where: { id, agencyId },
     include: {
-      agency: { select: { id: true, name: true } },
+      agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
@@ -193,7 +193,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
   return prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, id),
     include: {
-      agency: { select: { id: true, name: true } },
+      agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
       contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },

@@ -250,6 +250,7 @@ export default async function TransactionDetailPage({
           serviceType: transaction.serviceType ?? null,
         }}
         assignedUser={assignedUser}
+        agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
         agentUser={agentUser}
         progress={progress}
         keyDates={keyDates}

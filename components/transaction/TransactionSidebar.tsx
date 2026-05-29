@@ -39,6 +39,7 @@ type Props = {
     clientType: ClientType;
     legacyFee: number | null;
   } | null;
+  agencyFeeOverride?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
   agentUser?: { id: string; name: string; email: string; firmName: string | null } | null;
   progress: ProgressResult;
   keyDates?: KeyDate[];
@@ -137,15 +138,20 @@ function ProgressRing({ percent, size = 72, strokeWidth = 6 }: { percent: number
   );
 }
 
-export function TransactionSidebar({ transaction, assignedUser, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true, hideCommercialFields = false }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverride, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true, hideCommercialFields = false }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const ourFee = assignedUser
-    ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice)
-    : transaction.serviceType === "self_managed"
-      ? { fee: 5900, label: "£59 inc. VAT" }
-      : { fee: null, label: "" };
+  // Self-managed is always £59 (hardcoded — agency override does NOT apply here).
+  // Outsourced: if SP assigned, calculateOurFee honours agency override → per-SP legacy → sliding scale.
+  // Outsourced without an SP yet: the agency-level legacy override is the only thing that can produce a fee.
+  const ourFee = transaction.serviceType === "self_managed"
+    ? { fee: 5900, label: "£59 inc. VAT" }
+    : assignedUser
+      ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice, agencyFeeOverride ?? null)
+      : agencyFeeOverride?.feeTier === "legacy" && agencyFeeOverride.legacyOutsourcedFeePence != null
+        ? { fee: agencyFeeOverride.legacyOutsourcedFeePence, label: "Legacy fixed fee (agency)" }
+        : { fee: null, label: "" };
 
   const agentFeeCalcPence: number | null =
     transaction.agentFeeAmount != null

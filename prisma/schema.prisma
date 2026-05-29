@@ -55,6 +55,13 @@ model Agency {
   paymentFailedAt            DateTime?    // Set by Stripe webhook on invoice.payment_failed
   newFileCreationBlockedAt   DateTime?    // Set by check-failed-payments cron ~7d after paymentFailedAt
 
+  // Per-agency fee tier — overrides the £250/£300/£350 outsourced sliding scale
+  // when set to "legacy". calculateOurFee checks this first; if "standard" (the
+  // default) the existing per-SP sliding scale applies. Self-managed (£59) is
+  // never affected by this override. Set via /agent/admin by ellis.
+  feeTier                    ClientType   @default(standard)
+  legacyOutsourcedFeePence   Int?         // Required when feeTier=legacy, null otherwise
+
   users                    User[]
   transactions             PropertyTransaction[]
   manualTasks              ManualTask[]

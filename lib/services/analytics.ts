@@ -65,6 +65,7 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         createdAt: true,
         completionDate: true,
         assignedUser: { select: { id: true, name: true, clientType: true, legacyFee: true } },
+        agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
         agentFeeAmount: true,
         agentFeePercent: true,
         milestoneCompletions: {
@@ -94,7 +95,8 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
     const { fee } = calculateOurFee(
       t.assignedUser?.clientType ?? "standard",
       t.assignedUser?.legacyFee ?? null,
-      t.purchasePrice ?? null
+      t.purchasePrice ?? null,
+      t.agency ? { feeTier: t.agency.feeTier, legacyOutsourcedFeePence: t.agency.legacyOutsourcedFeePence } : null,
     );
     if (fee !== null) { ourFeesPipeline += fee; ourFeesTxCount++; }
   }

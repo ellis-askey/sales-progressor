@@ -7,21 +7,38 @@ import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 // ─── Fee calculation ──────────────────────────────────────────────────────────
 
 /**
- * Calculate our fee for a transaction.
- * Legacy agents have a fixed fee stored on their User record.
- * Standard agents use the sliding scale based on purchase price.
+ * Calculate our fee for an outsourced transaction.
+ *
+ * Priority order:
+ *   1. Per-agency legacy override — set via /agent/admin, sticks to the customer
+ *      regardless of which SP handles the file. Highest precedence.
+ *   2. Per-SP legacy fee — existing User-level model, retained for back-compat.
+ *   3. Standard sliding scale based on purchase price (£250 / £300 / £350).
+ *
+ * Self-managed (£59) is hardcoded in the call site (TransactionSidebar) and
+ * never calls this function — the agency override does NOT apply there.
  */
 export function calculateOurFee(
   clientType: ClientType,
   legacyFee: number | null,
-  purchasePrice: number | null // in pence
+  purchasePrice: number | null, // in pence
+  agencyOverride?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null,
 ): { fee: number | null; label: string } {
+  // 1. Per-agency legacy override wins if configured.
+  if (agencyOverride?.feeTier === "legacy") {
+    if (agencyOverride.legacyOutsourcedFeePence == null) {
+      return { fee: null, label: "Agency legacy — fee not set" };
+    }
+    return { fee: agencyOverride.legacyOutsourcedFeePence, label: "Legacy fixed fee (agency)" };
+  }
+
+  // 2. Per-SP legacy fee — pre-existing behaviour, unchanged.
   if (clientType === "legacy") {
     if (!legacyFee) return { fee: null, label: "Legacy — fee not set" };
     return { fee: legacyFee, label: `Legacy fixed fee` };
   }
 
-  // Standard sliding scale
+  // 3. Standard sliding scale.
   if (!purchasePrice) return { fee: null, label: "Standard — price not set" };
 
   const priceGBP = purchasePrice / 100;

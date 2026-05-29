@@ -467,6 +467,7 @@ export default async function AgentTransactionDetailPage({
       recommendedFirms={recommendedFirms}
       showOurFee={session.user.role === "director" || isAdminRole}
       assignedUser={assignedUser}
+      agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
       agentUser={agentUser}
       progress={progress}
       keyDates={keyDates}
