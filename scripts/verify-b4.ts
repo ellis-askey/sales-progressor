@@ -28,6 +28,7 @@ async function main() {
     contact: { id: "ctc_pure", name: "Trace Vendor", portalToken: "pure-token-abc" },
     milestones: [{ code: "PM5" }, { code: "PM9" }],
     agencyName: "Test Agency",
+    recipientSide: "purchaser",
   });
   console.log(`[b4] Pure assembly:`);
   console.log(`     subject: ${pure.subject}`);

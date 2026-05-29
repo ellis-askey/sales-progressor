@@ -219,6 +219,7 @@ async function main() {
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken! },
     milestones: TEST_CODES.map((code) => ({ code })),
     agencyName: "Test Agency",
+    recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
   });
 
   console.log("");

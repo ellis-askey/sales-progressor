@@ -13,20 +13,30 @@ const TX = { id: "txn_sample", propertyAddress: "22 Example Road, London SW1A 1A
 const CONTACT = { id: "ctc_sample", name: "Jane Doe", portalToken: "sample-token" };
 const AGENCY = "Brennan & Co";
 
-function render(label: string, codes: string[]): void {
+function render(label: string, codes: string[], recipientSide: "vendor" | "purchaser" = "vendor"): void {
   const out = assembleDigestPayload({
     transaction: TX,
     contact: CONTACT,
     milestones: codes.map((code) => ({ code })),
     agencyName: AGENCY,
+    recipientSide,
   });
   console.log("\n" + "=".repeat(72));
-  console.log(label);
+  console.log(`${label}  [side: ${recipientSide}]`);
   console.log("=".repeat(72));
   console.log(`Subject: ${out.subject}\n`);
   console.log(out.text.split(/\n\nThanks,/)[0]);
   console.log(`\nThanks,\n${AGENCY}`);
 }
+
+// Canary check post-PR-3 sweep: vendor and purchaser must render the
+// right transaction word ("sale" vs "purchase") in every opener.
+render("CANARY — vendor DIY (VM4)", ["VM4"], "vendor");
+render("CANARY — purchaser DIY (PM5)", ["PM5"], "purchaser");
+render("CANARY — vendor NUDGE (VM10)", ["VM10"], "vendor");
+render("CANARY — purchaser NUDGE (PM8)", ["PM8"], "purchaser");
+render("CANARY — vendor MIXED (VM11 + VM10)", ["VM11", "VM10"], "vendor");
+render("CANARY — purchaser MIXED (PM5 + PM8)", ["PM5", "PM8"], "purchaser");
 
 // DIY only — codes with imperative labels (no chaseLabel needed)
 render("DIY — single, imperative label fallback (VM4)", ["VM4"]);

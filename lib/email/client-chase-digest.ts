@@ -47,6 +47,10 @@ export type AssembleDigestInput = {
   // White-labelling: header label + sign-off come from the agency that
   // owns the file. Resolved by the caller via transaction.agency.name.
   agencyName: string;
+  // Drives "your sale" vs "your purchase" in the body openers. A buyer
+  // reading "things on your sale at X" hits a mental snag — they're
+  // buying, not selling. Resolved by the caller via contact.roleType.
+  recipientSide: "vendor" | "purchaser";
 };
 
 export type AssembledDigest = {
@@ -119,8 +123,12 @@ function nudgeBlockHeading(nudgeParties: NudgeParty[]): string {
 }
 
 export function assembleDigestPayload(input: AssembleDigestInput): AssembledDigest {
-  const { transaction, contact, milestones, agencyName } = input;
+  const { transaction, contact, milestones, agencyName, recipientSide } = input;
   const base = portalBase();
+  // "your sale" for vendors, "your purchase" for buyers. Single source of
+  // truth used by every body opener so the voice never drifts back to
+  // sale-only.
+  const transactionWord = recipientSide === "purchaser" ? "purchase" : "sale";
 
   // Deep-link with milestone codes as a query-param hint. B5's respond page
   // reads ClientChaseState authoritatively, not this param — the param is
@@ -170,8 +178,8 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 
   if (overallTone === "diy") {
     const opener = count === 1
-      ? `There's one thing on your sale at ${address} that only you can move forward:`
-      : `There are ${count} things on your sale at ${address} that only you can move forward:`;
+      ? `There's one thing on your ${transactionWord} at ${address} that only you can move forward:`
+      : `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`;
     bodyLines = [
       `Hi ${first},`,
       ``,
@@ -191,7 +199,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     bodyLines = [
       `Hi ${first},`,
       ``,
-      `A quick update on your sale at ${address}.`,
+      `A quick update on your ${transactionWord} at ${address}.`,
       ``,
       opener,
       ``,
@@ -209,7 +217,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     bodyLines = [
       `Hi ${first},`,
       ``,
-      `A few updates on your sale at ${address}. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.`,
+      `A few updates on your ${transactionWord} at ${address}. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.`,
       ``,
       `Yours to do:`,
       ...diy.map((d) => bulletLine(d.label)),
@@ -247,8 +255,8 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 
   if (overallTone === "diy") {
     const opener = count === 1
-      ? `There's one thing on your sale at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
-      : `There are ${count} things on your sale at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
+      ? `There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`
+      : `There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:`;
     htmlInner = `
           <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
           <p style="${pStyle}">${opener}</p>
@@ -261,7 +269,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
       : `${count} things are sitting with ${phrase} right now that we haven't seen confirmed yet:`;
     htmlInner = `
           <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
-          <p style="${pStyle}">A quick update on your sale at <strong>${escapeHtml(address)}</strong>.</p>
+          <p style="${pStyle}">A quick update on your ${transactionWord} at <strong>${escapeHtml(address)}</strong>.</p>
           <p style="${pStyle}">${opener}</p>
           ${renderList(nudge)}
           <p style="${pStyle}">You don't need to do anything yourself. If it's been a while and you want to chase, a short email often helps.</p>
@@ -271,7 +279,7 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     const phrase = escapeHtml(withWhomPhrase(nudgeParties));
     htmlInner = `
           <p style="${pStyle}">Hi ${escapeHtml(first)},</p>
-          <p style="${pStyle}">A few updates on your sale at <strong>${escapeHtml(address)}</strong>. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.</p>
+          <p style="${pStyle}">A few updates on your ${transactionWord} at <strong>${escapeHtml(address)}</strong>. Some of these are yours to do; the rest are ${phrase} and we're just flagging that we haven't seen them confirmed yet.</p>
           <p style="${headingStyle}">Yours to do:</p>
           ${renderList(diy)}
           <p style="${headingStyle}">${escapeHtml(nudgeBlockHeading(nudgeParties))}</p>
@@ -349,7 +357,7 @@ export async function enqueueClientChaseDigest(input: {
     }),
     prisma.contact.findUnique({
       where: { id: contactId },
-      select: { id: true, name: true, portalToken: true, email: true, unsubscribedAt: true },
+      select: { id: true, name: true, portalToken: true, email: true, unsubscribedAt: true, roleType: true },
     }),
   ]);
 
@@ -367,6 +375,10 @@ export async function enqueueClientChaseDigest(input: {
     contact: { id: contact.id, name: contact.name, portalToken: contact.portalToken },
     milestones: milestoneCodes.map((code) => ({ code })),
     agencyName: transaction.agency?.name ?? "Sales Progressor",
+    // Drives sale/purchase word in the body openers. Defaults to vendor
+    // defensively — should never apply since the cron filters contacts
+    // to vendor/purchaser only before reaching this path.
+    recipientSide: contact.roleType === "purchaser" ? "purchaser" : "vendor",
   });
 
   const today = new Date();
