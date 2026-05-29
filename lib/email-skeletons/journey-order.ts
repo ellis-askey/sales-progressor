@@ -175,17 +175,29 @@ export const AGENT_ONLY_CONFIRM_CODES: ReadonlySet<string> = new Set([
 // > on the second confirmation of a pair, only the side that just acted
 // > is emailed. The side that acted first is never re-notified.
 //
-// When a bilateral milestone fires in INVERSE direction (its counterpart
-// was already complete), the side that acted on the counterpart was
-// emailed at that moment and must NOT be re-emailed now.
+// Suppression applies on the SECOND confirmation of the pair — the moment
+// the counterpart is already complete. Direction alone isn't a clean
+// proxy: in computeHandoffDirection's table, direction = "inverse"
+// means "out of natural order" — which can be EITHER the first
+// confirmation (a non-natural-first-actor going first) OR the second
+// confirmation (a natural-first-actor catching up after the counterpart).
 //
-// Derivation: V* codes are acted on by the vendor; P* codes by the
-// purchaser. If the counterpart is V*, the vendor acted first → suppress
-// vendor. If P*, suppress purchaser.
+// Derivation here:
+//   - If THIS code is the natural first-actor of its pair, then
+//     direction = "inverse" means counterpart is already complete
+//     (we're catching up) → second confirmation → suppress.
+//   - If THIS code is NOT the natural first-actor, then direction =
+//     "default" means counterpart is already complete (natural
+//     completion) → second confirmation → suppress.
+//   - All other (code, direction) combinations are the first
+//     confirmation — no suppression, both sides emailed.
+//
+// The suppressed side = the counterpart code's acted side (V* → vendor;
+// P* → purchaser).
 //
 // Returns null when no suppression applies:
 //   - The milestone has no bilateral pair (BILATERAL_PAIR_OF lookup misses).
-//   - direction is "default" (natural opener — counterpart hasn't fired yet).
+//   - The (code, direction) combination is the first confirmation.
 //   - direction is undefined (non-bilateral context).
 //
 // Only the five enquiry/contract-pack pairs in BILATERAL_HANDOFF_CODES
@@ -197,8 +209,20 @@ export function computeBilateralSuppressedRecipient(
   milestoneCode: string,
   direction: "default" | "inverse" | undefined,
 ): "vendor" | "purchaser" | null {
-  if (direction !== "inverse") return null;
+  if (direction === undefined) return null;
   const counterpartCode = BILATERAL_PAIR_OF[milestoneCode];
   if (!counterpartCode) return null;
+
+  const pairFirstActor = HANDOFF_DEFAULT_ACTOR[milestoneCode];
+  if (!pairFirstActor) return null;
+  const actedSide: "vendor" | "purchaser" =
+    milestoneCode.startsWith("V") ? "vendor" : "purchaser";
+  const isNaturalFirstActor = pairFirstActor === actedSide;
+
+  const counterpartComplete =
+    (isNaturalFirstActor && direction === "inverse") ||
+    (!isNaturalFirstActor && direction === "default");
+  if (!counterpartComplete) return null;
+
   return counterpartCode.startsWith("V") ? "vendor" : "purchaser";
 }
