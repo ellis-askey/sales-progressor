@@ -58,6 +58,14 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
   const [agencyName, setAgencyName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Counter — bumped each time the user hovers the disabled submit while
+  // agencyName is blank. Used as a React key on the agency-input wrapper so
+  // the attention-nudge CSS animation re-runs on every hover.
+  const [agencyNudgeKey, setAgencyNudgeKey] = useState(0);
+
+  function nudgeAgencyIfEmpty() {
+    if (!agencyName.trim()) setAgencyNudgeKey((k) => k + 1);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,6 +107,14 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
           box-shadow: 0 8px 28px rgba(216,90,53,0.45) !important;
         }
         .cs-btn:active:not(:disabled) { transform: scale(0.98); }
+        /* Subtle attention nudge — fires when user hovers the disabled
+           submit button. Coral box-shadow blooms outward and fades. */
+        @keyframes cs-nudge {
+          0%   { box-shadow: 0 0 0 0 rgba(216,90,53,0.40); }
+          50%  { box-shadow: 0 0 0 6px rgba(216,90,53,0.18); }
+          100% { box-shadow: 0 0 0 0 rgba(216,90,53,0); }
+        }
+        .cs-nudge { animation: cs-nudge 700ms ease-out; border-radius: 8px; }
       `}</style>
 
       <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
@@ -207,17 +223,21 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
               <label style={labelStyle}>
                 Agency name
               </label>
-              <input
-                className="cs-input"
-                type="text"
-                value={agencyName}
-                onChange={e => setAgencyName(e.target.value)}
-                onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCase(e.target.value)); }}
-                autoComplete="organization"
-                placeholder="e.g. Hartwell & Partners"
-                required
-                style={inputStyle}
-              />
+              {/* Wrapper carries the one-shot cs-nudge animation; key bump
+                  re-mounts only the wrapper so the input keeps its focus. */}
+              <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "cs-nudge" : undefined}>
+                <input
+                  className="cs-input"
+                  type="text"
+                  value={agencyName}
+                  onChange={e => setAgencyName(e.target.value)}
+                  onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCase(e.target.value)); }}
+                  autoComplete="organization"
+                  placeholder="e.g. Hartwell & Partners"
+                  required
+                  style={inputStyle}
+                />
+              </div>
             </div>
 
             {error && (
@@ -226,6 +246,8 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
               </p>
             )}
 
+            {/* Hover wrapper — disabled buttons don't fire mouse events. */}
+            <div onMouseEnter={nudgeAgencyIfEmpty}>
             <button
               type="submit"
               disabled={loading || !name.trim() || !agencyName.trim()}
@@ -241,6 +263,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
             >
               {loading ? "Setting up your workspace…" : "Complete signup"}
             </button>
+            </div>
 
           </form>
         </div>

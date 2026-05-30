@@ -69,6 +69,14 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [msgIndex, setMsgIndex] = useState(0);
+  // Counter — bumped each time the user hovers the disabled submit while
+  // firmName is blank. Used as a React key on the agency input so the
+  // attention-nudge CSS animation re-runs on every hover, not just the first.
+  const [agencyNudgeKey, setAgencyNudgeKey] = useState(0);
+
+  function nudgeAgencyIfEmpty() {
+    if (!firmName.trim()) setAgencyNudgeKey((k) => k + 1);
+  }
 
   const LOADING_MESSAGES = [
     "Creating your account…",
@@ -160,6 +168,14 @@ export default function RegisterPage() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%       { opacity: 0.6; transform: scale(0.85); }
         }
+        /* Subtle attention nudge — fires when user hovers the disabled
+           submit button. Coral box-shadow blooms outward and fades. */
+        @keyframes ri-nudge {
+          0%   { box-shadow: 0 0 0 0 rgba(216,90,53,0.40); }
+          50%  { box-shadow: 0 0 0 6px rgba(216,90,53,0.18); }
+          100% { box-shadow: 0 0 0 0 rgba(216,90,53,0); }
+        }
+        .ri-nudge { animation: ri-nudge 700ms ease-out; border-radius: 8px; }
       `}</style>
 
       <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
@@ -300,9 +316,14 @@ export default function RegisterPage() {
                   <label style={labelStyle}>
                     Agency name
                   </label>
-                  <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
-                    onBlur={e => { if (e.target.value.trim()) setFirmName(titleCase(e.target.value)); }}
-                    placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus required style={inputStyle} />
+                  {/* Wrapper carries the one-shot ri-nudge animation. key bump
+                      re-mounts the wrapper (not the input) so the animation
+                      restarts on every disabled-submit hover. */}
+                  <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "ri-nudge" : undefined}>
+                    <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
+                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCase(e.target.value)); }}
+                      placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus required style={inputStyle} />
+                  </div>
                 </div>
 
                 <div>
@@ -346,6 +367,9 @@ export default function RegisterPage() {
                   </p>
                 )}
 
+                {/* Hover wrapper — disabled buttons don't fire mouse events in
+                    most browsers, so the nudge handler lives on the parent. */}
+                <div onMouseEnter={nudgeAgencyIfEmpty}>
                 <button type="submit" disabled={loading || !firmName.trim()} className="rbtn" style={{
                   width: "100%", padding: "12px", borderRadius: "8px",
                   background: (loading || !firmName.trim()) ? "rgba(220,90,55,0.40)" : "#D85A35",
@@ -356,6 +380,7 @@ export default function RegisterPage() {
                 }}>
                   {loading ? LOADING_MESSAGES[msgIndex] : "Create account"}
                 </button>
+                </div>
 
                 <button type="button" onClick={backToStep1} className="rback" style={{
                   width: "100%", padding: "8px", fontSize: "12px", color: "rgba(61,31,14,0.45)",
