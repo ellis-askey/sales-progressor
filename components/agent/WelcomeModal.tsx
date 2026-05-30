@@ -93,7 +93,7 @@ export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { 
             {/* Body */}
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
               <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-                Let&apos;s get your first file set up — it takes less than a minute.
+                Let&apos;s get your first file set up. It takes less than a minute.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <button

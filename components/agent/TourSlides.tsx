@@ -21,18 +21,18 @@ function buildSlides(mode: AgencyModeProfile) {
       title: "Always know where a sale stands",
       description: outsourced
         ? "Every sale has a step-by-step tracker. Our team keeps it updated as things happen, so you always know where the sale stands."
-        : "Every sale has a step-by-step tracker. Tick off each step as it happens and the file stays current — no spreadsheet, no guesswork.",
+        : "Every sale has a step-by-step tracker. Tick off each step as it happens and the file stays current. No spreadsheet, no guesswork.",
       Visual: FileVisual,
     },
     {
       title: "Clients stay in the loop",
-      description: "Every client gets their own portal link to follow progress online — fewer chase calls, calmer buyers and sellers.",
+      description: "Every client gets their own portal link to follow progress online. Fewer chase calls, calmer buyers and sellers.",
       Visual: PortalVisual,
     },
     {
       title: "Nothing slips through",
       description: outsourced
-        ? "The Reminders tab flags any sale that needs attention before it turns into a problem — and our team keeps an eye out too."
+        ? "The Reminders tab flags any sale that needs attention before it turns into a problem. Our team keeps an eye out too."
         : "The Reminders tab flags any sale that needs attention before it turns into a problem.",
       Visual: WorkQueueVisual,
     },
