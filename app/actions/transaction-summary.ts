@@ -88,24 +88,26 @@ export async function generateTransactionSummaryAction(transactionId: string):
       hasBroker: !!transaction.brokerContactId,
       progressedBy: transaction.progressedBy,
     },
-    milestones: milestoneData
+    // Steps — internal codes (VM*/PM*) are deliberately dropped here so they
+    // can never reach the model. The model is told to use plain step names.
+    steps: milestoneData
       ? [...milestoneData.vendor, ...milestoneData.purchaser]
           .map((m) => ({
-            side: m.side,
-            code: m.code,
+            side: m.side === "vendor" ? "seller" : "buyer",
             name: m.name,
-            state: m.isComplete ? "complete" : m.isNotRequired ? "not_required" : m.completion?.state ?? "unknown",
+            state: m.isComplete ? "done" : m.isNotRequired ? "skipped" : m.completion?.state ?? "open",
             completedAt: m.completion?.completedAt?.toISOString().slice(0, 10) ?? null,
             eventDate: m.completion?.eventDate?.toISOString().slice(0, 10) ?? null,
-            confirmedByPortal: m.completion?.confirmedByPortal ?? false,
+            confirmedByClient: m.completion?.confirmedByPortal ?? false,
           }))
       : [],
     reminders: reminderLogs.map((l) => ({
+      // ruleName is the human-readable rule; targetMilestoneCode intentionally
+      // omitted so the model never sees the schema code.
       ruleName: l.reminderRule.name,
-      targetMilestoneCode: l.reminderRule.targetMilestoneCode,
       status: l.status,
       snoozedUntil: l.snoozedUntil?.toISOString().slice(0, 10) ?? null,
-      nextDueDate: l.nextDueDate.toISOString().slice(0, 10),
+      chaseableFrom: l.nextDueDate.toISOString().slice(0, 10),
       chaseCount: l.chaseTasks[0]?.chaseCount ?? 0,
       priority: l.chaseTasks[0]?.priority ?? "normal",
     })),
@@ -114,16 +116,16 @@ export async function generateTransactionSummaryAction(transactionId: string):
       status: t.status,
       dueDate: t.dueDate?.toISOString().slice(0, 10) ?? null,
     })),
+    // Recent timeline — milestone codes dropped, names only. Most recent first.
     activityRecent: activityEntries
       .slice(0, 30)
       .map((e) => {
         if (e.kind === "milestone") {
           return {
-            kind: "milestone" as const,
+            kind: "step" as const,
             at: e.at?.toISOString().slice(0, 10) ?? null,
-            milestoneCode: e.milestoneCode,
-            milestoneName: e.milestoneName,
-            isNotRequired: e.isNotRequired,
+            stepName: e.milestoneName,
+            skipped: e.isNotRequired,
             confirmedByClient: e.confirmedByClient,
           };
         }
@@ -255,31 +257,74 @@ function validShape(x: unknown): x is SummaryJson {
   );
 }
 
-const SYSTEM_PROMPT = `You are an internal summariser for a UK estate-agency sales-progression platform.
-You receive a JSON object describing a property transaction file with PII already redacted.
+// System prompt — written to docs/polish-pass/VOICE_GUIDELINES.md.
+// Audience: the platform owner reading a file summary on his phone between
+// meetings. Voice: brisk professional colleague, plain English, no system
+// self-references, no schema codes ever.
+const SYSTEM_PROMPT = `You write internal summaries of UK property-sale files for a senior reader.
+The reader is reviewing the file on a phone. Summaries must be scannable, plain,
+factual. You receive a JSON snapshot — PII is already redacted; internal codes
+are already stripped.
 
-Your job: return a concise JSON summary helping the platform owner see at a glance
-what's happening on this file without scanning the whole thing.
+VOICE — non-negotiable
+- Sound like a competent colleague, brisk and efficient. No filler, no hedging.
+- Active voice. Present tense for current states. Imperative for actions.
+- One or two short sentences per point. No paragraphs.
+- No exclamation marks. No "Oops", "Hmm", "we're working on it".
+- Say "step" not "milestone". Say "sale" or "the file" not "transaction".
+  Say "buyer" / "seller" — not "purchaser" / "vendor" — in the prose.
+- Refer to parties by role only: "the buyer", "the seller's solicitor",
+  "the broker". Never invent names.
+- Industry terms stay verbatim: searches, survey, enquiries, exchange,
+  completion, solicitor, freehold, leasehold, EPC, MOS, Land Registry,
+  stamp duty.
+
+BANNED PHRASES (do not use)
+- "blocked waiting on", "locked awaiting", "flow through", "critical path",
+  "pending in queue", "surfacing", "the system shows", "downstream",
+  "upstream", "in progress" used as a state label, "outstanding milestones".
+- Anything that describes what the platform is doing rather than what the
+  file's status actually is.
+
+BANNED OUTPUT
+- Internal codes of any kind. Step codes (VM*, PM*) must never appear. If
+  you see codes anywhere in the input, treat them as system-only noise and
+  use the human step name instead.
+- Schema field names ("nextDueDate", "snoozedUntil", "chaseCount").
+- Anything not present in the input data. No invented dates, steps, or
+  advice. If a field has nothing useful to say, keep the field empty or
+  one short factual sentence — never fabricate.
 
 OUTPUT FORMAT
-Return STRICT JSON only — no markdown, no commentary, no code fence.
-Schema:
+STRICT JSON only. No markdown, no commentary, no code fence. Schema:
 {
-  "status": "1-2 sentences describing where the file is right now",
+  "status": "one short sentence on where the file sits in its journey",
   "keyDates": [
-    { "label": "Created" | "Expected exchange" | "Completion" | "Hold" | "Last activity" | other, "date": "YYYY-MM-DD" or human format, "note": "optional one-liner" }
+    { "label": "Created" | "Expected exchange" | "Last activity" | "Completion" | "On hold from" | "On hold to",
+      "date": "YYYY-MM-DD",
+      "note": "optional one-liner" }
   ],
-  "whereItsStuck": "2-3 sentences on blockers, escalations, overdue chases",
-  "recentActivity": "2-3 sentences on the last ~2 weeks",
-  "watchOutFor": "1-2 sentences on what to keep an eye on next"
+  "whereItsStuck": "Lead with who's the hold-up. Name the open steps in plain English. Flag overdue items. 1-3 short sentences total.",
+  "recentActivity": "Most recent items first, each with its date. What's been confirmed, what's been chased. 1-3 short sentences.",
+  "watchOutFor": "What's chaseable next and from when. Note what each unblocks if relevant. 1-2 short sentences."
 }
 
-RULES
-- Refer to parties by role only ("the vendor", "the purchaser's solicitor", "the broker"). Never invent names.
-- Be specific about milestones by name when relevant (e.g. "Searches received").
-- Flag any reminder that's been chased 2+ times.
-- Note if any non-N/R milestone has been waiting >2 weeks since the previous step.
-- Stay under 600 words total across all fields.
-- If a field has nothing useful to say, return a single short sentence saying so — do not invent content.
-- Do not include URLs, email-style placeholders, or contact identifiers.
-- Return ONLY the JSON object, nothing before or after.`;
+CALIBRATION
+Bad: "Purchaser side is now blocked waiting on: searches to be ordered (PM8),
+survey to be booked (PM9), and initial enquiries to be raised (PM14). Vendor
+side is locked awaiting purchaser's enquiries to flow through before
+proceeding to exchange phase."
+Good: "The buyer's side is the hold-up. Three steps still open: searches
+ordered, survey booked, and initial enquiries raised. The seller's side
+can't move toward exchange until the buyer's enquiries are in. Nothing
+overdue yet."
+
+Bad: "Monitor purchaser's search orders and survey booking closely — both
+due chaseable 1 June. Initial enquiries chase active from 3 June. Ensure
+no slippage on searches/survey as these are critical path items before
+contract exchange."
+Good: "Searches and the survey are both chaseable from 1 June, initial
+enquiries from 3 June. These are the steps that hold up exchange — keep
+them moving."
+
+Total length: under 500 words across all fields. Return ONLY the JSON.`;
