@@ -64,6 +64,10 @@ export type AgentSessionContext = {
   mobileTheme: MobileAgentTheme;
   nightModePref: boolean | null;
   chainDeclineNotif: string | null;
+  // Agency.modeProfile — drives the conditional copy in the welcome tour.
+  // Defaults to "self_progressed" if the user has no agency (shouldn't
+  // happen for non-internal staff, but defensive).
+  agencyModeProfile: "self_progressed" | "progressor_managed" | "mixed";
 };
 
 export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> => {
@@ -80,6 +84,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
       agentPreferences: true,
       chainDeclineNotificationAddress: true,
       chainDeclineNotificationAt: true,
+      agency: { select: { modeProfile: true } },
     },
   });
 
@@ -90,6 +95,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const mobileTheme = getMobileAgentTheme(userRecord?.agentPreferences);
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const chainDeclineNotif = userRecord?.chainDeclineNotificationAddress ?? null;
+  const agencyModeProfile = userRecord?.agency?.modeProfile ?? "self_progressed";
 
   return {
     session,
@@ -100,6 +106,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     mobileTheme,
     nightModePref,
     chainDeclineNotif,
+    agencyModeProfile,
   };
 });
 

@@ -39,10 +39,30 @@ const STEPS: Step[] = [
   { label: "Add your first sale",            href: "/agent/transactions/new-v2", progressKey: "hasSale" },
   { label: "Add client contact details",     href: "/agent/transactions", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/transactions", progressKey: "hasContactDetails" },
   { label: "Share the portal with a client", href: "/agent/comms",            progressKey: "hasContactEmail" },
+  { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },
   { label: "Add your phone number",          href: "/agent/account/profile", progressKey: "hasPhone" },
   { label: "Choose your branch theme",       href: "/agent/account/profile", progressKey: "hasThemeSet" },
-  { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },
 ];
+
+// Index at which the "Finish setup" section begins. Items before this index
+// are the high-leverage "Get going" set; from here onward is account polish.
+const FINISH_SETUP_START = 3;
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <p style={{
+      margin: 0,
+      padding: "10px 16px 4px",
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "var(--agent-text-muted)",
+    }}>
+      {label}
+    </p>
+  );
+}
 
 export function OnboardingChecklist({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
@@ -199,14 +219,16 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
           </div>
 
           {/* Step list */}
-          <div style={{ padding: "8px 0" }}>
-            {STEPS.map((step) => {
+          <div style={{ padding: "4px 0 8px" }}>
+            {STEPS.map((step, i) => {
               const done = effectiveProgress[step.progressKey];
               const href = step.hrefDynamic ? step.hrefDynamic(firstTxId) : step.href;
               const showSkip = step.progressKey === "hasVerifiedEmail" && !done && allOthersComplete;
+              const header = i === 0 ? "Get going" : i === FINISH_SETUP_START ? "Finish setup" : null;
               return (
+                <div key={step.label}>
+                  {header && <SectionHeader label={header} />}
                 <Link
-                  key={step.label}
                   href={href}
                   style={{
                     display: "flex",
@@ -249,6 +271,7 @@ export function OnboardingChecklist({ userId }: { userId: string }) {
                     </button>
                   )}
                 </Link>
+                </div>
               );
             })}
           </div>

@@ -3,33 +3,47 @@
 import { useState } from "react";
 import { X } from "@phosphor-icons/react";
 
-const SLIDES = [
-  {
-    title: "Your pipeline, at a glance",
-    description: "Every sale in one place — filter by status, see what's active, on hold, or completed at a glance.",
-    Visual: PipelineVisual,
-  },
-  {
-    title: "A file that runs itself",
-    description: "Each sale has a milestone tracker. Your progressor updates it as things happen — you always know exactly where things stand.",
-    Visual: FileVisual,
-  },
-  {
-    title: "Clients stay in the loop",
-    description: "Every client gets a personal portal link. They track progress online — fewer calls, happier buyers and sellers.",
-    Visual: PortalVisual,
-  },
-  {
-    title: "Nothing slips through",
-    description: "The Reminders tab flags files that need attention before they become problems. Your progressor is watching too.",
-    Visual: WorkQueueVisual,
-  },
-];
+type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
 
-export function TourSlides({ onClose, onFinish }: { onClose: () => void; onFinish: () => void }) {
+// Slides 2 and 4 vary by service model — "Our team keeps it updated" is
+// only true for outsourced (progressor_managed) agencies. Mixed and the
+// default self_progressed fall through to the self-managed copy: it
+// accurately describes the surface the agent themselves uses.
+function buildSlides(mode: AgencyModeProfile) {
+  const outsourced = mode === "progressor_managed";
+  return [
+    {
+      title: "Your pipeline, at a glance",
+      description: "Every sale in one place. Filter by status to see what's active, on hold, or done.",
+      Visual: PipelineVisual,
+    },
+    {
+      title: "Always know where a sale stands",
+      description: outsourced
+        ? "Every sale has a step-by-step tracker. Our team keeps it updated as things happen, so you always know where the sale stands."
+        : "Every sale has a step-by-step tracker. Tick off each step as it happens and the file stays current — no spreadsheet, no guesswork.",
+      Visual: FileVisual,
+    },
+    {
+      title: "Clients stay in the loop",
+      description: "Every client gets their own portal link to follow progress online — fewer chase calls, calmer buyers and sellers.",
+      Visual: PortalVisual,
+    },
+    {
+      title: "Nothing slips through",
+      description: outsourced
+        ? "The Reminders tab flags any sale that needs attention before it turns into a problem — and our team keeps an eye out too."
+        : "The Reminders tab flags any sale that needs attention before it turns into a problem.",
+      Visual: WorkQueueVisual,
+    },
+  ];
+}
+
+export function TourSlides({ onClose, onFinish, agencyModeProfile = "self_progressed" }: { onClose: () => void; onFinish: () => void; agencyModeProfile?: AgencyModeProfile }) {
   const [slide, setSlide] = useState(0);
-  const current = SLIDES[slide]!;
-  const isLast = slide === SLIDES.length - 1;
+  const slides = buildSlides(agencyModeProfile);
+  const current = slides[slide]!;
+  const isLast = slide === slides.length - 1;
   const isFirst = slide === 0;
 
   return (
@@ -95,7 +109,7 @@ export function TourSlides({ onClose, onFinish }: { onClose: () => void; onFinis
 
         {/* Dots */}
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setSlide(i)}
