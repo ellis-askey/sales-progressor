@@ -11,33 +11,37 @@ import { pushChaseEscalation } from "@/lib/agent/push-events";
 
 // ─── UK chase-time helper ───────────────────────────────────────────────────
 //
-// Normalises a Date to 09:30 in Europe/London on the same calendar day.
-// All chase tasks fire in the morning batch — the time component of
-// nextDueDate / chaseTask.dueDate / snoozedUntil should reflect that
-// intent rather than inheriting from arbitrary anchor timestamps (which
-// previously surfaced as "due 01:00" in the UI when a milestone happened
-// to be confirmed late at night).
+// Normalises a Date to 06:00 in Europe/London on the same calendar day.
+// All chase tasks fire BEFORE the working day starts so the morning view
+// of the work-queue / hub is the complete picture for today — agents
+// shouldn't see "10 more appeared" at 14:00 because of time-of-day drift
+// inherited from arbitrary anchor timestamps. The morning sweep cron at
+// /api/reminders/run (04:00 UTC) populates ReminderLog rows; by 06:00 UK
+// every eligible row is past `lte: now` and visible.
 //
 // Implementation: get the UK calendar date string, construct a candidate
-// at 09:30 UTC on that date, then check what UK time the candidate
+// at 06:00 UTC on that date, then check what UK time the candidate
 // represents (BST = UTC+1 in summer, GMT = UTC+0 in winter) and adjust.
 // Idempotent — re-applying to an already-normalised date is a no-op.
+//
+// Was 09:30 UK pre-2026-05-30; moved earlier so reminders surface before
+// any reasonable working day starts.
 export function setUkChaseTime(d: Date): Date {
   const ukDateStr = toUKDateStr(d);            // "YYYY-MM-DD" in Europe/London
   const [y, m, dd] = ukDateStr.split("-").map(Number);
 
-  // Candidate at 09:30 UTC on the target UK calendar day.
-  const candidate = new Date(Date.UTC(y, (m as number) - 1, dd, 9, 30, 0, 0));
+  // Candidate at 06:00 UTC on the target UK calendar day.
+  const candidate = new Date(Date.UTC(y, (m as number) - 1, dd, 6, 0, 0, 0));
 
-  // Format candidate in Europe/London; if hour > 9 we're in BST and need
-  // to subtract the offset to land on 09:30 UK.
+  // Format candidate in Europe/London; if hour > 6 we're in BST and need
+  // to subtract the offset to land on 06:00 UK.
   const ukHourStr = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
     hour: "2-digit",
     hour12: false,
   }).format(candidate);
   const ukHour = parseInt(ukHourStr, 10);
-  const offsetHours = ukHour - 9;
+  const offsetHours = ukHour - 6;
   if (offsetHours !== 0) {
     candidate.setUTCHours(candidate.getUTCHours() - offsetHours);
   }
@@ -410,9 +414,9 @@ export async function evaluateTransactionReminders(transactionId: string) {
       anchorDate = transaction.createdAt;
     }
 
-    // Calculate first due date: anchor + graceDays, normalised to 09:30 UK
-    // on the resulting calendar day (so chases fire in the morning batch
-    // rather than at the random hour the anchor milestone was confirmed).
+    // Calculate first due date: anchor + graceDays, normalised to 06:00 UK
+    // on the resulting calendar day (so chases fire before the working day
+    // starts, not at the random hour the anchor milestone was confirmed).
     const firstDueDate = setUkChaseTime(addDays(anchorDate, rule.graceDays));
 
     // Find existing active log
@@ -546,8 +550,8 @@ export async function createInitialRemindersInline(
     data: eligibleRules.map((rule) => {
       const dueDate = new Date(createdAt);
       dueDate.setDate(dueDate.getDate() + rule.graceDays);
-      // Normalise to 09:30 UK on the resulting day so the chase enters
-      // the morning batch (rather than inheriting createdAt's hour).
+      // Normalise to 06:00 UK on the resulting day so the chase is live
+      // before the working day starts (rather than inheriting createdAt's hour).
       const normalised = setUkChaseTime(dueDate);
       return {
         transactionId,
@@ -697,8 +701,12 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
   const base = task.reminderLog.nextDueDate.getTime() > nowTs
     ? task.reminderLog.nextDueDate
     : new Date(nowTs);
-  const nextDue = new Date(base);
-  nextDue.setDate(nextDue.getDate() + repeatDays);
+  const raw = new Date(base);
+  raw.setDate(raw.getDate() + repeatDays);
+  // Normalise to 06:00 UK on the resulting calendar day so the next chase is
+  // live before the working day starts — not at the time-of-day inherited
+  // from whenever the previous chase happened.
+  const nextDue = setUkChaseTime(raw);
 
   await prisma.$transaction([
     prisma.chaseTask.update({
@@ -773,9 +781,10 @@ export async function snoozeReminderLog(taskId: string, snoozeHours: number, sco
   if (!task) throw new Error("Task not found");
 
   // Snooze: add the requested hours from now, then normalise the resulting
-  // date+time to 09:30 UK on the wake-up calendar day. Without this,
+  // date+time to 06:00 UK on the wake-up calendar day. Without this,
   // snoozing at e.g. 21:00 with snoozeHours=24 would set the wake at 21:00
-  // the next day — chase fires late evening instead of morning batch.
+  // the next day — chase fires late evening instead of being live before
+  // the working day starts.
   const snoozedUntil = setUkChaseTime(new Date(Date.now() + snoozeHours * 60 * 60 * 1000));
 
   await prisma.chaseTask.update({
