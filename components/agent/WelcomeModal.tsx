@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { getFirstName } from "@/lib/utils";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { Lightning, X } from "@phosphor-icons/react";
 import { TourSlides } from "@/components/agent/TourSlides";
@@ -11,13 +10,12 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
 
-export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { name: string; agencyModeProfile?: AgencyModeProfile }) {
+export function WelcomeModal({ agencyModeProfile = "self_progressed" }: { agencyModeProfile?: AgencyModeProfile }) {
   const router = useRouter();
   const { theme } = usePortalTheme();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(true);
   const [showTour, setShowTour] = useState(false);
-  const firstName = getFirstName(name) || "there";
 
   useEffect(() => {
     setMounted(true);
@@ -47,7 +45,14 @@ export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { 
   return createPortal(
     <div
       data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        // Override the shared backdrop tint for the welcome moment only —
+        // the page should feel paused, not just dimmed. Other modals keep
+        // the default 0.35.
+        ["--agent-backdrop-bg" as string]: "rgba(0, 0, 0, 0.55)",
+      } as React.CSSProperties}
       onClick={close}
     >
       {/* Backdrop */}
@@ -80,15 +85,17 @@ export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { 
           </div>
         ) : (
           <>
-            {/* V1 56px header */}
-            <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-              <p style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                Welcome, {firstName}
-              </p>
-              <button onClick={close} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
-                <X size={14} weight="bold" />
-              </button>
-            </div>
+            {/* Floating close — header bar removed so the modal doesn't
+                repeat the page's "Good afternoon" greeting by name.
+                Body padding (24px) leaves room for the X at top-right. */}
+            <button
+              onClick={close}
+              aria-label="Close"
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ position: "absolute", top: 12, right: 12, zIndex: 1 }}
+            >
+              <X size={14} weight="bold" />
+            </button>
 
             {/* Body */}
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>

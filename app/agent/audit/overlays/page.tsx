@@ -1010,7 +1010,7 @@ function CategoryModals({ decision, onPick }: { decision: Decision; onPick: (d: 
             <span className="oa-label">ExchangeCelebration (2e)</span>
             <Trig label="Trigger" onClick={() => setCelebrate(true)} />
           </div>
-          {welcome && <WelcomeModal name="Ellis" />}
+          {welcome && <WelcomeModal />}
           {undoOpen && <UndoMilestoneModal milestoneName="Searches requested" milestoneId="m-audit-001" undoData={undoCascade ? MOCK_UNDO_CASCADE : MOCK_UNDO_NO_CASCADE} isPending={false} onConfirm={() => setUndoOpen(false)} onCancel={() => setUndoOpen(false)} />}
           {mortgage && <MortgageModal onConfirmMortgage={() => setMortgage(false)} onConfirmReinstate={() => setMortgage(false)} onCancel={() => setMortgage(false)} />}
           {surveyNr && <SurveyNrConfirmModal onConfirm={() => setSurveyNr(false)} onCancel={() => setSurveyNr(false)} />}

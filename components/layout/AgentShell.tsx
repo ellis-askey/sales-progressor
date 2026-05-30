@@ -572,8 +572,8 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         {children}
       </main>
 
-      {showWelcome && <WelcomeModal name={session.user.name ?? ""} agencyModeProfile={agencyModeProfile ?? "self_progressed"} />}
-      {!isInternalStaff && <OnboardingChecklist userId={session.user.id} />}
+      {showWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} />}
+      {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} />}
     </div>
   );
 }
