@@ -16,6 +16,7 @@ import { totalHoldMs } from "@/lib/services/hold-duration";
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
+import { AiSummaryButton } from "@/components/transaction/AiSummaryButton";
 import { StatusControl } from "@/components/transaction/StatusControl";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import { MilestonePanel } from "@/components/milestones/MilestonePanel";
@@ -521,17 +522,26 @@ export default async function AgentTransactionDetailPage({
         initialTab={initialTab}
         heroConnected
         rightSlot={
-          (session.user.role === "sales_progressor" ||
-           session.user.role === "admin" ||
-           session.user.role === "superadmin")
-            ? (
-              <PortalConfirmEmailToggle
-                transactionId={transaction.id}
-                initialValue={transaction.suppressPortalConfirmEmails}
-                pathname={`/agent/transactions/${transaction.id}`}
-              />
-            )
-            : null
+          (() => {
+            const internal =
+              session.user.role === "sales_progressor" ||
+              session.user.role === "admin" ||
+              session.user.role === "superadmin";
+            const isEllis = session.user.email === "ellis@thesalesprogressor.co.uk";
+            if (!internal && !isEllis) return null;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {isEllis && <AiSummaryButton transactionId={transaction.id} />}
+                {internal && (
+                  <PortalConfirmEmailToggle
+                    transactionId={transaction.id}
+                    initialValue={transaction.suppressPortalConfirmEmails}
+                    pathname={`/agent/transactions/${transaction.id}`}
+                  />
+                )}
+              </div>
+            );
+          })()
         }
       >
         {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
