@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { completeOAuthSignup } from "@/app/actions/complete-oauth-signup";
+import { titleCase } from "@/lib/utils";
 
 function BrandMark() {
   return (
@@ -204,16 +205,17 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
             {/* Agency name */}
             <div>
               <label style={labelStyle}>
-                Agency name{" "}
-                <span style={{ color: "rgba(61,31,14,0.40)", fontWeight: 400 }}>(optional)</span>
+                Agency name
               </label>
               <input
                 className="cs-input"
                 type="text"
                 value={agencyName}
                 onChange={e => setAgencyName(e.target.value)}
+                onBlur={e => { if (e.target.value.trim()) setAgencyName(titleCase(e.target.value)); }}
                 autoComplete="organization"
                 placeholder="e.g. Hartwell & Partners"
+                required
                 style={inputStyle}
               />
             </div>
@@ -226,13 +228,13 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
 
             <button
               type="submit"
-              disabled={loading || !name.trim()}
+              disabled={loading || !name.trim() || !agencyName.trim()}
               className="cs-btn"
               style={{
                 width: "100%", padding: "12px", borderRadius: "8px",
-                background: loading || !name.trim() ? "rgba(220,90,55,0.45)" : "#D85A35",
+                background: (loading || !name.trim() || !agencyName.trim()) ? "rgba(220,90,55,0.45)" : "#D85A35",
                 color: "white", fontSize: "14px", fontWeight: 500, border: "none",
-                cursor: loading || !name.trim() ? "not-allowed" : "pointer",
+                cursor: (loading || !name.trim() || !agencyName.trim()) ? "not-allowed" : "pointer",
                 boxShadow: "0 4px 20px rgba(216,90,53,0.35)",
                 transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
               }}

@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
+import { titleCase } from "@/lib/utils";
 
 type Step = 1 | 2;
 
@@ -297,11 +298,11 @@ export default function RegisterPage() {
 
                 <div>
                   <label style={labelStyle}>
-                    Agency name{" "}
-                    <span style={{ color: "rgba(61,31,14,0.40)", fontWeight: 400 }}>(optional)</span>
+                    Agency name
                   </label>
                   <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
-                    placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus style={inputStyle} />
+                    onBlur={e => { if (e.target.value.trim()) setFirmName(titleCase(e.target.value)); }}
+                    placeholder="e.g. Hartwell & Partners" autoComplete="organization" autoFocus required style={inputStyle} />
                 </div>
 
                 <div>
@@ -345,11 +346,11 @@ export default function RegisterPage() {
                   </p>
                 )}
 
-                <button type="submit" disabled={loading} className="rbtn" style={{
+                <button type="submit" disabled={loading || !firmName.trim()} className="rbtn" style={{
                   width: "100%", padding: "12px", borderRadius: "8px",
-                  background: loading ? "rgba(220,90,55,0.40)" : "#D85A35",
+                  background: (loading || !firmName.trim()) ? "rgba(220,90,55,0.40)" : "#D85A35",
                   color: "white", fontSize: "14px", fontWeight: 500, border: "none",
-                  cursor: loading ? "not-allowed" : "pointer",
+                  cursor: (loading || !firmName.trim()) ? "not-allowed" : "pointer",
                   boxShadow: "0 4px 20px rgba(216,90,53,0.30)",
                   transition: "transform 0.15s ease, box-shadow 0.15s ease",
                 }}>

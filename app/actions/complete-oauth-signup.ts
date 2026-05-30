@@ -41,9 +41,7 @@ export async function completeOAuthSignup(formData: FormData): Promise<
   if (rawRole !== "director" && rawRole !== "negotiator") {
     return { ok: false, error: "Please select a role" };
   }
-
-  // Negotiators may omit agency name — default to their own name
-  const agencyName = rawAgencyName || toTitleCase(rawName);
+  if (!rawAgencyName) return { ok: false, error: "Agency name is required" };
 
   try {
     await createDirectorWithAgency({
@@ -51,7 +49,7 @@ export async function completeOAuthSignup(formData: FormData): Promise<
       name: toTitleCase(rawName),
       email: session.user.email,
       role: rawRole,
-      agencyName: toTitleCase(agencyName),
+      agencyName: toTitleCase(rawAgencyName),
     });
 
     console.log(`[AUDIT] oauth_signup_completed userId=${session.user.id} role=${rawRole}`);

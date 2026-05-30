@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
     }
 
+    if (!firmName?.trim()) {
+      return NextResponse.json({ error: "Agency name is required" }, { status: 400 });
+    }
+
     if (password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
     }
 
-    const agencyName = firmName?.trim() ? toTitleCase(firmName) : toTitleCase(name);
+    const agencyName = toTitleCase(firmName);
     const hashedPassword = await hash(password, 12);
 
     const { userId } = await createDirectorWithAgency({

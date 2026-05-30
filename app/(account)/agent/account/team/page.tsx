@@ -22,6 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { TeamManagementPlain } from "@/components/account/v2/TeamManagementPlain";
 import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain";
+import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 
 export default async function AccountTeamPage() {
   const session = await requireSession();
@@ -31,17 +32,22 @@ export default async function AccountTeamPage() {
 
   // ── Director branch ─────────────────────────────────────────────────
   if (role === "director") {
-    const pendingInvitations = await prisma.negotiatorInvitation.findMany({
-      where: { agencyId, cancelledAt: null, acceptedAt: null },
-      select: {
-        id: true,
-        negotiatorName: true,
-        negotiatorEmail: true,
-        expiresAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [agency, pendingInvitations] = await Promise.all([
+      prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
+      prisma.negotiatorInvitation.findMany({
+        where: { agencyId, cancelledAt: null, acceptedAt: null },
+        select: {
+          id: true,
+          negotiatorName: true,
+          negotiatorEmail: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const HAIRLINE = "0.5px solid rgba(0,0,0,0.08)";
 
     return (
       <div
@@ -51,25 +57,43 @@ export default async function AccountTeamPage() {
           padding: "32px 24px 64px",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: 32,
         }}
       >
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
-            Team
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Manage your negotiators. Create accounts, control file visibility, and remove access.
-          </p>
-        </div>
-        <TeamManagementPlain
-          currentUserId={session.user.id}
-          pendingInvitations={pendingInvitations.map((inv) => ({
-            ...inv,
-            expiresAt: inv.expiresAt.toISOString(),
-            createdAt: inv.createdAt.toISOString(),
-          }))}
-        />
+        {/* Agency name editor — director-only */}
+        <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
+              Agency name
+            </h2>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+              Visible on chase emails, invoices, and the file headers your clients see.
+            </p>
+          </div>
+          <AgencyNameForm initialName={agency?.name ?? ""} />
+        </section>
+
+        <div style={{ borderTop: HAIRLINE }} />
+
+        {/* Team management */}
+        <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>
+              Team
+            </h2>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+              Manage your negotiators. Create accounts, control file visibility, and remove access.
+            </p>
+          </div>
+          <TeamManagementPlain
+            currentUserId={session.user.id}
+            pendingInvitations={pendingInvitations.map((inv) => ({
+              ...inv,
+              expiresAt: inv.expiresAt.toISOString(),
+              createdAt: inv.createdAt.toISOString(),
+            }))}
+          />
+        </section>
       </div>
     );
   }
