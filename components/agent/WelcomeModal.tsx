@@ -9,7 +9,9 @@ import { Lightning, X } from "@phosphor-icons/react";
 import { TourSlides } from "@/components/agent/TourSlides";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
-export function WelcomeModal({ name }: { name: string }) {
+type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";
+
+export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { name: string; agencyModeProfile?: AgencyModeProfile }) {
   const router = useRouter();
   const { theme } = usePortalTheme();
   const [mounted, setMounted] = useState(false);
@@ -68,6 +70,7 @@ export function WelcomeModal({ name }: { name: string }) {
           /* TourSlides owns its header + X */
           <div style={{ padding: 24 }}>
             <TourSlides
+              agencyModeProfile={agencyModeProfile}
               onClose={close}
               onFinish={() => {
                 setVisible(false);

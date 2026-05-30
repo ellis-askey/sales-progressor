@@ -8,13 +8,13 @@ import "./styles/themes.css";
 import "./styles/agent-system.css";
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, chainDeclineNotif } =
+  const { session, isInternalStaff, showWelcome, theme, mobileTheme, nightModePref, chainDeclineNotif, agencyModeProfile } =
     await resolveAgentSession();
 
   return (
     <div data-theme={theme} style={{ display: "contents" }}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} nightModePref={nightModePref} agencyModeProfile={agencyModeProfile}>
           {chainDeclineNotif && (
             <div style={{ padding: "16px 24px 0" }}>
               <ChainDeclineBanner address={chainDeclineNotif} />

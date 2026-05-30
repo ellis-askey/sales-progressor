@@ -230,7 +230,7 @@ function UserDropdown({ session, role }: { session: Session; role: UserRole }) {
   );
 }
 
-export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null }) {
+export function AgentShell({ children, session, showWelcome, theme, mobileTheme, nightModePref, agencyModeProfile }: { children: React.ReactNode; session: Session; showWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; nightModePref: boolean | null; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed" }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -572,7 +572,7 @@ export function AgentShell({ children, session, showWelcome, theme, mobileTheme,
         {children}
       </main>
 
-      {showWelcome && <WelcomeModal name={session.user.name ?? ""} />}
+      {showWelcome && <WelcomeModal name={session.user.name ?? ""} agencyModeProfile={agencyModeProfile ?? "self_progressed"} />}
       {!isInternalStaff && <OnboardingChecklist userId={session.user.id} />}
     </div>
   );
