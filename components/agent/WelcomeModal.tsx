@@ -57,7 +57,7 @@ export function WelcomeModal({ name, agencyModeProfile = "self_progressed" }: { 
       <div
         className="agent-modal"
         style={{
-          maxWidth: showTour ? 540 : 460,
+          maxWidth: showTour ? 720 : 460,
           width: "calc(100vw - 48px)",
           position: "relative",
           padding: 0,

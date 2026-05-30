@@ -71,24 +71,28 @@ export function TourSlides({ onClose, onFinish, agencyModeProfile = "self_progre
         </button>
       </div>
 
-      {/* Visual */}
-      <div style={{
-        borderRadius: "var(--agent-radius-lg)",
-        overflow: "hidden",
-        marginBottom: 24,
-        background: "rgba(255,255,255,0.40)",
-        border: "0.5px solid rgba(255,255,255,0.60)",
-      }}>
-        <current.Visual />
+      {/* Split body — stacked on mobile, side-by-side from md (768px) up.
+          Modal is 720px max so below md it fills the viewport and the
+          two-column grid would crush the visual. Stack instead. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 items-center mb-6 md:mb-7">
+        <div style={{
+          borderRadius: "var(--agent-radius-lg)",
+          overflow: "hidden",
+          background: "rgba(255,255,255,0.55)",
+          border: "0.5px solid rgba(255,255,255,0.70)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+        }}>
+          <current.Visual />
+        </div>
+        <div>
+          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
+            {current.title}
+          </h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
+            {current.description}
+          </p>
+        </div>
       </div>
-
-      {/* Text */}
-      <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em", lineHeight: 1.25 }}>
-        {current.title}
-      </h2>
-      <p style={{ margin: "0 0 28px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-        {current.description}
-      </p>
 
       {/* Navigation */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
