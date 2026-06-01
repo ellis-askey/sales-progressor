@@ -33,6 +33,11 @@ type Props = {
     brokerReferralFee?: number | null;
     brokerFirmName?: string | null;
     serviceType?: "self_managed" | "outsourced" | null;
+    // Trial-window flag — true when the file was created while the
+    // agency was still inside its 14-day free trial. At exchange the
+    // billing trigger reads this and skips invoicing. Sidebar uses it
+    // to render "Free during your trial" in place of the price.
+    freeOnExchange?: boolean | null;
   };
   recommendedFirms?: { id: string; name: string; defaultReferralFeePence: number | null }[] | null;
   assignedUser: {
@@ -160,7 +165,13 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
         ? Math.round(transaction.purchasePrice * Number(transaction.agentFeePercent) / 100)
         : null;
 
-  const progressorFeePence = showOurFee && ourFee.fee != null ? ourFee.fee : 0;
+  // Trial-free files don't actually charge the SP fee — exclude it from
+  // the net-income subtraction so the agent's bottom line is accurate
+  // for trial files. UI shows "Free during your trial" in the row above.
+  const progressorFeePence =
+    showOurFee && ourFee.fee != null && !transaction.freeOnExchange
+      ? ourFee.fee
+      : 0;
   const totalFeesPence =
     (agentFeeCalcPence ?? 0)
     + (transaction.referralFee ?? 0)
@@ -442,7 +453,17 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
           {showOurFee && ourFee.fee != null && (
             <div className="flex justify-between items-baseline gap-3">
               <p className="text-xs text-slate-900/40 flex-shrink-0 max-w-[60%]">Progressor fee</p>
-              <p className="text-xs font-semibold text-slate-900/90 text-right">{ourFee.label}</p>
+              {transaction.freeOnExchange ? (
+                <p
+                  className="text-xs font-semibold text-right"
+                  style={{ color: "var(--agent-coral)" }}
+                  title="This sale was started during your free 14-day trial. No fee will be charged at exchange."
+                >
+                  Free during your trial
+                </p>
+              ) : (
+                <p className="text-xs font-semibold text-slate-900/90 text-right">{ourFee.label}</p>
+              )}
             </div>
           )}
 

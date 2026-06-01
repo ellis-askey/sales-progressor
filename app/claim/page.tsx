@@ -332,7 +332,7 @@ export default async function ClaimPage({
           <a href={claimHref} className="claim-btn">
             Claim this sale
           </a>
-          <p className="claim-microcopy">Free to use · Takes 30 seconds</p>
+          <p className="claim-microcopy">Free 14-day trial · No card needed · Cancel anytime</p>
           {showLoginLink && (
             <p className="claim-link-row">
               Already have an account?{" "}

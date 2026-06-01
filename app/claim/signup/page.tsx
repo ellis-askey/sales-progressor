@@ -136,7 +136,7 @@ export default async function ClaimSignupPage({
         <div>
           <div className="claim-form-card">
             <h1 className="claim-sub-h1">Create your account</h1>
-            <p className="claim-sub-p">Join free, no card required.</p>
+            <p className="claim-sub-p">Free 14-day trial · No card needed · Cancel anytime.</p>
 
             <ClaimSignupForm
               token={token}
