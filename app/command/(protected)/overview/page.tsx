@@ -63,6 +63,7 @@ export default async function OverviewPage({
     dailyRows,
     spWeek, pmWeek,
     stuckCount,
+    draftRows,
   ] = await Promise.all([
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: weekAgo, lte: now }, ...txScope },
@@ -115,7 +116,44 @@ export default async function OverviewPage({
         milestoneCompletions: { none: { completedAt: { gte: fourteenDaysAgo } } },
       },
     }),
+    // Agent drafts across the platform — used to compute the potential
+    // pipeline widget below. We deduplicate (agencyId, propertyAddress)
+    // pairs in JS so case variants of the same address don't double-count,
+    // and we exclude drafts where the same agency already has a non-draft
+    // transaction at that address (already realised, not still incoming).
+    prisma.propertyTransaction.findMany({
+      where: { status: "draft" },
+      select: { propertyAddress: true, agencyId: true },
+    }),
   ]);
+
+  // Second pass: which (agencyId, address) pairs from the draft set are
+  // already represented by a non-draft transaction? Those are duplicates of
+  // already-realised sales and don't count as "still incoming".
+  const draftAgencyIds = Array.from(new Set(draftRows.map((r) => r.agencyId)));
+  const realisedRows = draftAgencyIds.length === 0
+    ? []
+    : await prisma.propertyTransaction.findMany({
+        where: { agencyId: { in: draftAgencyIds }, status: { not: "draft" } },
+        select: { propertyAddress: true, agencyId: true },
+      });
+  const realisedKeys = new Set(
+    realisedRows.map((r) => `${r.agencyId}::${r.propertyAddress.trim().toLowerCase()}`),
+  );
+
+  const uniquePotentialKeys = new Set<string>();
+  let alreadyRealisedDrafts = 0;
+  for (const r of draftRows) {
+    const key = `${r.agencyId}::${r.propertyAddress.trim().toLowerCase()}`;
+    if (realisedKeys.has(key)) {
+      alreadyRealisedDrafts += 1;
+      continue;
+    }
+    uniquePotentialKeys.add(key);
+  }
+  const potentialPipelineCount = uniquePotentialKeys.size;
+  const totalDraftRows = draftRows.length;
+  const agenciesWithDrafts = draftAgencyIds.length;
 
   function pct(curr: number | null, prev: number | null): number {
     if (!prev || prev === 0 || curr === null) return 0;
@@ -277,6 +315,42 @@ export default async function OverviewPage({
           </div>
         </section>
       </div>
+
+      {/* Potential pipeline — agent drafts */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
+          Potential pipeline — agent drafts
+        </h2>
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 flex items-start gap-6">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl font-bold tabular-nums text-emerald-400">
+              {potentialPipelineCount}
+            </span>
+            <div>
+              <p className="text-xs text-neutral-300 font-medium">
+                unique {potentialPipelineCount === 1 ? "address" : "addresses"} with a draft sale
+              </p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                deduplicated per agency, excluding addresses the same agency has already added as a non-draft sale
+              </p>
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-5 pl-5 border-l border-neutral-800 self-stretch">
+            <div>
+              <p className="text-xs text-neutral-500 mb-0.5">Total drafts</p>
+              <p className="text-base font-bold text-white tabular-nums">{totalDraftRows.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 mb-0.5">Agencies</p>
+              <p className="text-base font-bold text-white tabular-nums">{agenciesWithDrafts.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 mb-0.5">Already realised</p>
+              <p className="text-base font-bold text-white tabular-nums">{alreadyRealisedDrafts.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* SP vs PM split */}
       {hasModeSplit && (

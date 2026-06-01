@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
 
@@ -20,10 +21,20 @@ export async function GET(req: NextRequest) {
   const scope = getAccessScope(session);
   const txScopeWhere = scopeTransactionWhere(scope);
 
+  // Internal scopes (sales_progressor, admin, superadmin) should not see
+  // agents' draft transactions in search results: drafts are an agent's
+  // work-in-progress and create noise on internal surfaces. Agency scopes
+  // (director, negotiator, viewer) keep current behaviour so an agent can
+  // still find their own draft to resume.
+  const hideDrafts = scope.kind !== "agency";
+  const draftFilter: Prisma.PropertyTransactionWhereInput =
+    hideDrafts ? { status: { not: "draft" } } : {};
+
   const [transactions, contacts, solicitors] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: {
         ...txScopeWhere,
+        ...draftFilter,
         propertyAddress: { contains: q, mode: "insensitive" },
       },
       orderBy: { updatedAt: "desc" },
@@ -38,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     prisma.contact.findMany({
       where: {
-        transaction: txScopeWhere,
+        transaction: { ...txScopeWhere, ...draftFilter },
         name: { contains: q, mode: "insensitive" },
       },
       orderBy: { createdAt: "desc" },
