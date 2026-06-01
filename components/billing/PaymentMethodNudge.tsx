@@ -13,13 +13,13 @@
 //     plus another week of grace before we start mentioning billing setup
 //   - Hides itself otherwise (server-component, returns null)
 //
-// Visual: small inline card matching the hub aesthetic. Coral accent on the
-// left border, not a full coral background. Single CTA "Set up billing".
-// No dismiss: director either acts or ignores; once stripeCustomerId is set
-// the card self-hides.
+// Server side does the condition check and decides whether to render. The
+// client child TrialBannerWithModal owns the banner JSX, the open-modal
+// state, and the embedded TrialExpiredModal. This keeps the agency-state
+// fetch on the server while letting the trigger live in a client island.
 
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { TrialBannerWithModal } from "./TrialBannerWithModal";
 
 const NUDGE_THRESHOLD_MS = 21 * 24 * 60 * 60 * 1000;
 
@@ -34,43 +34,6 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   const elapsed = Date.now() - agency.firstSubmissionAt.getTime();
   if (elapsed < NUDGE_THRESHOLD_MS) return null;  // inside trial + 7d grace
 
-  return (
-    <div
-      // .agent-reveal-in handles the subtle mount fade-in (150ms ease-out)
-      // plus the reduced-motion override at the CSS layer. No need to
-      // gate prefers-reduced-motion inline.
-      className="agent-reveal-in"
-      style={{
-        background: "var(--agent-card-bg, white)",
-        border: "1px solid var(--agent-border, #e5e7eb)",
-        borderLeft: "4px solid var(--agent-coral)",
-        borderRadius: 8,
-        padding: "14px 18px",
-        margin: "0",
-        display: "flex",
-        gap: 16,
-        alignItems: "center",
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: "var(--agent-text-primary, #111827)" }}>
-          Set up billing
-        </div>
-        <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 3, lineHeight: 1.5 }}>
-          Your trial has ended. Add a card to keep adding sales. We&apos;ll only charge your account on exchange.
-        </div>
-      </div>
-      <Link
-        href="/agent/account/billing#payment-method"
-        style={{
-          background: "var(--agent-coral)", color: "white",
-          padding: "8px 14px", borderRadius: 6,
-          fontSize: 13, fontWeight: 600, textDecoration: "none",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Add card →
-      </Link>
-    </div>
-  );
+  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+  return <TrialBannerWithModal publishableKey={publishableKey} />;
 }

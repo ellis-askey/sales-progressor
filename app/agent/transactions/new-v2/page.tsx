@@ -4,8 +4,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
 
-// 14 days — same window used by stampTrialState to decide freeOnExchange.
-// Past this point, new sales cost money; if no card is on file, the
+// 14 days, same window used by stampTrialState to decide freeOnExchange.
+// Past this point new sales cost money; if no card is on file the
 // director hits the trial-expired modal instead of the form.
 const TRIAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -15,8 +15,8 @@ const db = prisma as any;
 export default async function AgentNewSaleV2Page() {
   const session = await requireSession();
 
-  // Trial-expired gate. Only blocks directors — negotiators never set up
-  // billing (they'd hit BillingNegotiatorModal via the dropdown route).
+  // Trial-expired gate. Only blocks directors. Negotiators never set up
+  // billing (they get BillingNegotiatorModal via the dropdown route).
   // Internal staff (admin / SP) bypass entirely. The modal renders in
   // place of the form so the page only fetches data the modal needs.
   if (session.user.role === "director" && session.user.agencyId) {
@@ -29,7 +29,8 @@ export default async function AgentNewSaleV2Page() {
       !agency.stripeCustomerId &&
       Date.now() - agency.firstSubmissionAt.getTime() >= TRIAL_WINDOW_MS
     ) {
-      return <TrialExpiredModal />;
+      const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+      return <TrialExpiredModal publishableKey={publishableKey} source="new-sale" />;
     }
   }
 

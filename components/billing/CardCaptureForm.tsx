@@ -5,7 +5,7 @@
 // Stripe Elements card-capture form. On mount, fetches a SetupIntent
 // client_secret from /api/billing/setup-intent (the endpoint creates or
 // reuses the agency's Stripe Customer). The Elements provider then renders
-// the PaymentElement; submit confirms the SetupIntent — Stripe attaches
+// the PaymentElement; submit confirms the SetupIntent and Stripe attaches
 // the PaymentMethod to the Customer for future charging (PR 7).
 //
 // No charge happens here. PR 6 is card-on-file only.
@@ -21,9 +21,14 @@ import {
 
 type Props = {
   publishableKey: string;
+  // When provided: skip the in-form green "Card saved" banner and fire
+  // this callback instead. The parent (e.g. TrialExpiredModal) advances
+  // to its own success step. When omitted: existing standalone behaviour
+  // (settings page renders the green banner inline).
+  onSuccess?: () => void;
 };
 
-export function CardCaptureForm({ publishableKey }: Props) {
+export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
   const [stripePromise] = useState<Promise<StripeJs | null>>(() => loadStripe(publishableKey));
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +46,7 @@ export function CardCaptureForm({ publishableKey }: Props) {
         const data = (await res.json()) as { clientSecret: string };
         if (!cancelled) setClientSecret(data.clientSecret);
       } catch {
-        if (!cancelled) setError("Couldn't reach the server — check your connection and try again");
+        if (!cancelled) setError("Couldn't reach the server. Check your connection and try again.");
       }
     })();
     return () => {
@@ -76,12 +81,12 @@ export function CardCaptureForm({ publishableKey }: Props) {
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <InnerForm />
+      <InnerForm onSuccess={onSuccess} />
     </Elements>
   );
 }
 
-function InnerForm() {
+function InnerForm({ onSuccess }: { onSuccess?: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -93,7 +98,7 @@ function InnerForm() {
     if (!stripe || !elements) return;
     setSubmitting(true);
     setError(null);
-    // Stripe takes over from here — confirmSetup redirects on success,
+    // Stripe takes over from here: confirmSetup redirects on success,
     // or surfaces an error in the result.
     const result = await stripe.confirmSetup({
       elements,
@@ -103,15 +108,19 @@ function InnerForm() {
       redirect: "if_required",
     });
     if (result.error) {
-      setError(result.error.message ?? "Card couldn't be saved — try again");
+      setError(result.error.message ?? "Card couldn't be saved. Try again.");
       setSubmitting(false);
       return;
     }
     setSaved(true);
     setSubmitting(false);
+    // When a parent supplies onSuccess, defer the success UI to them
+    // (e.g. modal advances to its own "You're all set" step). When
+    // absent, fall through to the in-form green banner below.
+    if (onSuccess) onSuccess();
   }
 
-  if (saved) {
+  if (saved && !onSuccess) {
     return (
       <div
         style={{
@@ -122,7 +131,7 @@ function InnerForm() {
           color: "#166534",
         }}
       >
-        Card saved. We'll charge it on the 1st of each month for that month's exchanges.
+        Card saved. We&apos;ll charge it on the 1st of each month for that month&apos;s exchanges.
       </div>
     );
   }
