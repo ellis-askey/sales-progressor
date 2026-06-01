@@ -62,7 +62,7 @@ export function ClaimSignupForm({ token, stubEmail, stubAgencyName, milestoneDef
     const registerRes = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email: stubEmail, password, firmName: firmName.trim(), role: "director" }),
+      body: JSON.stringify({ name, email: stubEmail, password, firmName: firmName.trim(), role: "director", claimSignup: true }),
     });
 
     if (!registerRes.ok) {

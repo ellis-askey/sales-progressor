@@ -8,19 +8,20 @@
 
 import { buildClaimWelcome } from "@/lib/emails/retention";
 
-type SearchParams = Promise<{ fallback?: string }>;
+type SearchParams = Promise<{ fallback?: string; noaddress?: string }>;
 
 export default async function ClaimWelcomePreview({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { fallback } = await searchParams;
+  const { fallback, noaddress } = await searchParams;
   const useFallback = fallback === "1";
+  const useNoAddress = noaddress === "1";
 
   const built = buildClaimWelcome({
     firstName: "Sarah",
-    address: "14 Birchwood Avenue, Knutsford, WA16 8JL",
+    address: useNoAddress ? "" : "14 Birchwood Avenue, Knutsford, WA16 8JL",
     ctaUrl: "https://portal.thesalesprogressor.co.uk/agent/transactions/sample-tx-id",
     invitingAgencyName: useFallback ? undefined : "Hamilton & Stone",
   });
@@ -38,11 +39,10 @@ export default async function ClaimWelcomePreview({
           Claim-cycle welcome — preview
         </h1>
         <p style={{ margin: "0 0 24px", fontSize: 13, color: "#5b6478" }}>
-          Sample data: Sarah · 14 Birchwood Avenue, Knutsford, WA16 8JL ·{" "}
-          {useFallback
-            ? "no inviting agency (fallback copy)"
-            : "inviting agency = Hamilton & Stone"}
-          . Toggle with <code>?fallback=1</code>.
+          Sample data: Sarah ·{" "}
+          {useNoAddress ? "no address (fallback copy)" : "14 Birchwood Avenue, Knutsford, WA16 8JL"} ·{" "}
+          {useFallback ? "no inviting agency (fallback copy)" : "inviting agency = Hamilton & Stone"}
+          . Toggle with <code>?fallback=1</code> for the inviter fallback, <code>?noaddress=1</code> for the address fallback.
         </p>
 
         <section style={{ marginBottom: 24 }}>

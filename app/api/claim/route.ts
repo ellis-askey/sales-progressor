@@ -15,6 +15,7 @@ import { initializeMilestoneCompletions } from "@/lib/services/milestones";
 import { reconcileClaimMilestonesAction } from "@/app/actions/milestones";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile, PaymentBlockedError } from "@/lib/billing/payment-block";
+import { sendClaimWelcomeIfNotSent } from "@/lib/emails/send-claim-welcome";
 import type { Tenure, PurchaseType } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -69,6 +70,10 @@ export async function POST(req: NextRequest) {
       chain: {
         select: {
           createdByUserId: true,
+          // For the claim welcome email — names the inviting agency in the
+          // opening sentence ("{agency} is progressing the sale at..."). Null
+          // tolerated; template substitutes "The other side of the chain".
+          createdBy: { select: { agency: { select: { name: true } } } },
           links: {
             select: {
               withdrawalStatus: true,
@@ -240,6 +245,20 @@ export async function POST(req: NextRequest) {
     console.log(
       `[AUDIT] chain_link_claimed linkId=${link.id} userId=${session.user.id} action=create transactionId=${result.transactionId} reconciliationMode=${typeof reconciliationMode === "string" ? reconciliationMode : "none"}`,
     );
+
+    // Fire-and-forget claim-cycle welcome. Only on the "create" action: this
+    // branch is the brand-new-account claim path (ClaimSignupForm posts
+    // claimSignup:true to /api/register which skipped the generic welcome).
+    // The "link" action below is an existing user attaching an existing
+    // transaction — they already received their welcome at signup, and the
+    // welcomeEmailSentAt guard would suppress this anyway.
+    void sendClaimWelcomeIfNotSent({
+      userId: session.user.id,
+      transactionId: result.transactionId,
+      propertyAddress: link.stubPropertyAddress ?? "",
+      invitingAgencyName: link.chain.createdBy?.agency?.name ?? null,
+    });
+
     return NextResponse.json({ ok: true, transactionId: result.transactionId });
   }
 

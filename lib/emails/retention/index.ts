@@ -97,18 +97,38 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
 
 export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const { firstName, address = "", ctaUrl = "", invitingAgencyName } = vars;
-  // Fallback when the inviting agency name isn't reliably available at send
-  // time. Used as the subject "from" in the opening sentence.
+  // Inviter fallback: when the chain originator's agency name isn't available
+  // at send time. Used as the subject "from" in the opening sentence.
   const inviter = invitingAgencyName && invitingAgencyName.trim()
     ? invitingAgencyName.trim()
     : "The other side of the chain";
 
-  const subject = `You've been added to the sale at ${address}`;
+  // Address fallback: stubPropertyAddress is nullable on ChainLink so the
+  // template guards against an empty value rather than relying on upstream
+  // validation. When missing, the copy is rephrased generically so we never
+  // render "the sale at  in Sales Progressor".
+  const hasAddress = address.trim().length > 0;
+  const trimmedAddress = address.trim();
+
+  // Subject uses only the street line so it doesn't truncate in inboxes
+  // (the full address still appears in the body). Falls back to the full
+  // address if the address has no commas, then to a generic subject if
+  // there's no address at all.
+  const subjectStreet = hasAddress
+    ? (trimmedAddress.split(",")[0]?.trim() || trimmedAddress)
+    : "";
+  const subject = hasAddress
+    ? `You've been added to the sale at ${subjectStreet}`
+    : `You've been added to a new sale on Sales Progressor`;
+
+  const openingSentence = hasAddress
+    ? `${inviter} is progressing the sale at ${trimmedAddress} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`
+    : `${inviter} is progressing a sale in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`;
 
   const text = [
     `Hi ${firstName},`,
     ``,
-    `${inviter} is progressing the sale at ${address} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`,
+    openingSentence,
     ``,
     `From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.`,
     ``,
@@ -123,7 +143,7 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
 
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${inviter} is progressing the sale at ${address} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${openingSentence}</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.</p>`,
     ctaUrl ? ctaButton("Open your sale →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">There's nothing to set up and nothing to pay, you've just got a clear view of your side of the chain as it moves.</p>`,

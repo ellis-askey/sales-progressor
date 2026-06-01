@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(rateLimitJson(rl), { status: 429 });
     }
 
-    const { name, email, password, firmName, role } = await req.json();
+    const { name, email, password, firmName, role, claimSignup } = await req.json();
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 });
@@ -59,7 +59,16 @@ export async function POST(req: NextRequest) {
     });
     // Fire-and-forget instant welcome. Helper handles its own errors so a
     // SendGrid hiccup never fails the signup response.
-    void sendWelcomeEmailIfNotSent(userId);
+    //
+    // Claim-cycle signups (POST'd from ClaimSignupForm with claimSignup:true)
+    // skip this generic welcome — /api/claim fires sendClaimWelcomeIfNotSent
+    // after the transaction commits, so the recipient gets the address-aware
+    // claim welcome instead of the generic "add your first sale" copy. Both
+    // helpers atomically stamp User.welcomeEmailSentAt, so a user can only
+    // ever receive one welcome regardless.
+    if (!claimSignup) {
+      void sendWelcomeEmailIfNotSent(userId);
+    }
     return NextResponse.json({ ok: true, id: userId }, { status: 201 });
   } catch (e: unknown) {
     // Prisma unique constraint on email — race between two simultaneous signups
