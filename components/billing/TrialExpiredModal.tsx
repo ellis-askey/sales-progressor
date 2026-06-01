@@ -4,19 +4,21 @@
 // /agent/transactions/new-v2 but their agency's 14-day free trial has
 // elapsed without a card being added.
 //
-// Trigger conditions (all must be true — checked at page level):
+// Trigger conditions (all must be true, checked at page level):
 //   - session.user.role === "director"
 //   - agency.firstSubmissionAt is set (they've actually used the trial)
 //   - 14+ days elapsed since firstSubmissionAt
 //   - agency.stripeCustomerId is null (no card yet)
 //
 // Pure server component. No client JS. Two link CTAs:
-//   - "Add a card" → /agent/account/billing#payment-method
+//   - "Add a card to continue" → /agent/account/billing#payment-method
 //   - "Back to dashboard" → /agent/hub
 //
-// Visual: full-content-area overlay (fixed positioning) on a dimmed
-// backdrop. Card centered. Matches the BillingNegotiatorModal pattern
-// for design consistency.
+// Motion + chrome use the canonical agent-modal / agent-backdrop-overlay
+// classes from app/agent/styles/agent-system.css. agent-modal handles the
+// fade + scale entrance via the agent-modal-in keyframe (250ms,
+// var(--agent-ease)) and the reduced-motion override is applied at the
+// CSS layer, not inline. Matches ClaimWelcomeModal / AddFirmModal motion.
 
 import Link from "next/link";
 
@@ -30,24 +32,27 @@ export function TrialExpiredModal() {
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(0,0,0,0.45)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 24,
       }}
     >
+      {/* Backdrop: dim + blur, fades in via .agent-backdrop-overlay */}
+      <div className="fixed inset-0 agent-backdrop-overlay" aria-hidden />
+
       <div
+        className="agent-modal"
         style={{
-          background: "white",
-          borderRadius: 12,
           maxWidth: 480,
-          width: "100%",
+          width: "calc(100vw - 48px)",
+          position: "relative",
           padding: 32,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.30)",
         }}
       >
-        {/* Coral icon chip — matches the rest of the agent design language */}
+        {/* Card icon chip on a coral surface. Swapped from the earlier
+            padlock (padlock read as "locked out" and fought the calm
+            tone). Inline SVG keeps the file self-contained. */}
         <div
           style={{
             width: 48,
@@ -61,9 +66,19 @@ export function TrialExpiredModal() {
           }}
           aria-hidden
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--agent-coral)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--agent-coral)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="2" y="5" width="20" height="14" rx="2.5" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+            <line x1="6" y1="15" x2="9" y2="15" />
           </svg>
         </div>
 
@@ -75,7 +90,7 @@ export function TrialExpiredModal() {
         </h2>
 
         <p style={{ margin: "12px 0 0", fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
-          You&apos;ve made the most of your 14-day free trial. Existing files keep running normally — chases, comms, milestones, everything. To add new sales, we need a card on file so we can collect the per-sale fee when each one exchanges.
+          Your two-week trial has flown by. The sales you added during it keep running, free through to exchange, just as promised. To add new ones, add a card.
         </p>
 
         <div
@@ -91,7 +106,7 @@ export function TrialExpiredModal() {
           }}
         >
           <strong style={{ color: "var(--agent-coral)" }}>Nothing&apos;s charged today.</strong>{" "}
-          You&apos;re only billed when a sale exchanges — never on creation, never on cancellation.
+          New sales are only billed when they exchange, never when you add one, and never if it falls through.
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>

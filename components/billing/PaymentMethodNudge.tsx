@@ -1,21 +1,21 @@
 // components/billing/PaymentMethodNudge.tsx
 //
 // Hub card nudging directors to add a payment method once their trial window
-// has had time to pass naturally. Designed to be unobtrusive — not modal,
+// has had time to pass naturally. Designed to be unobtrusive: not modal,
 // not flashy, not waved-in-face on day one.
 //
 // Trigger (all must be true):
 //   - role = director (negotiators get the modal flow instead; both checked
 //     at the call site)
 //   - Agency has no stripeCustomerId yet (no card on file)
-//   - Agency has a firstSubmissionAt — i.e. has submitted at least one file
-//   - >= 21 days have elapsed since firstSubmissionAt — past the 14-day trial
+//   - Agency has a firstSubmissionAt, i.e. has submitted at least one file
+//   - >= 21 days have elapsed since firstSubmissionAt (past the 14-day trial
 //     plus another week of grace before we start mentioning billing setup
 //   - Hides itself otherwise (server-component, returns null)
 //
 // Visual: small inline card matching the hub aesthetic. Coral accent on the
 // left border, not a full coral background. Single CTA "Set up billing".
-// No dismiss — director either acts or ignores; once stripeCustomerId is set
+// No dismiss: director either acts or ignores; once stripeCustomerId is set
 // the card self-hides.
 
 import Link from "next/link";
@@ -30,12 +30,16 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   });
   if (!agency) return null;
   if (agency.stripeCustomerId) return null;       // card already on file
-  if (!agency.firstSubmissionAt) return null;     // never submitted — too early to nudge
+  if (!agency.firstSubmissionAt) return null;     // never submitted; too early to nudge
   const elapsed = Date.now() - agency.firstSubmissionAt.getTime();
   if (elapsed < NUDGE_THRESHOLD_MS) return null;  // inside trial + 7d grace
 
   return (
     <div
+      // .agent-reveal-in handles the subtle mount fade-in (150ms ease-out)
+      // plus the reduced-motion override at the CSS layer. No need to
+      // gate prefers-reduced-motion inline.
+      className="agent-reveal-in"
       style={{
         background: "var(--agent-card-bg, white)",
         border: "1px solid var(--agent-border, #e5e7eb)",
@@ -53,7 +57,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
           Set up billing
         </div>
         <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b7280)", marginTop: 3, lineHeight: 1.5 }}>
-          Your trial has finished. Add a card so we can collect the per-sale fee when each file exchanges. Nothing's charged until then.
+          Your trial has ended. Add a card to keep adding sales. We&apos;ll only charge your account on exchange.
         </div>
       </div>
       <Link
