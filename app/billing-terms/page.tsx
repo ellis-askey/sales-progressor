@@ -11,25 +11,20 @@
 // without shipping a new TermsVersion creates drift between what users see
 // in the public preview and what they actually acknowledge when saving a card.
 //
-// v4 was shipped 2026-05-26 — pure presentation update from v3:
-//   - First section heading split: "Sales Progressor — pricing" became
-//     two sections: "About these terms" (preamble) + "Pricing" (was
-//     "What you pay"). Body text unchanged. Customers see noun-phrase
-//     section titles throughout.
-// Body text identical to v3 — headings only. v3 is preserved in the
-// TermsVersion table for audit; existing acknowledgements stay valid
-// against v3 only.
+// v4 shipped 2026-05-26 and has since had two in-place copy refinements
+// while still pre-acknowledgement on staging: placeholder line removed
+// (2026-05-29) and full re-phrasing into formal noun-phrase headings
+// (Charges / Payment and collection / Free trial period / etc.) on
+// 2026-06-01. Once a director has acknowledged v4 in production, any
+// further material change ships as v5; small placeholder tidies do not.
 //
 // Four sources of v4 truth (keep in sync):
-//   1. This page — public preview
+//   1. This page (public preview)
 //   2. prisma/migrations/20260526100000_terms_version_v4/migration.sql
 //   3. scripts/insert-prod-terms-v4.ts
 //   4. TermsVersion DB row, versionTag = '2026-06-payments-v4'
 //
-// Only remaining placeholders on this page (tracked in
-// docs/policies/PLACEHOLDERS.md):
-//   - [Company number]            — "About these terms"
-//   - [Registered office address] — "About these terms"
+// No remaining placeholders on this page.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -46,103 +41,106 @@ const SECTIONS: PolicySection[] = [
     id: "about-these-terms",
     title: "About these terms",
     body: (
-      <p>By saving a payment card, you agree to the following pricing terms.</p>
+      <p>
+        By saving a payment card, you agree to the pricing terms set out below. Billing is operated
+        by The Sales Progressor.
+      </p>
     ),
   },
   {
-    id: "pricing",
-    title: "Pricing",
+    id: "charges",
+    title: "Charges",
     body: (
       <>
-        <p>We charge per sale, and only once it exchanges — never before.</p>
+        <p>Fees are charged per sale and only on exchange of that sale.</p>
         <ul>
-          <li>For a sale you progress in-house: <strong>£59</strong>.</li>
+          <li>For a sale you progress in-house, the fee is <strong>£59</strong>.</li>
           <li>
-            For a sale you pass to our team to progress, the fee depends on the agreed sale price
-            at exchange: <strong>£250</strong> for sales up to £349,999, <strong>£300</strong> for
-            £350,000 to £499,999, and <strong>£350</strong> for £500,000 and above.
+            For a sale you pass to our team to progress, the fee is determined by the agreed sale
+            price at exchange, as follows: <strong>£250</strong> for a sale price up to £349,999;{" "}
+            <strong>£300</strong> for a sale price from £350,000 to £499,999; and{" "}
+            <strong>£350</strong> for a sale price of £500,000 or above.
           </li>
         </ul>
       </>
     ),
   },
   {
-    id: "when-you-pay",
-    title: "When you pay",
+    id: "payment-and-collection",
+    title: "Payment and collection",
     body: (
       <p>
-        Nothing is charged until a sale exchanges. Fees for sales that exchange in a given month
-        are collected together as a single payment at the end of that month. You&rsquo;ll see the
-        running total building on your billing page throughout the month (subject to the platform
-        being available), so there are no surprises.
+        No fee is charged until a sale exchanges. Fees for all sales that exchange within a calendar
+        month are collected as a single payment at the end of that month. The running total of fees
+        accrued in the current month is shown on your billing page, subject to availability of the
+        service.
       </p>
     ),
   },
   {
-    id: "free-trial",
-    title: "Your free trial",
+    id: "free-trial-period",
+    title: "Free trial period",
     body: (
       <p>
-        Any sale you add in your first 14 days is free for its whole life — even when it exchanges
-        months later, you won&rsquo;t be charged for it. The 14 days run from the first sale you
-        add.
+        Any sale added within the first <strong>14 days</strong> is not chargeable at any stage,
+        including on its eventual exchange, regardless of how long after the trial period that
+        exchange occurs. The 14-day period begins on the date you add your first sale.
       </p>
     ),
   },
   {
-    id: "credit-notes",
-    title: "If a sale is later un-done (credit notes)",
+    id: "reversed-sales-and-credits",
+    title: "Reversed sales and credits",
     body: (
       <p>
-        If a sale that had exchanged is later reversed (for example, an exchange milestone is
-        undone), the fee for that sale is reversed as a credit applied against your next bill. You
-        don&rsquo;t need to do anything — it&rsquo;s handled automatically.
+        Where a sale that has exchanged is subsequently reversed (for example, where the exchange is
+        undone), the corresponding fee is reversed and applied as a credit against your next
+        invoice. This is processed automatically and requires no action on your part.
       </p>
     ),
   },
   {
-    id: "payment-failure",
-    title: "If a payment fails",
+    id: "failed-payments",
+    title: "Failed payments",
     body: (
       <p>
-        Sales already underway carry on as normal. If a payment doesn&rsquo;t go through, we&rsquo;ll
-        warn you for <strong>14 days</strong> and try the payment again, then allow a{" "}
-        <strong>7-day grace period</strong> for you to resolve it. If it&rsquo;s still unresolved
-        after that, you won&rsquo;t be able to add new sales until the payment is sorted — your
-        existing sales are unaffected throughout.
+        If a payment is unsuccessful, we will notify you and re-attempt collection over a period of{" "}
+        <strong>14 days</strong>, followed by a <strong>7-day grace period</strong> in which to
+        resolve the matter. If the payment remains outstanding after that period, you will be unable
+        to add new sales until it is resolved. Sales already in progress are unaffected throughout.
       </p>
     ),
   },
   {
     id: "card-storage",
-    title: "How your card is stored",
+    title: "Card storage",
     body: (
       <p>
-        Your card details are stored securely by <strong>Stripe</strong>, our payment processor —
-        not by us. We can see only the last four digits and the card brand, never the full card
-        number.
+        Your card details are stored securely by our payment processor, <strong>Stripe</strong>, and
+        are not held by us. We have access only to the last four digits and the card brand, and
+        never to the full card number.
       </p>
     ),
   },
   {
-    id: "whos-billed",
-    title: "Who's billed",
+    id: "billing-party",
+    title: "Billing party",
     body: (
       <p>
-        The agency&rsquo;s director is the contracting party for billing. Only a director can see
-        or manage payment details and invoices. Negotiators cannot.
+        The agency&rsquo;s director is the contracting party for billing purposes. Only a director
+        may view or manage payment details and invoices; negotiators may not.
       </p>
     ),
   },
   {
-    id: "pricing-changes",
-    title: "If pricing changes",
+    id: "changes-to-pricing",
+    title: "Changes to pricing",
     body: (
       <p>
-        We may change our pricing in future. If we do, we&rsquo;ll give you at least{" "}
-        <strong>30 days&rsquo; notice</strong> and the change will apply only to sales added after
-        the new pricing takes effect — any sales already in progress are honoured at the price that
-        applied when they were added.
+        We may change our pricing in future. Where we do, we will give you at least{" "}
+        <strong>30 days&rsquo; notice</strong>, and the revised pricing will apply only to sales
+        added after it takes effect. Any sale already in progress will be charged at the price that
+        applied when it was added.
       </p>
     ),
   },
@@ -151,9 +149,9 @@ const SECTIONS: PolicySection[] = [
     title: "VAT",
     body: (
       <p>
-        We are not currently VAT-registered, so no VAT is added to these fees. If that changes,
-        we&rsquo;ll tell you before it affects what you pay — and, because it&rsquo;s a material
-        change, we&rsquo;ll issue updated billing terms for you to acknowledge before your next
+        We are not currently registered for VAT, and no VAT is therefore added to these fees. Should
+        this change, we will notify you before it affects the amount you pay. As this is a material
+        change, we will issue updated billing terms for your acknowledgement before your next
         billing cycle.
       </p>
     ),
@@ -163,10 +161,9 @@ const SECTIONS: PolicySection[] = [
     title: "Disputes",
     body: (
       <p>
-        If you think a charge is wrong, contact us at{" "}
+        If you believe a charge is incorrect, please contact us at{" "}
         <a href="mailto:support@thesalesprogressor.co.uk">support@thesalesprogressor.co.uk</a>{" "}
-        before raising a dispute with your card provider, and we&rsquo;ll work to resolve it
-        quickly.
+        before raising a dispute with your card provider, and we will work to resolve it promptly.
       </p>
     ),
   },

@@ -36,47 +36,47 @@ VALUES (
   '[
     {
       "heading": "About these terms",
-      "body": "By saving a payment card, you agree to the following pricing terms."
+      "body": "By saving a payment card, you agree to the pricing terms set out below. Billing is operated by The Sales Progressor."
     },
     {
-      "heading": "Pricing",
-      "body": "We charge per sale, and only once it exchanges — never before. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee depends on the agreed sale price at exchange: £250 for sales up to £349,999, £300 for £350,000 to £499,999, and £350 for £500,000 and above."
+      "heading": "Charges",
+      "body": "Fees are charged per sale and only on exchange of that sale. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee is determined by the agreed sale price at exchange, as follows: £250 for a sale price up to £349,999; £300 for a sale price from £350,000 to £499,999; and £350 for a sale price of £500,000 or above."
     },
     {
-      "heading": "When you pay",
-      "body": "Nothing is charged until a sale exchanges. Fees for sales that exchange in a given month are collected together as a single payment at the end of that month. You''ll see the running total building on your billing page throughout the month (subject to the platform being available), so there are no surprises."
+      "heading": "Payment and collection",
+      "body": "No fee is charged until a sale exchanges. Fees for all sales that exchange within a calendar month are collected as a single payment at the end of that month. The running total of fees accrued in the current month is shown on your billing page, subject to availability of the service."
     },
     {
-      "heading": "Your free trial",
-      "body": "Any sale you add in your first 14 days is free for its whole life — even when it exchanges months later, you won''t be charged for it. The 14 days run from the first sale you add."
+      "heading": "Free trial period",
+      "body": "Any sale added within the first 14 days is not chargeable at any stage, including on its eventual exchange, regardless of how long after the trial period that exchange occurs. The 14-day period begins on the date you add your first sale."
     },
     {
-      "heading": "If a sale is later un-done (credit notes)",
-      "body": "If a sale that had exchanged is later reversed (for example, an exchange milestone is undone), the fee for that sale is reversed as a credit applied against your next bill. You don''t need to do anything — it''s handled automatically."
+      "heading": "Reversed sales and credits",
+      "body": "Where a sale that has exchanged is subsequently reversed (for example, where the exchange is undone), the corresponding fee is reversed and applied as a credit against your next invoice. This is processed automatically and requires no action on your part."
     },
     {
-      "heading": "If a payment fails",
-      "body": "Sales already underway carry on as normal. If a payment doesn''t go through, we''ll warn you for 14 days and try the payment again, then allow a 7-day grace period for you to resolve it. If it''s still unresolved after that, you won''t be able to add new sales until the payment is sorted — your existing sales are unaffected throughout."
+      "heading": "Failed payments",
+      "body": "If a payment is unsuccessful, we will notify you and re-attempt collection over a period of 14 days, followed by a 7-day grace period in which to resolve the matter. If the payment remains outstanding after that period, you will be unable to add new sales until it is resolved. Sales already in progress are unaffected throughout."
     },
     {
-      "heading": "How your card is stored",
-      "body": "Your card details are stored securely by Stripe, our payment processor — not by us. We can see only the last four digits and the card brand, never the full card number."
+      "heading": "Card storage",
+      "body": "Your card details are stored securely by our payment processor, Stripe, and are not held by us. We have access only to the last four digits and the card brand, and never to the full card number."
     },
     {
-      "heading": "Who''s billed",
-      "body": "The agency''s director is the contracting party for billing. Only a director can see or manage payment details and invoices. Negotiators cannot."
+      "heading": "Billing party",
+      "body": "The agency''s director is the contracting party for billing purposes. Only a director may view or manage payment details and invoices; negotiators may not."
     },
     {
-      "heading": "If pricing changes",
-      "body": "We may change our pricing in future. If we do, we''ll give you at least 30 days'' notice and the change will apply only to sales added after the new pricing takes effect — any sales already in progress are honoured at the price that applied when they were added."
+      "heading": "Changes to pricing",
+      "body": "We may change our pricing in future. Where we do, we will give you at least 30 days'' notice, and the revised pricing will apply only to sales added after it takes effect. Any sale already in progress will be charged at the price that applied when it was added."
     },
     {
       "heading": "VAT",
-      "body": "We are not currently VAT-registered, so no VAT is added to these fees. If that changes, we''ll tell you before it affects what you pay — and, because it''s a material change, we''ll issue updated billing terms for you to acknowledge before your next billing cycle."
+      "body": "We are not currently registered for VAT, and no VAT is therefore added to these fees. Should this change, we will notify you before it affects the amount you pay. As this is a material change, we will issue updated billing terms for your acknowledgement before your next billing cycle."
     },
     {
       "heading": "Disputes",
-      "body": "If you think a charge is wrong, contact us at support@thesalesprogressor.co.uk before raising a dispute with your card provider, and we''ll work to resolve it quickly."
+      "body": "If you believe a charge is incorrect, please contact us at support@thesalesprogressor.co.uk before raising a dispute with your card provider, and we will work to resolve it promptly."
     }
   ]'::jsonb,
   NOW(),
