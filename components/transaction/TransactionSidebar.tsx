@@ -150,12 +150,16 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
   // Self-managed is always £59 (hardcoded — agency override does NOT apply here).
   // Outsourced: if SP assigned, calculateOurFee honours agency override → per-SP legacy → sliding scale.
   // Outsourced without an SP yet: the agency-level legacy override is the only thing that can produce a fee.
+  //
+  // Labels always render as the actual £ figure (no "inc. VAT" suffix, no
+  // descriptive classification like "Standard (£500k+)") — see
+  // calculateOurFee for the same convention on the outsourced branches.
   const ourFee = transaction.serviceType === "self_managed"
-    ? { fee: 5900, label: "£59 inc. VAT" }
+    ? { fee: 5900, label: formatFee(5900) }
     : assignedUser
       ? calculateOurFee(assignedUser.clientType, assignedUser.legacyFee, transaction.purchasePrice, agencyFeeOverride ?? null)
       : agencyFeeOverride?.feeTier === "legacy" && agencyFeeOverride.legacyOutsourcedFeePence != null
-        ? { fee: agencyFeeOverride.legacyOutsourcedFeePence, label: "Legacy fixed fee (agency)" }
+        ? { fee: agencyFeeOverride.legacyOutsourcedFeePence, label: formatFee(agencyFeeOverride.legacyOutsourcedFeePence) }
         : { fee: null, label: "" };
 
   const agentFeeCalcPence: number | null =

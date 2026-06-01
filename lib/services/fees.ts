@@ -24,18 +24,28 @@ export function calculateOurFee(
   purchasePrice: number | null, // in pence
   agencyOverride?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null,
 ): { fee: number | null; label: string } {
+  // Display rule (2026-06): the resolved label is always the actual £
+  // figure formatted via formatFee — no descriptive classification
+  // ("Standard (£500k+)", "Legacy fixed fee (agency)", etc.) reaches the
+  // UI. Error-state labels stay descriptive because the caller hides the
+  // row entirely when fee is null (ourFee.fee != null gate in
+  // TransactionSidebar).
+
   // 1. Per-agency legacy override wins if configured.
   if (agencyOverride?.feeTier === "legacy") {
     if (agencyOverride.legacyOutsourcedFeePence == null) {
       return { fee: null, label: "Agency legacy — fee not set" };
     }
-    return { fee: agencyOverride.legacyOutsourcedFeePence, label: "Legacy fixed fee (agency)" };
+    return {
+      fee: agencyOverride.legacyOutsourcedFeePence,
+      label: formatFee(agencyOverride.legacyOutsourcedFeePence),
+    };
   }
 
   // 2. Per-SP legacy fee — pre-existing behaviour, unchanged.
   if (clientType === "legacy") {
     if (!legacyFee) return { fee: null, label: "Legacy — fee not set" };
-    return { fee: legacyFee, label: `Legacy fixed fee` };
+    return { fee: legacyFee, label: formatFee(legacyFee) };
   }
 
   // 3. Standard sliding scale.
@@ -43,9 +53,9 @@ export function calculateOurFee(
 
   const priceGBP = purchasePrice / 100;
 
-  if (priceGBP < 350000) return { fee: 25000, label: "Standard (up to £349,999)" };       // £250
-  if (priceGBP < 500000) return { fee: 30000, label: "Standard (£350k–£499k)" };          // £300
-  return { fee: 35000, label: "Standard (£500k+)" };                                       // £350
+  if (priceGBP < 350000) return { fee: 25000, label: formatFee(25000) }; // £250
+  if (priceGBP < 500000) return { fee: 30000, label: formatFee(30000) }; // £300
+  return { fee: 35000, label: formatFee(35000) };                         // £350
 }
 
 /**
