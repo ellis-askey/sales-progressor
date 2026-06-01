@@ -439,18 +439,38 @@ export async function evaluateTransactionReminders(transactionId: string) {
     }
 
     if (existingLog) {
-      // Update if due date shifted significantly (e.g. event_date changed)
-      const diff = Math.abs(existingLog.nextDueDate.getTime() - firstDueDate.getTime());
-      if (diff > 60 * 60 * 1000) {
-        await prisma.reminderLog.update({
-          where: { id: existingLog.id },
-          data: { nextDueDate: firstDueDate, sourceDateUsed: anchorDate },
-        });
-        await writeEngineAudit(
-          transactionId,
-          `"${rule.name}" chase moved to ${formatEngineDate(firstDueDate)}.`,
-          assignedUserId
-        );
+      // Pre-2026-06-01: this branch always recomputed nextDueDate from
+      // anchor+graceDays and overwrote when diff > 1 hour. That clobbered
+      // chase-advanced dates back to the anchor-derived first-due date
+      // every time the engine ran (via revalidatePath after any action).
+      // Net result: rows that had been chased many times kept snapping
+      // back to dates months in the past, looking permanently stuck in
+      // Overdue. applyChaseToTask's date advance was overridden minutes
+      // after every chase.
+      //
+      // Fix: once ANY chase has been recorded against this log, the
+      // cadence belongs to applyChaseToTask (lastChasedAt + repeatEveryDays).
+      // The engine no longer touches nextDueDate. It still owns the
+      // INITIAL value (created from anchor+grace) on chaseCount=0 logs
+      // — that's the only place this branch fires now.
+      const hasChases = await prisma.chaseTask.findFirst({
+        where: { reminderLogId: existingLog.id, chaseCount: { gt: 0 } },
+        select: { id: true },
+      });
+      if (!hasChases) {
+        // Update if due date shifted significantly (e.g. event_date changed)
+        const diff = Math.abs(existingLog.nextDueDate.getTime() - firstDueDate.getTime());
+        if (diff > 60 * 60 * 1000) {
+          await prisma.reminderLog.update({
+            where: { id: existingLog.id },
+            data: { nextDueDate: firstDueDate, sourceDateUsed: anchorDate },
+          });
+          await writeEngineAudit(
+            transactionId,
+            `"${rule.name}" chase moved to ${formatEngineDate(firstDueDate)}.`,
+            assignedUserId
+          );
+        }
       }
     } else {
       await prisma.reminderLog.create({
