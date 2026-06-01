@@ -30,6 +30,7 @@ type TemplateVars = {
   address?: string;
   ctaUrl?: string;
   unsubscribeUrl?: string;
+  invitingAgencyName?: string;
 };
 
 // ─── HTML wrapper ─────────────────────────────────────────────────────────────
@@ -78,6 +79,56 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
     ctaUrl ? ctaButton("Add a sale →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you need a hand getting set up.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
+  ].join("");
+
+  return {
+    subject,
+    html: buildHtmlWrapper(bodyHtml),
+    text,
+    fromDisplayName: "Sales Progressor",
+  };
+}
+
+// ─── Email 1b — claim_welcome ────────────────────────────────────────────────
+// Sent in place of activation_day_1 when the account is created via the chain
+// claim cycle (invited via a chain link, claimed their sale, signed up).
+// Reuses the same welcomeEmailSentAt guard so a single user can only receive
+// one welcome email of either flavour.
+
+export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
+  const { firstName, address = "", ctaUrl = "", invitingAgencyName } = vars;
+  // Fallback when the inviting agency name isn't reliably available at send
+  // time. Used as the subject "from" in the opening sentence.
+  const inviter = invitingAgencyName && invitingAgencyName.trim()
+    ? invitingAgencyName.trim()
+    : "The other side of the chain";
+
+  const subject = `You've been added to the sale at ${address}`;
+
+  const text = [
+    `Hi ${firstName},`,
+    ``,
+    `${inviter} is progressing the sale at ${address} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`,
+    ``,
+    `From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.`,
+    ``,
+    `Open your sale: ${ctaUrl}`,
+    ``,
+    `There's nothing to set up and nothing to pay, you've just got a clear view of your side of the chain as it moves.`,
+    ``,
+    `Reply to this email if you'd like a hand finding your way around.`,
+    ``,
+    `The Sales Progressor team`,
+  ].join("\n");
+
+  const bodyHtml = [
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${inviter} is progressing the sale at ${address} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.</p>`,
+    ctaUrl ? ctaButton("Open your sale →", ctaUrl) : "",
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">There's nothing to set up and nothing to pay, you've just got a clear view of your side of the chain as it moves.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you'd like a hand finding your way around.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 
   return {
@@ -273,6 +324,7 @@ export function buildLastTouch60d(vars: TemplateVars): RetentionEmailResult {
 
 export type RetentionEmailKey =
   | "activation_day_1"
+  | "claim_welcome"
   | "stuck_day_3"
   | "first_exchange"
   | "quiet_30d"
@@ -281,6 +333,7 @@ export type RetentionEmailKey =
 
 export const RETENTION_EMAIL_KEYS: RetentionEmailKey[] = [
   "activation_day_1",
+  "claim_welcome",
   "stuck_day_3",
   "first_exchange",
   "quiet_30d",
@@ -291,6 +344,7 @@ export const RETENTION_EMAIL_KEYS: RetentionEmailKey[] = [
 /** Emails that are transactional — send regardless of opt-out */
 export const TRANSACTIONAL_EMAIL_KEYS: RetentionEmailKey[] = [
   "activation_day_1",
+  "claim_welcome",
   "stuck_day_3",
   "first_exchange",
 ];
@@ -298,6 +352,7 @@ export const TRANSACTIONAL_EMAIL_KEYS: RetentionEmailKey[] = [
 export function buildRetentionEmail(key: RetentionEmailKey, vars: TemplateVars): RetentionEmailResult {
   switch (key) {
     case "activation_day_1":    return buildActivationDay1(vars);
+    case "claim_welcome":       return buildClaimWelcome(vars);
     case "stuck_day_3":         return buildStuckDay3(vars);
     case "first_exchange":      return buildFirstExchange(vars);
     case "quiet_30d":           return buildQuiet30d(vars);
