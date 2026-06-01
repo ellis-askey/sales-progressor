@@ -46,12 +46,7 @@ const SECTIONS: PolicySection[] = [
     id: "about-these-terms",
     title: "About these terms",
     body: (
-      <p>
-        By saving a payment card, you agree to the following pricing terms. Billing is operated by{" "}
-        <strong>The Sales Progressor Ltd</strong>, company number{" "}
-        <em className="pending">[Company number]</em>, registered office{" "}
-        <em className="pending">[Registered office address]</em>.
-      </p>
+      <p>By saving a payment card, you agree to the following pricing terms.</p>
     ),
   },
   {

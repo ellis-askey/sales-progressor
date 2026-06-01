@@ -36,7 +36,7 @@ VALUES (
   '[
     {
       "heading": "About these terms",
-      "body": "By saving a payment card, you agree to the following pricing terms. Billing is operated by The Sales Progressor Ltd, company number [Company number], registered office [Registered office address]."
+      "body": "By saving a payment card, you agree to the following pricing terms."
     },
     {
       "heading": "Pricing",
