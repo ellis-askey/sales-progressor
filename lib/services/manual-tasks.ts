@@ -38,8 +38,14 @@ export async function listManualTasksForTransaction(transactionId: string, agenc
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Internal-self-assigned tasks are NEVER returned by this list — agents
+  // (director/negotiator) call this function with their agency id and
+  // would see SP/admin internal notes leak into their "To-Do" card
+  // otherwise. Internal staff still get those tasks via the dedicated
+  // listInternalSelfAssignedTasksForTransaction call, which both
+  // file-detail page-level fetches run in parallel for SP/admin viewers.
   return prisma.manualTask.findMany({
-    where: { transactionId },
+    where: { transactionId, isInternalSelfAssigned: false },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: {
       assignedTo: { select: { id: true, name: true } },
