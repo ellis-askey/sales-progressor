@@ -98,31 +98,29 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const { firstName, address = "", ctaUrl = "" } = vars;
 
   // Address fallback: stubPropertyAddress is nullable on ChainLink so the
-  // opening sentence drops the "at {address}" clause entirely when empty,
-  // never rendering a dangling "your side of the chain at  ".
+  // opening sentence drops the "for {address}" clause entirely when empty,
+  // never rendering a dangling "your link in the chain for  ".
   const hasAddress = address.trim().length > 0;
   const trimmedAddress = address.trim();
 
-  const subject = `You're in, ${firstName}`;
+  const subject = `You're in!`;
 
   const openingSentence = hasAddress
-    ? `You've claimed your side of the chain at ${trimmedAddress}, and your account is now live.`
-    : `You've claimed your side of the chain, and your account is now live.`;
+    ? `You've claimed your link in the chain for ${trimmedAddress}.`
+    : `You've claimed your link in the chain.`;
 
   const text = [
     `Hi ${firstName},`,
     ``,
     openingSentence,
     ``,
-    `Open the file and you'll see your sale and the one it's linked to moving together: where each is up to, what's holding things up, and when exchange is likely.`,
+    `Open the file and you'll see your sale moving alongside the connected sales: where each is up to, what's holding things up, when exchange is likely.`,
     ``,
     `Open your sale: ${ctaUrl}`,
     ``,
-    `This one's on us, it came in through the chain. The account is yours to keep, and you can run every sale you handle the same way: each step tracked, your clients kept in the loop without you chasing or being chased.`,
+    `This one's on us since it came in through the chain. Any sale you add in the next 14 days is on us too, right through to exchange. After that, you only pay when a sale exchanges.`,
     ``,
-    `To get you going, any sale you add in the next 14 days is on us too, right through to exchange. After that, you only ever pay when a sale exchanges, never before.`,
-    ``,
-    `It's a hard thing to go back from, once you've seen it.`,
+    `The account is yours to keep. Run every sale you handle the same way: each step tracked, clients in the loop without you chasing or being chased.`,
     ``,
     `Reply if you'd like a hand getting started.`,
     ``,
@@ -132,11 +130,10 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${openingSentence}</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Open the file and you'll see your sale and the one it's linked to moving together: where each is up to, what's holding things up, and when exchange is likely.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Open the file and you'll see your sale moving alongside the connected sales: where each is up to, what's holding things up, when exchange is likely.</p>`,
     ctaUrl ? ctaButton("Open your sale →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">This one's on us, it came in through the chain. The account is yours to keep, and you can run every sale you handle the same way: each step tracked, your clients kept in the loop without you chasing or being chased.</p>`,
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">To get you going, any sale you add in the next 14 days is on us too, right through to exchange. After that, you only ever pay when a sale exchanges, never before.</p>`,
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">It's a hard thing to go back from, once you've seen it.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">This one's on us since it came in through the chain. Any sale you add in the next 14 days is on us too, right through to exchange. After that, you only pay when a sale exchanges.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The account is yours to keep. Run every sale you handle the same way: each step tracked, clients in the loop without you chasing or being chased.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply if you'd like a hand getting started.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
