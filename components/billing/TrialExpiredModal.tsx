@@ -280,17 +280,8 @@ function TermsStep({
           type="button"
           onClick={onDecline}
           disabled={submitting}
-          style={{
-            flex: "0 0 auto",
-            background: "white",
-            color: "#6b7280",
-            padding: "11px 18px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            border: "1px solid #e5e7eb",
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
+          className="agent-btn agent-btn-secondary agent-btn-md"
+          style={{ flex: "0 0 auto" }}
         >
           {declineLabel}
         </button>
@@ -298,17 +289,8 @@ function TermsStep({
           type="button"
           onClick={handleAccept}
           disabled={submitting}
-          style={{
-            flex: 1,
-            background: submitting ? "#94a3b8" : "var(--agent-coral)",
-            color: "white",
-            padding: "11px 18px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            border: "none",
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
+          className="agent-btn agent-btn-primary agent-btn-md"
+          style={{ flex: 1 }}
         >
           {submitting ? "Confirming…" : "Accept and continue"}
         </button>
@@ -382,33 +364,14 @@ function IntroStep({ onContinue }: { onContinue: () => void }) {
         <button
           type="button"
           onClick={onContinue}
-          style={{
-            background: "var(--agent-coral)",
-            color: "white",
-            padding: "13px 18px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            textAlign: "center",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="agent-btn agent-btn-primary agent-btn-lg"
         >
           Add a card to continue
         </button>
         <a
           href="/agent/hub"
-          style={{
-            background: "white",
-            color: "#6b7280",
-            padding: "12px 18px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            textAlign: "center",
-            textDecoration: "none",
-            border: "1px solid #e5e7eb",
-          }}
+          className="agent-btn agent-btn-secondary agent-btn-lg"
+          style={{ textDecoration: "none" }}
         >
           Back to dashboard
         </a>
@@ -449,15 +412,7 @@ function CardStep({
           <button
             type="button"
             onClick={onBack}
-            style={{
-              background: "transparent",
-              color: "#6b7280",
-              padding: "8px 14px",
-              border: "none",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
+            className="agent-btn agent-btn-ghost agent-btn-sm"
           >
             ← Back
           </button>
@@ -466,15 +421,7 @@ function CardStep({
           <button
             type="button"
             onClick={onCancel}
-            style={{
-              background: "transparent",
-              color: "#6b7280",
-              padding: "8px 14px",
-              border: "none",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
+            className="agent-btn agent-btn-ghost agent-btn-sm"
           >
             Cancel
           </button>
@@ -541,17 +488,8 @@ function SuccessStep({
         <button
           type="button"
           onClick={onClose}
-          style={{
-            marginTop: 24,
-            background: "white",
-            color: "#6b7280",
-            padding: "10px 24px",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            border: "1px solid #e5e7eb",
-            cursor: "pointer",
-          }}
+          className="agent-btn agent-btn-secondary agent-btn-md"
+          style={{ marginTop: 24 }}
         >
           Close
         </button>

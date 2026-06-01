@@ -29,11 +29,19 @@ type Props = {
 };
 
 export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
-  const [stripePromise] = useState<Promise<StripeJs | null>>(() => loadStripe(publishableKey));
+  // Defensive: an empty or non "pk_..." key means loadStripe will return
+  // null and PaymentElement will mount into the DOM but render no inputs.
+  // Surface the misconfiguration up-front instead of leaving the form
+  // visibly blank above the Save card button.
+  const isKeyValid = publishableKey.startsWith("pk_");
+  const [stripePromise] = useState<Promise<StripeJs | null> | null>(() =>
+    isKeyValid ? loadStripe(publishableKey) : null,
+  );
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isKeyValid) return;
     let cancelled = false;
     (async () => {
       try {
@@ -52,7 +60,24 @@ export function CardCaptureForm({ publishableKey, onSuccess }: Props) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isKeyValid]);
+
+  if (!isKeyValid) {
+    return (
+      <div
+        style={{
+          fontSize: 13,
+          color: "#dc2626",
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          borderRadius: 8,
+          padding: "10px 14px",
+        }}
+      >
+        Card capture isn&apos;t configured for this environment. Tell support and try again later.
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -138,7 +163,32 @@ function InnerForm({ onSuccess }: { onSuccess?: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
-      <PaymentElement />
+      {/* Reserve room for the Stripe iframe so a slow or failed mount
+          doesn't collapse to a 0px gap above the Save card button.
+          Placeholder text sits behind the iframe and is hidden once
+          Stripe injects content. */}
+      <div style={{ position: "relative", minHeight: 180 }}>
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--agent-text-secondary, #6b7280)",
+            fontSize: 13,
+            pointerEvents: "none",
+          }}
+        >
+          Loading card details…
+        </div>
+        <PaymentElement
+          onLoadError={() =>
+            setError("Couldn't load Stripe's card form. Refresh and try again.")
+          }
+        />
+      </div>
       {error && (
         <div
           style={{
@@ -156,17 +206,8 @@ function InnerForm({ onSuccess }: { onSuccess?: () => void }) {
       <button
         type="submit"
         disabled={submitting || !stripe || !elements}
-        style={{
-          padding: "12px 20px",
-          background: submitting ? "#94a3b8" : "var(--agent-coral)",
-          color: "white",
-          border: "none",
-          borderRadius: 8,
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: submitting ? "not-allowed" : "pointer",
-          alignSelf: "start",
-        }}
+        className="agent-btn agent-btn-primary agent-btn-lg"
+        style={{ width: "100%" }}
       >
         {submitting ? "Saving…" : "Save card"}
       </button>
