@@ -482,22 +482,35 @@ export async function evaluateTransactionReminders(transactionId: string) {
     });
 
     if (openTask) {
-      // Escalation gate (honest-chase-count, 2026-05-28):
+      // Escalation gate (2026-06 timing rule):
       // chaseCount is NEVER incremented on calendar arithmetic alone.
-      // Escalation flips only when the agent has chased the threshold
-      // number of times AND another full cycle has elapsed since the
-      // last actual chase (lastChasedAt + repeatEveryDays ago).
-      // Dormant files just accumulate days-overdue indefinitely.
+      // Escalation flips when the agent has chased the threshold number
+      // of times AND graceDays have elapsed since the last actual chase
+      // (lastChasedAt + graceDays ago).
+      //
+      // Worked example with escalateAfterChases=3, graceDays=3:
+      //   Day 0 — agent chases for the 3rd time. chaseCount hits cap,
+      //           nextDueDate advances by repeatEveryDays, row returns
+      //           to Coming Up.
+      //   Day 1–2 — quiet. graceDays haven't elapsed yet → still Coming
+      //           Up / Overdue (depending on repeatEveryDays).
+      //   Day 3 — graceDays have now elapsed since lastChasedAt and
+      //           chaseCount >= threshold → row escalates.
+      //
+      // Replaces the pre-2026-06 rule that used repeatEveryDays as the
+      // post-cap timer. graceDays is the right knob — it's the "grace
+      // period before urgent" concept already used at chase setup time;
+      // here it's the "grace period after final chase before urgent".
       const threshold = rule.escalateAfterChases;
       const chasedEnough = openTask.chaseCount >= threshold;
-      const cycleMs = rule.repeatEveryDays * 86400000;
-      const cycleElapsedSinceLastChase = openTask.lastChasedAt
-        ? (today.getTime() - openTask.lastChasedAt.getTime()) >= cycleMs
+      const graceMs = rule.graceDays * 86400000;
+      const graceElapsedSinceLastChase = openTask.lastChasedAt
+        ? (today.getTime() - openTask.lastChasedAt.getTime()) >= graceMs
         : false;
       const shouldEscalate =
         openTask.priority !== "escalated" &&
         chasedEnough &&
-        cycleElapsedSinceLastChase;
+        graceElapsedSinceLastChase;
       if (shouldEscalate) {
         await prisma.chaseTask.update({
           where: { id: openTask.id },
@@ -670,47 +683,59 @@ async function deactivateLog(
 
 // ─── Task actions ─────────────────────────────────────────────────────────────
 
-export async function advanceChaseTask(taskId: string, scope: AccessScope) {
-  const task = await prisma.chaseTask.findFirst({
-    where: scopeChaseTaskWhere(scope, taskId),
+// Pure write helper: records a chase against a ChaseTask. Bumps chaseCount,
+// stamps lastChasedAt, resets priority to "normal", AND advances the
+// associated ReminderLog.nextDueDate forward by repeatEveryDays from
+// max(currentDue, now). Single source of truth for the "what happens when
+// the agent chases" data writes — called from both code paths that
+// represent a chase action:
+//
+//   1. advanceChaseTask  — agent clicks the ↻ Chased button (mark-only,
+//                          no email sent)
+//   2. createCommunicationRecord — agent sends an outbound chase comm
+//                          via the big Chase button (drawer / email send)
+//
+// Before 2026-06: only path 1 advanced nextDueDate. Path 2 bumped
+// chaseCount but left nextDueDate stuck in the past, so rows chased via
+// the drawer never moved out of Overdue. Now both paths share this helper.
+//
+// No scope check here — callers are responsible for verifying the task
+// belongs to the actor's scope BEFORE calling this.
+export async function applyChaseToTask(chaseTaskId: string): Promise<void> {
+  const task = await prisma.chaseTask.findUnique({
+    where: { id: chaseTaskId },
     select: {
       id: true,
       chaseCount: true,
-      priority: true,
-      transactionId: true,
       reminderLog: {
         select: {
           id: true,
           nextDueDate: true,
-          reminderRule: { select: { name: true, repeatEveryDays: true, escalateAfterChases: true } },
+          reminderRule: { select: { repeatEveryDays: true } },
         },
       },
     },
   });
-  if (!task) throw new Error("Task not found");
+  if (!task) return;
 
   const newChaseCount = task.chaseCount + 1;
   const repeatDays = task.reminderLog.reminderRule.repeatEveryDays;
-  // Honest-chase-count: a real chase always resets priority to normal.
-  // Escalation re-evaluation happens in runReminderEngine and only flips
-  // back to escalated when another full cycle has elapsed without action.
+  const nowTs = Date.now();
   // Base the new due date on max(today, currentDue) so chasing an overdue
   // row always lands the next chase in the future — early/proactive chases
   // still preserve the rule's cadence.
-  const nowTs = Date.now();
   const base = task.reminderLog.nextDueDate.getTime() > nowTs
     ? task.reminderLog.nextDueDate
     : new Date(nowTs);
   const raw = new Date(base);
   raw.setDate(raw.getDate() + repeatDays);
-  // Normalise to 06:00 UK on the resulting calendar day so the next chase is
-  // live before the working day starts — not at the time-of-day inherited
-  // from whenever the previous chase happened.
+  // Normalise to 06:00 UK on the resulting calendar day so the next chase
+  // is live before the working day starts.
   const nextDue = setUkChaseTime(raw);
 
   await prisma.$transaction([
     prisma.chaseTask.update({
-      where: { id: taskId },
+      where: { id: chaseTaskId },
       data: {
         chaseCount: newChaseCount,
         priority: "normal",
@@ -722,6 +747,16 @@ export async function advanceChaseTask(taskId: string, scope: AccessScope) {
       data: { nextDueDate: nextDue },
     }),
   ]);
+}
+
+export async function advanceChaseTask(taskId: string, scope: AccessScope) {
+  // Scope guard — ensure the task belongs to a tx in the caller's scope.
+  const task = await prisma.chaseTask.findFirst({
+    where: scopeChaseTaskWhere(scope, taskId),
+    select: { id: true },
+  });
+  if (!task) throw new Error("Task not found");
+  await applyChaseToTask(taskId);
 }
 
 export async function completeChaseTask(

@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
+import { applyChaseToTask } from "@/lib/services/reminders";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -215,18 +216,14 @@ export async function createCommunicationRecord(input: CreateCommInput) {
   });
 
   // Honest-chase-count: a real outbound chase bumps the counter, stamps
-  // lastChasedAt, and resets priority to normal. Re-escalation happens
-  // only in runReminderEngine after another full repeat cycle elapses
-  // without action.
+  // lastChasedAt, resets priority to normal, AND advances the associated
+  // ReminderLog.nextDueDate forward by repeatEveryDays. Same source of
+  // truth as the ↻ Chased button (advanceChaseTask) — see applyChaseToTask
+  // in lib/services/reminders.ts. Without the nextDueDate advance the row
+  // stays classified as overdue after the chase email lands, which is the
+  // bug fixed on 2026-06.
   if (input.chaseTaskId && input.type === "outbound") {
-    await prisma.chaseTask.update({
-      where: { id: input.chaseTaskId },
-      data: {
-        chaseCount: { increment: 1 },
-        lastChasedAt: new Date(),
-        priority: "normal",
-      },
-    });
+    await applyChaseToTask(input.chaseTaskId);
   }
 
   touchLastActivity(input.transactionId).catch(() => {});
