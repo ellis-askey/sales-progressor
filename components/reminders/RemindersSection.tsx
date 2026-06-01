@@ -439,9 +439,8 @@ function ColumnSection({
                   return (urgencyLabel || displayedChases > 0) && (
                     <p style={{ margin: "1px 0 0", fontSize: 10, fontWeight: 600, color: urgencyColor }}>
                       {urgencyLabel}
-                      {urgencyLabel && displayedChases > 0 && <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}> · </span>}
                       {displayedChases > 0 && (
-                        <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>
+                        <span style={{ display: "block", color: "var(--agent-text-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>
                           Chased {displayedChases}×
                         </span>
                       )}
