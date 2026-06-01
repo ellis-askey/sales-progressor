@@ -62,3 +62,24 @@ export function formatPostcode(raw: string): string {
 export function isValidUKPostcode(pc: string): boolean {
   return /^[A-Z]{1,2}[0-9][0-9A-Z]?\s[0-9][A-Z]{2}$/.test(pc.trim());
 }
+
+// Finds the UK-postcode-shaped token inside a combined address string
+// (e.g. "12 Made Up Road, Bristol, bs1 4pn") and replaces it with the
+// canonical "BS1 4PN" form. Returns the original string unchanged when
+// no postcode-shaped token is present. The rest of the address (street,
+// city) is left untouched — we don't try to title-case names here.
+//
+// Used by every server-side write path that accepts a free-form combined
+// address (chain stub address, new sale address) so the DB never stores
+// "Bs1 4pn"-style entries, and applied at email-assembly time as a
+// belt-and-braces render-time fallback for historical rows.
+const POSTCODE_TOKEN_REGEX =
+  /\b([A-Z]{1,2}[0-9][0-9A-Z]?)\s*([0-9][A-Z]{2})\b/i;
+
+export function normaliseAddressString(raw: string): string {
+  if (!raw) return raw;
+  const match = raw.match(POSTCODE_TOKEN_REGEX);
+  if (!match) return raw;
+  const canonical = `${match[1].toUpperCase()} ${match[2].toUpperCase()}`;
+  return raw.replace(POSTCODE_TOKEN_REGEX, canonical);
+}

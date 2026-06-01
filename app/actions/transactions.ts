@@ -18,6 +18,7 @@ import { cascadeChainWithdrawal } from "@/lib/chain/withdrawal";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
 import { pushFileAssigned } from "@/lib/agent/push-events";
+import { normaliseAddressString } from "@/lib/utils/address";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -112,8 +113,15 @@ export async function createTransactionAction(input: {
     }
   }
 
+  // Normalise the postcode portion ("bs1 4pn" → "BS1 4PN") at the server
+  // boundary so the DB, all downstream emails (chain invite etc.), and
+  // the file sidebar all read canonical UK postcode form. Street + city
+  // segments untouched. Same helper applied at the chain-link POST route
+  // so every property-address write goes through identical normalisation.
+  const normalisedAddress = normaliseAddressString(input.propertyAddress);
+
   const tx = await createTransaction({
-    propertyAddress: input.propertyAddress,
+    propertyAddress: normalisedAddress,
     agencyId: effectiveAgencyId,
     assignedUserId: effectiveAssignedUserId,
     agentUserId: input.migrationAgentUserId ?? (isAgent ? session.user.id : null),
@@ -208,7 +216,7 @@ export async function createTransactionAction(input: {
         userId: session.user.id,
         stubs: input.chain.stubs.map((s) => ({
           direction: s.direction,
-          stubPropertyAddress: s.stubPropertyAddress,
+          stubPropertyAddress: normaliseAddressString(s.stubPropertyAddress),
           stubAgencyName: s.stubAgencyName,
           stubAgentEmail: s.stubAgentEmail || null,
           stubAgentName: s.stubAgentName || null,
@@ -797,7 +805,7 @@ export async function saveDraftAction(data: {
   const allContacts = [...vendorContacts, ...purchaserContacts];
 
   const scalarData = {
-    propertyAddress: data.propertyAddress,
+    propertyAddress: normaliseAddressString(data.propertyAddress),
     tenure: data.tenure ?? null,
     purchaseType: data.purchaseType ?? null,
     purchasePrice: data.purchasePrice ?? null,
@@ -929,7 +937,7 @@ export async function promoteDraftAction(
   await prisma.propertyTransaction.update({
     where: { id: draftId },
     data: {
-      propertyAddress: data.propertyAddress,
+      propertyAddress: normaliseAddressString(data.propertyAddress),
       tenure: data.tenure,
       purchaseType: data.purchaseType,
       purchasePrice: data.purchasePrice,

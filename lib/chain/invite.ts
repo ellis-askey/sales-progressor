@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { agencyFrom } from "@/lib/email/from-name";
 import { displayChainPosition } from "@/lib/chain/positions";
+import { normaliseAddressString } from "@/lib/utils/address";
 import crypto from "crypto";
 
 type LinkForInvite = {
@@ -90,10 +91,14 @@ async function sendInviteEmail(input: {
 
   const originatorLink = link.chain.links.find((l) => l.transactionId !== null);
   const originatorPosition = originatorLink?.position ?? 0;
-  const originatorAddress =
-    originatorLink?.transaction?.propertyAddress ?? "a property";
+  // Render-time postcode normalisation — write-time normalisation catches
+  // anything new; this catches historical rows persisted before the fix
+  // so existing chains still render with canonical UK postcode form.
+  const originatorAddress = normaliseAddressString(
+    originatorLink?.transaction?.propertyAddress ?? "a property",
+  );
 
-  const stubAddress = link.stubPropertyAddress ?? "your sale";
+  const stubAddress = normaliseAddressString(link.stubPropertyAddress ?? "your sale");
   const positionDesc =
     stubPosition < originatorPosition ? "sale above" : "sale below";
 

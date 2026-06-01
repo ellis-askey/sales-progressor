@@ -5,6 +5,7 @@ import { getChainV2, addChainLink } from "@/lib/services/chains";
 import { canAddAbove, canAddBelow, canViewChain } from "@/lib/chain/permissions";
 import { prisma } from "@/lib/prisma";
 import { sendChainInvite } from "@/lib/chain/invite";
+import { normaliseAddressString } from "@/lib/utils/address";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -63,11 +64,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Normalise the postcode portion of the stub address before persisting
+  // so chain-invite emails and downstream displays never render "bs1 4pn"
+  // style garbage. Leaves street/city untouched — postcode is the only
+  // segment with a canonical form.
   const updatedChain = await addChainLink({
     chainId,
     userId: session.user.id,
     direction: body.direction,
-    stubPropertyAddress: body.stubPropertyAddress,
+    stubPropertyAddress: normaliseAddressString(body.stubPropertyAddress),
     stubAgencyName: body.stubAgencyName,
     stubAgentEmail: body.stubAgentEmail ?? null,
     stubAgentName: body.stubAgentName ?? null,
