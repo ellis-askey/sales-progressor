@@ -3,16 +3,21 @@
 // Every count + every visible bucket reads from here. The rule:
 //   active + snoozedUntil > now              → snoozed (hidden)
 //   active + escalated pending task          → escalated  (red, counts)
-//   active + chaseCount >= 1                 → upcoming   (muted, doesn't count)
-//   active + nextDueDate < today             → overdue    (red,   counts)
-//   active + nextDueDate = today             → due_today  (amber, counts)
-//   active + nextDueDate > today             → upcoming   (muted, doesn't count)
+//   active + chased + nextDueDate < today    → overdue    (red, counts)
+//   active + chased + nextDueDate = today    → due_today  (amber, counts)
+//   active + chased + nextDueDate > today    → upcoming   (muted, doesn't count)
+//   active + not chased + nextDueDate < today → overdue   (red, counts)
+//   active + not chased + nextDueDate = today → due_today (amber, counts)
+//   active + not chased + nextDueDate > today → upcoming  (muted, doesn't count)
 //   not active                               → inactive   (hidden)
 //
-// The chased-stays-upcoming rule is the load-bearing piece — once an agent
-// has chased a row it lives in Coming up regardless of the next-due-date,
-// because the agent has acted. Only the server's escalation flag (after the
-// chase-count cap) brings it back into the actionable count.
+// Chased-stays-upcoming originally short-circuited every chased row into
+// `upcoming`, but that left rows stuck forever when an agent chased once
+// then went silent past the next due date (see 2026-06 stuck-reminder
+// audit). Now both branches are date-aware: chasing once doesn't hide a
+// row from the actionable view once its next chase date has passed. The
+// only thing chasing does is advance `nextDueDate` forward; the bucket
+// still follows the calendar.
 
 import { toUKDateStr } from "@/lib/utils";
 
@@ -37,8 +42,12 @@ export function classifyReminder(log: LogForClassify, now: Date = new Date()): R
 
   const openTask = log.chaseTasks.find((t) => t.status === "pending");
   if (openTask?.priority === "escalated") return "escalated";
-  if ((openTask?.chaseCount ?? 0) >= 1) return "upcoming";
 
+  // Date-aware classification applies to both first-chase (chaseCount=0)
+  // AND already-chased (chaseCount>=1) rows. A chased row whose next
+  // chase date has passed re-enters the actionable bucket; clicking
+  // "Chased" again advances `nextDueDate` forward and the row returns
+  // to "upcoming". See header comment for the rationale.
   const todayStr = toUKDateStr(now);
   const dueStr = toUKDateStr(log.nextDueDate);
   if (dueStr < todayStr) return "overdue";
