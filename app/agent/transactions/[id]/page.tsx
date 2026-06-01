@@ -6,7 +6,7 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
 import { countActionable, countOverdue } from "@/lib/reminders/classify";
-import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
+import { getActivityTimeline, getAutomatedEmailCountsByContact, getLastContactedByContact } from "@/lib/services/comms";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { listManualTasksForTransaction, listInternalSelfAssignedTasksForTransaction } from "@/lib/services/manual-tasks";
@@ -65,7 +65,7 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     isInternalStaff
@@ -89,6 +89,11 @@ export default async function AgentTransactionDetailPage({
     // the small "5 auto emails" pill on each ContactsSection row so an
     // over-chased recipient is visible at a glance.
     getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
+    // Per-contact "last contacted" ISO timestamp. Drives the freshness pill
+    // on each ContactsSection row. Outbound-only (manual logs, agent portal
+    // replies, automated client-chase digest sends). Excludes inbound,
+    // internal notes, and chase-task bookkeeping by design.
+    getLastContactedByContact(id).catch(() => ({} as Record<string, string>)),
   ]);
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
@@ -566,6 +571,7 @@ export default async function AgentTransactionDetailPage({
                 .map((c) => [c.id, c.lastVisitedPortalAt as Date])
             )}
             automatedEmailCounts={automatedEmailCounts}
+            lastContactedByContactId={lastContactedByContactId}
           />
 
           <NextMilestoneWidget

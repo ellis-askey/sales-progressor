@@ -9,8 +9,10 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RoleIcon, ROLE_PILL_BG, roleColour, roleLabel, asRole } from "@/components/ui/RoleIcon";
-import { Envelope } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut } from "@phosphor-icons/react";
 import type { ContactRole } from "@prisma/client";
+import { LastContactedPill } from "./LastContactedPill";
+import { ContactRowMenu } from "./ContactRowMenu";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -97,6 +99,7 @@ export function ContactsSection({
   address = "",
   portalViewDates = {},
   automatedEmailCounts = {},
+  lastContactedByContactId = {},
 }: {
   transactionId: string;
   contacts: Contact[];
@@ -106,6 +109,11 @@ export function ContactsSection({
   // Hidden when count=0; tone shifts amber at 5, red at 10. Drives the
   // "is this person being over-chased?" signal on each row.
   automatedEmailCounts?: Record<string, number>;
+  // Map of contactId -> ISO timestamp of the latest qualifying outbound
+  // event for that contact. Missing key = never contacted. Computed by
+  // getLastContactedByContact in lib/services/comms.ts. Drives the
+  // freshness pill in the secondary row.
+  lastContactedByContactId?: Record<string, string>;
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -286,6 +294,7 @@ export function ContactsSection({
                           {contact.email}
                         </a>
                       )}
+                      <LastContactedPill lastContactedAt={lastContactedByContactId[contact.id]} />
                       {(() => {
                         const n = automatedEmailCounts[contact.id] ?? 0;
                         const tone = autoEmailTone(n);
@@ -339,10 +348,17 @@ export function ContactsSection({
                             <button
                               onClick={() => copyPortalLink(contact.portalToken!)}
                               className="agent-link agent-link-muted"
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 3 }}
                               title="Copy portal link"
                             >
-                              {copied === contact.portalToken ? "✓ Copied" : "Portal link"}
+                              {copied === contact.portalToken ? (
+                                "✓ Copied"
+                              ) : (
+                                <>
+                                  Portal
+                                  <ArrowSquareOut size={11} weight="bold" />
+                                </>
+                              )}
                             </button>
                           </>
                         ) : (
@@ -355,17 +371,11 @@ export function ContactsSection({
                           </button>
                         )
                       )}
-                      <button onClick={() => startEdit(contact)} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(contact.id)}
-                        disabled={deleting === contact.id}
-                        className="agent-link agent-link-muted"
-                        style={{ fontSize: 11 }}
-                      >
-                        {deleting === contact.id ? "…" : "Remove"}
-                      </button>
+                      <ContactRowMenu
+                        contactName={contact.name}
+                        onEdit={() => startEdit(contact)}
+                        onRemove={() => handleDelete(contact.id)}
+                      />
                     </div>
                   )}
                 </div>

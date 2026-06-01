@@ -7,7 +7,7 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
 import { countActionable, countOverdue } from "@/lib/reminders/classify";
-import { getActivityTimeline, getAutomatedEmailCountsByContact } from "@/lib/services/comms";
+import { getActivityTimeline, getAutomatedEmailCountsByContact, getLastContactedByContact } from "@/lib/services/comms";
 import { getLastUpdate, relativeDate } from "@/lib/services/summary";
 import { getPortalViewDates } from "@/lib/services/portal";
 import type { ActivityEntry } from "@/lib/services/comms";
@@ -53,7 +53,7 @@ export default async function TransactionDetailPage({
   const scope = getAccessScope(session);
 
   try {
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap, automatedEmails, automatedEmailCounts] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, todoCount, graceDaysMap, automatedEmails, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
     getTransactionByScope(id, scope),
     getMilestonesForTransaction(id, null).catch(() => null),
     getReminderLogsForTransaction(id, null).catch(() => []),
@@ -67,6 +67,9 @@ export default async function TransactionDetailPage({
     getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })),
     // Per-contact automated-email tally for the ContactsSection over-chase pill.
     getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
+    // Per-contact "last contacted" ISO timestamp for the freshness pill on
+    // each ContactsSection row. Outbound-only by design.
+    getLastContactedByContact(id).catch(() => ({} as Record<string, string>)),
   ]);
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
@@ -326,7 +329,7 @@ export default async function TransactionDetailPage({
 
           {/* People — contacts + solicitors */}
           <div className="grid grid-cols-2 gap-5">
-            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} portalViewDates={portalViewDates} automatedEmailCounts={automatedEmailCounts} />
+            <ContactsSection transactionId={transaction.id} contacts={transaction.contacts} portalViewDates={portalViewDates} automatedEmailCounts={automatedEmailCounts} lastContactedByContactId={lastContactedByContactId} />
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{

@@ -165,6 +165,91 @@ export async function getAutomatedEmailCountsByContact(
   return counts;
 }
 
+// Per-contact "last contacted" timestamp for the contact card on the file
+// detail page. Outbound-only signal: tells the agent when WE last reached
+// out to the contact (not when the contact last replied).
+//
+// What counts (three sources, max timestamp wins):
+//   1. OutboundMessage with type = "outbound" AND a "past-the-wire" status
+//      (sent / delivered / opened / clicked). The contactIds array contains
+//      the contact's id. Manual chase emails, logged calls, WhatsApp paste
+//      imports, etc. all land here.
+//   2. PortalMessage with fromClient = false (agent → contact reply).
+//   3. OutboundEmailQueue with sentAt non-null + recipientContactId set —
+//      this is the daily client-chase digest path that bypasses
+//      OutboundMessage entirely.
+//
+// What does NOT count:
+//   - OutboundMessage type = "internal_note" (internal team only) or
+//     "inbound" (from contact to us).
+//   - OutboundMessage status in {draft, scheduled, queued, cancelled,
+//     failed, bounced} — anything that didn't actually leave the platform.
+//   - PortalMessage fromClient = true (from contact to us).
+//   - ChaseTask state changes (ticking a chase done, the "↻ Chased"
+//     advancement). These touch ChaseTask + ReminderLog and never insert
+//     a comms row, so they're correctly invisible here.
+//
+// Returns a record keyed by contactId. Contacts with no qualifying event
+// are absent from the map; callers should treat undefined as "never
+// contacted" and render the empty-state pill.
+export async function getLastContactedByContact(
+  transactionId: string,
+): Promise<Record<string, string>> {
+  const SENT_STATUSES: Array<"sent" | "delivered" | "opened" | "clicked"> = [
+    "sent",
+    "delivered",
+    "opened",
+    "clicked",
+  ];
+
+  const [outboundRows, portalRows, queueRows] = await Promise.all([
+    // Outbound logs (manual emails, phone calls, WhatsApp, etc.)
+    prisma.outboundMessage.findMany({
+      where: {
+        transactionId,
+        type: "outbound",
+        status: { in: SENT_STATUSES },
+      },
+      select: { contactIds: true, sentAt: true, createdAt: true },
+    }),
+    // Portal messages the agent sent to the contact
+    prisma.portalMessage.findMany({
+      where: { transactionId, fromClient: false },
+      select: { contactId: true, createdAt: true },
+    }),
+    // Automated client-chase digests that actually went out via the queue
+    prisma.outboundEmailQueue.findMany({
+      where: {
+        sentAt: { not: null },
+        recipientContactId: { not: null },
+        sourceId: { startsWith: `${transactionId}:` },
+      },
+      select: { recipientContactId: true, sentAt: true },
+    }),
+  ]);
+
+  const out: Record<string, string> = {};
+
+  function note(contactId: string, at: Date | null) {
+    if (!at) return;
+    const iso = at.toISOString();
+    if (!out[contactId] || out[contactId] < iso) out[contactId] = iso;
+  }
+
+  for (const r of outboundRows) {
+    const ts = r.sentAt ?? r.createdAt;
+    for (const cid of r.contactIds) note(cid, ts);
+  }
+  for (const r of portalRows) {
+    note(r.contactId, r.createdAt);
+  }
+  for (const r of queueRows) {
+    if (r.recipientContactId) note(r.recipientContactId, r.sentAt);
+  }
+
+  return out;
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export type CreateCommInput = {
