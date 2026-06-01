@@ -107,7 +107,7 @@ async function sendInviteEmail(input: {
   const claimedCount = link.chain.links.filter((l) => l.transactionId !== null).length;
   const recipientName = link.stubAgencyName ?? "there";
 
-  const subject = `${originatorAgency} has added you to a live chain — ${originatorAddress}`;
+  const subject = `${originatorAgency} has added you to a live chain: ${originatorAddress}`;
 
   const html = buildInviteHtml({
     recipientName,

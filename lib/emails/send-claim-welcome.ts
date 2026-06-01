@@ -22,11 +22,10 @@ type ClaimWelcomeArgs = {
   userId: string;
   transactionId: string;
   propertyAddress: string;
-  invitingAgencyName: string | null;
 };
 
 export async function sendClaimWelcomeIfNotSent(args: ClaimWelcomeArgs): Promise<void> {
-  const { userId, transactionId, propertyAddress, invitingAgencyName } = args;
+  const { userId, transactionId, propertyAddress } = args;
   try {
     // Same atomic check-and-stamp as sendWelcomeEmailIfNotSent. Either helper
     // can be the winner; the other will see count=0 and skip.
@@ -54,7 +53,6 @@ export async function sendClaimWelcomeIfNotSent(args: ClaimWelcomeArgs): Promise
       firstName,
       address: propertyAddress,
       ctaUrl,
-      invitingAgencyName: invitingAgencyName ?? undefined,
     });
 
     await sendEmail({

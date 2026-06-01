@@ -30,7 +30,6 @@ type TemplateVars = {
   address?: string;
   ctaUrl?: string;
   unsubscribeUrl?: string;
-  invitingAgencyName?: string;
 };
 
 // ─── HTML wrapper ─────────────────────────────────────────────────────────────
@@ -96,47 +95,36 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
 // one welcome email of either flavour.
 
 export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
-  const { firstName, address = "", ctaUrl = "", invitingAgencyName } = vars;
-  // Inviter fallback: when the chain originator's agency name isn't available
-  // at send time. Used as the subject "from" in the opening sentence.
-  const inviter = invitingAgencyName && invitingAgencyName.trim()
-    ? invitingAgencyName.trim()
-    : "The other side of the chain";
+  const { firstName, address = "", ctaUrl = "" } = vars;
 
   // Address fallback: stubPropertyAddress is nullable on ChainLink so the
-  // template guards against an empty value rather than relying on upstream
-  // validation. When missing, the copy is rephrased generically so we never
-  // render "the sale at  in Sales Progressor".
+  // opening sentence drops the "at {address}" clause entirely when empty,
+  // never rendering a dangling "your side of the chain at  ".
   const hasAddress = address.trim().length > 0;
   const trimmedAddress = address.trim();
 
-  // Subject uses only the street line so it doesn't truncate in inboxes
-  // (the full address still appears in the body). Falls back to the full
-  // address if the address has no commas, then to a generic subject if
-  // there's no address at all.
-  const subjectStreet = hasAddress
-    ? (trimmedAddress.split(",")[0]?.trim() || trimmedAddress)
-    : "";
-  const subject = hasAddress
-    ? `You've been added to the sale at ${subjectStreet}`
-    : `You've been added to a new sale on Sales Progressor`;
+  const subject = `You're in, ${firstName}`;
 
   const openingSentence = hasAddress
-    ? `${inviter} is progressing the sale at ${trimmedAddress} in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`
-    : `${inviter} is progressing a sale in Sales Progressor and has added your side, so you can both see it move. Your account is ready and your sale is already in it.`;
+    ? `You've claimed your side of the chain at ${trimmedAddress}, and your account is now live.`
+    : `You've claimed your side of the chain, and your account is now live.`;
 
   const text = [
     `Hi ${firstName},`,
     ``,
     openingSentence,
     ``,
-    `From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.`,
+    `Open the file and you'll see your sale and the one it's linked to moving together: where each is up to, what's holding things up, and when exchange is likely.`,
     ``,
     `Open your sale: ${ctaUrl}`,
     ``,
-    `There's nothing to set up and nothing to pay, you've just got a clear view of your side of the chain as it moves.`,
+    `This one's on us, it came in through the chain. The account is yours to keep, and you can run every sale you handle the same way: each step tracked, your clients kept in the loop without you chasing or being chased.`,
     ``,
-    `Reply to this email if you'd like a hand finding your way around.`,
+    `To get you going, any sale you add in the next 14 days is on us too, right through to exchange. After that, you only ever pay when a sale exchanges, never before.`,
+    ``,
+    `It's a hard thing to go back from, once you've seen it.`,
+    ``,
+    `Reply if you'd like a hand getting started.`,
     ``,
     `The Sales Progressor team`,
   ].join("\n");
@@ -144,10 +132,12 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${openingSentence}</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">From here you can see exactly where the sale stands, track your side as each step is confirmed, and stay in step with the other party without the back-and-forth calls.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Open the file and you'll see your sale and the one it's linked to moving together: where each is up to, what's holding things up, and when exchange is likely.</p>`,
     ctaUrl ? ctaButton("Open your sale →", ctaUrl) : "",
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">There's nothing to set up and nothing to pay, you've just got a clear view of your side of the chain as it moves.</p>`,
-    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you'd like a hand finding your way around.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">This one's on us, it came in through the chain. The account is yours to keep, and you can run every sale you handle the same way: each step tracked, your clients kept in the loop without you chasing or being chased.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">To get you going, any sale you add in the next 14 days is on us too, right through to exchange. After that, you only ever pay when a sale exchanges, never before.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">It's a hard thing to go back from, once you've seen it.</p>`,
+    `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply if you'd like a hand getting started.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">The Sales Progressor team</p>`,
   ].join("");
 

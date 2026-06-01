@@ -70,10 +70,6 @@ export async function POST(req: NextRequest) {
       chain: {
         select: {
           createdByUserId: true,
-          // For the claim welcome email — names the inviting agency in the
-          // opening sentence ("{agency} is progressing the sale at..."). Null
-          // tolerated; template substitutes "The other side of the chain".
-          createdBy: { select: { agency: { select: { name: true } } } },
           links: {
             select: {
               withdrawalStatus: true,
@@ -256,7 +252,6 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       transactionId: result.transactionId,
       propertyAddress: link.stubPropertyAddress ?? "",
-      invitingAgencyName: link.chain.createdBy?.agency?.name ?? null,
     });
 
     return NextResponse.json({ ok: true, transactionId: result.transactionId });
