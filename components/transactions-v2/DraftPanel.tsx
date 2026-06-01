@@ -41,13 +41,10 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
           style={{
             width: 272,
             borderRadius: 16,
-            background: isSolid ? "#ffffff" : "var(--nv2-surface-raised)",
+            background: isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-raised)",
             backdropFilter: isSolid ? "none" : "blur(32px)",
             WebkitBackdropFilter: isSolid ? "none" : "blur(32px)",
-            /* isSolid:true branch unreachable in night-mode-eligible contexts
-               as of 2026-05-16; if solid mode is scoped to include <1024px,
-               this branch needs --nv2-surface-solid treatment */
-            border: isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
+            border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
             boxShadow: "0 16px 48px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.06)",
             overflow: "hidden",
           }}
@@ -105,16 +102,13 @@ export function DraftPanel({ drafts, currentDraftId, onLoad, onDelete }: Props) 
         style={{
           padding: "7px 14px", borderRadius: 20,
           background: isSolid
-            ? (pillHovered ? "rgba(15,23,42,0.03)" : "#ffffff")
+            ? (pillHovered ? "var(--nv2-bg-hover)" : "var(--nv2-surface-solid)")
             : "var(--nv2-surface-raised)",
           backdropFilter: isSolid ? "none" : "blur(24px)",
           WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
-          /* isSolid:true branch unreachable in night-mode-eligible contexts
-             as of 2026-05-16; if solid mode is scoped to include <1024px,
-             this branch needs --nv2-surface-solid treatment */
           border: pillHovered
             ? "1px solid var(--agent-border-strong)"
-            : isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
+            : isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
           boxShadow: "0 4px 16px rgba(15,23,42,0.10)",
           fontSize: 12, fontWeight: 600, color: "var(--nv2-text-reading)",
           cursor: "pointer",

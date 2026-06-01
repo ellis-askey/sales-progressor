@@ -31,11 +31,8 @@ function SegmentToggle({
       gap: 2,
       padding: 2,
       borderRadius: sm ? 6 : 8,
-      /* isSolid:true branch unreachable in night-mode-eligible contexts
-       as of 2026-05-16; if solid mode is scoped to include <1024px,
-       this branch needs --nv2-surface-solid treatment */
-    background: isSolid ? "rgba(15,23,42,0.05)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
-      border: isSolid ? "0.5px solid rgba(15,23,42,0.12)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)",
+      background: isSolid ? "var(--nv2-bg-hover)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
+      border: isSolid ? "0.5px solid var(--nv2-border-solid)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)",
       flexShrink: 0,
     }}>
       {options.map((opt) => {
@@ -82,11 +79,8 @@ function HeroInputWrap({ children, row = false, isSolid = false }: { children: R
       display: row ? "flex" : "block",
       alignItems: row ? "center" : undefined,
       gap: row ? 10 : undefined,
-      /* isSolid:true branch unreachable in night-mode-eligible contexts
-       as of 2026-05-16; if solid mode is scoped to include <1024px,
-       this branch needs --nv2-surface-solid treatment */
-    background: isSolid ? "#ffffff" : "rgba(var(--agent-coral-base-rgb), 0.04)",
-      border: isSolid ? "1px solid rgba(15,23,42,0.09)" : "1px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+      background: isSolid ? "var(--nv2-surface-solid)" : "rgba(var(--agent-coral-base-rgb), 0.04)",
+      border: isSolid ? "1px solid var(--nv2-border-solid)" : "1px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 12,
       padding: "10px 14px",
     }}>
@@ -310,12 +304,12 @@ export function PriceFeesSection({
             <strong style={{ color: "var(--nv2-text-primary)" }}>{fmt(purchasePricePence!)}</strong>
             {" sale"}
             {solicitorReferralIncome > 0 && (
-              <span style={{ color: "rgba(16,185,129,0.75)", fontSize: 11 }}>
+              <span style={{ color: "var(--agent-success)", fontSize: 11 }}>
                 {" · +"}{fmt(solicitorReferralIncome)}{" solicitor referral"}
               </span>
             )}
             {brokerReferralIncome > 0 && (
-              <span style={{ color: "rgba(16,185,129,0.75)", fontSize: 11 }}>
+              <span style={{ color: "var(--agent-success)", fontSize: 11 }}>
                 {" · +"}{fmt(brokerReferralIncome)}{" broker referral"}
               </span>
             )}

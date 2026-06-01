@@ -43,7 +43,7 @@ function SectionPill({ progressedBy, filled }: { progressedBy: "agent" | "progre
         padding: "2px 6px",
         borderRadius: 999,
         background: filled ? "rgba(var(--agent-coral-base-rgb), 0.10)" : "rgba(245,158,11,0.10)",
-        color: filled ? "var(--agent-coral-deep)" : "#92400e",
+        color: filled ? "var(--agent-coral-deep)" : "var(--agent-warning)",
         marginLeft: 5,
         flexShrink: 0,
         display: "inline-block",
@@ -247,12 +247,12 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           filled={filled}
         />
         {isOutsourced && (
-          <p style={{ margin: "0 0 10px", fontSize: 11, color: "#d97706" }}>
+          <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--agent-warning)" }}>
             Add at least one {singular} with a name and a way to contact them
           </p>
         )}
         {error && (
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: "#dc2626", fontWeight: 500 }}>{error}</p>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
         )}
         <ContactCard
           contact={contacts[0]}
@@ -307,7 +307,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
       </div>
 
       {error && (
-        <p style={{ margin: "0 0 8px", fontSize: 12, color: "#dc2626", fontWeight: 500 }}>{error}</p>
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
       )}
 
       {/* Card stack with depth slivers */}

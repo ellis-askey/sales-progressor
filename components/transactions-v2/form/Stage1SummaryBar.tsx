@@ -47,7 +47,7 @@ function Pill({
     },
     warning: {
       background: "rgba(245,158,11,0.10)",
-      color: "#92400e",
+      color: "var(--agent-warning)",
       border: "1px solid rgba(245,158,11,0.28)",
     },
   };

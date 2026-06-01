@@ -51,14 +51,14 @@ export function DuplicateAddressModal({
           maxWidth: 420,
           borderRadius: 20,
           background: "var(--agent-surface-elevated)",
-          border: "0.5px solid rgba(0,0,0,0.08)",
+          border: "0.5px solid var(--nv2-border-modal)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           overflow: "hidden",
           animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
         {/* Header — X present, 2b dismissible */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "0.5px solid var(--nv2-border-dark)" }}>
           <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
             Address already on file
           </p>

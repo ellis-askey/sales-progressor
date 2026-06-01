@@ -25,7 +25,7 @@ function SkeletonBlock({ height, delay = 0, width = "100%" }: { height: number; 
       height,
       width,
       borderRadius: 8,
-      background: "rgba(15,23,42,0.08)",
+      background: "var(--nv2-skeleton)",
       animation: `agent-skeleton-pulse 1.5s ease-in-out ${delay}s infinite`,
     }} />
   );

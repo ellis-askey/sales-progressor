@@ -199,15 +199,12 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         borderRadius: 20,
         background: dragOver
           ? "rgba(var(--agent-coral-base-rgb), 0.06)"
-          : isSolid ? "#ffffff" : "var(--nv2-surface-glass)",
+          : isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
         backdropFilter: isSolid ? "none" : "blur(24px)",
         WebkitBackdropFilter: isSolid ? "none" : "blur(24px)",
-        /* isSolid:true branch unreachable in night-mode-eligible contexts
-           as of 2026-05-16; if solid mode is scoped to include <1024px,
-           this branch needs --nv2-surface-solid treatment */
         border: dragOver
           ? "2px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
-          : isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid var(--nv2-border-glass)",
+          : isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
         boxShadow: isSolid
           ? "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.04)"
           : "0 4px 32px rgba(var(--agent-shadow-rgb), 0.08)",
@@ -358,7 +355,7 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         <p style={{
           marginTop: 12,
           fontSize: 12,
-          color: "rgb(180,100,0)",
+          color: "var(--agent-warning)",
           background: "rgba(251,191,36,0.12)",
           border: "1px solid rgba(251,191,36,0.35)",
           borderRadius: 8,

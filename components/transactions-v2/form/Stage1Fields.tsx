@@ -37,12 +37,9 @@ function Pill({
           : hovered
           ? "2px solid var(--agent-coral)"
           : "2px solid var(--agent-border-default)",
-        /* isSolid:true branch unreachable in night-mode-eligible contexts
-           as of 2026-05-16; if solid mode is scoped to include <1024px,
-           this branch needs --nv2-surface-solid treatment */
         background: selected || hovered
           ? "var(--agent-coral-bg-tint)"
-          : (isSolid ? "#ffffff" : "var(--nv2-surface-glass)"),
+          : (isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)"),
         color: selected ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
         fontWeight: 600,
         fontSize: 13,

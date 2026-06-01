@@ -144,7 +144,7 @@ export function AddressFields({
             maxLength={8}
           />
           {postcodeError && (
-            <p style={{ margin: "4px 0 0", fontSize: 11, color: "#dc2626", fontWeight: 500 }}>{postcodeError}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-danger)", fontWeight: 500 }}>{postcodeError}</p>
           )}
           {memoSources && <FieldHint source={memoSources.postcode} />}
         </div>

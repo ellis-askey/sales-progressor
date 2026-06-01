@@ -12,7 +12,7 @@ function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
     <span style={{
       width: 7, height: 7, borderRadius: "50%",
       background: filled
-        ? level === 3 ? "#059669" : "var(--agent-coral-deep)"
+        ? level === 3 ? "var(--agent-success)" : "var(--agent-coral-deep)"
         : "var(--nv2-border-medium)",
       transition: "background 250ms",
       display: "inline-block",
@@ -160,8 +160,8 @@ export function ContactCard({
           alignSelf: "flex-start",
           marginTop: 2,
         }}>
-          <CheckCircle size={12} weight="fill" color="#059669" />
-          <span style={{ fontSize: 10, fontWeight: 600, color: "#059669" }}>
+          <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
+          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-success)" }}>
             {mode === "agent" ? "Portal invite ready" : "Ready to contact"}
           </span>
         </div>
@@ -169,14 +169,14 @@ export function ContactCard({
         <>
           {mode === "progressor" && hasName && (hasPhone || hasEmail) && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-              <CheckCircle size={12} weight="fill" color="#059669" />
-              <span style={{ fontSize: 10, fontWeight: 500, color: "#059669" }}>
+              <CheckCircle size={12} weight="fill" color="var(--agent-success)" />
+              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-success)" }}>
                 We can reach this {label.toLowerCase()}
               </span>
             </div>
           )}
           {mode === "progressor" && hasName && !hasPhone && !hasEmail && (
-            <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 500, color: "#92400e" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-warning)" }}>
               Add a phone or email so we can reach them
             </p>
           )}
@@ -244,14 +244,14 @@ export function ContactGroup({
 
       {/* Outsourced required hint */}
       {isOutsourced && (
-        <p style={{ margin: "0 0 10px", fontSize: 11, color: "#d97706" }}>
+        <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--agent-warning)" }}>
           At least one {label.slice(0, -1).toLowerCase()} with name and contact method required
         </p>
       )}
 
       {/* Validation error */}
       {error && (
-        <p style={{ margin: "0 0 8px", fontSize: 12, color: "#dc2626", fontWeight: 500 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>
           {error}
         </p>
       )}

@@ -38,7 +38,7 @@ export function NavAwayModal({ isSaving, onDiscard, onStay, onSave }: Props) {
           zIndex: 1,
           background: "var(--agent-surface-elevated)",
           borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
+          border: "0.5px solid var(--nv2-border-modal)",
           width: "100%",
           maxWidth: 380,
           margin: "0 16px",

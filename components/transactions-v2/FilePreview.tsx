@@ -93,8 +93,8 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-primary)" }}>File Preview</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(5,150,105,0.08)", border: "0.5px solid rgba(5,150,105,0.2)", borderRadius: 100, padding: "3px 8px" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#059669", display: "inline-block", animation: "agent-pulse-dot 2s ease-in-out infinite" }} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", letterSpacing: "0.06em" }}>LIVE</span>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-success)", display: "inline-block", animation: "agent-pulse-dot 2s ease-in-out infinite" }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--agent-success)", letterSpacing: "0.06em" }}>LIVE</span>
         </div>
       </div>
 
@@ -184,7 +184,7 @@ export function FilePreview({ fields, allMilestoneDefinitions }: Props) {
           padding: "8px 12px",
           fontSize: 11,
           fontWeight: 500,
-          color: isStage1Done ? "#059669" : "#92400e",
+          color: isStage1Done ? "var(--agent-success)" : "var(--agent-warning)",
         }}>
           {isStage1Done
             ? "Fill contacts and fees when ready, then create"

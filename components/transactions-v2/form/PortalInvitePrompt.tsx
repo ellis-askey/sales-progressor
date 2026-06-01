@@ -30,11 +30,8 @@ export function PortalInvitePrompt() {
       display: "flex",
       alignItems: "flex-start",
       gap: 12,
-      /* isSolid:true branch unreachable in night-mode-eligible contexts
-         as of 2026-05-16; if solid mode is scoped to include <1024px,
-         this branch needs --nv2-surface-solid treatment */
-      background: isSolid ? "#ffffff" : "var(--nv2-surface-glass)",
-      border: isSolid ? "1px solid var(--nv2-border-dark)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+      background: isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
+      border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
       borderRadius: 14,
       padding: "12px 16px",
     }}>

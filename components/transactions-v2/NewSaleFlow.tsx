@@ -217,7 +217,7 @@ function OutsourcedHintCard({ text, isSolid }: { text: string; isSolid: boolean 
       marginBottom: 8,
       fontSize: 11,
       fontWeight: 500,
-      color: "#92400e",
+      color: "var(--agent-warning)",
     }}>
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
         <circle cx="6.5" cy="6.5" r="5.75" stroke="currentColor" strokeWidth="1.1" />
@@ -1105,17 +1105,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                         ? "1.5px solid var(--agent-coral-deep)"
                         : tabHovered
                         ? "1.5px solid var(--agent-coral)"
-                        : isSolid ? "1.5px solid rgba(15,23,42,0.12)" : "1.5px solid var(--agent-border-default)",
+                        : isSolid ? "1.5px solid var(--nv2-border-solid)" : "1.5px solid var(--agent-border-default)",
                       background: active
                         ? "rgba(var(--agent-coral-base-rgb), 0.07)"
                         : tabHovered
                         ? "var(--agent-coral-bg-tint)"
-                        : isSolid ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.40)",
+                        : isSolid ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
                       color: active
                         ? "var(--agent-coral-deep)"
                         : tabHovered
                         ? "var(--agent-coral)"
-                        : "rgba(15,23,42,0.38)",
+                        : "var(--nv2-text-secondary)",
                       cursor: "pointer",
                       transition: "border-color 150ms, background 150ms, color 150ms",
                     }}

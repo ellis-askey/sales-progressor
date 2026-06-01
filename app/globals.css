@@ -1304,6 +1304,10 @@ select {
   --nv2-border-medium:   rgba(15,23,42,0.12);    /* medium dark border */
   --nv2-border-strong:   rgba(15,23,42,0.15);    /* stronger dark border */
   --nv2-bg-hover:        rgba(15,23,42,0.04);    /* light hover tint */
+  --nv2-surface-solid:   #ffffff;                /* solid mode (data-solid) surface */
+  --nv2-border-solid:    rgba(15,23,42,0.12);    /* solid mode border, matches existing isSolid borders */
+  --nv2-skeleton:        rgba(15,23,42,0.08);    /* loader shimmer fill */
+  --nv2-border-modal:    rgba(15,23,42,0.08);    /* modal outer border, replaces rgba(0,0,0,0.08) */
 }
 
 /* Night mode overrides — fires for elements inside agent-shell-root[data-night]
@@ -1325,6 +1329,10 @@ select {
   --nv2-border-medium:   rgba(255,255,255,0.10);
   --nv2-border-strong:   rgba(255,255,255,0.14);
   --nv2-bg-hover:        rgba(255,255,255,0.06);
+  --nv2-surface-solid:   #0F172A;                /* solid mode in night — agent-shell bg-base */
+  --nv2-border-solid:    rgba(255,255,255,0.10);
+  --nv2-skeleton:        rgba(255,255,255,0.06);
+  --nv2-border-modal:    rgba(255,255,255,0.10);
 }
 
 /* Tailwind class overrides for portalled modals carrying data-night directly.

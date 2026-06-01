@@ -203,7 +203,7 @@ export function SolicitorSection({
         )}
 
         {!isFillingVendor && !vendorSolicitor && vendorHint && (
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 4 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
             <strong style={{ fontWeight: 600 }}>{vendorHint}</strong> is in the memo — search above to add
           </p>
@@ -246,7 +246,7 @@ export function SolicitorSection({
         )}
 
         {!isFillingPurchaser && !purchaserSolicitor && purchaserHint && (
-          <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 4 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
             <strong style={{ fontWeight: 600 }}>{purchaserHint}</strong> is in the memo — search above to add
           </p>
