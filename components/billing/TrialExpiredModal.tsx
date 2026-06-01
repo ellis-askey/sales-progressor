@@ -5,10 +5,17 @@
 // Multi-step modal shown when a director needs to add a card on file
 // because their agency's 14-day trial has elapsed.
 //
-// Three steps:
+// Four steps:
 //   1. "intro"   ("Your free trial has ended" copy + reassurance + CTA)
-//   2. "card"    (embedded CardCaptureForm, Stripe Elements)
-//   3. "success" (green checkmark, "You're all set", source-aware exit)
+//   2. "terms"   (pricing terms in our styling, Accept advances to card)
+//   3. "card"    (embedded CardCaptureForm, Stripe Elements)
+//   4. "success" (green checkmark, "You're all set", source-aware exit)
+//
+// The "terms" step is the same gate the standalone settings page uses
+// via RedesignedDisclosure: the server-side SetupIntent endpoint refuses
+// to issue a clientSecret until PricingAcknowledgement exists for the
+// active TermsVersion. If the agency has already acknowledged (props
+// pre-resolved on the server) the step is skipped entirely.
 //
 // Source-aware behaviour:
 //   source="new-sale" (rendered on /agent/transactions/new-v2 as the page
@@ -17,20 +24,21 @@
 //   NewSaleFlow (since stripeCustomerId is now set).
 //
 //   source="hub" (rendered by TrialBannerWithModal from the hub banner).
-//   Modal opens directly on the card step (banner click already conveyed
-//   intent). Success step auto-dismisses after ~2.5s with a Close button
-//   as escape hatch. On dismiss: router.refresh() so the banner re-checks
-//   agency state and disappears.
+//   Modal opens directly on the first useful step (terms if not yet
+//   acknowledged, else card). Success step auto-dismisses after ~2.5s
+//   with a Close button as escape hatch. On dismiss: router.refresh()
+//   so the banner re-checks agency state and disappears.
 //
 // Motion uses canonical .agent-modal + .agent-backdrop-overlay classes
 // (fade + scale entrance, 250ms ease, reduced-motion at CSS layer) and
 // .agent-reveal-in on the step container so each step transition replays.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CardCaptureForm } from "./CardCaptureForm";
+import type { TermsSection } from "@/lib/billing/terms-sections";
 
-type Step = "intro" | "card" | "success";
+type Step = "intro" | "terms" | "card" | "success";
 
 type Props = {
   publishableKey: string;
@@ -39,12 +47,34 @@ type Props = {
   // modal). Ignored when source is "new-sale" (the modal is the page
   // guard, the only way out is to add a card or back-button to the hub).
   onClose?: () => void;
+  // Pre-resolved pricing-terms state (server-fetched at the caller).
+  // When termsAcknowledged is true the terms step is skipped entirely.
+  // When termsVersionId is null (no active TermsVersion configured)
+  // the modal also skips the terms step and lets CardCaptureForm
+  // surface the server-config error from /api/billing/setup-intent.
+  termsAcknowledged: boolean;
+  termsVersionId: string | null;
+  termsVersionTag: string | null;
+  termsSections: TermsSection[];
 };
 
-export function TrialExpiredModal({ publishableKey, source, onClose }: Props) {
+export function TrialExpiredModal({
+  publishableKey,
+  source,
+  onClose,
+  termsAcknowledged,
+  termsVersionId,
+  termsVersionTag,
+  termsSections,
+}: Props) {
+  const needsTerms = !termsAcknowledged && termsVersionId !== null;
   // Hub clicks already conveyed "I want to add a card" via the banner
-  // button. Skip the redundant intro step and open straight on card.
-  const initialStep: Step = source === "hub" ? "card" : "intro";
+  // button: skip the trial-explanation intro and open on the first
+  // genuinely actionable step (terms if needed, else card).
+  // New-sale clicks start on the intro because the director hasn't yet
+  // seen the trial-ended context.
+  const initialStep: Step =
+    source === "hub" ? (needsTerms ? "terms" : "card") : "intro";
   const [step, setStep] = useState<Step>(initialStep);
   const router = useRouter();
 
@@ -99,13 +129,33 @@ export function TrialExpiredModal({ publishableKey, source, onClose }: Props) {
             the 150ms ease-out fade on every remount. */}
         <div key={step} className="agent-reveal-in">
           {step === "intro" && (
-            <IntroStep onContinue={() => setStep("card")} />
+            <IntroStep
+              onContinue={() => setStep(needsTerms ? "terms" : "card")}
+            />
+          )}
+          {step === "terms" && termsVersionId && termsVersionTag && (
+            <TermsStep
+              versionId={termsVersionId}
+              versionTag={termsVersionTag}
+              sections={termsSections}
+              onAccept={() => setStep("card")}
+              onDecline={
+                source === "hub" && onClose
+                  ? onClose
+                  : () => setStep("intro")
+              }
+              declineLabel={source === "hub" ? "Cancel" : "Back"}
+            />
           )}
           {step === "card" && (
             <CardStep
               publishableKey={publishableKey}
               source={source}
-              onBack={source === "new-sale" ? () => setStep("intro") : undefined}
+              onBack={
+                source === "new-sale"
+                  ? () => setStep(needsTerms ? "terms" : "intro")
+                  : undefined
+              }
               onCancel={source === "hub" && onClose ? onClose : undefined}
               onSaved={() => setStep("success")}
             />
@@ -122,6 +172,148 @@ export function TrialExpiredModal({ publishableKey, source, onClose }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Step: terms ─────────────────────────────────────────────────────────
+// Same gate as RedesignedDisclosure on /agent/account/billing: presents
+// the active TermsVersion's parsed sections, requires the director to
+// click Accept (records a PricingAcknowledgement row via the same
+// /api/billing/acknowledge endpoint), then advances to the card step.
+// Smaller body sizes than the settings-page surface so the modal feels
+// proportional (~12.5 vs 13.5).
+
+function TermsStep({
+  versionId,
+  versionTag,
+  sections,
+  onAccept,
+  onDecline,
+  declineLabel,
+}: {
+  versionId: string;
+  versionTag: string;
+  sections: TermsSection[];
+  onAccept: () => void;
+  onDecline: () => void;
+  declineLabel: string;
+}) {
+  const [submitting, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleAccept() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/billing/acknowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ termsVersionId: versionId }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          setError(data.error ?? "Couldn't record acknowledgement. Try again.");
+          return;
+        }
+        onAccept();
+      } catch {
+        setError("Couldn't reach the server. Check your connection and try again.");
+      }
+    });
+  }
+
+  return (
+    <>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
+        Before we add your card
+      </h2>
+      <p style={{ margin: "4px 0 16px", fontSize: 11, color: "#9ca3af", letterSpacing: 0.2 }}>
+        Pricing terms <code style={{ fontSize: 11, color: "#9ca3af" }}>{versionTag}</code>
+      </p>
+
+      {/* Scrollable terms body. Smaller fonts than the settings-page
+          surface so the modal feels proportional. */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          maxHeight: 260,
+          overflowY: "auto",
+          padding: "14px 16px",
+          background: "rgba(0,0,0,0.025)",
+          border: "0.5px solid rgba(0,0,0,0.06)",
+          borderRadius: 8,
+        }}
+      >
+        {sections.map((s, i) => (
+          <section key={i}>
+            <h3 style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 600, color: "#111827" }}>
+              {s.heading}
+            </h3>
+            <p style={{ margin: 0, fontSize: 12.5, color: "#4b5563", lineHeight: 1.55 }}>
+              {s.body}
+            </p>
+          </section>
+        ))}
+      </div>
+
+      {error && (
+        <div
+          className="agent-reveal-in"
+          style={{
+            marginTop: 14,
+            padding: "9px 12px",
+            fontSize: 12.5,
+            color: "#991b1b",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+        <button
+          type="button"
+          onClick={onDecline}
+          disabled={submitting}
+          style={{
+            flex: "0 0 auto",
+            background: "white",
+            color: "#6b7280",
+            padding: "11px 18px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            border: "1px solid #e5e7eb",
+            cursor: submitting ? "not-allowed" : "pointer",
+          }}
+        >
+          {declineLabel}
+        </button>
+        <button
+          type="button"
+          onClick={handleAccept}
+          disabled={submitting}
+          style={{
+            flex: 1,
+            background: submitting ? "#94a3b8" : "var(--agent-coral)",
+            color: "white",
+            padding: "11px 18px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            border: "none",
+            cursor: submitting ? "not-allowed" : "pointer",
+          }}
+        >
+          {submitting ? "Confirming…" : "Accept and continue"}
+        </button>
+      </div>
+    </>
   );
 }
 

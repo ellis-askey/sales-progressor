@@ -14,12 +14,23 @@
 
 import { useState } from "react";
 import { TrialExpiredModal } from "./TrialExpiredModal";
+import type { TermsSection } from "@/lib/billing/terms-sections";
 
 type Props = {
   publishableKey: string;
+  termsAcknowledged: boolean;
+  termsVersionId: string | null;
+  termsVersionTag: string | null;
+  termsSections: TermsSection[];
 };
 
-export function TrialBannerWithModal({ publishableKey }: Props) {
+export function TrialBannerWithModal({
+  publishableKey,
+  termsAcknowledged,
+  termsVersionId,
+  termsVersionTag,
+  termsSections,
+}: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -72,6 +83,10 @@ export function TrialBannerWithModal({ publishableKey }: Props) {
           publishableKey={publishableKey}
           source="hub"
           onClose={() => setOpen(false)}
+          termsAcknowledged={termsAcknowledged}
+          termsVersionId={termsVersionId}
+          termsVersionTag={termsVersionTag}
+          termsSections={termsSections}
         />
       )}
     </>

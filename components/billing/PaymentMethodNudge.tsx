@@ -20,6 +20,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { TrialBannerWithModal } from "./TrialBannerWithModal";
+import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
 
 const NUDGE_THRESHOLD_MS = 21 * 24 * 60 * 60 * 1000;
 
@@ -34,6 +35,23 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   const elapsed = Date.now() - agency.firstSubmissionAt.getTime();
   if (elapsed < NUDGE_THRESHOLD_MS) return null;  // inside trial + 7d grace
 
+  // Pre-resolve pricing-terms state so the modal can render the terms
+  // step inline (instead of letting CardCaptureForm hit a 409 from the
+  // SetupIntent endpoint and surfacing the bare "Pricing terms not yet
+  // acknowledged" error).
+  const activeTerms = await getActiveTermsVersion();
+  const termsAcknowledged = activeTerms
+    ? await hasAcknowledged(agencyId, activeTerms.id)
+    : false;
+
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
-  return <TrialBannerWithModal publishableKey={publishableKey} />;
+  return (
+    <TrialBannerWithModal
+      publishableKey={publishableKey}
+      termsAcknowledged={termsAcknowledged}
+      termsVersionId={activeTerms?.id ?? null}
+      termsVersionTag={activeTerms?.versionTag ?? null}
+      termsSections={activeTerms?.sections ?? []}
+    />
+  );
 }

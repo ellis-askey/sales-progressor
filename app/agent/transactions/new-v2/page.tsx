@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
+import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
 
 // 14 days, same window used by stampTrialState to decide freeOnExchange.
 // Past this point new sales cost money; if no card is on file the
@@ -30,7 +31,24 @@ export default async function AgentNewSaleV2Page() {
       Date.now() - agency.firstSubmissionAt.getTime() >= TRIAL_WINDOW_MS
     ) {
       const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
-      return <TrialExpiredModal publishableKey={publishableKey} source="new-sale" />;
+      // Pre-resolve pricing-terms state so the modal can render the
+      // terms step inline before CardCaptureForm tries to fetch the
+      // SetupIntent (which would 409 with "Pricing terms not yet
+      // acknowledged" otherwise).
+      const activeTerms = await getActiveTermsVersion();
+      const termsAcknowledged = activeTerms
+        ? await hasAcknowledged(session.user.agencyId, activeTerms.id)
+        : false;
+      return (
+        <TrialExpiredModal
+          publishableKey={publishableKey}
+          source="new-sale"
+          termsAcknowledged={termsAcknowledged}
+          termsVersionId={activeTerms?.id ?? null}
+          termsVersionTag={activeTerms?.versionTag ?? null}
+          termsSections={activeTerms?.sections ?? []}
+        />
+      );
     }
   }
 
