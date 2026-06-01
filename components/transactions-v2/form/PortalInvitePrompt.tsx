@@ -21,6 +21,9 @@ export function PortalInvitePrompt() {
     sessionStorage.setItem(STORAGE_KEY, "1");
     setExiting(true);
     setTimeout(() => setDismissed(true), 150);
+    // Telemetry: surfaced on Command Centre overview. Fire-and-forget;
+    // a failure here must never block the UI.
+    fetch("/api/agent/portal-invite-skip", { method: "POST" }).catch(() => {});
   }
 
   if (dismissed) return null;
@@ -61,7 +64,7 @@ export function PortalInvitePrompt() {
             onClick={handleDismiss}
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "var(--nv2-text-muted)", padding: 0 }}
           >
-            Skip — I won&apos;t be using the portal
+            I won&apos;t be using the portal
           </button>
         </div>
       </div>

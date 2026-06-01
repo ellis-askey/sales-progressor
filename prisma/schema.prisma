@@ -129,6 +129,13 @@ model User {
   // where someone signed up + didn't add a sale by 09:00 UTC the next day.
   welcomeEmailSentAt      DateTime?
 
+  // Portal-invite prompt skip tracking. Surfaced to internal staff on the
+  // Command Centre overview ("how many agents are opting out of the portal
+  // at sale-creation time"). Incremented atomically by /api/agent/portal-invite-skip
+  // when the agent clicks "I won't be using the portal" on the new-sale form.
+  portalInviteSkipCount    Int       @default(0)
+  lastPortalInviteSkipAt   DateTime?
+
   // In-app notification: negotiator sees this when their invited director accepts
   directorJoinedNotificationName String?
   directorJoinedNotificationAt   DateTime?

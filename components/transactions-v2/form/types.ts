@@ -31,7 +31,9 @@ export type FormFields = {
   chainExpanded: boolean;
 };
 
-export function defaultFormFields(): FormFields {
+export function defaultFormFields(
+  progressedBy: "agent" | "progressor" = "agent",
+): FormFields {
   return {
     streetAddress: "",
     city: "",
@@ -40,7 +42,7 @@ export function defaultFormFields(): FormFields {
     tenure: "",
     isShareOfFreehold: false,
     purchaseType: "",
-    progressedBy: "agent",
+    progressedBy,
     vendors: [{ name: "", phone: "", email: "" }],
     purchasers: [{ name: "", phone: "", email: "" }],
     vendorSolicitor: null,

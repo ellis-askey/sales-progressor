@@ -87,6 +87,9 @@ type Props = {
   recommendedFirms: { id: string; defaultReferralFeePence: number | null }[];
   preferredBroker: import("@/components/brokers/BrokerPicker").BrokerSelection | null;
   preferredBrokerDefaultFee: number | null;
+  // Server-resolved one-shot gate for the portal-invite prompt. False after
+  // the agent's first added sale OR after they've clicked the prompt once.
+  showPortalPrompt: boolean;
 };
 
 export function Stage2Sections({
@@ -96,6 +99,7 @@ export function Stage2Sections({
   isFillingVendorSolicitor, isFillingPurchaserSolicitor,
   vendorSolicitorHint, purchaserSolicitorHint,
   recommendedFirms, preferredBroker, preferredBrokerDefaultFee,
+  showPortalPrompt,
 }: Props) {
   const recommendedFirmIds = recommendedFirms.map((f) => f.id);
   const originatorAddress = [fields.streetAddress, fields.city, fields.postcode].filter(Boolean).join(", ");
@@ -125,8 +129,9 @@ export function Stage2Sections({
         </Section>
       )}
 
-      {/* Portal-invite prompt (self-progress mode only) */}
-      {!isOutsourced && (
+      {/* Portal-invite prompt (self-progress mode only, and one-shot:
+          server gate is the agent's first added sale + never-clicked) */}
+      {!isOutsourced && showPortalPrompt && (
         <Section delayMs={ms(0)}>
           <PortalInvitePrompt />
         </Section>

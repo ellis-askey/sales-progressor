@@ -145,33 +145,90 @@ export function MemoStatusBar({
         @keyframes memo-spin {
           to { transform: rotate(360deg); }
         }
+        /* Soft coral pulse for pending rows during reading. Conveys
+           "queued, waiting" rather than the previous dead grey dot. */
+        @keyframes memo-pending-pulse {
+          0%, 100% { opacity: 0.45; transform: scale(0.9); }
+          50%      { opacity: 0.95; transform: scale(1);    }
+        }
       `}</style>
 
       {/* ── Reading state — animated tick-through ────────────────────────── */}
       {status === "reading" && (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <Spinner />
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
               Reading your memo…
             </p>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {FIELD_DEFS.map((field, i) => {
               const isVisible = i < visibleCount;
               const isActive = i === visibleCount - 1;
+              // Stagger the pulse on each pending row so they don't all
+              // breathe in sync — gives the list a gentle wave.
+              const pulseDelay = `${(i % 4) * 220}ms`;
               return (
                 <div
                   key={field.key}
-                  style={{ display: "flex", alignItems: "center", gap: 8, opacity: isVisible ? 1 : 0.25, transition: "opacity 250ms" }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    opacity: isVisible ? 1 : 0.35,
+                    transition: "opacity 250ms",
+                  }}
                 >
                   {isVisible
                     ? isActive
                       ? <Spinner />
-                      : <span style={{ width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--nv2-text-ghost)", display: "inline-block" }} />
+                      : (
+                        <span
+                          style={{
+                            width: 14,
+                            height: 14,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: "50%",
+                              background: "rgba(var(--agent-coral-base-rgb), 0.55)",
+                              boxShadow: "0 0 0 3px rgba(var(--agent-coral-base-rgb), 0.10)",
+                              display: "inline-block",
+                              animation: `memo-pending-pulse 1.8s ease-in-out ${pulseDelay} infinite`,
+                            }}
+                          />
                         </span>
-                    : <span style={{ width: 14, height: 14, flexShrink: 0 }} />
+                      )
+                    : (
+                      <span
+                        style={{
+                          width: 14,
+                          height: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: "50%",
+                            border: "1px solid rgba(var(--agent-coral-base-rgb), 0.30)",
+                            display: "inline-block",
+                          }}
+                        />
+                      </span>
+                    )
                   }
                   <span style={{ fontSize: 12, color: isVisible ? "var(--nv2-text-reading)" : "var(--nv2-text-ghost)" }}>
                     {field.label}
@@ -181,7 +238,7 @@ export function MemoStatusBar({
             })}
           </div>
           {isSlow && (
-            <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--nv2-text-muted)" }}>
+            <p style={{ margin: "14px 0 0", fontSize: 12, color: "var(--nv2-text-muted)" }}>
               This is taking a while —{" "}
               <button
                 className="agent-link-muted"

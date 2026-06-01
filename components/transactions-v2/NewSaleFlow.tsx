@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -52,8 +52,11 @@ function computeMemoSources(data: ExtractedMemoData, fields: FormFields): MemoSo
   };
 }
 
-function populateFormFromExtraction(data: ExtractedMemoData): FormFields {
-  const fields = defaultFormFields();
+function populateFormFromExtraction(
+  data: ExtractedMemoData,
+  defaultProgressedBy: "agent" | "progressor" = "agent",
+): FormFields {
+  const fields = defaultFormFields(defaultProgressedBy);
 
   if (data.streetAddress) fields.streetAddress = titleCase(data.streetAddress);
   if (data.city) fields.city = titleCase(data.city);
@@ -258,11 +261,20 @@ type Props = {
   preferredBrokerDefaultFee: number | null;
   initialDrafts: DraftEntry[];
   allMilestoneDefinitions: MilestoneDefinitionSlim[];
+  // Server-resolved: only true on the agent's very first sale AND only if
+  // they've never clicked "I won't be using the portal" before. Once either
+  // condition flips, the prompt is permanently hidden.
+  showPortalPrompt: boolean;
+  // Per-agency default for the "progressed by" toggle. Legacy progressor-
+  // managed agencies start on "progressor" (send to us); everyone else
+  // starts on "agent" (self-progress). Computed server-side by
+  // deriveDefaultProgressedBy in lib/agency/default-progressed-by.ts.
+  defaultProgressedBy: "agent" | "progressor";
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -274,7 +286,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [extractionError, setExtractionError] = useState<string | null>(null);
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [formFields, setFormFields] = useState<FormFields>(() => defaultFormFields());
+  const [formFields, setFormFields] = useState<FormFields>(() => defaultFormFields(defaultProgressedBy));
   const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
 
   // ── Solicitor autofill tracking ───────────────────────────────────────────
@@ -438,7 +450,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setIsSlow(false);
     setExtractedData(null);
     setExtractionError(null);
-    setFormFields(defaultFormFields());
+    setFormFields(defaultFormFields(defaultProgressedBy));
     setManuallyEditedFields(new Set());
     setSolFillingVendor(false);
     setSolFillingPurchaser(false);
@@ -478,7 +490,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setIsSlow(false);
     setExtractionError(null);
     setExtractedData(null);
-    setFormFields(defaultFormFields());
+    setFormFields(defaultFormFields(defaultProgressedBy));
     setManuallyEditedFields(new Set());
     setSolFillingVendor(false);
     setSolFillingPurchaser(false);
@@ -509,7 +521,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       const data: ExtractedMemoData = await res.json();
       setExtractedData(data);
 
-      const newFields = populateFormFromExtraction(data);
+      const newFields = populateFormFromExtraction(data, defaultProgressedBy);
       extractedSnapshotRef.current = { ...newFields }; // snapshot before any user edits
       setFormFields(newFields);
       setManuallyEditedFields(new Set());
@@ -605,7 +617,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     setStage(1);
     setExtractedData(null);
     setExtractionError(null);
-    setFormFields(defaultFormFields());
+    setFormFields(defaultFormFields(defaultProgressedBy));
     setManuallyEditedFields(new Set());
     setOutsourcedError(null);
     extractedSnapshotRef.current = null;
@@ -879,6 +891,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     recommendedFirms,
     preferredBroker,
     preferredBrokerDefaultFee,
+    showPortalPrompt,
   } as const;
 
   return (
@@ -1196,3 +1209,4 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     </div>
   );
 }
+

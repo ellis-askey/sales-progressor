@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
 import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
+import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 
 // 14 days, same window used by stampTrialState to decide freeOnExchange.
 // Past this point new sales cost money; if no card is on file the
@@ -51,6 +52,46 @@ export default async function AgentNewSaleV2Page() {
       );
     }
   }
+
+  // Per-agency default for the "progressed by" toggle. The legacy
+  // progressor-managed agencies (Meldone / Oplah / Akeman / Via) default
+  // to "send to us"; everyone else defaults to "self-progress". The
+  // toggle still works in both directions — only the starting state
+  // flips for those agencies.
+  const agencyRow = session.user.agencyId
+    ? await prisma.agency.findUnique({
+        where: { id: session.user.agencyId },
+        select: { name: true, modeProfile: true },
+      })
+    : null;
+  const defaultProgressedBy = deriveDefaultProgressedBy(
+    agencyRow?.name,
+    agencyRow?.modeProfile,
+  );
+
+  // Portal-invite prompt is a one-shot: only shown on the agent's very
+  // first ADDED sale AND only until they've clicked "I won't be using the
+  // portal". After either condition flips, the prompt is gone forever —
+  // avoids the "click just to dismiss" annoyance once they're past the
+  // first add. Claimed sales (via chain invite) don't count as "adding" —
+  // the agent didn't originate them, so they haven't seen the prompt yet.
+  const [agentAddedSaleCount, currentUserRow] = await Promise.all([
+    prisma.propertyTransaction.count({
+      where: {
+        agentUserId: session.user.id,
+        status: { not: "draft" as never },
+        // Exclude sales the user got by claiming a chain link — those
+        // arrived via the claim flow, not the new-sale form.
+        NOT: { chainLink: { claimedByUserId: session.user.id } },
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { portalInviteSkipCount: true },
+    }),
+  ]);
+  const showPortalPrompt =
+    agentAddedSaleCount === 0 && (currentUserRow?.portalInviteSkipCount ?? 0) === 0;
 
   const [recommendedFirms, preferredBrokerRow, drafts, allMilestoneDefinitions] = await Promise.all([
     Promise.resolve().then(() =>
@@ -168,6 +209,8 @@ export default async function AgentNewSaleV2Page() {
           preferredBrokerDefaultFee={(preferredBrokerRow as any)?.defaultReferralFeePence ?? null}
           initialDrafts={drafts}
           allMilestoneDefinitions={allMilestoneDefinitions}
+          showPortalPrompt={showPortalPrompt}
+          defaultProgressedBy={defaultProgressedBy}
         />
       </div>
     </>

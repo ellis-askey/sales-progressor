@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { CaretLeft, CaretRight, Plus } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import { ContactCard } from "./ContactsSection";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
@@ -270,38 +270,103 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
     );
   }
 
-  // ── Carousel mode (2+) ─────────────────────────────────────────────────────
+  // ── Multi-entry mode (2+) — labelled tabs + clean card ───────────────────
 
-  const isFirst = activeIndex === 0;
-  const isLast = activeIndex === contacts.length - 1;
+  const capitalisedSingular = label.slice(0, -1);
 
   return (
     <div onKeyDown={handleKeyDown}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      {/* Header — label only. Add lives on the tab strip below so the
+          count and the add affordance share one row. */}
+      <div style={{ marginBottom: 8 }}>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
           <SectionPill progressedBy={progressedBy} filled={filled} />
-          <span style={{ marginLeft: 4 }}>· {activeIndex + 1} of {contacts.length}</span>
           <FieldIndicator source={memoSource} />
         </p>
+      </div>
+
+      {/* Tab strip — one pill per contact + an Add pill at the end. Pills
+          show the contact's name once entered; otherwise a "{Singular} N"
+          fallback. Active pill is filled coral; invalid pill shows an
+          amber dot. Replaces the previous dots-and-chevron navigation
+          row and removes the fake-depth card stack entirely. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+        {contacts.map((c, i) => {
+          const isActive = i === activeIndex;
+          const hasErr = !!error && isEntryInvalid(c, isOutsourced);
+          const name = c.name?.trim();
+          const tabLabel = name
+            ? name.length > 18 ? name.slice(0, 16) + "…" : name
+            : `${capitalisedSingular} ${i + 1}`;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`Switch to ${singular} ${i + 1}`}
+              aria-pressed={isActive}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 11px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: isActive ? 600 : 500,
+                background: isActive ? "var(--agent-coral)" : "transparent",
+                color: isActive ? "white" : hasErr ? "var(--agent-warning)" : "var(--nv2-text-secondary)",
+                border: isActive
+                  ? "1px solid var(--agent-coral)"
+                  : hasErr
+                    ? "1px solid rgba(245,158,11,0.55)"
+                    : "1px solid var(--nv2-border-medium)",
+                cursor: "pointer",
+                transition: "background 150ms ease, color 150ms ease, border-color 150ms ease",
+                lineHeight: 1.2,
+              }}
+            >
+              {hasErr && !isActive && (
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#f59e0b",
+                    display: "inline-block",
+                  }}
+                />
+              )}
+              {tabLabel}
+            </button>
+          );
+        })}
         <button
           type="button"
           onClick={canAdd ? addEntry : undefined}
           disabled={!canAdd}
           title={!canAdd ? `Maximum ${MAX_ENTRIES} ${label.toLowerCase()}` : undefined}
-          className={canAdd ? "agent-link" : undefined}
+          aria-label={`Add ${singular}`}
           style={{
-            display: "flex", alignItems: "center", gap: 3,
-            fontSize: 11, fontWeight: 600,
-            color: canAdd ? undefined : "var(--nv2-text-ghost)",
-            background: "none", border: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            padding: "5px 11px 5px 9px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 600,
+            background: "transparent",
+            color: canAdd ? "var(--agent-coral-deep)" : "var(--nv2-text-ghost)",
+            border: canAdd
+              ? "1px dashed rgba(var(--agent-coral-base-rgb), 0.40)"
+              : "1px dashed var(--nv2-border-medium)",
             cursor: canAdd ? "pointer" : "not-allowed",
-            padding: 0,
+            lineHeight: 1.2,
           }}
         >
-          <Plus size={10} weight="bold" />
+          <Plus size={11} weight="bold" />
           Add
         </button>
       </div>
@@ -310,138 +375,43 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
       )}
 
-      {/* Card stack with depth slivers */}
+      {/* Active card — single, clean. Slide-in on switch, x in the corner
+          to remove. No background slivers or depth illusions. */}
       <div
-        style={{ position: "relative" }}
+        key={animKey}
+        ref={cardRef}
+        style={{
+          position: "relative",
+          animation: `carousel-slide-${lastDir === "next" ? "left" : "right"} 240ms cubic-bezier(0.16,1,0.3,1) both`,
+        }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {contacts.length > 2 && (
-          <div style={{
+        <ContactCard
+          contact={contacts[activeIndex]}
+          index={activeIndex}
+          label={capitalisedSingular}
+          canRemove={false}
+          isOutsourced={isOutsourced}
+          progressedBy={progressedBy}
+          onChange={(field, value) => updateEntry(activeIndex, field, value)}
+          onRemove={() => removeEntry(activeIndex)}
+          onEdit={onEdit}
+        />
+        <button
+          type="button"
+          onClick={() => removeEntry(activeIndex)}
+          aria-label={`Remove ${singular} ${activeIndex + 1}`}
+          className="agent-icon-btn agent-icon-btn-sm"
+          style={{
             position: "absolute",
-            inset: 0,
-            transform: "translate(8px, 8px)",
-            borderRadius: 14,
-            background: "rgba(var(--agent-coral-base-rgb), 0.03)",
-            border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.07)",
-          }} />
-        )}
-        <div style={{
-          position: "absolute",
-          inset: 0,
-          transform: "translate(4px, 4px)",
-          borderRadius: 14,
-          background: "rgba(var(--agent-coral-base-rgb), 0.06)",
-          border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.12)",
-        }} />
-
-        {/* Active card */}
-        <div
-          key={animKey}
-          ref={cardRef}
-          style={{
-            position: "relative",
-            zIndex: 1,
-            animation: `carousel-slide-${lastDir === "next" ? "left" : "right"} 240ms cubic-bezier(0.16,1,0.3,1) both`,
+            top: 8,
+            right: 8,
+            zIndex: 2,
           }}
         >
-          <div style={{ position: "relative" }}>
-            <ContactCard
-              contact={contacts[activeIndex]}
-              index={activeIndex}
-              label={label.slice(0, -1)}
-              canRemove={false}
-              isOutsourced={isOutsourced}
-              progressedBy={progressedBy}
-              onChange={(field, value) => updateEntry(activeIndex, field, value)}
-              onRemove={() => removeEntry(activeIndex)}
-              onEdit={onEdit}
-            />
-            <button
-              type="button"
-              onClick={() => removeEntry(activeIndex)}
-              aria-label={`Remove ${singular} ${activeIndex + 1}`}
-              className="agent-icon-btn agent-icon-btn-sm"
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                zIndex: 2,
-              }}
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-
-        <button
-          type="button"
-          className="carousel-chevron"
-          onClick={() => navigate("prev")}
-          disabled={isFirst}
-          aria-label="Previous"
-          style={{
-            width: 24, height: 24, borderRadius: 6, flexShrink: 0,
-            background: isFirst ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
-            border: "0.5px solid var(--nv2-border-dark)",
-            cursor: isFirst ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <CaretLeft size={11} weight="bold" color={isFirst ? "var(--nv2-text-ghost)" : "var(--nv2-text-secondary)"} />
+          ×
         </button>
-
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-          {contacts.map((c, i) => {
-            const isActive = i === activeIndex;
-            const hasErr = !!error && isEntryInvalid(c, isOutsourced);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goTo(i)}
-                aria-label={`Go to ${singular} ${i + 1}`}
-                style={{
-                  width: isActive ? 18 : 5,
-                  height: 5,
-                  borderRadius: 999,
-                  background: hasErr
-                    ? "#f59e0b"
-                    : isActive
-                    ? "var(--agent-coral-deep)"
-                    : "rgba(var(--agent-coral-base-rgb), 0.25)",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  flexShrink: 0,
-                  transition: "width 200ms cubic-bezier(0.16,1,0.3,1), background 150ms ease",
-                }}
-              />
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          className="carousel-chevron"
-          onClick={() => navigate("next")}
-          disabled={isLast}
-          aria-label="Next"
-          style={{
-            width: 24, height: 24, borderRadius: 6, flexShrink: 0,
-            background: isLast ? "var(--nv2-bg-hover)" : "var(--nv2-surface-glass)",
-            border: "0.5px solid var(--nv2-border-dark)",
-            cursor: isLast ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <CaretRight size={11} weight="bold" color={isLast ? "var(--nv2-text-ghost)" : "var(--nv2-text-secondary)"} />
-        </button>
-
       </div>
 
       <FieldHint source={memoSource} failedText="Couldn't read this — add contact details manually." />

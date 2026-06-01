@@ -1,38 +1,65 @@
 "use client";
 
+// Uses the canonical agent-banner recipe documented in components/ui/AgentBanner.tsx:
+// white-90% background + blur + 1px coloured border + tinted icon + heading
+// in the kind colour + secondary body. AgentBanner only exposes
+// info / warning / danger / success kinds; this banner is the "primary
+// coral" variant for the outsourced/PM workflow, so it applies the same
+// recipe inline with coral tokens rather than introducing a fifth kind.
+
 import { Headset } from "@phosphor-icons/react";
-import { useSolidMode } from "@/lib/hooks/useSolidMode";
 
 export function OutsourcedBanner() {
-  const isSolid = useSolidMode();
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 12,
-      background: isSolid ? "rgba(var(--agent-coral-base-rgb), 0.10)" : "rgba(var(--agent-coral-base-rgb), 0.05)",
-      border: isSolid ? "1px solid rgba(var(--agent-coral-base-rgb), 0.28)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.25)",
-      borderRadius: 14,
-      padding: "12px 16px",
-    }}>
-      <div style={{
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: "rgba(var(--agent-coral-base-rgb), 0.10)",
+    <div
+      className="agent-reveal-in"
+      role="status"
+      style={{
+        background: "rgba(255, 255, 255, 0.90)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(var(--agent-coral-base-rgb), 0.50)",
+        borderRadius: 10,
+        padding: "12px 16px",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        marginTop: 1,
-      }}>
-        <Headset size={14} color="var(--agent-coral-deep)" />
-      </div>
-      <div>
-        <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
+        alignItems: "flex-start",
+        gap: 12,
+        boxShadow: "0 1px 3px rgba(var(--agent-coral-base-rgb), 0.10)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          marginTop: 1,
+          color: "var(--agent-coral-deep)",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <Headset size={16} weight="fill" />
+      </span>
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--agent-coral-deep)",
+            lineHeight: 1.35,
+          }}
+        >
           Our team is handling this file
         </p>
-        <p style={{ margin: 0, fontSize: 11, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: "var(--agent-text-secondary)",
+            lineHeight: 1.5,
+          }}
+        >
           Add at least one seller and one buyer with a name and a phone number or email.
         </p>
       </div>
