@@ -221,11 +221,53 @@ export async function drainOutboundQueue(): Promise<{
         html: payload.html as string | undefined,
         queueId: record.id,
       });
+      const sentAtNow = new Date();
       await prisma.outboundEmailQueue.update({
         where: { id: record.id },
-        data: { sentAt: new Date() },
+        data: { sentAt: sentAtNow },
       });
       console.log(`[EMAIL_SENT] type=${record.emailType} to=${record.recipientEmail}`);
+
+      // Activity-timeline mirror for client chases. The Activity tab reads
+      // OutboundMessage; without this row the automated send is invisible
+      // there even though the "Contacted today" pill (which also queries
+      // OutboundEmailQueue) does see it. Forward-only — historical sends
+      // before this commit won't appear on Activity. Best-effort write:
+      // the email is already delivered and the queue row is already stamped,
+      // so a mirror failure must not break the drain. (See same gap in
+      // lib/email/milestone-digest-drain.ts — separate cron, handled in a
+      // follow-up.)
+      if (record.emailType === "CLIENT_CHASE" && record.recipientContactId) {
+        // sourceId format from client-chase-digest.ts:387 is
+        // `{transactionId}:{contactId}:{yyyy-mm-dd}`.
+        const transactionId = record.sourceId.split(":")[0];
+        if (transactionId) {
+          await prisma.outboundMessage.create({
+            data: {
+              transactionId,
+              type: "outbound",
+              channel: "email",
+              purpose: "chase",
+              method: "email",
+              status: "sent",
+              contactIds: [record.recipientContactId],
+              recipientEmail: record.recipientEmail,
+              subject: payload.subject as string,
+              content: payload.text as string,
+              sentAt: sentAtNow,
+              isAutomated: true,
+              visibleToClient: true,
+              createdByRole: "system",
+            },
+          }).catch((mirrorErr: unknown) => {
+            console.error(
+              `[OutboundMessage mirror] failed for queue id=${record.id}:`,
+              mirrorErr,
+            );
+          });
+        }
+      }
+
       // Command Centre event log. Only CLIENT_CHASE rows emit chase_sent — the
       // queue drain handles many email types but only chases map to the
       // chase_sent EventType.
