@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 import { StatusControl } from "./StatusControl";
+import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import { formatDate } from "@/lib/utils";
 
 type Props = {
@@ -25,6 +27,10 @@ type Props = {
   /** Pass-through to StatusControl so the withdraw success toast can tail
    *  "— chain notified" only when the transaction is actually chain-linked. */
   inChain?: boolean;
+  /** When true, the service-type pill becomes an interactive control that
+   *  reveals a swap icon on hover and opens a confirm-and-switch modal.
+   *  Set from the page-level `hasAdminPowers(session)` check. */
+  isAdminViewer?: boolean;
 };
 
 const DARK_STATUS: Record<TransactionStatus, { bg: string; dot: string; label: string }> = {
@@ -77,13 +83,18 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
   const barColor = TRACK_BAR[onTrack];
   const days = exchangeDate ? daysUntil(new Date(exchangeDate)) : null;
   const price = formatPrice(purchasePrice);
+  const [switchModalOpen, setSwitchModalOpen] = useState(false);
+  // Admin-only interactive pill: only enabled when we have all the inputs the
+  // server action needs and the viewer is allowed. Falls back to the static
+  // span render for everyone else (byte-identical to today).
+  const canSwitchService = isAdminViewer && !!transactionId && !!serviceType && !hideServiceTypeBadge;
   // backHref="/agent/transactions" since 2026-05-12 merge; "/agent/dashboard" kept
   // for any legacy callers (now extinct in-tree but defensive against external use).
   const isAgent = backHref === "/agent/transactions" || backHref === "/agent/dashboard";
@@ -137,16 +148,58 @@ export function PropertyHero({
                   {formatPurchaseType(purchaseType)}
                 </span>
               )}
-              {!hideServiceTypeBadge && serviceType === "self_managed" && (
-                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-text-secondary)", background: "rgba(15,23,42,0.06)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                  Self-managed
-                </span>
-              )}
-              {!hideServiceTypeBadge && serviceType === "outsourced" && (
-                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--agent-coral)", background: "rgba(var(--agent-coral-rgb), 0.1)", borderRadius: 6, padding: "2px 7px", whiteSpace: "nowrap" }}>
-                  With progressor
-                </span>
-              )}
+              {!hideServiceTypeBadge && serviceType && (() => {
+                const isSelf = serviceType === "self_managed";
+                const label = isSelf ? "Self-managed" : "With progressor";
+                const baseStyle: React.CSSProperties = {
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: isSelf ? "var(--agent-text-secondary)" : "var(--agent-coral)",
+                  background: isSelf ? "rgba(15,23,42,0.06)" : "rgba(var(--agent-coral-rgb), 0.1)",
+                  borderRadius: 6,
+                  padding: "2px 7px",
+                  whiteSpace: "nowrap",
+                };
+                if (!canSwitchService) {
+                  return <span style={baseStyle}>{label}</span>;
+                }
+                // Admin viewer: interactive pill. Hover reveals the swap arrow
+                // (existing .v2-swap-arrow rotates 180deg on .v2-swap-btn:hover
+                // via the rule in agent-system.css). Reserve the arrow's slot
+                // with opacity-0 so the pill width doesn't jump on hover.
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setSwitchModalOpen(true)}
+                      title={isSelf ? "Switch to outsourced" : "Switch to self-progress"}
+                      className="v2-swap-btn group"
+                      style={{
+                        ...baseStyle,
+                        border: "none",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        font: "inherit",
+                      }}
+                    >
+                      {label}
+                      <span className="v2-swap-arrow opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
+                        ⇄
+                      </span>
+                    </button>
+                    {transactionId && (
+                      <SwitchServiceTypeModal
+                        open={switchModalOpen}
+                        transactionId={transactionId}
+                        current={serviceType}
+                        onClose={() => setSwitchModalOpen(false)}
+                      />
+                    )}
+                  </>
+                );
+              })()}
               {metaText && (
                 <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{metaText}</span>
               )}

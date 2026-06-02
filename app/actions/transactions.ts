@@ -575,6 +575,81 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
   revalidateTx(transactionId);
 }
 
+// Admin (or hybrid-admin email) correction path: an agent set up the file with the
+// wrong service type and we need to flip it. serviceType + progressedBy are read
+// live by reminders, hub bucketing, billing-at-exchange, and the agency mode
+// profile recompute, so downstream systems recalibrate without any extra wiring.
+//
+// Switching TO outsourced leaves assignedUserId as-is — if null, the file lands
+// in the "Needs SP assigning" bucket on the hub (consistent with brand-new
+// outsourced creates). Switching TO self_managed clears assignedUserId / assignedAt
+// since no SP is managing it anymore.
+//
+// No email goes out. The OutsourcedAssignmentNotification model exists in the
+// schema but no send code is written yet; future work can wire it through both
+// the create paths and this switch.
+export async function switchServiceTypeAction(
+  transactionId: string,
+  target: "self_managed" | "outsourced",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  if (!hasAdminPowers(session)) {
+    return { ok: false, error: "Forbidden" };
+  }
+
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, serviceType: true, status: true },
+  });
+  if (!tx) {
+    return { ok: false, error: "Transaction not found" };
+  }
+  if (tx.status !== "active") {
+    return { ok: false, error: "Only active files can be switched." };
+  }
+  if (tx.serviceType === target) {
+    return { ok: true };
+  }
+
+  const SERVICE_LABEL = { self_managed: "Self-managed", outsourced: "Outsourced" } as const;
+  const prevLabel = SERVICE_LABEL[tx.serviceType as "self_managed" | "outsourced"];
+  const nextLabel = SERVICE_LABEL[target];
+  const nextProgressedBy = target === "outsourced" ? "progressor" : "agent";
+
+  await prisma.$transaction(async (db) => {
+    await db.propertyTransaction.update({
+      where: { id: transactionId },
+      data: {
+        serviceType: target,
+        progressedBy: nextProgressedBy,
+        // Outsourced → self_managed: drop any SP assignment, since no SP is
+        // managing the file anymore. Outsourced files keep their existing
+        // assignment (or null, which routes them to "Needs SP assigning").
+        ...(target === "self_managed"
+          ? { assignedUserId: null, assignedAt: null }
+          : {}),
+      },
+    });
+
+    // Audit trail: internal-note row on the activity timeline. isAutomated:false
+    // because this was a deliberate admin action, not a system event.
+    await db.outboundMessage.create({
+      data: {
+        transactionId,
+        type: "internal_note",
+        content: `${session.user.name ?? "Admin"} switched this file from ${prevLabel} to ${nextLabel}.`,
+        createdById: session.user.id,
+        createdByRole: session.user.role,
+        isAutomated: false,
+      },
+    });
+  });
+
+  revalidateTx(transactionId);
+  return { ok: true };
+}
+
 export async function saveSolicitorsAction(transactionId: string, patch: {
   vendorSolicitorFirmId?: string | null;
   vendorSolicitorContactId?: string | null;

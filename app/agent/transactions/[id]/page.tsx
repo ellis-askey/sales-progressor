@@ -519,6 +519,7 @@ export default async function AgentTransactionDetailPage({
         createdAt={transaction.createdAt}
         transactionId={transaction.id}
         inChain={!!transaction.chainLinkId}
+        isAdminViewer={isAdminRole}
       />
 
       <PropertyFileTabs
