@@ -35,6 +35,13 @@ export async function GET(req: NextRequest) {
     txWhere = { agencyId: vis.agencyId, agentUserId: vis.userId };
   }
 
+  // Internal staff should not see agents' in-progress drafts in global search
+  // (clutters results with files the agent hasn't committed yet). Agents still
+  // see their own drafts so they can resume mid-creation.
+  if (isInternal) {
+    txWhere.status = { not: "draft" };
+  }
+
   const [transactions, contacts, solicitors] = await Promise.all([
     prisma.propertyTransaction.findMany({
       where: { ...txWhere, propertyAddress: { contains: q, mode: "insensitive" } },
