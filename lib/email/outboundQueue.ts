@@ -220,6 +220,12 @@ export async function drainOutboundQueue(): Promise<{
         text: payload.text as string,
         html: payload.html as string | undefined,
         queueId: record.id,
+        // White-labelled senders (e.g. the outsource-intro email) put their
+        // own From/Reply-To on the payload at enqueue time. When absent
+        // the chain defaults apply, preserving every existing call site's
+        // behaviour.
+        from:    typeof payload.from    === "string" ? payload.from    : undefined,
+        replyTo: typeof payload.replyTo === "string" ? payload.replyTo : undefined,
       });
       const sentAtNow = new Date();
       await prisma.outboundEmailQueue.update({

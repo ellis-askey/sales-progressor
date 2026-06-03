@@ -441,6 +441,12 @@ model Contact {
   // client-chase arc (A2/A3 of Sub-arc A in
   // docs/active/client-chase-discovery.md). No callers yet.
   unsubscribedAt        DateTime?
+  // White-labelled "Getting your sale moving" intro email — fired once per
+  // contact, on outsourced sale creation. Atomic check-and-stamp (updateMany
+  // where outsourceIntroSentAt IS NULL) guarantees one send per contact per
+  // sale even under concurrent callers. See lib/emails/send-outsource-intro.ts
+  // for the orchestrator.
+  outsourceIntroSentAt  DateTime?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 

@@ -232,6 +232,16 @@ export async function createTransactionAction(input: {
   // Full engine handles anchor-based and exchange-gated rules asynchronously
   void evaluateTransactionReminders(tx.id).catch(console.error);
 
+  // White-labelled "Getting your sale moving" intro to buyer + seller —
+  // fires once per contact on outsourced sales only. Fire-and-forget so a
+  // queue / DB hiccup doesn't fail the new-sale response. The orchestrator
+  // gates on serviceType internally too as a belt-and-braces check, but
+  // the trigger guard here keeps the call path narrow.
+  if (resolvedProgressedBy === "progressor") {
+    const { sendOutsourceIntroForTransaction } = await import("@/lib/emails/send-outsource-intro");
+    void sendOutsourceIntroForTransaction(tx.id, session.user.id).catch(console.error);
+  }
+
   // Chain creation — runs after transaction is fully committed; failure is non-fatal
   let chainFailed = false;
   if (input.chain && input.chain.stubs.length > 0) {
