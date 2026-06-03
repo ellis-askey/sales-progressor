@@ -366,6 +366,28 @@ export async function evaluateTransactionReminders(transactionId: string) {
       continue;
     }
 
+    // Bilateral-gate pre-check for the contracts-exchanged rules.
+    // VM19 (seller side) and PM26 (buyer side) are confirmed together in
+    // one bilateral write — you cannot exchange contracts until BOTH
+    // solicitors have signalled readiness (VM18 vendor, PM25 purchaser).
+    // The two contracts-exchanged chase rules anchor on their own side's
+    // gate (VM19→VM18, PM26→PM25), so without this check whichever side
+    // confirmed first kicks off a reminder the agent can't action — the
+    // exchange physically can't happen until the other gate also lands.
+    // Suppress until both gates are complete or not-required; the existing
+    // grace clock then fires off the older anchor, which lands the chase
+    // the next morning after both gates are in.
+    if (rule.targetMilestoneCode === "VM19" || rule.targetMilestoneCode === "PM26") {
+      const vm18 = completionByCode.get("VM18");
+      const pm25 = completionByCode.get("PM25");
+      const vm18Ready = vm18 && (vm18.state === "complete" || vm18.state === "not_required");
+      const pm25Ready = pm25 && (pm25.state === "complete" || pm25.state === "not_required");
+      if (!vm18Ready || !pm25Ready) {
+        await deactivateLog(transactionId, rule.id, "Awaiting both exchange-ready gates (VM18 + PM25)", assignedUserId);
+        continue;
+      }
+    }
+
     // Check if target milestone is already confirmed — if so, deactivate
     if (rule.targetMilestoneCode) {
       const targetCompletion = completionByCode.get(rule.targetMilestoneCode);
