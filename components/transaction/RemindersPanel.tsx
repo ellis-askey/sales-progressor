@@ -54,8 +54,15 @@ export async function RemindersPanel({
   const actionableCount = onHold ? 0 : countActionable(reminderLogs, new Date());
 
   return (
-    <>
+    <div className="space-y-4">
       <TabBadgeReporter tabKey="reminders" count={actionableCount} />
+      {/* Auto-emails preview pinned to the TOP of the tab. Was previously
+        * rendered below RemindersSection (legacy of the streaming
+        * refactor); moved up so the next-chase summary is the first
+        * thing the agent sees on the tab. Suspense fallback={null}
+        * means a brief layout shift when it streams in — small card,
+        * worth it for the visual hierarchy. */}
+      <AutomatedEmailsCardAsync transactionId={transactionId} fileOnHold={onHold} />
       <RemindersSection
         transactionId={transactionId}
         reminderLogs={reminderLogs}
@@ -64,7 +71,6 @@ export async function RemindersPanel({
         completedMilestoneCodes={completedMilestoneCodes}
         transactionStatus={transactionStatus}
       />
-      <AutomatedEmailsCardAsync transactionId={transactionId} fileOnHold={onHold} />
-    </>
+    </div>
   );
 }
