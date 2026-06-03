@@ -34,6 +34,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { buildContactUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { applyChaseToTask } from "@/lib/services/reminders";
 
 export type DigestMilestone = {
   code: string;
@@ -461,14 +462,20 @@ export async function enqueueClientChaseDigest(input: {
     });
   }
 
-  // Honest-chase-count (2026-05-28): an enqueued client digest is a real
-  // chase from the agent's POV — bump the agent-side ChaseTask for each
-  // milestone in the digest, stamp lastChasedAt, reset priority to normal.
-  // The reminder engine's escalation gate handles re-escalation on the
-  // next cycle if there's still no resolution.
+  // Honest-chase-count: an enqueued client digest is a real chase from the
+  // agent's POV. Apply the same write the manual "Chased" button uses, via
+  // applyChaseToTask. That helper bumps chaseCount, stamps lastChasedAt,
+  // resets priority to normal, AND advances the ReminderLog.nextDueDate
+  // forward by repeatEveryDays — all in one atomic transaction.
   //
-  // We resolve ChaseTask via the ReminderLog → ReminderRule → targetMilestoneCode
-  // chain. Only pending tasks are bumped; cancelled/done are left alone.
+  // Pre-2026-06-03 this path used a raw chaseTask.updateMany that only
+  // touched the task; the underlying ReminderLog.nextDueDate stayed put,
+  // so the agent saw a "due today" row in the work queue even when the
+  // auto-chase had already gone out that morning. Bug surfaced via Ellis
+  // hitting the file at 09:00 to find it still flagged as needing a chase.
+  //
+  // We resolve ChaseTask via ReminderLog → ReminderRule → targetMilestoneCode.
+  // Only pending tasks advance; cancelled/done are left alone.
   if (milestoneCodes.length > 0) {
     const pendingTasks = await prisma.chaseTask.findMany({
       where: {
@@ -480,15 +487,8 @@ export async function enqueueClientChaseDigest(input: {
       },
       select: { id: true },
     });
-    if (pendingTasks.length > 0) {
-      await prisma.chaseTask.updateMany({
-        where: { id: { in: pendingTasks.map((t) => t.id) } },
-        data: {
-          chaseCount: { increment: 1 },
-          lastChasedAt: now,
-          priority: "normal",
-        },
-      });
+    for (const task of pendingTasks) {
+      await applyChaseToTask(task.id);
     }
   }
 
