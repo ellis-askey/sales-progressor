@@ -45,7 +45,10 @@ export function AgentPicker({
         disabled={disabled}
         className="glass-input"
         style={{
-          height: 36,
+          // Let .glass-input's padding determine the height so the selected
+          // option lines up with the rest of the agent-app form controls
+          // (a fixed height + class padding was clipping the descenders on
+          // the selected value).
           fontSize: 13,
           cursor: disabled ? "not-allowed" : "pointer",
           appearance: "auto",
