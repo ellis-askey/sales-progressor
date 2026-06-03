@@ -107,7 +107,7 @@ export function PropertyHero({
     const metaText = metaParts.join(" · ");
 
     return (
-      <div className="property-hero-glass" style={{
+      <div className="property-hero-glass animate-enter" style={{
         background: "var(--agent-surface-elevated)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
