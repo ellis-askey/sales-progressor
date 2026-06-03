@@ -61,6 +61,13 @@ export async function createTransactionAction(input: {
   migrationAgencyId?: string;
   migrationAssignedUserId?: string;
   migrationAgentUserId?: string;
+  // Director-only: when set, the new file is owned by this agency user
+  // instead of the creating director. Validated server-side: must be a
+  // director or negotiator in the SAME agency. Negotiators submitting
+  // this field are rejected — a negotiator can only create files in their
+  // own name. Ignored entirely on non-self-managed flows (the field has
+  // no meaning when an internal progressor will own the file).
+  assignToUserId?: string;
   chain?: {
     stubs: Array<{
       direction: "above" | "below";
@@ -89,6 +96,25 @@ export async function createTransactionAction(input: {
     throw new Error("Cannot create transaction without an agency");
   }
   const effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
+
+  // Director-only assignment: validate the picked user is a director or
+  // negotiator in the SAME agency and override the file owner. Negotiators
+  // can't use this — silently ignore if a negotiator submits the field
+  // (defence-in-depth; the form shouldn't render the picker for them).
+  let effectiveAgentUserId: string | null = input.migrationAgentUserId ?? (isAgent ? session.user.id : null);
+  if (input.assignToUserId && session.user.role === "director") {
+    const target = await prisma.user.findUnique({
+      where: { id: input.assignToUserId },
+      select: { id: true, agencyId: true, role: true },
+    });
+    if (!target || target.agencyId !== effectiveAgencyId) {
+      throw new Error("Cannot assign to a user outside your agency");
+    }
+    if (target.role !== "director" && target.role !== "negotiator") {
+      throw new Error("Cannot assign to a non-agent user");
+    }
+    effectiveAgentUserId = target.id;
+  }
 
   // Duplicate address guard: normalise and check within agency for active files.
   // Scope the check to the EFFECTIVE agency (admin migration may target a
@@ -124,7 +150,7 @@ export async function createTransactionAction(input: {
     propertyAddress: normalisedAddress,
     agencyId: effectiveAgencyId,
     assignedUserId: effectiveAssignedUserId,
-    agentUserId: input.migrationAgentUserId ?? (isAgent ? session.user.id : null),
+    agentUserId: effectiveAgentUserId,
     createdAt: input.migrationCreatedAt,
     progressedBy: resolvedProgressedBy,
     purchasePrice: input.purchasePrice,
@@ -531,6 +557,62 @@ export async function saveAgentFeeAction(input: {
   );
 
   revalidateTx(input.transactionId);
+}
+
+// Director-only: change which agency user OWNS a file (agentUserId on
+// PropertyTransaction). Negotiators can't reassign. Internal staff can't
+// use this — assigning an internal progressor goes through
+// assignUserAction below (which writes assignedUserId, a different field).
+//
+// Validates that:
+//   - caller is a director
+//   - file is in caller's agency
+//   - target user is a director or negotiator in the same agency
+//
+// Writes an activity-feed note so the change is visible on the file timeline.
+export async function reassignAgentAction(transactionId: string, newAgentUserId: string) {
+  const session = await requireSession();
+  if (session.user.role !== "director") {
+    throw new Error("Forbidden: only a director can reassign a file");
+  }
+  if (!session.user.agencyId) {
+    throw new Error("Forbidden: caller has no agency");
+  }
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: { id: transactionId, agencyId: session.user.agencyId },
+    select: { id: true, agentUserId: true, agencyId: true },
+  });
+  if (!tx) throw new Error("File not found in your agency");
+
+  const target = await prisma.user.findUnique({
+    where: { id: newAgentUserId },
+    select: { id: true, name: true, agencyId: true, role: true },
+  });
+  if (!target || target.agencyId !== session.user.agencyId) {
+    throw new Error("Cannot assign to a user outside your agency");
+  }
+  if (target.role !== "director" && target.role !== "negotiator") {
+    throw new Error("Cannot assign to a non-agent user");
+  }
+
+  if (tx.agentUserId === newAgentUserId) {
+    return; // no-op
+  }
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { agentUserId: newAgentUserId },
+  });
+
+  await logActivity(
+    transactionId,
+    `${session.user.name ?? "Director"} reassigned file to ${target.name ?? target.id}`,
+    session.user.id,
+  );
+
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/agent/transactions`);
 }
 
 export async function assignUserAction(transactionId: string, assignedUserId: string | null) {

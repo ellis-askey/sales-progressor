@@ -1439,7 +1439,12 @@ function renderCompletionPackBody(args: {
   contact: CompletionPackContact;
   address: string;
   completionDate: Date | null;
-  agentName: string;
+  // null when no specific agent name is known. Templates use a "{name} or
+  // a member of our team" lead when the name is set, and "a member of our
+  // team" alone when it isn't, so the fallback never produces the
+  // "a member of our team or a member of our team" redundancy the old
+  // string fallback used to render.
+  agentName: string | null;
 }): { subject: string; text: string; html: string; recipientEmail: string } {
   const { side, contact, address, completionDate, agentName } = args;
   const base = process.env.NEXTAUTH_URL ?? "";
@@ -1450,6 +1455,10 @@ function renderCompletionPackBody(args: {
   const datePlain = completionStr ? ` on ${completionStr}` : "";
   const portalUrl = contact.portalToken ? `${base}/portal/${contact.portalToken}` : base;
 
+  // Concrete-agent prefix ("Emily or ") only when we have a real name;
+  // otherwise we just say "a member of our team" on its own.
+  const teamRef = agentName ? `${agentName} or a member of our team` : "a member of our team";
+
   const bodyHtml = side === "vendor"
     ? `
     <p>Contracts have been exchanged on <strong>${address}</strong>${dateBlurb}. The sale is now legally committed.</p>
@@ -1457,7 +1466,7 @@ function renderCompletionPackBody(args: {
     <ul style="padding-left:20px;line-height:2">
       <li>Your solicitor will handle the transfer of funds — you don't need to be at the property.</li>
       <li>Read all utility meters (gas, electricity, water) before you leave for the last time.</li>
-      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${agentName} or a member of our team).</li>
+      <li>Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).</li>
       <li>Leave appliance manuals, warranties, and service records — the buyer is entitled to these.</li>
       <li>Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.</li>
     </ul>`
@@ -1466,15 +1475,15 @@ function renderCompletionPackBody(args: {
     <p style="margin-top:16px"><strong>What to expect on completion day:</strong></p>
     <ul style="padding-left:20px;line-height:2">
       <li>Keep your phone on — your solicitor will call you when the funds have been transferred.</li>
-      <li>Keys are usually available from midday, once your solicitor confirms completion. ${agentName} or a member of our team will let you know.</li>
+      <li>Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.</li>
       <li>Read all utility meters (gas, electricity, water) when you arrive at the property.</li>
       <li>From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.</li>
       <li>Your solicitor will register your ownership at HM Land Registry after completion.</li>
     </ul>`;
 
   const bodyPlain = side === "vendor"
-    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${agentName} or a member of our team).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
-    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${agentName} or a member of our team will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
+    ? `Contracts have been exchanged on ${address}${datePlain}. The sale is now legally committed.\n\nWhat to expect on completion day:\n- Your solicitor will handle the transfer of funds — you don't need to be at the property.\n- Read all utility meters (gas, electricity, water) before you leave for the last time.\n- Leave all keys, fobs, security codes, and gate remotes at the property (or hand to ${teamRef}).\n- Leave appliance manuals, warranties, and service records — the buyer is entitled to these.\n- Your solicitor will redeem your mortgage from the completion funds and send you a completion statement.`
+    : `Contracts have been exchanged on ${address}${datePlain}. Your purchase is now legally committed.\n\nWhat to expect on completion day:\n- Keep your phone on — your solicitor will call you when the funds have been transferred.\n- Keys are usually available from midday, once your solicitor confirms completion. ${teamRef} will let you know.\n- Read all utility meters (gas, electricity, water) when you arrive at the property.\n- From today, the property is at your risk — if your buildings insurance isn't already in place, arrange it as soon as possible.\n- Your solicitor will register your ownership at HM Land Registry after completion.`;
 
   const subject = side === "vendor"
     ? `Contracts exchanged — what happens next for your sale`
@@ -1495,7 +1504,7 @@ function renderCompletionPackBody(args: {
 async function loadCompletionPackContext(transactionId: string): Promise<{
   address: string;
   completionDate: Date | null;
-  agentName: string;
+  agentName: string | null;
   vendors: CompletionPackContact[];
   purchasers: CompletionPackContact[];
 } | null> {
@@ -1518,7 +1527,7 @@ async function loadCompletionPackContext(transactionId: string): Promise<{
   return {
     address: tx.propertyAddress,
     completionDate: tx.completionDate,
-    agentName: tx.agentUser?.name ?? "your agent",
+    agentName: tx.agentUser?.name ?? null,
     vendors,
     purchasers,
   };

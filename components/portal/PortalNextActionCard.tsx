@@ -77,7 +77,7 @@ export function PortalNextActionCard({ token, milestone, nextAfterDescription }:
           // B1 hard-block — should never reach via normal UI flow (the card
           // doesn't surface bilateral codes), but surface the friendly copy
           // if it ever does (e.g. a crafted request).
-          setError("Your agent confirms this step once it's done.");
+          setError("We confirm this step once it's done.");
           setSheetOpen(true);
         }
       } catch (e: unknown) {

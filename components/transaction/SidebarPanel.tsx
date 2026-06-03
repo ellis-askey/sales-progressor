@@ -53,6 +53,10 @@ type Props = {
   isAdminRole: boolean;
   isAgentRole: boolean;
   agencyId: string;
+  // Slot rendered at the bottom of the Agent card. Used by the page to
+  // inject the director-only ReassignOwnerControl. SidebarPanel is
+  // oblivious to what's in it — just forwards to TransactionSidebar.
+  agentSlot?: React.ReactNode;
 };
 
 const INTERNAL_ROLES = ["superadmin", "admin", "sales_progressor"] as const;
@@ -66,6 +70,7 @@ export async function SidebarPanel({
   isAdminRole,
   isAgentRole,
   agencyId,
+  agentSlot,
 }: Props) {
   const [milestoneData, brokerRow, fileTimeSessions, assignedUser, agentUser, recommendedFirms] = await Promise.all([
     getMilestonesCached(transaction.id, agencyId).catch(() => null),
@@ -220,6 +225,7 @@ export async function SidebarPanel({
       fileTime={fileTime}
       isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}
+      agentSlot={agentSlot}
     />
   );
   // isAgentRole reserved for future progress-tooltip variants; explicit

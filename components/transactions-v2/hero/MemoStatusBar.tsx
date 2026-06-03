@@ -5,18 +5,45 @@ import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import type { ExtractedMemoData } from "@/components/transactions-v2/types";
 
 // ── Field definitions (used only during "reading" animation) ──────────────────
+//
+// Grouped into the three columns shown during the reading state:
+//   - Sale details (address, price, tenure)
+//   - Vendor       (vendor details, vendor solicitor)
+//   - Purchaser    (purchaser details, purchaser solicitor)
+//
+// FIELD_DEFS is the FLAT list in animation order. The tick-through still
+// walks it left→right, top→bottom across the three columns so the pulse
+// progression matches reading order. FIELD_GROUPS is the rendering view.
 
 type FieldDef = { key: string; label: string };
+type FieldGroup = { label: string; items: FieldDef[] };
 
-const FIELD_DEFS: FieldDef[] = [
-  { key: "address",    label: "Address" },
-  { key: "price",      label: "Purchase price" },
-  { key: "tenure",     label: "Tenure" },
-  { key: "vendors",    label: "Vendor details" },
-  { key: "purchasers", label: "Purchaser details" },
-  { key: "vsol",       label: "Vendor solicitor" },
-  { key: "psol",       label: "Purchaser solicitor" },
+const FIELD_GROUPS: FieldGroup[] = [
+  {
+    label: "Sale details",
+    items: [
+      { key: "address",    label: "Address" },
+      { key: "price",      label: "Purchase price" },
+      { key: "tenure",     label: "Tenure" },
+    ],
+  },
+  {
+    label: "Vendor",
+    items: [
+      { key: "vendors",    label: "Vendor details" },
+      { key: "vsol",       label: "Vendor solicitor" },
+    ],
+  },
+  {
+    label: "Purchaser",
+    items: [
+      { key: "purchasers", label: "Purchaser details" },
+      { key: "psol",       label: "Purchaser solicitor" },
+    ],
+  },
 ];
+
+const FIELD_DEFS: FieldDef[] = FIELD_GROUPS.flatMap((g) => g.items);
 
 // ── Missing pill definition (submit-priority order) ───────────────────────────
 
@@ -151,6 +178,17 @@ export function MemoStatusBar({
           0%, 100% { opacity: 0.45; transform: scale(0.9); }
           50%      { opacity: 0.95; transform: scale(1);    }
         }
+        /* Reading-state grid responsive layout.
+           Mobile: 1 column.    Medium ≥ 520px: 2 columns.    Wide ≥ 820px: 3 columns. */
+        .memo-reading-grid {
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 520px) {
+          .memo-reading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (min-width: 820px) {
+          .memo-reading-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
       `}</style>
 
       {/* ── Reading state — animated tick-through ────────────────────────── */}
@@ -162,80 +200,103 @@ export function MemoStatusBar({
               Reading your memo…
             </p>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {FIELD_DEFS.map((field, i) => {
-              const isVisible = i < visibleCount;
-              const isActive = i === visibleCount - 1;
-              // Stagger the pulse on each pending row so they don't all
-              // breathe in sync — gives the list a gentle wave.
-              const pulseDelay = `${(i % 4) * 220}ms`;
-              return (
-                <div
-                  key={field.key}
+          <div
+            className="memo-reading-grid"
+            style={{
+              display: "grid",
+              gap: 18,
+            }}
+          >
+            {FIELD_GROUPS.map((group) => (
+              <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <p
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    opacity: isVisible ? 1 : 0.35,
-                    transition: "opacity 250ms",
+                    margin: "0 0 2px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--nv2-text-muted)",
                   }}
                 >
-                  {isVisible
-                    ? isActive
-                      ? <Spinner />
-                      : (
-                        <span
-                          style={{
-                            width: 14,
-                            height: 14,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
+                  {group.label}
+                </p>
+                {group.items.map((field) => {
+                  const flatIndex = FIELD_DEFS.findIndex((f) => f.key === field.key);
+                  const isVisible = flatIndex < visibleCount;
+                  const isActive = flatIndex === visibleCount - 1;
+                  // Stagger the pulse so all pending rows don't breathe in
+                  // sync — gives the grid a gentle wave instead of a strobe.
+                  const pulseDelay = `${(flatIndex % 4) * 220}ms`;
+                  return (
+                    <div
+                      key={field.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        opacity: isVisible ? 1 : 0.35,
+                        transition: "opacity 250ms",
+                      }}
+                    >
+                      {isVisible
+                        ? isActive
+                          ? <Spinner />
+                          : (
+                            <span
+                              style={{
+                                width: 14,
+                                height: 14,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: "50%",
+                                  background: "rgba(var(--agent-coral-base-rgb), 0.55)",
+                                  boxShadow: "0 0 0 3px rgba(var(--agent-coral-base-rgb), 0.10)",
+                                  display: "inline-block",
+                                  animation: `memo-pending-pulse 1.8s ease-in-out ${pulseDelay} infinite`,
+                                }}
+                              />
+                            </span>
+                          )
+                        : (
                           <span
                             style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: "50%",
-                              background: "rgba(var(--agent-coral-base-rgb), 0.55)",
-                              boxShadow: "0 0 0 3px rgba(var(--agent-coral-base-rgb), 0.10)",
-                              display: "inline-block",
-                              animation: `memo-pending-pulse 1.8s ease-in-out ${pulseDelay} infinite`,
+                              width: 14,
+                              height: 14,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
                             }}
-                          />
-                        </span>
-                      )
-                    : (
-                      <span
-                        style={{
-                          width: 14,
-                          height: 14,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: "50%",
-                            border: "1px solid rgba(var(--agent-coral-base-rgb), 0.30)",
-                            display: "inline-block",
-                          }}
-                        />
+                          >
+                            <span
+                              style={{
+                                width: 5,
+                                height: 5,
+                                borderRadius: "50%",
+                                border: "1px solid rgba(var(--agent-coral-base-rgb), 0.30)",
+                                display: "inline-block",
+                              }}
+                            />
+                          </span>
+                        )
+                      }
+                      <span style={{ fontSize: 12, color: isVisible ? "var(--nv2-text-reading)" : "var(--nv2-text-ghost)" }}>
+                        {field.label}
                       </span>
-                    )
-                  }
-                  <span style={{ fontSize: 12, color: isVisible ? "var(--nv2-text-reading)" : "var(--nv2-text-ghost)" }}>
-                    {field.label}
-                  </span>
-                </div>
-              );
-            })}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
           {isSlow && (
             <p style={{ margin: "14px 0 0", fontSize: 12, color: "var(--nv2-text-muted)" }}>

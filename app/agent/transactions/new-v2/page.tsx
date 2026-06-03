@@ -5,6 +5,7 @@ import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
 import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
+import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 
 // 14 days, same window used by stampTrialState to decide freeOnExchange.
 // Past this point new sales cost money; if no card is on file the
@@ -92,6 +93,11 @@ export default async function AgentNewSaleV2Page() {
   ]);
   const showPortalPrompt =
     agentAddedSaleCount === 0 && (currentUserRow?.portalInviteSkipCount ?? 0) === 0;
+
+  const isDirector = session.user.role === "director";
+  const assignableAgents = isDirector && session.user.agencyId
+    ? await listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+    : [];
 
   const [recommendedFirms, preferredBrokerRow, drafts, allMilestoneDefinitions] = await Promise.all([
     Promise.resolve().then(() =>
@@ -211,6 +217,9 @@ export default async function AgentNewSaleV2Page() {
           allMilestoneDefinitions={allMilestoneDefinitions}
           showPortalPrompt={showPortalPrompt}
           defaultProgressedBy={defaultProgressedBy}
+          isDirector={isDirector}
+          currentUserId={session.user.id}
+          assignableAgents={assignableAgents}
         />
       </div>
     </>

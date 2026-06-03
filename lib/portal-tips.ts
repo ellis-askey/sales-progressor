@@ -28,7 +28,7 @@ const TIPS: Record<PortalStage, { both: string[]; vendor: string[]; purchaser: s
     both: [],
     vendor: [
       "If your property is leasehold or share of freehold, a management pack has been requested from your freeholder or managing agent. These can take 4–8 weeks — this is one of the most common causes of delays.",
-      "If you're also buying, keep in close contact with your agent and solicitor about both transactions. Chains move at the speed of the slowest link.",
+      "If you're also buying, keep in close contact with us and your solicitor about both transactions. Chains move at the speed of the slowest link.",
     ],
     purchaser: [
       "Searches are ordered by your solicitor and typically take 2–6 weeks depending on the local authority. There's nothing you need to do — just be patient during this phase.",

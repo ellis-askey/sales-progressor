@@ -61,6 +61,8 @@ import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
 import { ReconcileLaterAsync } from "@/components/transaction/ReconcileLaterAsync";
 import { SidebarPanelSkeleton, TabPanelSkeleton } from "@/components/transaction/PanelSkeletons";
 import { RevealCoordinator, RevealSlot, RevealPing } from "@/components/transaction/RevealCoordinator";
+import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
+import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
 type Timing = { label: string; ms: number };
@@ -203,6 +205,16 @@ export default async function AgentTransactionDetailPage({
     { key: "activity",   label: "Activity" },
   ];
 
+  // Director-only reassign picker data. Only fetched when the viewer is a
+  // director AND the file is self-managed (outsourced files have a
+  // progressor assigned through a different flow and the director doesn't
+  // own the assignment there). The "1 or fewer agents" branch returns
+  // an empty list so the picker silently hides.
+  const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
+  const assignableAgents = showReassign && session.user.agencyId
+    ? await listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+    : [];
+
   const totalServerMs = Math.round(performance.now() - perfStart);
 
   const sidebar = (
@@ -211,30 +223,30 @@ export default async function AgentTransactionDetailPage({
         <SidebarPanel
           transaction={{
             id: transaction.id,
-          propertyAddress: transaction.propertyAddress,
-          purchasePrice: transaction.purchasePrice ?? null,
-          tenure: transaction.tenure ?? null,
-          purchaseType: transaction.purchaseType ?? null,
-          isShareOfFreehold: transaction.isShareOfFreehold,
-          status: transaction.status,
-          chainLinkId: transaction.chainLinkId ?? null,
-          overridePredictedDate: transaction.overridePredictedDate ?? null,
-          completionDate: transaction.completionDate ?? null,
-          createdAt: transaction.createdAt,
-          serviceType: transaction.serviceType ?? null,
-          freeOnExchange: transaction.freeOnExchange ?? null,
-          agentFeeAmount: transaction.agentFeeAmount ?? null,
-          agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
-          agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
-          referralFee: transaction.referralFee ?? null,
-          referredFirmId: transaction.referredFirmId ?? null,
-          referredFirm: transaction.referredFirm ?? null,
-          agentUserId: transaction.agentUserId ?? null,
-          assignedUserId: transaction.assignedUserId ?? null,
-          agencyId: transaction.agencyId,
-          agency: transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null,
-          holdPeriods: transaction.holdPeriods,
-        }}
+            propertyAddress: transaction.propertyAddress,
+            purchasePrice: transaction.purchasePrice ?? null,
+            tenure: transaction.tenure ?? null,
+            purchaseType: transaction.purchaseType ?? null,
+            isShareOfFreehold: transaction.isShareOfFreehold,
+            status: transaction.status,
+            chainLinkId: transaction.chainLinkId ?? null,
+            overridePredictedDate: transaction.overridePredictedDate ?? null,
+            completionDate: transaction.completionDate ?? null,
+            createdAt: transaction.createdAt,
+            serviceType: transaction.serviceType ?? null,
+            freeOnExchange: transaction.freeOnExchange ?? null,
+            agentFeeAmount: transaction.agentFeeAmount ?? null,
+            agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
+            agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
+            referralFee: transaction.referralFee ?? null,
+            referredFirmId: transaction.referredFirmId ?? null,
+            referredFirm: transaction.referredFirm ?? null,
+            agentUserId: transaction.agentUserId ?? null,
+            assignedUserId: transaction.assignedUserId ?? null,
+            agencyId: transaction.agencyId,
+            agency: transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null,
+            holdPeriods: transaction.holdPeriods,
+          }}
           isInternalStaff={isInternalStaff}
           isInternal={isInternalStaff}
           isDirectorRole={isDirectorRole}
@@ -242,6 +254,17 @@ export default async function AgentTransactionDetailPage({
           isAdminRole={isAdminRole}
           isAgentRole={isAgentRole}
           agencyId={session.user.agencyId}
+          agentSlot={
+            showReassign && assignableAgents.length > 1 ? (
+              <ReassignOwnerControl
+                transactionId={transaction.id}
+                currentAgentUserId={transaction.agentUserId ?? null}
+                currentAgentName={assignedDisplayName}
+                currentUserId={session.user.id}
+                assignableAgents={assignableAgents}
+              />
+            ) : undefined
+          }
         />
         <RevealPing slotId="sidebar" />
       </Suspense>
