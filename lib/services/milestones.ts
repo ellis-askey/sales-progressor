@@ -1224,12 +1224,33 @@ export async function executeUndoMilestone(input: {
       await maybeLockExchangeGate(transactionId, side, ptx);
     }
 
-    // Cancel active reminder logs + pending chase tasks for reversed codes
+    // Cancel active reminder logs + pending chase tasks where EITHER the
+    // rule's target OR its anchor is one of the reversed codes.
+    //
+    // Target-side: the reminder was chasing the agent to mark this step
+    // done; the step is now un-done so the row is moot.
+    //
+    // Anchor-side: the reminder was created because its anchor step had
+    // been completed (anchor.completedAt + graceDays = first chase). The
+    // anchor is now un-done, so the schedule origin no longer exists. If
+    // we leave the log active, it shows in the work queue as a "due now"
+    // row the agent can't legitimately action until the anchor is re-done.
+    // The daily 04:00 engine run does deactivate it eventually with reason
+    // "Anchor milestone not yet confirmed", but that's a several-hour
+    // window of confusing rows. Closing it synchronously here removes the
+    // gap.
+    //
+    // The next engine run will recreate the log fresh if/when the anchor
+    // is confirmed again — log creation is idempotent on (transactionId,
+    // reminderRuleId).
     const logs = await ptx.reminderLog.findMany({
       where: {
         transactionId,
         status: "active",
-        reminderRule: { targetMilestoneCode: { in: cancelReminderCodes } },
+        OR: [
+          { reminderRule: { targetMilestoneCode: { in: cancelReminderCodes } } },
+          { reminderRule: { anchorMilestone: { code: { in: cancelReminderCodes } } } },
+        ],
       },
       select: { id: true },
     });
@@ -1359,6 +1380,50 @@ export async function reverseMilestoneWithCascade(input: {
 
     if (def?.side) {
       await maybeLockExchangeGate(input.transactionId, def.side, tx);
+    }
+
+    // Cancel reminders affected by this reverse, same scheme as
+    // executeUndoMilestone: any active log whose rule TARGETS or
+    // ANCHORS on a reversed milestone gets closed out synchronously
+    // so the work queue doesn't show rows waiting on conditions that
+    // no longer hold. The daily 04:00 engine run would catch the
+    // anchor side eventually, but it leaves a several-hour window of
+    // stale rows. Recreation is idempotent on (transactionId,
+    // reminderRuleId) so if the milestone is later re-confirmed, the
+    // engine spins up a fresh log.
+    const reversedIds = [
+      input.milestoneDefinitionId,
+      ...nrCascadedIds,
+      ...(input.downstreamIds ?? []),
+    ];
+    const reversedDefs = await tx.milestoneDefinition.findMany({
+      where: { id: { in: reversedIds } },
+      select: { code: true },
+    });
+    const reversedCodes = reversedDefs.map((d) => d.code);
+    if (reversedCodes.length > 0) {
+      const logs = await tx.reminderLog.findMany({
+        where: {
+          transactionId: input.transactionId,
+          status: "active",
+          OR: [
+            { reminderRule: { targetMilestoneCode: { in: reversedCodes } } },
+            { reminderRule: { anchorMilestone: { code: { in: reversedCodes } } } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (logs.length > 0) {
+        const logIds = logs.map((l) => l.id);
+        await tx.chaseTask.updateMany({
+          where: { reminderLogId: { in: logIds }, status: "pending" },
+          data: { status: "cancelled" },
+        });
+        await tx.reminderLog.updateMany({
+          where: { id: { in: logIds } },
+          data: { status: "cancelled", statusReason: "Milestone reversed" },
+        });
+      }
     }
   });
 
