@@ -99,68 +99,92 @@ export default async function AgentTransactionDetailPage({
   // plain object for the MilestonePanel prop.
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
-  // Internal-staff self-assigned to-dos for this transaction. Only fetched
-  // when the viewer is internal (sales_progressor / admin / superadmin /
-  // viewer). Customer agency users never see this list.
-  const internalManualTasks = isInternalStaff
-    ? await listInternalSelfAssignedTasksForTransaction(id).catch(() => [])
-    : [];
-
   if (!transaction) notFound();
   const isDirectorRole = session.user.role === "director";
   // Agent ownership check: director sees all; negotiator only sees their own files.
   // Internal staff bypass: getTransactionByScope already enforces access scope above.
   if (!isInternalStaff && !isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
-  // MOS document signed URL (if uploaded during file creation)
-  const mosDoc = await prisma.transactionDocument.findFirst({
-    where: { transactionId: id, source: "mos" },
-    select: { storagePath: true },
-    orderBy: { createdAt: "asc" },
-  }).catch(() => null);
-  let mosDocUrl: string | null = null;
-  if (mosDoc) {
-    const { getSignedUrl } = await import("@/lib/supabase-storage");
-    mosDocUrl = await getSignedUrl(mosDoc.storagePath, 86400).catch(() => null);
-  }
+  // ── Stage 2 fan-out ───────────────────────────────────────────────────────
+  // Now that `transaction` is confirmed, every remaining DB lookup can fire
+  // in parallel. Two pairs have genuine read-after-read dependencies:
+  //   - MOS document → Supabase signed URL
+  //   - SP verified domain → user verified email
+  // They run as inner async chains inside the Promise.all so the rest of the
+  // queries don't wait on them.
+  //
+  // Pre-2026-06-03 this was a ~7-step serial waterfall after the first
+  // parallel block, adding ~400-1000ms to the slow case before the page
+  // could return its first JSX. Folded into one wave so first paint waits
+  // on max(slow query) instead of sum(every query).
+  const [
+    internalManualTasks,
+    mosDocBundle,
+    originatorAgency,
+    reconcileMilestoneDefinitions,
+    assignedUser,
+    currentUserNotifications,
+    spSenderIdentity,
+    agentUser,
+    recommendedFirms,
+    fileTimeSessions,
+    brokerRow,
+  ] = await Promise.all([
+    // Internal-staff self-assigned to-dos. Customer-agency users never see this list.
+    isInternalStaff
+      ? listInternalSelfAssignedTasksForTransaction(id).catch(() => [] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>)
+      : Promise.resolve([] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>),
 
-  // Only fetch when the claim welcome modal actually needs it (newUser=1 param)
-  const originatorAgency = newUser === "1" && transaction.chainLinkId
-    ? await prisma.chainLink.findUnique({
-        where: { id: transaction.chainLinkId },
-        select: { createdBy: { select: { firmName: true } } },
-      }).then(l => l?.createdBy?.firmName ?? null).catch(() => null)
-    : null;
+    // MOS document → signed URL. The URL needs the doc, so this stays a
+    // 2-step chain; running it inside the Promise.all keeps it off the
+    // critical path for everything else.
+    (async () => {
+      const doc = await prisma.transactionDocument.findFirst({
+        where: { transactionId: id, source: "mos" },
+        select: { storagePath: true },
+        orderBy: { createdAt: "asc" },
+      }).catch(() => null);
+      if (!doc) return { doc: null as { storagePath: string } | null, url: null as string | null };
+      const { getSignedUrl } = await import("@/lib/supabase-storage");
+      const url = await getSignedUrl(doc.storagePath, 86400).catch(() => null);
+      return { doc, url };
+    })(),
 
-  // Milestone definitions for the reconcile-later banner. Only fetched for claimed
-  // files since the banner only fires when the agent chose "I'll set this up later"
-  // during the claim flow (localStorage flag set client-side).
-  const reconcileMilestoneDefinitions = transaction.chainLinkId
-    ? await prisma.milestoneDefinition.findMany({
-        orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-        select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
-      }).catch(() => [])
-    : [];
+    // Originator agency name for the claim welcome modal. Only loaded when
+    // ?newUser=1 lands on a claimed file — the modal is rare.
+    newUser === "1" && transaction.chainLinkId
+      ? prisma.chainLink.findUnique({
+          where: { id: transaction.chainLinkId },
+          select: { createdBy: { select: { firmName: true } } },
+        }).then((l) => l?.createdBy?.firmName ?? null).catch(() => null)
+      : Promise.resolve(null as string | null),
 
-  const [assignedUser, currentUserNotifications] = await Promise.all([
+    // Milestone definitions for the reconcile-later banner. Claimed files only.
+    transaction.chainLinkId
+      ? prisma.milestoneDefinition.findMany({
+          orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
+          select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
+        }).catch(() => [])
+      : Promise.resolve([] as Array<{ id: string; code: string; name: string; side: "vendor" | "purchaser"; orderIndex: number; blocksExchange: boolean }>),
+
     transaction.assignedUserId
       ? prisma.user.findUnique({
           where: { id: transaction.assignedUserId },
           select: { clientType: true, legacyFee: true },
         })
       : Promise.resolve(null),
+
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
     }),
-  ]);
 
-  // Resolve sender identity for SP/admin: look for their verified email at the
-  // file's agency domain; fall back to the platform sender.
-  let spSenderIdentity: { name: string; email: string } | undefined;
-  if (isInternalStaff && (isProgressor || isAdminRole)) {
-    const agencyId = (transaction as { agencyId?: string | null }).agencyId;
-    if (agencyId) {
+    // SP sender identity (internal staff only) — chain: verifiedDomain → userVerifiedEmail.
+    // Inner async so the chain doesn't add to the page's first-paint latency.
+    (async (): Promise<{ name: string; email: string } | undefined> => {
+      if (!(isInternalStaff && (isProgressor || isAdminRole))) return undefined;
+      const agencyId = (transaction as { agencyId?: string | null }).agencyId;
+      if (!agencyId) return { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
       const domain = await prisma.verifiedDomain.findFirst({
         where: { agencyId, status: "verified" },
         select: { id: true },
@@ -175,13 +199,61 @@ export default async function AgentTransactionDetailPage({
             select: { email: true },
           })
         : null;
-      spSenderIdentity = userEmail
+      return userEmail
         ? { name: session.user.name!, email: userEmail.email }
         : { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    } else {
-      spSenderIdentity = { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    }
-  }
+    })(),
+
+    // Agent user (file owner). Used by the sidebar and assignedDisplayName fallback.
+    transaction.agentUserId
+      ? prisma.user.findUnique({
+          where: { id: transaction.agentUserId },
+          select: { id: true, name: true, email: true, firmName: true },
+        })
+      : Promise.resolve(null),
+
+    // Recommended-solicitor firms for the director's sidebar suggestion strip.
+    isDirectorRole
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (prisma as any).agencyRecommendedSolicitor.findMany({
+          where: { agencyId: session.user.agencyId },
+          orderBy: { solicitorFirm: { name: "asc" } },
+          select: { solicitorFirmId: true, defaultReferralFeePence: true, solicitorFirm: { select: { name: true } } },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }).then((rows: any[]) => rows.map((r) => ({
+          id: r.solicitorFirmId as string,
+          name: r.solicitorFirm.name as string,
+          defaultReferralFeePence: r.defaultReferralFeePence as number | null,
+        })))
+      : Promise.resolve(null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null),
+
+    // File-time sessions for the agent-vs-team time tracker pill.
+    prisma.fileTimeSession.findMany({
+      where: { transactionId: id },
+      select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
+    }).catch(() => []),
+
+    // Broker row — separate from the main transaction query because the
+    // canonical getTransaction shape doesn't include broker fields. Folded
+    // into the wave so it's not a 7th serial roundtrip.
+    prisma.propertyTransaction.findFirst({
+      // Internal staff: fetch by id only (agencyId not applicable).
+      // Agents: filter by agencyId to enforce ownership.
+      where: isInternalStaff ? { id } : { id, agencyId: session.user.agencyId },
+      select: {
+        brokerFirmId: true,
+        brokerContactId: true,
+        brokerReferralFee: true,
+        brokerReferralFeeReceived: true,
+        purchaserBrokerReferral: true,
+        brokerFirm: { select: { id: true, name: true } },
+        brokerContact: { select: { id: true, name: true } },
+      },
+    }).catch(() => null),
+  ]);
+
+  const mosDoc = mosDocBundle.doc;
+  const mosDocUrl = mosDocBundle.url;
 
   const allMilestones = [
     ...(milestoneData?.vendor ?? []),
@@ -369,41 +441,13 @@ export default async function AgentTransactionDetailPage({
     { key: "activity",   label: "Activity" },
   ];
 
-  const agentUser = transaction.agentUserId
-    ? await prisma.user.findUnique({
-        where: { id: transaction.agentUserId },
-        select: { id: true, name: true, email: true, firmName: true },
-      })
-    : null;
-
   const assignedDisplayName =
     (transaction.assignedUser as { name?: string | null } | null)?.name ??
     agentUser?.name ??
     null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = prisma as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recommendedFirms = isDirectorRole
-    ? await db.agencyRecommendedSolicitor.findMany({
-        where: { agencyId: session.user.agencyId },
-        orderBy: { solicitorFirm: { name: "asc" } },
-        select: { solicitorFirmId: true, defaultReferralFeePence: true, solicitorFirm: { select: { name: true } } },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      }).then((rows: any[]) => rows.map((r) => ({
-        id: r.solicitorFirmId as string,
-        name: r.solicitorFirm.name as string,
-        defaultReferralFeePence: r.defaultReferralFeePence as number | null,
-      })))
-    : null;
-
   const INTERNAL_ROLES = ["superadmin", "admin", "sales_progressor"] as const;
   const isInternal = (INTERNAL_ROLES as readonly string[]).includes(session.user.role);
-
-  const fileTimeSessions = await prisma.fileTimeSession.findMany({
-    where: { transactionId: id },
-    select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
-  }).catch(() => []);
 
   const liveCutoff = new Date(Date.now() - 5 * 60 * 1000);
   const closedSessions = fileTimeSessions.filter((s) => s.endedAt !== null && (s.totalEngagedSeconds ?? 0) > 0);
@@ -430,23 +474,6 @@ export default async function AgentTransactionDetailPage({
     lastActiveAt: mostRecentActivity,
     hasLiveSession,
   };
-
-  const brokerRow = await Promise.resolve().then(() =>
-    prisma.propertyTransaction.findFirst({
-      // Internal staff: fetch by id only (agencyId not applicable).
-      // Agents: filter by agencyId to enforce ownership.
-      where: isInternalStaff ? { id } : { id, agencyId: session.user.agencyId },
-      select: {
-        brokerFirmId: true,
-        brokerContactId: true,
-        brokerReferralFee: true,
-        brokerReferralFeeReceived: true,
-        purchaserBrokerReferral: true,
-        brokerFirm: { select: { id: true, name: true } },
-        brokerContact: { select: { id: true, name: true } },
-      },
-    })
-  ).catch(() => null);
 
   const sidebar = (
     <TransactionSidebar
