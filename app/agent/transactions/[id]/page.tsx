@@ -493,6 +493,17 @@ export default async function AgentTransactionDetailPage({
       fileTime={fileTime}
       isInternal={isInternal}
       hideCommercialFields={isProgressor && !isAdminRole}
+      agentSlot={
+        showReassign && assignableAgents.length > 1 ? (
+          <ReassignOwnerControl
+            transactionId={transaction.id}
+            currentAgentUserId={transaction.agentUserId ?? null}
+            currentAgentName={assignedDisplayName}
+            currentUserId={session.user.id}
+            assignableAgents={assignableAgents}
+          />
+        ) : undefined
+      }
     />
   );
 
@@ -533,33 +544,6 @@ export default async function AgentTransactionDetailPage({
         inChain={!!transaction.chainLinkId}
         isAdminViewer={isAdminRole}
       />
-
-      {/* Director-only reassign strip — slim row below the hero with the
-        * current owner name plus a "Reassign" link that opens the picker
-        * modal. Hidden for outsourced files, hidden for negotiators, and
-        * hidden when the agency only has one assignable user. */}
-      {showReassign && assignableAgents.length > 1 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "8px 16px 0",
-            fontSize: 11,
-            color: "var(--agent-text-muted)",
-          }}
-        >
-          <span>Owner: <strong style={{ color: "var(--agent-text-secondary)" }}>{assignedDisplayName ?? "Unassigned"}</strong></span>
-          <ReassignOwnerControl
-            transactionId={transaction.id}
-            currentAgentUserId={transaction.agentUserId ?? null}
-            currentAgentName={assignedDisplayName}
-            currentUserId={session.user.id}
-            assignableAgents={assignableAgents}
-          />
-        </div>
-      )}
 
       <PropertyFileTabs
         tabs={tabs}

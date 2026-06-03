@@ -54,6 +54,11 @@ type Props = {
   isInternal?: boolean;
   canEditSaleDetails?: boolean;
   hideCommercialFields?: boolean;
+  // Optional content rendered at the bottom of the Agent card. Used by
+  // the file detail page to inject the director-only "Reassign" control
+  // (ReassignOwnerControl). Sidebar stays oblivious to the feature —
+  // anyone needing to extend the agent card slots their own JSX here.
+  agentSlot?: React.ReactNode;
 };
 
 function fmtTime(seconds: number): string {
@@ -143,7 +148,7 @@ function ProgressRing({ percent, size = 72, strokeWidth = 6 }: { percent: number
   );
 }
 
-export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverride, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true, hideCommercialFields = false }: Props) {
+export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverride, agentUser, progress, keyDates = [], exchangeConfirmed = false, showOurFee = true, recommendedFirms, fileTime, isInternal = false, canEditSaleDetails = true, hideCommercialFields = false, agentSlot }: Props) {
   const [showEditDrawer, setShowEditDrawer] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -406,6 +411,7 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
           <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
           {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
           <p className="text-xs text-slate-900/40 mt-0.5">{agentUser.email}</p>
+          {agentSlot && <div className="mt-3">{agentSlot}</div>}
         </div>
       )}
 
@@ -702,6 +708,7 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
                   <p style={{ margin: "0 0 1px", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
                 )}
                 <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
+                {agentSlot && <div style={{ marginTop: 10 }}>{agentSlot}</div>}
               </div>
             )}
 

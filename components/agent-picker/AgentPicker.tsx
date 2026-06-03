@@ -57,10 +57,9 @@ export function AgentPicker({
       >
         {agents.map((a) => {
           const isMe = a.id === currentUserId;
-          const roleLabel = a.role === "director" ? "Director" : "Negotiator";
           return (
             <option key={a.id} value={a.id}>
-              {a.name}{isMe ? " (you)" : ""} · {roleLabel}
+              {a.name}{isMe ? " (you)" : ""}
             </option>
           );
         })}
