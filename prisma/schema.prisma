@@ -42,40 +42,40 @@ model Agency {
   // PropertyTransaction.freeOnExchange is computed at create time from
   // (now - firstSubmissionAt <= 7 days) and persisted on the row; this field is only
   // re-read on subsequent creates to evaluate the trial window for the next file.
-  firstSubmissionAt          DateTime?
+  firstSubmissionAt DateTime?
 
   // VAT scaffolding — present day one so the future flip is config, not migration.
   // While vatRegisteredAt is null, invoice rendering shows the inclusive total only.
   // When set, rendering splits the line into ex-VAT amount + VAT line at vatRateBps.
-  vatRegisteredAt            DateTime?
-  vatRateBps                 Int?         // basis points: 2000 = 20%
+  vatRegisteredAt DateTime?
+  vatRateBps      Int? // basis points: 2000 = 20%
 
   // Stripe + payment lifecycle.
-  stripeCustomerId           String?
-  paymentFailedAt            DateTime?    // Set by Stripe webhook on invoice.payment_failed
-  newFileCreationBlockedAt   DateTime?    // Set by check-failed-payments cron ~7d after paymentFailedAt
+  stripeCustomerId         String?
+  paymentFailedAt          DateTime? // Set by Stripe webhook on invoice.payment_failed
+  newFileCreationBlockedAt DateTime? // Set by check-failed-payments cron ~7d after paymentFailedAt
 
   // Per-agency fee tier — overrides the £250/£300/£350 outsourced sliding scale
   // when set to "legacy". calculateOurFee checks this first; if "standard" (the
   // default) the existing per-SP sliding scale applies. Self-managed (£59) is
   // never affected by this override. Set via /agent/admin by ellis.
-  feeTier                    ClientType   @default(standard)
-  legacyOutsourcedFeePence   Int?         // Required when feeTier=legacy, null otherwise
+  feeTier                  ClientType @default(standard)
+  legacyOutsourcedFeePence Int? // Required when feeTier=legacy, null otherwise
 
-  users                    User[]
-  transactions             PropertyTransaction[]
-  manualTasks              ManualTask[]
-  chains                   PropertyChain[]
-  verifiedDomains          VerifiedDomain[]
-  recommendedSolicitors    AgencyRecommendedSolicitor[]
-  preferredBroker          AgencyPreferredBroker?
-  feedbackSubmissions      FeedbackSubmission[]
-  negotiatorInvitations    NegotiatorInvitation[]
-  directorInvitations      DirectorInvitation[]
-  fileTimeSessions         FileTimeSession[]
-  invoices                 Invoice[]
-  pricingAcknowledgements  PricingAcknowledgement[]
-  creditNotes              CreditNote[]
+  users                   User[]
+  transactions            PropertyTransaction[]
+  manualTasks             ManualTask[]
+  chains                  PropertyChain[]
+  verifiedDomains         VerifiedDomain[]
+  recommendedSolicitors   AgencyRecommendedSolicitor[]
+  preferredBroker         AgencyPreferredBroker?
+  feedbackSubmissions     FeedbackSubmission[]
+  negotiatorInvitations   NegotiatorInvitation[]
+  directorInvitations     DirectorInvitation[]
+  fileTimeSessions        FileTimeSession[]
+  invoices                Invoice[]
+  pricingAcknowledgements PricingAcknowledgement[]
+  creditNotes             CreditNote[]
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -88,24 +88,24 @@ enum AgencyModeProfile {
 }
 
 model User {
-  id              String     @id @default(cuid())
-  name            String
-  email           String     @unique
-  password        String?
-  totpSecret      String?
-  totpActivatedAt DateTime?
-  role            UserRole   @default(viewer)
-  agencyId        String?
-  firmName        String?
-  progressorId    String?
-  clientType      ClientType @default(standard)
-  legacyFee       Int?
-  phone                String?
-  canViewAllFiles      Boolean    @default(false)
-  hasSeenAgentWelcome  Boolean    @default(false)
-  isInternal           Boolean    @default(false)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  password            String?
+  totpSecret          String?
+  totpActivatedAt     DateTime?
+  role                UserRole   @default(viewer)
+  agencyId            String?
+  firmName            String?
+  progressorId        String?
+  clientType          ClientType @default(standard)
+  legacyFee           Int?
+  phone               String?
+  canViewAllFiles     Boolean    @default(false)
+  hasSeenAgentWelcome Boolean    @default(false)
+  isInternal          Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   agency               Agency?               @relation(fields: [agencyId], references: [id])
   progressor           User?                 @relation("ProgressorAgents", fields: [progressorId], references: [id])
@@ -115,11 +115,11 @@ model User {
   pausedTransactions   PropertyTransaction[] @relation("PausedTransactions")
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
   chaseTasks           ChaseTask[]
-  communications       OutboundMessage[] @relation("CommCreatedBy")
+  communications       OutboundMessage[]     @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
 
-  retentionEmailOptOut    Boolean   @default(false)
-  emailUnsubscribedAt     DateTime?
+  retentionEmailOptOut Boolean   @default(false)
+  emailUnsubscribedAt  DateTime?
 
   // Set by sendWelcomeEmailIfNotSent when the user receives the instant
   // welcome (password signup completion + OAuth signup completion). Used as
@@ -127,14 +127,14 @@ model User {
   // and short-circuits if already stamped. The day-1 retention cron skips
   // any user where this is non-null, preventing the duplicate-send window
   // where someone signed up + didn't add a sale by 09:00 UTC the next day.
-  welcomeEmailSentAt      DateTime?
+  welcomeEmailSentAt DateTime?
 
   // Portal-invite prompt skip tracking. Surfaced to internal staff on the
   // Command Centre overview ("how many agents are opting out of the portal
   // at sale-creation time"). Incremented atomically by /api/agent/portal-invite-skip
   // when the agent clicks "I won't be using the portal" on the new-sale form.
-  portalInviteSkipCount    Int       @default(0)
-  lastPortalInviteSkipAt   DateTime?
+  portalInviteSkipCount  Int       @default(0)
+  lastPortalInviteSkipAt DateTime?
 
   // In-app notification: negotiator sees this when their invited director accepts
   directorJoinedNotificationName String?
@@ -144,33 +144,33 @@ model User {
   chainDeclineNotificationAddress String?
   chainDeclineNotificationAt      DateTime?
 
-  emailVerified        DateTime?
-  image                String?
-  accounts             Account[]
-  sessions             Session[]
-  transactionNotes     TransactionNote[]
-  createdManualTasks   ManualTask[]       @relation("ManualTaskCreator")
-  assignedManualTasks  ManualTask[]       @relation("ManualTaskAssignee")
-  createdDomains       VerifiedDomain[]   @relation("DomainCreatedBy")
-  verifiedEmails       UserVerifiedEmail[]
-  feedbackSubmissions  FeedbackSubmission[]
+  emailVerified          DateTime?
+  image                  String?
+  accounts               Account[]
+  sessions               Session[]
+  transactionNotes       TransactionNote[]
+  createdManualTasks     ManualTask[]            @relation("ManualTaskCreator")
+  assignedManualTasks    ManualTask[]            @relation("ManualTaskAssignee")
+  createdDomains         VerifiedDomain[]        @relation("DomainCreatedBy")
+  verifiedEmails         UserVerifiedEmail[]
+  feedbackSubmissions    FeedbackSubmission[]
   agentPushSubscriptions AgentPushSubscription[]
-  retentionEmailLogs    RetentionEmailLog[]
-  commandPreferences    Json?
-  agentPreferences      Json?
-  createdChains         PropertyChain[]  @relation("ChainCreatedBy")
-  createdChainLinks     ChainLink[]      @relation("ChainLinkCreatedBy")
-  claimedChainLinks     ChainLink[]      @relation("ChainLinkClaimedBy")
-  lastInvitedChainLinks ChainLink[]      @relation("ChainLinkLastInviteSentBy")
+  retentionEmailLogs     RetentionEmailLog[]
+  commandPreferences     Json?
+  agentPreferences       Json?
+  createdChains          PropertyChain[]         @relation("ChainCreatedBy")
+  createdChainLinks      ChainLink[]             @relation("ChainLinkCreatedBy")
+  claimedChainLinks      ChainLink[]             @relation("ChainLinkClaimedBy")
+  lastInvitedChainLinks  ChainLink[]             @relation("ChainLinkLastInviteSentBy")
 
-  negotiatorInvitationsSent     NegotiatorInvitation[] @relation("NegotiatorInvitationsSent")
-  negotiatorInvitationsAccepted NegotiatorInvitation[] @relation("NegotiatorInvitationsAccepted")
-  invitationsSent               DirectorInvitation[]   @relation("InvitationsSent")
-  invitationsAccepted           DirectorInvitation[]   @relation("InvitationsAccepted")
+  negotiatorInvitationsSent     NegotiatorInvitation[]   @relation("NegotiatorInvitationsSent")
+  negotiatorInvitationsAccepted NegotiatorInvitation[]   @relation("NegotiatorInvitationsAccepted")
+  invitationsSent               DirectorInvitation[]     @relation("InvitationsSent")
+  invitationsAccepted           DirectorInvitation[]     @relation("InvitationsAccepted")
   fileTimeSessions              FileTimeSession[]
   notifications                 Notification[]
-  outboundEmailQueueAsRecipient OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientUser")
-  editedEmailQueueRows          OutboundEmailQueue[] @relation("EmailQueueEditedBy")
+  outboundEmailQueueAsRecipient OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientUser")
+  editedEmailQueueRows          OutboundEmailQueue[]     @relation("EmailQueueEditedBy")
   chainNotifications            ChainNotificationQueue[]
   holdsStarted                  TransactionHoldPeriod[]  @relation("HoldStartedBy")
   holdsEnded                    TransactionHoldPeriod[]  @relation("HoldEndedBy")
@@ -221,41 +221,41 @@ enum ProgressedBy {
 }
 
 model PropertyTransaction {
-  id                           String            @id @default(cuid())
-  propertyAddress              String
-  status                       TransactionStatus @default(active)
-  agencyId                     String
-  assignedUserId               String?
-  assignedAt                   DateTime?
-  agentUserId                  String?
-  progressedBy                 ProgressedBy      @default(progressor)
-  serviceType                  ServiceType       @default(self_managed)
-  expectedExchangeDate         DateTime?
-  purchasePrice                Int?
-  tenure                       Tenure?
-  purchaseType                 PurchaseType?
-  isShareOfFreehold            Boolean               @default(false)
-  twelveWeekTarget             DateTime?
-  predictedExchangeDate        DateTime?
-  overridePredictedDate        DateTime?
-  completionDate               DateTime?
-  agentFeeAmount               Int?
-  agentFeePercent              Decimal?
-  agentFeeIsVatInclusive       Boolean?
-  notes                        String?
-  fallThroughReason            String?
-  referredFirmId               String?
-  referralFee                  Int?
-  referralFeeReceived          Boolean               @default(false)
-  vendorSolicitorFirmId        String?
-  vendorSolicitorContactId     String?
-  purchaserSolicitorFirmId     String?
-  purchaserSolicitorContactId  String?
-  brokerFirmId                 String?
-  brokerContactId              String?
-  brokerReferralFee            Int?
-  brokerReferralFeeReceived    Boolean               @default(false)
-  purchaserBrokerReferral      Boolean               @default(false)
+  id                          String            @id @default(cuid())
+  propertyAddress             String
+  status                      TransactionStatus @default(active)
+  agencyId                    String
+  assignedUserId              String?
+  assignedAt                  DateTime?
+  agentUserId                 String?
+  progressedBy                ProgressedBy      @default(progressor)
+  serviceType                 ServiceType       @default(self_managed)
+  expectedExchangeDate        DateTime?
+  purchasePrice               Int?
+  tenure                      Tenure?
+  purchaseType                PurchaseType?
+  isShareOfFreehold           Boolean           @default(false)
+  twelveWeekTarget            DateTime?
+  predictedExchangeDate       DateTime?
+  overridePredictedDate       DateTime?
+  completionDate              DateTime?
+  agentFeeAmount              Int?
+  agentFeePercent             Decimal?
+  agentFeeIsVatInclusive      Boolean?
+  notes                       String?
+  fallThroughReason           String?
+  referredFirmId              String?
+  referralFee                 Int?
+  referralFeeReceived         Boolean           @default(false)
+  vendorSolicitorFirmId       String?
+  vendorSolicitorContactId    String?
+  purchaserSolicitorFirmId    String?
+  purchaserSolicitorContactId String?
+  brokerFirmId                String?
+  brokerContactId             String?
+  brokerReferralFee           Int?
+  brokerReferralFeeReceived   Boolean           @default(false)
+  purchaserBrokerReferral     Boolean           @default(false)
 
   // True when this file was added via the admin Migrate Sale page rather
   // than the standard create flow. Used to EXCLUDE backdated/historical
@@ -263,18 +263,18 @@ model PropertyTransaction {
   // are user-supplied estimates, not real-time signals, so averaging them
   // against organic files pollutes "time between milestone X and Y"
   // statistics. Set true by the migration action; defaults false.
-  isMigrated                   Boolean           @default(false)
+  isMigrated Boolean @default(false)
 
-  lastActivityAt               DateTime?
+  lastActivityAt DateTime?
 
   // Per-file pause toggle for automated client-facing chase emails. When
   // true, the client-chase cron skips digest enqueue for this file. The
   // chase clock keeps running underneath and escalation still fires —
   // pausing emails MUST NOT block the file from flagging to the team.
   // Toggled via the AutomationControls panel on the transaction-detail page.
-  clientEmailsPaused           Boolean           @default(false)
-  pausedAt                     DateTime?         // When clientEmailsPaused was last set to true
-  pausedById                   String?           // Which user toggled the pause on
+  clientEmailsPaused Boolean   @default(false)
+  pausedAt           DateTime? // When clientEmailsPaused was last set to true
+  pausedById         String? // Which user toggled the pause on
 
   // Temporary internal-staff debug toggle. When true, the buyer/seller
   // portal confirmation email (sendAdminMilestoneNotificationToPortal)
@@ -282,8 +282,8 @@ model PropertyTransaction {
   // notifications, celebrations, reminder knock-on, DB writes) still
   // fire. SP/admin/superadmin only via the UI. Audit fields below let
   // us SQL-audit forgotten toggles. Default false = emails send.
-  suppressPortalConfirmEmails       Boolean   @default(false)
-  suppressPortalConfirmEmailsSetAt  DateTime?
+  suppressPortalConfirmEmails        Boolean   @default(false)
+  suppressPortalConfirmEmailsSetAt   DateTime?
   suppressPortalConfirmEmailsSetById String?
 
   // Per-transaction snapshot of chase rule values at creation time. JSON
@@ -294,64 +294,132 @@ model PropertyTransaction {
   // files keep their original schedule. Backfilled at migration time
   // for existing transactions. Defensive fallback: cron uses live
   // ReminderRule if snapshot is missing.
-  chaseRuleSnapshot            Json?
+  chaseRuleSnapshot Json?
 
   // Payments — frozen trial flag.
   // Stamped at create time from (now - agency.firstSubmissionAt <= 7 days). NEVER recomputed.
   // Trial files exchange normally but do not generate a charge.
-  freeOnExchange               Boolean           @default(false)
+  freeOnExchange Boolean @default(false)
 
   // Set on VM19/PM26 completion for ALL files (trial and paying alike). Idempotent.
   // "Did this file exchange?" — answer.
-  exchangedAt                  DateTime?
+  exchangedAt DateTime?
 
   // Set on VM19/PM26 completion ONLY when the exchange generates a charge.
   // Trial files leave this null. Guard against bilateral double-billing — checked
   // before write so the bilateral partner's auto-complete is a no-op.
   // "Did this file bill?" — answer.
-  billedAtExchange             DateTime?
+  billedAtExchange DateTime?
 
   // Snapshot of purchasePrice at the moment of exchange. Billing reads from this
   // snapshot, not the live purchasePrice field — immune to later price edits.
-  priceAtExchange              Int?              // pence
+  priceAtExchange Int? // pence
 
-  createdAt                    DateTime          @default(now())
-  updatedAt                    DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  agency                     Agency                @relation(fields: [agencyId], references: [id])
-  assignedUser               User?                 @relation("AssignedUser", fields: [assignedUserId], references: [id])
-  agentUser                  User?                 @relation("AgentFiles", fields: [agentUserId], references: [id])
-  pausedBy                   User?                 @relation("PausedTransactions", fields: [pausedById], references: [id])
-  contacts                   Contact[]
-  vendorSolicitorFirm        SolicitorFirm?        @relation("VendorSolicitorFirm",    fields: [vendorSolicitorFirmId],    references: [id])
-  vendorSolicitorContact     SolicitorContact?     @relation("VendorSolicitorContact",  fields: [vendorSolicitorContactId],  references: [id])
-  purchaserSolicitorFirm     SolicitorFirm?        @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
-  purchaserSolicitorContact  SolicitorContact?     @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
-  referredFirm               SolicitorFirm?        @relation("ReferredFirm",           fields: [referredFirmId],           references: [id])
-  brokerFirm                 BrokerFirm?           @relation(fields: [brokerFirmId],    references: [id])
-  brokerContact              BrokerContact?        @relation(fields: [brokerContactId], references: [id])
-  milestoneCompletions       MilestoneCompletion[]
-  reminderLogs               ReminderLog[]
-  chaseTasks                 ChaseTask[]
-  communications             OutboundMessage[]
-  priceHistory               PriceHistory[]
-  transactionNotes           TransactionNote[]
-  manualTasks                ManualTask[]
-  chainLinkId                String?       @unique
-  chainLinks                 ChainLink[]   @relation("ChainLinkToTransaction")
-  chainLink                  ChainLink?    @relation("TransactionActiveLink", fields: [chainLinkId], references: [id])
-  portalMessages             PortalMessage[]
-  documents                  TransactionDocument[]
-  flags                      TransactionFlag[]
+  agency                           Agency                            @relation(fields: [agencyId], references: [id])
+  assignedUser                     User?                             @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
+  pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
+  contacts                         Contact[]
+  vendorSolicitorFirm              SolicitorFirm?                    @relation("VendorSolicitorFirm", fields: [vendorSolicitorFirmId], references: [id])
+  vendorSolicitorContact           SolicitorContact?                 @relation("VendorSolicitorContact", fields: [vendorSolicitorContactId], references: [id])
+  purchaserSolicitorFirm           SolicitorFirm?                    @relation("PurchaserSolicitorFirm", fields: [purchaserSolicitorFirmId], references: [id])
+  purchaserSolicitorContact        SolicitorContact?                 @relation("PurchaserSolicitorContact", fields: [purchaserSolicitorContactId], references: [id])
+  referredFirm                     SolicitorFirm?                    @relation("ReferredFirm", fields: [referredFirmId], references: [id])
+  brokerFirm                       BrokerFirm?                       @relation(fields: [brokerFirmId], references: [id])
+  brokerContact                    BrokerContact?                    @relation(fields: [brokerContactId], references: [id])
+  milestoneCompletions             MilestoneCompletion[]
+  reminderLogs                     ReminderLog[]
+  chaseTasks                       ChaseTask[]
+  communications                   OutboundMessage[]
+  priceHistory                     PriceHistory[]
+  transactionNotes                 TransactionNote[]
+  manualTasks                      ManualTask[]
+  chainLinkId                      String?                           @unique
+  chainLinks                       ChainLink[]                       @relation("ChainLinkToTransaction")
+  chainLink                        ChainLink?                        @relation("TransactionActiveLink", fields: [chainLinkId], references: [id])
+  portalMessages                   PortalMessage[]
+  documents                        TransactionDocument[]
+  flags                            TransactionFlag[]
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
-  invoiceLines               InvoiceLine[]
-  creditNotes                CreditNote[]
-  fileTimeSessions           FileTimeSession[]
-  notifications              Notification[]
-  clientChaseStates          ClientChaseState[]
-  holdPeriods                TransactionHoldPeriod[]
+  invoiceLines                     InvoiceLine[]
+  creditNotes                      CreditNote[]
+  fileTimeSessions                 FileTimeSession[]
+  notifications                    Notification[]
+  clientChaseStates                ClientChaseState[]
+  holdPeriods                      TransactionHoldPeriod[]
+
+  // Phase 0 of the relist feature — shadow only. No reads or writes
+  // currently consume these fields; populated by backfill so the
+  // foundation is in place for Phase 1 cutover. See
+  // docs/active/relist-feature/ (Phase 0 plan).
+  buyerRounds        BuyerRound[] @relation("TransactionBuyerRounds")
+  activeBuyerRoundId String?      @unique
+  activeBuyerRound   BuyerRound?  @relation("ActiveBuyerRound", fields: [activeBuyerRoundId], references: [id], onDelete: SetNull)
 
   @@index([serviceType, createdAt])
+}
+
+// Phase 0 of the relist feature — shadow foundation only. One BuyerRound
+// per (transaction, attempt). Round 1 is backfilled onto every existing
+// transaction. status, archivedAt, and the snapshot columns are NOT yet
+// consumed by any read path; the live source of truth for buyer-side
+// fields remains PropertyTransaction until Phase 1 cuts reads over.
+//
+// Round status semantics: tracks the buyer relationship, not the sale
+// outcome. A completed transaction can have an active round. A withdrawn
+// transaction is left with an active round in backfill — Phase 1
+// reconciliation will set genuinely fallen-through rounds to withdrawn
+// (carrying over PropertyTransaction.fallThroughReason) BEFORE round
+// status drives any behaviour. Status must not go live unreconciled.
+model BuyerRound {
+  id            String              @id @default(cuid())
+  transactionId String
+  transaction   PropertyTransaction @relation("TransactionBuyerRounds", fields: [transactionId], references: [id], onDelete: Cascade)
+
+  roundNumber       Int
+  status            BuyerRoundStatus @default(active)
+  fallThroughReason String?
+
+  // Point-in-time snapshots of PropertyTransaction buyer-side fields.
+  // Backfilled from the transaction at round creation. Will be
+  // re-synced from PropertyTransaction at Phase 1 cutover rather than
+  // trusted as-is.
+  purchasePrice               Int?
+  purchaserSolicitorFirmId    String?
+  purchaserSolicitorContactId String?
+  brokerFirmId                String?
+  brokerContactId             String?
+
+  createdAt  DateTime  @default(now())
+  archivedAt DateTime?
+
+  // Reverse relations — all nullable on the child side. No read path
+  // consumes these in Phase 0.
+  contacts             Contact[]
+  milestoneCompletions MilestoneCompletion[]
+  outboundMessages     OutboundMessage[]
+  portalMessages       PortalMessage[]
+  documents            TransactionDocument[]
+  reminderLogs         ReminderLog[]
+  chaseTasks           ChaseTask[]
+  priceHistory         PriceHistory[]
+  clientChaseStates    ClientChaseState[]
+
+  // Inverse of PropertyTransaction.activeBuyerRoundId.
+  activeForTransaction PropertyTransaction? @relation("ActiveBuyerRound")
+
+  @@unique([transactionId, roundNumber])
+  @@index([transactionId])
+  @@index([status])
+}
+
+enum BuyerRoundStatus {
+  active
+  withdrawn
+  superseded
 }
 
 // Audit + duration tracking for periods where a transaction is on hold.
@@ -361,7 +429,7 @@ model PropertyTransaction {
 // time-based signals (on_track, weeks elapsed, predicted exchange) freeze
 // while paused, and so platform median calculations can subtract hold time.
 model TransactionHoldPeriod {
-  id            String              @id @default(cuid())
+  id            String    @id @default(cuid())
   transactionId String
   startedAt     DateTime
   startedById   String
@@ -372,11 +440,11 @@ model TransactionHoldPeriod {
   // holds" widget: surfaces files whose plannedEndAt has passed but no
   // human has yet decided to take off hold or extend.
   plannedEndAt  DateTime?
-  createdAt     DateTime            @default(now())
+  createdAt     DateTime  @default(now())
 
-  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  startedBy     User                @relation("HoldStartedBy", fields: [startedById], references: [id])
-  endedBy       User?               @relation("HoldEndedBy",   fields: [endedById],   references: [id])
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  startedBy   User                @relation("HoldStartedBy", fields: [startedById], references: [id])
+  endedBy     User?               @relation("HoldEndedBy", fields: [endedById], references: [id])
 
   @@index([transactionId, endedAt])
   @@index([endedAt, plannedEndAt])
@@ -423,7 +491,13 @@ model PriceHistory {
   reason        String?
   createdAt     DateTime @default(now())
 
+  // Phase 0 shadow attribution. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([buyerRoundId])
 }
 
 model Contact {
@@ -450,12 +524,18 @@ model Contact {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  transaction       PropertyTransaction @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
+  // Phase 0 shadow attribution. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
+  transaction       PropertyTransaction      @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
   pushSubscriptions PortalPushSubscription[]
   portalMessages    PortalMessage[]
   documents         TransactionDocument[]
-  outboundEmails    OutboundEmailQueue[] @relation("OutboundEmailQueueRecipientContact")
+  outboundEmails    OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
   clientChaseStates ClientChaseState[]
+
+  @@index([buyerRoundId])
 }
 
 model PortalPushSubscription {
@@ -470,19 +550,24 @@ model PortalPushSubscription {
 }
 
 model PortalMessage {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   transactionId String
   contactId     String
   content       String
-  fromClient    Boolean   @default(true)
+  fromClient    Boolean  @default(true)
   sentById      String?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime @default(now())
 
-  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  contact       Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  sentBy        User?               @relation("PortalMessagesSentBy", fields: [sentById], references: [id])
+  // Phase 0 shadow attribution. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  contact     Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sentBy      User?               @relation("PortalMessagesSentBy", fields: [sentById], references: [id])
 
   @@index([transactionId, contactId, createdAt])
+  @@index([buyerRoundId])
 }
 
 model SolicitorFirm {
@@ -491,10 +576,10 @@ model SolicitorFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  handlers SolicitorContact[]
-  vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorFirm")
-  purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorFirm")
-  referredForTransactions  PropertyTransaction[] @relation("ReferredFirm")
+  handlers                 SolicitorContact[]
+  vendorForTransactions    PropertyTransaction[]        @relation("VendorSolicitorFirm")
+  purchaserForTransactions PropertyTransaction[]        @relation("PurchaserSolicitorFirm")
+  referredForTransactions  PropertyTransaction[]        @relation("ReferredFirm")
   recommendations          AgencyRecommendedSolicitor[]
 
   @@unique([name])
@@ -524,7 +609,7 @@ model SolicitorContact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firm SolicitorFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  firm                     SolicitorFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
   vendorForTransactions    PropertyTransaction[] @relation("VendorSolicitorContact")
   purchaserForTransactions PropertyTransaction[] @relation("PurchaserSolicitorContact")
 }
@@ -550,7 +635,7 @@ model BrokerContact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  firm         BrokerFirm           @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  firm         BrokerFirm            @relation(fields: [firmId], references: [id], onDelete: Cascade)
   transactions PropertyTransaction[]
 }
 
@@ -577,18 +662,18 @@ enum ContactRole {
 // â”€â”€â”€ MilestoneDefinition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model MilestoneDefinition {
-  id              String        @id @default(cuid())
-  code            String        @unique
-  name            String
-  side            MilestoneSide
-  orderIndex      Int
-  blocksExchange     Boolean       @default(true)
-  eventDateRequired  Boolean       @default(false)
-  predecessorCode    String?
-  canBeMarkedNr      CanBeMarkedNr @default(never)
-  summaryTemplate String        @default("")
-  weight          Decimal       @default(0)
-  createdAt       DateTime      @default(now())
+  id                String        @id @default(cuid())
+  code              String        @unique
+  name              String
+  side              MilestoneSide
+  orderIndex        Int
+  blocksExchange    Boolean       @default(true)
+  eventDateRequired Boolean       @default(false)
+  predecessorCode   String?
+  canBeMarkedNr     CanBeMarkedNr @default(never)
+  summaryTemplate   String        @default("")
+  weight            Decimal       @default(0)
+  createdAt         DateTime      @default(now())
 
   completions   MilestoneCompletion[]
   reminderRules ReminderRule[]        @relation("AnchorMilestone")
@@ -624,12 +709,18 @@ model MilestoneCompletion {
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
+  // Phase 0 shadow attribution. Backfilled for PM-side milestones only.
+  // Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
   transaction         PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
   completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
 
   @@unique([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
+  @@index([buyerRoundId])
 }
 
 // â”€â”€â”€ ReminderRule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -665,12 +756,18 @@ model ReminderLog {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
+  // Phase 0 shadow attribution. Backfilled for PM-prefixed
+  // targetMilestoneCode rules only. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
   transaction  PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   reminderRule ReminderRule        @relation(fields: [reminderRuleId], references: [id])
   chaseTasks   ChaseTask[]
 
   @@index([transactionId, reminderRuleId])
   @@index([status, nextDueDate])
+  @@index([buyerRoundId])
 }
 
 enum ReminderLogStatus {
@@ -709,14 +806,20 @@ model ChaseTask {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  transaction    PropertyTransaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  reminderLog    ReminderLog           @relation(fields: [reminderLogId], references: [id])
-  assignedTo     User?                 @relation(fields: [assignedToId], references: [id])
+  // Phase 0 shadow attribution. Inherited from the parent ReminderLog's
+  // attribution. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
+  transaction    PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  reminderLog    ReminderLog         @relation(fields: [reminderLogId], references: [id])
+  assignedTo     User?               @relation(fields: [assignedToId], references: [id])
   communications OutboundMessage[]
 
   @@index([transactionId])
   @@index([status, dueDate])
   @@index([priority, status])
+  @@index([buyerRoundId])
 }
 
 enum ChaseTaskStatus {
@@ -732,13 +835,13 @@ enum TaskPriority {
 }
 
 model OutboundMessage {
-  id              String          @id @default(cuid())
-  agencyId        String?
+  id       String  @id @default(cuid())
+  agencyId String?
 
   // Channel + purpose (command centre fields)
-  channel         OutboundChannel @default(email)
-  purpose         OutboundPurpose @default(chase)
-  status          OutboundStatus  @default(sent)
+  channel OutboundChannel @default(email)
+  purpose OutboundPurpose @default(chase)
+  status  OutboundStatus  @default(sent)
 
   // Routing â€” transactionId is nullable (non-transaction messages: LinkedIn, digest, etc.)
   transactionId   String?
@@ -748,20 +851,20 @@ model OutboundMessage {
   recipientHandle String?
 
   // Content â€” legacy fields kept for backward compat
-  type            CommType
-  method          CommMethod?
-  contactIds      String[]
-  content         String
-  subject         String?
-  bodyFormat      String          @default("plain")
+  type       CommType
+  method     CommMethod?
+  contactIds String[]
+  content    String
+  subject    String?
+  bodyFormat String      @default("plain")
 
   // Legacy AI fields
   generatedText   String?
   tone            String?
-  wasAiGenerated  Boolean         @default(false)
-  wasEdited       Boolean         @default(false)
-  isAutomated     Boolean         @default(false)
-  visibleToClient Boolean         @default(false)
+  wasAiGenerated  Boolean @default(false)
+  wasEdited       Boolean @default(false)
+  isAutomated     Boolean @default(false)
+  visibleToClient Boolean @default(false)
   ccEmails        String?
 
   // New AI provenance
@@ -772,23 +875,23 @@ model OutboundMessage {
   aiCostCents     Int?
 
   // Lifecycle
-  createdById     String?
-  createdByRole   String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  scheduledFor    DateTime?
-  sentAt          DateTime?
-  deliveredAt     DateTime?
-  openedAt        DateTime?
-  clickedAt       DateTime?
-  failedAt        DateTime?
-  failureReason   String?
+  createdById   String?
+  createdByRole String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  scheduledFor  DateTime?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+  failedAt      DateTime?
+  failureReason String?
 
   // Approval (Phase 5 LinkedIn flow)
-  requiresApproval  Boolean       @default(false)
-  approvedByUserId  String?
-  approvedAt        DateTime?
-  editedByHuman     Boolean       @default(false)
+  requiresApproval Boolean   @default(false)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  editedByHuman    Boolean   @default(false)
 
   // Provider data
   providerMessageId   String?
@@ -797,6 +900,13 @@ model OutboundMessage {
   // Bulk-import provenance: groups rows inserted together by WhatsApp chat import.
   // Null for normal single-comm rows. Enables undo by deleteMany on this batch.
   importBatchId String?
+
+  // Phase 0 shadow attribution. Stamped only when EVERY contactId on
+  // the row resolves to a purchaser-role Contact (and at least one
+  // exists). Mixed-side, vendor-only, or solicitor-only rows stay
+  // file-level (NULL). Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
@@ -809,6 +919,7 @@ model OutboundMessage {
   @@index([purpose, createdAt])
   @@index([sentAt])
   @@index([importBatchId])
+  @@index([buyerRoundId])
 }
 
 enum CommType {
@@ -884,38 +995,46 @@ model TransactionDocument {
   source        String   @default("portal")
   createdAt     DateTime @default(now())
 
+  // Phase 0 shadow attribution. Stamped only for docs whose contactId
+  // resolves to a purchaser-role Contact. Null-contactId rows (memo
+  // of sale, agent uploads, file-level paperwork) stay file-level.
+  // Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   contact     Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([transactionId, createdAt])
+  @@index([buyerRoundId])
 }
 
 // â”€â”€â”€ ManualTask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ManualTask {
-  id             String           @id @default(cuid())
+  id                     String           @id @default(cuid())
   // Nullable since 2026-05-28: internal-staff self-assigned tasks
   // (isInternalSelfAssigned=true) can exist without an agency context
   // (e.g. a global personal note from /agent/to-do, no transaction link).
   // Agent-created tasks continue to require an agencyId.
-  agencyId       String?
-  transactionId  String?
-  title            String
-  notes            String?
-  progressorNote   String?
-  progressorNoteAt DateTime?
-  status           ManualTaskStatus @default(open)
-  assignedToId   String?
-  dueDate        DateTime?
-  isAgentRequest Boolean          @default(false)
+  agencyId               String?
+  transactionId          String?
+  title                  String
+  notes                  String?
+  progressorNote         String?
+  progressorNoteAt       DateTime?
+  status                 ManualTaskStatus @default(open)
+  assignedToId           String?
+  dueDate                DateTime?
+  isAgentRequest         Boolean          @default(false)
   // Internal self-assigned to-do — created by internal staff
   // (sales_progressor / admin / superadmin) and visible to every
   // internal staff member, regardless of creator. Mutually exclusive
   // in practice with isAgentRequest.
-  isInternalSelfAssigned Boolean   @default(false)
-  createdById    String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  isInternalSelfAssigned Boolean          @default(false)
+  createdById            String
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   agency      Agency?              @relation(fields: [agencyId], references: [id])
   transaction PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -972,15 +1091,15 @@ enum ChainDirection {
 }
 
 model PropertyChain {
-  id              String           @id @default(cuid())
-  agencyId        String
-  name            String?
-  createdByUserId String?
-  status          ChainStatus      @default(ACTIVE)
-  holdStatus      ChainHoldStatus?
+  id                String           @id @default(cuid())
+  agencyId          String
+  name              String?
+  createdByUserId   String?
+  status            ChainStatus      @default(ACTIVE)
+  holdStatus        ChainHoldStatus?
   celebrationSentAt DateTime?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   agency        Agency                   @relation(fields: [agencyId], references: [id])
   createdBy     User?                    @relation("ChainCreatedBy", fields: [createdByUserId], references: [id])
@@ -989,7 +1108,7 @@ model PropertyChain {
 }
 
 model ChainLink {
-  id              String    @id @default(cuid())
+  id              String  @id @default(cuid())
   chainId         String
   position        Int
   createdByUserId String?
@@ -1012,15 +1131,15 @@ model ChainLink {
   stubNotes           String?
 
   // Invite tracking
-  inviteStatus            InviteStatus @default(NOT_SENT)
-  inviteToken             String?      @unique
-  inviteTokenExpiresAt    DateTime?
-  inviteSentAt            DateTime?
-  inviteBouncedAt         DateTime?
-  inviteUnsubscribedAt    DateTime?
-  inviteDeclinedAt        DateTime?
-  inviteResendCount       Int          @default(0)
-  lastInviteSentByUserId  String?
+  inviteStatus           InviteStatus @default(NOT_SENT)
+  inviteToken            String?      @unique
+  inviteTokenExpiresAt   DateTime?
+  inviteSentAt           DateTime?
+  inviteBouncedAt        DateTime?
+  inviteUnsubscribedAt   DateTime?
+  inviteDeclinedAt       DateTime?
+  inviteResendCount      Int          @default(0)
+  lastInviteSentByUserId String?
 
   // Deferred (v1.1)
   withdrawalStatus      ChainWithdrawalStatus?
@@ -1029,12 +1148,12 @@ model ChainLink {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  chain                PropertyChain        @relation(fields: [chainId], references: [id], onDelete: Cascade)
-  transaction          PropertyTransaction? @relation("ChainLinkToTransaction", fields: [transactionId], references: [id])
-  activeForTransaction PropertyTransaction? @relation("TransactionActiveLink")
-  createdBy            User?                @relation("ChainLinkCreatedBy", fields: [createdByUserId], references: [id])
-  claimedBy            User?                @relation("ChainLinkClaimedBy", fields: [claimedByUserId], references: [id])
-  lastInviteSentBy     User?                @relation("ChainLinkLastInviteSentBy", fields: [lastInviteSentByUserId], references: [id])
+  chain                  PropertyChain            @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  transaction            PropertyTransaction?     @relation("ChainLinkToTransaction", fields: [transactionId], references: [id])
+  activeForTransaction   PropertyTransaction?     @relation("TransactionActiveLink")
+  createdBy              User?                    @relation("ChainLinkCreatedBy", fields: [createdByUserId], references: [id])
+  claimedBy              User?                    @relation("ChainLinkClaimedBy", fields: [claimedByUserId], references: [id])
+  lastInviteSentBy       User?                    @relation("ChainLinkLastInviteSentBy", fields: [lastInviteSentByUserId], references: [id])
   triggeredNotifications ChainNotificationQueue[] @relation("CascadeTrigger")
   receivedNotifications  ChainNotificationQueue[] @relation("CascadeRecipient")
 
@@ -1060,23 +1179,23 @@ model ChainLink {
 // WAITING response — single nudge, terminal thereafter.
 
 model ChainNotificationQueue {
-  id                String                 @id @default(cuid())
-  chainId           String
-  chain             PropertyChain          @relation(fields: [chainId], references: [id], onDelete: Cascade)
-  triggeringLinkId  String
-  triggeringLink    ChainLink              @relation("CascadeTrigger", fields: [triggeringLinkId], references: [id])
-  recipientLinkId   String
-  recipientLink     ChainLink              @relation("CascadeRecipient", fields: [recipientLinkId], references: [id])
-  recipientUserId   String
-  recipientUser     User                   @relation(fields: [recipientUserId], references: [id])
-  recipientEmail    String
-  type              ChainNotificationType
-  direction         ChainDirection
-  emailSentAt       DateTime?
-  response          ChainWithdrawalStatus?
-  respondedAt       DateTime?
-  nudgeSentAt       DateTime?
-  createdAt         DateTime               @default(now())
+  id               String                 @id @default(cuid())
+  chainId          String
+  chain            PropertyChain          @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  triggeringLinkId String
+  triggeringLink   ChainLink              @relation("CascadeTrigger", fields: [triggeringLinkId], references: [id])
+  recipientLinkId  String
+  recipientLink    ChainLink              @relation("CascadeRecipient", fields: [recipientLinkId], references: [id])
+  recipientUserId  String
+  recipientUser    User                   @relation(fields: [recipientUserId], references: [id])
+  recipientEmail   String
+  type             ChainNotificationType
+  direction        ChainDirection
+  emailSentAt      DateTime?
+  response         ChainWithdrawalStatus?
+  respondedAt      DateTime?
+  nudgeSentAt      DateTime?
+  createdAt        DateTime               @default(now())
 
   @@index([recipientUserId, response])
   @@index([response, respondedAt])
@@ -1098,39 +1217,39 @@ model ChainNotificationQueue {
 // allows infinitely many Contact-recipient rows and vice versa.
 
 model OutboundEmailQueue {
-  id                  String    @id @default(cuid())
-  emailType           String    // "EXCHANGE" | "COMPLETION" | "CELEBRATION" | "CLIENT_CHASE" | ...
-  sourceId            String    // chainLinkId / chainId / contactId-keyed digest id
-  recipientEmail      String
-  recipientUserId     String?   // claimed agent (existing recipients)
-  recipientContactId  String?   // client contact (vendor / purchaser etc.) — added A5
-  payload             Json      // serialised at enqueue time; drain needs no extra DB queries
-  scheduledFor        DateTime
-  sentAt              DateTime?
-  errorAt             DateTime?
-  errorMessage        String?
-  createdAt           DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  emailType          String // "EXCHANGE" | "COMPLETION" | "CELEBRATION" | "CLIENT_CHASE" | ...
+  sourceId           String // chainLinkId / chainId / contactId-keyed digest id
+  recipientEmail     String
+  recipientUserId    String? // claimed agent (existing recipients)
+  recipientContactId String? // client contact (vendor / purchaser etc.) — added A5
+  payload            Json // serialised at enqueue time; drain needs no extra DB queries
+  scheduledFor       DateTime
+  sentAt             DateTime?
+  errorAt            DateTime?
+  errorMessage       String?
+  createdAt          DateTime  @default(now())
 
   // SendGrid Event Webhook delivery status. Populated by
   // /api/webhooks/sendgrid-bounce when delivery / deferred / bounce /
   // dropped events fire for a message we sent with customArgs.queueId.
   // sentAt = handed to SendGrid; these = what actually happened after.
   // All nullable → existing rows ("Sent (status unknown)") work unchanged.
-  deliveredAt         DateTime?
-  deferredAt          DateTime?
-  deferredCount       Int       @default(0)
-  deferredReason      String?
-  bouncedAt           DateTime?
-  bouncedReason       String?
-  blockedAt           DateTime?
-  blockedReason       String?
+  deliveredAt    DateTime?
+  deferredAt     DateTime?
+  deferredCount  Int       @default(0)
+  deferredReason String?
+  bouncedAt      DateTime?
+  bouncedReason  String?
+  blockedAt      DateTime?
+  blockedReason  String?
 
   // Audit: when an agent edits the pending payload via the email preview
   // modal, these track who/when. Null on rows that were never edited.
   // The edit overwrites payload in place — the drain reads JSON so edits
   // propagate naturally. No version history for v1.
-  editedAt            DateTime?
-  editedById          String?
+  editedAt   DateTime?
+  editedById String?
 
   // Relations — back-refs added on the User and Contact models in their
   // sections of the schema. ON DELETE CASCADE so deleting a user or contact
@@ -1185,9 +1304,9 @@ model VerifiedDomain {
   createdByUserId  String
   createdAt        DateTime     @default(now())
 
-  agency       Agency              @relation(fields: [agencyId], references: [id])
-  createdBy    User                @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
-  userEmails   UserVerifiedEmail[]
+  agency     Agency              @relation(fields: [agencyId], references: [id])
+  createdBy  User                @relation("DomainCreatedBy", fields: [createdByUserId], references: [id])
+  userEmails UserVerifiedEmail[]
 
   @@unique([agencyId, domain])
   @@index([agencyId, domain])
@@ -1324,12 +1443,12 @@ model FeedbackSubmission {
 // TODO: surface in admin dashboard â€” see future-admin-page ticket
 
 model RetentionEmailLog {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailKey  String
-  sentAt    DateTime @default(now())
-  agencyId  String
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailKey String
+  sentAt   DateTime @default(now())
+  agencyId String
 
   @@index([userId, emailKey])
   @@index([agencyId, sentAt])
@@ -1406,8 +1525,8 @@ model Event {
 // Idempotent writes keyed on the @@unique constraints below.
 
 model DailyMetric {
-  id          String            @id @default(cuid())
-  date        DateTime          @db.Date
+  id   String   @id @default(cuid())
+  date DateTime @db.Date
 
   // Scope keys â€” exactly one pattern is set per row
   agencyId    String?
@@ -1424,15 +1543,15 @@ model DailyMetric {
   filesUploaded         Int @default(0)
 
   // Agency/user-derived counts
-  signups             Int @default(0)
-  logins              Int @default(0)
-  uniqueActiveUsers   Int @default(0)
-  feedbackSubmitted   Int @default(0)
+  signups           Int @default(0)
+  logins            Int @default(0)
+  uniqueActiveUsers Int @default(0)
+  feedbackSubmitted Int @default(0)
 
   // AI spend (USD cents)
-  aiSpendCents        Int @default(0)
+  aiSpendCents Int @default(0)
 
-  computedAt  DateTime @default(now())
+  computedAt DateTime @default(now())
 
   @@unique([date, agencyId, serviceType, modeProfile])
   @@index([date])
@@ -1442,9 +1561,9 @@ model DailyMetric {
 }
 
 model WeeklyCohort {
-  id           String            @id @default(cuid())
-  signupWeek   DateTime          @db.Date
-  modeProfile  AgencyModeProfile
+  id          String            @id @default(cuid())
+  signupWeek  DateTime          @db.Date
+  modeProfile AgencyModeProfile
 
   cohortSize   Int
   activeWeek1  Int @default(0)
@@ -1453,19 +1572,19 @@ model WeeklyCohort {
   activeWeek8  Int @default(0)
   activeWeek12 Int @default(0)
 
-  computedAt   DateTime @default(now())
+  computedAt DateTime @default(now())
 
   @@unique([signupWeek, modeProfile])
   @@index([signupWeek])
 }
 
 model JobRun {
-  id          String    @id @default(cuid())
-  jobName     String
-  startedAt   DateTime  @default(now())
-  finishedAt  DateTime?
-  success     Boolean?
-  rowsWritten Int?
+  id           String    @id @default(cuid())
+  jobName      String
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  success      Boolean?
+  rowsWritten  Int?
   errorMessage String?
 
   @@index([jobName, startedAt])
@@ -1483,13 +1602,13 @@ enum SignalSeverity {
 }
 
 model Signal {
-  id             String        @id @default(cuid())
-  detectedAt     DateTime      @default(now())
+  id             String         @id @default(cuid())
+  detectedAt     DateTime       @default(now())
   detectorName   String
   payload        Json
   confidence     Float
   severity       SignalSeverity
-  acknowledged   Boolean       @default(false)
+  acknowledged   Boolean        @default(false)
   acknowledgedAt DateTime?
   windowStart    DateTime
   windowEnd      DateTime
@@ -1518,22 +1637,22 @@ enum ExperimentOutcome {
 }
 
 model Experiment {
-  id             String             @id @default(cuid())
-  name           String
-  hypothesis     String
+  id         String @id @default(cuid())
+  name       String
+  hypothesis String
 
-  status         ExperimentStatus   @default(proposed)
-  outcome        ExperimentOutcome?
+  status  ExperimentStatus   @default(proposed)
+  outcome ExperimentOutcome?
 
   sourceSignalId String?
-  sourceType     String?            // 'signal' | 'intuition' | 'customer_feedback' | 'other'
+  sourceType     String? // 'signal' | 'intuition' | 'customer_feedback' | 'other'
 
   primaryMetric    String
   guardrailMetrics String[]
 
-  proposedAt   DateTime  @default(now())
-  startedAt    DateTime?
-  concludedAt  DateTime?
+  proposedAt  DateTime  @default(now())
+  startedAt   DateTime?
+  concludedAt DateTime?
 
   // Frozen metric snapshots â€” set at start/conclude respectively
   baselineSnapshot   Json?
@@ -1558,9 +1677,9 @@ model Deployment {
   id           String   @id @default(cuid())
   deployedAt   DateTime @default(now())
   version      String
-  environment  String   // 'production' | 'staging'
+  environment  String // 'production' | 'staging'
   releaseNotes String?
-  triggerType  String   // 'manual' | 'auto' | 'rollback'
+  triggerType  String // 'manual' | 'auto' | 'rollback'
   triggeredBy  String?
 
   @@index([deployedAt])
@@ -1581,35 +1700,35 @@ enum DraftChannel {
 }
 
 model DraftPost {
-  id              String       @id @default(cuid())
-  createdAt       DateTime     @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
-  channel         DraftChannel
-  tone            String?
-  topicSeed       String
-  sourceType      String       // "manual" | "activity-derived"
+  channel    DraftChannel
+  tone       String?
+  topicSeed  String
+  sourceType String // "manual" | "activity-derived"
 
   prompt          String
   aiModel         String
   aiPromptVersion String
 
-  variant1        String
-  variant2        String
-  editedText      String?
-  chosenVariant   Int?         // 1 or 2 â€” which variant the user started from
+  variant1      String
+  variant2      String
+  editedText    String?
+  chosenVariant Int? // 1 or 2 â€” which variant the user started from
 
-  posted            Boolean @default(false)
+  posted            Boolean   @default(false)
   postedAt          DateTime?
-  regenerationCount Int     @default(0)
+  regenerationCount Int       @default(0)
 
-  aiTokensInput   Int?
-  aiTokensOutput  Int?
+  aiTokensInput  Int?
+  aiTokensOutput Int?
 
-  topicId         String?      // ContentTopic this draft was generated from
-  batchId         String?      // ContentBatch.id â€” set when batch email is sent
+  topicId String? // ContentTopic this draft was generated from
+  batchId String? // ContentBatch.id â€” set when batch email is sent
 
   approvedForBatch Boolean @default(false) // user flagged this variant for the morning batch
-  postedUrl        String?                  // URL of the live post (filled when marking as posted)
+  postedUrl        String? // URL of the live post (filled when marking as posted)
 
   @@index([createdAt])
   @@index([channel, createdAt])
@@ -1624,7 +1743,7 @@ model DraftPost {
 model ContentBatch {
   id        String    @id @default(cuid())
   createdAt DateTime  @default(now())
-  date      String    // "2026-05-03"
+  date      String // "2026-05-03"
   status    String    @default("pending") // "pending" | "sent"
   sentAt    DateTime?
   itemCount Int       @default(0)
@@ -1655,11 +1774,11 @@ model ContentEngagement {
 }
 
 model VoiceSample {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
-  sampleType  String        // "manual_paste" | "qa_response" | "draft_edit_diff"
-  questionKey String?       // e.g. "q1_near_miss" â€” set for sampleType = qa_response
+  sampleType  String // "manual_paste" | "qa_response" | "draft_edit_diff"
+  questionKey String? // e.g. "q1_near_miss" â€” set for sampleType = qa_response
   channel     DraftChannel?
   content     String
   notes       String?
@@ -1671,13 +1790,13 @@ model VoiceSample {
 // â”€â”€â”€ Command Centre: Content topic queue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model ContentTopic {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   text        String
-  source      String        // "manual" | "activity_derived"
+  source      String // "manual" | "activity_derived"
   channelHint DraftChannel?
-  priority    Int           @default(0)  // higher = shown first
+  priority    Int           @default(0) // higher = shown first
   status      String        @default("pending") // "pending" | "used" | "skipped"
   usedAt      DateTime?
   draftPostId String?
@@ -1688,17 +1807,17 @@ model ContentTopic {
 // â”€â”€â”€ Command Centre: Generated images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 model GeneratedImage {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
-  imageType   String   // "text_card" | "chart" | "ai_generated"
-  variant     String?  // "dark" | "light" for text/chart cards
-  prompt      String?  // for ai_generated
-  url         String   // Replicate URL for AI; parametric route URL for OG
-  width       Int      @default(1200)
-  height      Int      @default(628)
+  imageType   String // "text_card" | "chart" | "ai_generated"
+  variant     String? // "dark" | "light" for text/chart cards
+  prompt      String? // for ai_generated
+  url         String // Replicate URL for AI; parametric route URL for OG
+  width       Int     @default(1200)
+  height      Int     @default(628)
   aiModel     String?
-  aiCostCents Int      @default(0)
+  aiCostCents Int     @default(0)
   draftPostId String?
 
   @@index([createdAt])
@@ -1709,16 +1828,16 @@ model GeneratedImage {
 // Append-only. No UPDATE/DELETE ever. Written via lib/command/audit/write.ts.
 
 model AdminAuditLog {
-  id          String   @id @default(cuid())
-  occurredAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  occurredAt DateTime @default(now())
 
   adminUserId String
   ipAddress   String?
   userAgent   String?
 
-  action      String
-  targetType  String?
-  targetId    String?
+  action     String
+  targetType String?
+  targetId   String?
 
   beforeValue Json?
   afterValue  Json?
@@ -1765,9 +1884,9 @@ model NegotiatorInvitation {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  agency       Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  invitedBy    User   @relation("NegotiatorInvitationsSent", fields: [invitedByUserId], references: [id], onDelete: Cascade)
-  acceptedBy   User?  @relation("NegotiatorInvitationsAccepted", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  agency     Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  invitedBy  User   @relation("NegotiatorInvitationsSent", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  acceptedBy User?  @relation("NegotiatorInvitationsAccepted", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
 
   @@index([agencyId])
   @@index([token])
@@ -1872,17 +1991,22 @@ model Notification {
 //   - "opted_out"  — contact unsubscribed; agent ChaseTask exists
 
 model ClientChaseState {
-  id              String   @id @default(cuid())
-  transactionId   String
-  contactId       String
-  milestoneCode   String
-  chaseCount      Int      @default(0)
-  firstChasedAt   DateTime?
-  lastChasedAt    DateTime?
-  lastEngagedAt   DateTime?
-  status          String   @default("active")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String    @id @default(cuid())
+  transactionId String
+  contactId     String
+  milestoneCode String
+  chaseCount    Int       @default(0)
+  firstChasedAt DateTime?
+  lastChasedAt  DateTime?
+  lastEngagedAt DateTime?
+  status        String    @default("active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Phase 0 shadow attribution. Stamped when contact.roleType =
+  // 'purchaser'. Not read anywhere yet.
+  buyerRoundId String?
+  buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
   transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   contact     Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -1890,6 +2014,7 @@ model ClientChaseState {
   @@unique([transactionId, contactId, milestoneCode])
   @@index([status, lastChasedAt])
   @@index([contactId, status])
+  @@index([buyerRoundId])
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────
@@ -1897,11 +2022,11 @@ model ClientChaseState {
 // See docs/active/payments-build-plan.md for the staged rollout.
 
 enum InvoiceStatus {
-  building   // current month, accruing
-  issued     // month closed, Stripe invoice created
-  paid       // Stripe webhook confirmed payment
-  failed     // Stripe webhook confirmed failure
-  void       // manually voided
+  building // current month, accruing
+  issued // month closed, Stripe invoice created
+  paid // Stripe webhook confirmed payment
+  failed // Stripe webhook confirmed failure
+  void // manually voided
 }
 
 model Invoice {
@@ -1945,7 +2070,7 @@ model InvoiceLine {
   // inclusive otherwise. Rendering reads agency.vatRegisteredAt to decide.
   amountPence   Int
   vatPence      Int                  @default(0)
-  totalPence    Int                  // amountPence + vatPence
+  totalPence    Int // amountPence + vatPence
   createdAt     DateTime             @default(now())
 
   @@index([invoiceId])
@@ -1958,7 +2083,7 @@ model InvoiceLine {
 // Never seed with placeholder text — see payments-build-plan.md PR 6 flag.
 model TermsVersion {
   id               String                   @id @default(cuid())
-  versionTag       String                   @unique  // e.g. "2026-05-payments-v1"
+  versionTag       String                   @unique // e.g. "2026-05-payments-v1"
   // JSONB array of { heading: string, body: string }. Structured so the
   // renderer maps over sections cleanly + future versions can change wording
   // without breaking the parser. See lib/billing/terms-sections.ts for the
@@ -1973,16 +2098,16 @@ model TermsVersion {
 // The acknowledgedByName + acknowledgedByEmail strings ARE the audit record;
 // the FK to User is a convenience link that nulls on user delete (GDPR-safe).
 model PricingAcknowledgement {
-  id                    String        @id @default(cuid())
-  agencyId              String
-  agency                Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  acknowledgedByUserId  String?
-  acknowledgedBy        User?         @relation(fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
-  acknowledgedByName    String        // denormalised at acknowledgement — the audit record
-  acknowledgedByEmail   String        // denormalised at acknowledgement — the audit record
-  termsVersionId        String
-  termsVersion          TermsVersion  @relation(fields: [termsVersionId], references: [id])
-  acknowledgedAt        DateTime      @default(now())
+  id                   String       @id @default(cuid())
+  agencyId             String
+  agency               Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  acknowledgedByUserId String?
+  acknowledgedBy       User?        @relation(fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
+  acknowledgedByName   String // denormalised at acknowledgement — the audit record
+  acknowledgedByEmail  String // denormalised at acknowledgement — the audit record
+  termsVersionId       String
+  termsVersion         TermsVersion @relation(fields: [termsVersionId], references: [id])
+  acknowledgedAt       DateTime     @default(now())
 
   @@index([agencyId])
 }
@@ -1991,19 +2116,18 @@ model PricingAcknowledgement {
 // invoiced gets reversed via executeUndoMilestone (PR 4). Model is credit-only:
 // no cash refunds (per locked model in payments-build-plan.md).
 model CreditNote {
-  id                  String               @id @default(cuid())
-  agencyId            String
-  agency              Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  transactionId       String?
-  transaction         PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  amountPence         Int
-  reason              String               // e.g. "Exchange reversed post-invoice — VM19 undone on 2026-06-12"
-  appliedToInvoiceId  String?
-  appliedToInvoice    Invoice?             @relation("InvoiceCreditApplications", fields: [appliedToInvoiceId], references: [id])
-  appliedAt           DateTime?
-  createdAt           DateTime             @default(now())
+  id                 String               @id @default(cuid())
+  agencyId           String
+  agency             Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  transactionId      String?
+  transaction        PropertyTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  amountPence        Int
+  reason             String // e.g. "Exchange reversed post-invoice — VM19 undone on 2026-06-12"
+  appliedToInvoiceId String?
+  appliedToInvoice   Invoice?             @relation("InvoiceCreditApplications", fields: [appliedToInvoiceId], references: [id])
+  appliedAt          DateTime?
+  createdAt          DateTime             @default(now())
 
   @@index([agencyId])
   @@index([appliedToInvoiceId])
 }
-

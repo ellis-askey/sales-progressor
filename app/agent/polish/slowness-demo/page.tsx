@@ -55,6 +55,7 @@ function mockCompletion(state: "complete" | "available" | "locked", completedAt?
     reconciledAtExchange: false,
     reconciledAtClaim: false,
     outOfOrderCompletion: false,
+    buyerRoundId: null,
     createdAt: new Date("2026-04-01"),
     updatedAt: new Date("2026-04-01"),
   };
