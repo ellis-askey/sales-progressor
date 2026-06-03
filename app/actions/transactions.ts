@@ -1047,14 +1047,24 @@ export async function saveDraftAction(data: {
   if (data.draftId) {
     const existing = await prisma.propertyTransaction.findFirst({
       where: { ...scopeOwnershipWhere(getAccessScope(session), data.draftId), status: DRAFT_STATUS },
-      select: { id: true, chainLinkId: true },
+      select: { id: true, chainLinkId: true, activeBuyerRoundId: true },
     });
     if (!existing) throw new Error("Draft not found");
 
     await prisma.propertyTransaction.update({ where: { id: data.draftId }, data: scalarData });
     await prisma.contact.deleteMany({ where: { propertyTransactionId: data.draftId } });
     if (allContacts.length > 0) {
-      await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: data.draftId! })) });
+      await prisma.contact.createMany({
+        data: allContacts.map((c) => ({
+          ...c,
+          propertyTransactionId: data.draftId!,
+          // Stamp purchaser contacts with the existing draft's active
+          // round. Phase 0 backfill seeded a Round 1 on every pre-4b
+          // draft; this branch never sees activeBuyerRoundId=null in
+          // practice, but the ?? null fallback keeps the type clean.
+          buyerRoundId: c.roleType === "purchaser" ? (existing.activeBuyerRoundId ?? null) : null,
+        })),
+      });
     }
     await saveMosDocument(data.draftId);
     await saveChain(data.draftId, existing.chainLinkId);
@@ -1063,20 +1073,46 @@ export async function saveDraftAction(data: {
     return { id: data.draftId };
   }
 
-  // Create new draft
-  const tx = await prisma.propertyTransaction.create({
-    data: {
-      ...scalarData,
-      status: DRAFT_STATUS,
-      agencyId: session.user.agencyId,
-      agentUserId: session.user.id,
-      progressedBy: data.progressedBy ?? "progressor",
-      serviceType: (data.progressedBy ?? "progressor") === "progressor" ? "outsourced" : "self_managed",
-    },
+  // Create new draft. Phase 1: stand up Round 1 inside the same
+  // $transaction as the PropertyTransaction.create — every tx in the
+  // database has a Round 1 from the first millisecond, even drafts.
+  const tx = await prisma.$transaction(async (ptx) => {
+    const created = await ptx.propertyTransaction.create({
+      data: {
+        ...scalarData,
+        status: DRAFT_STATUS,
+        agencyId: session.user.agencyId,
+        agentUserId: session.user.id,
+        progressedBy: data.progressedBy ?? "progressor",
+        serviceType: (data.progressedBy ?? "progressor") === "progressor" ? "outsourced" : "self_managed",
+      },
+    });
+    const round = await ptx.buyerRound.create({
+      data: {
+        transactionId: created.id,
+        roundNumber: 1,
+        status: "active",
+        purchasePrice: created.purchasePrice,
+        purchaserSolicitorFirmId: created.purchaserSolicitorFirmId,
+        purchaserSolicitorContactId: created.purchaserSolicitorContactId,
+        brokerFirmId: created.brokerFirmId,
+        brokerContactId: created.brokerContactId,
+      },
+    });
+    return ptx.propertyTransaction.update({
+      where: { id: created.id },
+      data: { activeBuyerRoundId: round.id },
+    });
   });
 
   if (allContacts.length > 0) {
-    await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: tx.id })) });
+    await prisma.contact.createMany({
+      data: allContacts.map((c) => ({
+        ...c,
+        propertyTransactionId: tx.id,
+        buyerRoundId: c.roleType === "purchaser" ? tx.activeBuyerRoundId : null,
+      })),
+    });
   }
   await saveMosDocument(tx.id);
   await saveChain(tx.id, null);
@@ -1101,8 +1137,36 @@ export async function promoteDraftAction(
 
   const draft = await prisma.propertyTransaction.findFirst({
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!draft) throw new Error("Draft not found");
+
+  // Defensive Round-1 backfill for drafts that pre-date the
+  // saveDraftAction wiring (Phase 1 follow-up commit). Idempotent —
+  // saveDraftAction wires this at draft-create from here on, so the
+  // findFirst returns the existing round and we skip the create.
+  let activeBuyerRoundId = draft.activeBuyerRoundId;
+  if (!activeBuyerRoundId) {
+    activeBuyerRoundId = await prisma.$transaction(async (ptx) => {
+      const round = await ptx.buyerRound.create({
+        data: {
+          transactionId: draft.id,
+          roundNumber: 1,
+          status: "active",
+          purchasePrice: data.purchasePrice,
+          purchaserSolicitorFirmId: null,
+          purchaserSolicitorContactId: null,
+          brokerFirmId: null,
+          brokerContactId: null,
+        },
+      });
+      await ptx.propertyTransaction.update({
+        where: { id: draft.id },
+        data: { activeBuyerRoundId: round.id },
+      });
+      return round.id;
+    });
+  }
 
   // Delete existing contacts on the draft and recreate
   await prisma.contact.deleteMany({ where: { propertyTransactionId: draftId } });
@@ -1115,6 +1179,7 @@ export async function promoteDraftAction(
         email: c.email ?? null,
         roleType: c.roleType,
         portalToken: randomUUID(),
+        buyerRoundId: c.roleType === "purchaser" ? activeBuyerRoundId : null,
       })),
     });
   }
@@ -1133,6 +1198,20 @@ export async function promoteDraftAction(
       } : {}),
     },
   });
+
+  // A draft that was saved via saveDraftAction has no milestone
+  // completions yet (initializeMilestoneCompletions is gated on
+  // tenure + purchaseType which a draft may lack until promote).
+  // Run it now; idempotent — if rows already exist (e.g. a draft
+  // saved through createTransactionAction got initialized at create
+  // time) the helper no-ops on existing rows.
+  await initializeMilestoneCompletions(
+    draftId,
+    data.tenure,
+    data.purchaseType,
+    session.user.id,
+    activeBuyerRoundId,
+  );
 
   evaluateTransactionReminders(draftId).catch(() => {});
   revalidatePath("/agent/quick-add");

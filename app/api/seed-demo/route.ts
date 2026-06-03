@@ -40,25 +40,46 @@ async function seed() {
   const now = Date.now();
   const daysAgo = (n: number) => new Date(now - n * 86_400_000);
 
-  // Transaction created 28 days ago, exchange target 6 weeks away
-  const tx = await prisma.propertyTransaction.create({
-    data: {
-      propertyAddress: "42 Hawthorn Road, Bristol, BS6 7NR",
-      agencyId: agency.id,
-      assignedUserId: user.id,
-      agentUserId: user.id,
-      purchasePrice: 35_000_000,
-      status: "active",
-      tenure: "freehold",
-      purchaseType: "mortgage",
-      progressedBy: "agent",
-      serviceType: "self_managed",
-      expectedExchangeDate: daysAgo(-42),
-      createdAt: daysAgo(28),
-    },
+  // Transaction created 28 days ago, exchange target 6 weeks away.
+  // Phase 1: stand up Round 1 inside the same $transaction.
+  const tx = await prisma.$transaction(async (ptx) => {
+    const created = await ptx.propertyTransaction.create({
+      data: {
+        propertyAddress: "42 Hawthorn Road, Bristol, BS6 7NR",
+        agencyId: agency.id,
+        assignedUserId: user.id,
+        agentUserId: user.id,
+        purchasePrice: 35_000_000,
+        status: "active",
+        tenure: "freehold",
+        purchaseType: "mortgage",
+        progressedBy: "agent",
+        serviceType: "self_managed",
+        expectedExchangeDate: daysAgo(-42),
+        createdAt: daysAgo(28),
+      },
+    });
+    const round = await ptx.buyerRound.create({
+      data: {
+        transactionId: created.id,
+        roundNumber: 1,
+        status: "active",
+        purchasePrice: created.purchasePrice,
+      },
+    });
+    return ptx.propertyTransaction.update({
+      where: { id: created.id },
+      data: { activeBuyerRoundId: round.id },
+    });
   });
 
-  // Contacts
+  // Contacts (stamp purchaser with active round per Phase 0 attribution rule)
+  const purchaserDefSides = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: COMPLETE_CODES } },
+    select: { id: true, side: true },
+  });
+  const sideById = new Map(purchaserDefSides.map((d) => [d.id, d.side]));
+
   await prisma.contact.createMany({
     data: [
       {
@@ -68,6 +89,7 @@ async function seed() {
         phone: "07700 900111",
         roleType: "vendor",
         portalToken: randomUUID(),
+        buyerRoundId: null,
       },
       {
         propertyTransactionId: tx.id,
@@ -76,11 +98,14 @@ async function seed() {
         phone: "07700 900222",
         roleType: "purchaser",
         portalToken: randomUUID(),
+        buyerRoundId: tx.activeBuyerRoundId,
       },
     ],
   });
 
-  // Complete milestones spread across the last 26 days (oldest first)
+  // Complete milestones spread across the last 26 days (oldest first).
+  // Stamp purchaser-side rows with the active round; vendor rows stay
+  // file-level.
   for (let i = 0; i < COMPLETE_CODES.length; i++) {
     const code = COMPLETE_CODES[i];
     const defId = defIdMap.get(code);
@@ -94,6 +119,7 @@ async function seed() {
         completedAt: daysAgo(completedDaysAgo),
         completedById: user.id,
         summaryText: null,
+        buyerRoundId: sideById.get(defId) === "purchaser" ? tx.activeBuyerRoundId : null,
       },
     });
   }
