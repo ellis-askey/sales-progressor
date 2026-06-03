@@ -69,16 +69,22 @@ export async function POST(req: NextRequest) {
           email: c.email?.trim() || null,
           roleType: c.roleType,
           portalToken: randomUUID(),
+          // Phase 1 commit 3 attribution rule — purchaser contacts get
+          // the active round stamp; vendor / solicitor / broker stay
+          // file-level. createTransactionAction does the same.
+          buyerRoundId: c.roleType === "purchaser" ? tx.activeBuyerRoundId : null,
         })),
       });
     }
 
-    // Initialize milestone completions (all 47, with auto-NR applied)
+    // Initialize milestone completions (all 47, with auto-NR applied).
+    // Pass activeBuyerRoundId so PM-side rows are round-stamped at create.
     await initializeMilestoneCompletions(
       tx.id,
       tenure as Tenure,
       purchaseType as PurchaseType,
-      session.user.id
+      session.user.id,
+      tx.activeBuyerRoundId,
     );
 
     // Seed reminder logs in the background — don't block the 201 response

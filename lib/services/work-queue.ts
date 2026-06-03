@@ -73,6 +73,12 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       createdAt: true,
       agentUser: { select: { id: true, name: true } },
       contacts: { select: { name: true, roleType: true } },
+      // PHASE 1 (a)-CLASS UNDER-SCOPING — agent work-queue dashboard.
+      // Cross-tx Prisma include limitation; a relisted file's archived
+      // round PMs can make hasExchanged read true when the new active
+      // round has not yet exchanged. Downstream code should prefer
+      // tx.exchangedAt (canonical) for that check — Phase 2 ticket to
+      // switch the derivation. Pre-relist behaviour identical.
       milestoneCompletions: {
         where: { state: "complete" },
         select: {

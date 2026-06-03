@@ -1,5 +1,22 @@
 # Phase 1 commit 4 — MilestoneCompletion query inventory
 
+Living checklist. Each commit ticks off the sites it converted (or re-dispositions them with a reason); at any moment the inventory shows done / pending / deliberately-left.
+
+**Status legend (per row):**
+- ✅ converted in the commit shown (with a brief note if the disposition shifted)
+- ⏳ pending in the labelled commit
+- 🪪 deliberately left as-is (audit / cross-tx accepted under-scoping with documented distortion)
+
+**Conversion progress:**
+
+| Commit | Subsystem | Status |
+|---|---|---|
+| 4b | `milestones.ts` + `transactions.ts` + `agent.ts` + `work-queue.ts` + `summary.ts` + `audit.ts` + `automated-emails-preview.ts` | ✅ shipped 2026-06-04, parity diff empty |
+| 4c | `reminders.ts` + `client-chase-cron.ts` + `retention.ts` + ClientChaseState writes | ⏳ next |
+| 4d | comms + cross-cutting + OutboundMessage/PortalMessage writes | ⏳ |
+| 4e | actions+API+UI + PriceHistory writes | ⏳ |
+| 5 | portal scoping | ⏳ |
+
 Exhaustive catalogue of every production read entry point on `MilestoneCompletion`. Each line dispositioned against the helper in `lib/services/milestone-scope.ts` (`forRound` / `vendorOnly` / `allRoundsForAudit`) so commits 4b–4e can convert in order without leaving anything implicit.
 
 **Scope codes:**
@@ -23,9 +40,35 @@ Exhaustive catalogue of every production read entry point on `MilestoneCompletio
 
 ---
 
-## Service layer — commit 4b
+## Service layer — commit 4b ✅ shipped
 
-### `lib/services/milestones.ts`
+**4b decisions actually taken (vs. inventory predictions):**
+
+1. Introduced a local helper `getActiveRoundScope(db, transactionId)` at the top of `lib/services/milestones.ts` to DRY up the repeated "fetch activeBuyerRoundId then build `forRound` scope" pattern. ~14 read sites in this file use it.
+2. `audit.ts:53` intent confirmed as **legitimate `allRoundsForAudit`** (the inventory flagged this as "read intent first"). Reasoning: audit log surface must show cross-round history — "agent X confirmed PM7 last week" stays visible after the round it belonged to is archived. Switched + commented.
+3. All cross-tx Prisma-limitation sites in `transactions.ts` (43, 56, 258, 266, 380, 470, 479, 561, 574) and `agent.ts` (91, 171, 186, 223) classified per consumer:
+   - All feed **agent dashboards** (file list, comms, work queue, exchange forecast, exchanged-not-completing list, completing-files list). **None drive automated chase decisions, comms, billing, or client/portal reads.**
+   - Per the user's condition: accepted under (a) with explicit distortion documentation inline.
+   - Phase 2 ticket: restructure as two-step (fetch tx ids + activeBuyerRoundIds, then raw SQL `DISTINCT ON` with `(buyerRoundId IS NULL OR buyerRoundId = pt.activeBuyerRoundId)`).
+4. Found and fixed two **createTransactionAction-equivalent paths** that commit 3 missed:
+   - `app/api/transactions/route.ts:77` — passed `tx.activeBuyerRoundId` to `initializeMilestoneCompletions`, stamped `buyerRoundId` on purchaser contacts.
+   - `app/api/claim/route.ts:200` — added `BuyerRound` create inside the existing `$transaction` (this route uses inline `tx.propertyTransaction.create` rather than the createTransaction service), stamped `activeBuyerRoundId`, passed it to `initializeMilestoneCompletions`. **This is a Phase 0 gap closed in 4b** — claim-path files prior to today had no Round 1.
+5. `completeMilestone` and `bulkCompleteMilestones` and `markNotRequired` and `bulkMarkNotRequired` create-branches now stamp `buyerRoundId` based on `def.side === "purchaser"`. The find-and-update branches use `forRound` scope to address the right partition.
+6. `executeUndoMilestone` (the undo-flow regression target) — every read inside it gets `forRound` scope; every `updateMany` filter gets the same. Parity diff vs HEAD~1 was empty.
+
+**Parity harness output:**
+```
+$ ts-node parity-harness-mc-reads.ts before.json   # at HEAD~1
+Snapshotting 59 transactions… Wrote scripts/snapshots/before.json
+$ ts-node parity-harness-mc-reads.ts after.json    # at HEAD
+Snapshotting 59 transactions… Wrote scripts/snapshots/after.json
+$ diff -u before.json after.json
+(empty)
+```
+
+### `lib/services/milestones.ts` ✅ all rows below converted in 4b
+
+Read sites use `getActiveRoundScope(db, transactionId)` (local helper) → `milestoneScopeWhere(scope)` spread into the where. Find-after-write sites pass the same scope so the OR clause picks vendor file-level OR active-round purchaser per def. Write create-branches in `completeMilestone` / `bulkCompleteMilestones` / `markNotRequired` / `bulkMarkNotRequired` stamp `buyerRoundId` based on `def.side === "purchaser"`.
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
@@ -73,7 +116,9 @@ Exhaustive catalogue of every production read entry point on `MilestoneCompletio
 | 1302 | updateMany | `transactionId, milestoneDefinitionId: { in: cascadeItems }, outOfOrderCompletion` | `write-side` (round filter) | flag still-complete downstream as out-of-order — round scope |
 | 1437 | findMany | `transactionId, state, notRequiredReason: { not null }, milestoneDefinitionId: { in: cascade }` | `forRound(active, tx)` | NR cascade re-evaluation read |
 
-### `lib/services/transactions.ts`
+### `lib/services/transactions.ts` 🪪 cross-tx accepted under-scoping in 4b
+
+All 9 sites kept as nested `milestoneCompletions:` includes with explicit `// PHASE 1 (a)-CLASS …` comment block at each site documenting the distortion. Per the consumer-classification rule, every consumer is an **agent dashboard list view** (file list, exchange forecast, exchanged-not-completing, completing-files-detailed). None drive automated comms, chase decisions, billing, or portal reads. The `exchangedAt`-canonical principle (relist precondition is `exchangedAt IS NULL`) provides defence-in-depth for the "is exchanged?" filters. Phase 2 ticket: restructure as two-step with raw SQL `DISTINCT ON`.
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
@@ -87,7 +132,9 @@ Exhaustive catalogue of every production read entry point on `MilestoneCompletio
 | 561 | filter (`some`) | same as 470 | `forRound(active, tx)` | duplicate of 470 in different fetcher |
 | 574 | nested include | same as 479 | `forRound(active, tx)` | duplicate of 479 in different fetcher |
 
-### `lib/services/agent.ts`
+### `lib/services/agent.ts` 🪪 cross-tx accepted under-scoping in 4b
+
+All 4 sites kept as nested includes with explicit distortion documentation. Consumer for `getAgentMilestoneActivity` (line 223): `app/agent/comms/page.tsx` — agent comms dashboard activity feed grouped by day. Other 3 sites feed agent file lists. None drive automated decisions. Phase 2 ticket included.
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
@@ -96,25 +143,31 @@ Exhaustive catalogue of every production read entry point on `MilestoneCompletio
 | 186 | nested include | `state: complete, milestoneDefinitionId: { in: allPostExchangeDefIds }` | `forRound(active, tx)` | per-tx post-exchange completion details |
 | 223 | top-level findMany | `transactionId: { in: ... }, state: complete, milestoneDefinitionId: { in: ... }` | `forRound(active, tx)` **per-tx** | **TRICKY**: this is a multi-tx fetcher. Per-tx scoping in a single `findMany` requires either (a) batched queries per tx or (b) accepting the limitation that cross-tx finders use `allRoundsForAudit`-like semantics. **Recommendation for 4b**: convert to batched per-tx loop or use a raw SQL with `WHERE buyerRoundId IS NULL OR buyerRoundId = t."activeBuyerRoundId"` joined to PropertyTransaction. Flag in 4b commit message. |
 
-### `lib/services/work-queue.ts`
+### `lib/services/work-queue.ts` 🪪 cross-tx accepted in 4b
+
+Line 76 nested include left in place with `// PHASE 1 (a)-CLASS …` comment. Phase 2 ticket: switch the downstream `hasExchanged` derivation to read `tx.exchangedAt` directly (canonical) rather than scanning milestoneCompletions, which would also resolve the round-scoping concern without restructuring the include.
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
 | 76 | nested include | `state: complete, select milestoneDefinitionId` | `forRound(active, tx)` | work-queue per-tx milestone state |
 
-### `lib/services/summary.ts`
+### `lib/services/summary.ts` ✅ converted in 4b
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
 | 70 | findFirst | `transactionId, state: complete, take 1 orderBy completedAt desc` | `forRound(active, tx)` | most-recent-completion summary |
 
-### `lib/services/audit.ts`
+### `lib/services/audit.ts` ✅ converted in 4b → `allRoundsForAudit`
+
+Intent confirmed (per user condition "audit.ts:53 intent-first: approved, report the finding"). Audit log surface is designed to show cross-round history — "agent X confirmed PM7" must remain visible after the round is archived. Switched to `allRoundsForAudit()` with inline comment explaining the deliberate choice.
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|
 | 53 | findMany | `transactionId` | `forRound(active, tx)` | per-tx audit fetch; if the audit explicitly wants cross-round history, switch to `allRoundsForAudit` — read the surrounding code to decide. **Action for 4b**: read context + decide. |
 
-### `lib/services/automated-emails-preview.ts`
+### `lib/services/automated-emails-preview.ts` ✅ converted in 4b
+
+The preview simulates `evaluateTransactionReminders` for the file-detail "Reminders" tab. Must match the live chase engine's round scoping exactly (otherwise displayed "what would fire" diverges from what actually fires when 4c lands).
 
 | Line | Op | Current where | Disposition | Notes |
 |---|---|---|---|---|

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { allRoundsForAudit, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 export type AuditEntry = {
   id: string;
@@ -55,6 +56,11 @@ export async function getAuditLog(
         transactionId: { in: allTxIds },
         state: { in: ["complete", "not_required"] },
         ...(userId ? { completedById: userId } : {}),
+        // Deliberate allRoundsForAudit: this is an audit log surface.
+        // Showing "agent X confirmed PM7 on 2026-04-12" must remain
+        // visible even after the round it belonged to has been
+        // archived. Cross-round history IS the intent here.
+        ...milestoneScopeWhere(allRoundsForAudit()),
       },
       orderBy: { completedAt: "desc" },
       take: FETCH_LIMIT,
