@@ -12,6 +12,7 @@ import { PolicyNavBar } from "@/components/policies/PolicyNavBar";
 export const metadata: Metadata = {
   title: "Legal — Sales Progressor",
   description: "Privacy, cookies, terms, billing, and data processing — the policies that govern your use of Sales Progressor.",
+  robots: { index: true, follow: true },
 };
 
 type LegalDoc = {

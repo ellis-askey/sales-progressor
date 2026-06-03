@@ -19,9 +19,45 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Metadata strategy for portal.thesalesprogressor.co.uk:
+//
+// 1. metadataBase is set so any relative URLs used by next/og or
+//    per-page metadata resolve against the right host.
+// 2. robots defaults to noindex/nofollow on every page. Public legal
+//    pages (billing-terms, cookie-policy, legal) and the login/register
+//    entry points override this with their own `robots: { index: true,
+//    follow: true }` in their metadata exports. This belt-and-braces
+//    the same intent expressed in app/robots.ts — robots.txt is a
+//    suggestion to crawlers, the meta tag travels with each page.
+// 3. openGraph + twitter cards mean shares of any portal URL render a
+//    branded preview. The OG image at app/opengraph-image.png is
+//    auto-injected by the App Router across every page.
 export const metadata: Metadata = {
-  title: "Sales Progressor",
-  description: "Transaction management for residential property sales",
+  metadataBase: new URL("https://portal.thesalesprogressor.co.uk"),
+  title: {
+    default: "Sales Progressor",
+    template: "%s · Sales Progressor",
+  },
+  description: "Transaction management for residential property sales.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Sales Progressor",
+    title: "Sales Progressor",
+    description:
+      "Transaction management for residential property sales. Structured progression, automated client updates, real-time agent visibility.",
+    url: "https://portal.thesalesprogressor.co.uk",
+    locale: "en_GB",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sales Progressor",
+    description:
+      "Transaction management for residential property sales.",
+  },
 };
 
 export default async function RootLayout({

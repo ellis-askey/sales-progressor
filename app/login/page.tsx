@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { WarmLoginForm } from "@/components/login/WarmLoginForm";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description:
+    "Sign in to Sales Progressor to manage your residential property sales.",
+  robots: { index: true, follow: true },
+};
 
 function BrandMark() {
   return (

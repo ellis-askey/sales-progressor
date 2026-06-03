@@ -34,6 +34,7 @@ export const metadata: Metadata = {
   title: "Billing Terms — The Sales Progressor",
   description:
     "Pricing, billing cadence, your free trial, payment failures, and how we handle credit notes.",
+  robots: { index: true, follow: true },
 };
 
 const SECTIONS: PolicySection[] = [

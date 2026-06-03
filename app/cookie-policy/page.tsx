@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   title: "Cookie Policy — The Sales Progressor",
   description:
     "What cookies and similar storage technologies we use, why, and how to control your preferences.",
+  robots: { index: true, follow: true },
 };
 
 const SECTIONS: PolicySection[] = [
