@@ -4,6 +4,8 @@ import { useRef, useEffect } from "react";
 import { ContactCarousel } from "./ContactCarousel";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 
+type ContactConflict = { kind: "phone" | "email"; withName: string };
+
 type Props = {
   vendors: ContactEntry[];
   purchasers: ContactEntry[];
@@ -13,6 +15,8 @@ type Props = {
   progressedBy: "agent" | "progressor";
   vendorError: string | null;
   purchaserError: string | null;
+  vendorConflicts?: Record<number, ContactConflict>;
+  purchaserConflicts?: Record<number, ContactConflict>;
   onVendorsChange: (v: ContactEntry[]) => void;
   onPurchasersChange: (v: ContactEntry[]) => void;
   onEdit: (field: string) => void;
@@ -25,6 +29,7 @@ export function ContactsRow({
   vendors, purchasers,
   vendorMemoSource, purchaserMemoSource,
   isOutsourced, progressedBy, vendorError, purchaserError,
+  vendorConflicts, purchaserConflicts,
   onVendorsChange, onPurchasersChange,
   onEdit,
   scrollRef,
@@ -39,6 +44,7 @@ export function ContactsRow({
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
           error={vendorError}
+          conflicts={vendorConflicts}
           onChange={onVendorsChange}
           onEdit={() => onEdit("vendors")}
         />
@@ -51,6 +57,7 @@ export function ContactsRow({
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
           error={purchaserError}
+          conflicts={purchaserConflicts}
           onChange={onPurchasersChange}
           onEdit={() => onEdit("purchasers")}
         />

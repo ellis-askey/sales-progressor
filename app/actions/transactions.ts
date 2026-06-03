@@ -19,6 +19,7 @@ import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
 import { pushFileAssigned } from "@/lib/agent/push-events";
 import { normaliseAddressString } from "@/lib/utils/address";
+import { findFirstPairwiseConflict } from "@/lib/contacts/dedupe";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -175,6 +176,17 @@ export async function createTransactionAction(input: {
   });
 
   if (input.contacts.length > 0) {
+    // Reject the batch if two contacts on the same file share a phone or
+    // email. Same structured-error pattern as DUPLICATE_ADDRESS above —
+    // NewSaleFlow catches by message string and surfaces inline.
+    const conflict = findFirstPairwiseConflict(input.contacts);
+    if (conflict) {
+      throw Object.assign(new Error("DUPLICATE_CONTACT_FIELD"), {
+        kind: conflict.kind,
+        offenderIndex: conflict.offenderIndex,
+        withName: conflict.withName,
+      });
+    }
     await prisma.contact.createMany({
       data: input.contacts.map((c) => ({
         propertyTransactionId: tx.id,

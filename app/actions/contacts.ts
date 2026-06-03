@@ -12,7 +12,22 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { createContact, deleteContact } from "@/lib/services/contacts";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/services/activity";
+import { findContactConflict } from "@/lib/contacts/dedupe";
 import type { ContactRole } from "@prisma/client";
+
+// Structured error thrown when a contact write would create or update a
+// row with a phone or email that already belongs to another contact on
+// the same transaction. Surfaced inline by the file-detail Add/Edit
+// forms and by the new-sale flow. Caller catches by message string.
+function makeDuplicateContactError(
+  kind: "phone" | "email",
+  withName: string,
+): Error {
+  return Object.assign(new Error("DUPLICATE_CONTACT_FIELD"), {
+    kind,
+    withName,
+  });
+}
 
 export async function createContactAction(input: {
   propertyTransactionId: string;
@@ -23,6 +38,19 @@ export async function createContactAction(input: {
 }) {
   const session = await requireSession();
   const scope = getAccessScope(session);
+
+  // Dedupe: refuse to insert if another contact on this transaction
+  // already has the same phone (canonical digits) or email (lowercased).
+  const others = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: input.propertyTransactionId,
+      transaction: scopeOwnershipWhere(scope, input.propertyTransactionId),
+    },
+    select: { name: true, phone: true, email: true },
+  });
+  const conflict = findContactConflict(input, others);
+  if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
+
   const contact = await createContact(input, scope);
   await logActivity(
     input.propertyTransactionId,
@@ -48,6 +76,19 @@ export async function updateContactAction(input: {
     select: { id: true },
   });
   if (!existing) throw new Error("Contact not found");
+
+  // Dedupe: refuse if another contact (excluding self) already has the
+  // same phone or email.
+  const others = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: input.transactionId,
+      transaction: txWhere,
+      id: { not: input.id },
+    },
+    select: { name: true, phone: true, email: true },
+  });
+  const conflict = findContactConflict({ name: input.name, phone: input.phone, email: input.email }, others);
+  if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
 
   await prisma.contact.update({
     where: { id: input.id },

@@ -35,6 +35,7 @@ export function ContactCard({
   canRemove,
   isOutsourced,
   progressedBy,
+  conflict,
   onChange,
   onRemove,
   onEdit,
@@ -45,6 +46,10 @@ export function ContactCard({
   canRemove: boolean;
   isOutsourced: boolean;
   progressedBy?: "agent" | "progressor";
+  // Phone/email duplication conflict with another contact on the file.
+  // Surfaced inline beneath the conflicting input. Driven by the parent
+  // carousel which computes conflicts pairwise across vendors + purchasers.
+  conflict?: { kind: "phone" | "email"; withName: string };
   onChange: (field: keyof ContactEntry, value: string) => void;
   onRemove: () => void;
   onEdit: () => void;
@@ -129,6 +134,11 @@ export function ContactCard({
               maxLength={20}
               type="tel"
             />
+            {conflict?.kind === "phone" && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
+                {conflict.withName} already has this phone on this sale.
+              </p>
+            )}
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>Email</label>
@@ -140,6 +150,11 @@ export function ContactCard({
               maxLength={120}
               type="email"
             />
+            {conflict?.kind === "email" && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
+                {conflict.withName} already has this email on this sale.
+              </p>
+            )}
           </div>
         </div>
         {isOutsourced && (
