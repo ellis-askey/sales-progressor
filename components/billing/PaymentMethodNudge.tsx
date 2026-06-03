@@ -44,7 +44,11 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
     ? await hasAcknowledged(agencyId, activeTerms.id)
     : false;
 
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+  // Server component — reads the unprefixed key (matches lib/stripe.ts +
+  // the settings billing page + the Vercel env var the founder set up).
+  // The earlier NEXT_PUBLIC_ variant drifted from that convention and
+  // resolved to "" at runtime, tripping CardCaptureForm's empty-key guard.
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
   return (
     <TrialBannerWithModal
       publishableKey={publishableKey}
