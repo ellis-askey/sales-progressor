@@ -5,11 +5,15 @@
 // Outbound-only by design (see getLastContactedByContact in
 // lib/services/comms.ts for what counts vs what doesn't).
 //
-// Bands:
-//   < 24h          green dot, "Contacted today"
-//   1-21d          neutral grey, "Contacted Nd ago" / "Contacted Nw ago"
-//   > 21d          amber dot, "Last contacted Nw ago"
+// Bands (calendar days in Europe/London — NOT rolling 24h windows; a
+// message sent at 16:30 yesterday must read "yesterday" the moment the
+// UK clock crosses midnight, not 24h later):
+//   same UK day    green dot, "Contacted today"
+//   1-21d ago      neutral grey, "Contacted Nd ago" / "Contacted Nw ago"
+//   > 21d ago      amber dot, "Last contacted Nw ago"
 //   never          muted grey + dashed border, "Not contacted yet"
+
+import { toUKDateStr } from "@/lib/utils";
 
 type Props = {
   // ISO string from the server, or null/undefined for "never". Component
@@ -19,8 +23,16 @@ type Props = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function formatRelative(ms: number): string {
-  const days = Math.floor(ms / DAY_MS);
+function ukCalendarDaysSince(lastContactedAt: string, now: Date): number {
+  const todayStr = toUKDateStr(now);
+  const lastStr = toUKDateStr(new Date(lastContactedAt));
+  // Anchor both as UTC midnight so DST transitions don't shift the diff.
+  const t0 = Date.parse(`${todayStr}T00:00:00Z`);
+  const t1 = Date.parse(`${lastStr}T00:00:00Z`);
+  return Math.round((t0 - t1) / DAY_MS);
+}
+
+function formatRelative(days: number): string {
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 7) return `${days}d ago`;
@@ -55,9 +67,8 @@ export function LastContactedPill({ lastContactedAt }: Props) {
     );
   }
 
-  const ms = Date.now() - new Date(lastContactedAt).getTime();
-  const days = Math.floor(ms / DAY_MS);
-  const isFresh = days < 1;
+  const days = ukCalendarDaysSince(lastContactedAt, new Date());
+  const isFresh = days <= 0;
   const isStale = days > 21;
 
   const dotColour = isFresh
@@ -73,7 +84,7 @@ export function LastContactedPill({ lastContactedAt }: Props) {
     : "rgba(15,23,42,0.05)";
 
   const prefix = isStale ? "Last contacted" : "Contacted";
-  const label = isFresh ? "today" : formatRelative(ms);
+  const label = isFresh ? "today" : formatRelative(days);
 
   return (
     <span
