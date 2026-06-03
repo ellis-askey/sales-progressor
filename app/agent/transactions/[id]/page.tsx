@@ -48,7 +48,7 @@ import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
-import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
+import { AutomatedEmailsCardAsync } from "@/components/reminders/AutomatedEmailsCardAsync";
 import { PerfOverlay } from "@/components/debug/PerfOverlay";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
@@ -82,8 +82,14 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
+  // `automatedEmails` (the preview card at the top of the Reminders tab)
+  // used to live in this Promise.all. Profiling on 2026-06-03 showed it
+  // taking 2655ms on a slow file detail load — single biggest contributor
+  // to the page's 3.4s first-paint time. Moved to a Suspense'd async
+  // server component (AutomatedEmailsCardAsync) mounted after
+  // RemindersSection in the Reminders tab, so it can't block first paint.
   const stage1Start = performance.now();
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
+  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
     timed("s1:transaction", isInternalStaff
@@ -100,9 +106,6 @@ export default async function AgentTransactionDetailPage({
     // is flag-gated off (no ClientChaseState rows yet); the chip simply
     // doesn't render in that case.
     timed("s1:clientChaseStates", getClientChaseStatesForTransaction(id).catch(() => ({})), perfTimings),
-    // Automated-emails preview — pending + sent today + predicted upcoming
-    // for the AutomatedEmailsCard at the top of the Reminders tab.
-    timed("s1:automatedEmails", getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })), perfTimings),
     // Per-contact tally of automated emails fired against this file. Drives
     // the small "5 auto emails" pill on each ContactsSection row so an
     // over-chased recipient is visible at a glance.
@@ -728,8 +731,14 @@ export default async function AgentTransactionDetailPage({
                 .filter((m) => m.isComplete || m.isNotRequired)
                 .map((m) => m.code)
             )}
-            automatedEmails={automatedEmails}
             transactionStatus={transaction.status}
+          />
+          {/* Deferred — see AutomatedEmailsCardAsync header for the rationale.
+            * Renders nothing while in flight (Suspense fallback={null}) so the
+            * rest of the Reminders tab is interactive immediately. */}
+          <AutomatedEmailsCardAsync
+            transactionId={transaction.id}
+            fileOnHold={transaction.status === "on_hold"}
           />
         </div>
 

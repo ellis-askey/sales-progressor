@@ -157,34 +157,121 @@ export async function getAutomatedEmailsForTransaction(
   const startOfDay = startOfTodayLondon(now);
   const upcomingHorizon = addDays(now, UPCOMING_WINDOW_DAYS);
 
-  // ─── Pending (queued, not yet sent) ─────────────────────────────────
-  const pendingRows = await prisma.outboundEmailQueue.findMany({
-    where: {
-      sentAt: null,
-      errorAt: null,
-      recipientContact: { propertyTransactionId: transactionId },
-    },
-    include: {
-      recipientContact: {
-        select: { id: true, name: true, roleType: true },
+  // Pre-2026-06-03 this function ran two outboundEmailQueue queries
+  // serially (~600-1000ms combined) THEN a 7-query Promise.all for the
+  // upcoming-chase prediction. None of the 9 queries depend on each
+  // other, so they're now folded into one wave. Total time becomes
+  // max(slowest query) instead of sum(serial chain + slowest of seven).
+  const [
+    pendingRows,
+    sentTodayRows,
+    allCcsRows,
+    allActiveRules,
+    allDefs,
+    allCompletions,
+    contacts,
+    transaction,
+    snoozedReminders,
+  ] = await Promise.all([
+    // Pending (queued, not yet sent)
+    prisma.outboundEmailQueue.findMany({
+      where: {
+        sentAt: null,
+        errorAt: null,
+        recipientContact: { propertyTransactionId: transactionId },
       },
-    },
-    orderBy: { scheduledFor: "asc" },
-  });
+      include: {
+        recipientContact: {
+          select: { id: true, name: true, roleType: true },
+        },
+      },
+      orderBy: { scheduledFor: "asc" },
+    }),
 
-  // ─── Sent today (last 24h-ish, London day boundary) ─────────────────
-  const sentTodayRows = await prisma.outboundEmailQueue.findMany({
-    where: {
-      sentAt: { gte: startOfDay },
-      recipientContact: { propertyTransactionId: transactionId },
-    },
-    include: {
-      recipientContact: {
-        select: { id: true, name: true, roleType: true },
+    // Sent today (last 24h-ish, London day boundary)
+    prisma.outboundEmailQueue.findMany({
+      where: {
+        sentAt: { gte: startOfDay },
+        recipientContact: { propertyTransactionId: transactionId },
       },
-    },
-    orderBy: { sentAt: "desc" },
-  });
+      include: {
+        recipientContact: {
+          select: { id: true, name: true, roleType: true },
+        },
+      },
+      orderBy: { sentAt: "desc" },
+    }),
+
+    prisma.clientChaseState.findMany({
+      where: { transactionId },
+      select: {
+        contactId: true,
+        milestoneCode: true,
+        status: true,
+        chaseCount: true,
+        lastChasedAt: true,
+        lastEngagedAt: true,
+        contact: { select: { id: true, name: true, roleType: true } },
+      },
+    }),
+    prisma.reminderRule.findMany({
+      where: { isActive: true, targetMilestoneCode: { not: null } },
+      select: {
+        targetMilestoneCode: true,
+        anchorMilestoneId: true,
+        graceDays: true,
+        repeatEveryDays: true,
+        useEventDate: true,
+        requiresExchangeReady: true,
+      },
+    }),
+    prisma.milestoneDefinition.findMany({
+      select: { id: true, code: true, blocksExchange: true },
+    }),
+    prisma.milestoneCompletion.findMany({
+      where: { transactionId },
+      select: {
+        milestoneDefinitionId: true,
+        state: true,
+        completedAt: true,
+        eventDate: true,
+        reconciledAtClaim: true,
+      },
+    }),
+    prisma.contact.findMany({
+      where: {
+        propertyTransactionId: transactionId,
+        roleType: { in: ["vendor", "purchaser"] },
+        unsubscribedAt: null,
+        email: { not: null },
+        portalToken: { not: null },
+      },
+      select: { id: true, name: true, roleType: true },
+    }),
+    prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        createdAt: true,
+        status: true,
+        chaseRuleSnapshot: true,
+        // Pause-state inputs (added 2026-05-29 for the auto-emails honesty pass)
+        clientEmailsPaused: true,
+        agency: { select: { name: true, chaseEmailsEnabled: true } },
+      },
+    }),
+    // Snooze suppression: chases predicted here are hidden for milestones
+    // whose ReminderLog is currently snoozed. Matches the same suppression
+    // applied in findDueClientChases — preview reflects what will actually
+    // fire, not just what could theoretically fire.
+    prisma.reminderLog.findMany({
+      where: {
+        transactionId,
+        status: "active",
+        snoozedUntil: { gt: now },
+      },
+      select: { reminderRule: { select: { targetMilestoneCode: true } } },
+    }),
+  ]);
 
   const pending: PendingEmail[] = pendingRows.map((r) => {
     const payload = (r.payload ?? {}) as { subject?: string };
@@ -326,81 +413,8 @@ export async function getAutomatedEmailsForTransaction(
   //         Sunday-skip, include if within horizon. Mirrors the same
   //         setup logic as findDueClientChases in client-chase-cron.ts.
   //
-  // Both kinds load from a shared set of bulk queries (rules + defs +
-  // completions + contacts + all-ccs-rows for this transaction) so the
-  // total query count stays small.
-
-  const [allCcsRows, allActiveRules, allDefs, allCompletions, contacts, transaction, snoozedReminders] = await Promise.all([
-    prisma.clientChaseState.findMany({
-      where: { transactionId },
-      select: {
-        contactId: true,
-        milestoneCode: true,
-        status: true,
-        chaseCount: true,
-        lastChasedAt: true,
-        lastEngagedAt: true,
-        contact: { select: { id: true, name: true, roleType: true } },
-      },
-    }),
-    prisma.reminderRule.findMany({
-      where: { isActive: true, targetMilestoneCode: { not: null } },
-      select: {
-        targetMilestoneCode: true,
-        anchorMilestoneId: true,
-        graceDays: true,
-        repeatEveryDays: true,
-        useEventDate: true,
-        requiresExchangeReady: true,
-      },
-    }),
-    prisma.milestoneDefinition.findMany({
-      select: { id: true, code: true, blocksExchange: true },
-    }),
-    prisma.milestoneCompletion.findMany({
-      where: { transactionId },
-      select: {
-        milestoneDefinitionId: true,
-        state: true,
-        completedAt: true,
-        eventDate: true,
-        reconciledAtClaim: true,
-      },
-    }),
-    prisma.contact.findMany({
-      where: {
-        propertyTransactionId: transactionId,
-        roleType: { in: ["vendor", "purchaser"] },
-        unsubscribedAt: null,
-        email: { not: null },
-        portalToken: { not: null },
-      },
-      select: { id: true, name: true, roleType: true },
-    }),
-    prisma.propertyTransaction.findUnique({
-      where: { id: transactionId },
-      select: {
-        createdAt: true,
-        status: true,
-        chaseRuleSnapshot: true,
-        // Pause-state inputs (added 2026-05-29 for the auto-emails honesty pass)
-        clientEmailsPaused: true,
-        agency: { select: { name: true, chaseEmailsEnabled: true } },
-      },
-    }),
-    // Snooze suppression: chases predicted here are hidden for milestones
-    // whose ReminderLog is currently snoozed. Matches the same suppression
-    // applied in findDueClientChases — preview reflects what will actually
-    // fire, not just what could theoretically fire.
-    prisma.reminderLog.findMany({
-      where: {
-        transactionId,
-        status: "active",
-        snoozedUntil: { gt: now },
-      },
-      select: { reminderRule: { select: { targetMilestoneCode: true } } },
-    }),
-  ]);
+  // Both kinds load from the shared bulk-query wave above (rules + defs
+  // + completions + contacts + all-ccs-rows for this transaction).
   const snoozedCodes = new Set(
     snoozedReminders
       .map((r) => r.reminderRule.targetMilestoneCode)
