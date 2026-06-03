@@ -8,6 +8,8 @@ import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/servic
 import { prisma } from "@/lib/prisma";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/services/notifications";
+import { setUkChaseTime } from "@/lib/services/reminders";
+import { toUKDateStr } from "@/lib/utils";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -190,6 +192,34 @@ export async function portalSetExpectedDateAction(input: {
     },
     data: { lastEngagedAt: new Date() },
   });
+
+  // Snooze the agent reminder until the morning of the date the client gave
+  // us. The auto-chase cron's snooze-suppression filter
+  // (lib/services/client-chase-cron.ts ~line 255) honours
+  // ReminderLog.snoozedUntil, so this single write pauses BOTH the agent's
+  // work-queue row AND the automated client chase email until that day.
+  //
+  // Guard: if the client typed today or a past date they're effectively
+  // saying "this should already be done", so we leave the chase running —
+  // they need the next-cycle nudge to actually confirm it.
+  //
+  // We resolve the reminder via ReminderRule.targetMilestoneCode so the
+  // snooze attaches to the right rule even if a milestone has multiple
+  // reminders (defensive — no production rules do today, but the schema
+  // permits it).
+  const todayUKStr = toUKDateStr(new Date());
+  const expectedUKStr = toUKDateStr(new Date(input.expectedDate));
+  if (expectedUKStr > todayUKStr) {
+    const snoozeUntil = setUkChaseTime(new Date(input.expectedDate));
+    await prisma.reminderLog.updateMany({
+      where: {
+        transactionId: contact.propertyTransactionId,
+        status: "active",
+        reminderRule: { targetMilestoneCode: input.milestoneCode },
+      },
+      data: { snoozedUntil: snoozeUntil },
+    });
+  }
 
   // Agent/SP-visibility cascade (Phase 1.2 of the portal-action-notifications
   // arc). Without these writes, a client picking a date is silent to the
