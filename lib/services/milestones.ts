@@ -95,7 +95,14 @@ export async function initializeMilestoneCompletions(
   transactionId: string,
   tenure: Tenure,
   purchaseType: PurchaseType,
-  createdById?: string
+  createdById?: string,
+  // Phase 1 commit 3: when supplied, purchaser-side completion rows get
+  // stamped with this round id at creation. Vendor-side rows stay
+  // file-level (NULL) by Phase 0 attribution rules. Backwards-compatible:
+  // omit to skip the stamping for callers that haven't migrated yet
+  // (currently no such callers — createTransactionAction is the only
+  // entry point and now passes the round).
+  buyerRoundId?: string | null
 ) {
   const defs = await prisma.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
@@ -126,6 +133,10 @@ export async function initializeMilestoneCompletions(
   // enforced by partial indexes (vendor file-level, purchaser per-round)
   // so the row is matched by (tx, def) here. Existing row → no-op
   // (parity with the old upsert's empty `update`). Missing row → create.
+  //
+  // Phase 1 commit 3: purchaser-side rows get stamped with the supplied
+  // buyerRoundId so subsequent round-scoped reads (commit 4) find them.
+  // Vendor-side rows stay file-level (buyerRoundId NULL).
   await Promise.all(
     defs.map(async (def) => {
       const existing = await prisma.milestoneCompletion.findFirst({
@@ -136,6 +147,7 @@ export async function initializeMilestoneCompletions(
       const isNr = autoNrCodes.has(def.code);
       const isAvail = availableCodes.has(def.code);
       const state = isNr ? "not_required" : isAvail ? "available" : "locked";
+      const stampRoundId = def.side === "purchaser" ? (buyerRoundId ?? null) : null;
       await prisma.milestoneCompletion.create({
         data: {
           transactionId,
@@ -143,6 +155,7 @@ export async function initializeMilestoneCompletions(
           state,
           notRequiredReason: isNr ? "Auto-set at file creation" : null,
           completedById: createdById ?? null,
+          buyerRoundId: stampRoundId,
           createdAt: now,
         },
       });

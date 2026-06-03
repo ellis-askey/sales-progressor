@@ -730,7 +730,7 @@ export async function createTransaction(input: CreateTransactionInput) {
     // first-time creates both claiming to be the anchor file.
     const freeOnExchange = await stampTrialState(input.agencyId, tx);
 
-    return tx.propertyTransaction.create({
+    const created = await tx.propertyTransaction.create({
     data: {
       propertyAddress: input.propertyAddress,
       agencyId: input.agencyId,
@@ -767,6 +767,28 @@ export async function createTransaction(input: CreateTransactionInput) {
       purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
       twelveWeekTarget,
     },
+    });
+
+    // Phase 1 commit 3: stand up Round 1 alongside the new transaction,
+    // inside the same $transaction so a failed round-create rolls back
+    // the whole file. Snapshot fields mirror the live values exactly as
+    // Phase 0's backfill does, so the round and the transaction agree
+    // from the first millisecond. Activates this round on the transaction.
+    const round = await tx.buyerRound.create({
+      data: {
+        transactionId: created.id,
+        roundNumber: 1,
+        status: "active",
+        purchasePrice: created.purchasePrice,
+        purchaserSolicitorFirmId: created.purchaserSolicitorFirmId,
+        purchaserSolicitorContactId: created.purchaserSolicitorContactId,
+        brokerFirmId: created.brokerFirmId,
+        brokerContactId: created.brokerContactId,
+      },
+    });
+    return tx.propertyTransaction.update({
+      where: { id: created.id },
+      data: { activeBuyerRoundId: round.id },
     });
   });
 

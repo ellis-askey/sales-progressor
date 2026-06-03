@@ -195,13 +195,17 @@ export async function createTransactionAction(input: {
         email: c.email?.trim() || null,
         roleType: c.roleType,
         portalToken: randomUUID(),
+        // Phase 1 commit 3: purchaser contacts are scoped to the active
+        // round; vendor / solicitor / broker contacts stay file-level.
+        // Same attribution rule as Phase 0 backfill.
+        buyerRoundId: c.roleType === "purchaser" ? tx.activeBuyerRoundId : null,
       })),
     });
   }
 
   // Initialize all milestone completions (available/locked/not_required per tenure+purchaseType)
   if (input.tenure && input.purchaseType) {
-    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id);
+    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id, tx.activeBuyerRoundId);
   }
 
   // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides
@@ -238,9 +242,11 @@ export async function createTransactionAction(input: {
     }).catch(console.error);
   }
 
-  // Fast inline creation: batch creates logs + tasks synchronously (~3 queries)
+  // Fast inline creation: batch creates logs + tasks synchronously (~3 queries).
+  // Phase 1 commit 3: purchaser-side ReminderLog/ChaseTask rows get the
+  // active round stamp; vendor-side stay file-level.
   const completedCodes = mosAutoConfirmed ? ["VM2", "PM2"] : [];
-  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes).catch(console.error);
+  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes, tx.activeBuyerRoundId).catch(console.error);
   // Full engine handles anchor-based and exchange-gated rules asynchronously
   void evaluateTransactionReminders(tx.id).catch(console.error);
 

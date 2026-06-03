@@ -588,7 +588,13 @@ export async function createInitialRemindersInline(
   transactionId: string,
   createdAt: Date,
   assignedUserId: string | null,
-  completedMilestoneCodes: string[] = []
+  completedMilestoneCodes: string[] = [],
+  // Phase 1 commit 3: when supplied, purchaser-targeted rules
+  // (targetMilestoneCode starts with 'PM') get their ReminderLog and
+  // any inline-created ChaseTask stamped with this round id. Vendor-
+  // targeted rules stay file-level. Same attribution rule as Phase 0
+  // backfill.
+  buyerRoundId?: string | null
 ): Promise<void> {
   const rules = await prisma.reminderRule.findMany({
     where: { isActive: true, anchorMilestoneId: null, requiresExchangeReady: false },
@@ -608,19 +614,21 @@ export async function createInitialRemindersInline(
       // Normalise to 06:00 UK on the resulting day so the chase is live
       // before the working day starts (rather than inheriting createdAt's hour).
       const normalised = setUkChaseTime(dueDate);
+      const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
       return {
         transactionId,
         reminderRuleId: rule.id,
         status: "active" as const,
         nextDueDate: normalised,
         sourceDateUsed: createdAt,
+        buyerRoundId: isPurchaserTarget ? (buyerRoundId ?? null) : null,
       };
     }),
   });
 
   const logs = await prisma.reminderLog.findMany({
     where: { transactionId, reminderRuleId: { in: eligibleRules.map((r) => r.id) }, status: "active" },
-    select: { id: true, nextDueDate: true },
+    select: { id: true, nextDueDate: true, buyerRoundId: true },
   });
 
   const nowUKStr = toUKDateStr(new Date());
@@ -636,6 +644,9 @@ export async function createInitialRemindersInline(
       status: "pending" as const,
       priority: "normal" as const,
       chaseCount: 0,
+      // Inherit attribution from the parent ReminderLog (same rule as
+      // Phase 0's ChaseTask backfill).
+      buyerRoundId: log.buyerRoundId,
     })),
   });
 }
