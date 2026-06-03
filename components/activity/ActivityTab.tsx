@@ -54,8 +54,16 @@ export function ActivityTab(props: Props) {
     content: string,
     contactIds: string[],
   ): void {
+    // contactIds carries BOTH vendor/purchaser contact IDs and solicitor
+    // contact IDs (CommsEntry lets the agent toggle either pill row).
+    // The optimistic render must look both up so the just-added row
+    // shows solicitor names too, matching what the timeline service
+    // returns once the server-side revalidate lands.
     const contactNames = contactIds
-      .map((id) => props.contacts.find((c) => c.id === id)?.name)
+      .map((id) =>
+        props.contacts.find((c) => c.id === id)?.name
+        ?? props.solicitors?.find((s) => s.id === id)?.name
+      )
       .filter((n): n is string => !!n);
     setOptimistic((prev) => [
       {
@@ -87,6 +95,7 @@ export function ActivityTab(props: Props) {
       mosDocUrl={props.mosDocUrl}
       currentUserId={props.currentUserId}
       contacts={props.contacts}
+      solicitors={props.solicitors}
       beforeEntries={
         <CommsEntry
           transactionId={props.transactionId}
