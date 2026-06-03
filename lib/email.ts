@@ -41,8 +41,14 @@ export async function sendEmail({
 }
 
 // Platform-level chain notification emails (withdrawal, exchange, completion, celebration).
-// From: Sales Progressor <updates@thesalesprogressor.co.uk>
-// Reply-To: support@thesalesprogressor.co.uk
+// Defaults:
+//   From: Sales Progressor <updates@thesalesprogressor.co.uk>
+//   Reply-To: support@thesalesprogressor.co.uk
+// White-label override: callers can pass `from` and `replyTo` to send as a
+// specific agency / agent (used by the outsource-intro email, which must
+// not display "Sales Progressor" as the sender name). When omitted the
+// chain-notification defaults apply — all existing call sites keep their
+// SP-branded behaviour unchanged.
 // ASM unsubscribe group included when SENDGRID_UNSUBSCRIBE_GROUP_ID is set.
 // Set EMAIL_SANDBOX_MODE=true on staging to validate without delivering.
 export async function sendChainEmail({
@@ -51,6 +57,8 @@ export async function sendChainEmail({
   text,
   html,
   queueId,
+  from,
+  replyTo,
 }: {
   to: string;
   subject: string;
@@ -59,6 +67,8 @@ export async function sendChainEmail({
   // Same purpose as sendEmail.queueId — see comment there. Drain functions
   // pass the OutboundEmailQueue row id; the webhook joins events back.
   queueId?: string;
+  from?: string;
+  replyTo?: string;
 }): Promise<void> {
   const isSandbox = process.env.EMAIL_SANDBOX_MODE === "true";
   const asmGroupId = process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID
@@ -71,8 +81,8 @@ export async function sendChainEmail({
 
   await sgMail.send({
     to,
-    from: DEFAULT_FROM,
-    replyTo: "support@thesalesprogressor.co.uk",
+    from: from ?? DEFAULT_FROM,
+    replyTo: replyTo ?? "support@thesalesprogressor.co.uk",
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
