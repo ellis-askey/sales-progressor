@@ -60,6 +60,7 @@ import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
 import { ReconcileLaterAsync } from "@/components/transaction/ReconcileLaterAsync";
 import { SidebarPanelSkeleton, TabPanelSkeleton } from "@/components/transaction/PanelSkeletons";
+import { RevealCoordinator, RevealSlot, RevealPing } from "@/components/transaction/RevealCoordinator";
 
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
 type Timing = { label: string; ms: number };
@@ -205,10 +206,11 @@ export default async function AgentTransactionDetailPage({
   const totalServerMs = Math.round(performance.now() - perfStart);
 
   const sidebar = (
-    <Suspense fallback={<SidebarPanelSkeleton />}>
-      <SidebarPanel
-        transaction={{
-          id: transaction.id,
+    <RevealSlot skeleton={<SidebarPanelSkeleton />}>
+      <Suspense fallback={null}>
+        <SidebarPanel
+          transaction={{
+            id: transaction.id,
           propertyAddress: transaction.propertyAddress,
           purchasePrice: transaction.purchasePrice ?? null,
           tenure: transaction.tenure ?? null,
@@ -233,15 +235,17 @@ export default async function AgentTransactionDetailPage({
           agency: transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null,
           holdPeriods: transaction.holdPeriods,
         }}
-        isInternalStaff={isInternalStaff}
-        isInternal={isInternalStaff}
-        isDirectorRole={isDirectorRole}
-        isProgressor={isProgressor}
-        isAdminRole={isAdminRole}
-        isAgentRole={isAgentRole}
-        agencyId={session.user.agencyId}
-      />
-    </Suspense>
+          isInternalStaff={isInternalStaff}
+          isInternal={isInternalStaff}
+          isDirectorRole={isDirectorRole}
+          isProgressor={isProgressor}
+          isAdminRole={isAdminRole}
+          isAgentRole={isAgentRole}
+          agencyId={session.user.agencyId}
+        />
+        <RevealPing slotId="sidebar" />
+      </Suspense>
+    </RevealSlot>
   );
 
   return (
@@ -289,6 +293,7 @@ export default async function AgentTransactionDetailPage({
         isAdminViewer={isAdminRole}
       />
 
+      <RevealCoordinator slots={["sidebar", "overview"]}>
       <PropertyFileTabs
         tabs={tabs}
         sidebar={sidebar}
@@ -318,17 +323,20 @@ export default async function AgentTransactionDetailPage({
         }
       >
         {/* Tab 0: Overview */}
-        <Suspense fallback={<TabPanelSkeleton rows={6} withHero />}>
-          <OverviewPanel
-            transaction={transaction}
-            agencyId={session.user.agencyId}
-            isInternalStaff={isInternalStaff}
-            isDirectorRole={isDirectorRole}
-            currentUserId={session.user.id}
-            currentUserName={session.user.name ?? ""}
-            recommendedFirms={null}
-          />
-        </Suspense>
+        <RevealSlot skeleton={<TabPanelSkeleton rows={6} withHero />}>
+          <Suspense fallback={null}>
+            <OverviewPanel
+              transaction={transaction}
+              agencyId={session.user.agencyId}
+              isInternalStaff={isInternalStaff}
+              isDirectorRole={isDirectorRole}
+              currentUserId={session.user.id}
+              currentUserName={session.user.name ?? ""}
+              recommendedFirms={null}
+            />
+            <RevealPing slotId="overview" />
+          </Suspense>
+        </RevealSlot>
 
         {/* Tab 1: Steps */}
         <Suspense fallback={<TabPanelSkeleton rows={8} />}>
@@ -382,6 +390,7 @@ export default async function AgentTransactionDetailPage({
           />
         </Suspense>
       </PropertyFileTabs>
+      </RevealCoordinator>
     </div>
   );
 }
