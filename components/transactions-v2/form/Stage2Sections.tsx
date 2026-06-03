@@ -90,6 +90,12 @@ type Props = {
   // Server-resolved one-shot gate for the portal-invite prompt. False after
   // the agent's first added sale OR after they've clicked the prompt once.
   showPortalPrompt: boolean;
+  // Per-card phone/email duplication conflicts (keyed by card index)
+  // computed by NewSaleFlow via mapPairwiseConflicts. Drives the inline
+  // error message under the conflicting field and the amber-dot on the
+  // conflicting tab pill.
+  vendorConflicts?: Record<number, { kind: "phone" | "email"; withName: string }>;
+  purchaserConflicts?: Record<number, { kind: "phone" | "email"; withName: string }>;
 };
 
 export function Stage2Sections({
@@ -100,6 +106,8 @@ export function Stage2Sections({
   vendorSolicitorHint, purchaserSolicitorHint,
   recommendedFirms, preferredBroker, preferredBrokerDefaultFee,
   showPortalPrompt,
+  vendorConflicts,
+  purchaserConflicts,
 }: Props) {
   const recommendedFirmIds = recommendedFirms.map((f) => f.id);
   const originatorAddress = [fields.streetAddress, fields.city, fields.postcode].filter(Boolean).join(", ");
@@ -149,6 +157,8 @@ export function Stage2Sections({
           progressedBy={fields.progressedBy}
           vendorError={vendorError}
           purchaserError={purchaserError}
+          vendorConflicts={vendorConflicts}
+          purchaserConflicts={purchaserConflicts}
           onVendorsChange={(v: ContactEntry[]) => { onChange({ vendors: v }); onEdit("vendors"); }}
           onPurchasersChange={(v: ContactEntry[]) => { onChange({ purchasers: v }); onEdit("purchasers"); }}
           onEdit={onEdit}

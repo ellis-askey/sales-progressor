@@ -127,6 +127,7 @@ export function ContactsSection({
   const [exitingId, setExitingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [inviting, setInviting] = useState<string | null>(null);
   const [inviteSent, setInviteSent] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
@@ -173,18 +174,37 @@ export function ContactsSection({
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  // Translate a server-thrown DUPLICATE_CONTACT_FIELD error into a
+  // human-readable line for the inline pill. Falls back to the raw
+  // message when the error has a different shape.
+  function describeContactError(err: unknown): string {
+    if (err instanceof Error) {
+      if (err.message === "DUPLICATE_CONTACT_FIELD") {
+        const e = err as Error & { kind?: "phone" | "email"; withName?: string };
+        const field = e.kind === "phone" ? "phone number" : "email";
+        return `This ${field} is already used by ${e.withName ?? "another contact"} on this file.`;
+      }
+      return err.message;
+    }
+    return "Something went wrong";
+  }
+
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     setShowForm(false);
     const snap = { propertyTransactionId: transactionId, name: titleCase(form.name), email: form.email.trim() || null, phone: form.phone.trim() || null, roleType: form.roleType };
-    setForm(EMPTY_FORM);
+    const formSnap = { ...form };
     startTransition(async () => {
       try {
         await createContactAction(snap);
+        setForm(EMPTY_FORM);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Something went wrong");
+        // Restore the form values so the agent can edit without retyping
+        // and surface the friendly error message.
+        setForm(formSnap);
+        setError(describeContactError(err));
         setShowForm(true);
       } finally {
         setLoading(false);
@@ -195,11 +215,13 @@ export function ContactsSection({
   function startEdit(contact: Contact) {
     setEditingId(contact.id);
     setExitingId(null);
+    setEditError(null);
     setEditForm({ name: contact.name, phone: contact.phone ?? "", email: contact.email ?? "" });
   }
 
   function closeEdit() {
     setExitingId(editingId);
+    setEditError(null);
     setTimeout(() => {
       setEditingId(null);
       setExitingId(null);
@@ -208,20 +230,25 @@ export function ContactsSection({
 
   function handleEdit(contactId: string) {
     setEditSaving(true);
-    setExitingId(editingId);
-    setTimeout(() => {
-      setEditingId(null);
-      setExitingId(null);
-    }, 150);
+    setEditError(null);
     const snap = { id: contactId, transactionId, name: titleCase(editForm.name), phone: editForm.phone.trim() ? normalizePhone(editForm.phone) : null, email: editForm.email.trim() || null };
+    // Don't close the edit row until we know the save succeeded — that
+    // way if the server rejects a duplicate we can render the error pill
+    // inline on the still-open row.
     startTransition(async () => {
       try {
         await updateContactAction(snap);
         if (snap.phone || snap.email) {
           window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasContactDetails: true } }));
         }
-      } catch {
-        setEditingId(contactId);
+        // Success — animate the edit row closed.
+        setExitingId(contactId);
+        setTimeout(() => {
+          setEditingId(null);
+          setExitingId(null);
+        }, 150);
+      } catch (err: unknown) {
+        setEditError(describeContactError(err));
       } finally {
         setEditSaving(false);
       }
@@ -404,6 +431,11 @@ export function ContactsSection({
                       placeholder="Email"
                       className="glass-input w-full px-3 py-2 text-sm"
                     />
+                    {editError && editingId === contact.id && (
+                      <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
+                        {editError}
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                       <button onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-ghost-bordered">
                         Cancel

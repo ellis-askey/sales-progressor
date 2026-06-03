@@ -8,6 +8,8 @@ import { FieldIndicator, FieldHint } from "./FieldIndicator";
 
 const MAX_ENTRIES = 4;
 
+type ContactConflict = { kind: "phone" | "email"; withName: string };
+
 type Props = {
   label: string;
   contacts: ContactEntry[];
@@ -15,6 +17,10 @@ type Props = {
   isOutsourced: boolean;
   progressedBy: "agent" | "progressor";
   error: string | null;
+  // Per-card phone/email duplication conflicts (keyed by card index).
+  // Drives the amber-dot indicator on the tab pill and the inline error
+  // passed down to the active ContactCard.
+  conflicts?: Record<number, ContactConflict>;
   onChange: (contacts: ContactEntry[]) => void;
   onEdit: () => void;
 };
@@ -129,7 +135,7 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ContactCarousel({ label, contacts, memoSource, isOutsourced, progressedBy, error, onChange, onEdit }: Props) {
+export function ContactCarousel({ label, contacts, memoSource, isOutsourced, progressedBy, error, conflicts, onChange, onEdit }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [lastDir, setLastDir] = useState<"next" | "prev">("next");
@@ -261,6 +267,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           canRemove={false}
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
+          conflict={conflicts?.[0]}
           onChange={(field, value) => updateEntry(0, field, value)}
           onRemove={() => {}}
           onEdit={onEdit}
@@ -295,7 +302,10 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
         {contacts.map((c, i) => {
           const isActive = i === activeIndex;
-          const hasErr = !!error && isEntryInvalid(c, isOutsourced);
+          // hasErr drives the amber dot. It fires when this card is
+          // outsourced-invalid OR it has a phone/email conflict with
+          // another contact on the file.
+          const hasErr = (!!error && isEntryInvalid(c, isOutsourced)) || !!conflicts?.[i];
           const name = c.name?.trim();
           const tabLabel = name
             ? name.length > 18 ? name.slice(0, 16) + "…" : name
@@ -394,6 +404,7 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           canRemove={false}
           isOutsourced={isOutsourced}
           progressedBy={progressedBy}
+          conflict={conflicts?.[activeIndex]}
           onChange={(field, value) => updateEntry(activeIndex, field, value)}
           onRemove={() => removeEntry(activeIndex)}
           onEdit={onEdit}

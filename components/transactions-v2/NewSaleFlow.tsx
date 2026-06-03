@@ -26,6 +26,7 @@ import { NULL_MEMO_SOURCES } from "@/components/transactions-v2/types";
 import type { ExtractedMemoData, FlowState, DraftEntry, MemoSources, ContactEntry } from "@/components/transactions-v2/types";
 import type { FormFields } from "@/components/transactions-v2/form/types";
 import { createTransactionAction, saveDraftAction, discardDraftAction } from "@/app/actions/transactions";
+import { mapPairwiseConflicts, type ContactConflict } from "@/lib/contacts/dedupe";
 import { cleanPhone, formatPostcode } from "@/lib/utils/address";
 import { titleCase } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -831,9 +832,21 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       router.push(`/agent/transactions/${result.id}${qs}${chainParam}`);
     } catch (err) {
       setIsSubmitting(false);
-      const error = err as Error & { duplicateId?: string; assignedTo?: string | null };
+      const error = err as Error & {
+        duplicateId?: string;
+        assignedTo?: string | null;
+        kind?: "phone" | "email";
+        withName?: string;
+      };
       if (error.message === "DUPLICATE_ADDRESS") {
         setDuplicateInfo({ id: error.duplicateId ?? "", assignedTo: error.assignedTo ?? null });
+      } else if (error.message === "DUPLICATE_CONTACT_FIELD") {
+        // Server caught a pairwise contact conflict the client-side live
+        // check should have caught earlier — surface it as a toast so the
+        // user knows why submit didn't progress, even if the inline pill
+        // also re-renders.
+        const field = error.kind === "phone" ? "phone number" : "email";
+        toast.error(`Two contacts share the same ${field}${error.withName ? ` (${error.withName})` : ""}. Update one before submitting.`);
       } else {
         toast.error("The file didn't save. Try again or contact support.");
       }
@@ -865,7 +878,41 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     return "Add a phone number or email for the buyer";
   })();
 
-  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady;
+  // Per-card phone/email-uniqueness conflicts across the contacts on the
+  // file. Computed pairwise across the union of vendors + purchasers so
+  // a vendor sharing a phone with a purchaser is caught too. Keyed by
+  // role + the local card index. Cost is trivial (≤4 + ≤4 entries).
+  const { vendorConflicts, purchaserConflicts, hasContactConflict } = (() => {
+    const labelled = [
+      ...formFields.vendors.map((c, i) => ({
+        ...c,
+        name: c.name.trim() || `Vendor ${i + 1}`,
+        _role: "vendor" as const,
+        _index: i,
+      })),
+      ...formFields.purchasers.map((c, i) => ({
+        ...c,
+        name: c.name.trim() || `Purchaser ${i + 1}`,
+        _role: "purchaser" as const,
+        _index: i,
+      })),
+    ];
+    const conflicts = mapPairwiseConflicts(labelled);
+    const vConflicts: Record<number, ContactConflict> = {};
+    const pConflicts: Record<number, ContactConflict> = {};
+    for (const [k, v] of Object.entries(conflicts)) {
+      const offender = labelled[Number(k)];
+      if (offender._role === "vendor") vConflicts[offender._index] = v;
+      else pConflicts[offender._index] = v;
+    }
+    return {
+      vendorConflicts: vConflicts,
+      purchaserConflicts: pConflicts,
+      hasContactConflict: Object.keys(conflicts).length > 0,
+    };
+  })();
+
+  const isSubmitDisabled = isSubmitting || !tenurePurchaseReady || !outsourcedReady || hasContactConflict;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -909,6 +956,8 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
     preferredBroker,
     preferredBrokerDefaultFee,
     showPortalPrompt,
+    vendorConflicts,
+    purchaserConflicts,
   } as const;
 
   return (
