@@ -14,6 +14,7 @@ import { Stage1Fields } from "@/components/transactions-v2/form/Stage1Fields";
 import { Stage1SummaryBar } from "@/components/transactions-v2/form/Stage1SummaryBar";
 import { Stage2Sections } from "@/components/transactions-v2/form/Stage2Sections";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
+import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
@@ -134,6 +135,10 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
     notes: draft.notes ?? "",
     chainStubs: draft.chainStubs as InMemoryStub[],
     chainExpanded: draft.chainStubs.length > 0,
+    // Drafts don't carry an assigned owner — picker defaults to the
+    // current director if rendered, otherwise the field stays empty
+    // and the server falls back to the caller.
+    assignToUserId: "",
   };
 }
 
@@ -270,11 +275,19 @@ type Props = {
   // starts on "agent" (self-progress). Computed server-side by
   // deriveDefaultProgressedBy in lib/agency/default-progressed-by.ts.
   defaultProgressedBy: "agent" | "progressor";
+  // Director-only assignment picker. When the viewer is a director, the
+  // page pre-fetches every director/negotiator in the agency and passes
+  // them in; the form renders an "Assign to" dropdown so the director
+  // can hand the file to another agent on creation. Negotiators get
+  // null and never see the picker.
+  isDirector: boolean;
+  currentUserId: string;
+  assignableAgents: import("@/lib/services/agency-team").AssignableAgent[];
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -804,6 +817,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         mosMimeType: extractedData?.mosMimeType,
         mosFilename: extractedData?.mosFilename,
         forceCreate,
+        // Director-only — pass the picked owner; server ignores when
+        // empty or when the caller isn't a director. Negotiators never
+        // populate this field because the picker isn't rendered for them.
+        assignToUserId: formFields.assignToUserId || undefined,
         chain: formFields.chainStubs.length > 0
           ? { stubs: formFields.chainStubs, sendInvites: true }
           : undefined,
@@ -985,6 +1002,20 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 purchaserError={outsourcedError?.field === "purchasers" ? outsourcedError.message : null}
               />
               <div style={{ marginTop: 20 }}>
+                {isDirector && !isOutsourced && assignableAgents.length > 1 && (
+                  <div
+                    className="glass-card"
+                    style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    <AgentPicker
+                      value={formFields.assignToUserId || currentUserId}
+                      onChange={(v) => updateFormFields({ assignToUserId: v })}
+                      agents={assignableAgents}
+                      currentUserId={currentUserId}
+                      label="Assign this file to"
+                    />
+                  </div>
+                )}
                 {isOutsourced && !outsourcedReady && !isSubmitting && (
                   <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
                 )}

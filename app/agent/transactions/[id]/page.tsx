@@ -45,6 +45,8 @@ import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
 import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
+import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
+import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
@@ -405,6 +407,16 @@ export default async function AgentTransactionDetailPage({
     select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
   }).catch(() => []);
 
+  // Director-only reassign picker data. Only fetched when the viewer is a
+  // director AND the file is self-managed (outsourced files have a
+  // progressor assigned through a different flow and the director doesn't
+  // own the assignment there). The "1 or fewer agents" branch returns
+  // an empty list so the picker silently hides — nothing to choose from.
+  const showReassign = isDirectorRole && transaction.serviceType === "self_managed";
+  const assignableAgents = showReassign && session.user.agencyId
+    ? await listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+    : [];
+
   const liveCutoff = new Date(Date.now() - 5 * 60 * 1000);
   const closedSessions = fileTimeSessions.filter((s) => s.endedAt !== null && (s.totalEngagedSeconds ?? 0) > 0);
 
@@ -521,6 +533,33 @@ export default async function AgentTransactionDetailPage({
         inChain={!!transaction.chainLinkId}
         isAdminViewer={isAdminRole}
       />
+
+      {/* Director-only reassign strip — slim row below the hero with the
+        * current owner name plus a "Reassign" link that opens the picker
+        * modal. Hidden for outsourced files, hidden for negotiators, and
+        * hidden when the agency only has one assignable user. */}
+      {showReassign && assignableAgents.length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: "8px 16px 0",
+            fontSize: 11,
+            color: "var(--agent-text-muted)",
+          }}
+        >
+          <span>Owner: <strong style={{ color: "var(--agent-text-secondary)" }}>{assignedDisplayName ?? "Unassigned"}</strong></span>
+          <ReassignOwnerControl
+            transactionId={transaction.id}
+            currentAgentUserId={transaction.agentUserId ?? null}
+            currentAgentName={assignedDisplayName}
+            currentUserId={session.user.id}
+            assignableAgents={assignableAgents}
+          />
+        </div>
+      )}
 
       <PropertyFileTabs
         tabs={tabs}

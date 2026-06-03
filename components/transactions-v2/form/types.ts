@@ -29,6 +29,11 @@ export type FormFields = {
   notes: string;
   chainStubs: InMemoryStub[];
   chainExpanded: boolean;
+  // Director-only: which agency user will own the new file. Defaults to
+  // the current user; a director can pick a different director / negotiator
+  // in their agency. Negotiators don't see the picker and the field stays
+  // at the default. Empty string means "use the caller" on the server.
+  assignToUserId: string;
 };
 
 export function defaultFormFields(
@@ -60,6 +65,7 @@ export function defaultFormFields(
     notes: "",
     chainStubs: [],
     chainExpanded: false,
+    assignToUserId: "",
   };
 }
 
