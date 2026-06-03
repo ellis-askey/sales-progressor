@@ -17,6 +17,12 @@ type Props = {
   // when omitted (e.g. global comms surfaces that don't pass contacts),
   // edit is disabled.
   contacts?: { id: string; name: string }[];
+  // Solicitor contacts that can ALSO be attached to a comm. CommsEntry
+  // (the create form) lets the agent toggle solicitors as a second pill
+  // row; the edit form needs the same surface so an existing comm can
+  // add/remove solicitors after the fact. When omitted, the edit form
+  // only renders the contacts row (matches the pre-fix behaviour).
+  solicitors?: { id: string; name: string; role: string }[];
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
@@ -111,7 +117,7 @@ function ContactPill({ name }: { name: string }) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts, solicitors }: Props) {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId]   = useState<string | null>(null);
@@ -404,7 +410,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                               {/* Bottom row — pills + visibility on the left, Cancel/Save on the right */}
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                  {/* Contact picker */}
+                                  {/* Contact + solicitor pickers — mirror the CommsEntry
+                                    * create form so existing comms can have either kind
+                                    * added or removed after the fact. contactIds carries
+                                    * both vendor/purchaser IDs and solicitor IDs; the
+                                    * picker toggles either by ID using the same handler. */}
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                                     {contacts.map((c) => {
                                       const on = editDraft.contactIds.includes(c.id);
@@ -422,6 +432,26 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                                           }}
                                         >
                                           {extractFirstName(c.name)}
+                                        </button>
+                                      );
+                                    })}
+                                    {(solicitors ?? []).map((s) => {
+                                      const on = editDraft.contactIds.includes(s.id);
+                                      return (
+                                        <button
+                                          key={s.id}
+                                          type="button"
+                                          onClick={() => toggleEditContact(s.id)}
+                                          title={s.role}
+                                          style={{
+                                            fontSize: 10, fontWeight: 500, padding: "2px 8px", borderRadius: 10,
+                                            background: on ? "rgba(255,107,74,0.15)" : "rgba(15,23,42,0.04)",
+                                            color: on ? "var(--agent-coral)" : "var(--agent-text-muted)",
+                                            border: on ? "0.5px solid var(--agent-coral)" : "0.5px solid transparent",
+                                            cursor: "pointer",
+                                          }}
+                                        >
+                                          {s.name}
                                         </button>
                                       );
                                     })}

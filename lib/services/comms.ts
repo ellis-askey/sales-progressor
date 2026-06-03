@@ -58,11 +58,25 @@ export async function getActivityTimeline(
 ): Promise<ActivityEntry[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true, contacts: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      contacts: { select: { id: true, name: true } },
+      // Solicitor contacts ride on the same outboundMessage.contactIds
+      // array as vendor/purchaser contacts (CommsEntry lets the agent
+      // toggle either row when logging the comm). They must be in the
+      // same name-lookup map below, otherwise the .filter(Boolean) on
+      // the result drops the solicitor IDs and the row renders without
+      // their names — looks to the agent like the solicitor was never
+      // attached at all.
+      vendorSolicitorContact:    { select: { id: true, name: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true } },
+    },
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const contactMap = new Map(tx.contacts.map((c) => [c.id, c.name]));
+  const contactMap = new Map<string, string>(tx.contacts.map((c) => [c.id, c.name]));
+  if (tx.vendorSolicitorContact)    contactMap.set(tx.vendorSolicitorContact.id,    tx.vendorSolicitorContact.name);
+  if (tx.purchaserSolicitorContact) contactMap.set(tx.purchaserSolicitorContact.id, tx.purchaserSolicitorContact.name);
 
   const [completions, comms] = await Promise.all([
     prisma.milestoneCompletion.findMany({
