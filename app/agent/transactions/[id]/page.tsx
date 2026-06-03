@@ -49,52 +49,71 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
+import { PerfOverlay } from "@/components/debug/PerfOverlay";
+
+// Per-query timing helper for the perf-investigation overlay (?perf=1).
+// Adds ~0.01ms overhead per query and is otherwise inert; pulls a stamp on
+// resolve and pushes it to the provided array. Removable once we've nailed
+// the file-detail latency hotspot.
+type Timing = { label: string; ms: number };
+function timed<T>(label: string, p: Promise<T>, into: Timing[]): Promise<T> {
+  const start = performance.now();
+  return p.then((r) => {
+    into.push({ label, ms: Math.round(performance.now() - start) });
+    return r;
+  });
+}
 
 export default async function AgentTransactionDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; chainSetupFailed?: string; newUser?: string }>;
+  searchParams: Promise<{ tab?: string; chainSetupFailed?: string; newUser?: string; perf?: string }>;
 }) {
-  const [{ id }, { tab: initialTab, newUser }] = await Promise.all([params, searchParams]);
+  const perfStart = performance.now();
+  const perfTimings: Timing[] = [];
+  const [{ id }, { tab: initialTab, newUser, perf: perfFlag }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
+  const perfEnabled = perfFlag === "1";
 
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isAdminRole  = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
+  const stage1Start = performance.now();
   const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmails, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
     // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
     // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
-    isInternalStaff
+    timed("s1:transaction", isInternalStaff
       ? getTransactionByScope(id, txScope!)
-      : getTransaction(id, session.user.agencyId),
-    getMilestonesForTransaction(id, session.user.agencyId).catch(() => null),
-    getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []),
-    getActivityTimeline(id, session.user.agencyId).catch(() => []),
-    getLastUpdate(id).catch(() => null),
-    listManualTasksForTransaction(id, session.user.agencyId).catch(() => []),
-    getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()),
+      : getTransaction(id, session.user.agencyId), perfTimings),
+    timed("s1:milestones", getMilestonesForTransaction(id, session.user.agencyId).catch(() => null), perfTimings),
+    timed("s1:reminderLogs", getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []), perfTimings),
+    timed("s1:activityTimeline", getActivityTimeline(id, session.user.agencyId).catch(() => []), perfTimings),
+    timed("s1:lastUpdate", getLastUpdate(id).catch(() => null), perfTimings),
+    timed("s1:manualTasks", listManualTasksForTransaction(id, session.user.agencyId).catch(() => []), perfTimings),
+    timed("s1:graceDays", getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()), perfTimings),
     // B6 of the client-chase arc — aggregated per-milestone chase state for
     // the chip rendered by MilestoneRow. Returns {} when the chase feature
     // is flag-gated off (no ClientChaseState rows yet); the chip simply
     // doesn't render in that case.
-    getClientChaseStatesForTransaction(id).catch(() => ({})),
+    timed("s1:clientChaseStates", getClientChaseStatesForTransaction(id).catch(() => ({})), perfTimings),
     // Automated-emails preview — pending + sent today + predicted upcoming
     // for the AutomatedEmailsCard at the top of the Reminders tab.
-    getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })),
+    timed("s1:automatedEmails", getAutomatedEmailsForTransaction(id).catch(() => ({ pending: [], sentToday: [], upcoming: [], pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null } })), perfTimings),
     // Per-contact tally of automated emails fired against this file. Drives
     // the small "5 auto emails" pill on each ContactsSection row so an
     // over-chased recipient is visible at a glance.
-    getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)),
+    timed("s1:autoEmailCounts", getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)), perfTimings),
     // Per-contact "last contacted" ISO timestamp. Drives the freshness pill
     // on each ContactsSection row. Outbound-only (manual logs, agent portal
     // replies, automated client-chase digest sends). Excludes inbound,
     // internal notes, and chase-task bookkeeping by design.
-    getLastContactedByContact(id).catch(() => ({} as Record<string, string>)),
+    timed("s1:lastContacted", getLastContactedByContact(id).catch(() => ({} as Record<string, string>)), perfTimings),
   ]);
+  const stage1ElapsedMs = Math.round(performance.now() - stage1Start);
   // Maps don't serialise across the server→client boundary; flatten to a
   // plain object for the MilestonePanel prop.
   const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
@@ -117,6 +136,7 @@ export default async function AgentTransactionDetailPage({
   // parallel block, adding ~400-1000ms to the slow case before the page
   // could return its first JSX. Folded into one wave so first paint waits
   // on max(slow query) instead of sum(every query).
+  const stage2Start = performance.now();
   const [
     internalManualTasks,
     mosDocBundle,
@@ -131,14 +151,14 @@ export default async function AgentTransactionDetailPage({
     brokerRow,
   ] = await Promise.all([
     // Internal-staff self-assigned to-dos. Customer-agency users never see this list.
-    isInternalStaff
+    timed("s2:internalManualTasks", isInternalStaff
       ? listInternalSelfAssignedTasksForTransaction(id).catch(() => [] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>)
-      : Promise.resolve([] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>),
+      : Promise.resolve([] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>), perfTimings),
 
     // MOS document → signed URL. The URL needs the doc, so this stays a
     // 2-step chain; running it inside the Promise.all keeps it off the
     // critical path for everything else.
-    (async () => {
+    timed("s2:mosDocAndUrl", (async () => {
       const doc = await prisma.transactionDocument.findFirst({
         where: { transactionId: id, source: "mos" },
         select: { storagePath: true },
@@ -148,40 +168,40 @@ export default async function AgentTransactionDetailPage({
       const { getSignedUrl } = await import("@/lib/supabase-storage");
       const url = await getSignedUrl(doc.storagePath, 86400).catch(() => null);
       return { doc, url };
-    })(),
+    })(), perfTimings),
 
     // Originator agency name for the claim welcome modal. Only loaded when
     // ?newUser=1 lands on a claimed file — the modal is rare.
-    newUser === "1" && transaction.chainLinkId
+    timed("s2:originatorAgency", newUser === "1" && transaction.chainLinkId
       ? prisma.chainLink.findUnique({
           where: { id: transaction.chainLinkId },
           select: { createdBy: { select: { firmName: true } } },
         }).then((l) => l?.createdBy?.firmName ?? null).catch(() => null)
-      : Promise.resolve(null as string | null),
+      : Promise.resolve(null as string | null), perfTimings),
 
     // Milestone definitions for the reconcile-later banner. Claimed files only.
-    transaction.chainLinkId
+    timed("s2:reconcileMilestoneDefs", transaction.chainLinkId
       ? prisma.milestoneDefinition.findMany({
           orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
           select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
         }).catch(() => [])
-      : Promise.resolve([] as Array<{ id: string; code: string; name: string; side: "vendor" | "purchaser"; orderIndex: number; blocksExchange: boolean }>),
+      : Promise.resolve([] as Array<{ id: string; code: string; name: string; side: "vendor" | "purchaser"; orderIndex: number; blocksExchange: boolean }>), perfTimings),
 
-    transaction.assignedUserId
+    timed("s2:assignedUser", transaction.assignedUserId
       ? prisma.user.findUnique({
           where: { id: transaction.assignedUserId },
           select: { clientType: true, legacyFee: true },
         })
-      : Promise.resolve(null),
+      : Promise.resolve(null), perfTimings),
 
-    prisma.user.findUnique({
+    timed("s2:currentUserNotifications", prisma.user.findUnique({
       where: { id: session.user.id },
       select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
-    }),
+    }), perfTimings),
 
     // SP sender identity (internal staff only) — chain: verifiedDomain → userVerifiedEmail.
     // Inner async so the chain doesn't add to the page's first-paint latency.
-    (async (): Promise<{ name: string; email: string } | undefined> => {
+    timed("s2:spSenderIdentity", (async (): Promise<{ name: string; email: string } | undefined> => {
       if (!(isInternalStaff && (isProgressor || isAdminRole))) return undefined;
       const agencyId = (transaction as { agencyId?: string | null }).agencyId;
       if (!agencyId) return { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
@@ -202,18 +222,18 @@ export default async function AgentTransactionDetailPage({
       return userEmail
         ? { name: session.user.name!, email: userEmail.email }
         : { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    })(),
+    })(), perfTimings),
 
     // Agent user (file owner). Used by the sidebar and assignedDisplayName fallback.
-    transaction.agentUserId
+    timed("s2:agentUser", transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
           select: { id: true, name: true, email: true, firmName: true },
         })
-      : Promise.resolve(null),
+      : Promise.resolve(null), perfTimings),
 
     // Recommended-solicitor firms for the director's sidebar suggestion strip.
-    isDirectorRole
+    timed<Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null>("s2:recommendedFirms", isDirectorRole
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (prisma as any).agencyRecommendedSolicitor.findMany({
           where: { agencyId: session.user.agencyId },
@@ -225,18 +245,18 @@ export default async function AgentTransactionDetailPage({
           name: r.solicitorFirm.name as string,
           defaultReferralFeePence: r.defaultReferralFeePence as number | null,
         })))
-      : Promise.resolve(null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null),
+      : Promise.resolve(null), perfTimings),
 
     // File-time sessions for the agent-vs-team time tracker pill.
-    prisma.fileTimeSession.findMany({
+    timed("s2:fileTimeSessions", prisma.fileTimeSession.findMany({
       where: { transactionId: id },
       select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
-    }).catch(() => []),
+    }).catch(() => []), perfTimings),
 
     // Broker row — separate from the main transaction query because the
     // canonical getTransaction shape doesn't include broker fields. Folded
     // into the wave so it's not a 7th serial roundtrip.
-    prisma.propertyTransaction.findFirst({
+    timed("s2:brokerRow", prisma.propertyTransaction.findFirst({
       // Internal staff: fetch by id only (agencyId not applicable).
       // Agents: filter by agencyId to enforce ownership.
       where: isInternalStaff ? { id } : { id, agencyId: session.user.agencyId },
@@ -249,8 +269,9 @@ export default async function AgentTransactionDetailPage({
         brokerFirm: { select: { id: true, name: true } },
         brokerContact: { select: { id: true, name: true } },
       },
-    }).catch(() => null),
+    }).catch(() => null), perfTimings),
   ]);
+  const stage2ElapsedMs = Math.round(performance.now() - stage2Start);
 
   const mosDoc = mosDocBundle.doc;
   const mosDocUrl = mosDocBundle.url;
@@ -511,8 +532,19 @@ export default async function AgentTransactionDetailPage({
     />
   );
 
+  const totalServerMs = Math.round(performance.now() - perfStart);
+
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
+      {perfEnabled && (
+        <PerfOverlay
+          serverTimings={perfTimings}
+          stage1ElapsedMs={stage1ElapsedMs}
+          stage2ElapsedMs={stage2ElapsedMs}
+          totalServerMs={totalServerMs}
+          renderedAtIso={new Date().toISOString()}
+        />
+      )}
       <TransactionViewTracker transactionId={id} propertyAddress={transaction.propertyAddress} userId={session.user.id} />
       <FileTimeTracker transactionId={id} isOnHold={transaction.status === "on_hold"} />
       <Suspense><MosConfirmedNotice /></Suspense>
