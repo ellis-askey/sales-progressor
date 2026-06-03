@@ -21,7 +21,7 @@ const VENDOR_CHECKLIST: ChecklistItem[] = [
 ];
 
 const PURCHASER_CHECKLIST: ChecklistItem[] = [
-  { text: "Collect keys from your agent",             sub: "Usually available from midday once your solicitor confirms completion — call ahead" },
+  { text: "Collect keys from us",                      sub: "Usually available from midday once your solicitor confirms completion — call ahead" },
   { text: "Read all utility meters immediately",      sub: "Gas, electricity, and water — take photos and note the readings on arrival" },
   { text: "Check buildings insurance is active",      sub: "This should have been arranged at exchange — confirm the policy is in force from today" },
   { text: "Check what's been left for you",           sub: "Manuals, warranties, and service records should be at the property" },

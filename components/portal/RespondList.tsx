@@ -131,7 +131,7 @@ export function RespondList({
         // confuse users; in dev it would surface internals. The actual error
         // is still available in server logs for debugging.
         console.error("[respond] confirm action threw:", e);
-        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
+        setError("Something went wrong. Please try again, or get in touch with us if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
@@ -159,7 +159,7 @@ export function RespondList({
         // See note in handleConfirm — friendly fallback always; underlying
         // error in server logs.
         console.error("[respond] set-date action threw:", e);
-        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
+        setError("Something went wrong. Please try again, or get in touch with us if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
@@ -180,11 +180,11 @@ export function RespondList({
           milestoneCode: item.milestoneCode,
           note: noteInput,
         });
-        flashPill(item.milestoneCode, { kind: "note", text: "Thanks. Your agent will see this." });
+        flashPill(item.milestoneCode, { kind: "note", text: "Thanks. We've got it." });
       } catch (e) {
         // See note in handleConfirm — friendly fallback always.
         console.error("[respond] leave-note action threw:", e);
-        setError("Something went wrong. Please try again, or contact your agent if it keeps happening.");
+        setError("Something went wrong. Please try again, or get in touch with us if it keeps happening.");
       } finally {
         setSubmittingCode(null);
       }
@@ -235,7 +235,7 @@ export function RespondList({
           That&apos;s everything. Thanks for the update.
         </h1>
         <p style={{ fontSize: 15, color: P.textMuted, marginTop: 12, lineHeight: 1.6 }}>
-          Your agent has been notified. We&apos;ll be in touch when the next step is ready.
+          Got it. We&apos;ll be in touch when the next step is ready.
         </p>
       </div>
     );
@@ -390,7 +390,7 @@ export function RespondList({
                           cursor: "pointer",
                         }}
                       >
-                        {isDiy ? "Leave a note" : "Leave a note for your agent"}
+                        Leave a note
                       </button>
                     </div>
                   ) : (
@@ -510,7 +510,7 @@ export function RespondList({
                       {activeMode === "note" && (
                         <>
                           <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
-                            Tell your agent what&apos;s happening:
+                            Tell us what&apos;s happening:
                           </p>
                           <textarea
                             value={noteInput}

@@ -131,7 +131,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
           // these six codes (see portalAgentOnlyCode below), so reaching this
           // branch means a crafted request or a UI bug. Surface the friendly
           // explanation rather than the dev sentinel.
-          setError("Your agent confirms this step once it's done. You don't need to mark it here.");
+          setError("We confirm this step once it's done. You don't need to mark it here.");
           setConfirming(milestoneId);
         }
       } catch (e: unknown) {
@@ -287,7 +287,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 className="text-[11px] font-medium italic max-w-[180px] text-right"
                                 style={{ color: P.textMuted, lineHeight: 1.4 }}
                               >
-                                Your agent confirms this once it's done.
+                                We confirm this once it&apos;s done.
                               </p>
                             )}
                           </div>

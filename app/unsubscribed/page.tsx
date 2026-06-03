@@ -35,10 +35,10 @@ export default async function UnsubscribedPage({
               <p className="claim-error-eyebrow">The Sales Progressor</p>
               <h1 className="claim-error-h1">You&apos;re unsubscribed</h1>
               <p className="claim-error-p">
-                We won&apos;t email you about update reminders for your sale anymore. Your agent will still be in touch directly when they need something from you.
+                We won&apos;t email you about update reminders for your sale anymore. We&apos;ll still be in touch directly when we need something from you.
               </p>
               <p className="claim-error-support">
-                Changed your mind? Tell your agent and they can re-enable reminders for you.
+                Changed your mind? Get in touch and we can re-enable reminders for you.
               </p>
             </>
           ) : isOk ? (

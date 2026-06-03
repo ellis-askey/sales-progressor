@@ -84,7 +84,7 @@ const copy: Record<string, PortalCopy> = {
 
   VM2: {
     label: "Receive memorandum of sale", labelOther: "Seller received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
-    description: "Your estate agent sends a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process.",
+    description: "We send a memorandum of sale to all solicitors confirming the agreed price, buyer details, and any special conditions. This officially kicks off the legal process.",
     emailCopy: {
       vendor: {
         subject: "Memorandum of sale issued — {address}",
@@ -572,7 +572,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Contract signed and returned",
         opening: "Your signed contract is with your solicitor.",
         whatHappened: "Your solicitor has received your signed contract documents and is holding them ready for exchange. They will have explained the commitment this represents — the legally binding moment is exchange, not signing.",
-        whatNext: "Once the buyer's solicitor also confirms ready, your solicitors will coordinate exchange and agree a completion date. Your agent can help facilitate if needed.",
+        whatNext: "Once the buyer's solicitor also confirms ready, your solicitors will coordinate exchange and agree a completion date. We can help facilitate if needed.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -596,7 +596,7 @@ const copy: Record<string, PortalCopy> = {
 
   VM18: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
-    description: "Your solicitor has confirmed they have everything in place to exchange contracts. Once both sides are ready, your agent will coordinate the exchange.",
+    description: "Your solicitor has confirmed they have everything in place to exchange contracts. Once both sides are ready, we'll coordinate the exchange.",
     emailCopy: {
       vendor: {
         subject: "Your solicitor is ready to exchange — {address}",
@@ -733,7 +733,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM2: {
     label: "Receive memorandum of sale", labelOther: "Buyer received memorandum of sale", chaseLabel: "Confirm the memorandum of sale has arrived", who: "you",
-    description: "The estate agent sends a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
+    description: "We send a memorandum of sale to all solicitors confirming the agreed price and parties. This officially starts the legal process on both sides.",
     emailCopy: {
       purchaser: {
         subject: "Memorandum of sale issued — {address}",
@@ -1469,7 +1469,7 @@ const copy: Record<string, PortalCopy> = {
 
   PM25: {
     label: "Solicitor confirms ready to exchange", who: "solicitor", typicalDuration: "typically 1–5 days after signing",
-    description: "Your solicitor has confirmed they have everything they need to exchange. Your agent is now coordinating with the seller's side to agree a date and time.",
+    description: "Your solicitor has confirmed they have everything they need to exchange. We're now coordinating with the seller's side to agree a date and time.",
     emailCopy: {
       purchaser: {
         subject: "Your solicitor is ready to exchange — {address}",
@@ -1566,6 +1566,6 @@ export function getEventDateLabel(code: string): string {
 export const WHO_LABELS: Record<string, string> = {
   you:       "You",
   solicitor: "Your solicitor",
-  agent:     "Your agent",
+  agent:     "Us",
   lender:    "Your lender",
 };
