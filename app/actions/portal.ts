@@ -163,23 +163,30 @@ export async function portalSetExpectedDateAction(input: {
   });
   if (!def) throw new Error("Milestone not found");
 
-  // upsert so the row exists even on the first contact-initiated date
-  await prisma.milestoneCompletion.upsert({
-    where: {
-      transactionId_milestoneDefinitionId: {
+  // upsert so the row exists even on the first contact-initiated date.
+  // Compound upsert key dropped in Phase 1 commit 1; wrap find→
+  // (update|create) in $transaction so the partial unique index catches
+  // any concurrent-create race.
+  await prisma.$transaction(async (ptx) => {
+    const existing = await ptx.milestoneCompletion.findFirst({
+      where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: def.id },
+      select: { id: true },
+    });
+    if (existing) {
+      await ptx.milestoneCompletion.update({
+        where: { id: existing.id },
+        data: { expectedDate: new Date(input.expectedDate) },
+      });
+      return;
+    }
+    await ptx.milestoneCompletion.create({
+      data: {
         transactionId: contact.propertyTransactionId,
         milestoneDefinitionId: def.id,
+        state: "available",
+        expectedDate: new Date(input.expectedDate),
       },
-    },
-    create: {
-      transactionId: contact.propertyTransactionId,
-      milestoneDefinitionId: def.id,
-      state: "available",
-      expectedDate: new Date(input.expectedDate),
-    },
-    update: {
-      expectedDate: new Date(input.expectedDate),
-    },
+    });
   });
 
   // Engagement tracking — silence clock resets

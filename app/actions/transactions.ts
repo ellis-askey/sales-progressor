@@ -1348,16 +1348,26 @@ export async function confirmSaleDetailsAction(input: {
       const nrReason = FREEHOLD_NR_CODES.has(code) ? "Freehold property"
         : input.newPurchaseType === "cash_buyer" ? "Cash buyer" : "Cash from proceeds";
       const wasComplete = stateByCode.get(code) === "complete";
-      await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def.id } },
-        data: {
-          state: "not_required",
-          notRequiredReason: nrReason,
-          completedAt: null,
-          completedById: session.user.id,
-          summaryText: wasComplete ? null : undefined,
-        },
+      // Compound upsert key removed in commit 1 of Phase 1; locate the row
+      // by (tx, def) and update by id. Single row at this point because
+      // confirmSaleDetailsAction only runs on existing tx with seeded
+      // completions.
+      const nrRow = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: def.id },
+        select: { id: true },
       });
+      if (nrRow) {
+        await ptx.milestoneCompletion.update({
+          where: { id: nrRow.id },
+          data: {
+            state: "not_required",
+            notRequiredReason: nrReason,
+            completedAt: null,
+            completedById: session.user.id,
+            summaryText: wasComplete ? null : undefined,
+          },
+        });
+      }
       if (wasComplete) reversedCodes.push(code);
     }
 
@@ -1387,10 +1397,16 @@ export async function confirmSaleDetailsAction(input: {
     for (const [code, newState] of reactivatedStates) {
       const def = defByCode.get(code);
       if (!def) continue;
-      await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def!.id } },
-        data: { state: newState, notRequiredReason: null, completedAt: null, completedById: null },
+      const reactivateRow = await ptx.milestoneCompletion.findFirst({
+        where: { transactionId: input.transactionId, milestoneDefinitionId: def!.id },
+        select: { id: true },
       });
+      if (reactivateRow) {
+        await ptx.milestoneCompletion.update({
+          where: { id: reactivateRow.id },
+          data: { state: newState, notRequiredReason: null, completedAt: null, completedById: null },
+        });
+      }
     }
 
     // 5. Deactivate reminder logs for NR'd milestones
@@ -1434,15 +1450,27 @@ export async function confirmSaleDetailsAction(input: {
       });
 
       if (allClear && gateState === "locked") {
-        await ptx.milestoneCompletion.update({
-          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
-          data: { state: "available" },
+        const gateRow = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId },
+          select: { id: true },
         });
+        if (gateRow) {
+          await ptx.milestoneCompletion.update({
+            where: { id: gateRow.id },
+            data: { state: "available" },
+          });
+        }
       } else if (!allClear && gateState === "available") {
-        await ptx.milestoneCompletion.update({
-          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
-          data: { state: "locked" },
+        const gateRow = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId },
+          select: { id: true },
         });
+        if (gateRow) {
+          await ptx.milestoneCompletion.update({
+            where: { id: gateRow.id },
+            data: { state: "locked" },
+          });
+        }
       }
     }
   });

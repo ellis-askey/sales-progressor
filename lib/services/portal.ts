@@ -293,13 +293,14 @@ export async function portalCompleteMilestone(input: {
     throw new Error(PORTAL_AGENT_ONLY_ERROR);
   }
 
-  // Milestone must be in available state to be confirmed via portal
-  const current = await prisma.milestoneCompletion.findUnique({
+  // Milestone must be in available state to be confirmed via portal.
+  // findFirst by (tx, def) — the compound unique was replaced by partial
+  // indexes in Phase 1 commit 1; for a pre-relist file the single row
+  // is matched the same way.
+  const current = await prisma.milestoneCompletion.findFirst({
     where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId: contact.propertyTransactionId,
-        milestoneDefinitionId: input.milestoneDefinitionId,
-      },
+      transactionId: contact.propertyTransactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
     },
     select: { state: true },
   });
@@ -1113,13 +1114,8 @@ export async function isBilateralCounterpartComplete(
     select: { id: true },
   });
   if (!counterDef) return false;
-  const completion = await prisma.milestoneCompletion.findUnique({
-    where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId,
-        milestoneDefinitionId: counterDef.id,
-      },
-    },
+  const completion = await prisma.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: counterDef.id },
     select: { state: true },
   });
   return completion?.state === "complete";
@@ -1760,25 +1756,49 @@ export async function portalMarkNotRequired(input: {
   const now = new Date();
   const txId = contact.propertyTransactionId;
 
-  await prisma.milestoneCompletion.upsert({
-    where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: def.id } },
-    create: { transactionId: txId, milestoneDefinitionId: def.id, state: "not_required", notRequiredReason: "Marked not required by client via portal" },
-    update: { state: "not_required", notRequiredReason: "Marked not required by client via portal", completedAt: null },
-  });
-
-  if (cascadeCodes.length > 0) {
-    const cascadeDefs = await prisma.milestoneDefinition.findMany({
-      where: { code: { in: cascadeCodes }, side },
+  // Primary + cascade in one $transaction so the find→(update|create)
+  // for every row is atomic; the partial unique index catches concurrent
+  // races. Replaces two prisma.milestoneCompletion.upsert calls whose
+  // compound key was dropped in Phase 1 commit 1.
+  await prisma.$transaction(async (ptx) => {
+    const primaryExisting = await ptx.milestoneCompletion.findFirst({
+      where: { transactionId: txId, milestoneDefinitionId: def.id },
       select: { id: true },
     });
-    for (const cd of cascadeDefs) {
-      await prisma.milestoneCompletion.upsert({
-        where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: cd.id } },
-        create: { transactionId: txId, milestoneDefinitionId: cd.id, state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)" },
-        update: { state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)", completedAt: null },
+    if (primaryExisting) {
+      await ptx.milestoneCompletion.update({
+        where: { id: primaryExisting.id },
+        data: { state: "not_required", notRequiredReason: "Marked not required by client via portal", completedAt: null },
+      });
+    } else {
+      await ptx.milestoneCompletion.create({
+        data: { transactionId: txId, milestoneDefinitionId: def.id, state: "not_required", notRequiredReason: "Marked not required by client via portal" },
       });
     }
-  }
+
+    if (cascadeCodes.length > 0) {
+      const cascadeDefs = await ptx.milestoneDefinition.findMany({
+        where: { code: { in: cascadeCodes }, side },
+        select: { id: true },
+      });
+      for (const cd of cascadeDefs) {
+        const cascadeExisting = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId: txId, milestoneDefinitionId: cd.id },
+          select: { id: true },
+        });
+        if (cascadeExisting) {
+          await ptx.milestoneCompletion.update({
+            where: { id: cascadeExisting.id },
+            data: { state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)", completedAt: null },
+          });
+        } else {
+          await ptx.milestoneCompletion.create({
+            data: { transactionId: txId, milestoneDefinitionId: cd.id, state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)" },
+          });
+        }
+      }
+    }
+  });
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {

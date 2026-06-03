@@ -561,31 +561,36 @@ export async function confirmExchangeReconciliationAction(input: {
     //    before completeMilestone runs its prereq guard for the counterpart
     //    (e.g. PM25 must be complete before completeMilestone(PM26) checks it).
     if (input.outstandingIds.length > 0) {
+      // Compound upsert key dropped in Phase 1 commit 1; preserves the
+      // create-if-missing branch inside the existing $transaction ptx.
       await Promise.all(
-        input.outstandingIds.map((defId, i) => {
+        input.outstandingIds.map(async (defId, i) => {
           const dateStr = input.outstandingDates[defId];
-          return ptx.milestoneCompletion.upsert({
-            where: {
-              transactionId_milestoneDefinitionId: {
-                transactionId: input.transactionId,
-                milestoneDefinitionId: defId,
+          const existing = await ptx.milestoneCompletion.findFirst({
+            where: { transactionId: input.transactionId, milestoneDefinitionId: defId },
+            select: { id: true },
+          });
+          if (existing) {
+            return ptx.milestoneCompletion.update({
+              where: { id: existing.id },
+              data: {
+                state: "complete",
+                completedAt: new Date(now.getTime() + i),
+                eventDate: dateStr ? new Date(dateStr) : null,
+                completedById: session.user.id,
+                notRequiredReason: null,
+                reconciledAtExchange: true,
               },
-            },
-            create: {
+            });
+          }
+          return ptx.milestoneCompletion.create({
+            data: {
               transactionId: input.transactionId,
               milestoneDefinitionId: defId,
               state: "complete",
               completedAt: new Date(now.getTime() + i),
               eventDate: dateStr ? new Date(dateStr) : null,
               completedById: session.user.id,
-              reconciledAtExchange: true,
-            },
-            update: {
-              state: "complete",
-              completedAt: new Date(now.getTime() + i),
-              eventDate: dateStr ? new Date(dateStr) : null,
-              completedById: session.user.id,
-              notRequiredReason: null,
               reconciledAtExchange: true,
             },
           });
@@ -797,32 +802,40 @@ export async function reconcileClaimMilestonesAction(input: {
       : `Recorded on claim — actual date unknown`;
 
     try {
-      await prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: {
+      // Wrapped in $transaction so the find→(update|create) for this
+      // row is atomic; the partial unique index catches concurrent races.
+      await prisma.$transaction(async (ptx) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId: input.transactionId, milestoneDefinitionId: c.milestoneDefinitionId },
+          select: { id: true },
+        });
+        if (existing) {
+          await ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "complete",
+              completedAt: new Date(now.getTime() + i),
+              eventDate: eventDateObj,
+              completedById: session.user.id,
+              notRequiredReason: null,
+              reconciledAtClaim: true,
+              summaryText,
+            },
+          });
+          return;
+        }
+        await ptx.milestoneCompletion.create({
+          data: {
             transactionId: input.transactionId,
             milestoneDefinitionId: c.milestoneDefinitionId,
+            state: "complete",
+            completedAt: new Date(now.getTime() + i), // Tiny offset to preserve ordering
+            eventDate: eventDateObj,
+            completedById: session.user.id,
+            reconciledAtClaim: true,
+            summaryText,
           },
-        },
-        create: {
-          transactionId: input.transactionId,
-          milestoneDefinitionId: c.milestoneDefinitionId,
-          state: "complete",
-          completedAt: new Date(now.getTime() + i), // Tiny offset to preserve ordering
-          eventDate: eventDateObj,
-          completedById: session.user.id,
-          reconciledAtClaim: true,
-          summaryText,
-        },
-        update: {
-          state: "complete",
-          completedAt: new Date(now.getTime() + i),
-          eventDate: eventDateObj,
-          completedById: session.user.id,
-          notRequiredReason: null,
-          reconciledAtClaim: true,
-          summaryText,
-        },
+        });
       });
 
       // Unlock direct dependents so the downstream milestones become available.
@@ -914,30 +927,36 @@ export async function migrateCompleteMilestonesAction(input: {
     const eventDateForCompletion = def.eventDateRequired ? eventDateObj : null;
 
     try {
-      await prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: {
+      await prisma.$transaction(async (ptx) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId: input.transactionId, milestoneDefinitionId: c.milestoneDefinitionId },
+          select: { id: true },
+        });
+        if (existing) {
+          await ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "complete",
+              completedAt: eventDateObj,
+              eventDate: eventDateForCompletion,
+              completedById: completerId,
+              notRequiredReason: null,
+              summaryText: null,
+            },
+          });
+          return;
+        }
+        await ptx.milestoneCompletion.create({
+          data: {
             transactionId: input.transactionId,
             milestoneDefinitionId: c.milestoneDefinitionId,
+            state: "complete",
+            completedAt: eventDateObj,
+            eventDate: eventDateForCompletion,
+            completedById: completerId,
+            summaryText: null,
           },
-        },
-        create: {
-          transactionId: input.transactionId,
-          milestoneDefinitionId: c.milestoneDefinitionId,
-          state: "complete",
-          completedAt: eventDateObj,
-          eventDate: eventDateForCompletion,
-          completedById: completerId,
-          summaryText: null,
-        },
-        update: {
-          state: "complete",
-          completedAt: eventDateObj,
-          eventDate: eventDateForCompletion,
-          completedById: completerId,
-          notRequiredReason: null,
-          summaryText: null,
-        },
+        });
       });
 
       await unlockDirectDependents(input.transactionId, def.code).catch((err) =>

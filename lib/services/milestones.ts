@@ -120,20 +120,24 @@ export async function initializeMilestoneCompletions(
 
   const now = new Date();
 
+  // Find-then-create-if-missing for each definition. The compound
+  // upsert key (transactionId_milestoneDefinitionId) was dropped in
+  // 20260604000000_buyer_round_milestone_uniqueness; uniqueness is
+  // enforced by partial indexes (vendor file-level, purchaser per-round)
+  // so the row is matched by (tx, def) here. Existing row → no-op
+  // (parity with the old upsert's empty `update`). Missing row → create.
   await Promise.all(
-    defs.map((def) => {
+    defs.map(async (def) => {
+      const existing = await prisma.milestoneCompletion.findFirst({
+        where: { transactionId, milestoneDefinitionId: def.id },
+        select: { id: true },
+      });
+      if (existing) return;
       const isNr = autoNrCodes.has(def.code);
       const isAvail = availableCodes.has(def.code);
       const state = isNr ? "not_required" : isAvail ? "available" : "locked";
-
-      return prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: {
-            transactionId,
-            milestoneDefinitionId: def.id,
-          },
-        },
-        create: {
+      await prisma.milestoneCompletion.create({
+        data: {
           transactionId,
           milestoneDefinitionId: def.id,
           state,
@@ -141,7 +145,6 @@ export async function initializeMilestoneCompletions(
           completedById: createdById ?? null,
           createdAt: now,
         },
-        update: {},
       });
     })
   );
@@ -186,15 +189,16 @@ export async function unlockDirectDependents(
     if (allSatisfied) {
       const currentState = completionMap.get(dep.id);
       if (currentState === "locked") {
-        await db.milestoneCompletion.update({
-          where: {
-            transactionId_milestoneDefinitionId: {
-              transactionId,
-              milestoneDefinitionId: dep.id,
-            },
-          },
-          data: { state: "available" },
+        const row = await db.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: dep.id },
+          select: { id: true },
         });
+        if (row) {
+          await db.milestoneCompletion.update({
+            where: { id: row.id },
+            data: { state: "available" },
+          });
+        }
       }
     }
   }
@@ -244,13 +248,13 @@ export async function maybeUnlockExchangeGate(
   });
   if (!allClear) return;
 
+  const gateRow = await db.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: gateDef.id },
+    select: { id: true },
+  });
+  if (!gateRow) return;
   await db.milestoneCompletion.update({
-    where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId,
-        milestoneDefinitionId: gateDef.id,
-      },
-    },
+    where: { id: gateRow.id },
     data: { state: "available" },
   });
 
@@ -318,15 +322,16 @@ export async function maybeLockExchangeGate(
   });
 
   if (!allClear) {
-    await db.milestoneCompletion.update({
-      where: {
-        transactionId_milestoneDefinitionId: {
-          transactionId,
-          milestoneDefinitionId: gateDef.id,
-        },
-      },
-      data: { state: "locked" },
+    const gateRow = await db.milestoneCompletion.findFirst({
+      where: { transactionId, milestoneDefinitionId: gateDef.id },
+      select: { id: true },
     });
+    if (gateRow) {
+      await db.milestoneCompletion.update({
+        where: { id: gateRow.id },
+        data: { state: "locked" },
+      });
+    }
   }
 }
 
@@ -508,33 +513,37 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   const completedById = input.confirmer.kind === "user" ? input.confirmer.id : null;
   const confirmedByPortal = input.confirmer.kind === "contact";
 
-  const completion = await db.milestoneCompletion.upsert({
-    where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId: input.transactionId,
-        milestoneDefinitionId: input.milestoneDefinitionId,
-      },
-    },
-    create: {
-      transactionId: input.transactionId,
-      milestoneDefinitionId: input.milestoneDefinitionId,
-      state: "complete",
-      completedAt: input.completedAt ?? new Date(),
-      eventDate: input.eventDate ?? null,
-      completedById,
-      confirmedByPortal,
-      summaryText,
-    },
-    update: {
-      state: "complete",
-      completedAt: input.completedAt ?? new Date(),
-      eventDate: input.eventDate ?? null,
-      completedById,
-      confirmedByPortal,
-      summaryText,
-      notRequiredReason: null,
-    },
+  // Find-then-update-or-create: see comment above initializeMilestoneCompletions
+  // for why the compound upsert key no longer exists.
+  const existingForComplete = await db.milestoneCompletion.findFirst({
+    where: { transactionId: input.transactionId, milestoneDefinitionId: input.milestoneDefinitionId },
+    select: { id: true },
   });
+  const completion = existingForComplete
+    ? await db.milestoneCompletion.update({
+        where: { id: existingForComplete.id },
+        data: {
+          state: "complete",
+          completedAt: input.completedAt ?? new Date(),
+          eventDate: input.eventDate ?? null,
+          completedById,
+          confirmedByPortal,
+          summaryText,
+          notRequiredReason: null,
+        },
+      })
+    : await db.milestoneCompletion.create({
+        data: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: input.milestoneDefinitionId,
+          state: "complete",
+          completedAt: input.completedAt ?? new Date(),
+          eventDate: input.eventDate ?? null,
+          completedById,
+          confirmedByPortal,
+          summaryText,
+        },
+      });
 
   await unlockDirectDependents(input.transactionId, def.code, tx);
   await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
@@ -684,27 +693,41 @@ export async function bulkCompleteMilestones(
     return text.charAt(0).toUpperCase() + text.slice(1);
   });
 
-  const results = await Promise.all(
-    milestoneDefinitionIds.map((defId, i) =>
-      prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
-        create: {
-          transactionId,
-          milestoneDefinitionId: defId,
-          state: "complete",
-          completedAt: new Date(baseTime.getTime() + i),
-          completedById,
-          summaryText: summaryTexts[i],
-        },
-        update: {
-          state: "complete",
-          completedAt: new Date(baseTime.getTime() + i),
-          completedById,
-          summaryText: summaryTexts[i],
-          notRequiredReason: null,
-        },
+  // Wrapped in $transaction so the find-then-(update|create) sequence
+  // for each row is atomic; the partial unique index (purchaser:
+  // (buyerRoundId, milestoneDefinitionId); vendor: (transactionId,
+  // milestoneDefinitionId) WHERE buyerRoundId IS NULL) catches any
+  // concurrent-create race with a P2002 error rather than letting two
+  // rows land for the same (tx, def) pair.
+  const results = await prisma.$transaction(async (ptx) =>
+    Promise.all(
+      milestoneDefinitionIds.map(async (defId, i) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: defId },
+          select: { id: true },
+        });
+        if (existing) {
+          return ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "complete",
+              completedAt: new Date(baseTime.getTime() + i),
+              completedById,
+              summaryText: summaryTexts[i],
+              notRequiredReason: null,
+            },
+          });
+        }
+        return ptx.milestoneCompletion.create({
+          data: {
+            transactionId,
+            milestoneDefinitionId: defId,
+            state: "complete",
+            completedAt: new Date(baseTime.getTime() + i),
+            completedById,
+            summaryText: summaryTexts[i],
+          },
+        });
       })
     )
   );
@@ -744,10 +767,15 @@ export async function reverseMilestone(
     select: { name: true },
   });
 
+  const row = await db.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId },
+    select: { id: true },
+  });
+  if (!row) {
+    throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${milestoneDefinitionId}`);
+  }
   await db.milestoneCompletion.update({
-    where: {
-      transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId },
-    },
+    where: { id: row.id },
     data: { state: "available", completedAt: null, completedById: null, summaryText: null },
   });
 
@@ -781,15 +809,29 @@ export async function bulkReverseMilestones(
   });
   const nameMap = new Map(defs.map((d) => [d.id, d.name]));
 
+  // Bulk reverse: find each (tx, def) row and update by id. Behaviour
+  // preserved — caller's expectation is that every supplied defId has a
+  // corresponding completion row already; an updateMany filtered by
+  // milestoneDefinitionId IN (...) AND transactionId would do the same
+  // write in a single round-trip, but the parallel find→update style
+  // preserves the existing per-row error semantics (throws if a row
+  // is missing, which has never been hit because callers compute the
+  // list from existing rows). Used by both the undo flow and (in
+  // Phase 1 commit 6) the relist action's vendor reset.
   await Promise.all(
-    milestoneDefinitionIds.map((defId) =>
-      db.milestoneCompletion.update({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
+    milestoneDefinitionIds.map(async (defId) => {
+      const row = await db.milestoneCompletion.findFirst({
+        where: { transactionId, milestoneDefinitionId: defId },
+        select: { id: true },
+      });
+      if (!row) {
+        throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${defId}`);
+      }
+      await db.milestoneCompletion.update({
+        where: { id: row.id },
         data: { state: "locked", completedAt: null, completedById: null, summaryText: null },
-      })
-    )
+      });
+    })
   );
 
   await Promise.all(
@@ -821,24 +863,36 @@ export async function markNotRequired(
     select: { name: true, code: true, side: true },
   });
 
-  const completion = await prisma.milestoneCompletion.upsert({
-    where: {
-      transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId },
-    },
-    create: {
-      transactionId,
-      milestoneDefinitionId,
-      state: "not_required",
-      completedById,
-      notRequiredReason: reason,
-    },
-    update: {
-      state: "not_required",
-      completedAt: null,
-      summaryText: null,
-      completedById,
-      notRequiredReason: reason,
-    },
+  // $transaction wraps the find→(update|create) so the read and the
+  // write are atomic; partial unique index catches concurrent-create
+  // races. Replaces the prior `prisma.milestoneCompletion.upsert` whose
+  // compound key (transactionId_milestoneDefinitionId) no longer exists.
+  const completion = await prisma.$transaction(async (ptx) => {
+    const existing = await ptx.milestoneCompletion.findFirst({
+      where: { transactionId, milestoneDefinitionId },
+      select: { id: true },
+    });
+    if (existing) {
+      return ptx.milestoneCompletion.update({
+        where: { id: existing.id },
+        data: {
+          state: "not_required",
+          completedAt: null,
+          summaryText: null,
+          completedById,
+          notRequiredReason: reason,
+        },
+      });
+    }
+    return ptx.milestoneCompletion.create({
+      data: {
+        transactionId,
+        milestoneDefinitionId,
+        state: "not_required",
+        completedById,
+        notRequiredReason: reason,
+      },
+    });
   });
 
   // NR also unlocks dependents (NR counts as satisfied for prereq purposes)
@@ -893,25 +947,33 @@ export async function bulkMarkNotRequired(
 ) {
   if (milestoneDefinitionIds.length === 0) return;
 
-  await Promise.all(
-    milestoneDefinitionIds.map((defId) =>
-      prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
-        create: {
-          transactionId,
-          milestoneDefinitionId: defId,
-          state: "not_required",
-          completedById,
-          notRequiredReason: reason,
-        },
-        update: {
-          state: "not_required",
-          completedAt: null,
-          summaryText: null,
-          notRequiredReason: reason,
-        },
+  await prisma.$transaction(async (ptx) =>
+    Promise.all(
+      milestoneDefinitionIds.map(async (defId) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: defId },
+          select: { id: true },
+        });
+        if (existing) {
+          return ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "not_required",
+              completedAt: null,
+              summaryText: null,
+              notRequiredReason: reason,
+            },
+          });
+        }
+        return ptx.milestoneCompletion.create({
+          data: {
+            transactionId,
+            milestoneDefinitionId: defId,
+            state: "not_required",
+            completedById,
+            notRequiredReason: reason,
+          },
+        });
       })
     )
   );
@@ -1171,12 +1233,19 @@ export async function executeUndoMilestone(input: {
     : Array.from(allReverseCodes);
 
   await prisma.$transaction(async (ptx) => {
-    // Reverse primary milestones (target + bilateral partner)
-    for (const defId of primaryIds) {
+    // Reverse primary milestones (target + bilateral partner). Compound
+    // upsert key (transactionId_milestoneDefinitionId) was dropped in
+    // commit 1 of Phase 1; find-by-(tx, def) + update-by-id matches the
+    // single existing row (vendor: file-level; purchaser: active round).
+    const primaryRows = await ptx.milestoneCompletion.findMany({
+      where: { transactionId, milestoneDefinitionId: { in: primaryIds } },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of primaryRows) {
       await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        where: { id: row.id },
         data: {
-          state: computeNewState(defId),
+          state: computeNewState(row.milestoneDefinitionId),
           completedAt: null,
           completedById: null,
           summaryText: null,
@@ -1188,11 +1257,15 @@ export async function executeUndoMilestone(input: {
     }
 
     // Reverse cascade milestones (cascade mode only)
-    for (const defId of cascadeIds) {
+    const cascadeRows = await ptx.milestoneCompletion.findMany({
+      where: { transactionId, milestoneDefinitionId: { in: cascadeIds } },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of cascadeRows) {
       await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        where: { id: row.id },
         data: {
-          state: computeNewState(defId),
+          state: computeNewState(row.milestoneDefinitionId),
           completedAt: null,
           completedById: null,
           summaryText: null,
