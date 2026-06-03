@@ -1,60 +1,67 @@
+// Agent file-detail page.
+//
+// 2026-06-03 perf refactor — Lever B from the staging timing investigation.
+// The page server component used to await ~21 queries before returning
+// any JSX, so the skeleton.tsx fallback sat on screen for 3-5 seconds
+// while everything fanned out. Profiling showed the residual cost was
+// connection-pool contention, not any single slow query: removing one
+// just made the others cluster at the same time.
+//
+// New shape:
+//   - The page awaits ONLY the bare minimum needed to render the shell:
+//     transaction, milestones (for hero progress + sidebar progress +
+//     shared by panels via React.cache), and the agent-user lookup for
+//     the hero's assignedUserName fallback.
+//   - Every tab body is now an async server component (StepsPanel,
+//     RemindersPanel, ToDoPanel, ActivityPanel, OverviewPanel) mounted
+//     under <Suspense>. Each does its own fetch using cached fetchers,
+//     so shared data (milestones, reminderLogs) is deduped per request.
+//   - The sidebar is similarly a Suspense'd SidebarPanel.
+//   - Top-of-page banners that need their own data (ClaimWelcomeModal,
+//     ReconcileLaterBanner) live in tiny async wrappers.
+//
+// User-perceived result: header + tabs row + skeletons paint as soon as
+// the critical-path fan-out resolves; tab content streams in over the
+// next moment without holding the skeleton open.
+
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
-import { getTransaction, getTransactionByScope } from "@/lib/services/transactions";
 import { getAccessScope } from "@/lib/security/access-scope";
-import { getMilestonesForTransaction } from "@/lib/services/milestones";
-import { getReminderLogsForTransaction, getGraceDaysByMilestoneCode } from "@/lib/services/reminders";
-import { countActionable, countOverdue } from "@/lib/reminders/classify";
-import { getActivityTimeline, getAutomatedEmailCountsByContact, getLastContactedByContact } from "@/lib/services/comms";
-import type { ActivityEntry } from "@/lib/services/comms";
-import { getLastUpdate, relativeDate } from "@/lib/services/summary";
-import { listManualTasksForTransaction, listInternalSelfAssignedTasksForTransaction } from "@/lib/services/manual-tasks";
-import { toUKDateStr } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
+import {
+  getTransactionCached,
+  getTransactionByScopeCached,
+  getMilestonesCached,
+} from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { totalHoldMs } from "@/lib/services/hold-duration";
+
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { PropertyFileTabs } from "@/components/transaction/PropertyFileTabs";
 import { PortalConfirmEmailToggle } from "@/components/transaction/PortalConfirmEmailToggle";
 import { AiSummaryButton } from "@/components/transaction/AiSummaryButton";
-import { StatusControl } from "@/components/transaction/StatusControl";
-import { ContactsSection } from "@/components/contacts/ContactsSection";
-import { MilestonePanel } from "@/components/milestones/MilestonePanel";
-import { RemindersSection } from "@/components/reminders/RemindersSection";
-import { ActivityTab } from "@/components/activity/ActivityTab";
-import { TransactionSidebar } from "@/components/transaction/TransactionSidebar";
-import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
-import { BrokerSection } from "@/components/transaction/BrokerSection";
-import { TransactionNotes } from "@/components/transaction/TransactionNotes";
-import { ManualTaskList } from "@/components/todos/ManualTaskList";
-import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
-import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
-import { RemindersWidget } from "@/components/transaction/RemindersWidget";
-import { RecentActivityWidget } from "@/components/transaction/RecentActivityWidget";
-import { NextMilestoneWidget, type MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
-import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
-import { ViewChainButton } from "@/components/chain/ViewChainButton";
-import { ComposeEmail } from "@/components/verified-emails/ComposeEmail";
 import { MosConfirmedNotice } from "@/components/transaction/MosConfirmedNotice";
 import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNotice";
 import { ClaimedToast } from "@/components/transaction/ClaimedToast";
-import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
-import { ReconcileLaterBanner } from "@/components/transaction/ReconcileLaterBanner";
 import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
-import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
-import { Suspense } from "react";
-import { prisma } from "@/lib/prisma";
-import { getClientChaseStatesForTransaction } from "@/lib/services/client-chase-state";
-import { AutomatedEmailsCardAsync } from "@/components/reminders/AutomatedEmailsCardAsync";
 import { PerfOverlay } from "@/components/debug/PerfOverlay";
 
+import { SidebarPanel } from "@/components/transaction/SidebarPanel";
+import { OverviewPanel } from "@/components/transaction/OverviewPanel";
+import { StepsPanel } from "@/components/transaction/StepsPanel";
+import { RemindersPanel } from "@/components/transaction/RemindersPanel";
+import { ToDoPanel } from "@/components/transaction/ToDoPanel";
+import { ActivityPanel } from "@/components/transaction/ActivityPanel";
+import { ClaimWelcomeAsync } from "@/components/transaction/ClaimWelcomeAsync";
+import { ReconcileLaterAsync } from "@/components/transaction/ReconcileLaterAsync";
+import { SidebarPanelSkeleton, TabPanelSkeleton } from "@/components/transaction/PanelSkeletons";
+
 // Per-query timing helper for the perf-investigation overlay (?perf=1).
-// Adds ~0.01ms overhead per query and is otherwise inert; pulls a stamp on
-// resolve and pushes it to the provided array. Removable once we've nailed
-// the file-detail latency hotspot.
 type Timing = { label: string; ms: number };
 function timed<T>(label: string, p: Promise<T>, into: Timing[]): Promise<T> {
   const start = performance.now();
@@ -73,7 +80,7 @@ export default async function AgentTransactionDetailPage({
 }) {
   const perfStart = performance.now();
   const perfTimings: Timing[] = [];
-  const [{ id }, { tab: initialTab, newUser, perf: perfFlag }] = await Promise.all([params, searchParams]);
+  const [{ id }, { tab: initialTab, perf: perfFlag }] = await Promise.all([params, searchParams]);
   const session = await requireSession();
   const perfEnabled = perfFlag === "1";
 
@@ -82,132 +89,53 @@ export default async function AgentTransactionDetailPage({
   const isAdminRole  = hasAdminPowers(session);
   const txScope = isInternalStaff ? getAccessScope(session) : null;
 
-  // `automatedEmails` (the preview card at the top of the Reminders tab)
-  // used to live in this Promise.all. Profiling on 2026-06-03 showed it
-  // taking 2655ms on a slow file detail load — single biggest contributor
-  // to the page's 3.4s first-paint time. Moved to a Suspense'd async
-  // server component (AutomatedEmailsCardAsync) mounted after
-  // RemindersSection in the Reminders tab, so it can't block first paint.
+  // ── Critical-path fan-out ─────────────────────────────────────────────
+  // Three queries fired in parallel:
+  //   - the file itself (transaction + canonical includes)
+  //   - milestones (slowest single query; needed for hero progress and
+  //     re-used by every panel via React.cache)
+  //   - agent user (small ID lookup; fallback for the hero's
+  //     "assignedUserName" badge when no SP is assigned)
+  // First paint waits on max(slowest of three). Everything else fans
+  // out from inside the Suspense'd panels.
   const stage1Start = performance.now();
-  const [transaction, milestoneData, reminderLogs, activityEntries, lastUpdate, manualTasks, graceDaysMap, clientChaseByCode, automatedEmailCounts, lastContactedByContactId] = await Promise.all([
-    // Internal staff: use scope-based fetch (admin sees all; progressor sees their assigned files).
-    // Agent callers (director/negotiator): use agencyId-based fetch unchanged.
-    timed("s1:transaction", isInternalStaff
-      ? getTransactionByScope(id, txScope!)
-      : getTransaction(id, session.user.agencyId), perfTimings),
-    timed("s1:milestones", getMilestonesForTransaction(id, session.user.agencyId).catch(() => null), perfTimings),
-    timed("s1:reminderLogs", getReminderLogsForTransaction(id, session.user.agencyId).catch(() => []), perfTimings),
-    timed("s1:activityTimeline", getActivityTimeline(id, session.user.agencyId).catch(() => []), perfTimings),
-    timed("s1:lastUpdate", getLastUpdate(id).catch(() => null), perfTimings),
-    timed("s1:manualTasks", listManualTasksForTransaction(id, session.user.agencyId).catch(() => []), perfTimings),
-    timed("s1:graceDays", getGraceDaysByMilestoneCode().catch(() => new Map<string, number>()), perfTimings),
-    // B6 of the client-chase arc — aggregated per-milestone chase state for
-    // the chip rendered by MilestoneRow. Returns {} when the chase feature
-    // is flag-gated off (no ClientChaseState rows yet); the chip simply
-    // doesn't render in that case.
-    timed("s1:clientChaseStates", getClientChaseStatesForTransaction(id).catch(() => ({})), perfTimings),
-    // Per-contact tally of automated emails fired against this file. Drives
-    // the small "5 auto emails" pill on each ContactsSection row so an
-    // over-chased recipient is visible at a glance.
-    timed("s1:autoEmailCounts", getAutomatedEmailCountsByContact(id).catch(() => ({} as Record<string, number>)), perfTimings),
-    // Per-contact "last contacted" ISO timestamp. Drives the freshness pill
-    // on each ContactsSection row. Outbound-only (manual logs, agent portal
-    // replies, automated client-chase digest sends). Excludes inbound,
-    // internal notes, and chase-task bookkeeping by design.
-    timed("s1:lastContacted", getLastContactedByContact(id).catch(() => ({} as Record<string, string>)), perfTimings),
+  const [transaction, milestoneData] = await Promise.all([
+    timed("s1:transaction",
+      isInternalStaff
+        ? getTransactionByScopeCached(id, txScope!)
+        : getTransactionCached(id, session.user.agencyId),
+      perfTimings),
+    timed("s1:milestones",
+      getMilestonesCached(id, session.user.agencyId).catch(() => null),
+      perfTimings),
   ]);
   const stage1ElapsedMs = Math.round(performance.now() - stage1Start);
-  // Maps don't serialise across the server→client boundary; flatten to a
-  // plain object for the MilestonePanel prop.
-  const graceDaysByCode: Record<string, number> = Object.fromEntries(graceDaysMap);
 
   if (!transaction) notFound();
   const isDirectorRole = session.user.role === "director";
+  const isAgentRole = isDirectorRole || session.user.role === "negotiator";
   // Agent ownership check: director sees all; negotiator only sees their own files.
   // Internal staff bypass: getTransactionByScope already enforces access scope above.
   if (!isInternalStaff && !isDirectorRole && transaction.agentUserId !== session.user.id) notFound();
 
-  // ── Stage 2 fan-out ───────────────────────────────────────────────────────
-  // Now that `transaction` is confirmed, every remaining DB lookup can fire
-  // in parallel. Two pairs have genuine read-after-read dependencies:
-  //   - MOS document → Supabase signed URL
-  //   - SP verified domain → user verified email
-  // They run as inner async chains inside the Promise.all so the rest of the
-  // queries don't wait on them.
-  //
-  // Pre-2026-06-03 this was a ~7-step serial waterfall after the first
-  // parallel block, adding ~400-1000ms to the slow case before the page
-  // could return its first JSX. Folded into one wave so first paint waits
-  // on max(slow query) instead of sum(every query).
-  const stage2Start = performance.now();
-  const [
-    internalManualTasks,
-    mosDocBundle,
-    originatorAgency,
-    reconcileMilestoneDefinitions,
-    assignedUser,
-    currentUserNotifications,
-    spSenderIdentity,
-    agentUser,
-    recommendedFirms,
-    fileTimeSessions,
-    brokerRow,
-  ] = await Promise.all([
-    // Internal-staff self-assigned to-dos. Customer-agency users never see this list.
-    timed("s2:internalManualTasks", isInternalStaff
-      ? listInternalSelfAssignedTasksForTransaction(id).catch(() => [] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>)
-      : Promise.resolve([] as Awaited<ReturnType<typeof listInternalSelfAssignedTasksForTransaction>>), perfTimings),
+  // Agent user lookup — small ID query for the hero's assignedUserName fallback.
+  const agentUser = transaction.agentUserId
+    ? await timed("s1:agentUser",
+        prisma.user.findUnique({
+          where: { id: transaction.agentUserId },
+          select: { id: true, name: true, email: true, firmName: true },
+        }),
+        perfTimings)
+    : null;
 
-    // MOS document → signed URL. The URL needs the doc, so this stays a
-    // 2-step chain; running it inside the Promise.all keeps it off the
-    // critical path for everything else.
-    timed("s2:mosDocAndUrl", (async () => {
-      const doc = await prisma.transactionDocument.findFirst({
-        where: { transactionId: id, source: "mos" },
-        select: { storagePath: true },
-        orderBy: { createdAt: "asc" },
-      }).catch(() => null);
-      if (!doc) return { doc: null as { storagePath: string } | null, url: null as string | null };
-      const { getSignedUrl } = await import("@/lib/supabase-storage");
-      const url = await getSignedUrl(doc.storagePath, 86400).catch(() => null);
-      return { doc, url };
-    })(), perfTimings),
-
-    // Originator agency name for the claim welcome modal. Only loaded when
-    // ?newUser=1 lands on a claimed file — the modal is rare.
-    timed("s2:originatorAgency", newUser === "1" && transaction.chainLinkId
-      ? prisma.chainLink.findUnique({
-          where: { id: transaction.chainLinkId },
-          select: { createdBy: { select: { firmName: true } } },
-        }).then((l) => l?.createdBy?.firmName ?? null).catch(() => null)
-      : Promise.resolve(null as string | null), perfTimings),
-
-    // Milestone definitions for the reconcile-later banner. Claimed files only.
-    timed("s2:reconcileMilestoneDefs", transaction.chainLinkId
-      ? prisma.milestoneDefinition.findMany({
-          orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
-          select: { id: true, code: true, name: true, side: true, orderIndex: true, blocksExchange: true },
-        }).catch(() => [])
-      : Promise.resolve([] as Array<{ id: string; code: string; name: string; side: "vendor" | "purchaser"; orderIndex: number; blocksExchange: boolean }>), perfTimings),
-
-    timed("s2:assignedUser", transaction.assignedUserId
-      ? prisma.user.findUnique({
-          where: { id: transaction.assignedUserId },
-          select: { clientType: true, legacyFee: true },
-        })
-      : Promise.resolve(null), perfTimings),
-
-    timed("s2:currentUserNotifications", prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
-    }), perfTimings),
-
-    // SP sender identity (internal staff only) — chain: verifiedDomain → userVerifiedEmail.
-    // Inner async so the chain doesn't add to the page's first-paint latency.
-    timed("s2:spSenderIdentity", (async (): Promise<{ name: string; email: string } | undefined> => {
-      if (!(isInternalStaff && (isProgressor || isAdminRole))) return undefined;
-      const agencyId = (transaction as { agencyId?: string | null }).agencyId;
-      if (!agencyId) return { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
+  // SP/admin sender identity for the ActivityPanel ComposeEmail. We
+  // resolve this in the page so the panel doesn't have to re-derive
+  // the role flags; the chain (verifiedDomain → userVerifiedEmail) is
+  // still small enough to sit on the critical path.
+  let spSenderIdentity: { name: string; email: string } | undefined;
+  if (isInternalStaff && (isProgressor || isAdminRole)) {
+    const agencyId = transaction.agencyId;
+    if (agencyId) {
       const domain = await prisma.verifiedDomain.findFirst({
         where: { agencyId, status: "verified" },
         select: { id: true },
@@ -222,95 +150,25 @@ export default async function AgentTransactionDetailPage({
             select: { email: true },
           })
         : null;
-      return userEmail
+      spSenderIdentity = userEmail
         ? { name: session.user.name!, email: userEmail.email }
         : { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
-    })(), perfTimings),
+    } else {
+      spSenderIdentity = { name: "Sales Progressor", email: "updates@thesalesprogressor.co.uk" };
+    }
+  }
 
-    // Agent user (file owner). Used by the sidebar and assignedDisplayName fallback.
-    timed("s2:agentUser", transaction.agentUserId
-      ? prisma.user.findUnique({
-          where: { id: transaction.agentUserId },
-          select: { id: true, name: true, email: true, firmName: true },
-        })
-      : Promise.resolve(null), perfTimings),
-
-    // Recommended-solicitor firms for the director's sidebar suggestion strip.
-    timed<Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null>("s2:recommendedFirms", isDirectorRole
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (prisma as any).agencyRecommendedSolicitor.findMany({
-          where: { agencyId: session.user.agencyId },
-          orderBy: { solicitorFirm: { name: "asc" } },
-          select: { solicitorFirmId: true, defaultReferralFeePence: true, solicitorFirm: { select: { name: true } } },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }).then((rows: any[]) => rows.map((r) => ({
-          id: r.solicitorFirmId as string,
-          name: r.solicitorFirm.name as string,
-          defaultReferralFeePence: r.defaultReferralFeePence as number | null,
-        })))
-      : Promise.resolve(null), perfTimings),
-
-    // File-time sessions for the agent-vs-team time tracker pill.
-    timed("s2:fileTimeSessions", prisma.fileTimeSession.findMany({
-      where: { transactionId: id },
-      select: { totalEngagedSeconds: true, lastActivityAt: true, endedAt: true, user: { select: { role: true } } },
-    }).catch(() => []), perfTimings),
-
-    // Broker row — separate from the main transaction query because the
-    // canonical getTransaction shape doesn't include broker fields. Folded
-    // into the wave so it's not a 7th serial roundtrip.
-    timed("s2:brokerRow", prisma.propertyTransaction.findFirst({
-      // Internal staff: fetch by id only (agencyId not applicable).
-      // Agents: filter by agencyId to enforce ownership.
-      where: isInternalStaff ? { id } : { id, agencyId: session.user.agencyId },
-      select: {
-        brokerFirmId: true,
-        brokerContactId: true,
-        brokerReferralFee: true,
-        brokerReferralFeeReceived: true,
-        purchaserBrokerReferral: true,
-        brokerFirm: { select: { id: true, name: true } },
-        brokerContact: { select: { id: true, name: true } },
-      },
-    }).catch(() => null), perfTimings),
-  ]);
-  const stage2ElapsedMs = Math.round(performance.now() - stage2Start);
-
-  const mosDoc = mosDocBundle.doc;
-  const mosDocUrl = mosDocBundle.url;
-
+  // ── Hero-level progress (derived from the critical-path milestones) ───
   const allMilestones = [
     ...(milestoneData?.vendor ?? []),
     ...(milestoneData?.purchaser ?? []),
-  ].map((m) => ({
-    code: m.code,
-    isComplete: m.isComplete,
-    isNotRequired: m.isNotRequired,
-    completedAt: m.completion?.completedAt ?? undefined,
-  }));
-
-  const completedMilestoneCodes = allMilestones
-    .filter((m) => m.isComplete)
-    .map((m) => m.code);
-
-  // For claim-reconciled files, anchor prediction on the earliest reconciliation
-  // eventDate so the 12-week target + on-track classification reflect the real
-  // sale start, not the moment the agent claimed.
-  const allCompletions = [
-    ...(milestoneData?.vendor ?? []),
-    ...(milestoneData?.purchaser ?? []),
-  ]
+  ];
+  const completedMilestoneCodes = allMilestones.filter((m) => m.isComplete).map((m) => m.code);
+  const allCompletions = allMilestones
     .map((m) => m.completion)
     .filter((c): c is NonNullable<typeof c> => c != null);
   const effectiveStartDate = computeEffectiveStartDate(transaction.createdAt, allCompletions);
-
-  // Hold-aware elapsed time: subtract total on-hold ms so weeks-elapsed and
-  // velocity-based predictions freeze while the file is paused. Status
-  // also drives the on_hold onTrack pill.
-  const holdInput = {
-    status: transaction.status,
-    holdPeriods: transaction.holdPeriods,
-  };
+  const holdInput = { status: transaction.status, holdPeriods: transaction.holdPeriods };
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
@@ -329,213 +187,62 @@ export default async function AgentTransactionDetailPage({
     progress.fileLevelPhase = detectPhase(new Set(completedMilestoneCodes)).fileLevelPhase;
   }
 
-  const exchangeConfirmed = allMilestones.some(
-    (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete
-  );
-
-  const internalNotes = (activityEntries as ActivityEntry[])
-    .filter((e): e is Extract<ActivityEntry, { kind: "comm" }> =>
-      e.kind === "comm" &&
-      e.type === "internal_note" &&
-      !(typeof e.content === "string" && e.content.includes("viewed their client portal"))
-    )
-    .map((e) => ({ id: e.id, content: e.content, createdAt: e.at, createdByName: e.createdByName }));
-
-  // Key Dates surfaces real-world event dates only — survey/valuation/mortgage
-  // offer/exchange/completion target — never "the day we ticked this step done".
-  // The semantic flag is MilestoneDefinition.eventDateRequired (per
-  // docs/reference/PRODUCT_TRUTH.md). Without the eventDateRequired guard the
-  // sidebar previously surfaced every completion that happened to have an
-  // eventDate populated — which included migrated sales where eventDate had
-  // been written on every step.
-  const keyDates = [
-    ...(milestoneData?.vendor ?? []),
-    ...(milestoneData?.purchaser ?? []),
-  ]
-    .filter((m) => m.eventDateRequired && m.completion?.eventDate)
-    .map((m) => ({
-      name: m.name,
-      eventDate: m.completion!.eventDate as Date,
-    }))
-    .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
-
-  const now = new Date();
-  const todayUKStr = toUKDateStr(now);
-  const activeReminders = reminderLogs.filter((l) => l.status === "active");
-
-  // One source of truth — see lib/reminders/classify.ts. Used by the tab
-  // badge, the FileHealthBanner, the RemindersWidget summary, and the hub.
-  // overdueCount is only for the banner's copy nuance ("X overdue" vs
-  // "X need attention").
-  //
-  // On-hold files zero out — the OnHoldBanner above already says "everything
-  // is frozen". A non-zero badge would contradict that.
-  const onHold = transaction.status === "on_hold";
-  const actionableCount = onHold ? 0 : countActionable(reminderLogs, now);
-  const overdueCount    = onHold ? 0 : countOverdue(reminderLogs, now);
-
-  const topReminders = activeReminders.slice(0, 2).map((l) => ({
-    id: l.id,
-    ruleName: l.reminderRule.name,
-    nextDueDate: l.nextDueDate,
-    snoozedUntil: l.snoozedUntil ?? null,
-    pendingChaseCount: l.chaseTasks.filter((t: { status: string }) => t.status === "pending").length,
-  }));
-
-  const EXCHANGE_MILESTONES = new Set(["VM19", "PM26"]);
-  const COMPLETION_MILESTONES = new Set(["VM20", "PM27"]);
-  const EXCHANGE_GATES = new Set(["VM18", "PM25"]);
-
-  function computeMilestoneSideState(
-    milestones: Array<{ id: string; name: string; code: string; isComplete: boolean; isNotRequired: boolean; isAvailable: boolean; eventDateRequired: boolean }>
-  ): MilestoneSideState {
-    // Regular next milestone — excludes exchange gates, exchange milestones, and completion milestones
-    const next = milestones.find(
-      (m) => !m.isComplete && !m.isNotRequired && m.isAvailable
-        && !EXCHANGE_MILESTONES.has(m.code) && !EXCHANGE_GATES.has(m.code) && !COMPLETION_MILESTONES.has(m.code)
-    );
-    if (next) return { state: "hasNext", milestone: { id: next.id, name: next.name, code: next.code, eventDateRequired: next.eventDateRequired } };
-
-    const hasGatePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && EXCHANGE_GATES.has(m.code));
-    if (hasGatePending) return { state: "gatePending", gateType: "exchange_gate" };
-
-    // Exchange milestone (VM19/PM26) not yet confirmed
-    const hasExchangePending = milestones.some((m) => !m.isComplete && !m.isNotRequired && EXCHANGE_MILESTONES.has(m.code));
-    if (hasExchangePending) return { state: "gatePending", gateType: "post_exchange" };
-
-    // Completion milestone — only actionable once exchange is confirmed (isAvailable) and the completion date has arrived
-    const completionMilestone = milestones.find(
-      (m) => COMPLETION_MILESTONES.has(m.code) && !m.isComplete && !m.isNotRequired && m.isAvailable
-    );
-    if (completionMilestone) {
-      if (transaction?.completionDate) {
-        const cd = new Date(transaction.completionDate);
-        if (toUKDateStr(cd) > todayUKStr) return { state: "completionPending", completionDate: cd };
-      }
-      return { state: "hasNext", milestone: { id: completionMilestone.id, name: completionMilestone.name, code: completionMilestone.code, eventDateRequired: completionMilestone.eventDateRequired } };
-    }
-
-    return { state: "allComplete" };
-  }
-
-  const vendorSideState: MilestoneSideState = milestoneData
-    ? computeMilestoneSideState(milestoneData.vendor)
-    : { state: "allComplete" };
-
-  const purchaserSideState: MilestoneSideState = milestoneData
-    ? computeMilestoneSideState(milestoneData.purchaser)
-    : { state: "allComplete" };
-
-  const openTodoCount = isInternalStaff
-    ? manualTasks.filter((t) => t.status === "open" && t.isAgentRequest).length
-    : manualTasks.filter((t) => t.status === "open").length;
-
-  const escalatedCount = reminderLogs.flatMap((l) =>
-    l.chaseTasks.filter((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")
-  ).length;
-
-  const lastMilestoneCompletion = allMilestones
-    .filter((m) => m.isComplete && m.completedAt)
-    .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-  const daysStuckOnMilestone = lastMilestoneCompletion?.completedAt
-    ? Math.floor((Date.now() - new Date(lastMilestoneCompletion.completedAt).getTime()) / 86400000)
-    : null;
-
-  const lastActivityMs = activityEntries.length > 0
-    ? new Date((activityEntries[0] as { at: Date }).at).getTime()
-    : null;
-  const daysSinceLastActivity = lastActivityMs
-    ? Math.floor((Date.now() - lastActivityMs) / 86400000)
-    : null;
-
-  const riskInput = {
-    onTrack: progress.onTrack,
-    escalatedTaskCount: escalatedCount,
-    overdueTaskCount: overdueCount,
-    daysSinceLastActivity,
-    daysStuckOnMilestone,
-  };
-
-  const tabs = [
-    { key: "overview",   label: "Overview" },
-    { key: "milestones", label: "Steps" },
-    { key: "reminders",  label: "Reminders", badge: actionableCount },
-    { key: "todos",      label: "To-Do", badge: openTodoCount },
-    { key: "activity",   label: "Activity" },
-  ];
-
   const assignedDisplayName =
     (transaction.assignedUser as { name?: string | null } | null)?.name ??
     agentUser?.name ??
     null;
 
-  const INTERNAL_ROLES = ["superadmin", "admin", "sales_progressor"] as const;
-  const isInternal = (INTERNAL_ROLES as readonly string[]).includes(session.user.role);
-
-  const liveCutoff = new Date(Date.now() - 5 * 60 * 1000);
-  const closedSessions = fileTimeSessions.filter((s) => s.endedAt !== null && (s.totalEngagedSeconds ?? 0) > 0);
-
-  const agentSeconds = closedSessions
-    .filter((s) => !(INTERNAL_ROLES as readonly string[]).includes(s.user.role))
-    .reduce((sum, s) => sum + (s.totalEngagedSeconds ?? 0), 0);
-  const teamSeconds = closedSessions
-    .filter((s) => (INTERNAL_ROLES as readonly string[]).includes(s.user.role))
-    .reduce((sum, s) => sum + (s.totalEngagedSeconds ?? 0), 0);
-
-  const mostRecentActivity = fileTimeSessions
-    .map((s) => s.lastActivityAt)
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
-
-  const hasLiveSession = fileTimeSessions.some(
-    (s) => s.endedAt === null && new Date(s.lastActivityAt) > liveCutoff
-  );
-
-  const fileTime = {
-    agentSeconds,
-    teamSeconds,
-    totalSeconds: agentSeconds + teamSeconds,
-    lastActiveAt: mostRecentActivity,
-    hasLiveSession,
-  };
-
-  const sidebar = (
-    <TransactionSidebar
-      transaction={{
-        id: transaction.id,
-        propertyAddress: transaction.propertyAddress,
-        purchasePrice: transaction.purchasePrice ?? null,
-        tenure: transaction.tenure ?? null,
-        purchaseType: transaction.purchaseType ?? null,
-        isShareOfFreehold: transaction.isShareOfFreehold,
-        chainLinkId: transaction.chainLinkId ?? null,
-        overridePredictedDate: transaction.overridePredictedDate ?? null,
-        completionDate: transaction.completionDate ?? null,
-        agentFeeAmount: transaction.agentFeeAmount ?? null,
-        agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
-        agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
-        referralFee: transaction.referralFee ?? null,
-        referredFirmName: transaction.referredFirm?.name ?? null,
-        referredFirmId: transaction.referredFirmId ?? null,
-        brokerReferralFee: brokerRow?.brokerReferralFee ?? null,
-        brokerFirmName: brokerRow?.brokerFirm?.name ?? null,
-        serviceType: transaction.serviceType ?? null,
-      }}
-      recommendedFirms={recommendedFirms}
-      showOurFee={session.user.role === "director" || isAdminRole}
-      assignedUser={assignedUser}
-      agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
-      agentUser={agentUser}
-      progress={progress}
-      keyDates={keyDates}
-      exchangeConfirmed={exchangeConfirmed}
-      fileTime={fileTime}
-      isInternal={isInternal}
-      hideCommercialFields={isProgressor && !isAdminRole}
-    />
-  );
+  // Tab strip — badges (counts on Reminders + To-Do) update via
+  // TabBadgeReporter once the relevant panels stream in.
+  const tabs = [
+    { key: "overview",   label: "Overview" },
+    { key: "milestones", label: "Steps" },
+    { key: "reminders",  label: "Reminders", badge: 0 },
+    { key: "todos",      label: "To-Do", badge: 0 },
+    { key: "activity",   label: "Activity" },
+  ];
 
   const totalServerMs = Math.round(performance.now() - perfStart);
+
+  const sidebar = (
+    <Suspense fallback={<SidebarPanelSkeleton />}>
+      <SidebarPanel
+        transaction={{
+          id: transaction.id,
+          propertyAddress: transaction.propertyAddress,
+          purchasePrice: transaction.purchasePrice ?? null,
+          tenure: transaction.tenure ?? null,
+          purchaseType: transaction.purchaseType ?? null,
+          isShareOfFreehold: transaction.isShareOfFreehold,
+          status: transaction.status,
+          chainLinkId: transaction.chainLinkId ?? null,
+          overridePredictedDate: transaction.overridePredictedDate ?? null,
+          completionDate: transaction.completionDate ?? null,
+          createdAt: transaction.createdAt,
+          serviceType: transaction.serviceType ?? null,
+          freeOnExchange: transaction.freeOnExchange ?? null,
+          agentFeeAmount: transaction.agentFeeAmount ?? null,
+          agentFeePercent: transaction.agentFeePercent ? Number(transaction.agentFeePercent) : null,
+          agentFeeIsVatInclusive: transaction.agentFeeIsVatInclusive ?? null,
+          referralFee: transaction.referralFee ?? null,
+          referredFirmId: transaction.referredFirmId ?? null,
+          referredFirm: transaction.referredFirm ?? null,
+          agentUserId: transaction.agentUserId ?? null,
+          assignedUserId: transaction.assignedUserId ?? null,
+          agencyId: transaction.agencyId,
+          agency: transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null,
+          holdPeriods: transaction.holdPeriods,
+        }}
+        isInternalStaff={isInternalStaff}
+        isInternal={isInternalStaff}
+        isDirectorRole={isDirectorRole}
+        isProgressor={isProgressor}
+        isAdminRole={isAdminRole}
+        isAgentRole={isAgentRole}
+        agencyId={session.user.agencyId}
+      />
+    </Suspense>
+  );
 
   return (
     <div className="glass-page agent-page pt-4 px-4 md:px-8">
@@ -543,7 +250,7 @@ export default async function AgentTransactionDetailPage({
         <PerfOverlay
           serverTimings={perfTimings}
           stage1ElapsedMs={stage1ElapsedMs}
-          stage2ElapsedMs={stage2ElapsedMs}
+          stage2ElapsedMs={0}
           totalServerMs={totalServerMs}
           renderedAtIso={new Date().toISOString()}
         />
@@ -553,17 +260,15 @@ export default async function AgentTransactionDetailPage({
       <Suspense><MosConfirmedNotice /></Suspense>
       <Suspense><RemindersReadyNotice transactionId={id} /></Suspense>
       <Suspense><ClaimedToast address={transaction.propertyAddress} /></Suspense>
-      <Suspense><ClaimWelcomeModal address={transaction.propertyAddress} originatorAgency={originatorAgency ?? undefined} /></Suspense>
+      <ClaimWelcomeAsync address={transaction.propertyAddress} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
-      {transaction.chainLinkId && reconcileMilestoneDefinitions.length > 0 && (
-        <ReconcileLaterBanner
-          transactionId={id}
-          milestoneDefinitions={reconcileMilestoneDefinitions}
-          tenure={transaction.tenure ?? null}
-          purchaseType={transaction.purchaseType ?? null}
-        />
-      )}
+      <ReconcileLaterAsync
+        transactionId={id}
+        chainLinkId={transaction.chainLinkId ?? null}
+        tenure={transaction.tenure ?? null}
+        purchaseType={transaction.purchaseType ?? null}
+      />
       <PropertyHero
         address={transaction.propertyAddress}
         agencyName={transaction.agency.name}
@@ -612,183 +317,71 @@ export default async function AgentTransactionDetailPage({
           })()
         }
       >
-        {/* ── Tab 0: Overview ─────────────────────────────────────────── */}
-        <div className="space-y-5">
-          <FileHealthBanner actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} />
-
-          {(transaction.status === "active" || transaction.status === "on_hold") && (
-            <AutomationControls
-              transactionId={transaction.id}
-              initialClientEmailsPaused={transaction.clientEmailsPaused}
-              status={transaction.status as "active" | "on_hold"}
-            />
-          )}
-
-          <ContactsSection
-            transactionId={transaction.id}
-            contacts={transaction.contacts}
-            address={transaction.propertyAddress}
-            portalViewDates={Object.fromEntries(
-              transaction.contacts
-                .filter((c) => c.lastVisitedPortalAt)
-                .map((c) => [c.id, c.lastVisitedPortalAt as Date])
-            )}
-            automatedEmailCounts={automatedEmailCounts}
-            lastContactedByContactId={lastContactedByContactId}
+        {/* Tab 0: Overview */}
+        <Suspense fallback={<TabPanelSkeleton rows={6} withHero />}>
+          <OverviewPanel
+            transaction={transaction}
+            agencyId={session.user.agencyId}
+            isInternalStaff={isInternalStaff}
+            isDirectorRole={isDirectorRole}
+            currentUserId={session.user.id}
+            currentUserName={session.user.name ?? ""}
+            recommendedFirms={null}
           />
+        </Suspense>
 
-          <NextMilestoneWidget
+        {/* Tab 1: Steps */}
+        <Suspense fallback={<TabPanelSkeleton rows={8} />}>
+          <StepsPanel
             transactionId={transaction.id}
-            vendorSide={vendorSideState}
-            purchaserSide={purchaserSideState}
+            agencyId={session.user.agencyId}
+            purchaseType={transaction.purchaseType ?? null}
           />
+        </Suspense>
 
-          <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
-          <RecentActivityWidget entries={activityEntries} />
-
-          <div id="chain-section" className="glass-card overflow-hidden rounded-[12px]">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-              <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
-              <ViewChainButton
-                transactionId={transaction.id}
-                currentUserId={session.user.id}
-                declineNotification={
-                  currentUserNotifications?.chainDeclineNotificationAddress &&
-                  currentUserNotifications?.chainDeclineNotificationAt
-                    ? {
-                        address: currentUserNotifications.chainDeclineNotificationAddress,
-                        at: currentUserNotifications.chainDeclineNotificationAt.toISOString(),
-                      }
-                    : null
-                }
-              />
-            </div>
-          </div>
-
-          <SolicitorSection
+        {/* Tab 2: Reminders */}
+        <Suspense fallback={<TabPanelSkeleton rows={4} />}>
+          <RemindersPanel
             transactionId={transaction.id}
-            vendor={{
-              firm: transaction.vendorSolicitorFirm ?? null,
-              contact: transaction.vendorSolicitorContact ?? null,
-            }}
-            purchaser={{
-              firm: transaction.purchaserSolicitorFirm ?? null,
-              contact: transaction.purchaserSolicitorContact ?? null,
-            }}
-            recommendedFirms={recommendedFirms ?? undefined}
-            referredFirmId={transaction.referredFirmId ?? null}
-            referralFee={transaction.referralFee ?? null}
-            address={transaction.propertyAddress}
-            contacts={transaction.contacts.map((c) => ({ name: c.name, roleType: c.roleType }))}
-          />
-          {brokerRow?.brokerFirmId && (
-            <BrokerSection
-              transactionId={transaction.id}
-              brokerFirmId={brokerRow.brokerFirmId}
-              brokerContactId={brokerRow.brokerContactId}
-              brokerFirmName={brokerRow.brokerFirm?.name ?? null}
-              brokerContactName={brokerRow.brokerContact?.name ?? null}
-              brokerReferralFee={brokerRow.brokerReferralFee}
-              brokerReferralFeeReceived={brokerRow.brokerReferralFeeReceived}
-              purchaserBrokerReferral={brokerRow.purchaserBrokerReferral ?? false}
-            />
-          )}
-
-          <RiskScoreWidget input={riskInput} />
-
-          <PropertyIntelCard transactionId={transaction.id} />
-          <TransactionNotes transactionId={transaction.id} initialNotes={internalNotes} currentUserName={session.user.name ?? ""} />
-        </div>
-
-        {/* ── Tab 1: Milestones ────────────────────────────────────────── */}
-        <div>
-          {milestoneData ? (
-            <MilestonePanel
-              transactionId={transaction.id}
-              vendor={milestoneData.vendor}
-              purchaser={milestoneData.purchaser}
-              exchangeReady={milestoneData.exchangeReady}
-              vendorGateReady={milestoneData.vendorGateReady}
-              purchaserGateReady={milestoneData.purchaserGateReady}
-              graceDaysByCode={graceDaysByCode}
-              clientChaseByCode={clientChaseByCode}
-              purchaseType={transaction.purchaseType}
-            />
-          ) : (
-            <p className="text-sm text-slate-900/40 text-center py-12">No milestone data available</p>
-          )}
-        </div>
-
-        {/* ── Tab 2: Reminders ─────────────────────────────────────────── */}
-        <div>
-          <RemindersSection
-            transactionId={transaction.id}
-            reminderLogs={reminderLogs}
-            contacts={transaction.contacts}
+            agencyId={session.user.agencyId}
             propertyAddress={transaction.propertyAddress}
-            completedMilestoneCodes={new Set(
-              [...(milestoneData?.vendor ?? []), ...(milestoneData?.purchaser ?? [])]
-                .filter((m) => m.isComplete || m.isNotRequired)
-                .map((m) => m.code)
-            )}
             transactionStatus={transaction.status}
+            contacts={transaction.contacts}
           />
-          {/* Deferred — see AutomatedEmailsCardAsync header for the rationale.
-            * Renders nothing while in flight (Suspense fallback={null}) so the
-            * rest of the Reminders tab is interactive immediately. */}
-          <AutomatedEmailsCardAsync
-            transactionId={transaction.id}
-            fileOnHold={transaction.status === "on_hold"}
-          />
-        </div>
+        </Suspense>
 
-        {/* ── Tab 3: To-Do ─────────────────────────────────────────────── */}
-        <div>
-          <ManualTaskList
-            initialTasks={manualTasks}
-            initialInternalTasks={internalManualTasks}
+        {/* Tab 3: To-Do */}
+        <Suspense fallback={<TabPanelSkeleton rows={3} />}>
+          <ToDoPanel
             transactionId={transaction.id}
             transactionAddress={transaction.propertyAddress}
-            showDone
-            showOwnership={transaction.serviceType === "outsourced" && !isProgressor && !isAdminRole}
-            perspective={isInternalStaff ? "progressor" : "agent"}
+            agencyId={session.user.agencyId}
+            serviceType={transaction.serviceType ?? null}
+            isInternalStaff={isInternalStaff}
+            isProgressor={isProgressor}
+            isAdminRole={isAdminRole}
           />
-        </div>
+        </Suspense>
 
-        {/* ── Tab 4: Activity ──────────────────────────────────────────── */}
-        <div className="space-y-4">
-          <ActivityTab
-            entries={activityEntries}
+        {/* Tab 4: Activity */}
+        <Suspense fallback={<TabPanelSkeleton rows={6} />}>
+          <ActivityPanel
             transactionId={transaction.id}
-            mosDocUrl={mosDocUrl}
-            currentUserId={isProgressor ? session.user.id : undefined}
-            contacts={transaction.contacts}
-            solicitors={[
-              ...(transaction.vendorSolicitorContact
-                ? [{ id: transaction.vendorSolicitorContact.id, name: transaction.vendorSolicitorContact.name, role: "Vendor solicitor", phone: transaction.vendorSolicitorContact.phone ?? null }]
-                : []),
-              ...(transaction.purchaserSolicitorContact
-                ? [{ id: transaction.purchaserSolicitorContact.id, name: transaction.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: transaction.purchaserSolicitorContact.phone ?? null }]
-                : []),
-            ]}
-            canPasteChat={isProgressor || isAdminRole}
+            agencyId={session.user.agencyId}
+            isInternal={isInternalStaff}
+            isInternalStaff={isInternalStaff}
+            isProgressor={isProgressor}
+            isAdminRole={isAdminRole}
+            currentUserId={session.user.id}
             currentUserName={session.user.name ?? ""}
             currentUserRole={session.user.role ?? ""}
+            spSenderIdentity={spSenderIdentity}
+            contacts={transaction.contacts}
+            vendorSolicitor={transaction.vendorSolicitorContact ?? null}
+            purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
           />
-          {(!isInternal || spSenderIdentity !== undefined) && (
-            <ComposeEmail transactionId={transaction.id} senderIdentity={spSenderIdentity} />
-          )}
-        </div>
+        </Suspense>
       </PropertyFileTabs>
-    </div>
-  );
-}
-
-function MetaField({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`px-5 py-4 ${className}`}>
-      <p className="text-xs font-medium text-slate-900/40 mb-1.5">{label}</p>
-      {children}
     </div>
   );
 }
