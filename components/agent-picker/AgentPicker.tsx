@@ -43,13 +43,9 @@ export function AgentPicker({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        className="glass-input"
         style={{
           height: 36,
-          padding: "0 10px",
-          borderRadius: 8,
-          border: "0.5px solid var(--agent-border-default)",
-          background: "var(--agent-surface-elevated)",
-          color: "var(--agent-text-primary)",
           fontSize: 13,
           cursor: disabled ? "not-allowed" : "pointer",
           appearance: "auto",
