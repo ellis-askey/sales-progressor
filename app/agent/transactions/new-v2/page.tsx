@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
 import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
+import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
 
@@ -25,7 +26,12 @@ export default async function AgentNewSaleV2Page() {
   if (session.user.role === "director" && session.user.agencyId) {
     const agency = await prisma.agency.findUnique({
       where: { id: session.user.agencyId },
-      select: { firstSubmissionAt: true, stripeCustomerId: true },
+      select: {
+        firstSubmissionAt: true,
+        stripeCustomerId: true,
+        feeTier: true,
+        legacyOutsourcedFeePence: true,
+      },
     });
     if (
       agency?.firstSubmissionAt &&
@@ -46,6 +52,12 @@ export default async function AgentNewSaleV2Page() {
       const termsAcknowledged = activeTerms
         ? await hasAcknowledged(session.user.agencyId, activeTerms.id)
         : false;
+      // Legacy agencies see their fixed fee in the Charges section instead
+      // of the public sliding scale. No-op for sliding tier.
+      const sections = applyAgencyTermsOverrides(
+        activeTerms?.sections ?? [],
+        agency,
+      );
       return (
         <TrialExpiredModal
           publishableKey={publishableKey}
@@ -53,7 +65,7 @@ export default async function AgentNewSaleV2Page() {
           termsAcknowledged={termsAcknowledged}
           termsVersionId={activeTerms?.id ?? null}
           termsVersionTag={activeTerms?.versionTag ?? null}
-          termsSections={activeTerms?.sections ?? []}
+          termsSections={sections}
         />
       );
     }

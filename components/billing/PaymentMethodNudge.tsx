@@ -21,13 +21,21 @@
 import { prisma } from "@/lib/prisma";
 import { TrialBannerWithModal } from "./TrialBannerWithModal";
 import { getActiveTermsVersion, hasAcknowledged } from "@/lib/billing/acknowledgement";
+import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 
 const NUDGE_THRESHOLD_MS = 21 * 24 * 60 * 60 * 1000;
 
 export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { firstSubmissionAt: true, stripeCustomerId: true },
+    select: {
+      firstSubmissionAt: true,
+      stripeCustomerId: true,
+      // Drives the per-agency Charges-section override on the modal's
+      // terms step (legacy fixed fee vs canonical sliding scale).
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+    },
   });
   if (!agency) return null;
   if (agency.stripeCustomerId) return null;       // card already on file
@@ -43,6 +51,10 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
   const termsAcknowledged = activeTerms
     ? await hasAcknowledged(agencyId, activeTerms.id)
     : false;
+  const sections = applyAgencyTermsOverrides(
+    activeTerms?.sections ?? [],
+    agency,
+  );
 
   // Server component — reads the unprefixed key (matches lib/stripe.ts +
   // the settings billing page + the Vercel env var the founder set up).
@@ -55,7 +67,7 @@ export async function PaymentMethodNudge({ agencyId }: { agencyId: string }) {
       termsAcknowledged={termsAcknowledged}
       termsVersionId={activeTerms?.id ?? null}
       termsVersionTag={activeTerms?.versionTag ?? null}
-      termsSections={activeTerms?.sections ?? []}
+      termsSections={sections}
     />
   );
 }

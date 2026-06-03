@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle } from "@phosphor-icons/react";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { saveAgencyFeeAction } from "@/app/actions/agency-fees";
 import type { ClientType } from "@prisma/client";
@@ -19,6 +20,10 @@ type AgencyRow = {
   name: string;
   feeTier: ClientType;
   legacyOutsourcedFeePence: number | null;
+  // True when the agency has a Stripe customer on file (any card saved).
+  // Drives the "Card" column on the table — green CheckCircle when true,
+  // muted-grey CheckCircle when false.
+  hasActiveCard: boolean;
   transactionCount: number;
 };
 
@@ -174,6 +179,7 @@ export function AgencyFeeCard({ agencies, legacyCount, totalCount }: Props) {
               <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-900/40">Agency</th>
               <th className="text-left px-3 py-2.5 text-xs font-medium text-slate-900/40">Fee tier</th>
               <th className="text-right px-3 py-2.5 text-xs font-medium text-slate-900/40">Legacy fee</th>
+              <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-900/40">Card</th>
               <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-900/40">Files</th>
             </tr>
           </thead>
@@ -197,12 +203,20 @@ export function AgencyFeeCard({ agencies, legacyCount, totalCount }: Props) {
                     ? (a.legacyOutsourcedFeePence != null ? formatGBP(a.legacyOutsourcedFeePence) : <span className="text-red-500 italic">unset</span>)
                     : "—"}
                 </td>
+                <td className="px-3 py-2.5 text-center">
+                  <CheckCircle
+                    size={16}
+                    weight={a.hasActiveCard ? "fill" : "regular"}
+                    color={a.hasActiveCard ? "var(--agent-success, #10b981)" : "rgba(15,23,42,0.20)"}
+                    aria-label={a.hasActiveCard ? "Card saved" : "No card on file"}
+                  />
+                </td>
                 <td className="px-4 py-2.5 text-right text-xs text-slate-900/50">{a.transactionCount}</td>
               </tr>
             ))}
             {agencies.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-900/40 italic">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-900/40 italic">
                   No agencies yet.
                 </td>
               </tr>

@@ -20,6 +20,7 @@ import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
 import { getLifetimeMetrics } from "@/lib/billing/lifetime";
 import { getTrialState } from "@/lib/billing/trial-state";
 import { getActiveTermsVersion } from "@/lib/billing/acknowledgement";
+import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { billingMonthRange } from "@/lib/billing/period";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { RedesignedDisclosure } from "@/components/billing/hub/RedesignedDisclosure";
@@ -48,7 +49,15 @@ export default async function AccountBillingPage() {
 
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { id: true, name: true, stripeCustomerId: true },
+    select: {
+      id: true,
+      name: true,
+      stripeCustomerId: true,
+      // Used by applyAgencyTermsOverrides to swap the Charges section text
+      // for legacy agencies on their fixed fee.
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+    },
   });
   if (!agency) notFound();
 
@@ -72,6 +81,12 @@ export default async function AccountBillingPage() {
         });
       })(),
     ]);
+
+  // Apply the agency-tier override on the Charges section. Legacy agencies
+  // see their fixed fee; sliding-tier agencies see the canonical scale.
+  const termsSectionsForAgency = terms
+    ? applyAgencyTermsOverrides(terms.sections, agency)
+    : [];
 
   const ack = terms
     ? await prisma.pricingAcknowledgement.findFirst({
@@ -184,7 +199,7 @@ export default async function AccountBillingPage() {
           terms
             ? {
                 versionTag: terms.versionTag,
-                sections: terms.sections,
+                sections: termsSectionsForAgency,
                 acknowledgedAt: ack?.acknowledgedAt ?? null,
               }
             : null
@@ -197,7 +212,7 @@ export default async function AccountBillingPage() {
           <RedesignedDisclosure
             termsVersionId={terms.id}
             termsVersionTag={terms.versionTag}
-            termsSections={terms.sections}
+            termsSections={termsSectionsForAgency}
           />
         </>
       )}

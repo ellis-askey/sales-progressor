@@ -40,6 +40,13 @@ export default async function AgentAdminPage() {
         name: true,
         feeTier: true,
         legacyOutsourcedFeePence: true,
+        // Drives the new "Card" column on AgencyFeeCard. Presence of a
+        // Stripe customer id means "card saved" (created at first card
+        // capture); null means no card has ever been captured for this
+        // agency. No deeper "valid PaymentMethod" check today — the
+        // existing Stripe-customer-exists signal is what the rest of
+        // the billing flow gates on.
+        stripeCustomerId: true,
         _count: { select: { transactions: true } },
       },
     }),
@@ -105,6 +112,7 @@ export default async function AgentAdminPage() {
           name: a.name,
           feeTier: a.feeTier,
           legacyOutsourcedFeePence: a.legacyOutsourcedFeePence,
+          hasActiveCard: a.stripeCustomerId != null,
           transactionCount: a._count.transactions,
         }))}
         legacyCount={legacyCount}

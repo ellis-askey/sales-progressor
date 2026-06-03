@@ -14,6 +14,7 @@ import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
 import { getLifetimeMetrics } from "@/lib/billing/lifetime";
 import { getTrialState } from "@/lib/billing/trial-state";
 import { getActiveTermsVersion } from "@/lib/billing/acknowledgement";
+import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
 import { getPaymentBlockState } from "@/lib/billing/payment-block";
 import { billingMonthRange } from "@/lib/billing/period";
 import { POLISH_STATES, StateToggle, type PolishStateKey } from "@/components/billing/hub/StateToggle";
@@ -49,7 +50,13 @@ export default async function BillingHubV2PolishPage({
 
   const agency = await prisma.agency.findFirst({
     where: { name: stateConfig.agency },
-    select: { id: true, name: true, stripeCustomerId: true },
+    select: {
+      id: true,
+      name: true,
+      stripeCustomerId: true,
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+    },
   });
   if (!agency) return notFound();
 
@@ -82,6 +89,12 @@ export default async function BillingHubV2PolishPage({
       })(),
     ]);
   void _blockState;
+
+  // Apply the agency-tier override on the Charges section. Legacy agencies
+  // see their fixed fee; sliding-tier agencies see the canonical scale.
+  const termsSectionsForAgency = terms
+    ? applyAgencyTermsOverrides(terms.sections, agency)
+    : [];
 
   const ack = terms
     ? await prisma.pricingAcknowledgement.findFirst({
@@ -196,7 +209,7 @@ export default async function BillingHubV2PolishPage({
           terms
             ? {
                 versionTag: terms.versionTag,
-                sections: terms.sections,
+                sections: termsSectionsForAgency,
                 acknowledgedAt: ack?.acknowledgedAt ?? null,
               }
             : null
@@ -209,7 +222,7 @@ export default async function BillingHubV2PolishPage({
           <RedesignedDisclosure
             termsVersionId={terms.id}
             termsVersionTag={terms.versionTag}
-            termsSections={terms.sections}
+            termsSections={termsSectionsForAgency}
           />
         </>
       )}
