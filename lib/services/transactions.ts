@@ -188,13 +188,39 @@ export async function listTransactions(
   });
 }
 
+// Section 2 (per-sale Contact scoping, 2026-06-05): on the live single-
+// transaction read, purchaser contacts must be scoped to the active
+// BuyerRound so that fell-through buyers (e.g. Marcus on a relisted file)
+// stop showing as live Purchaser contacts. Non-purchaser roles (vendor,
+// solicitor, broker, other) are file-level by design and pass through
+// unchanged. Transactions with no active BuyerRound (legacy / draft files
+// pre-dating Phase 1) keep all purchaser contacts visible — the filter is
+// a no-op there.
+//
+// Aggregate / list / cross-tx reads (listTransactions, hub, analytics,
+// completions) are NOT scoped here — see docs/TODO.md Phase-3 (a)-CLASS arc.
+function scopeContactsToActiveRound<
+  T extends {
+    activeBuyerRound: { id: string } | null;
+    contacts: Array<{ roleType: string; buyerRoundId: string | null }>;
+  }
+>(tx: T): T {
+  const activeRoundId = tx.activeBuyerRound?.id ?? null;
+  tx.contacts = tx.contacts.filter((c) => {
+    if (c.roleType !== "purchaser") return true;
+    if (activeRoundId === null) return true;
+    return c.buyerRoundId === activeRoundId;
+  });
+  return tx;
+}
+
 export async function getTransaction(id: string, agencyId: string) {
-  return prisma.propertyTransaction.findFirst({
+  const tx = await prisma.propertyTransaction.findFirst({
     where: { id, agencyId },
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
@@ -214,15 +240,16 @@ export async function getTransaction(id: string, agencyId: string) {
       },
     },
   });
+  return tx ? scopeContactsToActiveRound(tx) : null;
 }
 
 export async function getTransactionByScope(id: string, scope: AccessScope) {
-  return prisma.propertyTransaction.findFirst({
+  const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, id),
     include: {
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
-      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true } },
+      contacts: { select: { id: true, name: true, phone: true, email: true, roleType: true, portalToken: true, lastVisitedPortalAt: true, createdAt: true, buyerRoundId: true } },
       vendorSolicitorFirm: { select: { id: true, name: true } },
       vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
@@ -242,6 +269,7 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       },
     },
   });
+  return tx ? scopeContactsToActiveRound(tx) : null;
 }
 
 export async function countTransactionsByStatus(
