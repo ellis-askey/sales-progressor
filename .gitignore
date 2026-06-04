@@ -53,6 +53,7 @@ tsconfig.tsbuildinfo
 
 # Playwright screenshots (ephemeral test output)
 e2e/screenshots/
+scripts/screenshots/
 
 # Debug trace JSON from one-off scripts (ephemeral)
 logs/

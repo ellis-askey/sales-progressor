@@ -34,7 +34,11 @@ Every step has an explicit verification step that gates the next. Do not collaps
 ### Step 2 — deploy code (still pre-migration)
 
 - Merge `master` to `prod` branch (or whatever the deploy trigger is). Vercel deploys.
-- Confirm: `/api/healthz` returns the new commit SHA. The new code is live but the schema-uniqueness migration has NOT applied yet (deploy is gated by the build-step migration runner — verify the migration log shows "skipped" or queued, not "applied").
+- **MANDATORY HASH CHECK** (commit 6b incident, 2026-06-04): Vercel has been observed silently skipping the auto-build for some pushes — `fbea564` did not trigger a deployment after `git push`, and a manual `vercel` invocation was needed to ship it. Before declaring Step 2 complete:
+  - Capture the approved release SHA: `git rev-parse HEAD` on the release branch.
+  - Capture the deployed SHA: `curl https://app.thesalesprogressor.co.uk/api/healthz | jq .commitSha` (or whatever `/api/healthz` exposes — if it doesn't expose the SHA today, add that to the route).
+  - **The two MUST match.** If they don't: the deploy is stale, a `vercel deploy` against the release SHA is required, do not proceed to Step 3.
+- New code is live but the schema-uniqueness migration has NOT applied yet (deploy is gated by the build-step migration runner — verify the migration log shows "skipped" or queued, not "applied").
 - This is the safest order: code that knows how to read round-scoped data is deployed BEFORE the migration that enforces the partial uniques. If the migration applies first and code rollback happens, we'd be running old code against new constraints — not catastrophic but easier to avoid.
 
 ### Step 3 — apply Phase 1 migration to prod
@@ -100,6 +104,16 @@ Every step has an explicit verification step that gates the next. Do not collaps
 
 - Run `scripts/parity-commit-5-portal.ts` against PROD with read-only assertions. Should return PASS (0 failures).
 - Run `scripts/verify-buyer-round-phase0.ts` against PROD. Should return PASS.
+- **Credential hygiene check** (permanent, both must pass — added 2026-06-04 after a staging-side finding that a publicly reachable deploy was running on the literal password `password`):
+  ```bash
+  npx -y dotenv -e .env.production --override -- npx ts-node \
+    --project tsconfig.scripts.json scripts/prod-check-weak-credentials.ts
+  ```
+  Two sub-checks inside that script, both must return PASS:
+  - **(a) No staging test-account emails on prod.** Scans for `emily@hartwellpartners.co.uk` / `alex@hartwellpartners.co.uk` / `sarah@hartwellpartners.co.uk` / `james@hartwellpartners.co.uk`. Any hit means a staging seed was inadvertently applied to prod.
+  - **(b) No prod account on a known weak / rotated password.** Every prod `User.password` hash is bcrypt-compared against the historical staging defaults AND the current rotated values from `docs/test-accounts.md`. Any hit means somebody copy-pasted a staging hash onto a real account, or worse — rotate the listed accounts immediately and re-run before proceeding.
+
+  The known-weak list lives inside the script (`KNOWN_WEAK_PASSWORDS` constant). When staging passwords are rotated, the new values must be appended to that list so the next prod check catches them too — otherwise the safety net silently shrinks.
 - **NULL-stamp check on engine-written rows** (commit 6 fix-up #2 added this — was previously assumed):
   ```sql
   -- PM-targeted PENDING ChaseTasks with NULL buyerRoundId. Must be 0.
