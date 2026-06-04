@@ -1543,13 +1543,14 @@
   }
 
   /* ── Chip hover flip (RoundChip) ─────────────────────────────────────────── */
-  /* On hover/focus the chip rolls horizontally (rotateY 180deg) like a card
-   * flipping, revealing a short action prompt on the back face. Two children
-   * share the host:
+  /* On hover/focus the chip rolls forward around its horizontal axis
+   * (rotateX 180deg) — the top edge tips toward the viewer and the back
+   * face becomes the new front, revealing a short action prompt. Two
+   * children share the host:
    *   - .agent-chip-hover-default — front face, dictates width.
    *   - .agent-chip-hover-reveal  — back face, absolutely positioned and
-   *                                 pre-rotated 180deg so it reads the right
-   *                                 way round after the host's rotation.
+   *                                 pre-rotated rotateX(180deg) so it reads
+   *                                 the right way up after the host's roll.
    * Both faces use backface-visibility: hidden so only the forward face is
    * visible at any one moment. perspective() is applied via the transform
    * function on the host itself, so we don't need to add 3D context to the
@@ -1564,7 +1565,7 @@
 
   .agent-chip-hover-host {
     position: relative;
-    transform: perspective(600px) rotateY(0deg);
+    transform: perspective(600px) rotateX(0deg);
     transform-style: preserve-3d;
     transition: transform 420ms cubic-bezier(0.4, 0.0, 0.2, 1),
                 background 150ms ease-out;
@@ -1584,7 +1585,7 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    transform: rotateY(180deg);
+    transform: rotateX(180deg);
     pointer-events: none;
   }
   .agent-chip-hover-host .agent-chip-hover-arrow {
@@ -1592,7 +1593,7 @@
   }
   .agent-chip-hover-host:not([data-archived="0"]):hover,
   .agent-chip-hover-host:not([data-archived="0"]):focus-visible {
-    transform: perspective(600px) rotateY(180deg);
+    transform: perspective(600px) rotateX(180deg);
   }
 
   @media (prefers-reduced-motion: reduce) {
