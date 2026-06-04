@@ -6,12 +6,12 @@
 //   - HIDDEN when roundNumber === 1 && status !== "withdrawn".
 //   - VISIBLE otherwise (R2+ active, OR R1 withdrawn, OR R2+ withdrawn).
 //
-// Copy (voice-passed by Ellis 2026-06-04):
-//   - Active (R>1):   "Round N with {buyerName}. The previous buyer fell
-//                      through; view that round."
-//                     (truncated to a chip; full text appears on hover /
-//                      in the drawer header)
-//   - Withdrawn:     "R{N} with {buyerName} — withdrew {date}"
+// Copy (terminology sweep, Ellis voice-pass 2026-06-04 — "round" is
+// banned as a user-facing noun; "withdrew"/"closed" → "fell through"):
+//   - Active (sale > 1): "Sale N with {buyerName}"
+//                        (hover hint: "The previous buyer fell through;
+//                         view that sale.")
+//   - Withdrawn:         "Sale N with {buyerName} · fell through {date}"
 //
 // Click opens the ArchivedRoundDrawer for the most recent archived round.
 
@@ -48,18 +48,19 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
     .sort((a, b) => b.roundNumber - a.roundNumber);
   const mostRecentArchived = archived[0] ?? null;
 
-  // Compose chip text. The withdrawn variant carries the buyer name +
-  // round + closure date; the active variant carries the buyer name +
-  // round only (the rest is in the drawer).
+  // Compose chip text. Terminology sweep 2026-06-04: "round" is banned
+  // as a user-facing noun ("sale" instead); "withdrew"/"closed" become
+  // "fell through" for the fall-through event; em dash → middle dot.
+  // Schema field is still `roundNumber` (internal).
   const buyerLabel = activeBuyerName ?? "no buyer yet";
   const chipLabel = isWithdrawn && mostRecentArchived
-    ? `R${mostRecentArchived.roundNumber} with ${buyerLabel} — withdrew ${fmtShortDate(mostRecentArchived.archivedAt)}`
-    : `Round ${activeRoundNumber} with ${buyerLabel}`;
+    ? `Sale ${mostRecentArchived.roundNumber} with ${buyerLabel} · fell through ${fmtShortDate(mostRecentArchived.archivedAt)}`
+    : `Sale ${activeRoundNumber} with ${buyerLabel}`;
 
   // Long-form text used in the drawer header — voice-passed.
   const hoverHint = isWithdrawn
-    ? `View ${mostRecentArchived ? `Round ${mostRecentArchived.roundNumber}` : "this round"}'s record.`
-    : "The previous buyer fell through; view that round.";
+    ? `View ${mostRecentArchived ? `Sale ${mostRecentArchived.roundNumber}` : "this sale"}'s record.`
+    : "The previous buyer fell through; view that sale.";
 
   return (
     <>

@@ -183,8 +183,9 @@ export async function pushChainEvent(args: {
 }
 
 // A withdrawn file the user owned was just relisted with a new buyer.
-// LOCKED COPY (Ellis voice-pass, 2026-06-04): "Sale relisted" /
-// "{address} is back on: {buyerName} is the new buyer (round {round})."
+// LOCKED COPY (Ellis voice-pass, 2026-06-04; terminology sweep same
+// day — "round" → "sale" inside the body parens): "Sale relisted" /
+// "{address} is back on: {buyerName} is the new buyer (sale {round})."
 // MUST NOT be paraphrased — see notifyTransactionRelisted in
 // lib/services/notifications.ts for the matching rule.
 //
@@ -206,7 +207,7 @@ export async function pushTransactionRelisted(args: {
     const base = process.env.NEXTAUTH_URL ?? "";
     await pushToUser(args.recipientUserId, {
       title: "Sale relisted",
-      body:  `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (round ${args.newRoundNumber}).`,
+      body:  `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (sale ${args.newRoundNumber}).`,
       url:   `${base}/transactions/${args.transactionId}`,
     });
   } catch (err) {

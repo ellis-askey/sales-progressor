@@ -105,9 +105,10 @@ async function main() {
     record(`  card.newBuyerName === "Charlie Reeves"`, cardSP.newBuyerName === "Charlie Reeves");
     record(`  card.propertyAddress matches sentinel`,  cardSP.propertyAddress === SENTINEL);
     // Render the locked body line client-side would produce.
-    const renderedBody = `${cardSP.newBuyerName} is the new buyer (round ${cardSP.roundNumber}). Relisted ${new Date(cardSP.relistedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`;
+    // Terminology sweep 2026-06-04: "(round N)" → "(sale N)".
+    const renderedBody = `${cardSP.newBuyerName} is the new buyer (sale ${cardSP.roundNumber}). Relisted ${new Date(cardSP.relistedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}.`;
     console.log(`     locked body line:  "${renderedBody}"`);
-    const expectedShape = /^Charlie Reeves is the new buyer \(round 2\)\. Relisted \d{1,2} \w{3,}\.$/;
+    const expectedShape = /^Charlie Reeves is the new buyer \(sale 2\)\. Relisted \d{1,2} \w{3,}\.$/;
     record(`  body line matches locked shape`, expectedShape.test(renderedBody));
   }
 

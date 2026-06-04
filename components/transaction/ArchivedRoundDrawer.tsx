@@ -43,11 +43,14 @@
 //     prefers-reduced-motion overrides at the CSS level (no inline
 //     useReducedMotion needed — see docs/ANIMATION_STANDARDS.md).
 //
-// LOCKED COPY:
-//   - HEADER:   "Round {n}: {buyerName}'s record"
-//   - SUMMARY:  "{n} of 27 buyer steps were complete when this round closed."
-//   - Section labels + empty states stay verbatim from the previous
-//     voice pass (Ellis, 2026-06-04). No paraphrasing.
+// LOCKED COPY (terminology sweep, 2026-06-04 — "round" banned as a
+// user-facing noun; "closed"/"withdrew" become "fell through" for a
+// fall-through event):
+//   - HEADER:   "Sale {n}: {buyerName}'s record"
+//   - SUMMARY:  "{n} of 27 buyer steps were complete when this sale fell through."
+//   - HEADER SUBLINE: "Fell through {date}"
+//   - Section labels + empty states updated to use "sale" / "fell through"
+//     per the audit table approved by Ellis 2026-06-04. No paraphrasing.
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -276,7 +279,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
         return r.json();
       })
       .then((json) => { if (!cancelled) setData(json); })
-      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load this round."); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load this sale."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [open, selectedRoundId, transactionId]);
@@ -304,11 +307,11 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
   // Locked header copy. Use a colon (not the previous em dash) so the
   // voice rule is held.
   const buyerName = buyer?.name ?? "buyer";
-  const header = data ? `Round ${data.round.roundNumber}: ${buyerName}'s record` : "Loading…";
+  const header = data ? `Sale ${data.round.roundNumber}: ${buyerName}'s record` : "Loading…";
 
   // Buyer-steps summary line (locked, 27 PMs total).
   const completedPMs = data ? data.pmCompletions.filter((p) => p.state === "complete").length : 0;
-  const summaryLine = `${completedPMs} of 27 buyer steps were complete when this round closed.`;
+  const summaryLine = `${completedPMs} of 27 buyer steps were complete when this sale fell through.`;
 
   // Snapshot rows (already sorted server-side by orderIndex).
   const snapshotRows = data?.round.vendorMilestoneSnapshot ?? [];
@@ -344,7 +347,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
             </p>
             {data?.round.archivedAt && (
               <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-secondary)" }}>
-                Closed {fmtShortDate(data.round.archivedAt)}
+                Fell through {fmtShortDate(data.round.archivedAt)}
               </p>
             )}
           </div>
@@ -361,7 +364,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               }}
             >
               {archivedRounds.map((r) => (
-                <option key={r.id} value={r.id}>Round {r.roundNumber}</option>
+                <option key={r.id} value={r.id}>Sale {r.roundNumber}</option>
               ))}
             </select>
           )}
@@ -380,7 +383,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
           {error && !loading && (
             <div className="px-5 py-6">
               <p className="text-xs" style={{ color: "var(--agent-danger, #C73E3E)" }}>
-                Could not load this round: {error}
+                Could not load this sale: {error}
               </p>
             </div>
           )}
@@ -404,7 +407,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                       </div>
                     </>
                   ) : (
-                    <Empty text="Not recorded for this round." />
+                    <Empty text="Not recorded for this sale." />
                   )}
                 </div>
               </StaggerSection>
@@ -416,7 +419,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     Agreed price
                   </p>
                   <p style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                    {formatPrice(data.round.purchasePrice) ?? <span style={{ fontSize: 12, fontWeight: 500, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Not recorded for this round.</span>}
+                    {formatPrice(data.round.purchasePrice) ?? <span style={{ fontSize: 12, fontWeight: 500, fontStyle: "italic", color: "var(--agent-text-muted)" }}>Not recorded for this sale.</span>}
                   </p>
                 </div>
               </StaggerSection>
@@ -440,7 +443,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     )}
                   </div>
                 ) : (
-                  <Empty text="Not recorded for this round." />
+                  <Empty text="Not recorded for this sale." />
                 )}
               </StaggerSection>
 
@@ -461,15 +464,15 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     )}
                   </div>
                 ) : (
-                  <Empty text="Not recorded for this round." />
+                  <Empty text="Not recorded for this sale." />
                 )}
               </StaggerSection>
 
               {/* Steps progress on this round */}
               <StaggerSection delayMs={160}>
-                <SectionHeader title="Steps progress on this round" subtitle={summaryLine} />
+                <SectionHeader title="Steps progress on this sale" subtitle={summaryLine} />
                 {data.pmCompletions.length === 0 ? (
-                  <Empty text="Nothing recorded for this round." />
+                  <Empty text="Nothing recorded for this sale." />
                 ) : (
                   <div>
                     {[...data.pmCompletions]
@@ -486,9 +489,9 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
 
               {/* Seller-side progress at the moment this round closed */}
               <StaggerSection delayMs={200}>
-                <SectionHeader title="Seller-side progress at the moment this round closed" />
+                <SectionHeader title="Seller-side progress at the moment this sale fell through" />
                 {snapshotRows.length === 0 ? (
-                  <Empty text="No snapshot recorded for this round." />
+                  <Empty text="No snapshot recorded for this sale." />
                 ) : (
                   <div>
                     {snapshotRows.map((v) => (
@@ -504,9 +507,9 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
 
               {/* Communications during this round */}
               <StaggerSection delayMs={240}>
-                <SectionHeader title="Communications during this round" />
+                <SectionHeader title="Communications during this sale" />
                 {data.comms.length === 0 ? (
-                  <Empty text="Nothing recorded for this round." />
+                  <Empty text="Nothing recorded for this sale." />
                 ) : (
                   <div style={{ padding: "4px 16px 14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
                     {data.comms.map((c) => (
@@ -533,7 +536,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
 
               {/* Why this round closed */}
               <StaggerSection delayMs={280}>
-                <SectionHeader title="Why this round closed" />
+                <SectionHeader title="Why this sale fell through" />
                 {data.round.fallThroughReason || data.round.archivedAt ? (
                   <div style={{ padding: "4px 16px 14px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
                     {data.round.fallThroughReason && (
@@ -543,7 +546,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     )}
                     {data.round.archivedAt && (
                       <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>
-                        Closed on {fmtDate(data.round.archivedAt)}
+                        Fell through on {fmtDate(data.round.archivedAt)}
                       </p>
                     )}
                   </div>
@@ -556,7 +559,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               <StaggerSection delayMs={320}>
                 <SectionHeader title="Documents on this file" />
                 <p className="px-4" style={{ margin: 0, marginBottom: 8, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-                  Documents on this file are not tied to a specific round. The memorandum of sale and any agent uploads are shared across rounds; the list below is everything attached to the file.
+                  Documents on this file are not tied to a specific sale. The memorandum of sale and any agent uploads are shared across sales; the list below is everything attached to the file.
                 </p>
                 {data.fileDocuments.length === 0 ? (
                   <Empty text="No documents on this file." />
