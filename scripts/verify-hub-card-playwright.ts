@@ -147,8 +147,8 @@ async function main() {
     await snap(page, "02-hub-after-relist");
     const headerVisible = await page.locator('text="New buyer added"').first().isVisible().catch(() => false);
     record("card visible after relist", headerVisible);
-    const bodyLine = page.locator(`text=/Charlie Reeves is the new buyer \\(round 2\\)\\. Relisted/`).first();
-    record("locked body line rendered verbatim with round number", await bodyLine.isVisible().catch(() => false));
+    const bodyLine = page.locator(`text=/Charlie Reeves is the new buyer \\(sale 2\\)\\. Relisted/`).first();
+    record("locked body line rendered verbatim with sale number", await bodyLine.isVisible().catch(() => false));
     const ackBtn = page.locator('button:has-text("Acknowledge")').first();
     record("Acknowledge button visible", await ackBtn.isVisible());
 
@@ -168,7 +168,7 @@ async function main() {
     // could still be there if there's ANOTHER unacknowledged round; in this
     // test there's only one, so both should be gone.
     const headerGone = (await page.locator('text="New buyer added"').count()) === 0;
-    const bodyLineGone = (await page.locator(`text=/Charlie Reeves is the new buyer \\(round 2\\)/`).count()) === 0;
+    const bodyLineGone = (await page.locator(`text=/Charlie Reeves is the new buyer \\(sale 2\\)/`).count()) === 0;
     record("card gone after Acknowledge", headerGone && bodyLineGone);
 
     // Verify the DB stamp landed.
@@ -185,7 +185,7 @@ async function main() {
     await page.goto(`${BASE_URL}/agent/hub`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle").catch(() => {});
     await snap(page, "05-hub-after-second-relist");
-    const reappeared = await page.locator(`text=/Diana Reeves is the new buyer \\(round 3\\)/`).first().isVisible().catch(() => false);
+    const reappeared = await page.locator(`text=/Diana Reeves is the new buyer \\(sale 3\\)/`).first().isVisible().catch(() => false);
     record("card re-appears for round 3 (fresh unacknowledged state)", reappeared);
 
   } finally {

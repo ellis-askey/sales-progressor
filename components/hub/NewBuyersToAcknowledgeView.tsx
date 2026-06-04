@@ -4,10 +4,11 @@
 // the active round was created by a relist and no one on the SP team
 // has clicked Acknowledge yet.
 //
-// LOCKED COPY (Ellis voice-pass, 2026-06-04). Do not paraphrase:
+// LOCKED COPY (Ellis voice-pass, 2026-06-04; terminology sweep same
+// day — "round" banned as a user-facing noun). Do not paraphrase:
 //   Group header:   "New buyer added"
 //   Card title:     {propertyAddress}   (matches the assign card layout)
-//   Body line:      "{buyerName} is the new buyer (round {roundNumber}). Relisted {date}."
+//   Body line:      "{buyerName} is the new buyer (sale {roundNumber}). Relisted {date}."
 //   Button:         "Acknowledge"
 //
 // The card stays visible until the SP clicks Acknowledge. Clicking
@@ -90,8 +91,9 @@ export function NewBuyersToAcknowledgeView({ initialRounds }: { initialRounds: H
               color: "var(--agent-text-secondary)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {/* LOCKED BODY LINE — voice-passed verbatim */}
-              {r.newBuyerName} is the new buyer (round {r.roundNumber}). Relisted {fmtRelistedDate(r.relistedAt)}.
+              {/* LOCKED BODY LINE — voice-passed verbatim (terminology
+                  sweep 2026-06-04: "round" → "sale", lowercase inside parens) */}
+              {r.newBuyerName} is the new buyer (sale {r.roundNumber}). Relisted {fmtRelistedDate(r.relistedAt)}.
             </p>
           </div>
           <button

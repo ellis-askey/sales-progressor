@@ -14,17 +14,22 @@ import { chromium, type Browser, type Page } from "playwright";
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
 
+// Dedicated test account, rotation-excluded. Password lives in Ellis's
+// password manager and is supplied via PLAYWRIGHT_TEST_PASSWORD. The
+// account itself is provisioned (idempotently) by
+// scripts/ensure-playwright-test-user.ts. This suite must NEVER write
+// to the User table — a verification tool that mutates the credentials
+// it authenticates with both masks failures and races against any
+// other writer touching the same row.
 const BASE_URL = process.env.BASE_URL ?? "";
-const EMAIL    = process.env.EMAIL    ?? "";
-const PASSWORD = process.env.PASSWORD ?? "";
+const EMAIL    = process.env.PLAYWRIGHT_TEST_EMAIL    ?? "";
+const PASSWORD = process.env.PLAYWRIGHT_TEST_PASSWORD ?? "";
 const TX_ID_WITHDRAWN = process.env.TX_ID_WITHDRAWN ?? "";  // multi-round-feel withdrawn file
 const TX_ID_ACTIVE    = process.env.TX_ID_ACTIVE    ?? "";  // single-round active file (chip hidden)
 
 if (!BASE_URL || !EMAIL || !PASSWORD || !TX_ID_WITHDRAWN || !TX_ID_ACTIVE) {
-  console.error("Missing env: BASE_URL EMAIL PASSWORD TX_ID_WITHDRAWN TX_ID_ACTIVE.");
+  console.error("Missing env: BASE_URL PLAYWRIGHT_TEST_EMAIL PLAYWRIGHT_TEST_PASSWORD TX_ID_WITHDRAWN TX_ID_ACTIVE.");
   process.exit(2);
 }
 
@@ -45,16 +50,6 @@ function record(label: string, ok: boolean) {
 }
 
 async function login(page: Page) {
-  // Reset emily's password right before login so Ellis's in-flight
-  // rotation cron doesn't kill us mid-test. Sub-second window between
-  // the bcrypt update and the credentials POST.
-  if (EMAIL === "emily@hartwellpartners.co.uk" && PASSWORD === "password") {
-    const prisma = new PrismaClient();
-    const hash = await bcrypt.hash("password", 10);
-    await prisma.user.updateMany({ where: { email: EMAIL }, data: { password: hash } });
-    await prisma.$disconnect();
-  }
-
   // POST credentials via the page's request API so the resulting
   // session cookie attaches to the same browser context.
   const csrfRes = await page.request.get(`${BASE_URL}/api/auth/csrf`);
@@ -106,15 +101,19 @@ async function main() {
     await page.goto(`${BASE_URL}/agent/transactions/${TX_ID_WITHDRAWN}`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle").catch(() => {});
     await snap(page, "02-withdrawn-file");
-    // The chip will render as "RN with {buyer} — withdrew {date}".
-    const chip = page.locator('button:has-text("withdrew")').first();
+    // The chip will render as "Sale N with {buyer} · fell through {date}".
+    // The default text lives inside a .agent-chip-hover-default span
+    // (the sibling .agent-chip-hover-reveal carries "View previous
+    // sale[s]" and is opacity-0 at rest). Scope reads to the default
+    // span so the hover-reveal copy doesn't pollute textContent.
+    const chip = page.locator('button:has-text("fell through")').first();
     const chipVisible = await chip.isVisible().catch(() => false);
     record("chip visible on withdrawn file", chipVisible);
 
     if (chipVisible) {
-      const chipText = (await chip.textContent()) ?? "";
-      console.log(`     chip text: "${chipText.trim()}"`);
-      record("chip text contains 'withdrew'", chipText.includes("withdrew"));
+      const chipDefaultText = (await chip.locator(".agent-chip-hover-default").textContent()) ?? "";
+      console.log(`     chip text: "${chipDefaultText.trim()}"`);
+      record("chip text contains 'fell through'", chipDefaultText.includes("fell through"));
 
       // 4. Open the drawer. Wait for the /api/transactions/.../rounds/...
       //    response to land before snapping; drawer starts in "Loading…"
@@ -130,13 +129,13 @@ async function main() {
       await page.waitForTimeout(400);
       await snap(page, "03-drawer-open");
 
-      // Header LOCKED COPY (visual upgrade pass, 2026-06-04):
-      //   "Round {n}: {buyerName}'s record"  (colon, not em dash)
-      const drawerHeader = page.getByText(/^Round \d+: .* record$/).first();
-      record("drawer header rendered (colon variant, no em dash)", await drawerHeader.isVisible());
+      // Header LOCKED COPY (visual upgrade pass + terminology sweep,
+      // 2026-06-04): "Sale {n}: {buyerName}'s record"
+      const drawerHeader = page.getByText(/^Sale \d+: .* record$/).first();
+      record("drawer header rendered (Sale {n}: ...'s record)", await drawerHeader.isVisible());
 
       // LOCKED COPY summary line under the steps section.
-      const summaryLine = page.getByText(/^\d+ of 27 buyer steps were complete when this round closed\.$/).first();
+      const summaryLine = page.getByText(/^\d+ of 27 buyer steps were complete when this sale fell through\.$/).first();
       record("buyer-steps summary line rendered (locked)", await summaryLine.isVisible());
 
       // Verify the locked section labels (eyebrow uppercase render).
@@ -144,10 +143,10 @@ async function main() {
         "Buyer's solicitor",
         "Buyer's broker",
         "Agreed price",
-        "Steps progress on this round",
-        "Seller-side progress at the moment this round closed",
-        "Communications during this round",
-        "Why this round closed",
+        "Steps progress on this sale",
+        "Seller-side progress at the moment this sale fell through",
+        "Communications during this sale",
+        "Why this sale fell through",
         "Documents on this file",
       ];
       for (const s of sections) {
@@ -156,14 +155,14 @@ async function main() {
       }
 
       // Locked documents-pane caveat.
-      const caveat = page.locator("text=Documents on this file are not tied to a specific round").first();
+      const caveat = page.locator("text=Documents on this file are not tied to a specific sale").first();
       record("documents caveat rendered verbatim", await caveat.isVisible());
 
       // Empty-state strings — at least one of the empty messages should
       // render somewhere given typical fixture sparsity.
       const empties = [
-        await page.locator('text="Not recorded for this round."').count(),
-        await page.locator('text="Nothing recorded for this round."').count(),
+        await page.locator('text="Not recorded for this sale."').count(),
+        await page.locator('text="Nothing recorded for this sale."').count(),
         await page.locator('text="No reason recorded."').count(),
       ];
       const anyEmptyCount = empties.reduce((a, b) => a + b, 0);
@@ -173,7 +172,7 @@ async function main() {
       console.log("\n── Close drawer ──");
       await page.keyboard.press("Escape");
       await page.waitForTimeout(200);
-      const drawerGone = await page.locator('text="Documents on this file are not tied to a specific round"').count() === 0;
+      const drawerGone = await page.locator('text="Documents on this file are not tied to a specific sale"').count() === 0;
       record("Escape closes the drawer", drawerGone);
       await snap(page, "04-drawer-closed");
     }

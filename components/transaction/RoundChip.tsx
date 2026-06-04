@@ -6,12 +6,23 @@
 //   - HIDDEN when roundNumber === 1 && status !== "withdrawn".
 //   - VISIBLE otherwise (R2+ active, OR R1 withdrawn, OR R2+ withdrawn).
 //
-// Copy (voice-passed by Ellis 2026-06-04):
-//   - Active (R>1):   "Round N with {buyerName}. The previous buyer fell
-//                      through; view that round."
-//                     (truncated to a chip; full text appears on hover /
-//                      in the drawer header)
-//   - Withdrawn:     "R{N} with {buyerName} — withdrew {date}"
+// Copy (terminology sweep, Ellis voice-pass 2026-06-04 — "round" is
+// banned as a user-facing noun; "withdrew"/"closed" → "fell through"):
+//   - Active (sale > 1): "Sale N with {buyerName}"
+//                        (hover hint: "The previous buyer fell through;
+//                         view that sale.")
+//   - Withdrawn:         "Sale N with {buyerName} · fell through {date}"
+//
+// Hover-reveal (added 2026-06-04, voice-passed): on hover/focus the
+// chip rolls horizontally (rotateY 180deg) like a flipping card, showing
+// "View previous sale" (one prior fall-through) or "View previous sales"
+// (multiple) on the back face with a static "→" glyph. Background tint
+// deepens during the flip. Inert on the disabled variant (no archived
+// rounds — withdrawn-R1 fixture). The aria-label keeps the longer
+// `hoverHint` so screen readers get the specific phrasing; the visible
+// flip is for sighted users only. The 3D rotation and reduced-motion
+// fallback (instant opacity swap) live on the .agent-chip-hover-host
+// class in agent-system.css.
 //
 // Click opens the ArchivedRoundDrawer for the most recent archived round.
 
@@ -48,18 +59,30 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
     .sort((a, b) => b.roundNumber - a.roundNumber);
   const mostRecentArchived = archived[0] ?? null;
 
-  // Compose chip text. The withdrawn variant carries the buyer name +
-  // round + closure date; the active variant carries the buyer name +
-  // round only (the rest is in the drawer).
+  // Compose chip text. Terminology sweep 2026-06-04: "round" is banned
+  // as a user-facing noun ("sale" instead); "withdrew"/"closed" become
+  // "fell through" for the fall-through event; em dash → middle dot.
+  // Schema field is still `roundNumber` (internal).
   const buyerLabel = activeBuyerName ?? "no buyer yet";
   const chipLabel = isWithdrawn && mostRecentArchived
-    ? `R${mostRecentArchived.roundNumber} with ${buyerLabel} — withdrew ${fmtShortDate(mostRecentArchived.archivedAt)}`
-    : `Round ${activeRoundNumber} with ${buyerLabel}`;
+    ? `Sale ${mostRecentArchived.roundNumber} with ${buyerLabel} · fell through ${fmtShortDate(mostRecentArchived.archivedAt)}`
+    : `Sale ${activeRoundNumber} with ${buyerLabel}`;
 
   // Long-form text used in the drawer header — voice-passed.
   const hoverHint = isWithdrawn
-    ? `View ${mostRecentArchived ? `Round ${mostRecentArchived.roundNumber}` : "this round"}'s record.`
-    : "The previous buyer fell through; view that round.";
+    ? `View ${mostRecentArchived ? `Sale ${mostRecentArchived.roundNumber}` : "this sale"}'s record.`
+    : "The previous buyer fell through; view that sale.";
+
+  // Short visible action prompt revealed on hover/focus.
+  // Singular/plural driven by archived.length; only shown when there's
+  // at least one archived sale to view.
+  const revealText = archived.length >= 2 ? "View previous sales" : "View previous sale";
+
+  // Hover tint matches the chip's at-rest tint, deepened ~80%.
+  const hoverTintWithdrawn = "rgba(199, 62, 62, 0.18)";
+  const hoverTintActive    = "rgba(45, 52, 64, 0.12)";
+  const baseTintWithdrawn  = "rgba(199, 62, 62, 0.10)";
+  const baseTintActive     = "rgba(45, 52, 64, 0.06)";
 
   return (
     <>
@@ -67,6 +90,8 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
         type="button"
         onClick={() => setOpen(true)}
         title={hoverHint}
+        className="agent-chip-hover-host"
+        data-archived={archived.length === 0 ? "0" : undefined}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -76,7 +101,11 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "0.01em",
-          background: isWithdrawn ? "rgba(199, 62, 62, 0.10)" : "rgba(45, 52, 64, 0.06)",
+          // Background swap is CSS-only via :hover on the host so the
+          // tint participates in the same 150ms ease-out as the text
+          // crossfade — keeping both on a single transition prevents
+          // them from drifting apart visually.
+          background: isWithdrawn ? baseTintWithdrawn : baseTintActive,
           color: isWithdrawn ? "var(--agent-danger, #C73E3E)" : "var(--agent-text-secondary, #4b5563)",
           border: "0.5px solid rgba(0,0,0,0.08)",
           cursor: archived.length > 0 ? "pointer" : "default",
@@ -84,8 +113,16 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
         }}
         aria-label={hoverHint}
         disabled={archived.length === 0}
+        onMouseEnter={(e) => { if (archived.length > 0) e.currentTarget.style.background = isWithdrawn ? hoverTintWithdrawn : hoverTintActive; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = isWithdrawn ? baseTintWithdrawn : baseTintActive; }}
+        onFocus={(e) => { if (archived.length > 0) e.currentTarget.style.background = isWithdrawn ? hoverTintWithdrawn : hoverTintActive; }}
+        onBlur={(e) => { e.currentTarget.style.background = isWithdrawn ? baseTintWithdrawn : baseTintActive; }}
       >
-        {chipLabel}
+        <span className="agent-chip-hover-default">{chipLabel}</span>
+        <span className="agent-chip-hover-reveal" aria-hidden="true">
+          {revealText}
+          <span className="agent-chip-hover-arrow">→</span>
+        </span>
       </button>
       {archived.length > 0 && (
         <ArchivedRoundDrawer

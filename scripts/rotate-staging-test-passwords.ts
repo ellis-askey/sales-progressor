@@ -35,6 +35,19 @@ const TEST_ACCOUNT_EMAILS = [
   "alex@hartwellpartners.co.uk",         // director seed
 ];
 
+// HARD BLOCKLIST — never rotate these emails, even if a future
+// maintainer adds them to TEST_ACCOUNT_EMAILS above. The Playwright
+// verification suite logs in as this account and the password lives in
+// the password manager (supplied via PLAYWRIGHT_TEST_PASSWORD env to
+// scripts/ensure-playwright-test-user.ts). If this script rewrote it,
+// the verification suite would fail on the next run with no recovery
+// path short of regenerating + re-handing-off a new password — exactly
+// the failure mode that prompted creating the dedicated account on
+// 2026-06-04.
+const ROTATION_BLOCKLIST = new Set<string>([
+  "playwright-bot@hartwellpartners.co.uk",
+]);
+
 const PROD_PROJECT_ID = "gmkfustgwipgihpmpjpr";
 
 function generateStrongPassword(): string {
@@ -55,6 +68,18 @@ async function main() {
   // Sanity probe — staging Supabase project should be the only one.
   console.log(`DATABASE_URL host: ${dbUrl.replace(/.*@/, "").split("/")[0]}`);
   console.log("");
+
+  // Defence-in-depth: if a maintainer accidentally adds a blocked
+  // email to TEST_ACCOUNT_EMAILS, abort BEFORE writing anything. We
+  // don't silently skip — the act of someone putting it on the
+  // rotation list is itself the bug we want to surface.
+  for (const email of TEST_ACCOUNT_EMAILS) {
+    if (ROTATION_BLOCKLIST.has(email)) {
+      console.error(`ABORT: ${email} is on ROTATION_BLOCKLIST but appeared in TEST_ACCOUNT_EMAILS.`);
+      console.error("       Remove it from TEST_ACCOUNT_EMAILS. The Playwright suite owns this account.");
+      process.exit(2);
+    }
+  }
 
   const rotations: { email: string; newPassword: string; role: string }[] = [];
   const skipped: string[] = [];
