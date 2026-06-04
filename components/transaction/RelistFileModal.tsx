@@ -413,9 +413,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Confirmation-stage body. Copy voice-passed by Ellis 2026-06-04.
+// Confirmation-stage body. Copy locked by Ellis 2026-06-04 (verbatim;
+// any change requires a fresh approval from Ellis before merge).
 // House rules baked in: no em dashes, "step" not "milestone", "sale"
-// not "transaction".
+// not "transaction". The "Carries over" list MUST match the preserved
+// VM codes from the locked reset map (lib/services/relist reset list:
+// VM1, VM3-VM6, VM8-VM9), and the "Starts fresh" list MUST match the
+// reset VM codes + every PM code. Drift between this copy and the
+// reset map is a correctness bug agents will act on.
 // ─────────────────────────────────────────────────────────────────────────
 function ConfirmStage({
   buyerName,
@@ -453,9 +458,9 @@ function ConfirmStage({
           Carries over
         </p>
         <ul className="text-sm space-y-1" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
-          <li>• The seller's progress so far on their solicitor instruction, client care, ID and AML, property forms and title pack.</li>
+          <li>• The seller's solicitor instruction, client care pack, ID and AML checks, property information forms, and the management pack.</li>
           <li>• The seller's contact details and portal access.</li>
-          <li>• The full sale history for the seller's view.</li>
+          <li>• The full sale history in the seller's view.</li>
         </ul>
       </div>
 
@@ -472,9 +477,10 @@ function ConfirmStage({
         </p>
         <ul className="text-sm space-y-1" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
           <li>• A new memorandum of sale to send to both solicitors.</li>
-          <li>• Every buyer-side step for {buyerName}.</li>
-          <li>• Exchange and completion steps.</li>
-          <li>• The expected exchange date and completion date are cleared.</li>
+          <li>• Every step on {buyerName}'s side.</li>
+          <li>• The draft contract pack, reissued to the new buyer's solicitor, and enquiries from scratch.</li>
+          <li>• Contract signing, exchange and completion steps.</li>
+          <li>• Expected exchange and completion dates are cleared.</li>
         </ul>
       </div>
 

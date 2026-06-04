@@ -25,7 +25,7 @@ export function RelistBanner({ show, transactionId, previousPurchasePrice }: Pro
         kind="warning"
         icon={<ArrowsClockwise size={18} weight="fill" />}
         title="This sale fell through."
-        body="When you find a new buyer, relist the sale to start a fresh buyer-side journey. The seller's progress stays where it is."
+        body="When you find a new buyer, relist the sale. The new buyer's steps start fresh, and the seller keeps everything that doesn't depend on the buyer."
         action={{ label: "Relist sale", onClick: () => setOpen(true) }}
         className="mb-4"
       />
