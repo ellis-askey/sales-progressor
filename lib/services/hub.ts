@@ -841,3 +841,108 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
     createdAt: f.createdAt,
   }));
 }
+
+// ─── Hub card: outsourced files with an unacknowledged relist ───
+// Phase 1 commit 8b (Ellis approval, 2026-06-04).
+//
+// Surface files where:
+//   - serviceType = "outsourced"
+//   - status = "active"
+//   - the ACTIVE round has roundNumber > 1 (so this came from a relist,
+//     not a fresh file)
+//   - that round's relistAcknowledgedAt IS NULL (no one has clicked
+//     Acknowledge yet)
+//
+// Visibility mirrors the assign card:
+//   - assigned SP (internalMode = "assigned"): sees only files
+//     assigned to them
+//   - admin_all: sees every unacknowledged-relisted outsourced file,
+//     including files that were withdrawn before being assigned and
+//     have assignedUserId = null (the "fall into a void" case Ellis
+//     called out)
+//   - agency callers (no internalMode): no visibility — this card
+//     surfaces operational state for the SP team, not the agency
+//
+// Each round needs its own click — a second relist creates a fresh
+// BuyerRound with relistAcknowledgedAt = NULL by default, so the
+// card naturally re-raises without any reset code.
+export type HubRelistAck = {
+  // transaction (the address + agency the card shows)
+  transactionId: string;
+  propertyAddress: string;
+  agencyName: string | null;
+  // round-acknowledgement key (what Acknowledge stamps)
+  roundId: string;
+  roundNumber: number;
+  newBuyerName: string;     // purchaser Contact stamped to this round
+  archivedAt: Date | null;   // when the previous round closed
+  relistedAt: Date;          // BuyerRound.createdAt — when round was opened
+};
+
+export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<HubRelistAck[]> {
+  // Build the visibility-scoped tx filter using the same pattern as the
+  // assign card. Agency callers see nothing here.
+  let txWhere: Prisma.PropertyTransactionWhereInput;
+  if (vis.internalMode === "admin_all") {
+    txWhere = { serviceType: "outsourced", status: "active" };
+  } else if (vis.internalMode === "assigned") {
+    txWhere = { serviceType: "outsourced", status: "active", assignedUserId: vis.userId };
+  } else {
+    return [];
+  }
+
+  // Round-side filter: roundNumber > 1 AND relistAcknowledgedAt IS NULL.
+  // We query BuyerRound directly (not PropertyTransaction) so the
+  // partial index on relistAcknowledgedAt IS NULL is hit.
+  const rounds = await prisma.buyerRound.findMany({
+    where: {
+      relistAcknowledgedAt: null,
+      roundNumber: { gt: 1 },
+      // The active round on this tx — there's only ever one round per
+      // tx with activeForTransaction relation set. The transaction-side
+      // filter scopes this to the right visibility set.
+      activeForTransaction: { is: txWhere },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+    select: {
+      id: true,
+      roundNumber: true,
+      createdAt: true,
+      archivedAt: true,
+      transactionId: true,
+    },
+  });
+  if (rounds.length === 0) return [];
+
+  // Pull the rest in one batch — transaction (for address + agency name)
+  // and purchaser Contact (for buyer name).
+  const txIds = rounds.map((r) => r.transactionId);
+  const [txs, contacts] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: { id: { in: txIds } },
+      select: { id: true, propertyAddress: true, agency: { select: { name: true } } },
+    }),
+    prisma.contact.findMany({
+      where: { buyerRoundId: { in: rounds.map((r) => r.id) }, roleType: "purchaser" },
+      orderBy: { createdAt: "asc" },
+      select: { name: true, buyerRoundId: true },
+    }),
+  ]);
+  const txById = new Map(txs.map((t) => [t.id, t]));
+  const buyerByRound = new Map(contacts.map((c) => [c.buyerRoundId ?? "", c.name]));
+
+  return rounds.map((r) => {
+    const tx = txById.get(r.transactionId);
+    return {
+      transactionId: r.transactionId,
+      propertyAddress: tx?.propertyAddress ?? "(unknown address)",
+      agencyName: tx?.agency?.name ?? null,
+      roundId: r.id,
+      roundNumber: r.roundNumber,
+      newBuyerName: buyerByRound.get(r.id) ?? "(no buyer recorded)",
+      archivedAt: null, // previous round's archivedAt, not this one's
+      relistedAt: r.createdAt,
+    };
+  });
+}
