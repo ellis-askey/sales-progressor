@@ -56,6 +56,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
 
 type Props = {
   open: boolean;
@@ -98,8 +99,8 @@ type ArchivedRoundPayload = {
     completedAt: string | null; completedByName: string | null;
     eventDate: string | null; summaryText: string | null; confirmedByPortal: boolean;
   }>;
-  comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; visibleToClient: boolean }>;
-  fileDocuments: Array<{ id: string; filename: string; mimeType: string | null; source: string | null; createdAt: string }>;
+  comms: Array<{ id: string; type: string; method: string | null; content: string; createdAt: string; createdByName: string | null; visibleToClient: boolean; isAutomated: boolean }>;
+  fileDocuments: Array<{ id: string; filename: string; mimeType: string | null; fileSize: number; source: string | null; createdAt: string; signedUrl: string | null }>;
 };
 
 // ─── Helpers (verbatim from the audited components) ──────────────────
@@ -134,6 +135,14 @@ function fmtDate(d: string | null): string {
 function fmtShortDate(d: string | null): string {
   if (!d) return "";
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// File-size formatter — copy of components/transaction/DocumentsSection.tsx's
+// fmtSize so the drawer renders document weights identically to the file
+// detail's documents pane.
+function fmtSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ─── Status pill ─────────────────────────────────────────────────────
@@ -534,24 +543,39 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                   <Empty text="Nothing recorded for this sale." />
                 ) : (
                   <div style={{ padding: "4px 16px 14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-                    {data.comms.map((c) => (
-                      <div
-                        key={c.id}
-                        style={{
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          background: "var(--agent-surface-glass)",
-                          border: "0.5px solid var(--agent-border-default)",
-                        }}
-                      >
-                        <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-                          {c.type}{c.method ? ` · ${c.method}` : ""}{c.createdByName ? ` · ${c.createdByName}` : ""} · {fmtDate(c.createdAt)}
-                        </p>
-                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
-                          {c.content.length > 600 ? `${c.content.slice(0, 600)}…` : c.content}
-                        </p>
-                      </div>
-                    ))}
+                    {data.comms.map((c) => {
+                      const badge = getCommBadge({ type: c.type, method: c.method, isAutomated: c.isAutomated });
+                      return (
+                        <div
+                          key={c.id}
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            background: "var(--agent-surface-glass)",
+                            border: "0.5px solid var(--agent-border-default)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                              fontSize: 10, fontWeight: 600,
+                              padding: "2px 8px", borderRadius: 999,
+                              background: badge.bg, color: badge.color,
+                            }}>
+                              <span aria-hidden="true">{badge.icon}</span>
+                              {badge.label}
+                            </span>
+                            <AuthorPill name={c.createdByName} />
+                            <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+                              {fmtDate(c.createdAt)}
+                            </span>
+                          </div>
+                          <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+                            {c.content.length > 600 ? `${c.content.slice(0, 600)}…` : c.content}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </StaggerSection>
@@ -590,6 +614,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                     {data.fileDocuments.map((d) => (
                       <li
                         key={d.id}
+                        className="agent-hover-row"
                         style={{
                           fontSize: 12, color: "var(--agent-text-secondary)",
                           padding: "8px 12px",
@@ -599,9 +624,30 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                           display: "flex", alignItems: "center", gap: 10,
                         }}
                       >
-                        <span style={{ fontWeight: 600, color: "var(--agent-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.filename}</span>
-                        {d.source && <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{d.source}</span>}
-                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{fmtShortDate(d.createdAt)}</span>
+                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {d.filename}
+                          </span>
+                          <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
+                            {fmtSize(d.fileSize)} · {fmtShortDate(d.createdAt)}
+                            {d.source && <> · {d.source}</>}
+                          </span>
+                        </div>
+                        {d.signedUrl ? (
+                          <a
+                            href={d.signedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="agent-link-primary"
+                            style={{ flexShrink: 0, fontSize: 11, fontWeight: 600 }}
+                          >
+                            Download
+                          </a>
+                        ) : (
+                          <span style={{ flexShrink: 0, fontSize: 11, color: "var(--agent-text-muted)", opacity: 0.6 }}>
+                            Unavailable
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

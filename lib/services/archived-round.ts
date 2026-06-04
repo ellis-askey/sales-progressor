@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { allRoundsForAudit, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { getSignedUrl } from "@/lib/supabase-storage";
 
 export type ArchivedRoundData = {
   round: {
@@ -58,6 +59,7 @@ export type ArchivedRoundData = {
     createdAt: Date;
     createdByName: string | null;
     visibleToClient: boolean;
+    isAutomated: boolean;
   }[];
 };
 
@@ -188,6 +190,7 @@ export async function getArchivedRoundData(
       content: true,
       createdAt: true,
       visibleToClient: true,
+      isAutomated: true,
       createdBy: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -200,6 +203,7 @@ export async function getArchivedRoundData(
     createdAt: r.createdAt,
     createdByName: r.createdBy?.name ?? null,
     visibleToClient: r.visibleToClient,
+    isAutomated: r.isAutomated,
   }));
 
   // Enrich the snapshot rows server-side with name + orderIndex from
@@ -251,8 +255,11 @@ export async function getArchivedRoundData(
 
 // Document-pane data: file-level only by design. Caveat copy is applied
 // in the component, not the fetcher. (No round filter on the query.)
+// Returns rows enriched with a Supabase signed URL so the drawer can
+// render each filename as a Download link — same pattern as
+// components/transaction/DocumentsSection.tsx.
 export async function getFileLevelDocumentsForArchive(transactionId: string) {
-  return prisma.transactionDocument.findMany({
+  const docs = await prisma.transactionDocument.findMany({
     where: { transactionId },
     select: {
       id: true,
@@ -262,9 +269,16 @@ export async function getFileLevelDocumentsForArchive(transactionId: string) {
       source: true,
       createdAt: true,
       buyerRoundId: true,
+      storagePath: true,
     },
     orderBy: { createdAt: "desc" },
   });
+  return Promise.all(
+    docs.map(async (d) => ({
+      ...d,
+      signedUrl: await getSignedUrl(d.storagePath).catch(() => null),
+    })),
+  );
 }
 
 // Suppress the unused milestone-scope import warning in case the round-PM
