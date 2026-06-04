@@ -32,7 +32,7 @@ The category fault — Claude Code allowlist files being committable in the firs
 |---|---|---|
 | 2026-06-04, scan complete | Discovered the leak via manual pattern pass | ✓ |
 | 2026-06-04, commit `1324e3f` | `.claude/settings*.json` added to `.gitignore` + `git rm --cached`'d. Local copies preserved on disk; future commits cannot pick them up. | ✓ |
-| 2026-06-04, commit `__TBD__` | Pre-push gitleaks hook installed at category level (this commit). Any future commit / push with a finding fails the operation. | ✓ |
+| 2026-06-04, commit `cde829d` | Pre-push gitleaks hook installed at category level. Any future commit / push with a finding fails the operation. | ✓ |
 | Ellis lane | Rotate the prod Supabase Postgres superuser password. | ☐ Pending, timestamp: __TBD__ |
 | Ellis lane | Update Vercel env vars (`DATABASE_URL` + `DIRECT_URL`) for Production + Preview, redeploy. | ☐ Pending, timestamp: __TBD__ |
 | Ellis lane | Repo visibility decision (flip private / record decision to remain public). | ☐ Pending, timestamp: __TBD__ |
