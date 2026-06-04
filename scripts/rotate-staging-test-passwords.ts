@@ -99,7 +99,12 @@ async function main() {
     for (const s of skipped) console.log(`  ${s}`);
   }
   console.log("");
-  console.log("Done. Paste the rotated table into docs/test-accounts.md and commit.");
+  console.log("Done.");
+  console.log("");
+  console.log("⚠ The new passwords above MUST NOT be committed to the repo (public on GitHub).");
+  console.log("  Paste them into Ellis's password manager entry 'Sales Progressor — staging test accounts'.");
+  console.log("  When the NEXT rotation runs, append the values above to KNOWN_WEAK_PASSWORDS in");
+  console.log("  scripts/prod-check-weak-credentials.ts so the prod gate keeps catching them.");
 
   await prisma.$disconnect();
 }

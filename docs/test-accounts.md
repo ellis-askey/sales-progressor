@@ -1,8 +1,31 @@
 # Test Accounts & Testing Guide
 
-> **STAGING-ONLY CREDENTIALS.** Every password below is for the staging Supabase project (`etidawkbqctarmsdjoxp.supabase.co`). Production has no test accounts (enforced by runbook checks at deploy time — see `docs/active/relist-feature/prod-release-runbook.md`).
+> **STAGING-ONLY ACCOUNTS. PASSWORDS LIVE IN ELLIS'S PASSWORD MANAGER, NOT THIS REPO.**
 >
-> Rotated 2026-06-04 from the previous weak `password` / `Hartwell2024!` defaults after a security finding (staging deploy is publicly reachable and contains real-looking client data). Rotation script: [scripts/rotate-staging-test-passwords.ts](../scripts/rotate-staging-test-passwords.ts).
+> The GitHub repo is **public**. Putting passwords in a public repo is unsafe even for staging — anyone reading git history would have working credentials to a publicly-reachable deploy that contains real-looking client data. This file used to carry passwords directly; it no longer does.
+>
+> Last re-rotation: **2026-06-04** (second rotation of the day after the public-repo finding — the values committed earlier in `7628d83` are now invalid and have been added to `KNOWN_WEAK_PASSWORDS` in [scripts/prod-check-weak-credentials.ts](../scripts/prod-check-weak-credentials.ts) so the prod gate catches them if they ever reappear).
+
+## How to get a working password
+
+Ellis maintains the current staging passwords in his password manager under "Sales Progressor — staging test accounts". Ask him.
+
+If you need to rotate (re-seed, suspected leak, periodic refresh):
+
+```bash
+npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json scripts/rotate-staging-test-passwords.ts
+```
+
+The rotation script:
+
+- Refuses to run if `DATABASE_URL` points at production.
+- Only rotates emails on an explicit allowlist (no real users touched).
+- Prints the new passwords to stdout for you to paste into the password manager.
+- **Do NOT paste the printed passwords into this file, into a commit, into Slack, into anywhere version-controlled or chat-archived.** Password manager only.
+
+After every rotation, the previous values get appended to `KNOWN_WEAK_PASSWORDS` in [scripts/prod-check-weak-credentials.ts](../scripts/prod-check-weak-credentials.ts) so the prod gate keeps catching them if they ever reappear. That's a maintenance step — see the comment in that file.
+
+---
 
 ## Setup
 
@@ -13,25 +36,20 @@ npx prisma db push       # applies any pending schema changes
 npm run db:seed          # wipes and recreates all test data
 ```
 
-If you re-seed, you'll need to re-run the password rotation:
-
-```bash
-npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json scripts/rotate-staging-test-passwords.ts
-# Then paste the rotated rows into the table below.
-```
+If you re-seed, you'll need to re-run the password rotation (above) and update the password manager entry.
 
 ---
 
-## Test Accounts (staging only — rotated 2026-06-04)
+## Test Accounts (staging only)
 
-| Email | Password | Role | Lands on |
-|---|---|---|---|
-| `ellisaskey@googlemail.com` | `Sy6BzWF7YKZJ1MwCMb3Vit8I2og8M7Uy` | Admin | `/dashboard` |
-| `ellis@thesalesprogressor.co.uk` | `6-dwN72_5McVTb64wbIKmp3hIb-bALWF` | Sales Progressor | `/dashboard` |
-| `emily@hartwellpartners.co.uk` | `BjKcA9LOdqYMRpToNRB2WDKT_IJatuKW` | Director | `/agent/dashboard` |
-| `alex@hartwellpartners.co.uk` | `-1xgyS74w0hUifgpsvJXzxt9DxM8XSNg` | Director | `/agent/dashboard` |
+| Email | Role | Lands on |
+|---|---|---|
+| `ellisaskey@googlemail.com` | Admin | `/dashboard` |
+| `ellis@thesalesprogressor.co.uk` | Sales Progressor | `/dashboard` |
+| `emily@hartwellpartners.co.uk` | Director | `/agent/dashboard` |
+| `alex@hartwellpartners.co.uk` | Director | `/agent/dashboard` |
 
-`sarah@hartwellpartners.co.uk` and `james@hartwellpartners.co.uk` were listed in the previous version of this file but do not exist on the current staging seed. If a future seed adds them, re-run the rotation script and update this table.
+`sarah@hartwellpartners.co.uk` and `james@hartwellpartners.co.uk` were listed in pre-2026-06-04 versions of this file but do not exist on the current staging seed.
 
 ---
 
@@ -39,7 +57,7 @@ npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json 
 
 ### 1. Internal admin / progressor login
 1. Go to `/login`
-2. Sign in as `ellisaskey@googlemail.com`
+2. Sign in as `ellisaskey@googlemail.com` (password from manager)
 3. Should land on `/dashboard` — full internal sidebar visible
 4. Confirm: Admin link appears in nav (admin only)
 5. Try navigating to `/agent/dashboard` — should be redirected to `/dashboard`
@@ -47,7 +65,7 @@ npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json 
 ### 2. Agent login
 1. Sign out (click Sign out in sidebar or header)
 2. Go to `/login`
-3. Sign in as `emily@hartwellpartners.co.uk`
+3. Sign in as `emily@hartwellpartners.co.uk` (password from manager)
 4. Should land on `/agent/dashboard` — agent nav header only
 5. Confirm: only shows emily's files (filtered by agentUserId)
 6. Try navigating to `/dashboard` — should be redirected to `/agent/dashboard`
@@ -69,7 +87,7 @@ npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json 
 ### 5. Create a transaction as an agent
 1. Sign in as emily (director)
 2. Go to `/agent/dashboard`
-3. Click "New Transaction" (or find the new transaction button)
+3. Click "New Transaction"
 4. Should see "who progresses this?" choice: Send to progressor / Self-progress
 5. Submit — file should appear in correct dashboard
 
@@ -94,6 +112,6 @@ To find a portal token:
 
 ## Known Limitations (post-seed)
 
-- Portal multi-transaction: each contact has one portal token pointing to one transaction. If the same buyer is on multiple transactions, they receive separate links. A unified "my transactions" portal page is not yet built.
+- Portal multi-transaction: each contact has one portal token pointing to one transaction. If the same buyer is on multiple transactions, they receive separate links.
 - Password reset: no forgot password flow yet — reset must be done via Prisma Studio or a manual DB update.
 - Email verification: registration creates accounts immediately without email confirmation.

@@ -34,13 +34,22 @@ const KNOWN_WEAK_PASSWORDS = [
   "Password123!",
   "test1234",
   "ellis123",
-  // Post-rotation (2026-06-04) — should NEVER appear on prod, full stop.
-  // If you re-rotate staging, add the new values here too so the next
-  // prod check catches them if anyone ever copy-pastes a staging hash.
+  // Post-rotation 2026-06-04 (FIRST rotation of the day).
+  // These were committed to a PUBLIC GitHub repo in 7628d83 before the
+  // public-repo finding landed. Treated as compromised; a second
+  // rotation that day invalidated them on staging. They live here
+  // permanently so the prod gate catches them if anyone ever
+  // re-applies them.
   "Sy6BzWF7YKZJ1MwCMb3Vit8I2og8M7Uy",
   "6-dwN72_5McVTb64wbIKmp3hIb-bALWF",
   "BjKcA9LOdqYMRpToNRB2WDKT_IJatuKW",
   "-1xgyS74w0hUifgpsvJXzxt9DxM8XSNg",
+  // INVARIANT (added 2026-06-04 after the public-repo finding):
+  // CURRENT, ACTIVE staging passwords must NEVER appear in this list.
+  // The whole point of the list is to detect compromise — putting active
+  // values here would itself BE the compromise. Add a value here only
+  // after it has been retired by a fresh rotation. The active values
+  // live ONLY in Ellis's password manager.
 ];
 
 // Emails that are clearly seed/test accounts. None of these should exist
