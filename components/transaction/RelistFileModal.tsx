@@ -24,6 +24,11 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { relistTransactionAction } from "@/app/actions/transactions";
+// Same input-hygiene helpers used in the new-sale ContactsSection so
+// the relist form behaves identically: name title-cased on blur, phone
+// trimmed on input and pretty-formatted on blur, email trimmed.
+import { titleCase } from "@/lib/utils";
+import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 type Stage = "form" | "confirm";
 
@@ -97,20 +102,40 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
       setError("New buyer name is required.");
       return;
     }
+    // Normalise once at the form → confirm transition so the lead-in
+    // ("You're relisting this sale with X…") shows the polished name,
+    // and the submit path doesn't have to re-normalise. Mirrors the
+    // onBlur handlers above for the user who clicks Continue without
+    // blurring the field first.
+    setBuyerName((v) => v.trim() ? titleCase(v) : v);
+    setBuyerEmail((v) => v.trim());
+    setBuyerPhone((v) => {
+      const cleaned = cleanPhone(v);
+      const formatted = formatUKPhone(cleaned);
+      return formatted;
+    });
     setError(null);
     setStage("confirm");
   }
 
   function submit() {
     setError(null);
+    // Submit-time normalisation in case the user clicked Continue
+    // without blurring the inputs first (the onBlur handlers wouldn't
+    // have fired). titleCase the name; format the phone to the same
+    // shape as new-sale; trim the email. Belt-and-braces; matches the
+    // hygiene the rest of the agent app expects on contacts.
+    const normalisedName  = titleCase(buyerName.trim());
+    const normalisedEmail = buyerEmail.trim();
+    const normalisedPhone = formatUKPhone(cleanPhone(buyerPhone));
     startTransition(async () => {
       try {
         await relistTransactionAction({
           transactionId,
           newBuyer: {
-            name: buyerName.trim(),
-            email: buyerEmail.trim() || null,
-            phone: buyerPhone.trim() || null,
+            name: normalisedName,
+            email: normalisedEmail || null,
+            phone: normalisedPhone || null,
           },
           newPurchasePrice: newPrice,
           newPurchaserSolicitorFirmId: solicitor?.firmId ?? null,
@@ -216,8 +241,10 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
                 type="text"
                 value={buyerName}
                 onChange={(e) => setBuyerName(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setBuyerName(titleCase(e.target.value)); }}
                 disabled={isPending}
-                placeholder="Their full name"
+                placeholder="e.g. Sarah Johnson"
+                maxLength={80}
                 className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
                 style={{ borderColor: "rgba(0,0,0,0.12)" }}
               />
@@ -232,8 +259,10 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
                   type="email"
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
+                  onBlur={(e) => setBuyerEmail(e.target.value.trim())}
                   disabled={isPending}
-                  placeholder="Optional"
+                  placeholder="sarah@example.com"
+                  maxLength={120}
                   className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
                   style={{ borderColor: "rgba(0,0,0,0.12)" }}
                 />
@@ -245,9 +274,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
                 <input
                   type="tel"
                   value={buyerPhone}
-                  onChange={(e) => setBuyerPhone(e.target.value)}
+                  onChange={(e) => setBuyerPhone(cleanPhone(e.target.value))}
+                  onBlur={(e) => {
+                    const formatted = formatUKPhone(e.target.value);
+                    if (formatted !== e.target.value) setBuyerPhone(formatted);
+                  }}
                   disabled={isPending}
-                  placeholder="Optional"
+                  placeholder="07700 900000"
+                  maxLength={20}
                   className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
                   style={{ borderColor: "rgba(0,0,0,0.12)" }}
                 />
@@ -271,14 +305,17 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
               />
             </div>
 
-            {/* Solicitor + broker (optional, can be filled in later) */}
+            {/* Solicitor + broker — both optional. Labels match the
+                rest of the agent app: plain noun phrase, no parenthetical
+                "(optional)" since the absence of a required asterisk
+                already conveys it. */}
             <SolicitorPicker
-              label="Buyer's solicitor (optional, can add later)"
+              label="Buyer's solicitor"
               value={solicitor}
               onChange={setSolicitor}
             />
             <BrokerPicker
-              label="Buyer's broker (optional, can add later)"
+              label="Buyer's broker"
               value={broker}
               onChange={setBroker}
             />
