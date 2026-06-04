@@ -181,3 +181,35 @@ export async function pushChainEvent(args: {
     console.error(`[push-events] chainEvent ${args.kind} failed:`, err);
   }
 }
+
+// A withdrawn file the user owned was just relisted with a new buyer.
+// LOCKED COPY (Ellis voice-pass, 2026-06-04): "Sale relisted" /
+// "{address} is back on: {buyerName} is the new buyer (round {round})."
+// MUST NOT be paraphrased — see notifyTransactionRelisted in
+// lib/services/notifications.ts for the matching rule.
+//
+// Recipient is the existing file owner (assignedUser on outsourced /
+// agentUser on self-managed). Caller passes the chosen userId in
+// directly — push-events doesn't second-guess the assignment policy
+// (continuity, baked in relistTransactionImpl).
+export async function pushTransactionRelisted(args: {
+  recipientUserId: string;
+  transactionId: string;
+  propertyAddress: string;
+  newBuyerName: string;
+  newRoundNumber: number;
+}): Promise<void> {
+  try {
+    const prefs = await getNotificationPrefs(args.recipientUserId);
+    if (!prefs.push.saleRelisted) return;
+
+    const base = process.env.NEXTAUTH_URL ?? "";
+    await pushToUser(args.recipientUserId, {
+      title: "Sale relisted",
+      body:  `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (round ${args.newRoundNumber}).`,
+      url:   `${base}/transactions/${args.transactionId}`,
+    });
+  } catch (err) {
+    console.error(`[push-events] saleRelisted failed for tx ${args.transactionId}:`, err);
+  }
+}

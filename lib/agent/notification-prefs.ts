@@ -29,7 +29,8 @@ export type PushKey =
   | "chaseEscalation"         // a chase task got bumped to escalated priority
   | "fileAssigned"            // a file was assigned/reassigned to me
   | "exchangeApproaching"     // expectedExchangeDate is within 7 days
-  | "chainEvent";             // chain link event affecting my file
+  | "chainEvent"              // chain link event affecting my file
+  | "saleRelisted";           // a withdrawn file I own was relisted with a new buyer
 
 export type NotificationPrefs = {
   morningDigest: boolean;
@@ -50,6 +51,9 @@ export const DEFAULT_PUSH_PREFS: Record<PushKey, boolean> = {
   fileAssigned:        true,   // workload changed; one-off, infrequent
   exchangeApproaching: true,   // time-sensitive
   chainEvent:          true,   // urgent, downstream impact
+  saleRelisted:        true,   // operationally critical: the relist promises
+                                // the new buyer a call within two working days;
+                                // the SP must know the file is back live
 };
 
 // Email-channel defaults are ALL on (preserves behaviour); push defaults
@@ -77,6 +81,7 @@ export const PUSH_KEYS: readonly PushKey[] = [
   "fileAssigned",
   "exchangeApproaching",
   "chainEvent",
+  "saleRelisted",
 ];
 
 export function isNotificationKey(value: string): value is NotificationKey {
