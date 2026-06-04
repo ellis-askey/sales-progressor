@@ -46,11 +46,23 @@ import * as path from "node:path";
 // REAL production imports — the point of the harness. tsconfig-paths
 // resolves @/* at runtime; tsc validates these at build time.
 import { getMilestonesForTransaction, getDownstreamCompleted, getImpliedPredecessors } from "@/lib/services/milestones";
-// Added for 4c. getReminderLogsForTransaction is the agent-UI-facing
-// reminder fetcher; the engine input is captured as the raw MC list with
-// milestoneDefinition.code so evaluateTransactionReminders' decisions
-// can be re-derived deterministically from the snapshot.
-import { getReminderLogsForTransaction } from "@/lib/services/reminders";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+
+// READ-ONLY BY CONSTRUCTION
+// =========================
+// A parity tool must never mutate what it measures. The production
+// fetcher getReminderLogsForTransaction has write side effects:
+//   - fire-and-forget autoCompleteRemindersForMilestone for orphan logs
+//   - prisma.chaseTask.create for "due with no task" self-heal
+//   - recursive self-call after the create
+// Calling it directly from the harness commits those writes between
+// the BEFORE and AFTER captures, polluting the diff with side-effect
+// drift that looks like a code change but isn't.
+//
+// Instead we pure-replicate the function's read shape + orphan-filter
+// decision below (snapshotReminderLogsPure). No writes; the snapshot
+// matches what getReminderLogsForTransaction WOULD return on a
+// hypothetical idempotent run.
 
 const prisma = new PrismaClient();
 
@@ -121,6 +133,82 @@ type TxSnapshot = {
   };
 };
 
+// Pure replication of getReminderLogsForTransaction. Reads the same
+// shapes the production fetcher reads, applies the orphan filter in
+// pure code, returns the same diff-friendly per-log shape the harness
+// previously emitted. No writes. See banner at top of file.
+type PureReminderLog = {
+  ruleId: string;
+  targetCode: string | null;
+  status: string;
+  statusReason: string | null;
+  nextDueDate: string;
+  chaseTasks: Array<{ status: string; priority: string; chaseCount: number; dueDate: string }>;
+};
+async function snapshotReminderLogsPure(
+  transactionId: string,
+  activeBuyerRoundId: string | null,
+): Promise<PureReminderLog[]> {
+  // Same shape as lib/services/reminders.ts:128-148.
+  const logs = await prisma.reminderLog.findMany({
+    where: { transactionId },
+    orderBy: { nextDueDate: "asc" },
+    include: {
+      reminderRule: {
+        select: { id: true, name: true, description: true, targetMilestoneCode: true, graceDays: true, repeatEveryDays: true, escalateAfterChases: true, anchorMilestone: { select: { name: true } } },
+      },
+      chaseTasks: {
+        select: { status: true, priority: true, chaseCount: true, dueDate: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  // Same scoped completedCodes read as lib/services/reminders.ts:149-156
+  // (in 4c) — vendor file-level + active round's PMs only.
+  const scope = forRound(activeBuyerRoundId, transactionId);
+  const completedRows = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId,
+      state: { in: ["complete", "not_required"] },
+      ...milestoneScopeWhere(scope),
+    },
+    select: { milestoneDefinition: { select: { code: true } } },
+  });
+  const completedCodes = new Set(completedRows.map((r) => r.milestoneDefinition.code));
+
+  // Orphan filter — pure decision, no writes (production function would
+  // also fire autoCompleteRemindersForMilestone here; we skip).
+  const orphanIds = new Set(
+    logs
+      .filter((l) =>
+        l.status === "active" &&
+        l.reminderRule.targetMilestoneCode &&
+        completedCodes.has(l.reminderRule.targetMilestoneCode),
+      )
+      .map((l) => l.id),
+  );
+  const visible = logs.filter((l) => !orphanIds.has(l.id));
+
+  return visible
+    .map((l) => ({
+      ruleId: l.reminderRuleId,
+      targetCode: l.reminderRule.targetMilestoneCode,
+      status: l.status as string,
+      statusReason: l.statusReason,
+      nextDueDate: l.nextDueDate.toISOString(),
+      chaseTasks: l.chaseTasks
+        .map((c) => ({
+          status: c.status as string,
+          priority: c.priority as string,
+          chaseCount: c.chaseCount,
+          dueDate: c.dueDate.toISOString(),
+        }))
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    }))
+    .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+}
+
 async function snapshotForTransaction(tx: { id: string; propertyAddress: string; status: string; activeBuyerRoundId: string | null }): Promise<TxSnapshot> {
   // 1. The canonical per-tx fetcher. agencyId=null means no scope filter
   //    (we're a script with full DB access).
@@ -170,26 +258,16 @@ async function snapshotForTransaction(tx: { id: string; propertyAddress: string;
     orderBy: { completedAt: "desc" },
   });
 
-  // 4c — getReminderLogsForTransaction is the consumer-facing fetcher.
-  // Convert to a stable diff-friendly shape.
-  const rawReminderLogs = await getReminderLogsForTransaction(tx.id, null);
-  const reminderLogs = rawReminderLogs
-    .map((l) => ({
-      ruleId: l.reminderRuleId,
-      targetCode: l.reminderRule.targetMilestoneCode,
-      status: l.status as string,
-      statusReason: l.statusReason,
-      nextDueDate: l.nextDueDate.toISOString(),
-      chaseTasks: l.chaseTasks
-        .map((c) => ({
-          status: c.status as string,
-          priority: c.priority as string,
-          chaseCount: c.chaseCount,
-          dueDate: c.dueDate.toISOString(),
-        }))
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-    }))
-    .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+  // 4c — pure replication of getReminderLogsForTransaction's READ shape
+  // and orphan-filter decision. NO writes (see READ-ONLY BY CONSTRUCTION
+  // banner above for why). Mirrors lib/services/reminders.ts:117-205 but
+  // skips:
+  //   - autoCompleteRemindersForMilestone (orphan self-heal, write)
+  //   - prisma.chaseTask.create for due-with-no-task (write + recursive call)
+  // The output IS what the function would have returned to its caller
+  // on an idempotent run; pre-relist single-round files produce the
+  // same set the side-effecting fetcher does.
+  const reminderLogs = await snapshotReminderLogsPure(tx.id, tx.activeBuyerRoundId);
 
   // 4c — the engine's input. Match the engine's read shape exactly
   // (lib/services/reminders.ts:322): all milestoneCompletions on the tx
