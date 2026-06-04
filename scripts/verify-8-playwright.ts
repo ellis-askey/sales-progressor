@@ -115,12 +115,17 @@ async function main() {
       await page.waitForTimeout(400);
       await snap(page, "03-drawer-open");
 
-      const drawerHeader = page.getByText(/^Round \d+\s*[—-]\s+.*record$/).first();
-      record("drawer header rendered", await drawerHeader.isVisible());
+      // Header LOCKED COPY (visual upgrade pass, 2026-06-04):
+      //   "Round {n}: {buyerName}'s record"  (colon, not em dash)
+      const drawerHeader = page.getByText(/^Round \d+: .* record$/).first();
+      record("drawer header rendered (colon variant, no em dash)", await drawerHeader.isVisible());
 
-      // Verify the locked section labels.
+      // LOCKED COPY summary line under the steps section.
+      const summaryLine = page.getByText(/^\d+ of 27 buyer steps were complete when this round closed\.$/).first();
+      record("buyer-steps summary line rendered (locked)", await summaryLine.isVisible());
+
+      // Verify the locked section labels (eyebrow uppercase render).
       const sections = [
-        "Buyer",
         "Buyer's solicitor",
         "Buyer's broker",
         "Agreed price",
