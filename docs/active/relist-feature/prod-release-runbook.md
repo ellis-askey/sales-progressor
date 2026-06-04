@@ -6,6 +6,20 @@ This runbook governs the merge + deploy + post-deploy script ordering for the pr
 
 ---
 
+## ⛔ PROD GO/NO-GO GATE — incident-driven, MUST clear before any prod work begins
+
+Following the 2026-06-04 security incident (prod Postgres password leaked in public git history; see [`docs/active/incident-2026-06-04-credential-exposure.md`](../incident-2026-06-04-credential-exposure.md)), prod cutover is BLOCKED until Ellis personally confirms ALL FIVE of the following, in writing, against this document.
+
+The build may proceed on staging while these are open. **Nothing touches prod** while any are open.
+
+- [ ] **(1) Prod database password rotated and redeployed.** The Supabase password for project `gmkfustgwipgihpmpjpr` has been reset, the new value is in Vercel's Production + Preview env (DATABASE_URL + DIRECT_URL), and a redeploy has been triggered against the new value. Confirm via a one-line health check that the prod app boots against the new credential.
+- [ ] **(2) Repo visibility decision executed.** Ellis has decided whether `ellis-askey/sales-progressor` flips to private and has either executed the flip or recorded the explicit decision to remain public. Visibility status as of the gate check is logged on the incident record.
+- [ ] **(3) Third staging rotation done and old values burned.** Ellis has run `scripts/rotate-staging-test-passwords.ts` himself (so no AI-visible values exist), and the four second-rotation values previously visible in the chat transcript have been appended to `KNOWN_WEAK_PASSWORDS` in `scripts/prod-check-weak-credentials.ts`. **Until the rotation lands**, those values are LIVE on staging and MUST NOT be added to the burn list — the invariant in that script is the gate.
+- [ ] **(4) Marketing-site scan resolved.** Ellis has answered where the marketing site's source lives (private repo / CLI-only / specific public repo). If a public repo exists, it has been scanned with gitleaks + the manual pattern pass per the same protocol; if private or CLI-only, that answer is recorded on the incident.
+- [ ] **(5) Incident record completed.** [`docs/active/incident-2026-06-04-credential-exposure.md`](../incident-2026-06-04-credential-exposure.md) has the rotation timestamp, the visibility decision timestamp, the Supabase log-review outcome (any anomalous connections during the 44-day window — none / list), and Ellis's sign-off.
+
+---
+
 ## 0. Prerequisites — before the release window starts
 
 - [ ] All Phase 1 commits (1 through 8) landed on `master` via PR review. Branch off `master` is clean.

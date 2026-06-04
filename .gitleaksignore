@@ -1,0 +1,9 @@
+# Gitleaks ignore file. Add fingerprints from gitleaks' JSON report's
+# `Fingerprint` field (format: <commit>:<file>:<rule>:<line>).
+#
+# Each fingerprint here MUST be accompanied by a one-line justification.
+# Audited annually; remove entries that no longer apply.
+
+# False positive — string is a question identifier in the content drafter,
+# not a credential. Verified 2026-06-04 (q3_proud_moment).
+7b0cd2df3c7ac1bb8bc74e5bc394534f92793521:lib/command/content/voice-questions.ts:generic-api-key:19
