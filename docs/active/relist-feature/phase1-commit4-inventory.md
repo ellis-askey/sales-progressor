@@ -12,7 +12,7 @@ Living checklist. Each commit ticks off the sites it converted (or re-dispositio
 | Commit | Subsystem | Status |
 |---|---|---|
 | 4b | `milestones.ts` + `transactions.ts` + `agent.ts` + `work-queue.ts` + `summary.ts` + `audit.ts` + `automated-emails-preview.ts` | ✅ shipped 2026-06-04, parity diff empty |
-| 4c | `reminders.ts` + `client-chase-cron.ts` + `retention.ts` + ClientChaseState writes | ⏳ next |
+| 4c | `reminders.ts` + `client-chase-cron.ts` + `retention.ts` + `client-chase-digest.ts` + ClientChaseState writes | ✅ shipped 2026-06-04, engine input + chase-engine probe diffs empty |
 | 4d | comms + cross-cutting + OutboundMessage/PortalMessage writes | ⏳ |
 | 4e | actions+API+UI + PriceHistory writes | ⏳ |
 | 5 | portal scoping | ⏳ |
@@ -179,7 +179,67 @@ Per grep no direct `milestoneCompletion.*` query; it reads via the existing serv
 
 ---
 
-## Reminders + chase engine — commit 4c
+## Reminders + chase engine — commit 4c ✅ shipped
+
+**4c decisions actually taken (vs inventory predictions):**
+
+1. **`evaluateTransactionReminders` (the chase engine)** — refactored from single `findUnique` with nested `milestoneCompletions: { include: { milestoneDefinition: true } }` into a two-step fetch: parent row (select id/status/assignedUserId/createdAt/activeBuyerRoundId) + separate `milestoneCompletion.findMany` with `milestoneScopeWhere(forRound(activeBuyerRoundId, txId))`. The include's nested `where` can't reference the parent — two-step is the only round-correct path. Repackaged into the prior shape for downstream readers.
+
+2. **`getReminderLogsForTransaction` orphan-cleanup** — the satisfied-codes set used by the orphan filter is now round-scoped. Critical: under-scoping would surface false-positive orphans on archived rounds' completions and **silently delete current-round reminders from the agent view**.
+
+3. **`getAgentReminderLogs` work queue** — **reclassified from (a) to (b)** per the consumer rule. The orphan filter drives the agent's chase decisions; wrong-scope = silent disappearance. Restructured as two-step: log fetch (without MC include) + a per-tx-batched raw SQL with the `OR (buyerRoundId IS NULL OR buyerRoundId = pt.activeBuyerRoundId)` clause that the Prisma cross-tx limitation prevents in a single nested-where.
+
+4. **`client-chase-cron.ts`** — bulk-load `prisma.milestoneCompletion.findMany({ where: { transactionId: { in: txIds } } })` rewritten as raw SQL with the same per-tx OR clause. The chase cron sends emails to real clients; under-scoping = wrong client gets the wrong chase post-relist. The shape of the result rows matches the prior Prisma response exactly (no downstream change).
+
+5. **`retention.ts`** — `prisma.milestoneCompletion.count({ where: { transactionId: { in: txIds }, state: "complete" } })` rewritten as raw SQL with the per-tx OR clause. Same reasoning — retention emails are comms and a wrong count masks a stalling file.
+
+6. **`client-chase-digest.ts:440` (ClientChaseState upsert)** — write-side stamp added: `buyerRoundId = contact.roleType === "purchaser" ? tx.activeBuyerRoundId : null`. The fetching `propertyTransaction.findUnique` extended to select `activeBuyerRoundId`. Phase 0 attribution rule honoured.
+
+**Parity outputs:**
+
+```
+$ ts-node parity-harness-mc-reads.ts before-4c.json   # at HEAD~1
+Snapshotting 59 transactions… Wrote scripts/snapshots/before-4c.json
+
+$ ts-node parity-harness-mc-reads.ts after-4c.json    # at HEAD
+Snapshotting 59 transactions… Wrote scripts/snapshots/after-4c.json
+
+$ diff before-4c.json after-4c.json
+(non-empty — but ONLY in the reminderLogs field, on files where the
+BEFORE call triggered orphan auto-cleanup whose side effect committed
+between the two captures. Verified by AFTER-4c-rerun: empty diff vs
+AFTER-4c, proving the AFTER snapshot is now idempotent. The
+engineInput field — the chase engine's read shape — is byte-identical
+across all 59 transactions.)
+
+$ node -e '… diff engineInput across 59 txs …'
+engineInput differences across all 59 transactions: 0
+
+$ node -e '… diff milestoneStates + downstream + prereqs + counts +
+            engineInput across 59 txs …'
+All non-reminderLogs fields IDENTICAL across all 59 transactions
+```
+
+**Chase-engine dedicated probe (busiest staging file):**
+
+```
+$ ts-node chase-engine-busiest-file.ts chase-engine-before.json
+Top 5 busiest active staging files:
+  logs=12 mcs=47 score=59  cmpehuzpa005t2ebfz4hexr6b  18 Oakfield Road, Surbiton, KT6 4DH
+  ...
+Picked: cmpehuzpa005t2ebfz4hexr6b
+Wrote scripts/snapshots/chase-engine-before.json
+
+[apply 4c conversion]
+
+$ ts-node chase-engine-busiest-file.ts chase-engine-after.json
+[same picks]
+
+$ diff chase-engine-before.json chase-engine-after.json
+(empty)
+```
+
+What WOULD fire for each of the 12 rules on the busiest file (deactivate / exchange-not-ready / bilateral-incomplete / target-confirmed / active-with-anchor-and-target) is byte-identical pre/post.
 
 ### `lib/services/reminders.ts`
 

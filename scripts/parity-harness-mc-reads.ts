@@ -46,6 +46,11 @@ import * as path from "node:path";
 // REAL production imports — the point of the harness. tsconfig-paths
 // resolves @/* at runtime; tsc validates these at build time.
 import { getMilestonesForTransaction, getDownstreamCompleted, getImpliedPredecessors } from "@/lib/services/milestones";
+// Added for 4c. getReminderLogsForTransaction is the agent-UI-facing
+// reminder fetcher; the engine input is captured as the raw MC list with
+// milestoneDefinition.code so evaluateTransactionReminders' decisions
+// can be re-derived deterministically from the snapshot.
+import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 
 const prisma = new PrismaClient();
 
@@ -81,6 +86,39 @@ type TxSnapshot = {
   // the converted output, and the before/after diff catches any change.
   completionCounts: { totalRows: number; completeRows: number };
   lastCompletedAt: string | null;
+
+  // 4c additions ─────────────────────────────────────────────────────
+  // Output of getReminderLogsForTransaction — the canonical agent-UI
+  // reminder fetcher. Captured as a stable shape keyed by rule id
+  // (sorted) plus per-log fields. Self-heals like "active log with no
+  // pending task" can mutate state on read — the harness re-runs once
+  // after the conversion, so any divergence shows in the diff.
+  reminderLogs: Array<{
+    ruleId: string;
+    targetCode: string | null;
+    status: string;
+    statusReason: string | null;
+    nextDueDate: string;
+    chaseTasks: Array<{ status: string; priority: string; chaseCount: number; dueDate: string }>;
+  }>;
+
+  // The engine's INPUT shape per tx: milestoneCompletions with
+  // milestoneDefinition included, exactly as evaluateTransactionReminders
+  // reads at lib/services/reminders.ts:322. If this snapshot is
+  // byte-identical pre/post conversion, the engine's pure decisions
+  // (deactivate / activate / next-due-date) cannot diverge — even though
+  // the engine itself has write side effects we don't want to invoke
+  // twice. Equality-of-input → equality-of-output.
+  engineInput: {
+    txStatus: string;
+    completions: Array<{
+      milestoneDefinitionId: string;
+      code: string;
+      state: string;
+      completedAt: string | null;
+      eventDate: string | null;
+    }>;
+  };
 };
 
 async function snapshotForTransaction(tx: { id: string; propertyAddress: string; status: string; activeBuyerRoundId: string | null }): Promise<TxSnapshot> {
@@ -132,6 +170,44 @@ async function snapshotForTransaction(tx: { id: string; propertyAddress: string;
     orderBy: { completedAt: "desc" },
   });
 
+  // 4c — getReminderLogsForTransaction is the consumer-facing fetcher.
+  // Convert to a stable diff-friendly shape.
+  const rawReminderLogs = await getReminderLogsForTransaction(tx.id, null);
+  const reminderLogs = rawReminderLogs
+    .map((l) => ({
+      ruleId: l.reminderRuleId,
+      targetCode: l.reminderRule.targetMilestoneCode,
+      status: l.status as string,
+      statusReason: l.statusReason,
+      nextDueDate: l.nextDueDate.toISOString(),
+      chaseTasks: l.chaseTasks
+        .map((c) => ({
+          status: c.status as string,
+          priority: c.priority as string,
+          chaseCount: c.chaseCount,
+          dueDate: c.dueDate.toISOString(),
+        }))
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    }))
+    .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+
+  // 4c — the engine's input. Match the engine's read shape exactly
+  // (lib/services/reminders.ts:322): all milestoneCompletions on the tx
+  // with milestoneDefinition.code. Captured BEFORE we re-scope the
+  // engine's read; the conversion preserves this set on single-round
+  // staging files.
+  const engineCompletions = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: tx.id },
+    select: {
+      milestoneDefinitionId: true,
+      state: true,
+      completedAt: true,
+      eventDate: true,
+      milestoneDefinition: { select: { code: true } },
+    },
+    orderBy: { milestoneDefinitionId: "asc" },
+  });
+
   return {
     transactionId: tx.id,
     propertyAddress: tx.propertyAddress,
@@ -148,6 +224,17 @@ async function snapshotForTransaction(tx: { id: string; propertyAddress: string;
     impliedPrereqsForPM12,
     completionCounts: { totalRows, completeRows },
     lastCompletedAt: lastCompleted?.completedAt?.toISOString() ?? null,
+    reminderLogs,
+    engineInput: {
+      txStatus: tx.status,
+      completions: engineCompletions.map((c) => ({
+        milestoneDefinitionId: c.milestoneDefinitionId,
+        code: c.milestoneDefinition.code,
+        state: c.state as string,
+        completedAt: c.completedAt?.toISOString() ?? null,
+        eventDate: c.eventDate?.toISOString() ?? null,
+      })),
+    },
   };
 }
 
