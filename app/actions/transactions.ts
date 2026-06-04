@@ -1699,6 +1699,20 @@ export async function toggleSuppressPortalConfirmEmailsAction(
 //   - vendorMilestoneSnapshot JSON written on outgoing round BEFORE in-place reset
 //   - Fire-and-forget intro email + reminder re-evaluation only AFTER commit
 //
+// ASSIGNMENT POLICY — CONTINUITY (Ellis decision, 2026-06-04, post-commit-8):
+//   `assignedUserId`, `agentUserId`, `serviceType`, `assignedAt` are NOT
+//   touched by relist. The SP (outsourced) or director (self-managed) who
+//   had the file before keeps it. Reasoning, on the record:
+//     Everything that persists through a relist is seller-side and
+//     chain-side — exactly the institutional knowledge the assigned SP
+//     holds. The assignment policy mirrors the reset map. Re-claim would
+//     orphan a progressed file in the "Needs SP assigning" queue
+//     overnight; a "send back to queue?" choice would surface a question
+//     that should be right by default. Manual reassignment via
+//     assignUserAction is still available for exceptions. A new bell
+//     notification (notifyTransactionRelisted, fired post-commit) gives
+//     the existing assignee the awareness re-claim was trying to buy.
+//
 // Preconditions (server-canonical — UI hides the CTA but the server is truth):
 //   - tx.status === "withdrawn"
 //   - tx.exchangedAt IS NULL                (a relist after exchange is not relist)
@@ -2072,6 +2086,12 @@ export async function relistTransactionImpl(
     // STEP 9 — mirror buyer-side fields onto PropertyTransaction + flip
     // status active + null tx.fallThroughReason / expectedExchangeDate /
     // completionDate. activeBuyerRoundId points at the new round.
+    //
+    // lastActivityAt bumped to now (Gap 1, 2026-06-04): every other
+    // status-changing path bumps it (e.g. the /api/transactions/status
+    // route) and downstream hub widgets sort by it. Without the bump,
+    // the file's "last activity" stayed at the withdraw timestamp even
+    // though we just relisted, mis-ranking it on the SP's queue.
     const updatedPrice = input.newPurchasePrice ?? tx.purchasePrice;
     await ptx.propertyTransaction.update({
       where: { id: tx.id },
@@ -2086,6 +2106,7 @@ export async function relistTransactionImpl(
         purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
         brokerFirmId: input.newBrokerFirmId ?? null,
         brokerContactId: input.newBrokerContactId ?? null,
+        lastActivityAt: new Date(),
       },
     });
 
@@ -2207,6 +2228,52 @@ export async function relistTransactionImpl(
     void sendOutsourceIntroForTransaction(tx.id, session.userId).catch((err) => {
       console.error("[relist] outsource intro send failed", err);
     });
+  }
+
+  // Bell + push to the existing file owner (continuity policy — see
+  // banner comment at the top of the action). The intro email above
+  // promises the new buyer a call within two working days; this bell
+  // is what makes the email's promise keepable. LOCKED COPY — the
+  // helpers carry the verbatim string from Ellis's voice pass.
+  //
+  // Recipient resolution:
+  //   - outsourced files: assignedUserId (the SP). NULL = withdrawn
+  //     before SP claim; skip gracefully (the file is in the unassigned
+  //     queue already).
+  //   - self-managed:     agentUserId. Should always be set; if not,
+  //     skip silently rather than crash the post-commit chain.
+  const recipientUserId = tx.serviceType === "outsourced"
+    ? tx.assignedUserId
+    : tx.agentUserId;
+  if (recipientUserId) {
+    void (async () => {
+      try {
+        const { notifyTransactionRelisted } = await import("@/lib/services/notifications");
+        await notifyTransactionRelisted({
+          userId: recipientUserId,
+          transactionId: tx.id,
+          propertyAddress: tx.propertyAddress,
+          newBuyerName: input.newBuyer.name,
+          newRoundNumber: nextRoundNumber,
+        });
+      } catch (err) {
+        console.error("[relist] bell notification failed", err);
+      }
+    })();
+    void (async () => {
+      try {
+        const { pushTransactionRelisted } = await import("@/lib/agent/push-events");
+        await pushTransactionRelisted({
+          recipientUserId,
+          transactionId: tx.id,
+          propertyAddress: tx.propertyAddress,
+          newBuyerName: input.newBuyer.name,
+          newRoundNumber: nextRoundNumber,
+        });
+      } catch (err) {
+        console.error("[relist] web push failed", err);
+      }
+    })();
   }
 
   // Command Centre event log. Re-uses transaction_status_changed (withdrawn

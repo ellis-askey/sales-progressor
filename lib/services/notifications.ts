@@ -33,6 +33,45 @@ export async function markAllReadForUser(userId: string): Promise<number> {
   return result.count;
 }
 
+/**
+ * Event D: a sale was relisted with a new buyer. Recipient is the file
+ * owner who held it before the relist — assignedUser on outsourced files,
+ * agentUser on self-managed. Skip-gracefully cases (no assignee on
+ * outsourced — withdrawn before SP claim) are the caller's responsibility.
+ *
+ * The bell string is LOCKED (Ellis voice-pass, 2026-06-04). The renderer
+ * MUST use the values from the payload verbatim, no paraphrase:
+ *   title:  "Sale relisted"
+ *   body:   "{address} is back on: {buyerName} is the new buyer (round {roundNumber})."
+ *
+ * Operationally important: the relist action fires the outsource intro
+ * email to the new buyer promising contact within two working days. If
+ * the SP isn't told the file is back, that promise can silently breach.
+ * This bell is what makes the email's promise keepable.
+ */
+export async function notifyTransactionRelisted(args: {
+  userId: string;
+  transactionId: string;
+  propertyAddress: string;
+  newBuyerName: string;
+  newRoundNumber: number;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "transaction_relisted",
+    transactionId: args.transactionId,
+    payload: {
+      propertyAddress: args.propertyAddress,
+      newBuyerName: args.newBuyerName,
+      newRoundNumber: args.newRoundNumber,
+      // Pre-rendered strings so any renderer can use the locked copy
+      // without re-stitching it from the parts (and accidentally drifting).
+      title: "Sale relisted",
+      body: `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (round ${args.newRoundNumber}).`,
+    },
+  });
+}
+
 /** Event A: an agency-side user confirmed a milestone on an outsourced file. */
 export async function notifyOutsourcedMilestoneConfirmed(args: {
   spUserId: string;
