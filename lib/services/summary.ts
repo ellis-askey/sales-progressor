@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 /**
  * Resolve contact name tokens from a transaction's contacts.
@@ -65,13 +66,23 @@ export async function generateSummaryText(
 /**
  * Get the most recent active milestone completion for a transaction.
  * Used for "Last update" display on transaction detail and dashboard.
+ * Round-scoped: returns the latest from vendor file-level OR the active
+ * round's PMs. An archived round's PMs are excluded (otherwise a
+ * relisted file would surface stale "X confirmed N days ago" copy from
+ * the previous buyer).
  */
 export async function getLastUpdate(transactionId: string) {
+  const txRow = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const scope = forRound(txRow?.activeBuyerRoundId ?? null, transactionId);
   return prisma.milestoneCompletion.findFirst({
     where: {
       transactionId,
       state: "complete",
       summaryText: { not: null },
+      ...milestoneScopeWhere(scope),
     },
     orderBy: { completedAt: "desc" },
     select: {

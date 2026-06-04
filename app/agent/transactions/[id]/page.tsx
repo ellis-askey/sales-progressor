@@ -47,6 +47,8 @@ import { RemindersReadyNotice } from "@/components/transaction/RemindersReadyNot
 import { ClaimedToast } from "@/components/transaction/ClaimedToast";
 import { ChainSetupFailedBanner } from "@/components/transaction/ChainSetupFailedBanner";
 import { OnHoldBanner } from "@/components/transaction/OnHoldBanner";
+import { RelistBanner } from "@/components/transaction/RelistBanner";
+import { RoundChip } from "@/components/transaction/RoundChip";
 import { TransactionViewTracker } from "@/components/agent/TransactionViewTracker";
 import { FileTimeTracker } from "@/components/transaction/FileTimeTracker";
 import { PerfOverlay } from "@/components/debug/PerfOverlay";
@@ -290,6 +292,11 @@ export default async function AgentTransactionDetailPage({
       <ClaimWelcomeAsync address={transaction.propertyAddress} chainLinkId={transaction.chainLinkId ?? null} />
       <Suspense><ChainSetupFailedBanner /></Suspense>
       <OnHoldBanner show={transaction.status === "on_hold"} />
+      <RelistBanner
+        show={transaction.status === "withdrawn" && transaction.exchangedAt === null}
+        transactionId={transaction.id}
+        previousPurchasePrice={transaction.purchasePrice}
+      />
       <ReconcileLaterAsync
         transactionId={id}
         chainLinkId={transaction.chainLinkId ?? null}
@@ -314,6 +321,19 @@ export default async function AgentTransactionDetailPage({
         transactionId={transaction.id}
         inChain={!!transaction.chainLinkId}
         isAdminViewer={isAdminRole}
+        roundChipSlot={
+          <RoundChip
+            transactionId={transaction.id}
+            status={transaction.status}
+            activeRoundNumber={transaction.activeBuyerRound?.roundNumber ?? null}
+            activeBuyerName={
+              transaction.contacts.find(
+                (c) => c.roleType === "purchaser",
+              )?.name ?? null
+            }
+            buyerRounds={transaction.buyerRounds ?? []}
+          />
+        }
       />
 
       <RevealCoordinator slots={["sidebar", "overview"]}>

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPortalData, getPortalMilestones } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
@@ -36,16 +36,19 @@ export default async function PortalProgressPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const data = await getPortalData(token);
-  if (!data) notFound();
+  const result = await getPortalData(token);
+  if (!result || result.kind === "deadRound") notFound();
+  const data = result.data;
 
   const { contact, transaction } = data;
   const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const otherSide = side === "vendor" ? "purchaser" : "vendor";
 
+  const ownScope   = portalOwnSideScope(contact, transaction);
+  const otherScope = portalOtherSideScope(contact, transaction);
   const [milestones, otherSideMilestones] = await Promise.all([
-    getPortalMilestones(transaction.id, side),
-    getPortalMilestones(transaction.id, otherSide),
+    getPortalMilestones(transaction.id, side, ownScope),
+    getPortalMilestones(transaction.id, otherSide, otherScope),
   ]);
 
   const hasExchanged = milestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);

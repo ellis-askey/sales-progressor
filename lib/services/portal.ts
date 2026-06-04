@@ -33,6 +33,83 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { PORTAL_AGENT_ONLY_CODES } from "@/lib/chase/portal-agent-only-codes";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
+import { forRound, vendorOnly, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
+
+// ─── Phase 1 commit 5 — portal privacy scoping helpers ───────────────────────
+//
+// Contact-roleType drives the portal's effective round:
+//   - Purchaser contact: their own buyerRoundId. If !== tx.activeBuyerRoundId,
+//     the token is treated as DEAD (belt-and-braces, regardless of token
+//     null/rotate state). Returns from getPortalData as { deadRound: true }
+//     so the portal layout can render a friendly notice instead of 404.
+//   - Vendor contact: file-level. Their effective milestone scope is
+//     vendor file-level VMs + the ACTIVE round's PMs (the vendor sees the
+//     CURRENT buyer's progress alongside their own).
+//
+// The forRound helper handles the cross-side prereq read; here we use it
+// to pick the correct round's PM partition based on the caller's role.
+
+type PortalRoundContext = {
+  // Effective round id for THIS portal session — purchaser's own round, or
+  // the file's active round for vendor.
+  roundIdForMilestones: string | null;
+  // True only for purchaser contacts whose buyerRoundId !== activeBuyerRoundId.
+  // Belt-and-braces dead-token guard: even if the token was somehow not
+  // rotated, the round mismatch makes it inert.
+  deadRound: boolean;
+};
+
+// Page-side convenience: given the layout's contact + tx, return the scope
+// for the CALLER'S OWN side (purchaser PM view = own round; vendor VM view
+// = file-level) and the OTHER side (purchaser viewing vendor = file-level;
+// vendor viewing purchaser = active round's PMs). Pages use these to drive
+// getPortalMilestones; the scoping for each call falls out of one rule:
+// purchaser sees only their own round; vendor sees the file + the active
+// round's PMs.
+export function portalOwnSideScope(
+  contact: { roleType: string; buyerRoundId: string | null },
+  tx: { id: string; activeBuyerRoundId: string | null },
+): MilestoneScope {
+  if (contact.roleType === "purchaser") {
+    return forRound(contact.buyerRoundId, tx.id);
+  }
+  return vendorOnly();
+}
+
+export function portalOtherSideScope(
+  contact: { roleType: string; buyerRoundId: string | null },
+  tx: { id: string; activeBuyerRoundId: string | null },
+): MilestoneScope {
+  if (contact.roleType === "purchaser") {
+    // Purchaser viewing the vendor's side — file-level VMs only.
+    return vendorOnly();
+  }
+  // Vendor viewing the purchaser side — the ACTIVE round's PMs (mirror of
+  // the current buyer's progress, not an archived round's).
+  return forRound(tx.activeBuyerRoundId, tx.id);
+}
+
+function resolvePortalRoundContext(
+  contact: { roleType: string; buyerRoundId: string | null },
+  tx: { activeBuyerRoundId: string | null },
+): PortalRoundContext {
+  if (contact.roleType === "purchaser") {
+    // Purchaser: their own round. If it doesn't match the file's active
+    // round, the token is dead.
+    if (contact.buyerRoundId == null) {
+      // Edge: pre-Phase-0 backfill purchaser without a stamped round.
+      // Treat as the file's active round (degraded, but the file's
+      // round-1 backfill catches this).
+      return { roundIdForMilestones: tx.activeBuyerRoundId, deadRound: false };
+    }
+    if (contact.buyerRoundId !== tx.activeBuyerRoundId) {
+      return { roundIdForMilestones: contact.buyerRoundId, deadRound: true };
+    }
+    return { roundIdForMilestones: contact.buyerRoundId, deadRound: false };
+  }
+  // Vendor (or any non-purchaser surface): file-level + active round PM mirror.
+  return { roundIdForMilestones: tx.activeBuyerRoundId, deadRound: false };
+}
 
 export type PortalMilestone = {
   id: string;
@@ -99,57 +176,104 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   throw new Error("unreachable");
 }
 
-export async function getPortalData(token: string) {
+// Phase 1 commit 5 — dead-round marker. The portal layout (app/portal/[token]/page.tsx)
+// branches on this to render a friendly "this link is no longer active" notice
+// instead of treating it as a 404, so an old buyer's bookmarked link explains
+// itself rather than disappearing.
+export type PortalDataResult =
+  | { kind: "ok"; data: NonNullable<Awaited<ReturnType<typeof getPortalDataInner>>> }
+  | { kind: "deadRound"; contactName: string; agencyName: string; address: string }
+  | null;
+
+async function getPortalDataInner(token: string) {
+  const contact = await prisma.contact.findUnique({
+    where: { portalToken: token },
+    select: {
+      id: true,
+      name: true,
+      roleType: true,
+      buyerRoundId: true,
+      propertyTransactionId: true,
+    },
+  });
+  if (!contact) return null;
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      purchasePrice: true,
+      tenure: true,
+      purchaseType: true,
+      expectedExchangeDate: true,
+      completionDate: true,
+      createdAt: true,
+      overridePredictedDate: true,
+      activeBuyerRoundId: true,
+      agency: { select: { name: true } },
+    },
+  });
+  if (!tx) return null;
+
+  const postcode = extractPostcode(tx.propertyAddress);
+
+  return {
+    contact,
+    transaction: {
+      id: tx.id,
+      propertyAddress: tx.propertyAddress,
+      status: tx.status,
+      purchasePrice: tx.purchasePrice,
+      tenure: tx.tenure,
+      purchaseType: tx.purchaseType,
+      expectedExchangeDate: tx.expectedExchangeDate,
+      completionDate: tx.completionDate,
+      agencyName: tx.agency?.name ?? "",
+      postcode,
+      createdAt: tx.createdAt,
+      overridePredictedDate: tx.overridePredictedDate,
+      activeBuyerRoundId: tx.activeBuyerRoundId,
+    },
+  };
+}
+
+export async function getPortalData(token: string): Promise<PortalDataResult> {
   return withRetry(async () => {
-    const contact = await prisma.contact.findUnique({
-      where: { portalToken: token },
-      select: { id: true, name: true, roleType: true, propertyTransactionId: true },
-    });
-    if (!contact) return null;
-
-    const tx = await prisma.propertyTransaction.findUnique({
-      where: { id: contact.propertyTransactionId },
-      select: {
-        id: true,
-        propertyAddress: true,
-        status: true,
-        purchasePrice: true,
-        tenure: true,
-        purchaseType: true,
-        expectedExchangeDate: true,
-        completionDate: true,
-        createdAt: true,
-        overridePredictedDate: true,
-        agency: { select: { name: true } },
-      },
-    });
-    if (!tx) return null;
-
-    const postcode = extractPostcode(tx.propertyAddress);
-
-    return {
-      contact,
-      transaction: {
-        id: tx.id,
-        propertyAddress: tx.propertyAddress,
-        status: tx.status,
-        purchasePrice: tx.purchasePrice,
-        tenure: tx.tenure,
-        purchaseType: tx.purchaseType,
-        expectedExchangeDate: tx.expectedExchangeDate,
-        completionDate: tx.completionDate,
-        agencyName: tx.agency?.name ?? "",
-        postcode,
-        createdAt: tx.createdAt,
-        overridePredictedDate: tx.overridePredictedDate,
-      },
-    };
+    const inner = await getPortalDataInner(token);
+    if (!inner) return null;
+    const roundCtx = resolvePortalRoundContext(inner.contact, inner.transaction);
+    if (roundCtx.deadRound) {
+      // Phase 1 commit 5 belt-and-braces — surface as deadRound EVEN if the
+      // token wasn't rotated. Either condition is sufficient to inhibit the
+      // portal; both is the production case post-relist.
+      return {
+        kind: "deadRound" as const,
+        contactName: inner.contact.name,
+        agencyName: inner.transaction.agencyName,
+        address: inner.transaction.propertyAddress,
+      };
+    }
+    return { kind: "ok" as const, data: inner };
   });
 }
 
+// Phase 1 commit 5 — round-scoped read.
+//
+// `scope` decides which MilestoneCompletion rows are visible:
+//   - Purchaser viewer asking for THEIR PMs:    forRound(contact.buyerRoundId, txId)
+//   - Purchaser viewer asking for vendor VMs:    vendorOnly()       (or forRound — VMs file-level)
+//   - Vendor viewer asking for vendor VMs:       vendorOnly()
+//   - Vendor viewer asking for current PMs:     forRound(activeBuyerRoundId, txId)
+//
+// `side` filters MilestoneDefinition — so a vendor scope + purchaser side
+// returns nothing (definitions don't match). The two parameters are
+// orthogonal and the caller composes them.
 export async function getPortalMilestones(
   transactionId: string,
-  side: "vendor" | "purchaser"
+  side: "vendor" | "purchaser",
+  scope: MilestoneScope,
 ): Promise<PortalMilestone[]> {
   return withRetry(async () => {
     const defs = await prisma.milestoneDefinition.findMany({
@@ -158,7 +282,7 @@ export async function getPortalMilestones(
     });
 
     const completions = await prisma.milestoneCompletion.findMany({
-      where: { transactionId },
+      where: { transactionId, ...milestoneScopeWhere(scope) },
     });
 
     const completionMap = new Map(completions.map((c) => [c.milestoneDefinitionId, c]));
@@ -197,16 +321,31 @@ export async function logPortalView(token: string): Promise<void> {
       id: true,
       name: true,
       roleType: true,
+      buyerRoundId: true,
       propertyTransactionId: true,
       transaction: {
         select: {
           propertyAddress: true,
+          activeBuyerRoundId: true,
           assignedUser: { select: { id: true, name: true, email: true } },
         },
       },
     },
   });
   if (!contact) return;
+
+  // Phase 1 commit 5 — silent skip on dead-round tokens. A stale purchaser
+  // hitting their old portal link should NOT generate an internal note on
+  // the new buyer's file ("Jane viewed her portal for ..." when Jane is no
+  // longer the buyer). The DeadRoundNotice renders client-side; nothing
+  // gets logged server-side.
+  if (
+    contact.roleType === "purchaser" &&
+    contact.buyerRoundId != null &&
+    contact.buyerRoundId !== contact.transaction.activeBuyerRoundId
+  ) {
+    return;
+  }
 
   const tx = contact.transaction;
   const content = `${contact.name} (${contact.roleType}) viewed their client portal for ${tx.propertyAddress}`;
@@ -272,9 +411,26 @@ export async function portalCompleteMilestone(input: {
 }) {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
-    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+    select: { id: true, name: true, roleType: true, buyerRoundId: true, propertyTransactionId: true },
   });
   if (!contact) throw new Error("Invalid token");
+
+  // Phase 1 commit 5 — belt-and-braces dead-round guard. A purchaser whose
+  // round no longer matches the file's active round cannot confirm. The
+  // token rotation in commit 6's relist action makes this unreachable in
+  // production, but the round-mismatch check is a second line of defence.
+  const txForGuard = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  if (!txForGuard) throw new Error("Invalid transaction");
+  if (
+    contact.roleType === "purchaser" &&
+    contact.buyerRoundId != null &&
+    contact.buyerRoundId !== txForGuard.activeBuyerRoundId
+  ) {
+    throw new Error("Invalid token");
+  }
 
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
@@ -293,13 +449,22 @@ export async function portalCompleteMilestone(input: {
     throw new Error(PORTAL_AGENT_ONLY_ERROR);
   }
 
-  // Milestone must be in available state to be confirmed via portal
-  const current = await prisma.milestoneCompletion.findUnique({
+  // Phase 1 commit 5 — scope to the contact's effective round so a
+  // purchaser can't read or act on a previous round's PM row of the same
+  // definition. Vendor side stays file-level (VMs are file-level rows).
+  const roundScope = contact.roleType === "purchaser"
+    ? forRound(contact.buyerRoundId, contact.propertyTransactionId)
+    : vendorOnly();
+
+  // Milestone must be in available state to be confirmed via portal.
+  // findFirst by (tx, def) — the compound unique was replaced by partial
+  // indexes in Phase 1 commit 1; for a pre-relist file the single row
+  // is matched the same way.
+  const current = await prisma.milestoneCompletion.findFirst({
     where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId: contact.propertyTransactionId,
-        milestoneDefinitionId: input.milestoneDefinitionId,
-      },
+      transactionId: contact.propertyTransactionId,
+      milestoneDefinitionId: input.milestoneDefinitionId,
+      ...milestoneScopeWhere(roundScope),
     },
     select: { state: true },
   });
@@ -334,8 +499,18 @@ export async function portalCompleteMilestone(input: {
     }, ptx);
 
     if (counterDefId) {
+      // Phase 1 commit 5 — counterpart sits on the OPPOSITE side of the
+      // confirming role. Vendor confirming VM19 looks up PM26 on the
+      // ACTIVE round; purchaser confirming PM26 looks up VM19 file-level.
+      // forRound(activeBuyerRoundId, txId) covers both (vendor file-level
+      // rows are always returned; only the active round's PMs are).
       const alreadyDone = await ptx.milestoneCompletion.findFirst({
-        where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+        where: {
+          transactionId: contact.propertyTransactionId,
+          milestoneDefinitionId: counterDefId,
+          state: "complete",
+          ...milestoneScopeWhere(forRound(txForGuard.activeBuyerRoundId, contact.propertyTransactionId)),
+        },
       });
       if (!alreadyDone) {
         await completeMilestone({
@@ -488,6 +663,10 @@ export async function logPortalMilestoneConfirm(
     select: {
       propertyAddress: true,
       serviceType: true,
+      // Phase 1 commit 5 — required for round-scoping the bilateral
+      // counterpart lookup so the wrong round's PM26/PM27 state can't
+      // influence email direction picking.
+      activeBuyerRoundId: true,
       // tenure + purchaseType added 2026-05-27 for Model B skeleton mode.
       // Used by resolveRecipientCopy via the FileShape construction below.
       // Nullable on the schema; null short-circuits the assembler path.
@@ -515,7 +694,7 @@ export async function logPortalMilestoneConfirm(
   // are null on the tx — fileShape stays null and resolveRecipientCopy
   // falls through to legacy emailCopy[recipientKey] for every recipient.
   const portalCounterpartComplete = milestoneCode
-    ? await isBilateralCounterpartComplete(transactionId, milestoneCode)
+    ? await isBilateralCounterpartComplete(transactionId, milestoneCode, forRound(tx.activeBuyerRoundId, transactionId))
     : false;
   const portalDirection = milestoneCode
     ? computeHandoffDirection(milestoneCode, portalCounterpartComplete)
@@ -1105,6 +1284,13 @@ export function computeHandoffDirection(
 export async function isBilateralCounterpartComplete(
   transactionId: string,
   currentCode: string,
+  // Phase 1 commit 5 — when provided, scopes the counterpart lookup so a
+  // previous round's completed PM doesn't get mistaken for the CURRENT
+  // round's state. Required for any portal call where multiple rounds may
+  // exist on the same tx. Optional for legacy agent-action callers — for
+  // pre-relist tx state (one round, single row per def) the unscoped read
+  // returns the same row, so behaviour is unchanged.
+  scope?: MilestoneScope,
 ): Promise<boolean> {
   const counterCode = BILATERAL_PAIR_OF[currentCode];
   if (!counterCode) return false;
@@ -1113,12 +1299,11 @@ export async function isBilateralCounterpartComplete(
     select: { id: true },
   });
   if (!counterDef) return false;
-  const completion = await prisma.milestoneCompletion.findUnique({
+  const completion = await prisma.milestoneCompletion.findFirst({
     where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId,
-        milestoneDefinitionId: counterDef.id,
-      },
+      transactionId,
+      milestoneDefinitionId: counterDef.id,
+      ...(scope ? milestoneScopeWhere(scope) : {}),
     },
     select: { state: true },
   });
@@ -1678,15 +1863,44 @@ export type TimelineEntry =
 // Milestone codes that always appear in the timeline regardless of timeSensitive
 const KEY_MILESTONE_CODES = new Set(["VM12", "PM16", "VM13", "PM17"]);
 
+// Phase 1 commit 5 — round-scoped portal timeline.
+//
+// Vendor timeline:
+//   - completions: ALL rounds (full file history)        → allRoundsForAudit()
+//   - messages:    all visibleToClient on the file       (no round filter)
+//
+// Purchaser timeline:
+//   - completions: vendor file-level VMs + OWN round PMs → forRound(ownRound, txId)
+//   - messages:    addressed to this contact AND (file-level OR own round)
+//                  — never the previous buyer's messages, never broadcasts
+//                  scoped to a different round.
+//
+// The previous `_contactId` parameter was unused (headline relist privacy
+// bug — a purchaser saw the file's full message log). It's now load-bearing.
 export async function getPortalTimeline(
   transactionId: string,
   side: "vendor" | "purchaser",
-  _contactId: string
+  contactId: string,
+  opts: { buyerRoundId: string | null; activeBuyerRoundId: string | null } = { buyerRoundId: null, activeBuyerRoundId: null },
 ): Promise<TimelineEntry[]> {
   return withRetry(async () => {
+    const completionScope = side === "purchaser"
+      ? milestoneScopeWhere(forRound(opts.buyerRoundId, transactionId))
+      : {};
+    const messageWhere = side === "purchaser"
+      ? {
+          transactionId,
+          visibleToClient: true,
+          contactIds: { has: contactId },
+          OR: [
+            { buyerRoundId: null },
+            { buyerRoundId: opts.buyerRoundId },
+          ],
+        }
+      : { transactionId, visibleToClient: true };
     const [completions, updates] = await Promise.all([
       prisma.milestoneCompletion.findMany({
-        where: { transactionId, state: "complete" },
+        where: { transactionId, state: "complete", ...completionScope },
         include: {
           milestoneDefinition: { select: { code: true, side: true } },
           completedBy: { select: { name: true } },
@@ -1694,7 +1908,7 @@ export async function getPortalTimeline(
         orderBy: { completedAt: "desc" },
       }),
       prisma.outboundMessage.findMany({
-        where: { transactionId, visibleToClient: true },
+        where: messageWhere,
         orderBy: { createdAt: "desc" },
         select: { id: true, content: true, method: true, createdAt: true },
       }),
@@ -1742,9 +1956,23 @@ export async function portalMarkNotRequired(input: {
 }) {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: input.token },
-    select: { id: true, name: true, roleType: true, propertyTransactionId: true },
+    select: { id: true, name: true, roleType: true, buyerRoundId: true, propertyTransactionId: true },
   });
   if (!contact) throw new Error("Invalid token");
+
+  // Phase 1 commit 5 — dead-round guard. Mirrors portalCompleteMilestone.
+  const txForGuard = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  if (!txForGuard) throw new Error("Invalid transaction");
+  if (
+    contact.roleType === "purchaser" &&
+    contact.buyerRoundId != null &&
+    contact.buyerRoundId !== txForGuard.activeBuyerRoundId
+  ) {
+    throw new Error("Invalid token");
+  }
 
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
@@ -1760,25 +1988,84 @@ export async function portalMarkNotRequired(input: {
   const now = new Date();
   const txId = contact.propertyTransactionId;
 
-  await prisma.milestoneCompletion.upsert({
-    where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: def.id } },
-    create: { transactionId: txId, milestoneDefinitionId: def.id, state: "not_required", notRequiredReason: "Marked not required by client via portal" },
-    update: { state: "not_required", notRequiredReason: "Marked not required by client via portal", completedAt: null },
-  });
+  // Phase 1 commit 5 — round attribution for find + create branches.
+  //
+  // PORTAL_NOT_REQUIRED_WHITELIST today only carries PM9 (cascading PM10),
+  // both purchaser-side. The roundForStamp is the contact's buyerRoundId;
+  // future entries on the vendor side would stamp null (vendor file-level).
+  // The find query uses milestoneScopeWhere(roundScope) so a purchaser
+  // can't update or read the previous round's PM9/PM10 row.
+  const roundScope = contact.roleType === "purchaser"
+    ? forRound(contact.buyerRoundId, txId)
+    : vendorOnly();
+  const roundForStamp = contact.roleType === "purchaser" ? contact.buyerRoundId : null;
 
-  if (cascadeCodes.length > 0) {
-    const cascadeDefs = await prisma.milestoneDefinition.findMany({
-      where: { code: { in: cascadeCodes }, side },
+  // Primary + cascade in one $transaction so the find→(update|create)
+  // for every row is atomic; the partial unique index catches concurrent
+  // races. Replaces two prisma.milestoneCompletion.upsert calls whose
+  // compound key was dropped in Phase 1 commit 1.
+  await prisma.$transaction(async (ptx) => {
+    const primaryExisting = await ptx.milestoneCompletion.findFirst({
+      where: {
+        transactionId: txId,
+        milestoneDefinitionId: def.id,
+        ...milestoneScopeWhere(roundScope),
+      },
       select: { id: true },
     });
-    for (const cd of cascadeDefs) {
-      await prisma.milestoneCompletion.upsert({
-        where: { transactionId_milestoneDefinitionId: { transactionId: txId, milestoneDefinitionId: cd.id } },
-        create: { transactionId: txId, milestoneDefinitionId: cd.id, state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)" },
-        update: { state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)", completedAt: null },
+    if (primaryExisting) {
+      await ptx.milestoneCompletion.update({
+        where: { id: primaryExisting.id },
+        data: { state: "not_required", notRequiredReason: "Marked not required by client via portal", completedAt: null },
+      });
+    } else {
+      await ptx.milestoneCompletion.create({
+        data: {
+          transactionId: txId,
+          milestoneDefinitionId: def.id,
+          state: "not_required",
+          notRequiredReason: "Marked not required by client via portal",
+          // Phase 1 commit 5 Pin 1 — stamp the round so newly-created
+          // not-required rows are attributable to the right buyer.
+          buyerRoundId: roundForStamp,
+        },
       });
     }
-  }
+
+    if (cascadeCodes.length > 0) {
+      const cascadeDefs = await ptx.milestoneDefinition.findMany({
+        where: { code: { in: cascadeCodes }, side },
+        select: { id: true },
+      });
+      for (const cd of cascadeDefs) {
+        const cascadeExisting = await ptx.milestoneCompletion.findFirst({
+          where: {
+            transactionId: txId,
+            milestoneDefinitionId: cd.id,
+            ...milestoneScopeWhere(roundScope),
+          },
+          select: { id: true },
+        });
+        if (cascadeExisting) {
+          await ptx.milestoneCompletion.update({
+            where: { id: cascadeExisting.id },
+            data: { state: "not_required", notRequiredReason: "Cascade: not required (survey skipped via portal)", completedAt: null },
+          });
+        } else {
+          await ptx.milestoneCompletion.create({
+            data: {
+              transactionId: txId,
+              milestoneDefinitionId: cd.id,
+              state: "not_required",
+              notRequiredReason: "Cascade: not required (survey skipped via portal)",
+              // Phase 1 commit 5 Pin 1 — cascade rows inherit the same round.
+              buyerRoundId: roundForStamp,
+            },
+          });
+        }
+      }
+    }
+  });
 }
 
 export async function getPortalViewDates(transactionId: string): Promise<Record<string, Date>> {
@@ -1801,9 +2088,25 @@ export async function getPortalViewDates(transactionId: string): Promise<Record<
   return result;
 }
 
-export async function getPortalUpdates(transactionId: string): Promise<PortalUpdate[]> {
+// Phase 1 commit 5 — round-scoped. Same rule as getPortalTimeline's message
+// arm: vendor sees all visibleToClient on the file; purchaser sees only
+// messages addressed to them, scoped to file-level or their own round.
+export async function getPortalUpdates(
+  transactionId: string,
+  side: "vendor" | "purchaser",
+  contactId: string,
+  opts: { buyerRoundId: string | null } = { buyerRoundId: null },
+): Promise<PortalUpdate[]> {
+  const where = side === "purchaser"
+    ? {
+        transactionId,
+        visibleToClient: true,
+        contactIds: { has: contactId },
+        OR: [{ buyerRoundId: null }, { buyerRoundId: opts.buyerRoundId }],
+      }
+    : { transactionId, visibleToClient: true };
   return withRetry(() => prisma.outboundMessage.findMany({
-    where: { transactionId, visibleToClient: true },
+    where,
     orderBy: { createdAt: "desc" },
     select: { id: true, content: true, method: true, createdAt: true },
   }));

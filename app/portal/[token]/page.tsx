@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPortalData, getPortalMilestones, getPortalTimeline } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, getPortalTimeline, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { P } from "@/components/portal/portal-ui";
@@ -31,8 +31,12 @@ export default async function PortalHomePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const data = await getPortalData(token);
-  if (!data) notFound();
+  const result = await getPortalData(token);
+  // Layout has already rendered the dead-round notice or notFound;
+  // these handlers exist to satisfy the type narrowing and as
+  // defence-in-depth in case a future routing change skips the layout.
+  if (!result || result.kind === "deadRound") notFound();
+  const data = result.data;
 
   const { contact, transaction } = data;
 
@@ -40,10 +44,12 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const otherSide = side === "vendor" ? "purchaser" : "vendor";
   const saleWord  = side === "vendor" ? "sale" : "purchase";
 
+  const ownScope   = portalOwnSideScope(contact, transaction);
+  const otherScope = portalOtherSideScope(contact, transaction);
   const [rawMilestones, rawOtherMilestones, timeline] = await Promise.all([
-    getPortalMilestones(transaction.id, side),
-    getPortalMilestones(transaction.id, otherSide),
-    getPortalTimeline(transaction.id, side, contact.id),
+    getPortalMilestones(transaction.id, side, ownScope),
+    getPortalMilestones(transaction.id, otherSide, otherScope),
+    getPortalTimeline(transaction.id, side, contact.id, { buyerRoundId: contact.buyerRoundId, activeBuyerRoundId: transaction.activeBuyerRoundId }),
   ]);
 
   const milestones = rawMilestones.map((m) => ({

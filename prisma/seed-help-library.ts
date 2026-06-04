@@ -145,20 +145,21 @@ async function seedMilestones(
   const completedSet = new Set(completedCodes);
   const states = computeStates(allCodes, completedSet, autoNrSet);
 
+  // Compound upsert key dropped in Phase 1 commit 1; preserve the
+  // original "create if missing, no-op if existing" upsert semantics
+  // via find→(skip|create).
   await Promise.all(
-    defs.map((def) => {
+    defs.map(async (def) => {
+      const existing = await prisma.milestoneCompletion.findFirst({
+        where: { transactionId: txId, milestoneDefinitionId: def.id },
+        select: { id: true },
+      });
+      if (existing) return;
       const state = states.get(def.code) ?? MilestoneState.locked;
       const isComplete = state === MilestoneState.complete;
       const isNr = state === MilestoneState.not_required;
-
-      return prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: {
-            transactionId: txId,
-            milestoneDefinitionId: def.id,
-          },
-        },
-        create: {
+      await prisma.milestoneCompletion.create({
+        data: {
           transactionId: txId,
           milestoneDefinitionId: def.id,
           state,
@@ -166,7 +167,6 @@ async function seedMilestones(
           notRequiredReason: isNr ? "Auto-set at file creation" : null,
           completedById: isComplete ? completedById : null,
         },
-        update: {},
       });
     })
   );

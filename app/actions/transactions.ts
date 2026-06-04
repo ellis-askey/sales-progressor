@@ -20,6 +20,7 @@ import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@
 import { pushFileAssigned } from "@/lib/agent/push-events";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { findFirstPairwiseConflict } from "@/lib/contacts/dedupe";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
@@ -195,13 +196,17 @@ export async function createTransactionAction(input: {
         email: c.email?.trim() || null,
         roleType: c.roleType,
         portalToken: randomUUID(),
+        // Phase 1 commit 3: purchaser contacts are scoped to the active
+        // round; vendor / solicitor / broker contacts stay file-level.
+        // Same attribution rule as Phase 0 backfill.
+        buyerRoundId: c.roleType === "purchaser" ? tx.activeBuyerRoundId : null,
       })),
     });
   }
 
   // Initialize all milestone completions (available/locked/not_required per tenure+purchaseType)
   if (input.tenure && input.purchaseType) {
-    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id);
+    await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id, tx.activeBuyerRoundId);
   }
 
   // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides
@@ -238,9 +243,11 @@ export async function createTransactionAction(input: {
     }).catch(console.error);
   }
 
-  // Fast inline creation: batch creates logs + tasks synchronously (~3 queries)
+  // Fast inline creation: batch creates logs + tasks synchronously (~3 queries).
+  // Phase 1 commit 3: purchaser-side ReminderLog/ChaseTask rows get the
+  // active round stamp; vendor-side stay file-level.
   const completedCodes = mosAutoConfirmed ? ["VM2", "PM2"] : [];
-  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes).catch(console.error);
+  await createInitialRemindersInline(tx.id, tx.createdAt, tx.assignedUserId, completedCodes, tx.activeBuyerRoundId).catch(console.error);
   // Full engine handles anchor-based and exchange-gated rules asynchronously
   void evaluateTransactionReminders(tx.id).catch(console.error);
 
@@ -388,8 +395,20 @@ export async function changeStatusAction(
       select: { id: true, code: true },
     });
     const gateDefIds = gateDefs.map((d) => d.id);
+    // Round-scoped status-flip gate check — VM19/PM26/VM20/PM27 codes;
+    // forRound's OR picks vendor file-level OR active-round purchaser.
+    const statusGateTx = await prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const statusGateScope = forRound(statusGateTx?.activeBuyerRoundId ?? null, transactionId);
     const gateCompletions = await prisma.milestoneCompletion.findMany({
-      where: { transactionId, milestoneDefinitionId: { in: gateDefIds }, state: "complete" },
+      where: {
+        transactionId,
+        milestoneDefinitionId: { in: gateDefIds },
+        state: "complete",
+        ...milestoneScopeWhere(statusGateScope),
+      },
       select: { milestoneDefinitionId: true },
     });
     const completedDefIds = new Set(gateCompletions.map((c) => c.milestoneDefinitionId));
@@ -497,13 +516,23 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, purchasePrice: true },
+    select: { id: true, purchasePrice: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
   if (tx.purchasePrice !== purchasePrice) {
+    // Phase 1 commit 4e — PriceHistory rows are buyer-side by Phase 0
+    // attribution rule (the price is always the buyer's offer). Stamp
+    // the active round so post-relist a price change on round 2 is
+    // attributed correctly.
     await prisma.priceHistory.create({
-      data: { transactionId, oldPrice: tx.purchasePrice, newPrice: purchasePrice, changedById: session.user.id },
+      data: {
+        transactionId,
+        oldPrice: tx.purchasePrice,
+        newPrice: purchasePrice,
+        changedById: session.user.id,
+        buyerRoundId: tx.activeBuyerRoundId,
+      },
     });
     const oldFmt = tx.purchasePrice ? `£${(tx.purchasePrice / 100).toLocaleString("en-GB")}` : "not set";
     const newFmt = `£${(purchasePrice / 100).toLocaleString("en-GB")}`;
@@ -875,9 +904,19 @@ export async function getAddressConsequencesAction(transactionId: string): Promi
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Round-scoped milestone count for the per-tx address-change
+  // consequences modal (shows agent "this many comms, this many
+  // milestones complete on this file"). active round + vendor.
+  const addrConseqTx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const addrConseqScope = forRound(addrConseqTx?.activeBuyerRoundId ?? null, transactionId);
   const [commCount, milestoneCount] = await Promise.all([
     prisma.outboundMessage.count({ where: { transactionId } }),
-    prisma.milestoneCompletion.count({ where: { transactionId, state: "complete" } }),
+    prisma.milestoneCompletion.count({
+      where: { transactionId, state: "complete", ...milestoneScopeWhere(addrConseqScope) },
+    }),
   ]);
   return { commCount, milestoneCount };
 }
@@ -1041,14 +1080,24 @@ export async function saveDraftAction(data: {
   if (data.draftId) {
     const existing = await prisma.propertyTransaction.findFirst({
       where: { ...scopeOwnershipWhere(getAccessScope(session), data.draftId), status: DRAFT_STATUS },
-      select: { id: true, chainLinkId: true },
+      select: { id: true, chainLinkId: true, activeBuyerRoundId: true },
     });
     if (!existing) throw new Error("Draft not found");
 
     await prisma.propertyTransaction.update({ where: { id: data.draftId }, data: scalarData });
     await prisma.contact.deleteMany({ where: { propertyTransactionId: data.draftId } });
     if (allContacts.length > 0) {
-      await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: data.draftId! })) });
+      await prisma.contact.createMany({
+        data: allContacts.map((c) => ({
+          ...c,
+          propertyTransactionId: data.draftId!,
+          // Stamp purchaser contacts with the existing draft's active
+          // round. Phase 0 backfill seeded a Round 1 on every pre-4b
+          // draft; this branch never sees activeBuyerRoundId=null in
+          // practice, but the ?? null fallback keeps the type clean.
+          buyerRoundId: c.roleType === "purchaser" ? (existing.activeBuyerRoundId ?? null) : null,
+        })),
+      });
     }
     await saveMosDocument(data.draftId);
     await saveChain(data.draftId, existing.chainLinkId);
@@ -1057,20 +1106,46 @@ export async function saveDraftAction(data: {
     return { id: data.draftId };
   }
 
-  // Create new draft
-  const tx = await prisma.propertyTransaction.create({
-    data: {
-      ...scalarData,
-      status: DRAFT_STATUS,
-      agencyId: session.user.agencyId,
-      agentUserId: session.user.id,
-      progressedBy: data.progressedBy ?? "progressor",
-      serviceType: (data.progressedBy ?? "progressor") === "progressor" ? "outsourced" : "self_managed",
-    },
+  // Create new draft. Phase 1: stand up Round 1 inside the same
+  // $transaction as the PropertyTransaction.create — every tx in the
+  // database has a Round 1 from the first millisecond, even drafts.
+  const tx = await prisma.$transaction(async (ptx) => {
+    const created = await ptx.propertyTransaction.create({
+      data: {
+        ...scalarData,
+        status: DRAFT_STATUS,
+        agencyId: session.user.agencyId,
+        agentUserId: session.user.id,
+        progressedBy: data.progressedBy ?? "progressor",
+        serviceType: (data.progressedBy ?? "progressor") === "progressor" ? "outsourced" : "self_managed",
+      },
+    });
+    const round = await ptx.buyerRound.create({
+      data: {
+        transactionId: created.id,
+        roundNumber: 1,
+        status: "active",
+        purchasePrice: created.purchasePrice,
+        purchaserSolicitorFirmId: created.purchaserSolicitorFirmId,
+        purchaserSolicitorContactId: created.purchaserSolicitorContactId,
+        brokerFirmId: created.brokerFirmId,
+        brokerContactId: created.brokerContactId,
+      },
+    });
+    return ptx.propertyTransaction.update({
+      where: { id: created.id },
+      data: { activeBuyerRoundId: round.id },
+    });
   });
 
   if (allContacts.length > 0) {
-    await prisma.contact.createMany({ data: allContacts.map((c) => ({ ...c, propertyTransactionId: tx.id })) });
+    await prisma.contact.createMany({
+      data: allContacts.map((c) => ({
+        ...c,
+        propertyTransactionId: tx.id,
+        buyerRoundId: c.roleType === "purchaser" ? tx.activeBuyerRoundId : null,
+      })),
+    });
   }
   await saveMosDocument(tx.id);
   await saveChain(tx.id, null);
@@ -1095,8 +1170,36 @@ export async function promoteDraftAction(
 
   const draft = await prisma.propertyTransaction.findFirst({
     where: { id: draftId, agencyId: session.user.agencyId, status: DRAFT_STATUS },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!draft) throw new Error("Draft not found");
+
+  // Defensive Round-1 backfill for drafts that pre-date the
+  // saveDraftAction wiring (Phase 1 follow-up commit). Idempotent —
+  // saveDraftAction wires this at draft-create from here on, so the
+  // findFirst returns the existing round and we skip the create.
+  let activeBuyerRoundId = draft.activeBuyerRoundId;
+  if (!activeBuyerRoundId) {
+    activeBuyerRoundId = await prisma.$transaction(async (ptx) => {
+      const round = await ptx.buyerRound.create({
+        data: {
+          transactionId: draft.id,
+          roundNumber: 1,
+          status: "active",
+          purchasePrice: data.purchasePrice,
+          purchaserSolicitorFirmId: null,
+          purchaserSolicitorContactId: null,
+          brokerFirmId: null,
+          brokerContactId: null,
+        },
+      });
+      await ptx.propertyTransaction.update({
+        where: { id: draft.id },
+        data: { activeBuyerRoundId: round.id },
+      });
+      return round.id;
+    });
+  }
 
   // Delete existing contacts on the draft and recreate
   await prisma.contact.deleteMany({ where: { propertyTransactionId: draftId } });
@@ -1109,6 +1212,7 @@ export async function promoteDraftAction(
         email: c.email ?? null,
         roleType: c.roleType,
         portalToken: randomUUID(),
+        buyerRoundId: c.roleType === "purchaser" ? activeBuyerRoundId : null,
       })),
     });
   }
@@ -1127,6 +1231,20 @@ export async function promoteDraftAction(
       } : {}),
     },
   });
+
+  // A draft that was saved via saveDraftAction has no milestone
+  // completions yet (initializeMilestoneCompletions is gated on
+  // tenure + purchaseType which a draft may lack until promote).
+  // Run it now; idempotent — if rows already exist (e.g. a draft
+  // saved through createTransactionAction got initialized at create
+  // time) the helper no-ops on existing rows.
+  await initializeMilestoneCompletions(
+    draftId,
+    data.tenure,
+    data.purchaseType,
+    session.user.id,
+    activeBuyerRoundId,
+  );
 
   evaluateTransactionReminders(draftId).catch(() => {});
   revalidatePath("/agent/quick-add");
@@ -1211,8 +1329,17 @@ export async function getSaleDetailsDelta(input: {
   const defByCode = new Map(allDefs.map((d) => [d.code, d]));
   const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
 
+  // Round-scoped: confirmSaleDetailsAction reads the current per-tx
+  // milestone state to project NR-cascade changes; the projection must
+  // reflect the active round's state, not include archived rounds'
+  // legacy PMs.
+  const saleDetailsTx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const saleDetailsScope = forRound(saleDetailsTx?.activeBuyerRoundId ?? null, input.transactionId);
   const completions = await prisma.milestoneCompletion.findMany({
-    where: { transactionId: input.transactionId },
+    where: { transactionId: input.transactionId, ...milestoneScopeWhere(saleDetailsScope) },
     select: { milestoneDefinitionId: true, state: true },
   });
 
@@ -1290,8 +1417,15 @@ export async function confirmSaleDetailsAction(input: {
   const defByCode = new Map(allDefs.map((d) => [d.code, d]));
   const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
 
+  // Round-scoped: confirmSaleDetailsAction's apply step needs the same
+  // round semantics as the projection step above.
+  const applyTx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const applyScope = forRound(applyTx?.activeBuyerRoundId ?? null, input.transactionId);
   const completions = await prisma.milestoneCompletion.findMany({
-    where: { transactionId: input.transactionId },
+    where: { transactionId: input.transactionId, ...milestoneScopeWhere(applyScope) },
     select: { milestoneDefinitionId: true, state: true },
   });
   const stateByCode = new Map(completions.map((c) => [codeById.get(c.milestoneDefinitionId) ?? "", c.state as string]));
@@ -1340,6 +1474,15 @@ export async function confirmSaleDetailsAction(input: {
       data: { purchaseType: input.newPurchaseType, tenure: input.newTenure },
     });
 
+    // Phase 1 commit 4e — round scope reused across every find-after-write
+    // site in this $transaction. activeBuyerRoundId re-read here inside
+    // the ptx so the snapshot is consistent with the ptx's view.
+    const sdTxRow = await ptx.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const sdScope = forRound(sdTxRow?.activeBuyerRoundId ?? null, input.transactionId);
+
     // 2. NR milestones (includes reversal of complete ones)
     const reversedCodes: string[] = [];
     for (const code of toNrCodes) {
@@ -1348,16 +1491,30 @@ export async function confirmSaleDetailsAction(input: {
       const nrReason = FREEHOLD_NR_CODES.has(code) ? "Freehold property"
         : input.newPurchaseType === "cash_buyer" ? "Cash buyer" : "Cash from proceeds";
       const wasComplete = stateByCode.get(code) === "complete";
-      await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def.id } },
-        data: {
-          state: "not_required",
-          notRequiredReason: nrReason,
-          completedAt: null,
-          completedById: session.user.id,
-          summaryText: wasComplete ? null : undefined,
+      // Compound upsert key removed in commit 1 of Phase 1; locate the row
+      // by (tx, def) and update by id. Single row at this point because
+      // confirmSaleDetailsAction only runs on existing tx with seeded
+      // completions.
+      const nrRow = await ptx.milestoneCompletion.findFirst({
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: def.id,
+          ...milestoneScopeWhere(sdScope),
         },
+        select: { id: true },
       });
+      if (nrRow) {
+        await ptx.milestoneCompletion.update({
+          where: { id: nrRow.id },
+          data: {
+            state: "not_required",
+            notRequiredReason: nrReason,
+            completedAt: null,
+            completedById: session.user.id,
+            summaryText: wasComplete ? null : undefined,
+          },
+        });
+      }
       if (wasComplete) reversedCodes.push(code);
     }
 
@@ -1387,10 +1544,20 @@ export async function confirmSaleDetailsAction(input: {
     for (const [code, newState] of reactivatedStates) {
       const def = defByCode.get(code);
       if (!def) continue;
-      await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: def!.id } },
-        data: { state: newState, notRequiredReason: null, completedAt: null, completedById: null },
+      const reactivateRow = await ptx.milestoneCompletion.findFirst({
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: def!.id,
+          ...milestoneScopeWhere(sdScope),
+        },
+        select: { id: true },
       });
+      if (reactivateRow) {
+        await ptx.milestoneCompletion.update({
+          where: { id: reactivateRow.id },
+          data: { state: newState, notRequiredReason: null, completedAt: null, completedById: null },
+        });
+      }
     }
 
     // 5. Deactivate reminder logs for NR'd milestones
@@ -1414,7 +1581,11 @@ export async function confirmSaleDetailsAction(input: {
       const gateDefId = gateDef!.id;
 
       const gateComp = await ptx.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId },
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: gateDefId,
+          ...milestoneScopeWhere(sdScope),
+        },
         select: { state: true },
       });
       if (!gateComp) continue;
@@ -1423,7 +1594,11 @@ export async function confirmSaleDetailsAction(input: {
 
       const blockers = allDefs.filter((d) => d.side === side && d.blocksExchange && d.code !== gateCode);
       const blockerComps = await ptx.milestoneCompletion.findMany({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: { in: blockers.map((b) => b.id) },
+          ...milestoneScopeWhere(sdScope),
+        },
         select: { milestoneDefinitionId: true, state: true },
       });
       const blockerMap = new Map(blockerComps.map((c) => [c.milestoneDefinitionId, c.state]));
@@ -1434,15 +1609,35 @@ export async function confirmSaleDetailsAction(input: {
       });
 
       if (allClear && gateState === "locked") {
-        await ptx.milestoneCompletion.update({
-          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
-          data: { state: "available" },
+        const gateRow = await ptx.milestoneCompletion.findFirst({
+          where: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: gateDefId,
+            ...milestoneScopeWhere(sdScope),
+          },
+          select: { id: true },
         });
+        if (gateRow) {
+          await ptx.milestoneCompletion.update({
+            where: { id: gateRow.id },
+            data: { state: "available" },
+          });
+        }
       } else if (!allClear && gateState === "available") {
-        await ptx.milestoneCompletion.update({
-          where: { transactionId_milestoneDefinitionId: { transactionId: input.transactionId, milestoneDefinitionId: gateDefId } },
-          data: { state: "locked" },
+        const gateRow = await ptx.milestoneCompletion.findFirst({
+          where: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: gateDefId,
+            ...milestoneScopeWhere(sdScope),
+          },
+          select: { id: true },
         });
+        if (gateRow) {
+          await ptx.milestoneCompletion.update({
+            where: { id: gateRow.id },
+            data: { state: "locked" },
+          });
+        }
       }
     }
   });
@@ -1494,4 +1689,556 @@ export async function toggleSuppressPortalConfirmEmailsAction(
   });
 
   revalidatePath(pathname, "page");
+}
+
+// ─── Phase 1 commit 6 — relist a withdrawn file with a new buyer ────────────
+//
+// LOCKED SPEC (Ellis, 2026-06-04):
+//   - Single $transaction with EXACT step order
+//   - fallThroughReason copied from tx → outgoing round BEFORE anything nulls it
+//   - vendorMilestoneSnapshot JSON written on outgoing round BEFORE in-place reset
+//   - Fire-and-forget intro email + reminder re-evaluation only AFTER commit
+//
+// Preconditions (server-canonical — UI hides the CTA but the server is truth):
+//   - tx.status === "withdrawn"
+//   - tx.exchangedAt IS NULL                (a relist after exchange is not relist)
+//   - tx.activeBuyerRoundId IS NOT NULL     (the round to archive must exist)
+//   - Caller in agency scope (director/negotiator) OR internal staff (admin/SP/SA)
+//   - Client portal tokens cannot reach this action — server actions require a
+//     NextAuth session via requireSession()
+//
+// What the action does, in order:
+//   1. Snapshot vendor VMs (the reset codes) onto outgoing round's
+//      vendorMilestoneSnapshot column.
+//   2. Carry tx.fallThroughReason → outgoing round.fallThroughReason.
+//   3. Archive outgoing round (status=withdrawn, archivedAt=now).
+//   4. Rotate old purchaser-contact portal tokens to NULL — belt-and-braces
+//      so the new buyer's portal is unreachable from old links, even before
+//      commit 5's round-mismatch guard kicks in.
+//   5. Create the new BuyerRound (roundNumber+1, status=active) with the
+//      buyer-side fields the caller supplied.
+//   6. Reset VM2, VM7, VM10–VM20 in place — recompute state from current
+//      prerequisites of the surviving (untouched) vendor milestones.
+//   7. Create the new purchaser Contact stamped to the new round, with a
+//      fresh portal token.
+//   8. Initialize round-N+1 PMs (PM1–PM27) via inline createMany scoped
+//      to the new round. Cannot use initializeMilestoneCompletions because
+//      its "exists?" check is unscoped and would short-circuit on round-1 PMs.
+//   9. Mirror buyer-side fields onto PropertyTransaction (purchasePrice,
+//      purchaser solicitor, broker), flip status active, null fallThroughReason
+//      + expectedExchangeDate + completionDate, point activeBuyerRoundId
+//      at the new round.
+//  10. Stamp a PriceHistory row on the new round if the price changed.
+//  11. Cancel old round's pending ChaseTasks and outstanding ReminderLogs.
+//  12. Clear chainLink.withdrawalStatus if set (file is back; no cascade).
+//  13. Internal note — "X relisted to new buyer Y — Round N+1".
+//
+// Post-commit fire-and-forget:
+//   - evaluateTransactionReminders(txId): rebuilds round-N+1 buyer-side
+//     reminders AND vendor reminders anchored to the reset VM codes.
+//   - sendOutsourceIntroForTransaction (outsourced files only): the
+//     per-contact outsourceIntroSentAt dedup means the vendor (already
+//     stamped at round 1) gets skipped; only the new buyer is emailed.
+//
+// Returns { newRoundId, newContactId } so the caller (UI in commit 6b, or
+// the staging rehearsal) can route + verify.
+//
+// Reset-VM list — single source of truth, mirrors the BuyerRound schema
+// comment on vendorMilestoneSnapshot.
+const RELIST_RESET_VM_CODES = [
+  "VM2", "VM7",
+  "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
+  "VM18", "VM19", "VM20",
+];
+
+// EXCHANGE_GATE codes are special-cased in initializeMilestoneCompletions
+// (always locked at init, "available" computed via gate logic at read time).
+// Mirror that here so a reset doesn't put VM18 into a state inconsistent
+// with how a fresh file would render it.
+const RELIST_EXCHANGE_GATE_CODES = new Set(["VM18"]);
+
+export async function relistTransactionAction(input: {
+  transactionId: string;
+  newBuyer: { name: string; email?: string | null; phone?: string | null };
+  newPurchasePrice?: number | null;
+  newPurchaserSolicitorFirmId?: string | null;
+  newPurchaserSolicitorContactId?: string | null;
+  newBrokerFirmId?: string | null;
+  newBrokerContactId?: string | null;
+}): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
+  const session = await requireSession();
+  return relistTransactionImpl(input, {
+    userId: session.user.id,
+    userName: session.user.name ?? "",
+    agencyId: session.user.agencyId ?? null,
+    scope: getAccessScope(session),
+  });
+}
+
+// Inner implementation — the real work. Exported under an _Impl name so the
+// staging rehearsal harness can drive it with a fixed test-user identity
+// without standing up a NextAuth session. Production code MUST use
+// relistTransactionAction; this _Impl form is for tooling only.
+type RelistSessionLike = {
+  userId: string;
+  userName: string;
+  agencyId: string | null;
+  scope: ReturnType<typeof getAccessScope>;
+};
+export async function relistTransactionImpl(
+  input: {
+    transactionId: string;
+    newBuyer: { name: string; email?: string | null; phone?: string | null };
+    newPurchasePrice?: number | null;
+    newPurchaserSolicitorFirmId?: string | null;
+    newPurchaserSolicitorContactId?: string | null;
+    newBrokerFirmId?: string | null;
+    newBrokerContactId?: string | null;
+  },
+  session: RelistSessionLike,
+): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
+  const scope = session.scope;
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      exchangedAt: true,
+      activeBuyerRoundId: true,
+      fallThroughReason: true,
+      purchasePrice: true,
+      tenure: true,
+      purchaseType: true,
+      serviceType: true,
+      agencyId: true,
+      agentUserId: true,
+      assignedUserId: true,
+      chainLinkId: true,
+    },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (tx.status !== "withdrawn") {
+    throw new Error(`Relist requires status=withdrawn (current: ${tx.status})`);
+  }
+  if (tx.exchangedAt !== null) {
+    throw new Error("Cannot relist after exchange has happened");
+  }
+  if (tx.activeBuyerRoundId === null) {
+    throw new Error("Cannot relist a file with no active buyer round");
+  }
+  if (!tx.tenure || !tx.purchaseType) {
+    throw new Error("Cannot relist a file missing tenure or purchaseType");
+  }
+
+  // Outgoing round — needed for its roundNumber so the new round increments.
+  const outgoingRound = await prisma.buyerRound.findUnique({
+    where: { id: tx.activeBuyerRoundId },
+    select: { id: true, roundNumber: true },
+  });
+  if (!outgoingRound) throw new Error("Outgoing round not found");
+  const nextRoundNumber = outgoingRound.roundNumber + 1;
+
+  // Definition lookups (read-only). We need:
+  //   - Vendor reset def ids + codes for the snapshot + the reset writes
+  //   - Vendor "preserved" def ids (untouched VMs) for prereq recompute
+  //   - All purchaser-side def ids for the round-N+1 PM createMany
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, side: true },
+  });
+  const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
+  const idByCode = new Map(allDefs.map((d) => [d.code, d.id]));
+
+  const resetVmDefIds = RELIST_RESET_VM_CODES
+    .map((c) => idByCode.get(c))
+    .filter((id): id is string => !!id);
+  const purchaserDefIds = allDefs.filter((d) => d.side === "purchaser").map((d) => d.id);
+
+  // Snapshot all vendor completions for the reset codes BEFORE the
+  // transaction opens, so the snapshot reflects the state at the user's
+  // moment of relist (and the JSON serialization happens outside the lock).
+  // Vendor VMs are file-level (buyerRoundId IS NULL) — read accordingly.
+  const vmRowsToSnapshot = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: tx.id,
+      milestoneDefinitionId: { in: resetVmDefIds },
+      buyerRoundId: null,
+    },
+    select: {
+      id: true,
+      milestoneDefinitionId: true,
+      state: true,
+      completedAt: true,
+      completedById: true,
+      eventDate: true,
+      summaryText: true,
+      reconciledAtExchange: true,
+    },
+  });
+  const vendorMilestoneSnapshot = vmRowsToSnapshot.map((r) => ({
+    code: codeById.get(r.milestoneDefinitionId) ?? "?",
+    state: r.state,
+    completedAt: r.completedAt?.toISOString() ?? null,
+    completedById: r.completedById,
+    eventDate: r.eventDate?.toISOString() ?? null,
+    summaryText: r.summaryText,
+    reconciledAtExchange: r.reconciledAtExchange,
+  }));
+
+  // Preserved vendor codes (untouched on relist) — used to recompute
+  // post-reset state for the reset codes. We need their current state to
+  // know whether each reset code becomes "available" or "locked".
+  const preservedVmRows = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: tx.id,
+      milestoneDefinitionId: { in: allDefs.filter((d) => d.side === "vendor" && !RELIST_RESET_VM_CODES.includes(d.code)).map((d) => d.id) },
+      buyerRoundId: null,
+    },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const preservedStateByCode = new Map(
+    preservedVmRows.map((r) => [codeById.get(r.milestoneDefinitionId) ?? "", r.state as string]),
+  );
+
+  // Recompute the reset codes' new state. Rule: prereqs all complete or
+  // not_required → "available"; exchange gate → "locked" (gate logic adds
+  // availability at render time); otherwise → "locked".
+  function resetStateFor(code: string): "available" | "locked" {
+    if (RELIST_EXCHANGE_GATE_CODES.has(code)) return "locked";
+    const prereqs = DIRECT_PREREQUISITES[code] ?? [];
+    if (prereqs.length === 0) return "available";
+    // A reset code's prereq might be ANOTHER reset code (e.g. VM10's prereq
+    // is VM7, both reset). After reset, the prereq goes to its OWN reset
+    // state (available or locked). Recurse, with a guard for cycles
+    // (the prerequisite graph is acyclic — this is just defensive).
+    const allSatisfied = prereqs.every((p) => {
+      if (RELIST_RESET_VM_CODES.includes(p)) {
+        // Reset prereq: it's not yet "complete", so the dependent stays locked.
+        return false;
+      }
+      const s = preservedStateByCode.get(p);
+      return s === "complete" || s === "not_required";
+    });
+    return allSatisfied ? "available" : "locked";
+  }
+  const resetStateByCode = new Map<string, "available" | "locked">();
+  for (const c of RELIST_RESET_VM_CODES) resetStateByCode.set(c, resetStateFor(c));
+
+  // Old purchaser contacts whose tokens we'll rotate. Read outside the
+  // transaction so the write inside is a simple updateMany.
+  const oldPurchaserContacts = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: tx.id,
+      roleType: "purchaser",
+      buyerRoundId: outgoingRound.id,
+    },
+    select: { id: true },
+  });
+
+  // ───── Single $transaction — locked step order ─────────────────────────
+  const result = await prisma.$transaction(async (ptx) => {
+    // STEP 1: snapshot onto outgoing round.
+    // STEP 2: carry fallThroughReason (BEFORE step in (9) nulls tx.fallThroughReason).
+    // STEP 3: archive outgoing round.
+    // STEPS 1+2+3 happen in a single update to keep the row write atomic
+    // and to make the step ordering visible in the diff.
+    await ptx.buyerRound.update({
+      where: { id: outgoingRound.id },
+      data: {
+        vendorMilestoneSnapshot: vendorMilestoneSnapshot as object[],
+        // STEP 2 — fallThroughReason carry, BEFORE the tx update nulls it.
+        fallThroughReason: tx.fallThroughReason ?? null,
+        status: "withdrawn",
+        archivedAt: new Date(),
+      },
+    });
+
+    // STEP 4 — old purchaser tokens are LEFT INTACT.
+    //
+    // Commit 5's round-mismatch guard already dead-routes the token at
+    // every read site and the documents-upload write site, with the
+    // DeadRoundNotice component rendered inside the portal shell so the
+    // old buyer gets a friendly "this link is no longer active" page.
+    // Nulling the token here would defeat that — the layout would render
+    // notFound() instead of DeadRoundNotice, which is the inferior UX.
+    //
+    // Audit-preserved: the old contact + its (now-dead) round attribution
+    // stays addressable, which keeps the round-1 history reachable by
+    // contact id from internal tooling.
+    void oldPurchaserContacts;
+
+    // STEP 5 — create the new BuyerRound.
+    const newRound = await ptx.buyerRound.create({
+      data: {
+        transactionId: tx.id,
+        roundNumber: nextRoundNumber,
+        status: "active",
+        purchasePrice: input.newPurchasePrice ?? tx.purchasePrice,
+        purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
+        purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
+        brokerFirmId: input.newBrokerFirmId ?? null,
+        brokerContactId: input.newBrokerContactId ?? null,
+      },
+    });
+
+    // STEP 6 — reset VM2 / VM7 / VM10–VM20 in place. Each reset row goes to
+    // available or locked per the recompute above; completedAt/By/eventDate/
+    // summaryText/reconciledAtExchange all clear. We update by row id, found
+    // via the file-level scope (vendor rows are buyerRoundId IS NULL).
+    const resetRows = await ptx.milestoneCompletion.findMany({
+      where: {
+        transactionId: tx.id,
+        milestoneDefinitionId: { in: resetVmDefIds },
+        buyerRoundId: null,
+      },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of resetRows) {
+      const code = codeById.get(row.milestoneDefinitionId) ?? "";
+      const newState = resetStateByCode.get(code) ?? "locked";
+      await ptx.milestoneCompletion.update({
+        where: { id: row.id },
+        data: {
+          state: newState,
+          completedAt: null,
+          completedById: null,
+          eventDate: null,
+          expectedDate: null,
+          summaryText: null,
+          reconciledAtExchange: false,
+          confirmedByPortal: false,
+          outOfOrderCompletion: false,
+          notRequiredReason: null,
+        },
+      });
+    }
+
+    // STEP 7 — create the new purchaser Contact, stamped to the new round.
+    const newContact = await ptx.contact.create({
+      data: {
+        propertyTransactionId: tx.id,
+        name: input.newBuyer.name,
+        email: input.newBuyer.email ?? null,
+        phone: input.newBuyer.phone ?? null,
+        roleType: "purchaser",
+        portalToken: randomUUID(),
+        buyerRoundId: newRound.id,
+      },
+    });
+
+    // STEP 8 — initialize the new round's PMs. Inline createMany scoped to
+    // the new round (initializeMilestoneCompletions can't be used here: its
+    // unscoped find-then-skip would short-circuit on round-1 PMs and create
+    // nothing). Auto-NR codes + initial availability mirror the create flow.
+    const autoNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
+    const initialAvailable = new Set<string>();
+    for (const def of allDefs.filter((d) => d.side === "purchaser")) {
+      if (autoNrCodes.has(def.code)) continue;
+      const prereqs = DIRECT_PREREQUISITES[def.code] ?? [];
+      // PM12's only prereq is VM9 (cross-side). The post-reset state of VM9
+      // is preserved (VM9 is NOT in the reset list), so we read it from the
+      // preserved map. Other PM prereqs are purchaser-side, all newly-created
+      // → none "complete" yet, so dependent codes stay locked.
+      const allSatisfied = prereqs.every((p) => {
+        if (autoNrCodes.has(p)) return true;
+        if (p.startsWith("VM")) {
+          const s = preservedStateByCode.get(p);
+          return s === "complete" || s === "not_required";
+        }
+        return false;
+      });
+      if (allSatisfied) initialAvailable.add(def.code);
+    }
+    const now = new Date();
+    await ptx.milestoneCompletion.createMany({
+      data: allDefs
+        .filter((d) => d.side === "purchaser")
+        .map((def) => {
+          const isNr = autoNrCodes.has(def.code);
+          const isAvail = initialAvailable.has(def.code);
+          const state = isNr ? "not_required" : isAvail ? "available" : "locked";
+          return {
+            transactionId: tx.id,
+            milestoneDefinitionId: def.id,
+            state: state as "not_required" | "available" | "locked",
+            notRequiredReason: isNr ? "Auto-set at file creation" : null,
+            buyerRoundId: newRound.id,
+            createdAt: now,
+          };
+        }),
+    });
+
+    // STEP 9 — mirror buyer-side fields onto PropertyTransaction + flip
+    // status active + null tx.fallThroughReason / expectedExchangeDate /
+    // completionDate. activeBuyerRoundId points at the new round.
+    const updatedPrice = input.newPurchasePrice ?? tx.purchasePrice;
+    await ptx.propertyTransaction.update({
+      where: { id: tx.id },
+      data: {
+        status: "active",
+        activeBuyerRoundId: newRound.id,
+        fallThroughReason: null,
+        expectedExchangeDate: null,
+        completionDate: null,
+        purchasePrice: updatedPrice,
+        purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
+        purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
+        brokerFirmId: input.newBrokerFirmId ?? null,
+        brokerContactId: input.newBrokerContactId ?? null,
+      },
+    });
+
+    // STEP 10 — PriceHistory row stamped to the new round if the price
+    // changed. Mirrors savePriceAction.
+    if (input.newPurchasePrice != null && input.newPurchasePrice !== tx.purchasePrice) {
+      await ptx.priceHistory.create({
+        data: {
+          transactionId: tx.id,
+          oldPrice: tx.purchasePrice,
+          newPrice: input.newPurchasePrice,
+          changedById: session.userId,
+          buyerRoundId: newRound.id,
+        },
+      });
+    }
+
+    // STEP 11 — cancellation sweeps. THREE keys, run in series, all
+    // updateMany updates with status="pending" filters so the writes are
+    // idempotent and re-runs are safe.
+    //
+    // KEY 1 — round-keyed (the bread-and-butter): every pending ChaseTask
+    // attributed to the outgoing round, regardless of target code. Catches
+    // every buyer-side chase whose write site stamped buyerRoundId correctly.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        buyerRoundId: outgoingRound.id,
+        status: "pending",
+      },
+      data: { status: "cancelled" },
+    });
+    // KEY 2 — VM-code-keyed (vendor reset codes): VM rows are file-level
+    // (buyerRoundId IS NULL by design). Cancel any reset-VM-anchored chase
+    // so the engine recomputes against post-reset state.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        buyerRoundId: null,
+        status: "pending",
+        reminderLog: {
+          reminderRule: { targetMilestoneCode: { in: RELIST_RESET_VM_CODES } },
+        },
+      },
+      data: { status: "cancelled" },
+    });
+    // KEY 3 — DEFENCE-IN-DEPTH: PM-code-keyed, regardless of buyerRoundId
+    // stamp. Inside this $transaction the new round's PMs do not exist
+    // yet (STEP 8 runs after STEP 11), and chase rebuild is fire-and-forget
+    // AFTER commit — so every pending PM-targeted ChaseTask on the file
+    // RIGHT NOW belongs to a previous buyer by definition. This sweep
+    // catches engine-created rows that were written with buyerRoundId=NULL
+    // by older code (pre-4c-followup) — without it, those rows survive
+    // every relist sweep keyed on the stamp and can fire about a dead
+    // buyer on a subsequent round.
+    //
+    // Also catches unstamped rows from any future write-site regression:
+    // the cancellation is correct for ANY pending PM-targeted task at
+    // this moment in the $transaction, no matter how it was written.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "pending",
+        reminderLog: {
+          reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+        },
+      },
+      data: { status: "cancelled" },
+    });
+    // Parallel sweep on ReminderLog rows themselves: any "active" PM-targeted
+    // log belongs to the outgoing buyer. Deactivate so the engine's
+    // re-evaluation (post-commit) can create fresh round-N+1 logs without
+    // colliding with stale ones via the findFirst({status:"active"}) check.
+    await ptx.reminderLog.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "active",
+        reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+      },
+      data: { status: "inactive", statusReason: "Buyer round archived on relist" },
+    });
+
+    // STEP 12 — clear chainLink.withdrawalStatus if set. The file is back;
+    // no cascade fires (the chain-cascade trigger is in withdraw, not here).
+    if (tx.chainLinkId) {
+      await ptx.chainLink.update({
+        where: { id: tx.chainLinkId },
+        data: { withdrawalStatus: null, withdrawalRespondedAt: null },
+      });
+    }
+
+    // STEP 13 — internal note.
+    await ptx.outboundMessage.create({
+      data: {
+        transactionId: tx.id,
+        type: "internal_note",
+        contactIds: [newContact.id],
+        content: `${session.userName} relisted this file with a new buyer (${input.newBuyer.name}) — Round ${nextRoundNumber}.${tx.fallThroughReason ? ` Previous round withdrew: ${tx.fallThroughReason}.` : ""}`,
+        createdById: session.userId,
+        buyerRoundId: newRound.id,
+      },
+    });
+
+    return { newRoundId: newRound.id, newContactId: newContact.id };
+  });
+
+  // ───── Post-commit fire-and-forget ─────────────────────────────────────
+  // Reminder re-evaluation — rebuilds round-N+1 buyer-side schedule AND
+  // any vendor reminders whose anchor was a reset VM code.
+  void evaluateTransactionReminders(tx.id).catch((err) => {
+    console.error("[relist] reminder re-evaluation failed", err);
+  });
+
+  // Intro email to the new buyer — outsourced only. The orchestrator's
+  // per-contact outsourceIntroSentAt dedup means the vendor (already
+  // stamped at round 1) gets skipped; only the new buyer receives.
+  if (tx.serviceType === "outsourced") {
+    const { sendOutsourceIntroForTransaction } = await import("@/lib/emails/send-outsource-intro");
+    void sendOutsourceIntroForTransaction(tx.id, session.userId).catch((err) => {
+      console.error("[relist] outsource intro send failed", err);
+    });
+  }
+
+  // Command Centre event log. Re-uses transaction_status_changed (withdrawn
+  // → active) with a relisted=true marker rather than introducing a new
+  // EventType enum value — keeps commit 6 schema-free. A dedicated
+  // transaction_relisted event can be added later if Command Centre views
+  // want to distinguish relist from a manual withdrawn→active flip.
+  await recordEvent({
+    type: "transaction_status_changed",
+    agencyId: session.agencyId || undefined,
+    userId: session.userId,
+    entityType: "PropertyTransaction",
+    entityId: tx.id,
+    metadata: {
+      from: "withdrawn",
+      to: "active",
+      relisted: true,
+      previousRoundId: outgoingRound.id,
+      newRoundId: result.newRoundId,
+      newRoundNumber: nextRoundNumber,
+      newBuyerName: input.newBuyer.name,
+      priceChanged: input.newPurchasePrice != null && input.newPurchasePrice !== tx.purchasePrice,
+    },
+  });
+
+  // revalidatePath is only valid inside a request render context. Guard
+  // for invocation from non-request callers (the staging rehearsal harness)
+  // where the static generation store is absent.
+  try {
+    revalidatePath(`/agent/transactions/${tx.id}`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("static generation store")) throw err;
+  }
+  return { newRoundId: result.newRoundId, newContactId: result.newContactId, newRoundNumber: nextRoundNumber };
 }

@@ -8,6 +8,7 @@ import { checkAiLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getMilestoneContext } from "@/lib/chase/milestone-glossary";
 import { getAccessScope, canReadTransaction } from "@/lib/security/access-scope";
 import { greetingName } from "@/lib/utils";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 // Prompt strings are verbatim from PROMPT_SPEC.md §5 and §6 — do not edit here; edit the spec first.
 
@@ -90,6 +91,11 @@ export async function POST(req: NextRequest) {
             orderBy: { createdAt: "desc" },
             take: 3,
           },
+          // PHASE 1 4e — exchange-ready gates VM18/PM25; the nested
+          // where can't reference the parent's activeBuyerRoundId, so
+          // the gate read is round-resolved in a separate fetch below
+          // after primaryTask resolves. Keeping the empty include for
+          // type compatibility with downstream consumers.
           milestoneCompletions: {
             where: {
               milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
@@ -213,8 +219,27 @@ export async function POST(req: NextRequest) {
           .join("\n")
       : null;
 
-  // Exchange date — only surfaced when both solicitor gate milestones (VM18 + PM25) are confirmed
-  const gateCodes = tx.milestoneCompletions.map((c) => c.milestoneDefinition.code);
+  // PHASE 1 4e — Exchange date is only surfaced when both gates VM18
+  // (vendor) + PM25 (purchaser) are confirmed. Round-scope the gate
+  // read so a relisted file doesn't surface the OLD buyer's PM25 as
+  // "exchange ready" — that would generate misleading AI wording the
+  // agent might not catch. Replaces the unscoped nested include result
+  // (which kept the original include for type compatibility).
+  const aiGateTxRow = await prisma.propertyTransaction.findUnique({
+    where: { id: tx.id },
+    select: { activeBuyerRoundId: true },
+  });
+  const aiGateScope = forRound(aiGateTxRow?.activeBuyerRoundId ?? null, tx.id);
+  const aiGateCompletions = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: tx.id,
+      milestoneDefinition: { code: { in: ["VM18", "PM25"] } },
+      state: "complete",
+      ...milestoneScopeWhere(aiGateScope),
+    },
+    select: { milestoneDefinition: { select: { code: true } } },
+  });
+  const gateCodes = aiGateCompletions.map((c) => c.milestoneDefinition.code);
   const exchangeGatesConfirmed = gateCodes.includes("VM18") && gateCodes.includes("PM25");
   const expectedExchangeDateStr = formatDate(tx.expectedExchangeDate);
   const daysToExpectedExchange = tx.expectedExchangeDate

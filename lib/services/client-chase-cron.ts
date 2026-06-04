@@ -206,17 +206,39 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
 
   // Bulk-load all relevant data per transaction in three queries, then
   // we walk in memory. Avoids N+1.
-  const completions = await prisma.milestoneCompletion.findMany({
-    where: { transactionId: { in: txIds } },
-    select: {
-      transactionId: true,
-      milestoneDefinitionId: true,
-      state: true,
-      completedAt: true,
-      eventDate: true,
-      reconciledAtClaim: true,
-    },
-  });
+  //
+  // PHASE 1 (b)-CLASS: this is the client-chase cron. Reading archived
+  // rounds' PMs here would mis-fire chase emails to real clients
+  // post-relist (e.g. a previous buyer's PM26 complete would suppress
+  // a chase that the new buyer should receive; a previous buyer's
+  // incomplete PM would re-chase the new buyer for work already done).
+  // Round-scoped via raw SQL with the OR clause that the Prisma cross-
+  // tx limitation prevents in a single nested-where include.
+  const completions = await prisma.$queryRaw<
+    Array<{
+      transactionId: string;
+      milestoneDefinitionId: string;
+      state: string;
+      completedAt: Date | null;
+      eventDate: Date | null;
+      reconciledAtClaim: boolean;
+    }>
+  >`
+    SELECT
+      mc."transactionId",
+      mc."milestoneDefinitionId",
+      mc.state::text AS state,
+      mc."completedAt",
+      mc."eventDate",
+      mc."reconciledAtClaim"
+    FROM "MilestoneCompletion" mc
+    JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
+    WHERE mc."transactionId" = ANY(${txIds})
+      AND (
+        mc."buyerRoundId" IS NULL
+        OR mc."buyerRoundId" = pt."activeBuyerRoundId"
+      )
+  `;
   const contacts = await prisma.contact.findMany({
     where: {
       propertyTransactionId: { in: txIds },

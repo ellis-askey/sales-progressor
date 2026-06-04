@@ -22,9 +22,24 @@ export async function POST(req: NextRequest) {
 
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
-    select: { id: true, propertyTransactionId: true, roleType: true },
+    select: { id: true, propertyTransactionId: true, roleType: true, buyerRoundId: true },
   });
   if (!contact) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+
+  // Phase 1 commit 5 — dead-round guard for portal writes. A purchaser
+  // whose round no longer matches the file's active round cannot upload.
+  const txForGuard = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  if (!txForGuard) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  if (
+    contact.roleType === "purchaser" &&
+    contact.buyerRoundId != null &&
+    contact.buyerRoundId !== txForGuard.activeBuyerRoundId
+  ) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  }
 
   let formData: FormData;
   try {
@@ -64,6 +79,9 @@ export async function POST(req: NextRequest) {
         fileSize: file.size,
         mimeType: file.type,
         source: "portal",
+        // Phase 1 commit 5 Pin 2 — purchaser uploads are attributable to
+        // their round; vendor uploads stay file-level (NULL).
+        buyerRoundId: contact.roleType === "purchaser" ? contact.buyerRoundId : null,
       },
     });
 

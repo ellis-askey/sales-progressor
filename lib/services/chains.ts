@@ -11,6 +11,35 @@ import {
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { getMilestoneShortLabel } from "@/lib/chase/milestone-glossary";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 1 commit 4d — chains.ts disposition.
+//
+// Per the user's pre-4d instruction: "chains.ts and problem-detection.ts
+// deserve particular suspicion since 'detection' logic tends to drive
+// actions, not just dashboards." Audited each site.
+//
+// Both reads in this file (LINK_V2_SELECT at the bottom, and the
+// chain-fetcher's nested milestoneCompletions take:1) feed chain UI
+// state — display only. Chain progression milestones drive the
+// LATEST-completion-per-link `daysStuck` and `phase` derivations; the
+// chain UI renders these but does not fire emails or chases from this
+// service.
+//
+// Chain NOTIFICATION firing (the action surface for chains) lives at
+// lib/email/chainNotifications.ts and is triggered from per-tx
+// milestone.complete via enqueueChainMilestoneNotifications. That site
+// is converted separately as a (b)-class fetcher (see below).
+//
+// So chains.ts is (a)-class — cross-tx Prisma include limitation, no
+// action surface, exchangedAt-canonical principle covers the
+// "exchanged-marker" filters in the file.
+//
+// Specific distortion: a relisted chain link could display
+// "exchanged N days ago" reflecting the OLD buyer's PM26 rather than
+// the new round's still-pending state. UI shows wrong status; no
+// notification fires.
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── Legacy types (used by legacy widget in components/chain/_legacy/) ────────
 
 export type ChainLinkData = {

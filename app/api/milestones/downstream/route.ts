@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDownstreamCompleted } from "@/lib/services/milestones";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -32,10 +33,17 @@ export async function GET(req: NextRequest) {
   // Compute projected % after reversing target + all downstream
   const removeIds = new Set([milestoneDefinitionId, ...downstream.map((d) => d.id)]);
 
+  // Round-scoped: undo-impact-projection-style read. VM file-level +
+  // active round PMs.
+  const downstreamTxRow = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const downstreamScope = forRound(downstreamTxRow?.activeBuyerRoundId ?? null, transactionId);
   const [allDefs, allCompletions] = await Promise.all([
     prisma.milestoneDefinition.findMany({ select: { id: true, side: true, weight: true } }),
     prisma.milestoneCompletion.findMany({
-      where: { transactionId },
+      where: { transactionId, ...milestoneScopeWhere(downstreamScope) },
       select: { milestoneDefinitionId: true, state: true },
     }),
   ]);

@@ -393,6 +393,15 @@ model BuyerRound {
   brokerFirmId                String?
   brokerContactId             String?
 
+  // Audit JSON of vendor milestones (VM2, VM7, VM10–VM20) at the
+  // moment of relist, before they get reset in place on the new round.
+  // Written by the relist server action (Phase 1, commit 6) onto the
+  // OUTGOING round before archive. Empty/null on the active round.
+  // Shape: Array<{ code, state, completedAt, completedById, summaryText,
+  // eventDate, reconciledAtExchange }>. Stored as JSONB so future
+  // analytics can read it without a schema migration.
+  vendorMilestoneSnapshot Json?
+
   createdAt  DateTime  @default(now())
   archivedAt DateTime?
 
@@ -709,8 +718,13 @@ model MilestoneCompletion {
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
-  // Phase 0 shadow attribution. Backfilled for PM-side milestones only.
-  // Not read anywhere yet.
+  // Phase 1 of the relist feature — purchaser rows are now scoped per
+  // BuyerRound. Vendor (file-level) rows keep buyerRoundId NULL.
+  // Uniqueness is enforced by two partial indexes in
+  // 20260604000000_buyer_round_milestone_uniqueness/migration.sql
+  // (Prisma cannot express partial uniques in schema). The compound
+  // (transactionId, milestoneDefinitionId) is kept as a regular index
+  // for read performance — many callsites still filter by it.
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
@@ -718,7 +732,7 @@ model MilestoneCompletion {
   milestoneDefinition MilestoneDefinition @relation(fields: [milestoneDefinitionId], references: [id])
   completedBy         User?               @relation("CompletedBy", fields: [completedById], references: [id])
 
-  @@unique([transactionId, milestoneDefinitionId])
+  @@index([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
   @@index([buyerRoundId])
 }

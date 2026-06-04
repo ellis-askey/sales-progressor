@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { getPortalData, logPortalView } from "@/lib/services/portal";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { PortalAutoRefresh } from "@/components/portal/PortalAutoRefresh";
+import { DeadRoundNotice } from "@/components/portal/DeadRoundNotice";
 import { prisma } from "@/lib/prisma";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -41,20 +42,36 @@ export default async function PortalLayout({
 }) {
   const { token } = await params;
 
-  let data: Awaited<ReturnType<typeof getPortalData>>;
+  let result: Awaited<ReturnType<typeof getPortalData>>;
   try {
-    data = await getPortalData(token);
+    result = await getPortalData(token);
   } catch (err) {
     console.error("[Portal] getPortalData threw:", err);
     notFound();
   }
 
-  if (!data) {
+  if (!result) {
     console.error("[Portal] no data for token:", token);
     notFound();
   }
 
-  const { contact, transaction } = data;
+  // Phase 1 commit 5 — dead-round friendly notice. Renders inside the
+  // portal shell so the link "explains itself" instead of returning 404,
+  // which a buyer might interpret as the file being lost or hidden from
+  // them. Triggered by belt-and-braces guard:
+  //   contact.buyerRoundId !== tx.activeBuyerRoundId on a purchaser contact.
+  // Vendor contacts never go dead.
+  if (result.kind === "deadRound") {
+    return (
+      <DeadRoundNotice
+        contactName={result.contactName}
+        agencyName={result.agencyName}
+        address={result.address}
+      />
+    );
+  }
+
+  const { contact, transaction } = result.data;
 
   // Log portal view and update last-visited timestamp (fire-and-forget — never blocks render)
   // Both run from layout so they fire on every sub-page (progress, updates, etc.), not just root.

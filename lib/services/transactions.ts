@@ -40,6 +40,18 @@ export async function listTransactions(
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
+      // PHASE 1 (a)-CLASS UNDER-SCOPING — accepted, documented:
+      // This is a cross-tx findMany; Prisma's nested where cannot
+      // reference the parent row's activeBuyerRoundId, so PM rows from
+      // any round (active OR archived) are eligible here. On a relisted
+      // file the archived buyer's most-recent PM completion could win
+      // over the new round's vendor activity, making `lastMilestoneAt`
+      // and the "activity-verb chip" reflect the OLD buyer's progress
+      // and `daysStuckOnMilestone` look fresher than reality. Agent
+      // dashboard surface only — does not drive automated chase
+      // decisions, comms, billing, or portal reads. Phase 2 ticket to
+      // restructure as a two-step (raw SQL DISTINCT ON per-tx with
+      // (buyerRoundId IS NULL OR buyerRoundId = pt.activeBuyerRoundId)).
       milestoneCompletions: {
         where: { state: "complete" },
         orderBy: { completedAt: "desc" },
@@ -53,6 +65,9 @@ export async function listTransactions(
       },
       _count: {
         select: {
+          // Same (a)-class under-scoping caveat as above — count
+          // includes any round's completes. Pre-relist identical;
+          // post-relist a relisted file shows inflated cumulative count.
           milestoneCompletions: { where: { state: "complete" } },
         },
       },
@@ -186,6 +201,17 @@ export async function getTransaction(id: string, agencyId: string) {
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound
+      // drives the round banner (visibility + label); buyerRounds
+      // drives the archived-round drawer. Both selects are minimal
+      // — anything heavier (the round's PM rows, its comms, its VM
+      // snapshot) is fetched separately by the archived-round view
+      // when the user opens it.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      buyerRounds: {
+        select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
+        orderBy: { roundNumber: "asc" },
+      },
     },
   });
 }
@@ -203,6 +229,17 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound
+      // drives the round banner (visibility + label); buyerRounds
+      // drives the archived-round drawer. Both selects are minimal
+      // — anything heavier (the round's PM rows, its comms, its VM
+      // snapshot) is fetched separately by the archived-round view
+      // when the user opens it.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      buyerRounds: {
+        select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
+        orderBy: { roundNumber: "asc" },
+      },
     },
   });
 }
@@ -255,6 +292,9 @@ export async function listTransactionsByScope(scope: AccessScope) {
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { id: true, name: true, roleType: true } },
+      // PHASE 1 (a)-CLASS UNDER-SCOPING — see equivalent block above.
+      // Agent dashboard, cross-tx Prisma include limitation; documented
+      // for the Phase 2 restructure ticket.
       milestoneCompletions: {
         where: { state: "complete" },
         orderBy: { completedAt: "desc" },
@@ -376,6 +416,14 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
         { overridePredictedDate: { not: null } },
         { expectedExchangeDate: { not: null } },
       ],
+      // PHASE 1 (a)-CLASS ACCEPTED: exchangedAt is the canonical
+      // "has this file exchanged?" source of truth (stamped atomically
+      // on VM19/PM26 confirmation in billing-trigger.ts). This
+      // milestoneCompletions NOT filter is a secondary check; the
+      // relist precondition exchangedAt IS NULL means relisted files
+      // can't have a satisfying VM19/PM26 row anyway. Cross-tx Prisma
+      // limitation accepted; restructure deferred to Phase 2 if the
+      // primary exchangedAt check ever stops being canonical.
       NOT: {
         milestoneCompletions: {
           some: {
@@ -467,6 +515,10 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
     where: {
       ...baseWhere,
       status: "active",
+      // PHASE 1 (a)-CLASS ACCEPTED: exchangedAt is canonical for
+      // "is this file exchanged?"; pre-relist files have at most one
+      // round so the some-filter and exchangedAt agree. Cross-tx
+      // Prisma limitation; see comment block above.
       milestoneCompletions: {
         some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
@@ -476,6 +528,8 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
       propertyAddress: true,
       completionDate: true,
       contacts: { select: { name: true, roleType: true } },
+      // Same caveat — completion-side rows are also gated by exchangedAt
+      // being non-null in practice. Phase 2 ticket.
       milestoneCompletions: {
         where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
         select: { id: true },
@@ -558,6 +612,8 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
       ...scopeTransactionWhere(scope),
       status: "active",
       progressedBy: "progressor",
+      // PHASE 1 (a)-CLASS ACCEPTED: same as getExchangedNotCompleting
+      // above — exchangedAt is canonical. Cross-tx Prisma limitation.
       milestoneCompletions: {
         some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
       },
@@ -571,6 +627,8 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
       contacts: { select: { name: true, roleType: true } },
+      // PHASE 1 (a)-CLASS ACCEPTED: completion-side rows gated by
+      // exchangedAt in practice. Phase 2 ticket.
       milestoneCompletions: {
         where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
         select: { id: true },
@@ -730,7 +788,7 @@ export async function createTransaction(input: CreateTransactionInput) {
     // first-time creates both claiming to be the anchor file.
     const freeOnExchange = await stampTrialState(input.agencyId, tx);
 
-    return tx.propertyTransaction.create({
+    const created = await tx.propertyTransaction.create({
     data: {
       propertyAddress: input.propertyAddress,
       agencyId: input.agencyId,
@@ -767,6 +825,28 @@ export async function createTransaction(input: CreateTransactionInput) {
       purchaserBrokerReferral: input.purchaserBrokerReferral ?? false,
       twelveWeekTarget,
     },
+    });
+
+    // Phase 1 commit 3: stand up Round 1 alongside the new transaction,
+    // inside the same $transaction so a failed round-create rolls back
+    // the whole file. Snapshot fields mirror the live values exactly as
+    // Phase 0's backfill does, so the round and the transaction agree
+    // from the first millisecond. Activates this round on the transaction.
+    const round = await tx.buyerRound.create({
+      data: {
+        transactionId: created.id,
+        roundNumber: 1,
+        status: "active",
+        purchasePrice: created.purchasePrice,
+        purchaserSolicitorFirmId: created.purchaserSolicitorFirmId,
+        purchaserSolicitorContactId: created.purchaserSolicitorContactId,
+        brokerFirmId: created.brokerFirmId,
+        brokerContactId: created.brokerContactId,
+      },
+    });
+    return tx.propertyTransaction.update({
+      where: { id: created.id },
+      data: { activeBuyerRoundId: round.id },
     });
   });
 

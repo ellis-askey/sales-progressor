@@ -2,6 +2,66 @@
 
 ---
 
+## Vercel silently skipping auto-builds for some pushes
+
+Filed 2026-06-04 from the commit 6b fix-up. Commit `fbea564` was pushed to `feat/buyer-round-phase1-uniqueness` and Vercel did NOT trigger a build. The previous push on the same branch (`b700fa7`) had been built within seconds. A manual `vercel` invocation deployed the missing commit successfully (deployment `dlxiqgxwu`).
+
+**Symptom:** `git push` returns success, the remote branch advances, but `vercel ls --yes` shows no new build for that SHA. Other recent pushes deployed normally — this isn't a project-wide hang, it's per-push.
+
+**Hypotheses (none verified):**
+- Vercel GitHub integration webhook missed or got rate-limited.
+- Some build-step ignore logic in Vercel saw the change as a no-op (the fix-up touched two `.tsx` files + a `.md` — should not be skipped).
+- Branch protection or a webhook config change broke the trigger.
+
+**Impact:** The deploy pipeline silently dropping a commit is a runbook risk. If this recurs at the prod cutover, an approved release SHA could be in the repo while a stale build is live. Detection requires explicitly comparing the deployed commit hash to the approved one.
+
+**Mitigations already in place:**
+- Prod release runbook Step 2 now MANDATES the hash-match check between approved SHA and `/api/healthz`-reported deployed SHA.
+- Until this is root-caused, after every push run `vercel ls --yes | head -3` and confirm the top entry's age matches the push you just made.
+
+**Fix targets:**
+1. Verify the GitHub → Vercel webhook is healthy and not paused.
+2. Add a healthz endpoint that exposes `commitSha` (if not already there) so the runbook check is one curl.
+3. Once root-caused: add a post-push CI step that triggers a manual `vercel deploy` if no auto-build appears within 60 seconds.
+
+**Priority:** Pre-prod must-investigate. Deploy reliability is a security property — silent skip = silent staleness.
+
+---
+
+## Dev server fails on Windows under Turbopack — Tailwind content scanner ENOENT
+
+Filed 2026-06-04 from the commit 6b smoke-test attempt. Blocks local rendered verification on Windows; CI / Vercel deploy unaffected (different runtime). Surfaces as a 500 on every authenticated route.
+
+**Symptom:**
+
+```
+HTTP 500 on every /agent/* route
+Error: ./app/globals.css
+Error evaluating Node.js code
+Error: ENOENT: no such file or directory, stat
+  'C:\Users\ellis\Downloads\Sales Prog App\full\app\billing-terms\page.tsx'
+  at resolveChangedFiles (node_modules/tailwindcss/lib/lib/content.js:236:36)
+```
+
+**Confirmed environmental, not a real missing file:**
+- `ls app/billing-terms/page.tsx` returns the file (last touched commit `6187598`).
+- `next-env.d.ts` got auto-rewritten to `./.next/dev/types/routes.d.ts` (was `./.next/types/...`). Possibly a Next.js / Turbopack version interaction.
+- Stack frame is inside `tailwindcss/lib/lib/content.js` — Tailwind v3's file watcher choking on a Windows-pathed entry under Turbopack.
+
+**Working theories:**
+1. Tailwind v3 + Turbopack on Windows: `content.js` constructs paths with mixed separators (`\` vs `/`) and `fs.statSync` fails on the combination. Test by upgrading to Tailwind v4 OR switching dev away from `turbopack`.
+2. Stale Tailwind cache from a previous run that referenced a now-moved file. Test by deleting `.next/` and `node_modules/.cache/`.
+3. Next.js 16.2.4 `dev` build configuration drift in `tsconfig` (note next-env.d.ts auto-rewrite). Test by pinning Next or comparing to a teammate's working setup.
+
+**Impact and workaround:**
+- Cannot smoke-test UI changes locally on Windows.
+- Vercel deploy preview is the verification path until this is fixed.
+- Affected commits documented as such (commit 6b verified on deploy, not local).
+
+**Priority:** Pre-launch must-fix. The current workaround (deploy-to-verify) is slow and tools-around-the-edges; rendered local verification is the right loop for UI work.
+
+---
+
 ## FileTimeSession — privacy / GDPR (pre-launch required)
 
 Filed 2026-05-15. Review before first paying customer.

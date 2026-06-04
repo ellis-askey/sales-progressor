@@ -6,6 +6,36 @@ import type { Prisma, TransactionStatus } from "@prisma/client";
 // "draft" exists in the DB enum but may not be in the generated Prisma client yet
 const DRAFT = "draft" as TransactionStatus;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 1 commit 4d — (a)-CLASS under-scoping, ACCEPTED with documentation.
+//
+// Every milestoneCompletions read in this file is cross-tx (either
+// `transaction: txWhere` on a top-level MC findMany, or a nested filter
+// inside a propertyTransaction.findMany). Prisma's nested where can't
+// reference the parent row's activeBuyerRoundId, so matches include
+// MilestoneCompletion rows from ANY round.
+//
+// Consumer: agent analytics dashboards (KPIs, monthly trends, solicitor
+// performance, stalled-file flags). Read-only display, does not drive
+// automated comms or chase or client-/portal-visible state or billing.
+// Classified (a) per the consumer rule.
+//
+// Specific distortion: a relisted file's archived-round PM26/VM19/
+// PM27/VM20 completion can inflate "exchanged" / "stalled-file" /
+// solicitor exchange counts. exchangedAt-canonical (relist
+// precondition is exchangedAt IS NULL) means relisted files don't
+// satisfy these in practice, because the precondition forbids
+// relisting a file with VM19/PM26 stamped.
+//
+// Phase 2 ticket: when relist exists on prod and multi-round files
+// exist, restructure these as two-step queries with per-tx OR-clause
+// raw SQL. Until then the risk is theoretical and pre-relist parity
+// is byte-identical (read-only harness proves this).
+//
+// Per-site refs below mark each occurrence for grep — do not "fix"
+// without reading this banner.
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Shared visibility where ───────────────────────────────────────────────────
 
 function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
@@ -68,6 +98,7 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
         agentFeeAmount: true,
         agentFeePercent: true,
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           where: { state: "complete" },
           select: { milestoneDefinitionId: true, completedAt: true },
@@ -298,6 +329,8 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
       where: { ...txWhere, status: { not: "draft" }, isMigrated: false, createdAt: { gte: windowStart } },
       select: { createdAt: true },
     }),
+    // PHASE 1 4d (a)-CLASS — see file banner. Cross-tx top-level MC
+    // findMany for 12-month exchange-trend chart.
     prisma.milestoneCompletion.findMany({
       where: {
         transaction: { ...txWhere, status: { not: "draft" }, isMigrated: false },
@@ -628,11 +661,13 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
         ...txWhere,
         status: "active",
         createdAt: { lte: sevenDaysAgo },
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           none: { state: "complete", completedAt: { gte: fourteenDaysAgo } },
         },
         NOT: {
-          milestoneCompletions: {
+          // PHASE 1 4d (a)-CLASS — see file banner.
+        milestoneCompletions: {
             some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
           },
         },
@@ -644,6 +679,7 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
       where: {
         ...txWhere,
         status: "active",
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",

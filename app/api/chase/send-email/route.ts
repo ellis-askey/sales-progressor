@@ -6,6 +6,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { sendEmail, parseEmailMessage, resolveSenderForTransaction } from "@/lib/email";
 import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { deriveChaseTargetSide } from "@/lib/services/comms";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { propertyAddress: true },
+    select: { propertyAddress: true, activeBuyerRoundId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
@@ -40,6 +41,16 @@ export async function POST(req: NextRequest) {
     await sendEmail({ to: toEmail, cc: validCcEmails, subject: fullSubject, text: body, from, replyTo });
 
     const ccSuffix = validCcEmails.length ? ` · CC: ${validCcEmails.join(", ")}` : "";
+    // Phase 1 commit 4d post-fix — buyerRoundId stamping at the send-
+    // email write site (missed in the initial 4d sweep). The drawer
+    // passes chaseTaskId; deriveChaseTargetSide maps it to vendor /
+    // purchaser via the rule's targetMilestoneCode. contactIds is
+    // always [] here (this is the email-mirror row, not the comm-log
+    // row that /api/comms writes), so the contactIds fallback wouldn't
+    // help — the side hint is the only correct signal.
+    const targetSide = await deriveChaseTargetSide(chaseTaskId);
+    const stampBuyerRoundId =
+      targetSide === "purchaser" ? tx.activeBuyerRoundId : null;
     await prisma.outboundMessage.create({
       data: {
         transactionId,
@@ -48,6 +59,7 @@ export async function POST(req: NextRequest) {
         contactIds: [],
         content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}${ccSuffix}: ${messageText}`,
         createdById: session.user.id,
+        buyerRoundId: stampBuyerRoundId,
       },
     });
 

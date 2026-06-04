@@ -248,6 +248,22 @@ export async function drainOutboundQueue(): Promise<{
         // `{transactionId}:{contactId}:{yyyy-mm-dd}`.
         const transactionId = record.sourceId.split(":")[0];
         if (transactionId) {
+          // Phase 1 commit 4d — stamp activeBuyerRoundId at send time
+          // for purchaser-contact comms. Vendor / solicitor / broker
+          // contacts stay file-level. Same Phase 0 attribution rule.
+          const [contact, txRow] = await Promise.all([
+            prisma.contact.findUnique({
+              where: { id: record.recipientContactId },
+              select: { roleType: true },
+            }),
+            prisma.propertyTransaction.findUnique({
+              where: { id: transactionId },
+              select: { activeBuyerRoundId: true },
+            }),
+          ]);
+          const stampRoundId =
+            contact?.roleType === "purchaser" ? txRow?.activeBuyerRoundId ?? null : null;
+
           await prisma.outboundMessage.create({
             data: {
               transactionId,
@@ -264,6 +280,7 @@ export async function drainOutboundQueue(): Promise<{
               isAutomated: true,
               visibleToClient: true,
               createdByRole: "system",
+              buyerRoundId: stampRoundId,
             },
           }).catch((mirrorErr: unknown) => {
             console.error(

@@ -18,6 +18,7 @@ import { CLIENT_CHASE_COUNT_CAP, CLIENT_CHASE_GRACE_FLOOR_DAYS } from "@/lib/ser
 import { setUkChaseTime } from "@/lib/services/reminders";
 import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { assembleMilestoneDigest, type MilestoneDigestPayload } from "@/lib/email/milestone-digest";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { ContactRole } from "@prisma/client";
 
 export type PendingEmail = {
@@ -228,16 +229,28 @@ export async function getAutomatedEmailsForTransaction(
     prisma.milestoneDefinition.findMany({
       select: { id: true, code: true, blocksExchange: true },
     }),
-    prisma.milestoneCompletion.findMany({
-      where: { transactionId },
-      select: {
-        milestoneDefinitionId: true,
-        state: true,
-        completedAt: true,
-        eventDate: true,
-        reconciledAtClaim: true,
-      },
-    }),
+    // Round-scoped: this preview simulates the chase engine's
+    // evaluateTransactionReminders for the agent UI. The live engine
+    // (lib/services/reminders.ts, converted in 4c) reads VM file-level
+    // + active round's PMs; the preview must match exactly or the
+    // displayed "what would fire" diverges from what actually fires.
+    (async () => {
+      const txRow = await prisma.propertyTransaction.findUnique({
+        where: { id: transactionId },
+        select: { activeBuyerRoundId: true },
+      });
+      const scope = forRound(txRow?.activeBuyerRoundId ?? null, transactionId);
+      return prisma.milestoneCompletion.findMany({
+        where: { transactionId, ...milestoneScopeWhere(scope) },
+        select: {
+          milestoneDefinitionId: true,
+          state: true,
+          completedAt: true,
+          eventDate: true,
+          reconciledAtClaim: true,
+        },
+      });
+    })(),
     prisma.contact.findMany({
       where: {
         propertyTransactionId: transactionId,

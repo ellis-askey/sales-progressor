@@ -11,6 +11,7 @@ import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { applyChaseToTask } from "@/lib/services/reminders";
+import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,12 +55,19 @@ export type ActivityEntry =
 
 export async function getActivityTimeline(
   transactionId: string,
-  agencyId: string | null
+  agencyId: string | null,
+  // Phase 1 commit 4d — optional milestone scope. Default (omitted) =
+  // active-round view used by the live agent file detail. The archived-
+  // round view in Phase 1 commit 7/8 will pass forRound(archivedId, txId)
+  // to read THAT round's PMs + vendor file-level. Comms are file-level
+  // and not filtered by scope; only the milestone completions side is.
+  milestoneScope?: MilestoneScope,
 ): Promise<ActivityEntry[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: {
       id: true,
+      activeBuyerRoundId: true,
       contacts: { select: { id: true, name: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
@@ -78,9 +86,15 @@ export async function getActivityTimeline(
   if (tx.vendorSolicitorContact)    contactMap.set(tx.vendorSolicitorContact.id,    tx.vendorSolicitorContact.name);
   if (tx.purchaserSolicitorContact) contactMap.set(tx.purchaserSolicitorContact.id, tx.purchaserSolicitorContact.name);
 
+  const scope = milestoneScope ?? forRound(tx.activeBuyerRoundId, transactionId);
+
   const [completions, comms] = await Promise.all([
     prisma.milestoneCompletion.findMany({
-      where: { transactionId, state: { in: ["complete", "not_required"] } },
+      where: {
+        transactionId,
+        state: { in: ["complete", "not_required"] },
+        ...milestoneScopeWhere(scope),
+      },
       orderBy: { completedAt: "desc" },
       include: {
         milestoneDefinition: { select: { name: true, code: true } },
@@ -264,6 +278,75 @@ export async function getLastContactedByContact(
   return out;
 }
 
+// Phase 1 commit 4d post-fix — buyer-side detection rule for the
+// OutboundMessage `buyerRoundId` stamp. Two-step logic, ordered by
+// reliability:
+//
+//   1. If the caller supplies a `targetSide` hint (chase / digest /
+//      AI-route paths derive it from chaseTask → rule.targetMilestoneCode;
+//      "PM*" → purchaser, "VM*" → vendor), use it directly. This is the
+//      AUTHORITATIVE signal — a chase to the purchaser-side solicitor is
+//      a buyer-side comm even though the Contact row's roleType doesn't
+//      say so.
+//
+//   2. Otherwise (manual logs without a chase task, WhatsApp imports),
+//      fall back to the strict Phase 0 rule: every contactId resolves to
+//      a Contact row with roleType='purchaser'. We do NOT pretend to
+//      detect "the purchaser's solicitor" by Contact roleType — a
+//      Contact row with roleType='solicitor' carries no side information
+//      (the codebase convention at lib/services/summary.ts:32,
+//      ChaseDrawer.tsx:102, app/api/ai/generate-chase/route.ts:43 all
+//      use `contacts.find((c) => c.roleType === 'solicitor')`, treating
+//      it as "the" solicitor with no side discrimination). Without a
+//      caller-supplied hint there's no honest answer.
+//
+// PRIOR BUG (reverted in this fix): an earlier version compared
+// contactId entries to tx.purchaserSolicitorContactId — but that FK
+// targets SolicitorContact (the firm-directory table), not Contact.
+// OutboundMessage.contactIds holds Contact.id values exclusively
+// (ChaseDrawer.tsx:241, app/api/ai/generate-chase/route.ts:43), so the
+// comparison was structurally impossible and silently never matched.
+
+type StampDecisionInput = {
+  contactIds: string[];
+  targetSide?: "vendor" | "purchaser" | null;
+};
+
+async function decideBuyerSideStamp(input: StampDecisionInput): Promise<boolean> {
+  // Authoritative path: caller knows the side.
+  if (input.targetSide === "purchaser") return true;
+  if (input.targetSide === "vendor") return false;
+
+  // Fallback path: strict all-contactIds-are-purchaser-Contact rule.
+  if (input.contactIds.length === 0) return false;
+  const contacts = await prisma.contact.findMany({
+    where: { id: { in: input.contactIds } },
+    select: { id: true, roleType: true },
+  });
+  if (contacts.length !== input.contactIds.length) return false;
+  return contacts.every((c) => c.roleType === "purchaser");
+}
+
+// Derive the chase target side from a chaseTaskId. Returns "purchaser"
+// for PM* targets, "vendor" for VM*, null when unknown (no chase task
+// or unrecognised code prefix). Used by createCommunicationRecord and
+// /api/chase/send-email to obtain the side hint without each caller
+// re-implementing the lookup.
+export async function deriveChaseTargetSide(
+  chaseTaskId: string | null | undefined,
+): Promise<"vendor" | "purchaser" | null> {
+  if (!chaseTaskId) return null;
+  const task = await prisma.chaseTask.findUnique({
+    where: { id: chaseTaskId },
+    select: { reminderLog: { select: { reminderRule: { select: { targetMilestoneCode: true } } } } },
+  });
+  const code = task?.reminderLog?.reminderRule?.targetMilestoneCode ?? null;
+  if (!code) return null;
+  if (code.startsWith("PM")) return "purchaser";
+  if (code.startsWith("VM")) return "vendor";
+  return null;
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export type CreateCommInput = {
@@ -285,14 +368,42 @@ export type CreateCommInput = {
   // scope replaces agencyId — use getAccessScope(session) at the call site.
   // scopeOwnershipWhere enforces assignedUserId for SP, agencyId for agents, bare id for admin.
   scope: AccessScope;
+  // Phase 1 commit 4d post-fix — optional side hint for buyerRoundId
+  // stamping. "purchaser" = active-round stamp; "vendor" = file-level.
+  // Auto-derived from chaseTaskId when omitted; explicit override is
+  // accepted for non-chase send paths that still know their target
+  // (e.g. a milestone-confirmation notification to the buyer's
+  // solicitor that doesn't go through a chase task).
+  targetSide?: "vendor" | "purchaser" | null;
 };
 
 export async function createCommunicationRecord(input: CreateCommInput) {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(input.scope, input.transactionId),
-    select: { id: true, propertyAddress: true },
+    select: { id: true, propertyAddress: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Phase 1 commit 4d post-fix — send-time round attribution. Side-hint
+  // first (authoritative when present), Phase 0 contactIds fallback
+  // otherwise. See banner above decideBuyerSideStamp for why the
+  // earlier SolicitorContact-FK fiction was reverted.
+  //
+  // Auto-derive targetSide from chaseTaskId when the caller didn't
+  // pass it explicitly — keeps existing call sites round-correct
+  // without forcing every drawer/route to know about the rule.
+  let stampBuyerRoundId: string | null = null;
+  if (tx.activeBuyerRoundId) {
+    let effectiveTargetSide = input.targetSide ?? null;
+    if (effectiveTargetSide == null && input.chaseTaskId) {
+      effectiveTargetSide = await deriveChaseTargetSide(input.chaseTaskId);
+    }
+    const stampDecision = await decideBuyerSideStamp({
+      contactIds: input.contactIds,
+      targetSide: effectiveTargetSide,
+    });
+    if (stampDecision) stampBuyerRoundId = tx.activeBuyerRoundId;
+  }
 
   const record = await prisma.outboundMessage.create({
     data: {
@@ -311,6 +422,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       visibleToClient: input.visibleToClient ?? false,
       createdById: input.createdById,
       createdByRole: input.createdByRole ?? null,
+      buyerRoundId: stampBuyerRoundId,
     },
   });
 
@@ -493,16 +605,28 @@ export async function importWhatsAppChat(
   }
 
   // Verify transaction is in scope + load contacts to validate mapping IDs.
+  // Phase 1 commit 4d post-fix — strict "all contactIds are Contact
+  // rows with roleType='purchaser'" rule. The WhatsApp import has no
+  // side hint per row (it's a bulk historical paste), so the fallback
+  // is the only honest rule. NB the previous version mistakenly added
+  // tx.purchaserSolicitorContactId / brokerContactId to the buyer-side
+  // set — those FKs target SolicitorContact / BrokerContact tables and
+  // never appear in Contact.id space, so the adds were dead.
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
     select: {
       id: true,
       agencyId: true,
-      contacts: { select: { id: true } },
+      activeBuyerRoundId: true,
+      contacts: { select: { id: true, roleType: true } },
     },
   });
   if (!tx) throw new Error("Transaction not found");
   const validContactIds = new Set(tx.contacts.map((c) => c.id));
+  const buyerSideIds = new Set<string>();
+  for (const c of tx.contacts) {
+    if (c.roleType === "purchaser") buyerSideIds.add(c.id);
+  }
 
   // Validate every unique sender has a mapping; every mapped contact belongs to this tx.
   const uniqueSenders = Array.from(new Set(messages.map((m) => m.rawSender)));
@@ -593,22 +717,30 @@ export async function importWhatsAppChat(
   // statement, internally atomic, and orders of magnitude faster.
   // Undo path is unaffected: every row carries the same importBatchId.
   await prisma.outboundMessage.createMany({
-    data: toInsert.map((row) => ({
-      transactionId,
-      agencyId: tx.agencyId,
-      type: row.type,
-      method: "whatsapp" as const,
-      channel: "other" as const,         // explicit — no WhatsApp value in OutboundChannel
-      purpose: "other" as const,         // manual log, not a chase
-      status: row.status,                // sent for outbound, delivered for inbound
-      contactIds: row.contactIds,
-      content: row.content,
-      // createdAt LEFT TO DEFAULT (now()) — these rows were logged just now.
-      sentAt: row.sentAt,                // actual WhatsApp message time
-      createdById,
-      createdByRole,
-      importBatchId,
-    })),
+    data: toInsert.map((row) => {
+      // Phase 1 commit 4d — per-row buyer-side check using the
+      // pre-built set. Empty contactIds → file-level (no recipient).
+      // Mixed sides → file-level. Buyer-side-only → active round.
+      const allBuyerSide =
+        row.contactIds.length > 0 && row.contactIds.every((id) => buyerSideIds.has(id));
+      return {
+        transactionId,
+        agencyId: tx.agencyId,
+        type: row.type,
+        method: "whatsapp" as const,
+        channel: "other" as const,         // explicit — no WhatsApp value in OutboundChannel
+        purpose: "other" as const,         // manual log, not a chase
+        status: row.status,                // sent for outbound, delivered for inbound
+        contactIds: row.contactIds,
+        content: row.content,
+        // createdAt LEFT TO DEFAULT (now()) — these rows were logged just now.
+        sentAt: row.sentAt,                // actual WhatsApp message time
+        createdById,
+        createdByRole,
+        importBatchId,
+        buyerRoundId: allBuyerSide ? tx.activeBuyerRoundId : null,
+      };
+    }),
   });
 
   touchLastActivity(transactionId).catch(() => {});

@@ -9,7 +9,27 @@ import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
 import { maybeStampExchange } from "@/lib/services/billing-trigger";
 import { handleExchangeReversal } from "@/lib/services/billing-reversal";
 import { recordEvent } from "@/lib/command/events/write";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import type { MilestoneScope } from "@/lib/services/milestone-scope";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType } from "@prisma/client";
+
+// Internal helper: fetch the transaction's active round id and build a
+// forRound(activeBuyerRoundId, transactionId) scope. Used by every read
+// site in this file so the round-scoping pattern is identical
+// everywhere. Caller passes the same db handle (prisma or a
+// TransactionClient) it's about to read MilestoneCompletion with — so
+// the activeBuyerRoundId fetch sees the same tx-snapshot as the
+// MilestoneCompletion read that follows.
+async function getActiveRoundScope(
+  db: Prisma.TransactionClient | typeof prisma,
+  transactionId: string,
+): Promise<MilestoneScope> {
+  const row = await db.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  return forRound(row?.activeBuyerRoundId ?? null, transactionId);
+}
 
 export type DefinitionWithCompletion = Omit<MilestoneDefinition, "weight"> & {
   weight: number;
@@ -95,7 +115,14 @@ export async function initializeMilestoneCompletions(
   transactionId: string,
   tenure: Tenure,
   purchaseType: PurchaseType,
-  createdById?: string
+  createdById?: string,
+  // Phase 1 commit 3: when supplied, purchaser-side completion rows get
+  // stamped with this round id at creation. Vendor-side rows stay
+  // file-level (NULL) by Phase 0 attribution rules. Backwards-compatible:
+  // omit to skip the stamping for callers that haven't migrated yet
+  // (currently no such callers — createTransactionAction is the only
+  // entry point and now passes the round).
+  buyerRoundId?: string | null
 ) {
   const defs = await prisma.milestoneDefinition.findMany({
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
@@ -120,28 +147,37 @@ export async function initializeMilestoneCompletions(
 
   const now = new Date();
 
+  // Find-then-create-if-missing for each definition. The compound
+  // upsert key (transactionId_milestoneDefinitionId) was dropped in
+  // 20260604000000_buyer_round_milestone_uniqueness; uniqueness is
+  // enforced by partial indexes (vendor file-level, purchaser per-round)
+  // so the row is matched by (tx, def) here. Existing row → no-op
+  // (parity with the old upsert's empty `update`). Missing row → create.
+  //
+  // Phase 1 commit 3: purchaser-side rows get stamped with the supplied
+  // buyerRoundId so subsequent round-scoped reads (commit 4) find them.
+  // Vendor-side rows stay file-level (buyerRoundId NULL).
   await Promise.all(
-    defs.map((def) => {
+    defs.map(async (def) => {
+      const existing = await prisma.milestoneCompletion.findFirst({
+        where: { transactionId, milestoneDefinitionId: def.id },
+        select: { id: true },
+      });
+      if (existing) return;
       const isNr = autoNrCodes.has(def.code);
       const isAvail = availableCodes.has(def.code);
       const state = isNr ? "not_required" : isAvail ? "available" : "locked";
-
-      return prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: {
-            transactionId,
-            milestoneDefinitionId: def.id,
-          },
-        },
-        create: {
+      const stampRoundId = def.side === "purchaser" ? (buyerRoundId ?? null) : null;
+      await prisma.milestoneCompletion.create({
+        data: {
           transactionId,
           milestoneDefinitionId: def.id,
           state,
           notRequiredReason: isNr ? "Auto-set at file creation" : null,
           completedById: createdById ?? null,
+          buyerRoundId: stampRoundId,
           createdAt: now,
         },
-        update: {},
       });
     })
   );
@@ -168,8 +204,11 @@ export async function unlockDirectDependents(
   const allDefs = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
   const allCodeToId = new Map(allDefs.map((d) => [d.code, d.id]));
 
+  // Round-scoped: VM file-level + active round's PMs together. PM12-VM9
+  // and similar cross-side prereqs are handled by the OR in forRound().
+  const scope = await getActiveRoundScope(db, transactionId);
   const allCompletions = await db.milestoneCompletion.findMany({
-    where: { transactionId },
+    where: { transactionId, ...milestoneScopeWhere(scope) },
     select: { milestoneDefinitionId: true, state: true },
   });
   const completionMap = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c.state]));
@@ -186,15 +225,16 @@ export async function unlockDirectDependents(
     if (allSatisfied) {
       const currentState = completionMap.get(dep.id);
       if (currentState === "locked") {
-        await db.milestoneCompletion.update({
-          where: {
-            transactionId_milestoneDefinitionId: {
-              transactionId,
-              milestoneDefinitionId: dep.id,
-            },
-          },
-          data: { state: "available" },
+        const row = await db.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: dep.id, ...milestoneScopeWhere(scope) },
+          select: { id: true },
         });
+        if (row) {
+          await db.milestoneCompletion.update({
+            where: { id: row.id },
+            data: { state: "available" },
+          });
+        }
       }
     }
   }
@@ -220,8 +260,12 @@ export async function maybeUnlockExchangeGate(
   });
   if (!gateDef) return;
 
+  // Round-scoped: gate code is side-specific so the OR picks vendor
+  // file-level or active round's purchaser correctly.
+  const scope = await getActiveRoundScope(db, transactionId);
+
   const gateCompletion = await db.milestoneCompletion.findFirst({
-    where: { transactionId, milestoneDefinitionId: gateDef.id },
+    where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
     select: { state: true },
   });
   if (!gateCompletion || gateCompletion.state !== "locked") return;
@@ -233,7 +277,11 @@ export async function maybeUnlockExchangeGate(
   if (blockers.length === 0) return;
 
   const blockerCompletions = await db.milestoneCompletion.findMany({
-    where: { transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+    where: {
+      transactionId,
+      milestoneDefinitionId: { in: blockers.map((b) => b.id) },
+      ...milestoneScopeWhere(scope),
+    },
     select: { milestoneDefinitionId: true, state: true },
   });
   const blockerMap = new Map(blockerCompletions.map((c) => [c.milestoneDefinitionId, c.state]));
@@ -244,13 +292,13 @@ export async function maybeUnlockExchangeGate(
   });
   if (!allClear) return;
 
+  const gateRow = await db.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
+    select: { id: true },
+  });
+  if (!gateRow) return;
   await db.milestoneCompletion.update({
-    where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId,
-        milestoneDefinitionId: gateDef.id,
-      },
-    },
+    where: { id: gateRow.id },
     data: { state: "available" },
   });
 
@@ -294,8 +342,10 @@ export async function maybeLockExchangeGate(
   });
   if (!gateDef) return;
 
+  const scope = await getActiveRoundScope(db, transactionId);
+
   const gateCompletion = await db.milestoneCompletion.findFirst({
-    where: { transactionId, milestoneDefinitionId: gateDef.id },
+    where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
     select: { state: true },
   });
   if (!gateCompletion || gateCompletion.state !== "available") return;
@@ -307,7 +357,11 @@ export async function maybeLockExchangeGate(
   if (blockers.length === 0) return;
 
   const blockerCompletions = await db.milestoneCompletion.findMany({
-    where: { transactionId, milestoneDefinitionId: { in: blockers.map((b) => b.id) } },
+    where: {
+      transactionId,
+      milestoneDefinitionId: { in: blockers.map((b) => b.id) },
+      ...milestoneScopeWhere(scope),
+    },
     select: { milestoneDefinitionId: true, state: true },
   });
   const blockerMap = new Map(blockerCompletions.map((c) => [c.milestoneDefinitionId, c.state]));
@@ -318,15 +372,16 @@ export async function maybeLockExchangeGate(
   });
 
   if (!allClear) {
-    await db.milestoneCompletion.update({
-      where: {
-        transactionId_milestoneDefinitionId: {
-          transactionId,
-          milestoneDefinitionId: gateDef.id,
-        },
-      },
-      data: { state: "locked" },
+    const gateRow = await db.milestoneCompletion.findFirst({
+      where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
+      select: { id: true },
     });
+    if (gateRow) {
+      await db.milestoneCompletion.update({
+        where: { id: gateRow.id },
+        data: { state: "locked" },
+      });
+    }
   }
 }
 
@@ -338,7 +393,7 @@ export async function getMilestonesForTransaction(
 ): Promise<MilestonesByTransaction> {
   const transaction = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!transaction) throw new Error("Transaction not found");
 
@@ -347,7 +402,10 @@ export async function getMilestonesForTransaction(
   });
 
   const completions = await prisma.milestoneCompletion.findMany({
-    where: { transactionId },
+    where: {
+      transactionId,
+      ...milestoneScopeWhere(forRound(transaction.activeBuyerRoundId, transactionId)),
+    },
   });
 
   const completionMap = new Map<string, MilestoneCompletion>();
@@ -401,11 +459,13 @@ export async function getDownstreamCompleted(
   });
   if (downstreamDefs.length === 0) return [];
 
+  const scope = await getActiveRoundScope(prisma, transactionId);
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
       transactionId,
       state: "complete",
       milestoneDefinitionId: { in: downstreamDefs.map((d) => d.id) },
+      ...milestoneScopeWhere(scope),
     },
     select: { milestoneDefinitionId: true },
   });
@@ -434,11 +494,16 @@ export async function getImpliedPredecessors(
   });
   if (prereqDefs.length === 0) return [];
 
+  // forRound handles the PM12-⊃-VM9 cross-side prereq via its OR clause:
+  // a single query returns both vendor file-level rows (VM9) and active
+  // round purchaser rows (PM12) without ad-hoc assembly.
+  const scope = await getActiveRoundScope(prisma, transactionId);
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
       transactionId,
       state: { in: ["complete", "not_required"] },
       milestoneDefinitionId: { in: prereqDefs.map((p) => p.id) },
+      ...milestoneScopeWhere(scope),
     },
     select: { milestoneDefinitionId: true },
   });
@@ -478,6 +543,18 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   });
   if (!def) throw new Error("Milestone definition not found");
 
+  // Round-scoped: PM12-⊃-VM9 cross-side prereq handled by the OR in
+  // forRound. The same scope is reused below for the row find + the
+  // out-of-order rows read + the allCurrentCompletions read.
+  // Round id retained explicitly so the create-branch can stamp
+  // buyerRoundId on purchaser-side new rows.
+  const txRowForScope = await db.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+  const scope = forRound(activeBuyerRoundId, input.transactionId);
+
   // Prerequisite guard
   const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
   if (prereqCodes.length > 0) {
@@ -490,6 +567,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
         transactionId: input.transactionId,
         milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
         state: { in: ["complete", "not_required"] },
+        ...milestoneScopeWhere(scope),
       },
     });
     if (satisfied < prereqDefs.length) {
@@ -508,33 +586,45 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   const completedById = input.confirmer.kind === "user" ? input.confirmer.id : null;
   const confirmedByPortal = input.confirmer.kind === "contact";
 
-  const completion = await db.milestoneCompletion.upsert({
+  // Find-then-update-or-create: see comment above initializeMilestoneCompletions
+  // for why the compound upsert key no longer exists.
+  const existingForComplete = await db.milestoneCompletion.findFirst({
     where: {
-      transactionId_milestoneDefinitionId: {
-        transactionId: input.transactionId,
-        milestoneDefinitionId: input.milestoneDefinitionId,
-      },
-    },
-    create: {
       transactionId: input.transactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
-      state: "complete",
-      completedAt: input.completedAt ?? new Date(),
-      eventDate: input.eventDate ?? null,
-      completedById,
-      confirmedByPortal,
-      summaryText,
+      ...milestoneScopeWhere(scope),
     },
-    update: {
-      state: "complete",
-      completedAt: input.completedAt ?? new Date(),
-      eventDate: input.eventDate ?? null,
-      completedById,
-      confirmedByPortal,
-      summaryText,
-      notRequiredReason: null,
-    },
+    select: { id: true },
   });
+  const completion = existingForComplete
+    ? await db.milestoneCompletion.update({
+        where: { id: existingForComplete.id },
+        data: {
+          state: "complete",
+          completedAt: input.completedAt ?? new Date(),
+          eventDate: input.eventDate ?? null,
+          completedById,
+          confirmedByPortal,
+          summaryText,
+          notRequiredReason: null,
+        },
+      })
+    : await db.milestoneCompletion.create({
+        data: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: input.milestoneDefinitionId,
+          state: "complete",
+          completedAt: input.completedAt ?? new Date(),
+          eventDate: input.eventDate ?? null,
+          completedById,
+          confirmedByPortal,
+          summaryText,
+          // Stamp the active round on purchaser-side rows; vendor rows
+          // stay file-level (NULL). Same attribution rule as
+          // initializeMilestoneCompletions + Phase 0 backfill.
+          buyerRoundId: def.side === "purchaser" ? activeBuyerRoundId : null,
+        },
+      });
 
   await unlockDirectDependents(input.transactionId, def.code, tx);
   await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
@@ -542,13 +632,19 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq
   // chain is now satisfied (the agent re-confirmed the missing upstream milestone).
+  // Round-scoped: the active round's PMs + vendor file-level. Archived
+  // rounds' out-of-order flags stay frozen.
   const outOfOrderRows = await db.milestoneCompletion.findMany({
-    where: { transactionId: input.transactionId, outOfOrderCompletion: true },
+    where: {
+      transactionId: input.transactionId,
+      outOfOrderCompletion: true,
+      ...milestoneScopeWhere(scope),
+    },
     select: { milestoneDefinitionId: true },
   });
   if (outOfOrderRows.length > 0) {
     const allCurrentCompletions = await db.milestoneCompletion.findMany({
-      where: { transactionId: input.transactionId },
+      where: { transactionId: input.transactionId, ...milestoneScopeWhere(scope) },
       select: { milestoneDefinitionId: true, state: true },
     });
     const resolveStateMap = new Map(allCurrentCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
@@ -575,6 +671,7 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
           transactionId: input.transactionId,
           milestoneDefinitionId: { in: toResolve },
           outOfOrderCompletion: true,
+          ...milestoneScopeWhere(scope),
         },
         data: { outOfOrderCompletion: false },
       });
@@ -649,6 +746,15 @@ export async function bulkCompleteMilestones(
   });
   const defMap = new Map(defs.map((d) => [d.id, d]));
 
+  // Round-scoped throughout: fetched once, reused for prereq guard, the
+  // find-by-(tx, def) inside the upsert, and the create-branch stamp.
+  const txRowForScope = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+  const scope = forRound(activeBuyerRoundId, transactionId);
+
   // Prerequisite guard: each milestone's direct prereqs must be complete/NR in the
   // DB or also present in this batch (batch items satisfy each other).
   const batchCodes = new Set(defs.map((d) => d.code));
@@ -664,6 +770,7 @@ export async function bulkCompleteMilestones(
         transactionId,
         milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
         state: { in: ["complete", "not_required"] },
+        ...milestoneScopeWhere(scope),
       },
     });
     if (satisfied < prereqDefs.length) {
@@ -684,27 +791,43 @@ export async function bulkCompleteMilestones(
     return text.charAt(0).toUpperCase() + text.slice(1);
   });
 
-  const results = await Promise.all(
-    milestoneDefinitionIds.map((defId, i) =>
-      prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
-        create: {
-          transactionId,
-          milestoneDefinitionId: defId,
-          state: "complete",
-          completedAt: new Date(baseTime.getTime() + i),
-          completedById,
-          summaryText: summaryTexts[i],
-        },
-        update: {
-          state: "complete",
-          completedAt: new Date(baseTime.getTime() + i),
-          completedById,
-          summaryText: summaryTexts[i],
-          notRequiredReason: null,
-        },
+  // Wrapped in $transaction so the find-then-(update|create) sequence
+  // for each row is atomic; the partial unique index (purchaser:
+  // (buyerRoundId, milestoneDefinitionId); vendor: (transactionId,
+  // milestoneDefinitionId) WHERE buyerRoundId IS NULL) catches any
+  // concurrent-create race with a P2002 error rather than letting two
+  // rows land for the same (tx, def) pair.
+  const results = await prisma.$transaction(async (ptx) =>
+    Promise.all(
+      milestoneDefinitionIds.map(async (defId, i) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
+          select: { id: true },
+        });
+        if (existing) {
+          return ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "complete",
+              completedAt: new Date(baseTime.getTime() + i),
+              completedById,
+              summaryText: summaryTexts[i],
+              notRequiredReason: null,
+            },
+          });
+        }
+        const def = defMap.get(defId);
+        return ptx.milestoneCompletion.create({
+          data: {
+            transactionId,
+            milestoneDefinitionId: defId,
+            state: "complete",
+            completedAt: new Date(baseTime.getTime() + i),
+            completedById,
+            summaryText: summaryTexts[i],
+            buyerRoundId: def?.side === "purchaser" ? activeBuyerRoundId : null,
+          },
+        });
       })
     )
   );
@@ -744,10 +867,16 @@ export async function reverseMilestone(
     select: { name: true },
   });
 
+  const scope = await getActiveRoundScope(db, transactionId);
+  const row = await db.milestoneCompletion.findFirst({
+    where: { transactionId, milestoneDefinitionId, ...milestoneScopeWhere(scope) },
+    select: { id: true },
+  });
+  if (!row) {
+    throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${milestoneDefinitionId}`);
+  }
   await db.milestoneCompletion.update({
-    where: {
-      transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId },
-    },
+    where: { id: row.id },
     data: { state: "available", completedAt: null, completedById: null, summaryText: null },
   });
 
@@ -781,15 +910,35 @@ export async function bulkReverseMilestones(
   });
   const nameMap = new Map(defs.map((d) => [d.id, d.name]));
 
+  // Bulk reverse: find each (tx, def) row and update by id. Behaviour
+  // preserved — caller's expectation is that every supplied defId has a
+  // corresponding completion row already; an updateMany filtered by
+  // milestoneDefinitionId IN (...) AND transactionId would do the same
+  // write in a single round-trip, but the parallel find→update style
+  // preserves the existing per-row error semantics (throws if a row
+  // is missing, which has never been hit because callers compute the
+  // list from existing rows). Used by both the undo flow and (in
+  // Phase 1 commit 6) the relist action's vendor reset.
+  //
+  // Round-scoped: forRound's OR picks vendor file-level OR active-round
+  // purchaser per def. For relist's vendor reset (commit 6) the
+  // milestoneDefinitionIds are VM codes; the OR still works because
+  // forRound returns vendor file-level rows alongside the active round.
+  const scope = await getActiveRoundScope(db, transactionId);
   await Promise.all(
-    milestoneDefinitionIds.map((defId) =>
-      db.milestoneCompletion.update({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
+    milestoneDefinitionIds.map(async (defId) => {
+      const row = await db.milestoneCompletion.findFirst({
+        where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
+        select: { id: true },
+      });
+      if (!row) {
+        throw new Error(`MilestoneCompletion not found for tx=${transactionId} def=${defId}`);
+      }
+      await db.milestoneCompletion.update({
+        where: { id: row.id },
         data: { state: "locked", completedAt: null, completedById: null, summaryText: null },
-      })
-    )
+      });
+    })
   );
 
   await Promise.all(
@@ -821,24 +970,48 @@ export async function markNotRequired(
     select: { name: true, code: true, side: true },
   });
 
-  const completion = await prisma.milestoneCompletion.upsert({
-    where: {
-      transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId },
-    },
-    create: {
-      transactionId,
-      milestoneDefinitionId,
-      state: "not_required",
-      completedById,
-      notRequiredReason: reason,
-    },
-    update: {
-      state: "not_required",
-      completedAt: null,
-      summaryText: null,
-      completedById,
-      notRequiredReason: reason,
-    },
+  // $transaction wraps the find→(update|create) so the read and the
+  // write are atomic; partial unique index catches concurrent-create
+  // races. Replaces the prior `prisma.milestoneCompletion.upsert` whose
+  // compound key (transactionId_milestoneDefinitionId) no longer exists.
+  const completion = await prisma.$transaction(async (ptx) => {
+    const txRowForScope = await ptx.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+    const scope = forRound(activeBuyerRoundId, transactionId);
+    const existing = await ptx.milestoneCompletion.findFirst({
+      where: { transactionId, milestoneDefinitionId, ...milestoneScopeWhere(scope) },
+      select: { id: true },
+    });
+    if (existing) {
+      return ptx.milestoneCompletion.update({
+        where: { id: existing.id },
+        data: {
+          state: "not_required",
+          completedAt: null,
+          summaryText: null,
+          completedById,
+          notRequiredReason: reason,
+        },
+      });
+    }
+    // Round-stamp purchaser-side new rows; vendor stays file-level.
+    const newDef = await ptx.milestoneDefinition.findUnique({
+      where: { id: milestoneDefinitionId },
+      select: { side: true },
+    });
+    return ptx.milestoneCompletion.create({
+      data: {
+        transactionId,
+        milestoneDefinitionId,
+        state: "not_required",
+        completedById,
+        notRequiredReason: reason,
+        buyerRoundId: newDef?.side === "purchaser" ? activeBuyerRoundId : null,
+      },
+    });
   });
 
   // NR also unlocks dependents (NR counts as satisfied for prereq purposes)
@@ -893,28 +1066,48 @@ export async function bulkMarkNotRequired(
 ) {
   if (milestoneDefinitionIds.length === 0) return;
 
-  await Promise.all(
-    milestoneDefinitionIds.map((defId) =>
-      prisma.milestoneCompletion.upsert({
-        where: {
-          transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId },
-        },
-        create: {
-          transactionId,
-          milestoneDefinitionId: defId,
-          state: "not_required",
-          completedById,
-          notRequiredReason: reason,
-        },
-        update: {
-          state: "not_required",
-          completedAt: null,
-          summaryText: null,
-          notRequiredReason: reason,
-        },
+  await prisma.$transaction(async (ptx) => {
+    const txRowForScope = await ptx.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
+    const scope = forRound(activeBuyerRoundId, transactionId);
+    const defs = await ptx.milestoneDefinition.findMany({
+      where: { id: { in: milestoneDefinitionIds } },
+      select: { id: true, side: true },
+    });
+    const sideMap = new Map(defs.map((d) => [d.id, d.side]));
+    await Promise.all(
+      milestoneDefinitionIds.map(async (defId) => {
+        const existing = await ptx.milestoneCompletion.findFirst({
+          where: { transactionId, milestoneDefinitionId: defId, ...milestoneScopeWhere(scope) },
+          select: { id: true },
+        });
+        if (existing) {
+          return ptx.milestoneCompletion.update({
+            where: { id: existing.id },
+            data: {
+              state: "not_required",
+              completedAt: null,
+              summaryText: null,
+              notRequiredReason: reason,
+            },
+          });
+        }
+        return ptx.milestoneCompletion.create({
+          data: {
+            transactionId,
+            milestoneDefinitionId: defId,
+            state: "not_required",
+            completedById,
+            notRequiredReason: reason,
+            buyerRoundId: sideMap.get(defId) === "purchaser" ? activeBuyerRoundId : null,
+          },
+        });
       })
-    )
-  );
+    );
+  });
 }
 
 // ── markNotRequiredWithCascade ───────────────────────────────────────────────
@@ -1011,9 +1204,15 @@ export async function getUndoImpact(
     ...partnerDownstream.map((m) => m.id),
   ])];
 
+  const getUndoImpactScope = await getActiveRoundScope(prisma, transactionId);
   const reconciledCompletions = allDownstreamIds.length > 0
     ? await prisma.milestoneCompletion.findMany({
-        where: { transactionId, milestoneDefinitionId: { in: allDownstreamIds }, reconciledAtExchange: true },
+        where: {
+          transactionId,
+          milestoneDefinitionId: { in: allDownstreamIds },
+          reconciledAtExchange: true,
+          ...milestoneScopeWhere(getUndoImpactScope),
+        },
         select: { milestoneDefinitionId: true },
       })
     : [];
@@ -1036,7 +1235,7 @@ export async function getUndoImpact(
   const [allDefs, allCompletions] = await Promise.all([
     prisma.milestoneDefinition.findMany({ select: { id: true, side: true, weight: true } }),
     prisma.milestoneCompletion.findMany({
-      where: { transactionId },
+      where: { transactionId, ...milestoneScopeWhere(getUndoImpactScope) },
       select: { milestoneDefinitionId: true, state: true },
     }),
   ]);
@@ -1123,8 +1322,9 @@ export async function executeUndoMilestone(input: {
   const idToCode = new Map(allDefs.map((d) => [d.id, d.code]));
   const idToSide = new Map(allDefs.map((d) => [d.id, d.side]));
 
+  const undoScope = await getActiveRoundScope(prisma, transactionId);
   const allCompletions = await prisma.milestoneCompletion.findMany({
-    where: { transactionId },
+    where: { transactionId, ...milestoneScopeWhere(undoScope) },
     select: { milestoneDefinitionId: true, state: true },
   });
   const stateMap = new Map(allCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
@@ -1171,12 +1371,19 @@ export async function executeUndoMilestone(input: {
     : Array.from(allReverseCodes);
 
   await prisma.$transaction(async (ptx) => {
-    // Reverse primary milestones (target + bilateral partner)
-    for (const defId of primaryIds) {
+    // Reverse primary milestones (target + bilateral partner). Compound
+    // upsert key (transactionId_milestoneDefinitionId) was dropped in
+    // commit 1 of Phase 1; find-by-(tx, def) + update-by-id matches the
+    // single existing row (vendor: file-level; purchaser: active round).
+    const primaryRows = await ptx.milestoneCompletion.findMany({
+      where: { transactionId, milestoneDefinitionId: { in: primaryIds }, ...milestoneScopeWhere(undoScope) },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of primaryRows) {
       await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        where: { id: row.id },
         data: {
-          state: computeNewState(defId),
+          state: computeNewState(row.milestoneDefinitionId),
           completedAt: null,
           completedById: null,
           summaryText: null,
@@ -1188,11 +1395,15 @@ export async function executeUndoMilestone(input: {
     }
 
     // Reverse cascade milestones (cascade mode only)
-    for (const defId of cascadeIds) {
+    const cascadeRows = await ptx.milestoneCompletion.findMany({
+      where: { transactionId, milestoneDefinitionId: { in: cascadeIds }, ...milestoneScopeWhere(undoScope) },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of cascadeRows) {
       await ptx.milestoneCompletion.update({
-        where: { transactionId_milestoneDefinitionId: { transactionId, milestoneDefinitionId: defId } },
+        where: { id: row.id },
         data: {
-          state: computeNewState(defId),
+          state: computeNewState(row.milestoneDefinitionId),
           completedAt: null,
           completedById: null,
           summaryText: null,
@@ -1206,7 +1417,7 @@ export async function executeUndoMilestone(input: {
     // Re-lock available milestones whose prereqs are now unsatisfied
     if (availableToRelock.length > 0) {
       await ptx.milestoneCompletion.updateMany({
-        where: { transactionId, milestoneDefinitionId: { in: availableToRelock } },
+        where: { transactionId, milestoneDefinitionId: { in: availableToRelock }, ...milestoneScopeWhere(undoScope) },
         data: { state: "locked" },
       });
     }
@@ -1214,7 +1425,7 @@ export async function executeUndoMilestone(input: {
     // target_only: flag still-complete downstream with outOfOrderCompletion
     if (mode === "target_only" && cascadeItems.length > 0) {
       await ptx.milestoneCompletion.updateMany({
-        where: { transactionId, milestoneDefinitionId: { in: cascadeItems.map((m) => m.id) } },
+        where: { transactionId, milestoneDefinitionId: { in: cascadeItems.map((m) => m.id) }, ...milestoneScopeWhere(undoScope) },
         data: { outOfOrderCompletion: true },
       });
     }
@@ -1348,11 +1559,13 @@ export async function reverseMilestoneWithCascade(input: {
       where: { code: { in: cascadeCodes } },
       select: { id: true },
     });
+    const nrCascadedScope = await getActiveRoundScope(prisma, input.transactionId);
     const nrCascaded = await prisma.milestoneCompletion.findMany({
       where: {
         transactionId: input.transactionId,
         milestoneDefinitionId: { in: cascadeDefs.map((d) => d.id) },
         state: "not_required",
+        ...milestoneScopeWhere(nrCascadedScope),
       },
       select: { milestoneDefinitionId: true },
     });

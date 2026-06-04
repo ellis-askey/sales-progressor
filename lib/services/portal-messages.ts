@@ -69,12 +69,14 @@ export async function sendClientPortalMessage(token: string, content: string): P
     select: {
       id: true,
       name: true,
+      roleType: true,
       propertyTransactionId: true,
       transaction: {
         select: {
           id: true,
           propertyAddress: true,
           agentUserId: true,
+          activeBuyerRoundId: true,
           assignedUser: { select: { id: true, name: true, email: true } },
         },
       },
@@ -82,12 +84,16 @@ export async function sendClientPortalMessage(token: string, content: string): P
   });
   if (!contact) throw new Error("Invalid token");
 
+  // Phase 1 commit 4d — purchaser contacts' portal messages are
+  // round-scoped at write time; vendor contacts stay file-level.
+  // Same attribution rule as Phase 0 backfill for PortalMessage.
   await prisma.portalMessage.create({
     data: {
       transactionId: contact.propertyTransactionId,
       contactId:     contact.id,
       content,
       fromClient:    true,
+      buyerRoundId:  contact.roleType === "purchaser" ? contact.transaction.activeBuyerRoundId : null,
     },
   });
   void trackServerEvent(`portal-${contact.id}`, ANALYTICS_EVENTS.PORTAL_MESSAGE_SENT_BY_CONTACT, {
@@ -155,8 +161,9 @@ export async function sendProgressorPortalReply(
       id: true,
       name: true,
       email: true,
+      roleType: true,
       portalToken: true,
-      transaction: { select: { propertyAddress: true } },
+      transaction: { select: { propertyAddress: true, activeBuyerRoundId: true } },
     },
   });
   if (!contact) throw new Error("Contact not found");
@@ -168,6 +175,8 @@ export async function sendProgressorPortalReply(
       content,
       fromClient: false,
       sentById:   progressorId,
+      // Phase 1 commit 4d — same rule as the from-client path above.
+      buyerRoundId: contact.roleType === "purchaser" ? contact.transaction.activeBuyerRoundId : null,
     },
   });
   void trackServerEvent(progressorId, ANALYTICS_EVENTS.PORTAL_MESSAGE_SENT_BY_AGENT, {

@@ -20,6 +20,10 @@ type Props = {
   serviceType?: ServiceType | null;
   backHref?: string;
   flagSlot?: React.ReactNode;
+  // Phase 1 commit 8 — slot for the round chip (alongside status +
+  // service-type badges in the hero's badge row). Rendered as-is so
+  // PropertyHero stays unaware of round semantics.
+  roundChipSlot?: React.ReactNode;
   assignedUserName?: string | null;
   createdAt?: Date | string | null;
   transactionId?: string;
@@ -83,7 +87,7 @@ function formatPurchaseType(p: PurchaseType): string {
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false,
 }: Props) {
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
@@ -203,6 +207,7 @@ export function PropertyHero({
               {metaText && (
                 <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{metaText}</span>
               )}
+              {roundChipSlot}
             </div>
           </div>
           {flagSlot}

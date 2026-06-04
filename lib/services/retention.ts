@@ -388,9 +388,24 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
       const txIds = agentTxIds.map((t) => t.id);
       if (txIds.length === 0) continue;
 
-      const completionCount = await prisma.milestoneCompletion.count({
-        where: { transactionId: { in: txIds }, state: "complete" },
-      });
+      // PHASE 1 (b)-CLASS — fires comms (retention email to agent
+      // when their oldest tx has zero complete milestones). Under-
+      // scoping would let an archived round's completions hide a
+      // stalling active round, so the retention email never goes out
+      // when it should. Raw SQL with the per-tx OR clause matches
+      // forRound semantics across the multi-tx IN list.
+      const countRows = await prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(*)::bigint AS count
+        FROM "MilestoneCompletion" mc
+        JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
+        WHERE mc."transactionId" = ANY(${txIds})
+          AND mc.state = 'complete'
+          AND (
+            mc."buyerRoundId" IS NULL
+            OR mc."buyerRoundId" = pt."activeBuyerRoundId"
+          )
+      `;
+      const completionCount = Number(countRows[0]?.count ?? 0);
       if (completionCount > 0) continue;
 
       candidates.push(user);
