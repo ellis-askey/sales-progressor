@@ -53,6 +53,31 @@ If you re-seed, you'll need to re-run the password rotation (above) and update t
 
 ---
 
+## Dedicated Playwright account (rotation-excluded)
+
+| Email | Role | Owner |
+|---|---|---|
+| `playwright-bot@hartwellpartners.co.uk` | Director (Hartwell & Partners) | Verification suite only |
+
+Created 2026-06-04. The visual verification suite (`scripts/verify-8-playwright.ts`) used to log in as a shared seed account; coupling a verification tool to a rotated seed and then letting that tool write back to fix the resulting failures is the failure mode this account exists to eliminate.
+
+**Incident closure (2026-06-04):** during the same session a "rotation cron rewriting Emily's password" was reported. Investigation found no unidentified process. Root causes: (1) a single manual run of `scripts/rotate-staging-test-passwords.ts` earlier the same day in response to the public-repo finding, (2) the auth rate limiter (`checkAuthLimit` in [lib/auth.ts](../lib/auth.ts)) returning null on repeated failed logins from the suite's IP, which presents identically to "wrong password". A temporary workaround that had the suite reset Emily's password in-process compounded the apparent symptom by generating real `updatedAt` churn. Incident closed; no unidentified writer exists.
+
+Rules (LOCKED policy — this account's password is set ONCE and is permanent):
+
+- The password is **set once**, by Ellis, with a value he stores in the password manager under **"Sales Progressor — staging test accounts → playwright-bot"**. It is **never rotated**.
+- The verification suite reads the password from the `PLAYWRIGHT_TEST_PASSWORD` env var (and `PLAYWRIGHT_TEST_EMAIL`, defaulting to `playwright-bot@hartwellpartners.co.uk`). The suite NEVER writes to the User table — the dedicated-account pattern only works if the suite is read-only against credentials.
+- The account is on a HARD BLOCKLIST in [scripts/rotate-staging-test-passwords.ts](../scripts/rotate-staging-test-passwords.ts) — if anyone ever adds it to `TEST_ACCOUNT_EMAILS`, the rotation script aborts before writing anything. Do not remove that blocklist entry.
+- One-time provisioning command (the only time `scripts/ensure-playwright-test-user.ts` ever runs against this account):
+  ```bash
+  PLAYWRIGHT_TEST_PASSWORD=<value-from-password-manager> \
+    npx -y dotenv -e .env --override -- npx ts-node \
+    --project tsconfig.scripts.json scripts/ensure-playwright-test-user.ts
+  ```
+  The script refuses to run against production, refuses passwords <24 chars, and refuses any value on the known-weak list. After this single run, password admin for this account is over, forever.
+
+---
+
 ## Core Flows to Test
 
 ### 1. Internal admin / progressor login
