@@ -13,6 +13,17 @@
 //                         view that sale.")
 //   - Withdrawn:         "Sale N with {buyerName} · fell through {date}"
 //
+// Hover-reveal (added 2026-06-04, voice-passed): on hover/focus the
+// chip's default text crossfades out and a short action prompt fades
+// in — "View previous sale" (one prior fall-through) or "View previous
+// sales" (multiple). Background tint deepens and a tiny "→" glyph
+// slides in from the right. Inert on the disabled variant (no archived
+// rounds — withdrawn-R1 fixture). The aria-label keeps the longer
+// `hoverHint` so screen readers get the specific phrasing; the visible
+// reveal is for sighted users only. Crossfade + slide are scoped to
+// the .agent-chip-hover-host class in agent-system.css, where the
+// prefers-reduced-motion override also lives.
+//
 // Click opens the ArchivedRoundDrawer for the most recent archived round.
 
 import { useState } from "react";
@@ -62,12 +73,25 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
     ? `View ${mostRecentArchived ? `Sale ${mostRecentArchived.roundNumber}` : "this sale"}'s record.`
     : "The previous buyer fell through; view that sale.";
 
+  // Short visible action prompt revealed on hover/focus.
+  // Singular/plural driven by archived.length; only shown when there's
+  // at least one archived sale to view.
+  const revealText = archived.length >= 2 ? "View previous sales" : "View previous sale";
+
+  // Hover tint matches the chip's at-rest tint, deepened ~80%.
+  const hoverTintWithdrawn = "rgba(199, 62, 62, 0.18)";
+  const hoverTintActive    = "rgba(45, 52, 64, 0.12)";
+  const baseTintWithdrawn  = "rgba(199, 62, 62, 0.10)";
+  const baseTintActive     = "rgba(45, 52, 64, 0.06)";
+
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
         title={hoverHint}
+        className="agent-chip-hover-host"
+        data-archived={archived.length === 0 ? "0" : undefined}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -77,7 +101,11 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "0.01em",
-          background: isWithdrawn ? "rgba(199, 62, 62, 0.10)" : "rgba(45, 52, 64, 0.06)",
+          // Background swap is CSS-only via :hover on the host so the
+          // tint participates in the same 150ms ease-out as the text
+          // crossfade — keeping both on a single transition prevents
+          // them from drifting apart visually.
+          background: isWithdrawn ? baseTintWithdrawn : baseTintActive,
           color: isWithdrawn ? "var(--agent-danger, #C73E3E)" : "var(--agent-text-secondary, #4b5563)",
           border: "0.5px solid rgba(0,0,0,0.08)",
           cursor: archived.length > 0 ? "pointer" : "default",
@@ -85,8 +113,16 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
         }}
         aria-label={hoverHint}
         disabled={archived.length === 0}
+        onMouseEnter={(e) => { if (archived.length > 0) e.currentTarget.style.background = isWithdrawn ? hoverTintWithdrawn : hoverTintActive; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = isWithdrawn ? baseTintWithdrawn : baseTintActive; }}
+        onFocus={(e) => { if (archived.length > 0) e.currentTarget.style.background = isWithdrawn ? hoverTintWithdrawn : hoverTintActive; }}
+        onBlur={(e) => { e.currentTarget.style.background = isWithdrawn ? baseTintWithdrawn : baseTintActive; }}
       >
-        {chipLabel}
+        <span className="agent-chip-hover-default">{chipLabel}</span>
+        <span className="agent-chip-hover-reveal" aria-hidden="true">
+          {revealText}
+          <span className="agent-chip-hover-arrow">→</span>
+        </span>
       </button>
       {archived.length > 0 && (
         <ArchivedRoundDrawer

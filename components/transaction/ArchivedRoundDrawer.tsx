@@ -351,27 +351,49 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               </p>
             )}
           </div>
-          {archivedRounds.length > 1 && data && (
-            <select
-              value={selectedRoundId ?? ""}
-              onChange={(e) => setSelectedRoundId(e.target.value)}
-              className="text-xs"
-              style={{
-                padding: "4px 8px", borderRadius: 8,
-                background: "var(--agent-surface-glass)",
-                border: "0.5px solid var(--agent-border-default)",
-                color: "var(--agent-text-primary)",
-              }}
-            >
-              {archivedRounds.map((r) => (
-                <option key={r.id} value={r.id}>Sale {r.roundNumber}</option>
-              ))}
-            </select>
-          )}
           <button type="button" onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
             <X size={14} weight="bold" />
           </button>
         </div>
+
+        {/* Sale-switcher pill group. Only renders when there's more than
+            one archived sale; mirrors the channel-selector pattern in
+            components/activity/CommsEntry.tsx (coral-tint background on
+            the current pill, transparent + muted on the others).
+            Newest on the left — matches the most-recent-first sort the
+            chip uses to choose the default. Overflows-x scroll on the
+            rare 3+ fall-through case. */}
+        {archivedRounds.length > 1 && data && (
+          <div
+            role="group"
+            aria-label="Switch between previous sales"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "10px 20px",
+              borderBottom: "0.5px solid rgba(0,0,0,0.08)",
+              overflowX: "auto",
+              flexShrink: 0,
+            }}
+          >
+            {archivedRounds.map((r) => {
+              const isCurrent = r.id === selectedRoundId;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="agent-sale-pill"
+                  aria-current={isCurrent ? "true" : undefined}
+                  aria-label={`Show Sale ${r.roundNumber}`}
+                  onClick={() => { if (!isCurrent) setSelectedRoundId(r.id); }}
+                >
+                  Sale {r.roundNumber}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto" }}>

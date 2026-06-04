@@ -1542,6 +1542,98 @@
     animation: agent-row-exit 150ms ease-in forwards;
   }
 
+  /* ── Chip hover-reveal (RoundChip) ───────────────────────────────────────── */
+  /* Crossfade between the chip's default content and a short action prompt.
+   * Both sit in the same box; the default dictates width, the reveal floats
+   * over it with absolute positioning so there's no layout shift in
+   * PropertyHero's header on hover. Background tint deepens, and a small
+   * arrow glyph slides in from the right.
+   *
+   * Inert on the disabled variant ([data-archived="0"]): the chip is a
+   * non-interactive pill in that case, so we don't change anything on hover.
+   *
+   * Reduced-motion: drop the slide and the timing, keep opacity swap. */
+
+  .agent-chip-hover-host {
+    position: relative;
+    transition: background 150ms ease-out;
+  }
+  .agent-chip-hover-host .agent-chip-hover-default {
+    transition: opacity 150ms ease-out;
+  }
+  .agent-chip-hover-host .agent-chip-hover-reveal {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+    pointer-events: none;
+  }
+  .agent-chip-hover-host .agent-chip-hover-arrow {
+    display: inline-block;
+    transform: translateX(-4px);
+    transition: transform 150ms ease-out;
+  }
+  .agent-chip-hover-host:not([data-archived="0"]):hover .agent-chip-hover-default,
+  .agent-chip-hover-host:not([data-archived="0"]):focus-visible .agent-chip-hover-default {
+    opacity: 0;
+  }
+  .agent-chip-hover-host:not([data-archived="0"]):hover .agent-chip-hover-reveal,
+  .agent-chip-hover-host:not([data-archived="0"]):focus-visible .agent-chip-hover-reveal {
+    opacity: 1;
+  }
+  .agent-chip-hover-host:not([data-archived="0"]):hover .agent-chip-hover-arrow,
+  .agent-chip-hover-host:not([data-archived="0"]):focus-visible .agent-chip-hover-arrow {
+    transform: translateX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-chip-hover-host,
+    .agent-chip-hover-host .agent-chip-hover-default,
+    .agent-chip-hover-host .agent-chip-hover-reveal {
+      transition: opacity 0ms !important;
+    }
+    .agent-chip-hover-host .agent-chip-hover-arrow {
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* ── Sale-switcher pill group (ArchivedRoundDrawer) ──────────────────────── */
+  /* Mirrors the channel-selector pattern in components/activity/CommsEntry.tsx:
+   * coral-tint background on selected, transparent / muted on unselected,
+   * 100ms background+colour transition. Pills are styled via this class so
+   * the JSX stays clean and reduced-motion handling is centralised. */
+
+  .agent-sale-pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    background: var(--agent-surface-glass);
+    color: var(--agent-text-muted);
+    transition: background 100ms, color 100ms;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .agent-sale-pill:hover:not([aria-current="true"]) {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--agent-text-primary);
+  }
+  .agent-sale-pill[aria-current="true"] {
+    background: rgba(255, 107, 74, 0.10);
+    color: var(--agent-coral);
+    cursor: default;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-sale-pill { transition: none !important; }
+  }
+
   /* ── Reduced-motion overrides ────────────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {

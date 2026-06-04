@@ -102,14 +102,18 @@ async function main() {
     await page.waitForLoadState("networkidle").catch(() => {});
     await snap(page, "02-withdrawn-file");
     // The chip will render as "Sale N with {buyer} · fell through {date}".
+    // The default text lives inside a .agent-chip-hover-default span
+    // (the sibling .agent-chip-hover-reveal carries "View previous
+    // sale[s]" and is opacity-0 at rest). Scope reads to the default
+    // span so the hover-reveal copy doesn't pollute textContent.
     const chip = page.locator('button:has-text("fell through")').first();
     const chipVisible = await chip.isVisible().catch(() => false);
     record("chip visible on withdrawn file", chipVisible);
 
     if (chipVisible) {
-      const chipText = (await chip.textContent()) ?? "";
-      console.log(`     chip text: "${chipText.trim()}"`);
-      record("chip text contains 'fell through'", chipText.includes("fell through"));
+      const chipDefaultText = (await chip.locator(".agent-chip-hover-default").textContent()) ?? "";
+      console.log(`     chip text: "${chipDefaultText.trim()}"`);
+      record("chip text contains 'fell through'", chipDefaultText.includes("fell through"));
 
       // 4. Open the drawer. Wait for the /api/transactions/.../rounds/...
       //    response to land before snapping; drawer starts in "Loading…"
