@@ -117,6 +117,7 @@ model User {
   chaseTasks           ChaseTask[]
   communications       OutboundMessage[]     @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
+  acknowledgedRelists  BuyerRound[]          @relation("BuyerRoundRelistAck")
 
   retentionEmailOptOut Boolean   @default(false)
   emailUnsubscribedAt  DateTime?
@@ -404,6 +405,17 @@ model BuyerRound {
 
   createdAt  DateTime  @default(now())
   archivedAt DateTime?
+
+  // Acknowledgement of the relist event that created THIS round. Set
+  // when an authorised user clicks "Acknowledge" on the hub's "New
+  // buyer added" card. Persisted on the round (not on the tx) because
+  // a second relist creates a fresh unacknowledged state — each round
+  // needs its own click. Round 1 is created at file-create time, not
+  // via relist, so it's structurally unacknowledgeable (the card query
+  // filters roundNumber > 1). Phase 1 commit 8b — hub card addition.
+  relistAcknowledgedAt   DateTime?
+  relistAcknowledgedById String?
+  relistAcknowledgedBy   User?     @relation("BuyerRoundRelistAck", fields: [relistAcknowledgedById], references: [id])
 
   // Reverse relations — all nullable on the child side. No read path
   // consumes these in Phase 0.

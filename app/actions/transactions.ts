@@ -2309,3 +2309,48 @@ export async function relistTransactionImpl(
   }
   return { newRoundId: result.newRoundId, newContactId: result.newContactId, newRoundNumber: nextRoundNumber };
 }
+
+// ─── acknowledgeRelistAction ─────────────────────────────────────────
+// Hub card "New buyer added" → Acknowledge button. Stamps
+// BuyerRound.relistAcknowledgedAt + relistAcknowledgedById on the
+// supplied round. Idempotent — re-clicking is a no-op (the
+// updateMany clause filters relistAcknowledgedAt IS NULL).
+//
+// Visibility: the SP assigned to the file (or any admin / internal
+// staff in admin_all mode) can acknowledge. The scope check below
+// rejects everything else with "Not found" — same pattern as the
+// archived-round drawer's API route.
+export async function acknowledgeRelistAction(roundId: string): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const round = await prisma.buyerRound.findUnique({
+    where: { id: roundId },
+    select: { id: true, transactionId: true, relistAcknowledgedAt: true, roundNumber: true },
+  });
+  if (!round) throw new Error("Not found");
+  if (round.roundNumber <= 1) throw new Error("Round 1 cannot be acknowledged (it was not relisted)");
+
+  // Ownership check via the same scope helper used elsewhere.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, round.transactionId),
+    select: { id: true, serviceType: true, assignedUserId: true },
+  });
+  if (!tx) throw new Error("Not found");
+  if (tx.serviceType !== "outsourced") throw new Error("Acknowledgement only applies to outsourced files");
+  // Already acknowledged? Idempotent no-op.
+  if (round.relistAcknowledgedAt) return;
+
+  await prisma.buyerRound.updateMany({
+    where: { id: roundId, relistAcknowledgedAt: null },
+    data: {
+      relistAcknowledgedAt: new Date(),
+      relistAcknowledgedById: session.user.id,
+    },
+  });
+  try {
+    revalidatePath("/agent/hub");
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("static generation store")) throw err;
+  }
+}

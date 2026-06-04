@@ -13,7 +13,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
-  getHubUnassignedFiles, getExpiredHolds,
+  getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -23,6 +23,7 @@ import {
 } from "@/components/hub/HubCharts";
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
+import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
 import { ExpiredHoldsCard } from "@/components/hub/ExpiredHoldsCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
@@ -93,7 +94,7 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -104,6 +105,7 @@ export default async function HubPreviewPage() {
       getHubDiary(vis),
       getHubUnassignedFiles(vis),
       getExpiredHolds(vis),
+      getHubRelistsToAcknowledge(vis),
     ]);
 
   // Derived values
@@ -351,6 +353,7 @@ export default async function HubPreviewPage() {
           <ExpiredHoldsCard initialItems={expiredHolds} />
           <AttentionListView items={attentionItems} />
           <UnassignedFilesView initialFiles={unassignedFiles} />
+          <NewBuyersToAcknowledgeView initialRounds={relistsToAcknowledge} />
         </AnimatedSection>
 
         {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}
