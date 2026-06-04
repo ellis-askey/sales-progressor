@@ -1,4 +1,4 @@
-Tore down 4 pre-existing rehearsal fixtures.
+Tore down 8 pre-existing rehearsal fixtures.
 Using agency Brennan & Co (cmpehuy6300012ebfcpybgmk1)
 Director:           Sam Brennan (cmpehuy8900072ebfyavx2ei8)
 Assigned SP:        cmpehuy9d000b2ebfl0psqlve
@@ -6,7 +6,7 @@ Assigned SP:        cmpehuy9d000b2ebfl0psqlve
 ══════════════════════════════════════════════════════════════════════
   ITEM 1 — Create → withdraw → relist (round 1 → 2)
 ══════════════════════════════════════════════════════════════════════
-Seeded tx cmpzj94q80002phniyiogagtx, round1 cmpzj94rc0004phni795gdbei
+Seeded tx cmpzjrg0v0002g8u8kgm52wem, round1 cmpzjrg1t0004g8u8b4ovawft
 
 ── Pre-relist VM state (preserved set must remain after relist) ──────────────────────────────────────────────────
   preserved: VM1=complete, VM3=complete, VM4=complete, VM5=complete, VM6=complete, VM8=complete, VM9=complete
@@ -14,7 +14,7 @@ Seeded tx cmpzj94q80002phniyiogagtx, round1 cmpzj94rc0004phni795gdbei
 Withdraw applied. fallThroughReason="Buyer pulled out — broken chain"
 
 ── Calling relistTransactionImpl ──────────────────────────────────────────────────
-Returned: newRoundId=cmpzj98q0001ophni44ub4bjp, newContactId=cmpzj992a001qphni5rsgw5qo, newRoundNumber=2
+Returned: newRoundId=cmpzjrhyc001og8u8wtwq5c1s, newContactId=cmpzjrice001qg8u8x4103epo, newRoundNumber=2
 
 ── Post-relist VM + PM state ──────────────────────────────────────────────────
   VM preserved: VM1=complete, VM3=complete, VM4=complete, VM5=complete, VM6=complete, VM8=complete, VM9=complete
@@ -31,7 +31,7 @@ Returned: newRoundId=cmpzj98q0001ophni44ub4bjp, newContactId=cmpzj992a001qphni5r
   snapshot codes:    VM7=complete, VM10=complete, VM2=complete, VM11=complete, VM12=locked, VM13=locked, VM15=locked, VM16=locked, VM18=locked, VM19=locked, VM20=locked, VM14=locked, VM17=locked
 
 ── PropertyTransaction mirror updated ──────────────────────────────────────────────────
-  status=active  activeBuyerRoundId=cmpzj98q0001ophni44ub4bjp  fallThroughReason=null
+  status=active  activeBuyerRoundId=cmpzjrhyc001og8u8wtwq5c1s  fallThroughReason=null
   purchasePrice=51000000  expectedExchangeDate=null  completionDate=null
 
 ── PriceHistory row stamped to new round ──────────────────────────────────────────────────
@@ -41,8 +41,8 @@ Returned: newRoundId=cmpzj98q0001ophni44ub4bjp, newContactId=cmpzj992a001qphni5r
   [file-level] Sam Brennan changed status to Withdrawn. Reason: Buyer pulled out — broken chain.
   [round-stamped] Sam Brennan relisted this file with a new buyer (Charlie New) — Round 2. Previous round withdrew: Buyer pulled out — broken chain.
 
-── Old buyer contact: token rotated to NULL ──────────────────────────────────────────────────
-  [fixture] Buyer 1 A1  portalToken=NULL  buyerRoundId=[round1]
+── Old buyer contact: token INTACT (commit-5 dead-round guard serves DeadRoundNotice) ──────────────────────────────────────────────────
+  [fixture] Buyer 1 A1  portalToken=[intact]  buyerRoundId=[round1]
 
 ── New buyer contact: stamped to round 2 with fresh token ──────────────────────────────────────────────────
   Charlie New  email=charlie@example-rehearsal.invalid  portalToken=[set]  buyerRoundId=[new round]
@@ -50,128 +50,6 @@ Returned: newRoundId=cmpzj98q0001ophni44ub4bjp, newContactId=cmpzj992a001qphni5r
 ══════════════════════════════════════════════════════════════════════
   ITEM 2 — Double relist (round 2 → 3)
 ══════════════════════════════════════════════════════════════════════
-Returned: newRoundId=cmpzj9a8q002vphnisf1n0fau, newContactId=cmpzj9avs002zphnii563jv5o, newRoundNumber=3
+Returned: newRoundId=cmpzjrjkz002vg8u8ln3bd2wc, newContactId=cmpzjrjyc002zg8u8hu4ofc6p, newRoundNumber=3
 
 ── Three rounds exist; both prior are archived; active points to round 3 ──────────────────────────────────────────────────
-  round 1: id=cmpzj94rc0004phni795gdbei  status=withdrawn  archivedAt=set  fallThroughReason="Buyer pulled out — broken chain"  snapshot=13 rows
-  round 2: id=cmpzj98q0001ophni44ub4bjp  status=withdrawn  archivedAt=set  fallThroughReason="Charlie's mortgage fell through"  snapshot=13 rows
-  round 3: id=cmpzj9a8q002vphnisf1n0fau  status=active  archivedAt=null  fallThroughReason=""  snapshot=0 rows
-  tx.activeBuyerRoundId=cmpzj9a8q002vphnisf1n0fau (= round 3 id: true)
-  tx.status=active  tx.purchasePrice=50500000
-
-── Round-specific PM counts (each round has its own PM set) ──────────────────────────────────────────────────
-  round 1: 27 PM rows
-  round 2: 27 PM rows
-  round 3: 27 PM rows
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 3 — Portal personas (old=dead, new=scoped, vendor=full + active PM)
-══════════════════════════════════════════════════════════════════════
-
-── Persona OLD (round 1 token after relist) ──────────────────────────────────────────────────
-  getPortalData → null
-
-──   (re-check via DB: token now) ──────────────────────────────────────────────────
-  token: NULL — getPortalData would receive nothing to look up.
-  contact still exists in DB (audit preserved): yes
-
-── Persona NEW (round 2 token) ──────────────────────────────────────────────────
-  contact roleType=purchaser buyerRoundId=cmpzj9ert005wphnippndlpkr
-  own side (purchaser):
-    PM1=available, PM2=available, PM5=available, PM9=available, PM12=not_required, PM25=available
-  other side (vendor):
-    VM1=complete, VM2=available, VM3=complete, VM4=complete, VM5=complete, VM6=complete, VM7=available, VM8=complete, VM9=complete
-  timeline: 7 milestone entries, 0 update entries
-
-── Persona VENDOR ──────────────────────────────────────────────────
-  contact roleType=vendor buyerRoundId=(file-level)
-  own side (vendor):
-    VM1=complete, VM2=available, VM3=complete, VM4=complete, VM5=complete, VM6=complete, VM7=available, VM8=complete, VM9=complete
-  other side (purchaser):
-    PM1=available, PM2=available, PM5=available, PM9=available, PM12=not_required, PM25=available
-  timeline: 10 milestone entries, 0 update entries
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 4 — Outsourced intro email — vendor guard via outsourceIntroSentAt
-══════════════════════════════════════════════════════════════════════
-
-── Pre-relist: vendor + buyer1 stamped (already sent in round 1) ──────────────────────────────────────────────────
-  purchaser  [fixture] Buyer 1 A4-outsourced  introSent=set
-  vendor     [fixture] Seller A4-outsourced  introSent=set
-
-── Post-relist contact dedup state ──────────────────────────────────────────────────
-  vendor     [fixture] Seller A4-outsourced           round=(file-level)    introSent=set
-  purchaser  [fixture] Buyer 1 A4-outsourced          round=round1          introSent=set
-  purchaser  Fiona Outsourced                         round=round2          introSent=NULL
-  → Vendor and old buyer keep introSent=set: orchestrator skips them.
-  → New buyer (Fiona) starts with introSent=NULL: orchestrator targets her only.
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 5 — Purchaser-solicitor chase through REAL send path
-══════════════════════════════════════════════════════════════════════
-[outsourceIntro] enqueued tx=cmpzj9goc0071phnixm1lkb7w contact=cmpzj9ixj008zphnii51wy9k1 role=purchaser deliverAt=2026-06-04T13:30:42.640Z
-
-── Created PM ChaseTask cmpzj9l2k00bzphnir0fizerl (rule target = PM1) ──────────────────────────────────────────────────
-  OutboundMessage:        cmpzj9lb200c3phni22mrm13e
-  contactIds:             cmpzj9jvl00a6phnirhqj6hpj, cmpzj9jxt00aaphnipbcdbgkq
-  chaseTaskId:            cmpzj9l2k00bzphnir0fizerl
-  buyerRoundId:           [round1 ✓]
-  → Side-hint via chaseTaskId → rule.targetMilestoneCode → PM* → purchaser stamps the round.
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 6 — Chase hygiene on relist
-══════════════════════════════════════════════════════════════════════
-
-── Pre-relist pending tasks ──────────────────────────────────────────────────
-  task=cmpzj9n0h00e3phnihf26yzw6  target=PM5  buyerRoundId=cmpzj9lr900ccphnirjv1wmws  status=pending
-  task=cmpzj9n4q00e7phnix4glo888  target=VM10  buyerRoundId=null  status=pending
-  task=cmpzj9n9500ebphnif69jasl3  target=VM1  buyerRoundId=null  status=pending
-
-── Post-relist task statuses (PM5 + VM10 must be cancelled; VM1 untouched) ──────────────────────────────────────────────────
-  task=cmpzj9n9500ebphnif69jasl3  target=VM1  status=pending
-  task=cmpzj9n0h00e3phnihf26yzw6  target=PM5  status=cancelled
-  task=cmpzj9n4q00e7phnix4glo888  target=VM10  status=cancelled
-  newRoundId for reference: cmpzj9nzl00egphnivuvamnmb
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 7 — Undo regression on a never-relisted file
-══════════════════════════════════════════════════════════════════════
-
-── Pre VM2 state ──────────────────────────────────────────────────
-  VM2: state=available
-  After confirm: state=complete  completedAt=set  completedById=cmpehuy8900072ebfyavx2ei8
-  After undo:    state=available  completedAt=null  completedById=null
-  → No round-mismatch errors; the round-scoping is invisible on never-relisted files.
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 8 — Chain guard (withdrawalStatus cleared; no cascade)
-══════════════════════════════════════════════════════════════════════
-  Pre-relist chain link: withdrawalStatus=WITHDRAWN  respondedAt=set
-  Post-relist chain link: withdrawalStatus=null  respondedAt=null
-
-── Internal note from relist (file-level note must appear) ──────────────────────────────────────────────────
-  Sam Brennan relisted this file with a new buyer (Henry Chain) — Round 2. Previous round withdrew: Chain broke up-chain.
-
-══════════════════════════════════════════════════════════════════════
-  ITEM 9 — Permissions (server-side guards)
-══════════════════════════════════════════════════════════════════════
-
-── 9a — calling relist on an active (not withdrawn) file ──────────────────────────────────────────────────
-  threw: "Relist requires status=withdrawn (current: active)"
-
-── 9b — withdrawn + exchangedAt set (exchanged-file server guard) ──────────────────────────────────────────────────
-  threw: "Cannot relist after exchange has happened"
-
-── 9c — director from a DIFFERENT agency (scope ownership) ──────────────────────────────────────────────────
-  threw: "Transaction not found"  (agency mismatch caught at scope filter)
-
-── 9d — client portal token reaching relistTransactionAction ──────────────────────────────────────────────────
-  relistTransactionAction is `async function` exported from 'use server' app/actions/transactions.ts.
-  It starts with `await requireSession()`. A client portal request has NO NextAuth session,
-  so requireSession() throws before any of the action body runs. The impl is unreachable
-  via a portal token — verified by the `"use server"` directive + requireSession() guard.
-
-══════════════════════════════════════════════════════════════════════
-  REHEARSAL COMPLETE
-══════════════════════════════════════════════════════════════════════
-

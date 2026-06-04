@@ -404,12 +404,12 @@ async function main() {
   });
   for (const n of notes.slice().reverse()) console.log(`  [${n.buyerRoundId ? "round-stamped" : "file-level"}] ${n.content}`);
 
-  subhead("Old buyer contact: token rotated to NULL");
+  subhead("Old buyer contact: token INTACT (commit-5 dead-round guard serves DeadRoundNotice)");
   const oldBuyer = await prisma.contact.findUnique({
     where: { id: f1.buyer1ContactId },
     select: { name: true, portalToken: true, buyerRoundId: true },
   });
-  console.log(`  ${oldBuyer?.name}  portalToken=${oldBuyer?.portalToken ?? "NULL"}  buyerRoundId=${oldBuyer?.buyerRoundId === f1.round1Id ? "[round1]" : oldBuyer?.buyerRoundId}`);
+  console.log(`  ${oldBuyer?.name}  portalToken=${oldBuyer?.portalToken ? "[intact]" : "NULL"}  buyerRoundId=${oldBuyer?.buyerRoundId === f1.round1Id ? "[round1]" : oldBuyer?.buyerRoundId}`);
 
   subhead("New buyer contact: stamped to round 2 with fresh token");
   const newBuyer = await prisma.contact.findUnique({
@@ -521,10 +521,16 @@ async function main() {
     if (up.length > 0) for (const u of up.slice(0, 3)) console.log(`    update: "${(u as any).content.slice(0, 80)}"`);
   }
 
-  await persona("Persona OLD (round 1 token after relist)", f3.buyer1PortalToken);
-  // Re-read the rotated token from DB — relist nulls it.
-  const oldRotated = await prisma.contact.findUnique({ where: { id: f3.buyer1ContactId }, select: { portalToken: true } });
-  await persona("  (re-check via DB: token now)", oldRotated?.portalToken ?? null);
+  // Token is intentionally kept; commit-5's dead-round guard serves the
+  // friendly DeadRoundNotice in the portal shell. Verify the contact's
+  // token in DB is unchanged so the persona below isn't an artefact of
+  // a NULL-on-read.
+  const oldContact = await prisma.contact.findUnique({
+    where: { id: f3.buyer1ContactId },
+    select: { portalToken: true, buyerRoundId: true },
+  });
+  console.log(`Old contact in DB:  portalToken=${oldContact?.portalToken ? "[intact]" : "NULL"}  buyerRoundId=${oldContact?.buyerRoundId === f3.round1Id ? "[round1]" : oldContact?.buyerRoundId}`);
+  await persona("Persona OLD (round 1 token — must hit DeadRoundNotice)", f3.buyer1PortalToken);
   const newBuyer3 = await prisma.contact.findUnique({ where: { id: r3.newContactId }, select: { portalToken: true } });
   await persona("Persona NEW (round 2 token)", newBuyer3?.portalToken ?? null);
   await persona("Persona VENDOR", f3.vendorPortalToken);
@@ -714,6 +720,80 @@ async function main() {
     console.log(`  task=${t.id}  target=${t.reminderLog.reminderRule.targetMilestoneCode}  status=${t.status}`);
   }
   console.log(`  newRoundId for reference: ${r6.newRoundId}`);
+
+  // Reminder REBUILD side — the fix-up evidence Ellis asked for.
+  // The relist action fires evaluateTransactionReminders fire-and-forget.
+  // Drive it synchronously here so we can read the rebuild state directly.
+  // Snapshot the BEFORE state (just after relist commit, before re-eval)
+  // so the delta is visible.
+  subhead("Reminder rebuild — evaluateTransactionReminders rebuilds round-2 schedule");
+  const beforeReevalLogIds = new Set((await prisma.reminderLog.findMany({
+    where: { transactionId: f6.txId }, select: { id: true },
+  })).map((l) => l.id));
+  const beforeReevalTaskIds = new Set((await prisma.chaseTask.findMany({
+    where: { transactionId: f6.txId }, select: { id: true },
+  })).map((t) => t.id));
+  console.log(`  Before re-eval: ${beforeReevalLogIds.size} ReminderLog rows, ${beforeReevalTaskIds.size} ChaseTask rows.`);
+
+  const { evaluateTransactionReminders } = await import("../lib/services/reminders");
+  await evaluateTransactionReminders(f6.txId);
+
+  // Every reminder log on the tx now, partitioned by what's new vs preserved.
+  const allLogsAfter = await prisma.reminderLog.findMany({
+    where: { transactionId: f6.txId },
+    include: { reminderRule: { select: { targetMilestoneCode: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  const newLogs = allLogsAfter.filter((l) => !beforeReevalLogIds.has(l.id));
+  console.log(`  After re-eval:  ${allLogsAfter.length} ReminderLog rows total (${newLogs.length} created by this re-eval pass).`);
+  const newActive = newLogs.filter((l) => l.status === "active");
+  const newPmActive = newActive.filter((l) => (l.reminderRule.targetMilestoneCode ?? "").startsWith("PM"));
+  const newVmActive = newActive.filter((l) => (l.reminderRule.targetMilestoneCode ?? "").startsWith("VM"));
+  console.log(`  NEW logs ACTIVE — total ${newActive.length}: ${newPmActive.length} purchaser-targeted, ${newVmActive.length} vendor-targeted.`);
+  console.log(`  PM-targeted NEW ACTIVE rules (round-2 schedule rebuild):`);
+  for (const l of newPmActive.slice(0, 12)) {
+    const ageDays = Math.round((l.nextDueDate.getTime() - Date.now()) / 86400000);
+    console.log(`    ${l.reminderRule.targetMilestoneCode}  nextDueDate=${l.nextDueDate.toISOString().slice(0, 10)} (T${ageDays >= 0 ? "+" : ""}${ageDays}d)  buyerRoundId=${l.buyerRoundId ? (l.buyerRoundId === r6.newRoundId ? "[round2]" : l.buyerRoundId) : "NULL (engine gap)"}`);
+  }
+  if (newPmActive.length > 12) console.log(`    ...and ${newPmActive.length - 12} more`);
+
+  // ChaseTasks created by the re-eval pass (only those for which log.nextDueDate <= today).
+  const allTasksAfter = await prisma.chaseTask.findMany({
+    where: { transactionId: f6.txId },
+    include: { reminderLog: { include: { reminderRule: { select: { targetMilestoneCode: true } } } } },
+  });
+  const newTasks = allTasksAfter.filter((t) => !beforeReevalTaskIds.has(t.id));
+  console.log(`  NEW ChaseTask rows from this re-eval: ${newTasks.length}`);
+  for (const t of newTasks.slice(0, 12)) {
+    console.log(`    target=${t.reminderLog.reminderRule.targetMilestoneCode} status=${t.status} dueDate=${t.dueDate.toISOString().slice(0, 10)} buyerRoundId=${t.buyerRoundId ? (t.buyerRoundId === r6.newRoundId ? "[round2]" : t.buyerRoundId) : "NULL (engine gap)"}`);
+  }
+
+  // Honesty note — the main create paths in reminders.ts (lines 564, 632, 1136)
+  // do NOT stamp buyerRoundId. This is a Phase 1 commit 4c gap that
+  // pre-dates commit 6: the engine's WRITE site was missed when ReminderLog
+  // got its buyerRoundId column. Functionally it does not affect rebuild
+  // CORRECTNESS for single-round files (no round to pick wrong from), and
+  // for post-relist files the engine's READ path is round-scoped via
+  // forRound(activeRound, txId) — so the schedule it produces targets the
+  // active round's PMs correctly. But the stamping itself isn't there,
+  // which means a post-relist ReminderLog audit by buyerRoundId returns
+  // null for engine-written rows.
+  //
+  // Filing for separate commit (call it 4c-followup): patch reminders.ts
+  // line 564 + 632 + 1136 to stamp buyerRoundId based on
+  // rule.targetMilestoneCode (PM* → activeBuyerRoundId; VM* → null).
+  console.log("");
+  console.log("  ── Honest disclosure ──");
+  console.log("  evaluateTransactionReminders / fallback paths do NOT stamp buyerRoundId on");
+  console.log("  ReminderLog / ChaseTask creates — a Phase 1 commit 4c WRITE-side gap that");
+  console.log("  pre-dates commit 6. Engine READ path IS round-scoped (forRound), so the");
+  console.log("  rebuilt schedule targets the right PMs; the stamping gap is cosmetic for");
+  console.log("  audit reads. Filing 4c-followup separately to patch the three create sites.");
+
+  // Sanity — the OLD round-1 PM5 task we planted earlier is still status=cancelled
+  // and remains pinned to round 1 (no migration).
+  const pm5After = await prisma.chaseTask.findUnique({ where: { id: pm5Task! }, select: { status: true, buyerRoundId: true } });
+  console.log(`  planted PM5 task (round-1):         status=${pm5After?.status}  buyerRoundId=${pm5After?.buyerRoundId === f6.round1Id ? "[round1]" : pm5After?.buyerRoundId}`);
 
   // ─────────────────────────────────────────────────────────────────────
   // ITEM 7 — Undo regression on a never-relisted file. Confirm + undo

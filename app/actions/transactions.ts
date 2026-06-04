@@ -1954,16 +1954,19 @@ export async function relistTransactionImpl(
       },
     });
 
-    // STEP 4 — rotate old purchaser tokens to NULL. Belt-and-braces against
-    // a stale bookmarked link: commit 5's round-mismatch guard would already
-    // dead-route the token, but nulling makes the contact non-resolvable at
-    // all (findUnique({ portalToken }) returns nothing).
-    if (oldPurchaserContacts.length > 0) {
-      await ptx.contact.updateMany({
-        where: { id: { in: oldPurchaserContacts.map((c) => c.id) } },
-        data: { portalToken: null },
-      });
-    }
+    // STEP 4 — old purchaser tokens are LEFT INTACT.
+    //
+    // Commit 5's round-mismatch guard already dead-routes the token at
+    // every read site and the documents-upload write site, with the
+    // DeadRoundNotice component rendered inside the portal shell so the
+    // old buyer gets a friendly "this link is no longer active" page.
+    // Nulling the token here would defeat that — the layout would render
+    // notFound() instead of DeadRoundNotice, which is the inferior UX.
+    //
+    // Audit-preserved: the old contact + its (now-dead) round attribution
+    // stays addressable, which keeps the round-1 history reachable by
+    // contact id from internal tooling.
+    void oldPurchaserContacts;
 
     // STEP 5 — create the new BuyerRound.
     const newRound = await ptx.buyerRound.create({
