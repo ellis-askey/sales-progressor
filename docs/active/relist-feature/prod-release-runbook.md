@@ -96,6 +96,29 @@ Every step has an explicit verification step that gates the next. Do not collaps
 
 - Run `scripts/parity-commit-5-portal.ts` against PROD with read-only assertions. Should return PASS (0 failures).
 - Run `scripts/verify-buyer-round-phase0.ts` against PROD. Should return PASS.
+- **NULL-stamp check on engine-written rows** (commit 6 fix-up #2 added this — was previously assumed):
+  ```sql
+  -- PM-targeted PENDING ChaseTasks with NULL buyerRoundId. Must be 0.
+  -- Any > 0 means engine-created tasks pre-followup are still around AND
+  -- the re-run of scripts/backfill-buyer-round-phase0.ts in Step 4 didn't
+  -- pick them up — investigate that specific file before re-running.
+  SELECT COUNT(*)
+  FROM "ChaseTask" ct
+  JOIN "ReminderLog" rl ON rl.id = ct."reminderLogId"
+  JOIN "ReminderRule" rr ON rr.id = rl."reminderRuleId"
+  WHERE ct.status = 'pending'
+    AND ct."buyerRoundId" IS NULL
+    AND rr."targetMilestoneCode" LIKE 'PM%';
+
+  -- Same shape for ACTIVE PM-targeted ReminderLogs. Must be 0.
+  SELECT COUNT(*)
+  FROM "ReminderLog" rl
+  JOIN "ReminderRule" rr ON rr.id = rl."reminderRuleId"
+  WHERE rl.status = 'active'
+    AND rl."buyerRoundId" IS NULL
+    AND rr."targetMilestoneCode" LIKE 'PM%';
+  ```
+  Why this matters: the relist action's primary KEY 1 cancellation sweep is keyed on `buyerRoundId = outgoingRoundId`. A row left with NULL stamp survives that sweep. The defence-in-depth KEY 3 (PM-prefix sweep) catches the leak anyway, but the post-deploy check is the early-warning that the write-side fix is in place.
 - Tail logs for 30 minutes. Watch for `[milestone-scope]` warn lines — these indicate a transaction without an activeBuyerRoundId, which would mean Step 4 missed something.
 
 ## 2. Rollback plan

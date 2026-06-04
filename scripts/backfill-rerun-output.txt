@@ -1,0 +1,18 @@
+[backfill-buyer-round-phase0] APPLY
+  transactions:           61
+  Round 1 created:        0
+  Round 1 already there:  61
+  activeBuyerRoundId set: 0
+
+  per-table attributions:
+    Contact                0
+    MilestoneCompletion    0
+    PortalMessage          0
+    PriceHistory           0
+    ReminderLog            2
+    ChaseTask              8
+    ClientChaseState       0
+    OutboundMessage        0
+    TransactionDocument    0
+
+[backfill-buyer-round-phase0] applied

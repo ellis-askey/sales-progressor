@@ -2103,10 +2103,13 @@ export async function relistTransactionImpl(
       });
     }
 
-    // STEP 11 — cancel old round's pending ChaseTasks. The engine's
-    // re-evaluate (post-commit) will create fresh tasks for round-N+1 codes
-    // and for the reset VM codes' anchored chases. Any "pending" task on
-    // the outgoing round becomes "cancelled" so the work queue clears it.
+    // STEP 11 — cancellation sweeps. THREE keys, run in series, all
+    // updateMany updates with status="pending" filters so the writes are
+    // idempotent and re-runs are safe.
+    //
+    // KEY 1 — round-keyed (the bread-and-butter): every pending ChaseTask
+    // attributed to the outgoing round, regardless of target code. Catches
+    // every buyer-side chase whose write site stamped buyerRoundId correctly.
     await ptx.chaseTask.updateMany({
       where: {
         transactionId: tx.id,
@@ -2115,8 +2118,9 @@ export async function relistTransactionImpl(
       },
       data: { status: "cancelled" },
     });
-    // Reset-VM-anchored vendor chases (anchor = reset code) — also cancel
-    // these so the engine recomputes against the post-reset state.
+    // KEY 2 — VM-code-keyed (vendor reset codes): VM rows are file-level
+    // (buyerRoundId IS NULL by design). Cancel any reset-VM-anchored chase
+    // so the engine recomputes against post-reset state.
     await ptx.chaseTask.updateMany({
       where: {
         transactionId: tx.id,
@@ -2127,6 +2131,41 @@ export async function relistTransactionImpl(
         },
       },
       data: { status: "cancelled" },
+    });
+    // KEY 3 — DEFENCE-IN-DEPTH: PM-code-keyed, regardless of buyerRoundId
+    // stamp. Inside this $transaction the new round's PMs do not exist
+    // yet (STEP 8 runs after STEP 11), and chase rebuild is fire-and-forget
+    // AFTER commit — so every pending PM-targeted ChaseTask on the file
+    // RIGHT NOW belongs to a previous buyer by definition. This sweep
+    // catches engine-created rows that were written with buyerRoundId=NULL
+    // by older code (pre-4c-followup) — without it, those rows survive
+    // every relist sweep keyed on the stamp and can fire about a dead
+    // buyer on a subsequent round.
+    //
+    // Also catches unstamped rows from any future write-site regression:
+    // the cancellation is correct for ANY pending PM-targeted task at
+    // this moment in the $transaction, no matter how it was written.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "pending",
+        reminderLog: {
+          reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+        },
+      },
+      data: { status: "cancelled" },
+    });
+    // Parallel sweep on ReminderLog rows themselves: any "active" PM-targeted
+    // log belongs to the outgoing buyer. Deactivate so the engine's
+    // re-evaluation (post-commit) can create fresh round-N+1 logs without
+    // colliding with stale ones via the findFirst({status:"active"}) check.
+    await ptx.reminderLog.updateMany({
+      where: {
+        transactionId: tx.id,
+        status: "active",
+        reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+      },
+      data: { status: "inactive", statusReason: "Buyer round archived on relist" },
     });
 
     // STEP 12 — clear chainLink.withdrawalStatus if set. The file is back;

@@ -750,10 +750,15 @@ async function main() {
   const newPmActive = newActive.filter((l) => (l.reminderRule.targetMilestoneCode ?? "").startsWith("PM"));
   const newVmActive = newActive.filter((l) => (l.reminderRule.targetMilestoneCode ?? "").startsWith("VM"));
   console.log(`  NEW logs ACTIVE — total ${newActive.length}: ${newPmActive.length} purchaser-targeted, ${newVmActive.length} vendor-targeted.`);
+  function labelStamp(targetCode: string | null, stamp: string | null, newRoundId: string): string {
+    if (stamp === newRoundId) return "[round2 ✓]";
+    if (stamp === null) return (targetCode ?? "").startsWith("PM") ? "NULL (UNEXPECTED gap)" : "NULL (correct — VM file-level)";
+    return stamp;
+  }
   console.log(`  PM-targeted NEW ACTIVE rules (round-2 schedule rebuild):`);
   for (const l of newPmActive.slice(0, 12)) {
     const ageDays = Math.round((l.nextDueDate.getTime() - Date.now()) / 86400000);
-    console.log(`    ${l.reminderRule.targetMilestoneCode}  nextDueDate=${l.nextDueDate.toISOString().slice(0, 10)} (T${ageDays >= 0 ? "+" : ""}${ageDays}d)  buyerRoundId=${l.buyerRoundId ? (l.buyerRoundId === r6.newRoundId ? "[round2]" : l.buyerRoundId) : "NULL (engine gap)"}`);
+    console.log(`    ${l.reminderRule.targetMilestoneCode}  nextDueDate=${l.nextDueDate.toISOString().slice(0, 10)} (T${ageDays >= 0 ? "+" : ""}${ageDays}d)  buyerRoundId=${labelStamp(l.reminderRule.targetMilestoneCode, l.buyerRoundId, r6.newRoundId)}`);
   }
   if (newPmActive.length > 12) console.log(`    ...and ${newPmActive.length - 12} more`);
 
@@ -765,30 +770,12 @@ async function main() {
   const newTasks = allTasksAfter.filter((t) => !beforeReevalTaskIds.has(t.id));
   console.log(`  NEW ChaseTask rows from this re-eval: ${newTasks.length}`);
   for (const t of newTasks.slice(0, 12)) {
-    console.log(`    target=${t.reminderLog.reminderRule.targetMilestoneCode} status=${t.status} dueDate=${t.dueDate.toISOString().slice(0, 10)} buyerRoundId=${t.buyerRoundId ? (t.buyerRoundId === r6.newRoundId ? "[round2]" : t.buyerRoundId) : "NULL (engine gap)"}`);
+    console.log(`    target=${t.reminderLog.reminderRule.targetMilestoneCode} status=${t.status} dueDate=${t.dueDate.toISOString().slice(0, 10)} buyerRoundId=${labelStamp(t.reminderLog.reminderRule.targetMilestoneCode, t.buyerRoundId, r6.newRoundId)}`);
   }
-
-  // Honesty note — the main create paths in reminders.ts (lines 564, 632, 1136)
-  // do NOT stamp buyerRoundId. This is a Phase 1 commit 4c gap that
-  // pre-dates commit 6: the engine's WRITE site was missed when ReminderLog
-  // got its buyerRoundId column. Functionally it does not affect rebuild
-  // CORRECTNESS for single-round files (no round to pick wrong from), and
-  // for post-relist files the engine's READ path is round-scoped via
-  // forRound(activeRound, txId) — so the schedule it produces targets the
-  // active round's PMs correctly. But the stamping itself isn't there,
-  // which means a post-relist ReminderLog audit by buyerRoundId returns
-  // null for engine-written rows.
-  //
-  // Filing for separate commit (call it 4c-followup): patch reminders.ts
-  // line 564 + 632 + 1136 to stamp buyerRoundId based on
-  // rule.targetMilestoneCode (PM* → activeBuyerRoundId; VM* → null).
   console.log("");
-  console.log("  ── Honest disclosure ──");
-  console.log("  evaluateTransactionReminders / fallback paths do NOT stamp buyerRoundId on");
-  console.log("  ReminderLog / ChaseTask creates — a Phase 1 commit 4c WRITE-side gap that");
-  console.log("  pre-dates commit 6. Engine READ path IS round-scoped (forRound), so the");
-  console.log("  rebuilt schedule targets the right PMs; the stamping gap is cosmetic for");
-  console.log("  audit reads. Filing 4c-followup separately to patch the three create sites.");
+  console.log("  → Commit 6 fix-up #2 (4c-followup): engine now stamps PM-targeted rows with the");
+  console.log("    active round and leaves VM-targeted rows file-level. Item 10 below proves the");
+  console.log("    cancellation key works on engine-created rows across a double relist.");
 
   // Sanity — the OLD round-1 PM5 task we planted earlier is still status=cancelled
   // and remains pinned to round 1 (no migration).
@@ -958,6 +945,128 @@ async function main() {
   console.log("  It starts with `await requireSession()`. A client portal request has NO NextAuth session,");
   console.log("  so requireSession() throws before any of the action body runs. The impl is unreachable");
   console.log("  via a portal token — verified by the `\"use server\"` directive + requireSession() guard.");
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ITEM 10 — Double relist with ENGINE-CREATED intermediate-round chases.
+  //
+  // Closes the gap Ellis flagged on the fix-up: item 6 only proved
+  // cancellation against PLANTED tasks (with explicit buyerRoundId stamps).
+  // This item drives evaluateTransactionReminders so the engine itself
+  // writes the round-2 PM chases, then relists round 2→3 and verifies
+  // they're cancelled.
+  //
+  // Also probes the defence-in-depth code-prefix sweep: forcibly NULLs
+  // a stamped task's buyerRoundId to simulate an unstamped engine row
+  // (pre-followup behaviour), then relists and verifies it STILL gets
+  // cancelled by the PM-prefix sweep.
+  // ─────────────────────────────────────────────────────────────────────
+  header("ITEM 10 — Engine-created chases survive into a relist? Defence-in-depth proof");
+  const { evaluateTransactionReminders: evalRem } = await import("../lib/services/reminders");
+
+  const f10 = await seedFile({
+    addressSuffix: "A10-engine",
+    agencyId: env.agencyId,
+    directorUserId: env.directorUserId,
+    assignedSpUserId: env.assignedSpUserId,
+    serviceType: "self_managed",
+    withPurchaserSolicitor: false,
+  });
+
+  // Round 1 → 2: relist, then drive the engine so round-2 PM chases land
+  // (via the post-followup write paths, which DO stamp buyerRoundId).
+  await withdrawFile(f10.txId, session, "First buyer fell over");
+  const r10_2 = await relistTransactionImpl(
+    { transactionId: f10.txId, newBuyer: { name: "Engine-test buyer 2", email: "engine2@example-rehearsal.invalid" } },
+    session,
+  );
+  console.log(`Relisted round 1→2. New round ${r10_2.newRoundId}`);
+  await evalRem(f10.txId);
+  const round2PmTasks = await prisma.chaseTask.findMany({
+    where: {
+      transactionId: f10.txId,
+      buyerRoundId: r10_2.newRoundId,
+      reminderLog: { reminderRule: { targetMilestoneCode: { startsWith: "PM" } } },
+    },
+    include: { reminderLog: { include: { reminderRule: { select: { targetMilestoneCode: true } } } } },
+  });
+  subhead("Round 2 — engine-created PM ChaseTasks (post-followup stamping)");
+  for (const t of round2PmTasks) {
+    console.log(`  task=${t.id}  target=${t.reminderLog.reminderRule.targetMilestoneCode}  buyerRoundId=${t.buyerRoundId === r10_2.newRoundId ? "[round2 ✓]" : "NULL (UNEXPECTED)"}  status=${t.status}`);
+  }
+
+  // Defence-in-depth probe: pick one engine-stamped round-2 task and FORCE
+  // its buyerRoundId to NULL via raw SQL to simulate the pre-followup
+  // engine writing it. The relist sweep's KEY 3 (PM-prefix) must catch it.
+  let unstampedTaskId: string | null = null;
+  if (round2PmTasks.length > 0) {
+    unstampedTaskId = round2PmTasks[0].id;
+    await prisma.$executeRaw`UPDATE "ChaseTask" SET "buyerRoundId" = NULL WHERE id = ${unstampedTaskId}`;
+    const afterNull = await prisma.chaseTask.findUnique({ where: { id: unstampedTaskId }, select: { buyerRoundId: true } });
+    subhead(`Defence-in-depth setup: forced task ${unstampedTaskId} to buyerRoundId=NULL`);
+    console.log(`  re-read after raw SQL:  buyerRoundId=${afterNull?.buyerRoundId ?? "NULL"}`);
+  }
+
+  // Round 2 → 3: relist again. The round-keyed sweep catches all CORRECTLY
+  // stamped round-2 PMs; the PM-prefix sweep catches the UNSTAMPED one.
+  await withdrawFile(f10.txId, session, "Second buyer fell over");
+  const r10_3 = await relistTransactionImpl(
+    { transactionId: f10.txId, newBuyer: { name: "Engine-test buyer 3", email: "engine3@example-rehearsal.invalid" } },
+    session,
+  );
+  console.log(`Relisted round 2→3. New round ${r10_3.newRoundId}`);
+
+  subhead("Post-relist status of the engine-created round-2 PM tasks");
+  const postRelistRound2PmTasks = await prisma.chaseTask.findMany({
+    where: { id: { in: round2PmTasks.map((t) => t.id) } },
+    include: { reminderLog: { include: { reminderRule: { select: { targetMilestoneCode: true } } } } },
+  });
+  let stampedCancelled = 0;
+  let unstampedCancelled = 0;
+  let survived = 0;
+  for (const t of postRelistRound2PmTasks) {
+    const wasUnstamped = t.id === unstampedTaskId;
+    const status = t.status;
+    const tag = wasUnstamped ? "(UNSTAMPED probe)" : "(round-stamped)";
+    console.log(`  task=${t.id}  target=${t.reminderLog.reminderRule.targetMilestoneCode}  buyerRoundId=${t.buyerRoundId ?? "NULL"}  status=${status}  ${tag}`);
+    if (status === "cancelled") {
+      if (wasUnstamped) unstampedCancelled++; else stampedCancelled++;
+    } else {
+      survived++;
+    }
+  }
+  console.log("");
+  console.log(`  stamped tasks cancelled by KEY 1 (round-keyed sweep):       ${stampedCancelled}`);
+  console.log(`  UNSTAMPED probe cancelled by KEY 3 (PM-prefix sweep):       ${unstampedCancelled}`);
+  console.log(`  any PM task survived into round 3 (must be 0):              ${survived}`);
+
+  // Same probe for ReminderLog rows — the PM-prefix sweep deactivates
+  // active PM logs regardless of stamp.
+  subhead("ReminderLog rows for the round-2 PM rules — must all be inactive");
+  const round2PmLogs = await prisma.reminderLog.findMany({
+    where: {
+      transactionId: f10.txId,
+      reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+    },
+    include: { reminderRule: { select: { targetMilestoneCode: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  const activePm = round2PmLogs.filter((l) => l.status === "active");
+  const inactivePm = round2PmLogs.filter((l) => l.status === "inactive");
+  console.log(`  total PM logs on the file: ${round2PmLogs.length}`);
+  console.log(`  active:   ${activePm.length}   ${activePm.map((l) => l.reminderRule.targetMilestoneCode).slice(0, 6).join(", ")}${activePm.length > 6 ? ` (+${activePm.length - 6})` : ""}`);
+  console.log(`  inactive: ${inactivePm.length}  reasons: ${[...new Set(inactivePm.map((l) => l.statusReason ?? "(no reason)"))].join(" / ")}`);
+
+  // Final sanity — count of PM-targeted pending tasks across the whole
+  // file with NULL buyerRoundId. Runbook check baked here for record.
+  const nullStampedPmPending = await prisma.chaseTask.count({
+    where: {
+      transactionId: f10.txId,
+      status: "pending",
+      buyerRoundId: null,
+      reminderLog: { reminderRule: { targetMilestoneCode: { startsWith: "PM" } } },
+    },
+  });
+  console.log(`\n  Runbook check: PM-targeted PENDING tasks with NULL buyerRoundId on this file: ${nullStampedPmPending} (must be 0)`);
 
   console.log("\n══════════════════════════════════════════════════════════════════════");
   console.log("  REHEARSAL COMPLETE");

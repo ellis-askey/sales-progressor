@@ -561,6 +561,13 @@ export async function evaluateTransactionReminders(transactionId: string) {
         }
       }
     } else {
+      // Commit 4c-followup (2026-06-04) — stamp buyerRoundId per the same
+      // rule createInitialRemindersInline uses: PM-targeted rules get the
+      // active round's id; VM-targeted (and untargeted) rules stay file-
+      // level. Without this stamp, the relist action's round-keyed
+      // cancellation sweep can't find engine-created PM ReminderLogs on
+      // a subsequent relist — they'd survive to fire about a dead buyer.
+      const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
       await prisma.reminderLog.create({
         data: {
           transactionId,
@@ -568,6 +575,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
           status: "active",
           nextDueDate: firstDueDate,
           sourceDateUsed: anchorDate,
+          buyerRoundId: isPurchaserTarget ? (transaction.activeBuyerRoundId ?? null) : null,
         },
       });
       await writeEngineAudit(
@@ -629,6 +637,9 @@ export async function evaluateTransactionReminders(transactionId: string) {
       }
     } else {
       if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
+        // Commit 4c-followup — inherit the buyerRoundId from the parent
+        // ReminderLog (now correctly stamped above). Same rule as the
+        // ChaseTask.createMany in createInitialRemindersInline.
         await prisma.chaseTask.create({
           data: {
             transactionId,
@@ -638,6 +649,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
             status: "pending",
             priority: "normal",
             chaseCount: 0,
+            buyerRoundId: log.buyerRoundId,
           },
         });
         // No audit entry — duplicates the "Automated chase scheduled…"
@@ -1097,13 +1109,16 @@ export async function createAgentChaseTaskForMilestone(
   const { transactionId, milestoneCode, kind } = input;
 
   // Resolve the file's agent / progressor — the task gets assigned to them.
+  // Commit 4c-followup — also fetch activeBuyerRoundId for round stamping.
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { agentUserId: true, assignedUserId: true },
+    select: { agentUserId: true, assignedUserId: true, activeBuyerRoundId: true },
   });
   if (!tx) return null;
   const assignedToId = tx.assignedUserId ?? tx.agentUserId;
   if (!assignedToId) return null;
+  // PM-targeted fallback rows stamp the active round; VM-targeted stay file-level.
+  const stampRoundId = milestoneCode.startsWith("PM") ? (tx.activeBuyerRoundId ?? null) : null;
 
   // Find the active ReminderRule that targets this milestone. If multiple
   // rules target the same code (rare), use the first — matches the existing
@@ -1141,6 +1156,8 @@ export async function createAgentChaseTaskForMilestone(
           nextDueDate: today,
           sourceDateUsed: today,
           statusReason: FALLBACK_REASON[kind],
+          // Commit 4c-followup — same PM*-targeted → active round stamp.
+          buyerRoundId: stampRoundId,
         },
         select: { id: true },
       });
@@ -1168,6 +1185,8 @@ export async function createAgentChaseTaskForMilestone(
           priority: "normal",
           chaseCount: 0,
           fallbackKind: kind,
+          // Commit 4c-followup — inherit the parent ReminderLog's stamp.
+          buyerRoundId: stampRoundId,
         },
         select: { id: true },
       });
