@@ -9,6 +9,10 @@ This runbook governs the merge + deploy + post-deploy script ordering for the pr
 ## 0. Prerequisites — before the release window starts
 
 - [ ] All Phase 1 commits (1 through 8) landed on `master` via PR review. Branch off `master` is clean.
+- [ ] **Staging fixture cleanup**: before the final pre-prod verification report, run the fixture teardown so the report's counts reflect real staging data, not accumulated rehearsal sentinels. As of commit 6 fix-up #2, staging has grown from 59 → 61 transactions across rehearsal runs (the `[commit5 two-round fixture]` and `[commit6 rehearsal] *` sentinel-tagged files). Tear-down commands, in order:
+  - `npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json scripts/rehearsal-commit-6-relist.ts --tear-down`
+  - `npx -y dotenv -e .env --override -- npx ts-node --project tsconfig.scripts.json scripts/seed-two-round-fixture.ts --tear-down`
+  - Verify: `SELECT COUNT(*) FROM "PropertyTransaction" WHERE "propertyAddress" LIKE '[commit%';` returns 0.
 - [ ] Staging run-through completed within the last 7 days, with the rehearsal scripts producing the verbatim-matching output stored in `scripts/rehearsal-commit-6-output.txt` (and the 7/8 equivalents once written).
 - [ ] The three prod-side scripts have been DRY-RUN against a fresh prod-restore-on-staging:
   - `scripts/backfill-buyer-round-phase0.ts` (idempotent Round 1 backfill)
