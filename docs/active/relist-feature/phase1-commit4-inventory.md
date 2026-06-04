@@ -13,7 +13,7 @@ Living checklist. Each commit ticks off the sites it converted (or re-dispositio
 |---|---|---|
 | 4b | `milestones.ts` + `transactions.ts` + `agent.ts` + `work-queue.ts` + `summary.ts` + `audit.ts` + `automated-emails-preview.ts` | ✅ shipped 2026-06-04, parity diff empty |
 | 4c | `reminders.ts` + `client-chase-cron.ts` + `retention.ts` + `client-chase-digest.ts` + ClientChaseState writes | ✅ shipped 2026-06-04, engine input + chase-engine probe diffs empty |
-| 4d | comms + cross-cutting + OutboundMessage/PortalMessage writes | ⏳ |
+| 4d | `comms.ts` + `hub.ts` + `analytics.ts` + `chains.ts` + `problem-detection.ts` + `solicitor-intel.ts` + `metrics-rollup.ts` + `reports.ts` + `chainNotifications.ts` + OutboundMessage/PortalMessage writes | ✅ shipped 2026-06-04, file-checkout parity diff empty |
 | 4e | actions+API+UI + PriceHistory writes | ⏳ |
 | 5 | portal scoping | ⏳ |
 
