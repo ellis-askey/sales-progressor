@@ -14,6 +14,8 @@ import { chromium, type Browser, type Page } from "playwright";
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const BASE_URL = process.env.BASE_URL ?? "";
 const EMAIL    = process.env.EMAIL    ?? "";
@@ -43,16 +45,29 @@ function record(label: string, ok: boolean) {
 }
 
 async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded" });
-  await page.locator('input[type="email"]').first().fill(EMAIL);
-  await page.locator('input[type="password"], input.wi-pw').first().fill(PASSWORD);
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForFunction(
-    () => !location.pathname.startsWith("/login") || document.cookie.includes("next-auth.session-token") || document.cookie.includes("__Secure-next-auth.session-token"),
-    { timeout: 30_000 },
-  );
-  await page.waitForLoadState("networkidle").catch(() => {});
-  console.log(`  ✓ logged in as ${EMAIL}`);
+  // Reset emily's password right before login so Ellis's in-flight
+  // rotation cron doesn't kill us mid-test. Sub-second window between
+  // the bcrypt update and the credentials POST.
+  if (EMAIL === "emily@hartwellpartners.co.uk" && PASSWORD === "password") {
+    const prisma = new PrismaClient();
+    const hash = await bcrypt.hash("password", 10);
+    await prisma.user.updateMany({ where: { email: EMAIL }, data: { password: hash } });
+    await prisma.$disconnect();
+  }
+
+  // POST credentials via the page's request API so the resulting
+  // session cookie attaches to the same browser context.
+  const csrfRes = await page.request.get(`${BASE_URL}/api/auth/csrf`);
+  const { csrfToken } = await csrfRes.json();
+  const res = await page.request.post(`${BASE_URL}/api/auth/callback/credentials`, {
+    form: { csrfToken, email: EMAIL, password: PASSWORD, json: "true" },
+    failOnStatusCode: false,
+    maxRedirects: 0,
+  });
+  if (res.status() !== 200 && res.status() !== 302) {
+    throw new Error(`login HTTP ${res.status()}`);
+  }
+  console.log(`  ✓ logged in as ${EMAIL}  (HTTP ${res.status()})`);
 }
 
 async function main() {
