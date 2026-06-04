@@ -201,6 +201,17 @@ export async function getTransaction(id: string, agencyId: string) {
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound
+      // drives the round banner (visibility + label); buyerRounds
+      // drives the archived-round drawer. Both selects are minimal
+      // — anything heavier (the round's PM rows, its comms, its VM
+      // snapshot) is fetched separately by the archived-round view
+      // when the user opens it.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      buyerRounds: {
+        select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
+        orderBy: { roundNumber: "asc" },
+      },
     },
   });
 }
@@ -218,6 +229,17 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       referredFirm: { select: { id: true, name: true } },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Phase 1 commit 8 — round-aware UI surfaces. activeBuyerRound
+      // drives the round banner (visibility + label); buyerRounds
+      // drives the archived-round drawer. Both selects are minimal
+      // — anything heavier (the round's PM rows, its comms, its VM
+      // snapshot) is fetched separately by the archived-round view
+      // when the user opens it.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      buyerRounds: {
+        select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
+        orderBy: { roundNumber: "asc" },
+      },
     },
   });
 }

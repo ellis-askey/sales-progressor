@@ -181,6 +181,7 @@ export default withAuth(
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;
         if (pathname.startsWith("/api/claim")) return true;
+        if (pathname === "/api/healthz") return true;
         return !!token;
       },
     },
