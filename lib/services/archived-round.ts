@@ -28,7 +28,9 @@ export type ArchivedRoundData = {
     purchaserSolicitorContact: { id: string; name: string; phone: string | null; email: string | null } | null;
     brokerFirm: { id: string; name: string } | null;
     brokerContact: { id: string; name: string; phone: string | null; email: string | null } | null;
-    vendorMilestoneSnapshot: VmSnapshotRow[] | null;
+    // Enriched server-side with name + orderIndex so the drawer can sort
+    // and render full step names. Raw JSON still lives on the row.
+    vendorMilestoneSnapshot: VmSnapshotRowEnriched[] | null;
   };
   buyerContacts: {
     id: string;
@@ -39,6 +41,8 @@ export type ArchivedRoundData = {
   }[];
   pmCompletions: {
     code: string;
+    name: string;             // MilestoneDefinition.name — added for the drawer rebuild
+    orderIndex: number;        // sort key — fixes VM17-after-VM20 in the snapshot
     state: string;
     completedAt: Date | null;
     completedByName: string | null;
@@ -68,6 +72,15 @@ export type VmSnapshotRow = {
   eventDate: string | null;
   summaryText: string | null;
   reconciledAtExchange: boolean;
+};
+
+// Snapshot rows enriched server-side with the live MilestoneDefinition's
+// name + orderIndex so the drawer can show "Buyer has instructed their
+// solicitor" rather than "VM1", and so the snapshot list can be sorted
+// reliably (the raw JSON doesn't carry orderIndex).
+export type VmSnapshotRowEnriched = VmSnapshotRow & {
+  name: string;
+  orderIndex: number;
 };
 
 // `transactionId` is taken in so the caller (an authenticated page
@@ -137,13 +150,20 @@ export async function getArchivedRoundData(
       eventDate: true,
       summaryText: true,
       confirmedByPortal: true,
-      milestoneDefinition: { select: { code: true } },
+      // Pull MilestoneDefinition.name + orderIndex so the drawer can
+      // render full step names (instead of raw codes) and sort the
+      // resulting list reliably. orderBy below stays for the DB sort
+      // path; orderIndex on the row keeps the snapshot section sortable
+      // on the client.
+      milestoneDefinition: { select: { code: true, name: true, orderIndex: true } },
       completedBy: { select: { name: true } },
     },
     orderBy: { milestoneDefinition: { orderIndex: "asc" } },
   });
   const pmCompletions = pmRows.map((r) => ({
     code: r.milestoneDefinition.code,
+    name: r.milestoneDefinition.name,
+    orderIndex: r.milestoneDefinition.orderIndex,
     state: r.state,
     completedAt: r.completedAt,
     completedByName: r.completedBy?.name ?? null,
@@ -182,6 +202,32 @@ export async function getArchivedRoundData(
     visibleToClient: r.visibleToClient,
   }));
 
+  // Enrich the snapshot rows server-side with name + orderIndex from
+  // the live MilestoneDefinition so the drawer can render full step
+  // names ("Buyer has instructed their solicitor") rather than codes,
+  // and sort the snapshot list by orderIndex (the JSON itself was
+  // written in code-enumeration order which puts VM17 after VM20).
+  const rawSnapshot = (round.vendorMilestoneSnapshot ?? null) as VmSnapshotRow[] | null;
+  let snapshotEnriched: VmSnapshotRowEnriched[] | null = null;
+  if (rawSnapshot && rawSnapshot.length > 0) {
+    const codes = rawSnapshot.map((r) => r.code);
+    const defs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: codes } },
+      select: { code: true, name: true, orderIndex: true },
+    });
+    const defByCode = new Map(defs.map((d) => [d.code, d]));
+    snapshotEnriched = rawSnapshot
+      .map((r) => {
+        const d = defByCode.get(r.code);
+        return {
+          ...r,
+          name: d?.name ?? r.code,
+          orderIndex: d?.orderIndex ?? Number.MAX_SAFE_INTEGER,
+        };
+      })
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+
   return {
     round: {
       id: round.id,
@@ -195,7 +241,7 @@ export async function getArchivedRoundData(
       purchaserSolicitorContact,
       brokerFirm,
       brokerContact,
-      vendorMilestoneSnapshot: round.vendorMilestoneSnapshot as VmSnapshotRow[] | null,
+      vendorMilestoneSnapshot: snapshotEnriched,
     },
     buyerContacts,
     pmCompletions,
