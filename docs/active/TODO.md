@@ -2,6 +2,99 @@
 
 ---
 
+## Phase-2 arc — BuyerRound per-sale scoping for remaining models
+
+Filed 2026-06-05 as part of the Section 2 Contact-scoping PR. Branch
+`feat/buyer-round-phase2-scoping` cuts from `staging` AFTER Section 2
+(Contact A1+B3) is verified on staging AND on prod. No Phase-2 PR starts
+before that gate (Ellis-locked).
+
+One PR per model, in this order — worst-first, ranked by the cost of a
+fell-through buyer's content leaking onto the live file:
+
+1. **Fall-through cancellation** — `changeStatusAction` AND
+   `relistTransactionImpl` cancel open buyer-side PM `ReminderLog` +
+   `ChaseTask` rows at fall-through time. Idempotent in both hook points
+   (re-running on an already-cancelled set is a no-op). Emits `Event`
+   audit rows (`type=reminder_cancelled_at_fall_through`) with `hookPoint`
+   discriminator. Leads the arc because it stops the bleeding before
+   PRs 5/6 even land — cancelled tasks filter out of `status="active"`
+   reads everywhere automatically.
+2. **`TransactionDocument`** — read-path filter + targeted backfill
+   (rule: `contactId` resolves to purchaser-role Contact → stamp with
+   that Contact's `buyerRoundId`; else NULL). Includes voice-pass on
+   the drawer caveat string ("Documents on this file are not tied to a
+   specific sale…") which becomes incorrect after this PR.
+3. **`OutboundMessage`** — read-path filter (activity timeline +
+   `/agent/automated-emails` list) + targeted backfill. Bundles the
+   `logAutomatedEmail` write-path gap fix
+   (`lib/services/portal.ts:138-161` doesn't stamp today).
+4. **`PortalMessage`** — read-path filter + purchaser-only targeted
+   backfill (solicitor / broker portal sends stay file-level, known
+   limitation flagged in the PR description). Drawer integration:
+   folded into the existing Communications section with a "Portal"
+   channel pill via `lib/agent/comms-display.tsx` — no new drawer
+   section.
+5. **`ReminderLog`** — read-path filter (belt-and-braces after PR 1 +
+   archived-drawer visibility) + targeted backfill. NO new drawer
+   section (decision noted in PR description as chosen, not
+   forgotten — the chase-generated comms already surface in the
+   drawer's Communications section).
+6. **`ChaseTask`** — read-path filter + backfill (inherits from
+   parent `ReminderLog` post-PR-5). NO new drawer section, same
+   rationale as PR 5.
+
+Each PR follows the same template: read-path scoping + targeted
+backfill script + structured stamped/unmatched report + staging-first
+verification + Ellis browser gate on the Emily relist fixture (live
+Contacts shows active-round only; Sale 1 drawer + Sale 2 drawer hard
+gates). Each PR ships to prod before the next is cut. No schema
+migrations (`ChaseTask.statusReason` not added per Ellis-locked
+decision — parent-log reason + Event metadata is sufficient).
+
+Re-instatement on un-archive is out of scope for this arc. The
+`statusReason="sale fell through"` discriminator is preserved if it's
+ever revisited.
+
+Full plan including audit findings:
+`C:\Users\ellis\.claude\plans\are-the-documents-clickable-downloadable-encapsulated-lighthouse.md`.
+
+---
+
+## Phase-3 arc — (a)-CLASS aggregate restructuring
+
+Filed 2026-06-05 alongside the Phase-2 backlog above. Branch
+`feat/buyer-round-phase3-aggregates`, planned separately AFTER Phase-2
+is fully on prod.
+
+**Insurance sentence** (do not remove until the arc lands):
+
+> Hub pipeline, hub recent activity, analytics, completions, comms
+> dashboard, and work-queue item counts remain inflated by
+> archived-round milestone completions until the Phase-3 (a)-CLASS
+> aggregate restructure lands. Tracked as
+> `feat/buyer-round-phase3-aggregates`.
+
+Why this is its own arc: these surfaces use cross-transaction nested
+Prisma filters that cannot reference the parent row's
+`activeBuyerRoundId`. The fix requires either a two-step query (load
+active-round-id map first, then aggregate with the filter applied) or
+raw SQL with a join to `PropertyTransaction.activeBuyerRoundId`. The
+reference pattern is already in `lib/services/reminders.ts:295-310`
+(the work-queue reminder-logs scoped query). Restructuring 6+ surfaces
+to that pattern is a different concern from per-transaction filtering,
+so it doesn't belong in the Phase-2 arc.
+
+Affected surfaces (from the audit):
+- Hub pipeline stats (`lib/services/hub.ts`) — MilestoneCompletion
+- Hub recent activity (`lib/services/hub.ts:759-785`) — MilestoneCompletion + OutboundMessage
+- Analytics (`lib/services/analytics.ts:102-189`) — MilestoneCompletion
+- Work queue items / stale alerts (`lib/services/work-queue.ts:76-92`) — MilestoneCompletion
+- Completions page (`lib/services/agent.ts:173-203`) — MilestoneCompletion
+- Comms dashboard / agent milestone activity (`lib/services/agent.ts:242-259`) — MilestoneCompletion
+
+---
+
 ## Vercel silently skipping auto-builds for some pushes
 
 Filed 2026-06-04 from the commit 6b fix-up. Commit `fbea564` was pushed to `feat/buyer-round-phase1-uniqueness` and Vercel did NOT trigger a build. The previous push on the same branch (`b700fa7`) had been built within seconds. A manual `vercel` invocation deployed the missing commit successfully (deployment `dlxiqgxwu`).
