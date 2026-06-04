@@ -18,9 +18,14 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
-  const data = await getPortalData(token);
+  const result = await getPortalData(token);
 
-  if (!data || !data.transaction.completionDate) {
+  if (!result || result.kind === "deadRound") {
+    return new NextResponse("Not found", { status: 404 });
+  }
+  const data = result.data;
+
+  if (!data.transaction.completionDate) {
     return new NextResponse("No completion date set", { status: 404 });
   }
 

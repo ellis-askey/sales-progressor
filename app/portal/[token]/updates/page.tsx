@@ -52,13 +52,14 @@ export default async function PortalUpdatesPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const data = await getPortalData(token);
-  if (!data) notFound();
+  const result = await getPortalData(token);
+  if (!result || result.kind === "deadRound") notFound();
+  const data = result.data;
 
   const { contact, transaction } = data;
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
-  const timeline = await getPortalTimeline(transaction.id, side, contact.id);
+  const timeline = await getPortalTimeline(transaction.id, side, contact.id, { buyerRoundId: contact.buyerRoundId, activeBuyerRoundId: transaction.activeBuyerRoundId });
   const groups   = groupTimeline(timeline);
 
   return (
