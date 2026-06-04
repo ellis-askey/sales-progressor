@@ -5,6 +5,42 @@ import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 1 commit 4d — (a)-CLASS under-scoping, ACCEPTED with documentation.
+//
+// Every milestoneCompletions filter in this file is inside a cross-tx
+// `propertyTransaction.findMany`/`.count`/`.findFirst`. Prisma's nested
+// where cannot reference the parent row's activeBuyerRoundId, so the
+// matches include MilestoneCompletion rows from ANY round (active OR
+// archived).
+//
+// Consumer of every site in this file: the agent hub dashboard
+// (pipeline / stalled / exchanging-this-week / completing-this-week /
+// closing-this-month / new-this-month / month-over-month exchange
+// counts). Read-only display — does NOT drive automated comms or
+// chase decisions or client-/portal-visible state or billing.
+// Classified (a) per the consumer rule.
+//
+// Specific distortion: a relisted file's archived-round PM26/VM19/
+// PM27/VM20 completion can match these filters when it shouldn't,
+// inflating "stalled" / "exchanging this week" / month-over-month
+// counts. The exchangedAt-canonical principle (relist precondition
+// is exchangedAt IS NULL) means relisted files DON'T actually
+// satisfy these in practice, because the precondition already
+// forbids relisting a file with VM19/PM26 stamped.
+//
+// Phase 2 ticket: when relist actually exists on prod and we have
+// multi-round files in the wild, restructure these filters as
+// two-step queries (fetch tx ids + activeBuyerRoundIds, then per-tx
+// scoped MC reads via raw SQL with the OR clause). Until then the
+// risk is theoretical and the pre-relist parity is byte-identical
+// (proved by the read-only harness).
+//
+// Per-site references below mark each occurrence so grep finds the
+// disposition; do not "fix" any of them ad-hoc without first reading
+// this banner.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   chase_unanswered:          "overdue",
   exchange_approaching_gaps: "overdue",
@@ -96,6 +132,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         status: "active",
         expectedExchangeDate: { gte: now, lte: in7Days },
         NOT: {
+          // PHASE 1 4d (a)-CLASS — see file banner.
           milestoneCompletions: {
             some: {
               state: "complete",
@@ -115,6 +152,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         status: "active",
         completionDate: { gte: now, lte: in7Days },
         NOT: {
+          // PHASE 1 4d (a)-CLASS — see file banner.
           milestoneCompletions: {
             some: {
               state: "complete",
@@ -134,6 +172,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         status: "active",
         expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
         NOT: {
+          // PHASE 1 4d (a)-CLASS — see file banner.
           milestoneCompletions: {
             some: {
               state: "complete",
@@ -154,6 +193,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         ...txWhere,
         status: "active",
         // No genuine (non-reconciled) completion in last 14 days
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           none: {
             state: "complete",
@@ -165,6 +205,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         // AND no recent backdated (reconciledAtClaim) completion either — eventDate within 14 days counts as activity
         AND: [
           {
+            // PHASE 1 4d (a)-CLASS — see file banner.
             milestoneCompletions: {
               none: {
                 state: "complete",
@@ -176,6 +217,7 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
         ],
         // Not already exchanged
         NOT: {
+          // PHASE 1 4d (a)-CLASS — see file banner.
           milestoneCompletions: {
             some: {
               state: "complete",
@@ -259,6 +301,7 @@ export async function getHubFilteredIds(
       status: "active",
       expectedExchangeDate: { gte: now, lte: in7Days },
       NOT: {
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",
@@ -274,6 +317,7 @@ export async function getHubFilteredIds(
       status: "active",
       completionDate: { gte: now, lte: in7Days },
       NOT: {
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",
@@ -289,6 +333,7 @@ export async function getHubFilteredIds(
       status: "active",
       expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
       NOT: {
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",
@@ -448,6 +493,11 @@ export async function getHubMomentum(vis: AgentVisibility) {
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
+  // PHASE 1 4d (a)-CLASS — see file banner. Cross-tx count of
+  // exchange-marker completions; can over-count post-relist by
+  // including an archived round's previous PM26/VM19 alongside the
+  // new round's. exchangedAt-canonical principle (relist precondition)
+  // prevents the practical case.
   const [thisMonth, lastMonth] = await Promise.all([
     prisma.milestoneCompletion.count({
       where: {
@@ -509,6 +559,7 @@ export async function getHubWeeklyForecast(
         { expectedExchangeDate: { gte: now, lte: cutoff } },
       ],
       NOT: {
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",
@@ -717,6 +768,10 @@ export async function getHubRecentActivity(
         transaction: { select: { id: true, propertyAddress: true } },
       },
     }),
+    // PHASE 1 4d (a)-CLASS — see file banner. Cross-tx latest
+    // completion across the agent's files; pre-relist behaviour-
+    // identical, post-relist could surface an archived buyer's PM
+    // as "most recent" on a relisted file.
     prisma.milestoneCompletion.findFirst({
       where: { transaction: txFilter, state: "complete" },
       orderBy: { completedAt: "desc" },

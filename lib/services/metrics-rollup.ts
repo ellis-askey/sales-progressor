@@ -167,7 +167,15 @@ async function computeMetricsForScope(
       where: { createdAt: { gte: start, lt: end }, ...txFilter },
     }),
 
-    // Exchange milestone VM19 (vendor) or PM26 (purchaser) — each transaction fires one
+    // PHASE 1 4d — platform-wide daily metric. Asks "how many
+    // exchange-marker completions happened in this window across the
+    // entire platform". This is legitimate allRoundsForAudit semantics
+    // — counting real-world events, not current state. The
+    // exchangedAt-canonical principle (relist precondition) prevents
+    // double-counting a file that exchanged on round 1 then relisted.
+    // Pre-relist: byte-identical. Post-relist: still correct because
+    // a relisted file cannot have an archived VM19/PM26 by the
+    // precondition.
     prisma.milestoneCompletion.count({
       where: {
         completedAt: { gte: start, lt: end },
@@ -178,7 +186,7 @@ async function computeMetricsForScope(
       },
     }),
 
-    // Completion milestone VM20 (vendor) or PM27 (purchaser)
+    // Same legitimate audit semantics — completion VM20/PM27 count.
     prisma.milestoneCompletion.count({
       where: {
         completedAt: { gte: start, lt: end },
@@ -189,6 +197,8 @@ async function computeMetricsForScope(
       },
     }),
 
+    // Same legitimate audit semantics — total completions count for
+    // throughput display.
     prisma.milestoneCompletion.count({
       where: {
         completedAt: { gte: start, lt: end },

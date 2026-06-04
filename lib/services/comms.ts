@@ -11,6 +11,7 @@ import { touchLastActivity } from "@/lib/services/activity";
 import { buildGreeting } from "@/lib/portal-copy";
 import { scopeOwnershipWhere, type AccessScope } from "@/lib/security/access-scope";
 import { applyChaseToTask } from "@/lib/services/reminders";
+import { forRound, milestoneScopeWhere, type MilestoneScope } from "@/lib/services/milestone-scope";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,12 +55,19 @@ export type ActivityEntry =
 
 export async function getActivityTimeline(
   transactionId: string,
-  agencyId: string | null
+  agencyId: string | null,
+  // Phase 1 commit 4d — optional milestone scope. Default (omitted) =
+  // active-round view used by the live agent file detail. The archived-
+  // round view in Phase 1 commit 7/8 will pass forRound(archivedId, txId)
+  // to read THAT round's PMs + vendor file-level. Comms are file-level
+  // and not filtered by scope; only the milestone completions side is.
+  milestoneScope?: MilestoneScope,
 ): Promise<ActivityEntry[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
     select: {
       id: true,
+      activeBuyerRoundId: true,
       contacts: { select: { id: true, name: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
@@ -78,9 +86,15 @@ export async function getActivityTimeline(
   if (tx.vendorSolicitorContact)    contactMap.set(tx.vendorSolicitorContact.id,    tx.vendorSolicitorContact.name);
   if (tx.purchaserSolicitorContact) contactMap.set(tx.purchaserSolicitorContact.id, tx.purchaserSolicitorContact.name);
 
+  const scope = milestoneScope ?? forRound(tx.activeBuyerRoundId, transactionId);
+
   const [completions, comms] = await Promise.all([
     prisma.milestoneCompletion.findMany({
-      where: { transactionId, state: { in: ["complete", "not_required"] } },
+      where: {
+        transactionId,
+        state: { in: ["complete", "not_required"] },
+        ...milestoneScopeWhere(scope),
+      },
       orderBy: { completedAt: "desc" },
       include: {
         milestoneDefinition: { select: { name: true, code: true } },
@@ -264,6 +278,61 @@ export async function getLastContactedByContact(
   return out;
 }
 
+// Phase 1 commit 4d — central rule for "is this set of contactIds
+// purely buyer-side?". Used at every OutboundMessage / PortalMessage
+// write site to drive the buyerRoundId stamp. The rule extends Phase 0's
+// "every contactId resolves to a purchaser Contact" attribution rule
+// with the purchaser-side solicitor / broker, because chases targeting
+// the buyer's solicitor are conceptually buyer-side comms even though
+// the recipient row's roleType isn't 'purchaser'.
+//
+// Returns true iff:
+//   - every contactId in the array EXISTS (no orphans), AND
+//   - every resolved contact is either roleType='purchaser' OR is the
+//     transaction's purchaserSolicitorContactId or brokerContactId
+//     (the "buyer-side professional advisor" half of the comm rule).
+//
+// Returns false for the empty-array case so the caller doesn't stamp a
+// no-recipient comm with a round.
+async function isAllPurchaserSideContacts(
+  contactIds: string[],
+  transactionId: string,
+): Promise<boolean> {
+  if (contactIds.length === 0) return false;
+
+  const [contacts, txRow] = await Promise.all([
+    prisma.contact.findMany({
+      where: { id: { in: contactIds } },
+      select: { id: true, roleType: true },
+    }),
+    prisma.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        purchaserSolicitorContactId: true,
+        brokerContactId: true,
+        purchaserBrokerReferral: true,
+      },
+    }),
+  ]);
+
+  // Any orphan id (contactId not found) fails the rule — defensive.
+  if (contacts.length !== contactIds.length) return false;
+
+  const buyerSideSolicitorId = txRow?.purchaserSolicitorContactId ?? null;
+  // brokerContactId points at the BUYER's broker only when
+  // purchaserBrokerReferral=true (the schema models brokers as either
+  // vendor-side referrals or buyer-side; the boolean flag disambiguates).
+  const buyerSideBrokerId =
+    txRow?.purchaserBrokerReferral === true ? txRow?.brokerContactId ?? null : null;
+
+  return contacts.every((c) => {
+    if (c.roleType === "purchaser") return true;
+    if (buyerSideSolicitorId && c.id === buyerSideSolicitorId) return true;
+    if (buyerSideBrokerId && c.id === buyerSideBrokerId) return true;
+    return false;
+  });
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export type CreateCommInput = {
@@ -290,9 +359,26 @@ export type CreateCommInput = {
 export async function createCommunicationRecord(input: CreateCommInput) {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(input.scope, input.transactionId),
-    select: { id: true, propertyAddress: true },
+    select: { id: true, propertyAddress: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Phase 1 commit 4d — send-time round attribution per the write-path
+  // tracker. Headline rule: stamp activeBuyerRoundId iff EVERY
+  // contactId on the comm is a buyer-side contact (purchaser OR
+  // purchaser-solicitor / purchaser-broker). This is the user's
+  // addition that catches chases to the buyer's solicitor whose
+  // contactIds wouldn't qualify under a purely roleType="purchaser"
+  // check. Mixed (vendor+purchaser+anyone) or vendor-only or
+  // solicitor-only-on-vendor-side comms stay file-level.
+  let stampBuyerRoundId: string | null = null;
+  if (input.contactIds.length > 0 && tx.activeBuyerRoundId) {
+    const stampDecision = await isAllPurchaserSideContacts(
+      input.contactIds,
+      input.transactionId,
+    );
+    if (stampDecision) stampBuyerRoundId = tx.activeBuyerRoundId;
+  }
 
   const record = await prisma.outboundMessage.create({
     data: {
@@ -311,6 +397,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       visibleToClient: input.visibleToClient ?? false,
       createdById: input.createdById,
       createdByRole: input.createdByRole ?? null,
+      buyerRoundId: stampBuyerRoundId,
     },
   });
 
@@ -493,16 +580,31 @@ export async function importWhatsAppChat(
   }
 
   // Verify transaction is in scope + load contacts to validate mapping IDs.
+  // Phase 1 commit 4d — also load activeBuyerRoundId + the buyer-side
+  // pro contact ids so per-row stamping can decide buyer-side vs
+  // file-level without N round-trips.
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
     select: {
       id: true,
       agencyId: true,
-      contacts: { select: { id: true } },
+      activeBuyerRoundId: true,
+      purchaserSolicitorContactId: true,
+      brokerContactId: true,
+      purchaserBrokerReferral: true,
+      contacts: { select: { id: true, roleType: true } },
     },
   });
   if (!tx) throw new Error("Transaction not found");
   const validContactIds = new Set(tx.contacts.map((c) => c.id));
+  // Build the buyer-side contact-id allowlist once. A row qualifies for
+  // an active-round stamp iff EVERY contactId on it is in this set.
+  const buyerSideIds = new Set<string>();
+  for (const c of tx.contacts) {
+    if (c.roleType === "purchaser") buyerSideIds.add(c.id);
+  }
+  if (tx.purchaserSolicitorContactId) buyerSideIds.add(tx.purchaserSolicitorContactId);
+  if (tx.purchaserBrokerReferral && tx.brokerContactId) buyerSideIds.add(tx.brokerContactId);
 
   // Validate every unique sender has a mapping; every mapped contact belongs to this tx.
   const uniqueSenders = Array.from(new Set(messages.map((m) => m.rawSender)));
@@ -593,22 +695,30 @@ export async function importWhatsAppChat(
   // statement, internally atomic, and orders of magnitude faster.
   // Undo path is unaffected: every row carries the same importBatchId.
   await prisma.outboundMessage.createMany({
-    data: toInsert.map((row) => ({
-      transactionId,
-      agencyId: tx.agencyId,
-      type: row.type,
-      method: "whatsapp" as const,
-      channel: "other" as const,         // explicit — no WhatsApp value in OutboundChannel
-      purpose: "other" as const,         // manual log, not a chase
-      status: row.status,                // sent for outbound, delivered for inbound
-      contactIds: row.contactIds,
-      content: row.content,
-      // createdAt LEFT TO DEFAULT (now()) — these rows were logged just now.
-      sentAt: row.sentAt,                // actual WhatsApp message time
-      createdById,
-      createdByRole,
-      importBatchId,
-    })),
+    data: toInsert.map((row) => {
+      // Phase 1 commit 4d — per-row buyer-side check using the
+      // pre-built set. Empty contactIds → file-level (no recipient).
+      // Mixed sides → file-level. Buyer-side-only → active round.
+      const allBuyerSide =
+        row.contactIds.length > 0 && row.contactIds.every((id) => buyerSideIds.has(id));
+      return {
+        transactionId,
+        agencyId: tx.agencyId,
+        type: row.type,
+        method: "whatsapp" as const,
+        channel: "other" as const,         // explicit — no WhatsApp value in OutboundChannel
+        purpose: "other" as const,         // manual log, not a chase
+        status: row.status,                // sent for outbound, delivered for inbound
+        contactIds: row.contactIds,
+        content: row.content,
+        // createdAt LEFT TO DEFAULT (now()) — these rows were logged just now.
+        sentAt: row.sentAt,                // actual WhatsApp message time
+        createdById,
+        createdByRole,
+        importBatchId,
+        buyerRoundId: allBuyerSide ? tx.activeBuyerRoundId : null,
+      };
+    }),
   });
 
   touchLastActivity(transactionId).catch(() => {});

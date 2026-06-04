@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { callClaude } from "@/lib/anthropic";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 export type FlagKind =
   | "long_silence"
@@ -166,6 +167,27 @@ Return JSON array: [{"kind":"...","reason":"..."}]`;
 }
 
 export async function detectAndStoreFlags(agencyId: string): Promise<number> {
+  // PHASE 1 4d (b)-CLASS — detection action surface, restructured to
+  // two-step to enforce round scoping per-tx.
+  //
+  // detectFlags() decides which transactionFlag rows get CREATED for
+  // each file (milestone_stalled, chase_unanswered, overdue_milestone,
+  // etc.) — those flags drive UI alerts AND the work-queue surface
+  // the agent acts on. Under-scoping here would:
+  //   * Hide a "milestone_stalled" flag that SHOULD fire on the new
+  //     round of a relisted file, because an archived round's
+  //     completedAt counts as "recent activity"
+  //   * Surface stale _count of completions making the file look
+  //     further along than it is
+  // Both are action-affecting masking the user explicitly flagged
+  // (4d preview: "chains.ts and problem-detection.ts deserve
+  // particular suspicion since detection logic tends to drive
+  // actions").
+  //
+  // The cross-tx fetch drops the milestoneCompletions include +
+  // _count; per-tx fetch inside the loop uses forRound for proper
+  // scoping. activeBuyerRoundId added to the parent select so the
+  // per-tx loop has it without an extra round-trip.
   const transactions = await prisma.propertyTransaction.findMany({
     where: { agencyId, status: { in: ["active", "on_hold"] } },
     select: {
@@ -175,9 +197,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       createdAt: true,
       updatedAt: true,
       expectedExchangeDate: true,
-      _count: {
-        select: { milestoneCompletions: { where: { state: "complete" } } },
-      },
+      activeBuyerRoundId: true,
       communications: {
         where: { type: { in: ["outbound", "inbound"] } },
         orderBy: { createdAt: "desc" },
@@ -191,12 +211,6 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
         select: { dueDate: true },
       },
       contacts: { select: { portalToken: true } },
-      milestoneCompletions: {
-        where: { state: "complete" },
-        orderBy: { completedAt: "desc" },
-        take: 1,
-        select: { completedAt: true },
-      },
     },
   });
 
@@ -204,12 +218,37 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
   let flagsCreated = 0;
 
   for (const tx of transactions) {
+    // Per-tx round-scoped MC reads — the two pieces detectFlags needs:
+    // count of complete rows (for _count.milestoneCompletions) and the
+    // most-recent completedAt (for milestoneCompletions[0]?.completedAt).
+    const scope = forRound(tx.activeBuyerRoundId, tx.id);
+    const [completedCount, lastCompleted] = await Promise.all([
+      prisma.milestoneCompletion.count({
+        where: {
+          transactionId: tx.id,
+          state: "complete",
+          ...milestoneScopeWhere(scope),
+        },
+      }),
+      prisma.milestoneCompletion.findFirst({
+        where: {
+          transactionId: tx.id,
+          state: "complete",
+          ...milestoneScopeWhere(scope),
+        },
+        orderBy: { completedAt: "desc" },
+        select: { completedAt: true },
+      }),
+    ]);
+
     // Enrich with inbound count for portal activity check
     const inboundCount = await prisma.outboundMessage.count({
       where: { transactionId: tx.id, type: "inbound" },
     });
     const enriched: TxData = {
       ...tx,
+      _count: { milestoneCompletions: completedCount },
+      milestoneCompletions: lastCompleted ? [lastCompleted] : [],
       communications: [
         ...tx.communications,
         ...(inboundCount > 0 ? [{ createdAt: new Date(), type: "inbound" }] : []),

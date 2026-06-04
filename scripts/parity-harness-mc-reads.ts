@@ -46,6 +46,7 @@ import * as path from "node:path";
 // REAL production imports — the point of the harness. tsconfig-paths
 // resolves @/* at runtime; tsc validates these at build time.
 import { getMilestonesForTransaction, getDownstreamCompleted, getImpliedPredecessors } from "@/lib/services/milestones";
+import { getActivityTimeline } from "@/lib/services/comms";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 // READ-ONLY BY CONSTRUCTION
@@ -130,6 +131,23 @@ type TxSnapshot = {
       completedAt: string | null;
       eventDate: string | null;
     }>;
+  };
+
+  // 4d additions ─────────────────────────────────────────────────────
+  // Output of getActivityTimeline (no agency scope, no roundScope —
+  // defaults to active-round) projected to a stable shape. Used by
+  // the agent file detail Activity tab. Read-only.
+  activityTimelineKindCounts: { milestone: number; comm: number };
+  activityTimelineMilestoneCodes: string[];
+
+  // problem-detection.ts derived per-tx values: the round-scoped
+  // _count and last-completedAt that detectFlags consumes. The
+  // detectFlags decision is a pure function of these inputs (plus
+  // chase tasks / contacts / comms which we already capture); equal
+  // inputs ⇒ equal flag decisions.
+  problemDetectionInput: {
+    completedCount: number;
+    lastCompletedAt: string | null;
   };
 };
 
@@ -286,6 +304,38 @@ async function snapshotForTransaction(tx: { id: string; propertyAddress: string;
     orderBy: { milestoneDefinitionId: "asc" },
   });
 
+  // 4d — getActivityTimeline is a READ-ONLY production fetcher (no
+  // side effects), so we can invoke it directly. Projects to stable
+  // counts + milestone-code list for diff stability.
+  const activityEntries = await getActivityTimeline(tx.id, null);
+  const activityTimelineKindCounts = activityEntries.reduce(
+    (acc, e) => {
+      if (e.kind === "milestone") acc.milestone++;
+      else if (e.kind === "comm") acc.comm++;
+      return acc;
+    },
+    { milestone: 0, comm: 0 },
+  );
+  const activityTimelineMilestoneCodes = activityEntries
+    .filter((e): e is Extract<typeof e, { kind: "milestone" }> => e.kind === "milestone")
+    .map((e) => e.milestoneCode)
+    .sort();
+
+  // 4d — problem-detection inputs (per-tx round-scoped count + last
+  // completedAt). Same scope the production detectAndStoreFlags now
+  // computes after the (b)-class restructure.
+  const pdScope = forRound(tx.activeBuyerRoundId, tx.id);
+  const [pdCount, pdLast] = await Promise.all([
+    prisma.milestoneCompletion.count({
+      where: { transactionId: tx.id, state: "complete", ...milestoneScopeWhere(pdScope) },
+    }),
+    prisma.milestoneCompletion.findFirst({
+      where: { transactionId: tx.id, state: "complete", ...milestoneScopeWhere(pdScope) },
+      orderBy: { completedAt: "desc" },
+      select: { completedAt: true },
+    }),
+  ]);
+
   return {
     transactionId: tx.id,
     propertyAddress: tx.propertyAddress,
@@ -312,6 +362,12 @@ async function snapshotForTransaction(tx: { id: string; propertyAddress: string;
         completedAt: c.completedAt?.toISOString() ?? null,
         eventDate: c.eventDate?.toISOString() ?? null,
       })),
+    },
+    activityTimelineKindCounts,
+    activityTimelineMilestoneCodes,
+    problemDetectionInput: {
+      completedCount: pdCount,
+      lastCompletedAt: pdLast?.completedAt?.toISOString() ?? null,
     },
   };
 }
