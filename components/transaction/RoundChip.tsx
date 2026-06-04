@@ -14,15 +14,16 @@
 //   - Withdrawn:         "Sale N with {buyerName} · fell through {date}"
 //
 // Hover-reveal (added 2026-06-04, voice-passed): on hover/focus the
-// chip rolls horizontally (rotateY 180deg) like a flipping card, showing
-// "View previous sale" (one prior fall-through) or "View previous sales"
-// (multiple) on the back face with a static "→" glyph. Background tint
-// deepens during the flip. Inert on the disabled variant (no archived
-// rounds — withdrawn-R1 fixture). The aria-label keeps the longer
-// `hoverHint` so screen readers get the specific phrasing; the visible
-// flip is for sighted users only. The 3D rotation and reduced-motion
-// fallback (instant opacity swap) live on the .agent-chip-hover-host
-// class in agent-system.css.
+// chip rolls forward around its horizontal axis (rotateX 180deg) —
+// the top tips toward the viewer and the back face becomes the new
+// front, showing "View previous sale" (one prior fall-through) or
+// "View previous sales" (multiple) with a static "→" glyph.
+// Background tint deepens during the roll. Inert on the disabled
+// variant (no archived rounds — withdrawn-R1 fixture). The aria-label
+// keeps the longer `hoverHint` so screen readers get the specific
+// phrasing; the visible roll is for sighted users only. The 3D
+// rotation and reduced-motion fallback (instant opacity swap) live on
+// the .agent-chip-hover-host class in agent-system.css.
 //
 // Click opens the ArchivedRoundDrawer for the most recent archived round.
 
