@@ -1690,3 +1690,513 @@ export async function toggleSuppressPortalConfirmEmailsAction(
 
   revalidatePath(pathname, "page");
 }
+
+// ─── Phase 1 commit 6 — relist a withdrawn file with a new buyer ────────────
+//
+// LOCKED SPEC (Ellis, 2026-06-04):
+//   - Single $transaction with EXACT step order
+//   - fallThroughReason copied from tx → outgoing round BEFORE anything nulls it
+//   - vendorMilestoneSnapshot JSON written on outgoing round BEFORE in-place reset
+//   - Fire-and-forget intro email + reminder re-evaluation only AFTER commit
+//
+// Preconditions (server-canonical — UI hides the CTA but the server is truth):
+//   - tx.status === "withdrawn"
+//   - tx.exchangedAt IS NULL                (a relist after exchange is not relist)
+//   - tx.activeBuyerRoundId IS NOT NULL     (the round to archive must exist)
+//   - Caller in agency scope (director/negotiator) OR internal staff (admin/SP/SA)
+//   - Client portal tokens cannot reach this action — server actions require a
+//     NextAuth session via requireSession()
+//
+// What the action does, in order:
+//   1. Snapshot vendor VMs (the reset codes) onto outgoing round's
+//      vendorMilestoneSnapshot column.
+//   2. Carry tx.fallThroughReason → outgoing round.fallThroughReason.
+//   3. Archive outgoing round (status=withdrawn, archivedAt=now).
+//   4. Rotate old purchaser-contact portal tokens to NULL — belt-and-braces
+//      so the new buyer's portal is unreachable from old links, even before
+//      commit 5's round-mismatch guard kicks in.
+//   5. Create the new BuyerRound (roundNumber+1, status=active) with the
+//      buyer-side fields the caller supplied.
+//   6. Reset VM2, VM7, VM10–VM20 in place — recompute state from current
+//      prerequisites of the surviving (untouched) vendor milestones.
+//   7. Create the new purchaser Contact stamped to the new round, with a
+//      fresh portal token.
+//   8. Initialize round-N+1 PMs (PM1–PM27) via inline createMany scoped
+//      to the new round. Cannot use initializeMilestoneCompletions because
+//      its "exists?" check is unscoped and would short-circuit on round-1 PMs.
+//   9. Mirror buyer-side fields onto PropertyTransaction (purchasePrice,
+//      purchaser solicitor, broker), flip status active, null fallThroughReason
+//      + expectedExchangeDate + completionDate, point activeBuyerRoundId
+//      at the new round.
+//  10. Stamp a PriceHistory row on the new round if the price changed.
+//  11. Cancel old round's pending ChaseTasks and outstanding ReminderLogs.
+//  12. Clear chainLink.withdrawalStatus if set (file is back; no cascade).
+//  13. Internal note — "X relisted to new buyer Y — Round N+1".
+//
+// Post-commit fire-and-forget:
+//   - evaluateTransactionReminders(txId): rebuilds round-N+1 buyer-side
+//     reminders AND vendor reminders anchored to the reset VM codes.
+//   - sendOutsourceIntroForTransaction (outsourced files only): the
+//     per-contact outsourceIntroSentAt dedup means the vendor (already
+//     stamped at round 1) gets skipped; only the new buyer is emailed.
+//
+// Returns { newRoundId, newContactId } so the caller (UI in commit 6b, or
+// the staging rehearsal) can route + verify.
+//
+// Reset-VM list — single source of truth, mirrors the BuyerRound schema
+// comment on vendorMilestoneSnapshot.
+const RELIST_RESET_VM_CODES = [
+  "VM2", "VM7",
+  "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
+  "VM18", "VM19", "VM20",
+];
+
+// EXCHANGE_GATE codes are special-cased in initializeMilestoneCompletions
+// (always locked at init, "available" computed via gate logic at read time).
+// Mirror that here so a reset doesn't put VM18 into a state inconsistent
+// with how a fresh file would render it.
+const RELIST_EXCHANGE_GATE_CODES = new Set(["VM18"]);
+
+export async function relistTransactionAction(input: {
+  transactionId: string;
+  newBuyer: { name: string; email?: string | null; phone?: string | null };
+  newPurchasePrice?: number | null;
+  newPurchaserSolicitorFirmId?: string | null;
+  newPurchaserSolicitorContactId?: string | null;
+  newBrokerFirmId?: string | null;
+  newBrokerContactId?: string | null;
+}): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
+  const session = await requireSession();
+  return relistTransactionImpl(input, {
+    userId: session.user.id,
+    userName: session.user.name ?? "",
+    agencyId: session.user.agencyId ?? null,
+    scope: getAccessScope(session),
+  });
+}
+
+// Inner implementation — the real work. Exported under an _Impl name so the
+// staging rehearsal harness can drive it with a fixed test-user identity
+// without standing up a NextAuth session. Production code MUST use
+// relistTransactionAction; this _Impl form is for tooling only.
+type RelistSessionLike = {
+  userId: string;
+  userName: string;
+  agencyId: string | null;
+  scope: ReturnType<typeof getAccessScope>;
+};
+export async function relistTransactionImpl(
+  input: {
+    transactionId: string;
+    newBuyer: { name: string; email?: string | null; phone?: string | null };
+    newPurchasePrice?: number | null;
+    newPurchaserSolicitorFirmId?: string | null;
+    newPurchaserSolicitorContactId?: string | null;
+    newBrokerFirmId?: string | null;
+    newBrokerContactId?: string | null;
+  },
+  session: RelistSessionLike,
+): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
+  const scope = session.scope;
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: {
+      id: true,
+      propertyAddress: true,
+      status: true,
+      exchangedAt: true,
+      activeBuyerRoundId: true,
+      fallThroughReason: true,
+      purchasePrice: true,
+      tenure: true,
+      purchaseType: true,
+      serviceType: true,
+      agencyId: true,
+      agentUserId: true,
+      assignedUserId: true,
+      chainLinkId: true,
+    },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  if (tx.status !== "withdrawn") {
+    throw new Error(`Relist requires status=withdrawn (current: ${tx.status})`);
+  }
+  if (tx.exchangedAt !== null) {
+    throw new Error("Cannot relist after exchange has happened");
+  }
+  if (tx.activeBuyerRoundId === null) {
+    throw new Error("Cannot relist a file with no active buyer round");
+  }
+  if (!tx.tenure || !tx.purchaseType) {
+    throw new Error("Cannot relist a file missing tenure or purchaseType");
+  }
+
+  // Outgoing round — needed for its roundNumber so the new round increments.
+  const outgoingRound = await prisma.buyerRound.findUnique({
+    where: { id: tx.activeBuyerRoundId },
+    select: { id: true, roundNumber: true },
+  });
+  if (!outgoingRound) throw new Error("Outgoing round not found");
+  const nextRoundNumber = outgoingRound.roundNumber + 1;
+
+  // Definition lookups (read-only). We need:
+  //   - Vendor reset def ids + codes for the snapshot + the reset writes
+  //   - Vendor "preserved" def ids (untouched VMs) for prereq recompute
+  //   - All purchaser-side def ids for the round-N+1 PM createMany
+  const allDefs = await prisma.milestoneDefinition.findMany({
+    select: { id: true, code: true, side: true },
+  });
+  const codeById = new Map(allDefs.map((d) => [d.id, d.code]));
+  const idByCode = new Map(allDefs.map((d) => [d.code, d.id]));
+
+  const resetVmDefIds = RELIST_RESET_VM_CODES
+    .map((c) => idByCode.get(c))
+    .filter((id): id is string => !!id);
+  const purchaserDefIds = allDefs.filter((d) => d.side === "purchaser").map((d) => d.id);
+
+  // Snapshot all vendor completions for the reset codes BEFORE the
+  // transaction opens, so the snapshot reflects the state at the user's
+  // moment of relist (and the JSON serialization happens outside the lock).
+  // Vendor VMs are file-level (buyerRoundId IS NULL) — read accordingly.
+  const vmRowsToSnapshot = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: tx.id,
+      milestoneDefinitionId: { in: resetVmDefIds },
+      buyerRoundId: null,
+    },
+    select: {
+      id: true,
+      milestoneDefinitionId: true,
+      state: true,
+      completedAt: true,
+      completedById: true,
+      eventDate: true,
+      summaryText: true,
+      reconciledAtExchange: true,
+    },
+  });
+  const vendorMilestoneSnapshot = vmRowsToSnapshot.map((r) => ({
+    code: codeById.get(r.milestoneDefinitionId) ?? "?",
+    state: r.state,
+    completedAt: r.completedAt?.toISOString() ?? null,
+    completedById: r.completedById,
+    eventDate: r.eventDate?.toISOString() ?? null,
+    summaryText: r.summaryText,
+    reconciledAtExchange: r.reconciledAtExchange,
+  }));
+
+  // Preserved vendor codes (untouched on relist) — used to recompute
+  // post-reset state for the reset codes. We need their current state to
+  // know whether each reset code becomes "available" or "locked".
+  const preservedVmRows = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId: tx.id,
+      milestoneDefinitionId: { in: allDefs.filter((d) => d.side === "vendor" && !RELIST_RESET_VM_CODES.includes(d.code)).map((d) => d.id) },
+      buyerRoundId: null,
+    },
+    select: { milestoneDefinitionId: true, state: true },
+  });
+  const preservedStateByCode = new Map(
+    preservedVmRows.map((r) => [codeById.get(r.milestoneDefinitionId) ?? "", r.state as string]),
+  );
+
+  // Recompute the reset codes' new state. Rule: prereqs all complete or
+  // not_required → "available"; exchange gate → "locked" (gate logic adds
+  // availability at render time); otherwise → "locked".
+  function resetStateFor(code: string): "available" | "locked" {
+    if (RELIST_EXCHANGE_GATE_CODES.has(code)) return "locked";
+    const prereqs = DIRECT_PREREQUISITES[code] ?? [];
+    if (prereqs.length === 0) return "available";
+    // A reset code's prereq might be ANOTHER reset code (e.g. VM10's prereq
+    // is VM7, both reset). After reset, the prereq goes to its OWN reset
+    // state (available or locked). Recurse, with a guard for cycles
+    // (the prerequisite graph is acyclic — this is just defensive).
+    const allSatisfied = prereqs.every((p) => {
+      if (RELIST_RESET_VM_CODES.includes(p)) {
+        // Reset prereq: it's not yet "complete", so the dependent stays locked.
+        return false;
+      }
+      const s = preservedStateByCode.get(p);
+      return s === "complete" || s === "not_required";
+    });
+    return allSatisfied ? "available" : "locked";
+  }
+  const resetStateByCode = new Map<string, "available" | "locked">();
+  for (const c of RELIST_RESET_VM_CODES) resetStateByCode.set(c, resetStateFor(c));
+
+  // Old purchaser contacts whose tokens we'll rotate. Read outside the
+  // transaction so the write inside is a simple updateMany.
+  const oldPurchaserContacts = await prisma.contact.findMany({
+    where: {
+      propertyTransactionId: tx.id,
+      roleType: "purchaser",
+      buyerRoundId: outgoingRound.id,
+    },
+    select: { id: true },
+  });
+
+  // ───── Single $transaction — locked step order ─────────────────────────
+  const result = await prisma.$transaction(async (ptx) => {
+    // STEP 1: snapshot onto outgoing round.
+    // STEP 2: carry fallThroughReason (BEFORE step in (9) nulls tx.fallThroughReason).
+    // STEP 3: archive outgoing round.
+    // STEPS 1+2+3 happen in a single update to keep the row write atomic
+    // and to make the step ordering visible in the diff.
+    await ptx.buyerRound.update({
+      where: { id: outgoingRound.id },
+      data: {
+        vendorMilestoneSnapshot: vendorMilestoneSnapshot as object[],
+        // STEP 2 — fallThroughReason carry, BEFORE the tx update nulls it.
+        fallThroughReason: tx.fallThroughReason ?? null,
+        status: "withdrawn",
+        archivedAt: new Date(),
+      },
+    });
+
+    // STEP 4 — rotate old purchaser tokens to NULL. Belt-and-braces against
+    // a stale bookmarked link: commit 5's round-mismatch guard would already
+    // dead-route the token, but nulling makes the contact non-resolvable at
+    // all (findUnique({ portalToken }) returns nothing).
+    if (oldPurchaserContacts.length > 0) {
+      await ptx.contact.updateMany({
+        where: { id: { in: oldPurchaserContacts.map((c) => c.id) } },
+        data: { portalToken: null },
+      });
+    }
+
+    // STEP 5 — create the new BuyerRound.
+    const newRound = await ptx.buyerRound.create({
+      data: {
+        transactionId: tx.id,
+        roundNumber: nextRoundNumber,
+        status: "active",
+        purchasePrice: input.newPurchasePrice ?? tx.purchasePrice,
+        purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
+        purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
+        brokerFirmId: input.newBrokerFirmId ?? null,
+        brokerContactId: input.newBrokerContactId ?? null,
+      },
+    });
+
+    // STEP 6 — reset VM2 / VM7 / VM10–VM20 in place. Each reset row goes to
+    // available or locked per the recompute above; completedAt/By/eventDate/
+    // summaryText/reconciledAtExchange all clear. We update by row id, found
+    // via the file-level scope (vendor rows are buyerRoundId IS NULL).
+    const resetRows = await ptx.milestoneCompletion.findMany({
+      where: {
+        transactionId: tx.id,
+        milestoneDefinitionId: { in: resetVmDefIds },
+        buyerRoundId: null,
+      },
+      select: { id: true, milestoneDefinitionId: true },
+    });
+    for (const row of resetRows) {
+      const code = codeById.get(row.milestoneDefinitionId) ?? "";
+      const newState = resetStateByCode.get(code) ?? "locked";
+      await ptx.milestoneCompletion.update({
+        where: { id: row.id },
+        data: {
+          state: newState,
+          completedAt: null,
+          completedById: null,
+          eventDate: null,
+          expectedDate: null,
+          summaryText: null,
+          reconciledAtExchange: false,
+          confirmedByPortal: false,
+          outOfOrderCompletion: false,
+          notRequiredReason: null,
+        },
+      });
+    }
+
+    // STEP 7 — create the new purchaser Contact, stamped to the new round.
+    const newContact = await ptx.contact.create({
+      data: {
+        propertyTransactionId: tx.id,
+        name: input.newBuyer.name,
+        email: input.newBuyer.email ?? null,
+        phone: input.newBuyer.phone ?? null,
+        roleType: "purchaser",
+        portalToken: randomUUID(),
+        buyerRoundId: newRound.id,
+      },
+    });
+
+    // STEP 8 — initialize the new round's PMs. Inline createMany scoped to
+    // the new round (initializeMilestoneCompletions can't be used here: its
+    // unscoped find-then-skip would short-circuit on round-1 PMs and create
+    // nothing). Auto-NR codes + initial availability mirror the create flow.
+    const autoNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
+    const initialAvailable = new Set<string>();
+    for (const def of allDefs.filter((d) => d.side === "purchaser")) {
+      if (autoNrCodes.has(def.code)) continue;
+      const prereqs = DIRECT_PREREQUISITES[def.code] ?? [];
+      // PM12's only prereq is VM9 (cross-side). The post-reset state of VM9
+      // is preserved (VM9 is NOT in the reset list), so we read it from the
+      // preserved map. Other PM prereqs are purchaser-side, all newly-created
+      // → none "complete" yet, so dependent codes stay locked.
+      const allSatisfied = prereqs.every((p) => {
+        if (autoNrCodes.has(p)) return true;
+        if (p.startsWith("VM")) {
+          const s = preservedStateByCode.get(p);
+          return s === "complete" || s === "not_required";
+        }
+        return false;
+      });
+      if (allSatisfied) initialAvailable.add(def.code);
+    }
+    const now = new Date();
+    await ptx.milestoneCompletion.createMany({
+      data: allDefs
+        .filter((d) => d.side === "purchaser")
+        .map((def) => {
+          const isNr = autoNrCodes.has(def.code);
+          const isAvail = initialAvailable.has(def.code);
+          const state = isNr ? "not_required" : isAvail ? "available" : "locked";
+          return {
+            transactionId: tx.id,
+            milestoneDefinitionId: def.id,
+            state: state as "not_required" | "available" | "locked",
+            notRequiredReason: isNr ? "Auto-set at file creation" : null,
+            buyerRoundId: newRound.id,
+            createdAt: now,
+          };
+        }),
+    });
+
+    // STEP 9 — mirror buyer-side fields onto PropertyTransaction + flip
+    // status active + null tx.fallThroughReason / expectedExchangeDate /
+    // completionDate. activeBuyerRoundId points at the new round.
+    const updatedPrice = input.newPurchasePrice ?? tx.purchasePrice;
+    await ptx.propertyTransaction.update({
+      where: { id: tx.id },
+      data: {
+        status: "active",
+        activeBuyerRoundId: newRound.id,
+        fallThroughReason: null,
+        expectedExchangeDate: null,
+        completionDate: null,
+        purchasePrice: updatedPrice,
+        purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
+        purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
+        brokerFirmId: input.newBrokerFirmId ?? null,
+        brokerContactId: input.newBrokerContactId ?? null,
+      },
+    });
+
+    // STEP 10 — PriceHistory row stamped to the new round if the price
+    // changed. Mirrors savePriceAction.
+    if (input.newPurchasePrice != null && input.newPurchasePrice !== tx.purchasePrice) {
+      await ptx.priceHistory.create({
+        data: {
+          transactionId: tx.id,
+          oldPrice: tx.purchasePrice,
+          newPrice: input.newPurchasePrice,
+          changedById: session.userId,
+          buyerRoundId: newRound.id,
+        },
+      });
+    }
+
+    // STEP 11 — cancel old round's pending ChaseTasks. The engine's
+    // re-evaluate (post-commit) will create fresh tasks for round-N+1 codes
+    // and for the reset VM codes' anchored chases. Any "pending" task on
+    // the outgoing round becomes "cancelled" so the work queue clears it.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        buyerRoundId: outgoingRound.id,
+        status: "pending",
+      },
+      data: { status: "cancelled" },
+    });
+    // Reset-VM-anchored vendor chases (anchor = reset code) — also cancel
+    // these so the engine recomputes against the post-reset state.
+    await ptx.chaseTask.updateMany({
+      where: {
+        transactionId: tx.id,
+        buyerRoundId: null,
+        status: "pending",
+        reminderLog: {
+          reminderRule: { targetMilestoneCode: { in: RELIST_RESET_VM_CODES } },
+        },
+      },
+      data: { status: "cancelled" },
+    });
+
+    // STEP 12 — clear chainLink.withdrawalStatus if set. The file is back;
+    // no cascade fires (the chain-cascade trigger is in withdraw, not here).
+    if (tx.chainLinkId) {
+      await ptx.chainLink.update({
+        where: { id: tx.chainLinkId },
+        data: { withdrawalStatus: null, withdrawalRespondedAt: null },
+      });
+    }
+
+    // STEP 13 — internal note.
+    await ptx.outboundMessage.create({
+      data: {
+        transactionId: tx.id,
+        type: "internal_note",
+        contactIds: [newContact.id],
+        content: `${session.userName} relisted this file with a new buyer (${input.newBuyer.name}) — Round ${nextRoundNumber}.${tx.fallThroughReason ? ` Previous round withdrew: ${tx.fallThroughReason}.` : ""}`,
+        createdById: session.userId,
+        buyerRoundId: newRound.id,
+      },
+    });
+
+    return { newRoundId: newRound.id, newContactId: newContact.id };
+  });
+
+  // ───── Post-commit fire-and-forget ─────────────────────────────────────
+  // Reminder re-evaluation — rebuilds round-N+1 buyer-side schedule AND
+  // any vendor reminders whose anchor was a reset VM code.
+  void evaluateTransactionReminders(tx.id).catch((err) => {
+    console.error("[relist] reminder re-evaluation failed", err);
+  });
+
+  // Intro email to the new buyer — outsourced only. The orchestrator's
+  // per-contact outsourceIntroSentAt dedup means the vendor (already
+  // stamped at round 1) gets skipped; only the new buyer receives.
+  if (tx.serviceType === "outsourced") {
+    const { sendOutsourceIntroForTransaction } = await import("@/lib/emails/send-outsource-intro");
+    void sendOutsourceIntroForTransaction(tx.id, session.userId).catch((err) => {
+      console.error("[relist] outsource intro send failed", err);
+    });
+  }
+
+  // Command Centre event log. Re-uses transaction_status_changed (withdrawn
+  // → active) with a relisted=true marker rather than introducing a new
+  // EventType enum value — keeps commit 6 schema-free. A dedicated
+  // transaction_relisted event can be added later if Command Centre views
+  // want to distinguish relist from a manual withdrawn→active flip.
+  await recordEvent({
+    type: "transaction_status_changed",
+    agencyId: session.agencyId || undefined,
+    userId: session.userId,
+    entityType: "PropertyTransaction",
+    entityId: tx.id,
+    metadata: {
+      from: "withdrawn",
+      to: "active",
+      relisted: true,
+      previousRoundId: outgoingRound.id,
+      newRoundId: result.newRoundId,
+      newRoundNumber: nextRoundNumber,
+      newBuyerName: input.newBuyer.name,
+      priceChanged: input.newPurchasePrice != null && input.newPurchasePrice !== tx.purchasePrice,
+    },
+  });
+
+  // revalidatePath is only valid inside a request render context. Guard
+  // for invocation from non-request callers (the staging rehearsal harness)
+  // where the static generation store is absent.
+  try {
+    revalidatePath(`/agent/transactions/${tx.id}`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("static generation store")) throw err;
+  }
+  return { newRoundId: result.newRoundId, newContactId: result.newContactId, newRoundNumber: nextRoundNumber };
+}
