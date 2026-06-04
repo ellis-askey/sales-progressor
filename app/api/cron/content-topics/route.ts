@@ -17,6 +17,15 @@ export async function GET(req: NextRequest) {
   // Gather recent milestone completions (organic only — migrated rows are
   // backdated bulk inserts that would suggest fake "activity" to the topic
   // generator).
+  //
+  // PHASE 1 4e — legitimate allRoundsForAudit semantics. This cron
+  // generates content topics from "what real-world milestones
+  // happened this week across the platform"; a relisted file's
+  // archived PM completion that did happen recently IS a real event
+  // the topic generator should consider. The exchangedAt-canonical
+  // principle means relist-precondition files can't be in this
+  // window anyway. Documented to prevent a future reader from
+  // reflexively "fixing" it to forRound.
   const recentCompletions = await prisma.milestoneCompletion.findMany({
     where: {
       completedAt: { gte: sevenDaysAgo },

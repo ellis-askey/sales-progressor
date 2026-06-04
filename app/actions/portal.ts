@@ -10,6 +10,7 @@ import { getMilestoneCopy } from "@/lib/portal-copy";
 import { notifyPortalExpectedDateSet, notifyPortalChaseNote } from "@/lib/services/notifications";
 import { setUkChaseTime } from "@/lib/services/reminders";
 import { toUKDateStr } from "@/lib/utils";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 // Discriminated result so the portal UI can render the B1 hard-block
 // gracefully instead of treating it as a server error.
@@ -167,9 +168,25 @@ export async function portalSetExpectedDateAction(input: {
   // Compound upsert key dropped in Phase 1 commit 1; wrap find→
   // (update|create) in $transaction so the partial unique index catches
   // any concurrent-create race.
+  //
+  // Phase 1 commit 4e — round-scope the find via forRound(active, tx).
+  // The contact-buyerRound-scoped variant is commit 5's portal scoping;
+  // for 4e the active-round scope is sufficient to disambiguate the row
+  // on pre-relist single-round files. Side-aware stamp on the create
+  // branch so a new purchaser-side row gets stamped correctly.
   await prisma.$transaction(async (ptx) => {
+    const portalTxRow = await ptx.propertyTransaction.findUnique({
+      where: { id: contact.propertyTransactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const portalRoundId = portalTxRow?.activeBuyerRoundId ?? null;
+    const portalScope = forRound(portalRoundId, contact.propertyTransactionId);
     const existing = await ptx.milestoneCompletion.findFirst({
-      where: { transactionId: contact.propertyTransactionId, milestoneDefinitionId: def.id },
+      where: {
+        transactionId: contact.propertyTransactionId,
+        milestoneDefinitionId: def.id,
+        ...milestoneScopeWhere(portalScope),
+      },
       select: { id: true },
     });
     if (existing) {
@@ -185,6 +202,7 @@ export async function portalSetExpectedDateAction(input: {
         milestoneDefinitionId: def.id,
         state: "available",
         expectedDate: new Date(input.expectedDate),
+        buyerRoundId: side === "purchaser" ? portalRoundId : null,
       },
     });
   });

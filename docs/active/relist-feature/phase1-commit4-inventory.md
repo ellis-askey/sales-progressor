@@ -14,7 +14,7 @@ Living checklist. Each commit ticks off the sites it converted (or re-dispositio
 | 4b | `milestones.ts` + `transactions.ts` + `agent.ts` + `work-queue.ts` + `summary.ts` + `audit.ts` + `automated-emails-preview.ts` | ✅ shipped 2026-06-04, parity diff empty |
 | 4c | `reminders.ts` + `client-chase-cron.ts` + `retention.ts` + `client-chase-digest.ts` + ClientChaseState writes | ✅ shipped 2026-06-04, engine input + chase-engine probe diffs empty |
 | 4d | `comms.ts` + `hub.ts` + `analytics.ts` + `chains.ts` + `problem-detection.ts` + `solicitor-intel.ts` + `metrics-rollup.ts` + `reports.ts` + `chainNotifications.ts` + OutboundMessage/PortalMessage writes | ✅ shipped 2026-06-04, file-checkout parity diff empty |
-| 4e | actions+API+UI + PriceHistory writes | ⏳ |
+| 4e | `actions/transactions.ts` + `actions/milestones.ts` + `actions/portal.ts` + `api/milestones/*` + `api/ai/generate-chase` + `api/cron/{content-topics,medians-ready-check}` + `command/(protected)/overview/page.tsx` + PriceHistory at both write sites + survey-route inbound | ✅ shipped 2026-06-04, file-checkout parity diff empty |
 | 5 | portal scoping | ⏳ |
 
 Exhaustive catalogue of every production read entry point on `MilestoneCompletion`. Each line dispositioned against the helper in `lib/services/milestone-scope.ts` (`forRound` / `vendorOnly` / `allRoundsForAudit`) so commits 4b–4e can convert in order without leaving anything implicit.

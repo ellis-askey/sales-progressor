@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId: session.user.agencyId },
-    select: { id: true, purchasePrice: true },
+    select: { id: true, purchasePrice: true, activeBuyerRoundId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
   if (purchasePrice !== undefined) {
     updates.purchasePrice = purchasePrice;
 
-    // Log price change to audit trail
+    // Log price change to audit trail.
+    // Phase 1 commit 4e — stamp activeBuyerRoundId per Phase 0
+    // attribution (price is always buyer-side).
     if (tx.purchasePrice !== purchasePrice) {
       await prisma.priceHistory.create({
         data: {
@@ -41,6 +43,7 @@ export async function POST(req: NextRequest) {
           oldPrice: tx.purchasePrice,
           newPrice: purchasePrice,
           changedById: session.user.id,
+          buyerRoundId: tx.activeBuyerRoundId,
         },
       });
 

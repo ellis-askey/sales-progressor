@@ -47,6 +47,12 @@ export async function GET(req: NextRequest) {
   //    Migrated files excluded: their user-supplied historical timestamps
   //    would prematurely trip the 50-tx threshold without giving real
   //    samples, and would skew the median when finally computed.
+  //
+  // PHASE 1 4e — legitimate allRoundsForAudit semantics for this and
+  // the second findMany below. Median sample is a platform-wide
+  // population measure across real-world events; cross-round semantics
+  // is correct, not an under-scoping bug. exchangedAt-canonical
+  // prevents the relisted-double-count edge case.
   const txnsWithActivity = await prisma.milestoneCompletion.findMany({
     where: {
       state: "complete",

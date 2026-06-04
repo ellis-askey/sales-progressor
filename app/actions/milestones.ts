@@ -23,6 +23,7 @@ export type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
 import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
   sendAdminMilestoneNotificationToPortal,
@@ -98,8 +99,18 @@ export async function confirmMilestoneAction(input: {
     }, ptx);
 
     if (counterDefId) {
+      const txRowForScope = await ptx.propertyTransaction.findUnique({
+        where: { id: input.transactionId },
+        select: { activeBuyerRoundId: true },
+      });
+      const scope = forRound(txRowForScope?.activeBuyerRoundId ?? null, input.transactionId);
       const alreadyDone = await ptx.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: counterDefId,
+          state: "complete",
+          ...milestoneScopeWhere(scope),
+        },
       });
       if (!alreadyDone) {
         await completeMilestone({
@@ -498,10 +509,19 @@ export async function getExchangeReconciliationList(input: {
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
   });
 
+  // Round-scoped: the reconciliation list filters out already-done
+  // milestones so a relisted file's archived PMs aren't presented as
+  // already-done on the new round.
+  const txRowForReconScope = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const reconScope = forRound(txRowForReconScope?.activeBuyerRoundId ?? null, input.transactionId);
   const completions = await prisma.milestoneCompletion.findMany({
     where: {
       transactionId: input.transactionId,
       state: { in: ["complete", "not_required"] },
+      ...milestoneScopeWhere(reconScope),
     },
     select: { milestoneDefinitionId: true },
   });
@@ -563,11 +583,28 @@ export async function confirmExchangeReconciliationAction(input: {
     if (input.outstandingIds.length > 0) {
       // Compound upsert key dropped in Phase 1 commit 1; preserves the
       // create-if-missing branch inside the existing $transaction ptx.
+      // Phase 1 commit 4e: round-scope the find + def-side-aware stamp
+      // on the create branch.
+      const txRowSweep = await ptx.propertyTransaction.findUnique({
+        where: { id: input.transactionId },
+        select: { activeBuyerRoundId: true },
+      });
+      const activeBuyerRoundIdSweep = txRowSweep?.activeBuyerRoundId ?? null;
+      const sweepScope = forRound(activeBuyerRoundIdSweep, input.transactionId);
+      const sweepDefs = await ptx.milestoneDefinition.findMany({
+        where: { id: { in: input.outstandingIds } },
+        select: { id: true, side: true },
+      });
+      const sweepSideById = new Map(sweepDefs.map((d) => [d.id, d.side]));
       await Promise.all(
         input.outstandingIds.map(async (defId, i) => {
           const dateStr = input.outstandingDates[defId];
           const existing = await ptx.milestoneCompletion.findFirst({
-            where: { transactionId: input.transactionId, milestoneDefinitionId: defId },
+            where: {
+              transactionId: input.transactionId,
+              milestoneDefinitionId: defId,
+              ...milestoneScopeWhere(sweepScope),
+            },
             select: { id: true },
           });
           if (existing) {
@@ -592,6 +629,7 @@ export async function confirmExchangeReconciliationAction(input: {
               eventDate: dateStr ? new Date(dateStr) : null,
               completedById: session.user.id,
               reconciledAtExchange: true,
+              buyerRoundId: sweepSideById.get(defId) === "purchaser" ? activeBuyerRoundIdSweep : null,
             },
           });
         })
@@ -632,8 +670,18 @@ export async function confirmExchangeReconciliationAction(input: {
 
     // 3. Bilateral counterpart — prereqs now satisfied by the sweep above
     if (counterDefId) {
+      const bilateralTxRow = await ptx.propertyTransaction.findUnique({
+        where: { id: input.transactionId },
+        select: { activeBuyerRoundId: true },
+      });
+      const bilateralScope = forRound(bilateralTxRow?.activeBuyerRoundId ?? null, input.transactionId);
       const alreadyDone = await ptx.milestoneCompletion.findFirst({
-        where: { transactionId: input.transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+        where: {
+          transactionId: input.transactionId,
+          milestoneDefinitionId: counterDefId,
+          state: "complete",
+          ...milestoneScopeWhere(bilateralScope),
+        },
       });
       if (!alreadyDone) {
         await completeMilestone({
@@ -776,12 +824,21 @@ export async function reconcileClaimMilestonesAction(input: {
   if (input.completions.length === 0) return { applied: 0 };
 
   // Look up the milestone codes so we can call unlockDirectDependents per milestone.
+  // Also load side so the create-branch buyerRoundId stamp is def-side-aware.
   const defIds = input.completions.map((c) => c.milestoneDefinitionId);
   const defs = await prisma.milestoneDefinition.findMany({
     where: { id: { in: defIds } },
-    select: { id: true, code: true },
+    select: { id: true, code: true, side: true },
   });
   const codeById = new Map(defs.map((d) => [d.id, d.code]));
+  const sideById = new Map(defs.map((d) => [d.id, d.side]));
+
+  const txRowForReconClaim = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const reconClaimRoundId = txRowForReconClaim?.activeBuyerRoundId ?? null;
+  const reconClaimScope = forRound(reconClaimRoundId, input.transactionId);
 
   const now = new Date();
   let applied = 0;
@@ -806,7 +863,11 @@ export async function reconcileClaimMilestonesAction(input: {
       // row is atomic; the partial unique index catches concurrent races.
       await prisma.$transaction(async (ptx) => {
         const existing = await ptx.milestoneCompletion.findFirst({
-          where: { transactionId: input.transactionId, milestoneDefinitionId: c.milestoneDefinitionId },
+          where: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: c.milestoneDefinitionId,
+            ...milestoneScopeWhere(reconClaimScope),
+          },
           select: { id: true },
         });
         if (existing) {
@@ -834,6 +895,7 @@ export async function reconcileClaimMilestonesAction(input: {
             completedById: session.user.id,
             reconciledAtClaim: true,
             summaryText,
+            buyerRoundId: sideById.get(c.milestoneDefinitionId) === "purchaser" ? reconClaimRoundId : null,
           },
         });
       });
@@ -898,13 +960,22 @@ export async function migrateCompleteMilestonesAction(input: {
   const defIds = input.completions.map((c) => c.milestoneDefinitionId);
   const defs = await prisma.milestoneDefinition.findMany({
     where: { id: { in: defIds } },
-    select: { id: true, code: true, name: true, eventDateRequired: true },
+    select: { id: true, code: true, name: true, side: true, eventDateRequired: true },
   });
   const defById = new Map(defs.map((d) => [d.id, d]));
 
   // Attribute completions to the chosen agent. Null when not supplied — better
   // than the admin's id (which renders as "Admin confirmed X" in the timeline).
   const completerId = input.agentUserId ?? null;
+
+  // Phase 1 commit 4e — round scope for migrate-action find-after-write +
+  // create-branch stamping. activeBuyerRoundId fetched once per call.
+  const txRowForMigrate = await prisma.propertyTransaction.findUnique({
+    where: { id: input.transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const migrateRoundId = txRowForMigrate?.activeBuyerRoundId ?? null;
+  const migrateScope = forRound(migrateRoundId, input.transactionId);
 
   let applied = 0;
   let latestEventTime = 0;
@@ -929,7 +1000,11 @@ export async function migrateCompleteMilestonesAction(input: {
     try {
       await prisma.$transaction(async (ptx) => {
         const existing = await ptx.milestoneCompletion.findFirst({
-          where: { transactionId: input.transactionId, milestoneDefinitionId: c.milestoneDefinitionId },
+          where: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: c.milestoneDefinitionId,
+            ...milestoneScopeWhere(migrateScope),
+          },
           select: { id: true },
         });
         if (existing) {
@@ -955,6 +1030,7 @@ export async function migrateCompleteMilestonesAction(input: {
             eventDate: eventDateForCompletion,
             completedById: completerId,
             summaryText: null,
+            buyerRoundId: def.side === "purchaser" ? migrateRoundId : null,
           },
         });
       });
