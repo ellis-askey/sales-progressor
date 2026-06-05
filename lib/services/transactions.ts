@@ -247,7 +247,11 @@ export async function getTransaction(id: string, agencyId: string) {
       // — anything heavier (the round's PM rows, its comms, its VM
       // snapshot) is fetched separately by the archived-round view
       // when the user opens it.
-      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      // Pass 3b — createdAt added so file-detail surfaces (calculateProgress,
+      // computeEffectiveStartDate) can anchor "weeks elapsed" / "off track"
+      // on the active sale's start, not the file's. Mirrors the list-view
+      // fix in listTransactions / listTransactionsByScope.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true, createdAt: true } },
       buyerRounds: {
         select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
         orderBy: { roundNumber: "asc" },
@@ -276,7 +280,11 @@ export async function getTransactionByScope(id: string, scope: AccessScope) {
       // — anything heavier (the round's PM rows, its comms, its VM
       // snapshot) is fetched separately by the archived-round view
       // when the user opens it.
-      activeBuyerRound: { select: { id: true, roundNumber: true, status: true } },
+      // Pass 3b — createdAt added so file-detail surfaces (calculateProgress,
+      // computeEffectiveStartDate) can anchor "weeks elapsed" / "off track"
+      // on the active sale's start, not the file's. Mirrors the list-view
+      // fix in listTransactions / listTransactionsByScope.
+      activeBuyerRound: { select: { id: true, roundNumber: true, status: true, createdAt: true } },
       buyerRounds: {
         select: { id: true, roundNumber: true, status: true, archivedAt: true, fallThroughReason: true, createdAt: true },
         orderBy: { roundNumber: "asc" },

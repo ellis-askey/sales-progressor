@@ -172,12 +172,17 @@ export default async function AgentTransactionDetailPage({
   const allCompletions = allMilestones
     .map((m) => m.completion)
     .filter((c): c is NonNullable<typeof c> => c != null);
-  const effectiveStartDate = computeEffectiveStartDate(transaction.createdAt, allCompletions);
+  // Pass 3b: anchor "weeks elapsed" / "off track" / 12-week target on the
+  // active sale's start when present. Relisted file resets to the new
+  // sale's createdAt; legacy pre-Phase-1 files (no active round) fall back
+  // to tx.createdAt. Mirrors the list-view fix in listTransactions.
+  const progressAnchor = transaction.activeBuyerRound?.createdAt ?? transaction.createdAt;
+  const effectiveStartDate = computeEffectiveStartDate(progressAnchor, allCompletions);
   const holdInput = { status: transaction.status, holdPeriods: transaction.holdPeriods };
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
-    transaction.createdAt,
+    progressAnchor,
     transaction.overridePredictedDate ?? null,
     milestoneData ? {
       completedMilestoneCodes,
