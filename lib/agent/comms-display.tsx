@@ -24,10 +24,19 @@ const BADGE_LABELS: Record<string, [string, string]> = {
   voicemail: ["Voicemail left",    "Voicemail received"],
   whatsapp:  ["WhatsApp sent",     "WhatsApp received"],
   post:      ["Letter sent",       "Letter received"],
+  // Phase-2 PR 4: PortalMessage rows fed through this helper carry
+  // method="portal" so they render with a distinct "Portal reply" /
+  // "Portal message" pill rather than collapsing into the email
+  // fallback. Outbound = SP/agent replied to the buyer in-portal;
+  // inbound = buyer sent a message via the portal.
+  portal:    ["Portal reply",      "Portal message"],
 };
 
 const CHANNEL_ICONS: Record<string, string> = {
   email: "✉", phone: "☎", sms: "💬", voicemail: "📱", whatsapp: "💚", post: "📮",
+  // Portal pill icon — same "speech bubble" feel as SMS but distinct
+  // enough at small sizes.
+  portal: "💌",
 };
 
 export function getCommBadge(entry: CommBadgeInput): BadgeInfo {

@@ -241,6 +241,15 @@ export async function getLastContactedByContact(
     "clicked",
   ];
 
+  // Phase-2 PR 4: load activeBuyerRoundId once so the PortalMessage query
+  // below can scope to active-round purchaser contacts only. Cheap
+  // findUnique on PK; runs in parallel with the Promise.all below would
+  // be ideal but we need the value before the queries.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+
   const [outboundRows, portalRows, queueRows] = await Promise.all([
     // Outbound logs (manual emails, phone calls, WhatsApp, etc.)
     prisma.outboundMessage.findMany({
@@ -251,9 +260,24 @@ export async function getLastContactedByContact(
       },
       select: { contactIds: true, sentAt: true, createdAt: true },
     }),
-    // Portal messages the agent sent to the contact
+    // Portal messages the agent sent to the contact.
+    //
+    // Phase-2 PR 4 (PortalMessage scoping): scope to active-round buyer
+    // contacts + file-level (vendor / solicitor / broker). Fall-through
+    // purchaser portal threads no longer affect the live "last contacted"
+    // value on the file detail's contact rows.
     prisma.portalMessage.findMany({
-      where: { transactionId, fromClient: false },
+      where: {
+        transactionId,
+        fromClient: false,
+        contact: {
+          OR: [
+            { roleType: { not: "purchaser" as const } },
+            { buyerRoundId: null },
+            ...(tx?.activeBuyerRoundId ? [{ buyerRoundId: tx.activeBuyerRoundId }] : []),
+          ],
+        },
+      },
       select: { contactId: true, createdAt: true },
     }),
     // Automated client-chase digests that actually went out via the queue

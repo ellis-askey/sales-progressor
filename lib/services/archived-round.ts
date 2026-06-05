@@ -174,37 +174,76 @@ export async function getArchivedRoundData(
     confirmedByPortal: r.confirmedByPortal,
   }));
 
-  // Comms scoped to this round. Both OutboundMessage and PortalMessage
-  // carry buyerRoundId (Phase 0 + 4d stamping). We include only
-  // outbound here for the drawer — PortalMessage is a side channel the
-  // existing comms surfaces already cover.
-  const commRows = await prisma.outboundMessage.findMany({
-    where: {
-      transactionId,
-      buyerRoundId: roundId,
-    },
-    select: {
-      id: true,
-      type: true,
-      method: true,
-      content: true,
-      createdAt: true,
+  // Comms scoped to this round. Two sources merged into a single
+  // chronological list for the drawer's Communications section:
+  //
+  //   - OutboundMessage rows stamped buyerRoundId = roundId (chases,
+  //     internal_notes, manual logged sends).
+  //   - PortalMessage rows stamped buyerRoundId = roundId (portal
+  //     chat threads — added 2026-06-05 by Phase-2 PR 4).
+  //
+  // Phase-2 PR 4 (PortalMessage integration): pre-PR-4 portal messages
+  // were not surfaced in the drawer ("side channel the existing comms
+  // surfaces already cover"). After PR 4 the LIVE timeline no longer
+  // shows fall-through buyer portal messages, so the archived drawer
+  // is the only place they remain visible — folded into this Comms
+  // section with a synthetic "portal" channel value so the
+  // getCommBadge helper can render them with a distinct "Portal" pill.
+  const [outboundRows, portalRows] = await Promise.all([
+    prisma.outboundMessage.findMany({
+      where: { transactionId, buyerRoundId: roundId },
+      select: {
+        id: true,
+        type: true,
+        method: true,
+        content: true,
+        createdAt: true,
+        visibleToClient: true,
+        isAutomated: true,
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.portalMessage.findMany({
+      where: { transactionId, buyerRoundId: roundId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        fromClient: true,
+        sentBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+  const comms = [
+    ...outboundRows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      method: r.method,
+      content: r.content,
+      createdAt: r.createdAt,
+      createdByName: r.createdBy?.name ?? null,
+      visibleToClient: r.visibleToClient,
+      isAutomated: r.isAutomated,
+    })),
+    // Map PortalMessage onto the shared comm row shape. type=outbound or
+    // inbound by direction (fromClient flips); method="portal" so the
+    // getCommBadge helper picks the new "Portal" channel mapping.
+    // visibleToClient is always true for portal messages — they're a
+    // direct buyer ↔ progressor chat. isAutomated is always false —
+    // these are human-typed messages.
+    ...portalRows.map((r) => ({
+      id: r.id,
+      type: r.fromClient ? "inbound" : "outbound",
+      method: "portal" as string,
+      content: r.content,
+      createdAt: r.createdAt,
+      createdByName: r.fromClient ? null : r.sentBy?.name ?? null,
       visibleToClient: true,
-      isAutomated: true,
-      createdBy: { select: { name: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-  const comms = commRows.map((r) => ({
-    id: r.id,
-    type: r.type,
-    method: r.method,
-    content: r.content,
-    createdAt: r.createdAt,
-    createdByName: r.createdBy?.name ?? null,
-    visibleToClient: r.visibleToClient,
-    isAutomated: r.isAutomated,
-  }));
+      isAutomated: false,
+    })),
+  ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
   // Enrich the snapshot rows server-side with name + orderIndex from
   // the live MilestoneDefinition so the drawer can render full step
