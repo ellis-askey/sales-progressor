@@ -109,11 +109,13 @@ export default async function TransactionDetailPage({
     completedAt: m.completion?.completedAt ?? undefined,
   }));
 
-  // Hold-aware elapsed time (see /agent variant for context).
+  // Hold-aware elapsed time (see /agent variant for context). Pass 3b:
+  // anchor on active sale's start so a relisted file resets the clock.
+  const progressAnchor = transaction.activeBuyerRound?.createdAt ?? transaction.createdAt;
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
-    transaction.createdAt,
+    progressAnchor,
     transaction.overridePredictedDate ?? null,
     undefined,
     { status: transaction.status, holdMs: totalHoldMs({ status: transaction.status, holdPeriods: transaction.holdPeriods }) },
