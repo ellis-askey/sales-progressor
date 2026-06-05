@@ -65,12 +65,23 @@ export function applyAgencyTermsOverrides(
     return sections;
   }
   const fixedFee = `£${(agency.legacyOutsourcedFeePence / 100).toLocaleString("en-GB")}`;
-  return sections.map((s) =>
-    s.heading === "Charges"
-      ? {
-          ...s,
-          body: `Fees are charged per sale and only on exchange of that sale. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee is a fixed ${fixedFee} per sale, regardless of the agreed sale price at exchange.`,
-        }
-      : s,
-  );
+  return sections.map((s) => {
+    if (s.heading === "Charges") {
+      return {
+        ...s,
+        body: `Fees are charged per sale and only on exchange of that sale. For a sale you progress in-house, the fee is £59. For a sale you pass to our team to progress, the fee is a fixed ${fixedFee} per sale, regardless of the agreed sale price at exchange.`,
+      };
+    }
+    // Legacy agencies do not get the 14-day free trial — they are
+    // billable from sale 1 per their pre-existing contract. The
+    // canonical "Free trial period" wording is misleading for them, so
+    // we replace the body with a one-liner that's truthful for their tier.
+    if (s.heading === "Free trial period") {
+      return {
+        ...s,
+        body: "This agency is on a fixed-fee tier and is not part of the 14-day free trial. Fees apply from your first sale.",
+      };
+    }
+    return s;
+  });
 }
