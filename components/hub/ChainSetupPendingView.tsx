@@ -108,7 +108,7 @@ export function ChainSetupPendingView({ initialFiles }: { initialFiles: HubChain
               opacity: pendingId === f.transactionId ? 0.5 : 1,
             }}
           >
-            {pendingId === f.transactionId ? "…" : "Mark sorted"}
+            {pendingId === f.transactionId ? "…" : "Mark as done"}
           </button>
         </div>
       ))}

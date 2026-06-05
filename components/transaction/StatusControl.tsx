@@ -35,12 +35,12 @@ const WITHDRAWAL_REASONS: Array<{
   {
     value: "BUYER_WITHDREW",
     label: "Our buyer pulled out",
-    helper: "Buyer changed their mind, finance failed, survey killed it",
+    helper: "Buyer changed their mind, finance fell through, or the survey raised problems",
   },
   {
     value: "SELLER_WITHDREW",
     label: "Our seller pulled out",
-    helper: "Vendor decided to stay put, onward purchase fell through",
+    helper: "Seller decided not to move, or their onward purchase fell through",
   },
   {
     value: "CHAIN_COLLAPSE_ABOVE",
@@ -306,7 +306,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
             {/* Question 1 — Who pulled out? Drives chain cascade direction
               * via WithdrawalReason. See closed-loop arc 2026-06-05. */}
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Who pulled out?
+              Who pulled out
             </label>
             <div className="space-y-1.5 mb-4">
               {WITHDRAWAL_REASONS.map((r) => (
@@ -340,7 +340,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                   <>The agent <strong>below</strong> you in the chain will be notified that they&apos;ve lost their purchase. The chain above you will be split off into its own chain.</>
                 )}
                 {pickedReason === "CHAIN_COLLAPSE_ABOVE" && (
-                  <>No new notifications fire from us — the upstream cascade is already in motion. The chain below you will be split off into its own chain.</>
+                  <>The agents above you have already been notified. Nothing new is sent from your side. The chain below you will be split off into its own chain.</>
                 )}
                 {pickedReason === "OTHER" && (
                   <>Agents on <strong>both sides</strong> of the chain will be notified. The chain stays connected for now — they decide their own next step.</>

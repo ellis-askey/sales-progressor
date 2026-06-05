@@ -121,7 +121,7 @@ export function buildAskedToWaitEmailPayload({
   const subject = `Update on ${recipientAddress} — onward chain is re-forming`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The onward chain is being re-formed.`;
-  const follow = `Is your client happy to wait while the gap is filled? Open the chain to let us know — wait, or withdraw.`;
+  const follow = `Is your client happy to wait while a new sale is found? Open the chain to let us know: wait, or withdraw.`;
 
   const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
@@ -163,11 +163,11 @@ export function buildBuyerFoundEmailPayload({
   // process jargon, framed from the recipient's client's standpoint).
   const lead =
     variant === "WAITING"
-      ? `The wait is over — a new buyer has been secured for the property below you in the chain. The onward chain has reformed.`
+      ? `A new buyer has been secured for the property below you in the chain. The onward chain has reformed and your client's wait is over.`
       : variant === "REMARKETING"
-        ? `A new buyer has been secured for the property below you in the chain. You'd told us you were remarketing in the meantime — you can stand that down. The chain has tied up again.`
-        : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out — the onward chain has reformed.`;
-  const follow = `Open the chain to confirm your client's stance and pick the file back up.`;
+        ? `A new buyer has been secured for the property below you in the chain. You told us you were remarketing in the meantime. That's no longer needed. The onward chain has reformed.`
+        : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out. The onward chain has reformed.`;
+  const follow = `Open the chain to confirm your client's position and pick the file back up.`;
 
   const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
@@ -187,7 +187,7 @@ export function buildChainDetachedEmailPayload({
   const subject = `Update on ${recipientAddress} — your chain has been shortened`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `The chain your client's file at ${recipientAddress} was part of has been split. The file above yours has been withdrawn, so your chain now stands on its own.`;
-  const follow = `No action required from your side. Open the chain to see the new shape.`;
+  const follow = `Open the chain to see how it now stands.`;
 
   const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({
@@ -207,7 +207,7 @@ export function buildWaitNudgeEmailPayload({
   const subject = `Still waiting on ${recipientAddress}?`;
   const ctaUrl = ctaUrlFor(recipientTransactionId);
   const lead = `Two weeks ago your client agreed to wait while the onward chain re-formed.`;
-  const follow = `Is your client still waiting, or has this moved? Open the chain to update us.`;
+  const follow = `Is your client still waiting, or has the situation changed? Open the chain to update us.`;
 
   const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
   const html = shellHtml({

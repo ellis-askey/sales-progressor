@@ -771,7 +771,7 @@ const RESPONSE_LABELS: Record<string, string> = {
   WITHDRAWN:   "Withdrew",
   REMARKETING: "Remarketing",
   WAITING:     "Waiting",
-  BREAK_CHAIN: "Broke chain",
+  BREAK_CHAIN: "Broke the chain",
 };
 
 function ChainAtWithdrawalSection({
@@ -812,7 +812,7 @@ function ChainAtWithdrawalSection({
               {snapshot.withdrawalReason ? WITHDRAWAL_REASON_LABELS[snapshot.withdrawalReason] ?? snapshot.withdrawalReason : "Reason unknown"}
             </div>
             <div style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Captured {fmtDate(snapshot.capturedAt)} · position {snapshot.ourPosition}
+              Recorded {fmtDate(snapshot.capturedAt)} · position {snapshot.ourPosition}
             </div>
           </div>
           {snapshot.detachedSegment && (
@@ -827,7 +827,7 @@ function ChainAtWithdrawalSection({
                 color: "rgb(146, 78, 4)",
               }}
             >
-              <strong>Chain split.</strong> The downstream segment was detached on {fmtDate(snapshot.detachedSegment.splitAt)} and now stands as its own chain.
+              <strong>Chain split.</strong> The sales below were separated on {fmtDate(snapshot.detachedSegment.splitAt)} and now stand as their own chain.
             </div>
           )}
         </div>

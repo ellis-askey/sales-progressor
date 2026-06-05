@@ -458,7 +458,7 @@ export function ChainDrawer({
                 }}>
                   <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⚠</span>
                   <p style={{ fontSize: 12, color: "var(--agent-danger)", margin: 0, lineHeight: 1.5 }}>
-                    A sale in this chain has withdrawn.
+                    A sale in this chain has fallen through.
                   </p>
                 </div>
               )}
@@ -489,7 +489,7 @@ export function ChainDrawer({
                       : chain.detachedSegment.direction === "UPWARD"
                         ? "above"
                         : "in this chain"}{" "}
-                    detached when a withdraw fired through here. The detached segment now stands as its own chain.
+                    were separated when a sale here withdrew. They now stand as their own chain.
                   </p>
                 </div>
               )}
