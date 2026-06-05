@@ -89,38 +89,66 @@ Full plan including audit findings:
 
 ---
 
-## Phase-3 arc — (a)-CLASS aggregate restructuring
+## Phase-3 arc — (a)-CLASS aggregate restructuring — ✅ SHIPPED 2026-06-05
 
-Filed 2026-06-05 alongside the Phase-2 backlog above. Branch
-`feat/buyer-round-phase3-aggregates`, planned separately AFTER Phase-2
-is fully on prod.
+Cut on `feat/buyer-round-phase3-aggregates`, shipped to staging in
+commit `796721e feat(buyer-round): Phase-3 — cross-tx aggregate
+restructure ((a)-CLASS resolved)` + verification harness extension
+`bdb4088 test(buyer-round): Phase-3 harness assertions — 32/32 PASS`.
 
-**Insurance sentence** (do not remove until the arc lands):
+**Insurance sentence — RETIRED**:
 
-> Hub pipeline, hub recent activity, analytics, completions, comms
+> ~~Hub pipeline, hub recent activity, analytics, completions, comms
 > dashboard, and work-queue item counts remain inflated by
 > archived-round milestone completions until the Phase-3 (a)-CLASS
-> aggregate restructure lands. Tracked as
-> `feat/buyer-round-phase3-aggregates`.
+> aggregate restructure lands.~~ — closed 2026-06-05.
 
-Why this is its own arc: these surfaces use cross-transaction nested
-Prisma filters that cannot reference the parent row's
-`activeBuyerRoundId`. The fix requires either a two-step query (load
-active-round-id map first, then aggregate with the filter applied) or
-raw SQL with a join to `PropertyTransaction.activeBuyerRoundId`. The
-reference pattern is already in `lib/services/reminders.ts:295-310`
-(the work-queue reminder-logs scoped query). Restructuring 6+ surfaces
-to that pattern is a different concern from per-transaction filtering,
-so it doesn't belong in the Phase-2 arc.
+**How it was solved**: new shared module `lib/services/round-scope.ts`
+exposes `roundScopedOR(activeRoundIds)` + `contactRoundScopedOR(...)`
++ `loadActiveRoundIds(whereClause)`. Each cross-tx aggregate surface
+now pre-loads the active-round-id set for its scope, then feeds that
+set into an OR clause on the nested MC / Contact / ChaseTask /
+OutboundMessage filter. BuyerRound ids are globally unique cuids → the
+`buyerRoundId IN [active set]` test is equivalent to "this row's
+buyerRoundId === its own tx's activeBuyerRoundId".
 
-Affected surfaces (from the audit):
-- Hub pipeline stats (`lib/services/hub.ts`) — MilestoneCompletion
-- Hub recent activity (`lib/services/hub.ts:759-785`) — MilestoneCompletion + OutboundMessage
-- Analytics (`lib/services/analytics.ts:102-189`) — MilestoneCompletion
-- Work queue items / stale alerts (`lib/services/work-queue.ts:76-92`) — MilestoneCompletion
-- Completions page (`lib/services/agent.ts:173-203`) — MilestoneCompletion
-- Comms dashboard / agent milestone activity (`lib/services/agent.ts:242-259`) — MilestoneCompletion
-- **Cross-tx Contact list reads** (`lib/services/transactions.ts:42, 294, 530, 629`) — Contact (GAP-3 from the fall-through ledger audit 2026-06-05; Section 2's `scopeContactsToActiveRound` only patches the single-tx fetch; list/hub/agency-team `contacts: { select }` includes still leak old-buyer rows)
+**Surfaces patched** (all in this same arc):
+- `lib/services/transactions.ts` — listTransactions,
+  listTransactionsByScope, getExchangedNotCompleting,
+  getCompletingFilesDetailed: contacts + MC + chaseTasks +
+  communications all scoped.
+- `lib/services/hub.ts` — getHubPipelineStats, getHubFilteredIds,
+  getMonthExchangingIds, getHubWeeklyForecast, getHubRecentActivity:
+  every MC `some/none` filter + the cross-tx OutboundMessage findFirst
+  scoped.
+- `lib/services/analytics.ts` — getAnalytics, getMonthlyActivity,
+  getSolicitorExchangeStats, getFilesAtRisk: every cross-tx MC + the
+  cross-tx ChaseTask filter scoped.
+- `lib/services/work-queue.ts` — getWorkQueueItems: the per-tx MC
+  include scoped (hasExchanged derivation now ignores archived-round
+  PM26/VM19).
+- `lib/services/agent.ts` — getAgentTransactions,
+  getAgentCompletions, getAgentMilestoneActivity (comms dashboard):
+  MC includes + the top-level cross-tx milestoneCompletion findMany
+  all scoped via the two-step pattern.
+
+**Cross-tx Contact list reads** that Section 2's
+`scopeContactsToActiveRound` couldn't reach (line 42 listTransactions,
+line 322 listTransactionsByScope, line 555
+getExchangedNotCompleting, line 657 getCompletingFilesDetailed —
+GAP-3 from the fall-through ledger audit) are closed in the same arc.
+
+**Verification** (`scripts/verify-phase-2-read-shape.ts`, 32/32 PASS
+on the Emily relist fixture):
+- cross-tx exchanged-MC count is scoped (scoped ≤ unscoped)
+- 12 fall-through-round MCs measured on the fixture — these are the
+  rows Phase-3 hides from aggregate dashboards
+- cross-tx Contact count is scoped agency-wide (86 → 84: Marcus +
+  Terry correctly excluded from cross-tx aggregates)
+
+**Per-site grep**: every restructured filter site carries `// PHASE 1
+4d (a)-CLASS resolved — Phase-3 OR scope below.` so future
+contributors find every patched location at a glance.
 
 ---
 
