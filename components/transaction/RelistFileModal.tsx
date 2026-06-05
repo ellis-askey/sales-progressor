@@ -24,6 +24,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { relistTransactionAction } from "@/app/actions/transactions";
+import type { PurchaseType } from "@prisma/client";
 // Same input-hygiene helpers used in the new-sale ContactsSection so
 // the relist form behaves identically: name title-cased on blur, phone
 // trimmed on input and pretty-formatted on blur, email trimmed.
@@ -81,6 +82,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [priceInput, setPriceInput] = useState(formatPriceForInput(previousPurchasePrice));
+  // Buyer's purchase method — required step. Mirrors the new-sale flow
+  // (components/transactions-v2/form/Stage1Fields.tsx). Drives the auto-NR
+  // set on the new round's PMs (cash buyer skips mortgage steps, etc.), so
+  // we collect it fresh per buyer rather than inheriting the previous one.
+  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(null);
   const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(null);
   const [broker, setBroker] = useState<BrokerSelection | null>(null);
 
@@ -102,6 +108,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
       setBuyerEmail("");
       setBuyerPhone("");
       setPriceInput(formatPriceForInput(previousPurchasePrice));
+      setPurchaseType(null);
       setSolicitor(null);
       setBroker(null);
       setOnwardKind(null);
@@ -140,7 +147,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
         && onwardExternalAgent.trim().length > 0
         && EMAIL_RE.test(onwardExternalEmail.trim()));
 
-  const formValid = buyerName.trim().length > 0 && onwardValid;
+  const formValid = buyerName.trim().length > 0 && purchaseType !== null && onwardValid;
 
   function buildOnwardPayload(): OnwardSale | null {
     if (!inChain || !onwardKind) return null;
@@ -198,6 +205,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
             phone: normalisedPhone || null,
           },
           newPurchasePrice: newPrice,
+          newPurchaseType: purchaseType,
           newPurchaserSolicitorFirmId: solicitor?.firmId ?? null,
           newPurchaserSolicitorContactId: solicitor?.contactId ?? null,
           newBrokerFirmId: broker?.firmId ?? null,
@@ -374,6 +382,40 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                 className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
                 style={{ borderColor: "rgba(0,0,0,0.12)" }}
               />
+            </div>
+
+            {/* Buyer's purchase method — required. Mirrors the new-sale
+              * Stage 1 picker (Stage1Fields.tsx): same three options, same
+              * helper notes, same labels. Drives auto-NR codes on the new
+              * round's PMs (cash buyers skip mortgage milestones, etc.). */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                Buyer&apos;s purchase method <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {([
+                  { value: "mortgage",           label: "Mortgage",            note: "All mortgage steps apply" },
+                  { value: "cash_buyer",         label: "Cash",                note: "Mortgage steps not required" },
+                  { value: "cash_from_proceeds", label: "Cash from Proceeds",  note: "Mortgage + deposit not required" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPurchaseType(opt.value)}
+                    disabled={isPending}
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                      purchaseType === opt.value
+                        ? "border-[var(--agent-coral-deep,#E5502E)] bg-[rgba(255,107,74,0.06)] font-medium"
+                        : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
+                    }`}
+                  >
+                    <div className="text-sm font-medium" style={{ color: purchaseType === opt.value ? "var(--agent-coral-deep, #E5502E)" : "var(--agent-text-primary)" }}>{opt.label}</div>
+                    <div className="text-[11px] mt-0.5" style={{ color: purchaseType === opt.value ? "rgba(229,80,46,0.85)" : "rgba(15,23,42,0.5)" }}>
+                      {opt.note}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Solicitor + broker — both optional. Labels match the

@@ -2046,6 +2046,13 @@ export async function relistTransactionAction(input: {
   transactionId: string;
   newBuyer: { name: string; email?: string | null; phone?: string | null };
   newPurchasePrice?: number | null;
+  // Buyer's purchase method — required step in the relist modal (matches the
+  // new-sale flow). The new buyer's method drives the auto-NR set on the
+  // round's purchaser milestones (e.g. cash buyers skip mortgage steps), so
+  // we MUST collect it at relist time rather than inheriting the previous
+  // buyer's value. Omitted from older callers falls back to the existing
+  // tx.purchaseType for backwards-compat.
+  newPurchaseType?: PurchaseType | null;
   newPurchaserSolicitorFirmId?: string | null;
   newPurchaserSolicitorContactId?: string | null;
   newBrokerFirmId?: string | null;
@@ -2081,6 +2088,7 @@ export async function relistTransactionImpl(
     transactionId: string;
     newBuyer: { name: string; email?: string | null; phone?: string | null };
     newPurchasePrice?: number | null;
+    newPurchaseType?: PurchaseType | null;
     newPurchaserSolicitorFirmId?: string | null;
     newPurchaserSolicitorContactId?: string | null;
     newBrokerFirmId?: string | null;
@@ -2323,7 +2331,13 @@ export async function relistTransactionImpl(
     // the new round (initializeMilestoneCompletions can't be used here: its
     // unscoped find-then-skip would short-circuit on round-1 PMs and create
     // nothing). Auto-NR codes + initial availability mirror the create flow.
-    const autoNrCodes = computeAutoNrCodes(tx.purchaseType, tx.tenure);
+    // Closed-loop chain arc (2026-06-05): the new buyer's purchaseType MAY
+    // differ from the previous buyer's (cash buyer replaced a mortgaged
+    // buyer, etc.). When supplied via the modal we use the NEW value so the
+    // auto-NR set on this round's PMs matches the actual buyer; fallback to
+    // tx.purchaseType for backwards-compat with older callers.
+    const effectivePurchaseType = input.newPurchaseType ?? tx.purchaseType;
+    const autoNrCodes = computeAutoNrCodes(effectivePurchaseType, tx.tenure);
     const initialAvailable = new Set<string>();
     for (const def of allDefs.filter((d) => d.side === "purchaser")) {
       if (autoNrCodes.has(def.code)) continue;
@@ -2387,6 +2401,10 @@ export async function relistTransactionImpl(
         expectedExchangeDate: forecastExpected,
         completionDate: null,
         purchasePrice: updatedPrice,
+        // Closed-loop chain arc (2026-06-05): the new buyer's purchaseType
+        // is the same value used to compute auto-NR codes above. Writing it
+        // back ensures the file metadata matches the round's milestone tree.
+        purchaseType: effectivePurchaseType,
         purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
         purchaserSolicitorContactId: input.newPurchaserSolicitorContactId ?? null,
         brokerFirmId: input.newBrokerFirmId ?? null,
