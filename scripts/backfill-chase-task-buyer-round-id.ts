@@ -66,11 +66,9 @@ async function main() {
     orderBy: { createdAt: "asc" },
   });
 
-  if (candidates.length === 0) {
-    console.log("No ChaseTask rows with NULL buyerRoundId. Nothing to do.");
-    await prisma.$disconnect();
-    return;
-  }
+  // Note: do NOT early-return on zero candidates — the report file is the
+  // durable audit artifact and must be written even for "nothing to do"
+  // runs. The empty-list branches in the report builder handle this.
 
   for (const t of candidates) {
     if (!t.reminderLog) {
