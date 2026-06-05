@@ -1228,7 +1228,8 @@ export async function runSeedDemo(prisma: PrismaClient): Promise<SeedManifest> {
     { tab: "upcoming" as const, emailType: "MILESTONE_CONFIRMATION" as const, days: 11,   fxKey: "exchange_ready" as TxBucket,   milestone: "PM25" },
   ];
 
-  for (const q of queueFixtures) {
+  for (let qi = 0; qi < queueFixtures.length; qi++) {
+    const q = queueFixtures[qi];
     const fixture = out.fixtures.find((f) => f.key === q.fxKey);
     if (!fixture) continue;
     const contact = await prisma.contact.findFirst({
@@ -1242,7 +1243,10 @@ export async function runSeedDemo(prisma: PrismaClient): Promise<SeedManifest> {
     await prisma.outboundEmailQueue.create({
       data: {
         emailType: q.emailType,
-        sourceId: `${fixture.transactionId}:${q.milestone}`,
+        // Per-row index keeps the (emailType, sourceId, recipientContactId)
+        // unique-index from blowing up when two demo rows share the same
+        // fixture × milestone (e.g. two CLIENT_CHASE entries for hero:PM5).
+        sourceId: `${fixture.transactionId}:${q.milestone}:demo${qi}`,
         recipientEmail: contact.email,
         recipientContactId: contact.id,
         payload: {
