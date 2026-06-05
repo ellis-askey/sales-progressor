@@ -58,11 +58,27 @@ These are the category-level fixes that hold after the incident closes:
 - [ ] Supabase log review for the 44-day window — anomalous connections seen? __TBD__ (expected: none, given operator-only key)
 - [x] Marketing-site source location confirmed and scanned where applicable: **local-only, no git remote, no public exposure; pattern scan clean** — CC closed 2026-06-05.
 
+## Override sign-off (2026-06-05) — gates 1, 2, 3, 5 explicitly WAIVED
+
+The four open gates — prod Supabase password rotation + Vercel env update + redeploy (gate 1), repo visibility decision (gate 2), third staging rotation by Ellis personally + KNOWN_WEAK_PASSWORDS extension (gate 3), and the substantive incident-record completion (gate 5) — were not cleared before the buyer-round prod cutover.
+
+Ellis posted the following waiver in chat on 2026-06-05:
+
+> **Override: I waive runbook gates 1, 2, 3, 5 and authorise prod deploy on current credentials. Accept the credential-exposure risk. Sign-off: Ellis, 2026-06-05.**
+
+Operational reality at the moment of override:
+- Prod Supabase Postgres password still the original (leaked in `8d4d4354`, exposed 2026-04-21 → 2026-06-04 in `ellis-askey/sales-progressor` public history).
+- Repo verified public at `2026-06-05T09:30Z` via unauthenticated GitHub API (`"private": false`).
+- Second-rotation staging values are still ACTIVE on staging — not yet retired by a third rotation, so not yet on the `KNOWN_WEAK_PASSWORDS` burn list.
+- Supabase log review for the 44-day exposure window — not performed.
+
+The buyer-round prod cutover proceeded under this override.
+
 ## Sign-off
 
-This record promotes to `docs/done/incidents/` after Ellis fills in the timestamps above and adds a one-line sign-off.
+Ellis sign-off (override path): **2026-06-05**, per the chat-recorded override above.
 
-Ellis sign-off: __TBD__
+This record stays in `docs/active/` for the duration of the 24h prod-monitoring window after cutover. After the window closes — or earlier if Ellis chooses to clear the substantive gates retroactively — it promotes to `docs/done/incidents/`.
 
 ---
 
