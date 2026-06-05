@@ -30,6 +30,10 @@ type TxData = {
   createdAt: Date;
   updatedAt: Date;
   expectedExchangeDate: Date | null;
+  // Pass 3 B4: active round's createdAt is the anchor for "weeks elapsed" /
+  // "days silent" / "days active" on relisted files. Null on legacy
+  // pre-Phase-1 files; callers fall back to tx.createdAt.
+  activeRoundCreatedAt: Date | null;
   _count: { milestoneCompletions: number };
   communications: { createdAt: Date; type: string }[];
   chaseTasks: { dueDate: Date }[];
@@ -42,6 +46,9 @@ type DetectedFlag = { kind: FlagKind; context: string };
 function detectFlags(tx: TxData): DetectedFlag[] {
   const now = Date.now();
   const flags: DetectedFlag[] = [];
+  // Pass 3 B4: anchor "since the file started" metrics on the active sale's
+  // createdAt when present. Legacy pre-Phase-1 files fall back to tx.createdAt.
+  const fileStartAnchor = tx.activeRoundCreatedAt ?? tx.createdAt;
 
   // Long silence: no outbound/inbound comm in ≥10 days (active files only)
   if (tx.status === "active") {
@@ -51,7 +58,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     const lastComm = commsSorted[0]?.createdAt;
     const daysSilent = lastComm
       ? Math.floor((now - new Date(lastComm).getTime()) / 86400000)
-      : Math.floor((now - new Date(tx.createdAt).getTime()) / 86400000);
+      : Math.floor((now - new Date(fileStartAnchor).getTime()) / 86400000);
     if (daysSilent >= 10) {
       flags.push({ kind: "long_silence", context: `No communication recorded in ${daysSilent} days` });
     }
@@ -60,7 +67,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
   // Milestone stalled: >25% behind benchmark
   if (tx.status === "active") {
     const completedCount = tx._count.milestoneCompletions;
-    const weeksElapsed = (now - new Date(tx.createdAt).getTime()) / (7 * 86400000);
+    const weeksElapsed = (now - new Date(fileStartAnchor).getTime()) / (7 * 86400000);
     const actualPercent = Math.min(100, (completedCount / 38) * 100);
     const expectedPercent = Math.min(100, (weeksElapsed / 12) * 100);
     const diff = actualPercent - expectedPercent;
@@ -105,7 +112,7 @@ function detectFlags(tx: TxData): DetectedFlag[] {
 
   // No portal activity: active ≥14 days, contacts have tokens, zero inbound comms
   if (tx.status === "active") {
-    const daysActive = Math.floor((now - new Date(tx.createdAt).getTime()) / 86400000);
+    const daysActive = Math.floor((now - new Date(fileStartAnchor).getTime()) / 86400000);
     const hasPortalContacts = tx.contacts.some((c) => c.portalToken);
     const hasInbound = tx.communications.some((c) => c.type === "inbound");
     if (daysActive >= 14 && hasPortalContacts && !hasInbound) {
@@ -198,6 +205,8 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
       updatedAt: true,
       expectedExchangeDate: true,
       activeBuyerRoundId: true,
+      // Pass 3 B4: relist-aware "weeks elapsed" / "days silent" anchor.
+      activeBuyerRound: { select: { createdAt: true } },
       communications: {
         where: { type: { in: ["outbound", "inbound"] } },
         orderBy: { createdAt: "desc" },
@@ -247,6 +256,7 @@ export async function detectAndStoreFlags(agencyId: string): Promise<number> {
     });
     const enriched: TxData = {
       ...tx,
+      activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
       _count: { milestoneCompletions: completedCount },
       milestoneCompletions: lastCompleted ? [lastCompleted] : [],
       communications: [

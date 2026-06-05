@@ -68,6 +68,11 @@ export async function getActivityTimeline(
     select: {
       id: true,
       activeBuyerRoundId: true,
+      // Pass 3 B2: relist-clean timeline. NULL-stamped rows (status-change
+      // internal_notes, pre-Phase-0 unstamped rows) that pre-date the active
+      // round's createdAt are old-sale residue. Filter them out so the live
+      // timeline reads as just-this-sale, matching the buyer-attributed scope.
+      activeBuyerRound: { select: { createdAt: true } },
       contacts: { select: { id: true, name: true } },
       // Solicitor contacts ride on the same outboundMessage.contactIds
       // array as vendor/purchaser contacts (CommsEntry lets the agent
@@ -107,11 +112,26 @@ export async function getActivityTimeline(
     // A relisted file no longer surfaces Sale 1's chase emails, portal-
     // action notes, or internal_notes about the fall-through buyer on
     // the live activity timeline.
+    //
+    // Pass 3 B2: NULL-stamped rows are further gated on
+    // `createdAt >= activeBuyerRound.createdAt` so an old-sale
+    // status-change internal_note doesn't leak through the "file-level"
+    // branch. Legacy files (no active round) fall back to "all NULL".
     prisma.outboundMessage.findMany({
       where: {
         transactionId,
         ...(tx.activeBuyerRoundId
-          ? { OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] }
+          ? {
+              OR: [
+                {
+                  buyerRoundId: null,
+                  ...(tx.activeBuyerRound?.createdAt
+                    ? { createdAt: { gte: tx.activeBuyerRound.createdAt } }
+                    : {}),
+                },
+                { buyerRoundId: tx.activeBuyerRoundId },
+              ],
+            }
           : { buyerRoundId: null }),
       },
       orderBy: { createdAt: "desc" },

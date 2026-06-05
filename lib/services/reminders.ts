@@ -11,6 +11,18 @@ import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 
+// Pass 3 B7 — vendor milestone codes whose state is reset to "incomplete"
+// at relist (see RELIST_RESET_VM_CODES in app/actions/transactions.ts —
+// kept in sync; the canonical list lives there because the reset action
+// owns it). When a chase rule TARGETS one of these codes, its post-relist
+// anchor must be clamped forward to the active round's createdAt so the
+// fresh chase clock starts now, not 8 weeks ago.
+const RELIST_RESET_VM_CODE_SET = new Set([
+  "VM2", "VM7",
+  "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
+  "VM18", "VM19", "VM20",
+]);
+
 // ─── UK chase-time helper ───────────────────────────────────────────────────
 //
 // Normalises a Date to 06:00 in Europe/London on the same calendar day.
@@ -411,6 +423,9 @@ export async function evaluateTransactionReminders(transactionId: string) {
       assignedUserId: true,
       activeBuyerRoundId: true,
       createdAt: true,
+      // Pass 3 B7: used to clamp vendor-reset-rule anchors forward at
+      // relist so the new chase clock doesn't open 47 days overdue.
+      activeBuyerRound: { select: { createdAt: true } },
     },
   });
 
@@ -558,6 +573,24 @@ export async function evaluateTransactionReminders(transactionId: string) {
       }
     } else {
       anchorDate = transaction.createdAt;
+    }
+
+    // Pass 3 B7: vendor chase clock reset at relist. If this rule TARGETS a
+    // vendor milestone that gets reset by relist, AND the computed anchor
+    // pre-dates the active round's start, clamp the anchor forward to the
+    // relist time. Without this, the post-relist engine pass produces a
+    // ReminderLog whose nextDueDate is anchor+graceDays = relist−47d
+    // (e.g. tx.createdAt fallback or an old vendor PM completedAt) → the
+    // live file's chase reads "47d overdue" the instant the new sale starts.
+    // The archived drawer's Sale-1 record still captures the historical
+    // truth (PR 1 cancellation stamped the old chase as cancelled).
+    if (
+      rule.targetMilestoneCode
+      && RELIST_RESET_VM_CODE_SET.has(rule.targetMilestoneCode)
+      && transaction.activeBuyerRound?.createdAt
+      && anchorDate.getTime() < transaction.activeBuyerRound.createdAt.getTime()
+    ) {
+      anchorDate = transaction.activeBuyerRound.createdAt;
     }
 
     // Calculate first due date: anchor + graceDays, normalised to 06:00 UK

@@ -51,7 +51,21 @@ export async function createContactAction(input: {
   const conflict = findContactConflict(input, others);
   if (conflict) throw makeDuplicateContactError(conflict.kind, conflict.withName);
 
-  const contact = await createContact(input, scope);
+  // Pass 3 B1: stamp purchaser contacts to the active round at insert.
+  // Vendor / solicitor / broker stay NULL (file-level). Mirrors the
+  // pattern used by createTransactionAction when the buyer is seeded
+  // alongside the file, and by relistTransactionImpl STEP 7 for the new
+  // buyer on a relist.
+  let buyerRoundId: string | null = null;
+  if (input.roleType === "purchaser") {
+    const tx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, input.propertyTransactionId),
+      select: { activeBuyerRoundId: true },
+    });
+    buyerRoundId = tx?.activeBuyerRoundId ?? null;
+  }
+
+  const contact = await createContact({ ...input, buyerRoundId }, scope);
   await logActivity(
     input.propertyTransactionId,
     `${session.user.name} added contact: ${input.name} (${input.roleType.replace(/_/g, " ")})`,

@@ -14,6 +14,14 @@ export type CreateContactInput = {
   phone?: string | null;
   email?: string | null;
   roleType: ContactRole;
+  // Pass 3 B1: when creating a purchaser contact on a live file, the
+  // action layer passes the active round's id so the new row is round-
+  // attributed from birth. NULL-stamped purchaser rows are hidden by
+  // scopeContactsToActiveRound on a relisted file (NULL ≠ activeRoundId),
+  // which used to make purchaser contacts added via the file's Contacts
+  // panel "vanish" the moment they were saved. Vendor / solicitor / broker
+  // rows stay NULL — they're file-level by design.
+  buyerRoundId?: string | null;
 };
 
 /**
@@ -38,6 +46,7 @@ export async function createContact(input: CreateContactInput, scope: AccessScop
       email: input.email ?? null,
       roleType: input.roleType,
       portalToken: randomUUID(),
+      buyerRoundId: input.buyerRoundId ?? null,
     },
   });
 }

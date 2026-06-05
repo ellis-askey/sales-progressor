@@ -100,6 +100,11 @@ export async function listTransactions(
         select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true },
       },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Pass 3 B3: anchor "elapsed weeks" / on-track signal on the active
+      // round's createdAt, not the file's. A relisted file is 8 weeks old
+      // but the active sale just started; without this the freshly-relisted
+      // tx reads "8 weeks elapsed / off track" from minute one.
+      activeBuyerRound: { select: { createdAt: true } },
     },
   });
 
@@ -156,8 +161,10 @@ export async function listTransactions(
 
     const completedCount = tx._count.milestoneCompletions;
     // Active-only elapsed: hold periods are subtracted so the on-track
-    // signal doesn't drift while the file is paused.
-    const daysElapsed = activeElapsedMs(new Date(tx.createdAt), {
+    // signal doesn't drift while the file is paused. Pass 3 B3: anchored
+    // on activeBuyerRound.createdAt when present (relist resets the clock).
+    const elapsedAnchor = tx.activeBuyerRound?.createdAt ?? tx.createdAt;
+    const daysElapsed = activeElapsedMs(new Date(elapsedAnchor), {
       status: tx.status,
       holdPeriods: tx.holdPeriods,
     }) / 86400000;
@@ -356,6 +363,8 @@ export async function listTransactionsByScope(scope: AccessScope) {
         take: 5,
       },
       holdPeriods: { select: { startedAt: true, endedAt: true } },
+      // Pass 3 B3: anchor elapsed-time on the active round (see listTransactions).
+      activeBuyerRound: { select: { createdAt: true } },
     },
   });
 
@@ -376,8 +385,10 @@ export async function listTransactionsByScope(scope: AccessScope) {
 
     const completedCount = tx._count.milestoneCompletions;
     // Active-only elapsed: hold periods are subtracted so the on-track
-    // signal doesn't drift while the file is paused.
-    const daysElapsed = activeElapsedMs(new Date(tx.createdAt), {
+    // signal doesn't drift while the file is paused. Pass 3 B3: anchored
+    // on activeBuyerRound.createdAt when present (relist resets the clock).
+    const elapsedAnchor = tx.activeBuyerRound?.createdAt ?? tx.createdAt;
+    const daysElapsed = activeElapsedMs(new Date(elapsedAnchor), {
       status: tx.status,
       holdPeriods: tx.holdPeriods,
     }) / 86400000;
