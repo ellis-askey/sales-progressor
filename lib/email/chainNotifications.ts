@@ -166,7 +166,7 @@ export function buildBuyerFoundEmailPayload({
       ? `A new buyer has been secured for the property below you in the chain. The onward chain has reformed and your client's wait is over.`
       : variant === "REMARKETING"
         ? `A new buyer has been secured for the property below you in the chain. You told us you were remarketing in the meantime. That's no longer needed. The onward chain has reformed.`
-        : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out — the onward chain has reformed.`;
+        : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out. The onward chain has reformed.`;
   const follow = `Open the chain to confirm your client's position and pick the file back up.`;
 
   const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
