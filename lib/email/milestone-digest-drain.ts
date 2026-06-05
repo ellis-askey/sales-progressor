@@ -125,6 +125,36 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
       continue;
     }
 
+    // Phase-2 PR 3 (dead-round gate, mirrors PR 1.5 outboundQueue gate):
+    // if the recipient contact is a purchaser whose BuyerRound has been
+    // archived (sale fell through), skip the whole group's send. The
+    // milestone-confirmation digest is buyer-facing and shouldn't reach
+    // a dead buyer's inbox post-relist any more than the chase drain
+    // should. Mark every row in the group with errorAt + a structured
+    // errorMessage so the audit trail preserves them while preventing
+    // retry.
+    const recipientContact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      select: {
+        roleType: true,
+        buyerRoundId: true,
+        transaction: { select: { activeBuyerRoundId: true } },
+      },
+    });
+    if (
+      recipientContact &&
+      recipientContact.roleType === "purchaser" &&
+      recipientContact.buyerRoundId !== null &&
+      recipientContact.buyerRoundId !== recipientContact.transaction.activeBuyerRoundId
+    ) {
+      await prisma.outboundEmailQueue.updateMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+        data: { errorAt: now, errorMessage: "recipient_round_archived" },
+      });
+      failed += rows.length;
+      continue;
+    }
+
     let decision: SendDecision<typeof rows[number]>;
     try {
       decision = decideSendForGroup(rows);
