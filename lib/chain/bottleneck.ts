@@ -40,20 +40,30 @@ export function computeChainBottleneck(chain: ChainV2): ChainBottleneck | null {
   );
   if (claimed.length < 2) return null;
 
+  // predictedExchangeDate is typed as Date on ChainV2 (server-side source
+  // of truth) but the ChainDrawer fetches via /api/chains and JSON-decodes,
+  // so by the time this function runs in the client the values are ISO
+  // STRINGS. Calling `.getTime()` on a string throws "getTime is not a
+  // function" — pre-arc chains with <2 claimed links never reached this
+  // path; F2's 4-link chain (3 claimed) was the first to surface it.
+  // Coerce explicitly via new Date(...) so the helper works on both wire
+  // and server inputs without trusting the type.
+  const ms = (v: Date | string) => new Date(v).getTime();
+
   // Sort by predicted date ascending; the last is the slowest.
   const sorted = [...claimed].sort(
-    (a, b) => a.predictedExchangeDate!.getTime() - b.predictedExchangeDate!.getTime(),
+    (a, b) => ms(a.predictedExchangeDate!) - ms(b.predictedExchangeDate!),
   );
   const slowest = sorted[sorted.length - 1];
   const others = sorted.slice(0, -1);
 
   // Median predicted-date among the other links. For 1 other, that IS its date;
   // for 2+, the middle value. Avoids over-weighting an outlier on either side.
-  const otherTimes = others.map((l) => l.predictedExchangeDate!.getTime()).sort((a, b) => a - b);
+  const otherTimes = others.map((l) => ms(l.predictedExchangeDate!)).sort((a, b) => a - b);
   const medianOtherTime = otherTimes[Math.floor(otherTimes.length / 2)];
 
   const daysBehind = Math.floor(
-    (slowest.predictedExchangeDate!.getTime() - medianOtherTime) / DAY_MS,
+    (ms(slowest.predictedExchangeDate!) - medianOtherTime) / DAY_MS,
   );
 
   if (daysBehind < BOTTLENECK_THRESHOLD_DAYS) return null;
