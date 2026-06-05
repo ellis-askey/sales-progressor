@@ -33,11 +33,16 @@ export default async function AgentNewSaleV2Page() {
         legacyOutsourcedFeePence: true,
       },
     });
-    if (
-      agency?.firstSubmissionAt &&
-      !agency.stripeCustomerId &&
-      Date.now() - agency.firstSubmissionAt.getTime() >= TRIAL_WINDOW_MS
-    ) {
+    // Legacy agencies don't get a 14-day trial — they're on a fixed fee
+    // per their pre-existing contract and should be on billing from sale 1.
+    // For them the gate fires immediately on no-card. Standard-tier
+    // agencies keep the 14-day onboarding runway.
+    const isLegacy = agency?.feeTier === "legacy";
+    const noCard = agency && !agency.stripeCustomerId;
+    const trialElapsed =
+      !!agency?.firstSubmissionAt &&
+      Date.now() - agency.firstSubmissionAt.getTime() >= TRIAL_WINDOW_MS;
+    if (agency && noCard && (isLegacy || trialElapsed)) {
       // Server component — reads the unprefixed key (matches lib/stripe.ts
       // + the settings billing page + the Vercel env var the founder set
       // up). The earlier NEXT_PUBLIC_ variant drifted from that

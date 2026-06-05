@@ -28,6 +28,16 @@
 // add several sales and feel the product working before any of them become
 // billable. Constant change only — does NOT retroactively re-stamp existing
 // rows; existing PropertyTransaction.freeOnExchange values stay as written.
+//
+// Legacy-tier exception: legacy agencies are on a fixed fee per their
+// pre-existing contract and explicitly get no onboarding trial. We always
+// return false for them — every legacy sale is billable from sale 1. The
+// firstSubmissionAt timestamp is still set on their first create (it's
+// referenced by other surfaces — analytics, the hub banner's elapsed-time
+// math for standard-tier agencies, etc.), but the trial verdict ignores
+// it. Pre-existing legacy transactions stamped freeOnExchange=true during
+// the previous behaviour stay stamped (audit constant) — see commit log
+// for the historical-data audit that ran alongside this change.
 
 import type { Prisma } from "@prisma/client";
 
@@ -39,10 +49,23 @@ export async function stampTrialState(
 ): Promise<boolean> {
   const agency = await tx.agency.findUnique({
     where: { id: agencyId },
-    select: { firstSubmissionAt: true },
+    select: { firstSubmissionAt: true, feeTier: true },
   });
   if (!agency) {
     throw new Error(`stampTrialState: Agency ${agencyId} not found`);
+  }
+
+  // Legacy agencies: no trial, ever. Still stamp firstSubmissionAt on the
+  // first create so downstream surfaces that key off it (analytics etc.)
+  // see the correct anchor — but the trial verdict is always false.
+  if (agency.feeTier === "legacy") {
+    if (agency.firstSubmissionAt === null) {
+      await tx.agency.update({
+        where: { id: agencyId },
+        data: { firstSubmissionAt: new Date() },
+      });
+    }
+    return false;
   }
 
   if (agency.firstSubmissionAt === null) {
