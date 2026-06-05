@@ -31,12 +31,38 @@ export async function GET(req: NextRequest) {
       : { agencyId: session.user.agencyId, agentUserId: { not: null } }
     : { agencyId: session.user.agencyId, agentUserId: session.user.id };
 
+  // Phase-2 PR 3 (GAP-5 from the fall-through ledger audit): scope the
+  // count to active-round portal-view notes only. Pre-PR-3 the count
+  // included every internal_note with the portal marker phrase
+  // regardless of which buyer's portal session generated it, so
+  // relisted files would inflate the bell badge with Sale 1's portal
+  // notes alongside Sale 2's.
+  //
+  // Two-step pattern: load tx IDs + their activeBuyerRoundId, then count
+  // OutboundMessage rows where buyerRoundId is NULL (file-level / pre-
+  // Phase-0) OR matches one of the active round IDs in the scope. Per-
+  // contact's buyerRoundId is a globally-unique cuid so "row's
+  // buyerRoundId IS IN [active round IDs for in-scope txs]" is
+  // equivalent to "row's buyerRoundId === its own tx's
+  // activeBuyerRoundId".
+  const txs = await prisma.propertyTransaction.findMany({
+    where: txFilter,
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  const activeRoundIds = txs
+    .map((t) => t.activeBuyerRoundId)
+    .filter((id): id is string => id !== null);
+
   const count = await prisma.outboundMessage.count({
     where: {
       type: "internal_note",
       createdAt: { gt: since },
       content: { contains: "via the client portal" },
       transaction: txFilter,
+      OR: [
+        { buyerRoundId: null },
+        { buyerRoundId: { in: activeRoundIds } },
+      ],
     },
   });
 

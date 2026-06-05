@@ -148,6 +148,33 @@ export async function logAutomatedEmail(
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+  // Phase-2 PR 3 (OutboundMessage write-path gap fix): stamp buyerRoundId
+  // at create. Pre-PR-3 this write site was the known gap on the audit —
+  // every other OutboundMessage create stamps via decideBuyerSideStamp /
+  // contact.buyerRoundId, but logAutomatedEmail was committing rows with
+  // buyerRoundId NULL, leaving downstream read-path filters unable to
+  // discriminate active-round automated emails from fall-through ones.
+  //
+  // Same attribution rule the queue drain mirror uses (PR 1.5): if ALL
+  // contactIds resolve to purchaser-role Contacts on the same
+  // buyerRoundId, stamp the OutboundMessage with that buyerRoundId. Any
+  // mixed set (or vendor / solicitor / broker contacts) → file-level NULL.
+  let stampRoundId: string | null = null;
+  if (contactIds.length > 0) {
+    const contacts = await prisma.contact.findMany({
+      where: { id: { in: contactIds } },
+      select: { roleType: true, buyerRoundId: true },
+    });
+    if (
+      contacts.length === contactIds.length &&
+      contacts.every((c) => c.roleType === "purchaser") &&
+      contacts.every((c) => c.buyerRoundId !== null) &&
+      new Set(contacts.map((c) => c.buyerRoundId)).size === 1
+    ) {
+      stampRoundId = contacts[0].buyerRoundId;
+    }
+  }
+
   await prisma.outboundMessage.create({
     data: {
       transactionId,
@@ -157,6 +184,7 @@ export async function logAutomatedEmail(
       contactIds,
       content: `Subject: ${subject}\n\n${stripped}`,
       createdById: null,
+      buyerRoundId: stampRoundId,
     },
   });
 }

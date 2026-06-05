@@ -101,8 +101,19 @@ export async function getActivityTimeline(
         completedBy: { select: { name: true } },
       },
     }),
+    // Phase-2 PR 3 (OutboundMessage scoping): scope buyer-attributed
+    // comms to the active round. File-level rows (buyerRoundId NULL —
+    // vendor / shared / pre-Phase-0) pass through unchanged.
+    // A relisted file no longer surfaces Sale 1's chase emails, portal-
+    // action notes, or internal_notes about the fall-through buyer on
+    // the live activity timeline.
     prisma.outboundMessage.findMany({
-      where: { transactionId },
+      where: {
+        transactionId,
+        ...(tx.activeBuyerRoundId
+          ? { OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }] }
+          : { buyerRoundId: null }),
+      },
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: { select: { name: true } },

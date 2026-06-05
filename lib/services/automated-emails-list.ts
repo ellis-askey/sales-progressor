@@ -136,12 +136,23 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   // Resolve the in-scope transactions once. Used for both the count queries
   // (via subquery on Contact.propertyTransactionId) and for the address
   // map used to render each row.
+  //
+  // Phase-2 PR 3 (OutboundMessage scoping): also load activeBuyerRoundId
+  // so the queue filter can scope out queued/sent rows targeted at a
+  // fall-through buyer's Contact. OutboundEmailQueue has no buyerRoundId
+  // column, so the filter rides on the related Contact: a row whose
+  // recipientContact is a purchaser whose buyerRoundId doesn't match the
+  // tx's active round is from a previous sale — hide it from the live
+  // auto-emails surface (the archived drawer is the right place).
   const transactions = await prisma.propertyTransaction.findMany({
     where: txWhere,
-    select: { id: true, propertyAddress: true },
+    select: { id: true, propertyAddress: true, activeBuyerRoundId: true },
   });
   const txIds = transactions.map((t) => t.id);
   const txAddressById = new Map(transactions.map((t) => [t.id, t.propertyAddress]));
+  const activeRoundIds = transactions
+    .map((t) => t.activeBuyerRoundId)
+    .filter((id): id is string => id !== null);
 
   // Empty-scope short-circuit. Avoids 4 queries with `in: []`.
   if (txIds.length === 0) {
@@ -154,8 +165,26 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   // KPI counts + tab-label counts in parallel. The 7d/30d split is
   // intentional: KPI shows recent activity ("what happened lately"); the
   // Sent tab spans 30 days ("review history") so we need both.
-  const baseScopeFilter = {
-    recipientContact: { propertyTransactionId: { in: txIds } },
+  //
+  // Round-aware contact filter (PR 3):
+  //   - Non-purchaser contacts (vendor / solicitor / broker / other) pass
+  //     through — they're file-level by design across all sales.
+  //   - Purchaser contacts whose buyerRoundId is NULL pass through (pre-
+  //     Phase-0 unstamped — the backfill closes those, until then the
+  //     filter errs on visibility).
+  //   - Purchaser contacts whose buyerRoundId matches an active round in
+  //     the scope pass through.
+  //   - Purchaser contacts whose buyerRoundId is set but doesn't match
+  //     an active round = fall-through buyer → filtered out.
+  const baseScopeFilter: Prisma.OutboundEmailQueueWhereInput = {
+    recipientContact: {
+      propertyTransactionId: { in: txIds },
+      OR: [
+        { roleType: { not: "purchaser" as const } },
+        { buyerRoundId: null },
+        { buyerRoundId: { in: activeRoundIds } },
+      ],
+    },
   };
   const [pendingCount, sent7dCount, sent30dCount, erroredCount] = await Promise.all([
     prisma.outboundEmailQueue.count({
