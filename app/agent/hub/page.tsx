@@ -13,7 +13,7 @@ import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/service
 import {
   getHubPipelineStats, getHubAttentionItems, getHubMomentum,
   getHubWeeklyForecast, getHubServiceSplit, getHubRecentActivity, getHubDiary,
-  getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge,
+  getHubUnassignedFiles, getExpiredHolds, getHubRelistsToAcknowledge, getHubChainSetupPending,
 } from "@/lib/services/hub";
 import type { DiaryItem } from "@/lib/services/hub";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -24,6 +24,7 @@ import {
 import { AttentionListView } from "@/components/hub/AttentionListView";
 import { UnassignedFilesView } from "@/components/hub/UnassignedFilesView";
 import { NewBuyersToAcknowledgeView } from "@/components/hub/NewBuyersToAcknowledgeView";
+import { ChainSetupPendingView } from "@/components/hub/ChainSetupPendingView";
 import { ExpiredHoldsCard } from "@/components/hub/ExpiredHoldsCard";
 import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
@@ -94,7 +95,7 @@ export default async function HubPreviewPage() {
     ? resolveInternalVisibility(session.user.id, role, isAdmin)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
-  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge] =
+  const [pipelineStats, attentionItems, momentum, weeklyForecast, serviceSplit, recentActivity, diaryItems, unassignedFiles, expiredHolds, relistsToAcknowledge, chainSetupPending] =
     await Promise.all([
       getHubPipelineStats(vis),
       getHubAttentionItems(vis),
@@ -106,6 +107,7 @@ export default async function HubPreviewPage() {
       getHubUnassignedFiles(vis),
       getExpiredHolds(vis),
       getHubRelistsToAcknowledge(vis),
+      getHubChainSetupPending(vis),
     ]);
 
   // Derived values
@@ -354,6 +356,7 @@ export default async function HubPreviewPage() {
           <AttentionListView items={attentionItems} />
           <UnassignedFilesView initialFiles={unassignedFiles} />
           <NewBuyersToAcknowledgeView initialRounds={relistsToAcknowledge} />
+          <ChainSetupPendingView initialFiles={chainSetupPending} />
         </AnimatedSection>
 
         {/* ── 5. Pipeline health + Momentum ─────────────────────────────────────── */}

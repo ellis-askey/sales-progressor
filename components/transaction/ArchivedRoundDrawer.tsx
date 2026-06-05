@@ -78,6 +78,30 @@ type SnapshotRow = {
   summaryText: string | null;
 };
 
+// Chain snapshot shape (closed-loop arc 2026-06-05). Mirrors the JSON
+// written by buildChainSnapshotForWithdrawal in app/actions/transactions.ts.
+type ChainSnapshot = {
+  chainId: string;
+  ourLinkId: string;
+  ourPosition: number;
+  withdrawalReason: string | null;
+  capturedAt: string;
+  neighbours: Array<{
+    linkId: string;
+    position: number;
+    withdrawalStatus: string | null;
+    claimedByUserId: string | null;
+    claimedAgentName: string | null;
+    claimedAgencyName: string | null;
+    claimedTransactionId: string | null;
+    claimedAddress: string | null;
+    stubAddress: string | null;
+    stubAgencyName: string | null;
+    stubAgentName: string | null;
+  }>;
+  detachedSegment: { chainId: string; splitAt: string; notifiedRecipientLinkId: string | null } | null;
+};
+
 type ArchivedRoundPayload = {
   round: {
     id: string;
@@ -92,6 +116,21 @@ type ArchivedRoundPayload = {
     brokerFirm: { id: string; name: string } | null;
     brokerContact: { id: string; name: string; phone: string | null; email: string | null } | null;
     vendorMilestoneSnapshot: SnapshotRow[] | null;
+    // Closed-loop chain arc (2026-06-05). JSON shape:
+    // { chainId, ourLinkId, ourPosition, withdrawalReason, capturedAt,
+    //   neighbours[], detachedSegment | null }
+    chainSnapshot: ChainSnapshot | null;
+    chainNotifications: Array<{
+      id: string;
+      type: string;
+      direction: string;
+      recipientLinkId: string;
+      recipientEmail: string;
+      response: string | null;
+      respondedAt: string | null;
+      emailSentAt: string | null;
+      createdAt: string;
+    }>;
   };
   buyerContacts: Array<{ id: string; name: string; email: string | null; phone: string | null; roleType: string }>;
   pmCompletions: Array<{
@@ -601,6 +640,20 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                 )}
               </StaggerSection>
 
+              {/* Chain at withdrawal — closed-loop chain arc (2026-06-05).
+                * Only rendered when a chainSnapshot was captured (file was
+                * in a chain at the moment of withdraw). Mirrors the glass-
+                * card / SectionHeader / agent-acc accordion pattern used
+                * by the rest of the drawer. */}
+              {data.round.chainSnapshot && (
+                <StaggerSection delayMs={300}>
+                  <ChainAtWithdrawalSection
+                    snapshot={data.round.chainSnapshot}
+                    notifications={data.round.chainNotifications}
+                  />
+                </StaggerSection>
+              )}
+
               {/* Documents during this sale */}
               <StaggerSection delayMs={320}>
                 <SectionHeader title="Documents during this sale" />
@@ -686,5 +739,185 @@ function StaggerSection({ delayMs, children }: { delayMs: number; children: Reac
     <div ref={ref} className="agent-reveal-in">
       {children}
     </div>
+  );
+}
+
+// ── Chain at withdrawal (closed-loop chain arc 2026-06-05) ────────────────
+//
+// Renders the chain shape captured at withdraw time + the cascade
+// notifications that fired from this file's link. Three sub-blocks:
+//   1. Header card: reason, chainId, our position, capturedAt
+//   2. Neighbours table: every claimed link at the moment of withdraw
+//      (position, agency, agent, claimed address, withdrawalStatus)
+//   3. Notifications outcomes: per-row recipient + type + response if any
+//   4. Detached segment banner (if a split fired)
+
+const WITHDRAWAL_REASON_LABELS: Record<string, string> = {
+  BUYER_WITHDREW:       "Our buyer pulled out",
+  SELLER_WITHDREW:      "Our seller pulled out",
+  CHAIN_COLLAPSE_ABOVE: "Chain collapsed above us",
+  OTHER:                "Other / mutual",
+};
+
+const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  LOST_BUYER:     "Lost their buyer",
+  LOST_PURCHASE:  "Lost their purchase",
+  ASKED_TO_WAIT:  "Asked to wait",
+  BUYER_FOUND:    "Buyer found",
+  CHAIN_DETACHED: "Chain detached",
+};
+
+const RESPONSE_LABELS: Record<string, string> = {
+  WITHDRAWN:   "Withdrew",
+  REMARKETING: "Remarketing",
+  WAITING:     "Waiting",
+  BREAK_CHAIN: "Broke chain",
+};
+
+function ChainAtWithdrawalSection({
+  snapshot,
+  notifications,
+}: {
+  snapshot: ChainSnapshot;
+  notifications: ArchivedRoundPayload["round"]["chainNotifications"];
+}) {
+  // Order neighbours by position descending so the chain renders top-down
+  // (highest position = top of chain). Highlight ourPosition.
+  const sorted = [...snapshot.neighbours].sort((a, b) => b.position - a.position);
+
+  // Index notifications by recipientLinkId so we can render them inline
+  // with each neighbour row instead of a separate table.
+  const notifByLink = new Map<string, typeof notifications>();
+  for (const n of notifications) {
+    const list = notifByLink.get(n.recipientLinkId) ?? [];
+    list.push(n);
+    notifByLink.set(n.recipientLinkId, list);
+  }
+
+  return (
+    <>
+      <SectionHeader title="Chain at withdrawal" />
+      <div style={{ padding: "4px 16px 14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Header card — reason + capture time */}
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: "var(--agent-surface-glass)",
+            border: "0.5px solid var(--agent-border-default)",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+              {snapshot.withdrawalReason ? WITHDRAWAL_REASON_LABELS[snapshot.withdrawalReason] ?? snapshot.withdrawalReason : "Reason unknown"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
+              Captured {fmtDate(snapshot.capturedAt)} · position {snapshot.ourPosition}
+            </div>
+          </div>
+          {snapshot.detachedSegment && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: "6px 10px",
+                borderRadius: 8,
+                background: "rgba(245,158,11,0.10)",
+                border: "0.5px solid rgba(245,158,11,0.25)",
+                fontSize: 11,
+                color: "rgb(146, 78, 4)",
+              }}
+            >
+              <strong>Chain split.</strong> The downstream segment was detached on {fmtDate(snapshot.detachedSegment.splitAt)} and now stands as its own chain.
+            </div>
+          )}
+        </div>
+
+        {/* Neighbours table — one card per claimed link, ordered top-down */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {sorted.map((n) => {
+            const isUs = n.position === snapshot.ourPosition;
+            const claimed = Boolean(n.claimedByUserId);
+            const label = n.claimedAddress ?? n.stubAddress ?? "(unknown address)";
+            const agencyOrStub = n.claimedAgencyName ?? n.stubAgencyName ?? null;
+            const agentOrStub = n.claimedAgentName ?? n.stubAgentName ?? null;
+            const linkNotifs = notifByLink.get(n.linkId) ?? [];
+            return (
+              <div
+                key={n.linkId}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: isUs ? "rgba(229,80,46,0.06)" : "var(--agent-surface-glass)",
+                  border: isUs ? "0.5px solid rgba(229,80,46,0.25)" : "0.5px solid var(--agent-border-default)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)" }}>#{n.position}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{label}</span>
+                    {isUs && <span style={{ fontSize: 10, fontWeight: 600, color: "rgb(229,80,46)" }}>(this file)</span>}
+                  </div>
+                  {n.withdrawalStatus && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        background: "rgba(239,68,68,0.12)",
+                        color: "rgb(185,28,28)",
+                      }}
+                    >
+                      {RESPONSE_LABELS[n.withdrawalStatus] ?? n.withdrawalStatus}
+                    </span>
+                  )}
+                </div>
+                {(agencyOrStub || agentOrStub) && (
+                  <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 4 }}>
+                    {agencyOrStub}{agencyOrStub && agentOrStub ? " · " : ""}{agentOrStub}{!claimed && " (unclaimed)"}
+                  </div>
+                )}
+                {linkNotifs.length > 0 && (
+                  <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {linkNotifs.map((notif) => (
+                      <div
+                        key={notif.id}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          background: "rgba(15,23,42,0.04)",
+                          fontSize: 11,
+                          color: "var(--agent-text-secondary)",
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "baseline",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                          {NOTIFICATION_TYPE_LABELS[notif.type] ?? notif.type}
+                        </span>
+                        <span>→ {notif.recipientEmail}</span>
+                        <span style={{ marginLeft: "auto" }}>
+                          {notif.response ? (
+                            <span style={{ color: "rgb(185,28,28)", fontWeight: 600 }}>
+                              {RESPONSE_LABELS[notif.response] ?? notif.response} {notif.respondedAt && `· ${fmtDate(notif.respondedAt)}`}
+                            </span>
+                          ) : notif.emailSentAt ? (
+                            <span style={{ color: "var(--agent-text-muted)" }}>Sent {fmtDate(notif.emailSentAt)} · awaiting response</span>
+                          ) : (
+                            <span style={{ color: "var(--agent-text-muted)" }}>Queued</span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
   );
 }

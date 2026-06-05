@@ -32,6 +32,24 @@ export type ArchivedRoundData = {
     // Enriched server-side with name + orderIndex so the drawer can sort
     // and render full step names. Raw JSON still lives on the row.
     vendorMilestoneSnapshot: VmSnapshotRowEnriched[] | null;
+    // Closed-loop chain arc (2026-06-05). Snapshot captured at withdrawal
+    // time; null when the file wasn't in a chain. Shape documented in
+    // schema.prisma BuyerRound.chainSnapshot doc comment.
+    chainSnapshot: unknown;
+    // Notifications the cascade fired from this file's link, joined for
+    // the drawer's "Chain at withdrawal" section so the responses table
+    // doesn't need an extra round-trip.
+    chainNotifications: Array<{
+      id: string;
+      type: string;
+      direction: string;
+      recipientLinkId: string;
+      recipientEmail: string;
+      response: string | null;
+      respondedAt: Date | null;
+      emailSentAt: Date | null;
+      createdAt: Date;
+    }>;
   };
   buyerContacts: {
     id: string;
@@ -106,6 +124,10 @@ export async function getArchivedRoundData(
       createdAt: true,
       purchasePrice: true,
       vendorMilestoneSnapshot: true,
+      // Closed-loop chain arc (2026-06-05) — chain shape at the moment
+      // of withdrawal + the split metadata if a detachment fired. Drives
+      // the drawer's "Chain at withdrawal" section.
+      chainSnapshot: true,
       purchaserSolicitorFirmId: true,
       purchaserSolicitorContactId: true,
       brokerFirmId: true,
@@ -271,6 +293,52 @@ export async function getArchivedRoundData(
       .sort((a, b) => a.orderIndex - b.orderIndex);
   }
 
+  // Closed-loop chain arc (2026-06-05): also load any cascade notifications
+  // that fired from THIS file's link, so the drawer can render their
+  // response state alongside the chain snapshot. Filter by the
+  // chainSnapshot's recorded ourLinkId so re-uses of the same chain over
+  // multiple rounds stay scoped to this round's withdraw event.
+  let chainNotifications: Array<{
+    id: string;
+    type: string;
+    direction: string;
+    recipientLinkId: string;
+    recipientEmail: string;
+    response: string | null;
+    respondedAt: Date | null;
+    emailSentAt: Date | null;
+    createdAt: Date;
+  }> = [];
+  const chainSnapRaw = round.chainSnapshot as { ourLinkId?: string } | null;
+  if (chainSnapRaw?.ourLinkId) {
+    const rows = await prisma.chainNotificationQueue.findMany({
+      where: { triggeringLinkId: chainSnapRaw.ourLinkId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        type: true,
+        direction: true,
+        recipientLinkId: true,
+        recipientEmail: true,
+        response: true,
+        respondedAt: true,
+        emailSentAt: true,
+        createdAt: true,
+      },
+    });
+    chainNotifications = rows.map((r) => ({
+      id: r.id,
+      type: r.type as string,
+      direction: r.direction as string,
+      recipientLinkId: r.recipientLinkId,
+      recipientEmail: r.recipientEmail,
+      response: r.response as string | null,
+      respondedAt: r.respondedAt,
+      emailSentAt: r.emailSentAt,
+      createdAt: r.createdAt,
+    }));
+  }
+
   return {
     round: {
       id: round.id,
@@ -285,6 +353,8 @@ export async function getArchivedRoundData(
       brokerFirm,
       brokerContact,
       vendorMilestoneSnapshot: snapshotEnriched,
+      chainSnapshot: round.chainSnapshot,
+      chainNotifications,
     },
     buyerContacts,
     pmCompletions,

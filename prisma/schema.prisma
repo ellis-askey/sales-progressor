@@ -245,6 +245,16 @@ model PropertyTransaction {
   agentFeeIsVatInclusive      Boolean?
   notes                       String?
   fallThroughReason           String?
+  // Structured withdrawal classification — set at withdraw time alongside
+  // the free-text fallThroughReason. Drives chain cascade direction in
+  // cascadeChainWithdrawal. Null on files that have never been withdrawn.
+  withdrawalReason            WithdrawalReason?
+  // Closed-loop chain arc (2026-06-05): set true at relist when the agent
+  // selected "Don't know yet" on the new buyer's onward-sale step. The hub
+  // surfaces a "complete chain setup" prompt for the file until the agent
+  // resolves the onward chain (or confirms there is none). Cleared back to
+  // false when the chain step is completed via the prompt.
+  chainSetupPending           Boolean           @default(false)
   referredFirmId              String?
   referralFee                 Int?
   referralFeeReceived         Boolean           @default(false)
@@ -402,6 +412,25 @@ model BuyerRound {
   // eventDate, reconciledAtExchange }>. Stored as JSONB so future
   // analytics can read it without a schema migration.
   vendorMilestoneSnapshot Json?
+
+  // Closed-loop chain arc (2026-06-05): snapshot of the chain state at
+  // the moment this round was archived (withdraw). Captures every claimed
+  // link in the chain at that instant (their position, withdrawalStatus,
+  // claiming agent, agency) AND every notification that fired during the
+  // cascade (recipient, type, direction, response received if any).
+  // Rendered by the ArchivedRoundDrawer's "Chain at withdrawal" section.
+  // Shape: {
+  //   chainId: string,
+  //   ourPosition: number,
+  //   withdrawalReason: WithdrawalReason,
+  //   neighbours: Array<{ linkId, position, withdrawalStatus,
+  //     claimedByUserId, agencyName, agentName, claimedTransactionId }>,
+  //   notifications: Array<{ recipientLinkId, type, direction, response,
+  //     respondedAt, sentAt }>,
+  //   detachedSegment: { chainId, splitAt: ISO-date } | null
+  // }
+  // Null on the active round (only set at archive time).
+  chainSnapshot           Json?
 
   createdAt  DateTime  @default(now())
   archivedAt DateTime?
@@ -1109,6 +1138,33 @@ enum ChainNotificationType {
   LOST_BUYER
   LOST_PURCHASE
   ASKED_TO_WAIT
+  // Closed-loop additions (2026-06-05 chain arc):
+  // BUYER_FOUND — fired upward when a withdrawn file is relisted with a new
+  //   buyer. Recipients are agents who received a LOST_BUYER (or were waiting/
+  //   remarketing) in the original cascade. Variants of the copy branch on
+  //   the recipient's prior response (WAITING / REMARKETING / none); WITHDRAW
+  //   and BREAK_CHAIN responses skip the notification entirely.
+  // CHAIN_DETACHED — fired to the highest claimed agent in the orphan segment
+  //   when a withdrawal splits the chain (BUYER_WITHDREW or
+  //   CHAIN_COLLAPSE_ABOVE detaches downstream; SELLER_WITHDREW detaches
+  //   upstream). Informational — tells them their chain has been shortened.
+  BUYER_FOUND
+  CHAIN_DETACHED
+}
+
+// Why the file was marked withdrawn. Captured in the withdraw modal via a
+// structured radio picker (free-text `fallThroughReason` is preserved as
+// supplementary detail). Drives cascade direction:
+//   BUYER_WITHDREW       → cascade UPWARD only; downstream detaches
+//   SELLER_WITHDREW      → cascade DOWNWARD only; upstream detaches
+//   CHAIN_COLLAPSE_ABOVE → no cascade from us (upstream already cascading);
+//                          downstream detaches
+//   OTHER                → cascade BOTH directions; neither side detaches
+enum WithdrawalReason {
+  BUYER_WITHDREW
+  SELLER_WITHDREW
+  CHAIN_COLLAPSE_ABOVE
+  OTHER
 }
 
 enum ChainDirection {
@@ -1170,6 +1226,17 @@ model ChainLink {
   // Deferred (v1.1)
   withdrawalStatus      ChainWithdrawalStatus?
   withdrawalRespondedAt DateTime?
+
+  // Closed-loop chain arc (2026-06-05): when a withdrawal causes a chain
+  // split (BUYER_WITHDREW detaches downstream into its own chain;
+  // SELLER_WITHDREW detaches upstream; CHAIN_COLLAPSE_ABOVE detaches
+  // downstream), every link in the orphan segment is moved to a new
+  // PropertyChain row and gets these fields stamped. detachedFromChainId
+  // is the chainId the link USED to be in; the link's `chainId` now points
+  // at the new chain row. detachedAt is the moment of split. Drives
+  // audit + the highest-link CHAIN_DETACHED notification recipient.
+  detachedAt            DateTime?
+  detachedFromChainId   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

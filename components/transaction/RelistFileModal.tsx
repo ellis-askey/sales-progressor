@@ -32,10 +32,26 @@ import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
 type Stage = "form" | "confirm";
 
+// Closed-loop chain arc (2026-06-05). Captures the new buyer's onward-sale
+// status so the relist commit can attach a fresh chain link (no orphan
+// dangling refs) or flag the file as chainSetupPending if the agent
+// doesn't know yet. Mirrors the structured WithdrawalReason picker on
+// the withdraw side — both are required steps, "Skip" is loud not silent.
+type OnwardSale =
+  | { kind: "none" }
+  | { kind: "internal"; agentEmail: string }
+  | { kind: "external"; agencyName: string; agentName: string; agentEmail: string }
+  | { kind: "unknown" };
+
 type Props = {
   open: boolean;
   transactionId: string;
   previousPurchasePrice: number | null;
+  // True when the file currently has a chainLinkId. Only when true does
+  // the modal show the "buyer's onward sale" section — files that aren't
+  // in a chain at all skip it (there's nothing for the closed-loop arc
+  // to reattach to).
+  inChain: boolean;
   onClose: () => void;
 };
 
@@ -54,7 +70,7 @@ function parsePriceInputToPence(s: string): number | null {
   return Math.round(pounds * 100);
 }
 
-export function RelistFileModal({ open, transactionId, previousPurchasePrice, onClose }: Props) {
+export function RelistFileModal({ open, transactionId, previousPurchasePrice, inChain, onClose }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [stage, setStage] = useState<Stage>("form");
   const [isPending, startTransition] = useTransition();
@@ -68,6 +84,15 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
   const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(null);
   const [broker, setBroker] = useState<BrokerSelection | null>(null);
 
+  // Closed-loop chain arc (2026-06-05). Only collected when inChain=true.
+  // Required step — no submission until the agent picks one. "unknown"
+  // is the explicit safety valve that flags the file as chainSetupPending.
+  const [onwardKind, setOnwardKind] = useState<OnwardSale["kind"] | null>(null);
+  const [onwardInternalEmail, setOnwardInternalEmail] = useState("");
+  const [onwardExternalAgency, setOnwardExternalAgency] = useState("");
+  const [onwardExternalAgent, setOnwardExternalAgent] = useState("");
+  const [onwardExternalEmail, setOnwardExternalEmail] = useState("");
+
   // Reset when modal opens.
   useEffect(() => {
     if (open) {
@@ -79,6 +104,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
       setPriceInput(formatPriceForInput(previousPurchasePrice));
       setSolicitor(null);
       setBroker(null);
+      setOnwardKind(null);
+      setOnwardInternalEmail("");
+      setOnwardExternalAgency("");
+      setOnwardExternalAgent("");
+      setOnwardExternalEmail("");
     }
   }, [open, previousPurchasePrice]);
 
@@ -95,7 +125,37 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
   if (!open) return null;
 
   const newPrice = parsePriceInputToPence(priceInput);
-  const formValid = buyerName.trim().length > 0;
+
+  // Onward-sale validity: only the picked branch's fields are required.
+  // Email regex matches CHAIN_EMAIL_RE in app/actions/transactions.ts so a
+  // form-side accept means a server-side accept on the invite step.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const onwardValid =
+    !inChain // section hidden — auto-valid
+    || onwardKind === "none"
+    || onwardKind === "unknown"
+    || (onwardKind === "internal" && EMAIL_RE.test(onwardInternalEmail.trim()))
+    || (onwardKind === "external"
+        && onwardExternalAgency.trim().length > 0
+        && onwardExternalAgent.trim().length > 0
+        && EMAIL_RE.test(onwardExternalEmail.trim()));
+
+  const formValid = buyerName.trim().length > 0 && onwardValid;
+
+  function buildOnwardPayload(): OnwardSale | null {
+    if (!inChain || !onwardKind) return null;
+    if (onwardKind === "none") return { kind: "none" };
+    if (onwardKind === "unknown") return { kind: "unknown" };
+    if (onwardKind === "internal") {
+      return { kind: "internal", agentEmail: onwardInternalEmail.trim().toLowerCase() };
+    }
+    return {
+      kind: "external",
+      agencyName: onwardExternalAgency.trim(),
+      agentName: onwardExternalAgent.trim(),
+      agentEmail: onwardExternalEmail.trim().toLowerCase(),
+    };
+  }
 
   function goToConfirm() {
     if (!formValid) {
@@ -142,6 +202,10 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
           newPurchaserSolicitorContactId: solicitor?.contactId ?? null,
           newBrokerFirmId: broker?.firmId ?? null,
           newBrokerContactId: broker?.contactId ?? null,
+          // Closed-loop arc (2026-06-05): the chain-attach decision the
+          // agent made in the modal. Server-side, drives chainSetupPending
+          // / new-link creation / chain invite emails.
+          onwardSale: buildOnwardPayload(),
         });
         onClose();
         // Force a refresh so the file detail rerenders with the new round
@@ -319,6 +383,114 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, on
               value={broker}
               onChange={setBroker}
             />
+
+            {/* Closed-loop chain arc (2026-06-05) — only shown when the
+              * file is in a chain. Skip is loud ("Don't know yet" flags
+              * the file as chainSetupPending so the hub surfaces a
+              * prompt until resolved). */}
+            {inChain && (
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                  Buyer&apos;s onward sale <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                </label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: "none",     label: "No — first-time buyer or cash buyer", helper: "Chain ends below us. Nothing to attach." },
+                    { value: "internal", label: "Yes — managed by another Sales Progressor agent", helper: "We'll send them a chain invite by email." },
+                    { value: "external", label: "Yes — managed by an external agency", helper: "We'll send a stub invite to their agent." },
+                    { value: "unknown",  label: "Don't know yet — set up later", helper: "File flagged. The hub will prompt until cleared." },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setOnwardKind(opt.value)}
+                      disabled={isPending}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        onwardKind === opt.value
+                          ? "border-[var(--agent-coral-deep,#E5502E)] bg-[rgba(255,107,74,0.06)] font-medium"
+                          : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
+                      }`}
+                    >
+                      <div className="text-sm font-medium" style={{ color: onwardKind === opt.value ? "var(--agent-coral-deep, #E5502E)" : "var(--agent-text-primary)" }}>{opt.label}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color: onwardKind === opt.value ? "rgba(229,80,46,0.85)" : "rgba(15,23,42,0.5)" }}>
+                        {opt.helper}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {onwardKind === "internal" && (
+                  <div className="agent-reveal-in mt-3">
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                      Their agent&apos;s email <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={onwardInternalEmail}
+                      onChange={(e) => setOnwardInternalEmail(e.target.value)}
+                      onBlur={(e) => setOnwardInternalEmail(e.target.value.trim().toLowerCase())}
+                      disabled={isPending}
+                      placeholder="agent@theirsalesprogressor.account"
+                      maxLength={120}
+                      className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
+                      style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                    />
+                  </div>
+                )}
+
+                {onwardKind === "external" && (
+                  <div className="agent-reveal-in mt-3 grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                        Agency name <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={onwardExternalAgency}
+                        onChange={(e) => setOnwardExternalAgency(e.target.value)}
+                        disabled={isPending}
+                        placeholder="e.g. Hartwell Partners"
+                        maxLength={80}
+                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
+                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                        Agent name <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={onwardExternalAgent}
+                        onChange={(e) => setOnwardExternalAgent(e.target.value)}
+                        onBlur={(e) => setOnwardExternalAgent(titleCase(e.target.value.trim()))}
+                        disabled={isPending}
+                        placeholder="e.g. Sarah Johnson"
+                        maxLength={80}
+                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
+                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
+                        Agent email <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={onwardExternalEmail}
+                        onChange={(e) => setOnwardExternalEmail(e.target.value)}
+                        onBlur={(e) => setOnwardExternalEmail(e.target.value.trim().toLowerCase())}
+                        disabled={isPending}
+                        placeholder="sarah@hartwellpartners.co.uk"
+                        maxLength={120}
+                        className="w-full text-sm rounded-lg px-3 py-2 border bg-white"
+                        style={{ borderColor: "rgba(0,0,0,0.12)" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {error && (
               <p className="text-xs" style={{ color: "var(--agent-danger, #C73E3E)" }} role="alert">

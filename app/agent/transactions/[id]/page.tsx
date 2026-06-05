@@ -301,6 +301,7 @@ export default async function AgentTransactionDetailPage({
         show={transaction.status === "withdrawn" && transaction.exchangedAt === null}
         transactionId={transaction.id}
         previousPurchasePrice={transaction.purchasePrice}
+        inChain={transaction.chainLinkId !== null}
       />
       <ReconcileLaterAsync
         transactionId={id}

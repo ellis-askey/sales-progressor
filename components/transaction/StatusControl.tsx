@@ -8,7 +8,7 @@ import { changeStatusAction } from "@/app/actions/transactions";
 import { pauseClientEmails } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import type { TransactionStatus } from "@prisma/client";
+import type { TransactionStatus, WithdrawalReason } from "@prisma/client";
 
 const STATUSES: { value: TransactionStatus; label: string }[] = [
   { value: "active",    label: "Active" },
@@ -17,17 +17,41 @@ const STATUSES: { value: TransactionStatus; label: string }[] = [
   { value: "withdrawn", label: "Withdrawn" },
 ];
 
-const FALL_THROUGH_REASONS = [
-  "Buyer withdrew",
-  "Seller withdrew",
-  "Chain broke",
-  "Mortgage or finance issue",
-  "Survey issues",
-  "Gazundering (price chipped)",
-  "Gazumping",
-  "Solicitor delays",
-  "Personal circumstances changed",
-  "Other",
+// Structured withdrawal reasons drive chain-cascade direction per the
+// closed-loop arc (2026-06-05). Each option carries a human label, a short
+// helper for the radio card body, and the WithdrawalReason enum value
+// that the changeStatusAction stores on PropertyTransaction.withdrawalReason.
+// Cascade rules (see cascadeChainWithdrawal):
+//   BUYER_WITHDREW       → upward cascade, downstream detaches
+//   SELLER_WITHDREW      → downward cascade, upstream detaches
+//   CHAIN_COLLAPSE_ABOVE → no local cascade (upstream already cascading),
+//                          downstream detaches
+//   OTHER                → both directions cascade, no detachment
+const WITHDRAWAL_REASONS: Array<{
+  value: WithdrawalReason;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "BUYER_WITHDREW",
+    label: "Our buyer pulled out",
+    helper: "Buyer changed their mind, finance failed, survey killed it",
+  },
+  {
+    value: "SELLER_WITHDREW",
+    label: "Our seller pulled out",
+    helper: "Vendor decided to stay put, onward purchase fell through",
+  },
+  {
+    value: "CHAIN_COLLAPSE_ABOVE",
+    label: "Chain collapsed above us",
+    helper: "Responding to a withdrawal notification from upstream",
+  },
+  {
+    value: "OTHER",
+    label: "Other / mutual",
+    helper: "Survey, mortgage, gazundering, joint decision, etc.",
+  },
 ];
 
 type Props = {
@@ -65,8 +89,13 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [holdDate, setHoldDate]     = useState("");
-  const [reason, setReason]         = useState("");
-  const [customReason, setCustomReason] = useState("");
+  // Closed-loop arc (2026-06-05): the withdraw modal now collects a
+  // structured WithdrawalReason (drives chain cascade direction) AND a
+  // free-text detail (the existing fallThroughReason — preserved for
+  // audit). `pickedReason` holds the radio selection; `detailText` holds
+  // the free-text follow-up.
+  const [pickedReason, setPickedReason] = useState<WithdrawalReason | "">("");
+  const [detailText, setDetailText]     = useState("");
 
   // Manual optimistic state — persists across the post-action gap
   // before the parent currentStatus prop refreshes. useOptimistic's
@@ -92,8 +121,8 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     if (next === currentStatus) { setOpen(false); return; }
     setOpen(false);
     if (next === "withdrawn") {
-      setReason("");
-      setCustomReason("");
+      setPickedReason("");
+      setDetailText("");
       setShowModal(true);
       return;
     }
@@ -116,14 +145,19 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     applyStatus(next, null, null);
   }
 
-  function applyStatus(status: TransactionStatus, fallThroughReason: string | null, plannedEndAt: Date | null) {
+  function applyStatus(
+    status: TransactionStatus,
+    fallThroughReason: string | null,
+    plannedEndAt: Date | null,
+    withdrawalReason: WithdrawalReason | null = null,
+  ) {
     setSaving(true);
     // Pre-transition optimistic flip so the badge updates the instant the
     // modal closes — without waiting for the action's await to resolve.
     setOptimisticStatus(status);
     startTransition(async () => {
       try {
-        await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt);
+        await changeStatusAction(transactionId, status, fallThroughReason, plannedEndAt, withdrawalReason);
         const label =
           status === "active"    ? "File active" :
           status === "on_hold"   ? "File on hold" :
@@ -145,9 +179,15 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   }
 
   function confirmWithdrawal() {
-    const finalReason = reason === "Other" ? (customReason.trim() || "Other") : reason;
+    if (!pickedReason) return;
+    // Free-text detail is optional. When omitted, fallThroughReason takes
+    // the human label of the chosen reason so the file's history still
+    // reads naturally (e.g. "Our buyer pulled out") rather than the enum
+    // value. When supplied, the agent's text wins.
+    const labelByValue = Object.fromEntries(WITHDRAWAL_REASONS.map((r) => [r.value, r.label]));
+    const finalReason = detailText.trim() || labelByValue[pickedReason] || null;
     setShowModal(false);
-    applyStatus("withdrawn", finalReason || null, null);
+    applyStatus("withdrawn", finalReason, null, pickedReason);
   }
 
   function resumeWithAutomation() {
@@ -263,41 +303,64 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               </div>
             </div>
 
+            {/* Question 1 — Who pulled out? Drives chain cascade direction
+              * via WithdrawalReason. See closed-loop arc 2026-06-05. */}
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Specify
+              Who pulled out?
             </label>
             <div className="space-y-1.5 mb-4">
-              {FALL_THROUGH_REASONS.map((r) => (
+              {WITHDRAWAL_REASONS.map((r) => (
                 <button
-                  key={r}
+                  key={r.value}
                   type="button"
-                  onClick={() => setReason(r)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
-                    reason === r
+                  onClick={() => setPickedReason(r.value)}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    pickedReason === r.value
                       ? "border-red-300 bg-red-50 text-red-700 font-medium"
                       : "border-slate-200 text-slate-700 hover:border-slate-300 agent-hover-row"
                   }`}
                 >
-                  {r}
+                  <div className="text-sm font-medium">{r.label}</div>
+                  <div className="text-[11px] mt-0.5" style={{ color: pickedReason === r.value ? "rgba(185,28,28,0.85)" : "rgba(15,23,42,0.5)" }}>
+                    {r.helper}
+                  </div>
                 </button>
               ))}
             </div>
 
-            {reason === "Other" && (
-              <div className="agent-reveal-in mb-4">
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Specify
-                </label>
-                <input
-                  type="text"
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  placeholder="What happened?"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
-                  autoFocus
-                />
+            {inChain && pickedReason && (
+              <div
+                className="agent-reveal-in mb-4 px-3 py-2 rounded-lg text-[11px]"
+                style={{ background: "rgba(15,23,42,0.04)", color: "rgba(15,23,42,0.65)", border: "0.5px solid rgba(15,23,42,0.08)" }}
+              >
+                {pickedReason === "BUYER_WITHDREW" && (
+                  <>The agent <strong>above</strong> you in the chain will be notified that you&apos;ve lost your buyer. The chain below you will be split off into its own chain.</>
+                )}
+                {pickedReason === "SELLER_WITHDREW" && (
+                  <>The agent <strong>below</strong> you in the chain will be notified that they&apos;ve lost their purchase. The chain above you will be split off into its own chain.</>
+                )}
+                {pickedReason === "CHAIN_COLLAPSE_ABOVE" && (
+                  <>No new notifications fire from us — the upstream cascade is already in motion. The chain below you will be split off into its own chain.</>
+                )}
+                {pickedReason === "OTHER" && (
+                  <>Agents on <strong>both sides</strong> of the chain will be notified. The chain stays connected for now — they decide their own next step.</>
+                )}
               </div>
             )}
+
+            {/* Question 2 — optional free-text detail, captured as
+              * PropertyTransaction.fallThroughReason for the archived
+              * round drawer. */}
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+              Detail <span style={{ color: "rgba(15,23,42,0.4)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={detailText}
+              onChange={(e) => setDetailText(e.target.value)}
+              placeholder="What happened? (mortgage failed, gazumped, survey, etc.)"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400 mb-4"
+            />
 
             {/* CTAs follow the canonical SwitchServiceTypeModal / RelistFileModal
              *  pattern (padding 8/14, font 13, radius 8, no flex-1 stretch).
@@ -324,7 +387,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               <button
                 type="button"
                 onClick={confirmWithdrawal}
-                disabled={!reason || (reason === "Other" && !customReason.trim())}
+                disabled={!pickedReason}
                 style={{
                   padding: "8px 14px",
                   borderRadius: 8,
@@ -333,8 +396,8 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                   color: "#fff",
                   background: "var(--agent-danger, #C73E3E)",
                   border: "none",
-                  cursor: (!reason || (reason === "Other" && !customReason.trim())) ? "default" : "pointer",
-                  opacity: (!reason || (reason === "Other" && !customReason.trim())) ? 0.5 : 1,
+                  cursor: !pickedReason ? "default" : "pointer",
+                  opacity: !pickedReason ? 0.5 : 1,
                   minWidth: 150,
                   display: "inline-flex",
                   alignItems: "center",

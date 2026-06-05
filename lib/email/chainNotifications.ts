@@ -133,6 +133,72 @@ export function buildAskedToWaitEmailPayload({
   return { subject, text, html };
 }
 
+// ─── Closed-loop arc (2026-06-05): BUYER_FOUND + CHAIN_DETACHED ─────────────
+//
+// BUYER_FOUND fires upward at relist STEP 12b to recipients who got the
+// original LOST_BUYER. Per Ellis-lock 2026-06-05 the copy branches on the
+// recipient's prior response:
+//   - none       → "you can disregard our previous note"
+//   - WAITING    → "the wait is over"
+//   - REMARKETING → "you can stand down — chain tied up again"
+// (WITHDRAWN + BREAK_CHAIN responses are filtered upstream — they never
+//  produce a BUYER_FOUND row in the queue.)
+//
+// CHAIN_DETACHED fires when a withdrawal splits the chain. Recipient is
+// the highest claimed link in the orphan segment; copy is informational.
+
+type BuyerFoundVariant = "default" | "WAITING" | "REMARKETING";
+
+export function buildBuyerFoundEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+  variant,
+}: CascadePayloadArgs & { variant: BuyerFoundVariant }): { subject: string; text: string; html: string } {
+  const subject = `Update on ${recipientAddress} — the chain has reformed below you`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+
+  // Three lead paragraphs; one follow-up that's the same across variants.
+  // Voice rules match the existing cascade copy (no exclamation marks, no
+  // process jargon, framed from the recipient's client's standpoint).
+  const lead =
+    variant === "WAITING"
+      ? `The wait is over — a new buyer has been secured for the property below you in the chain. The onward chain has reformed.`
+      : variant === "REMARKETING"
+        ? `A new buyer has been secured for the property below you in the chain. You'd told us you were remarketing in the meantime — you can stand that down. The chain has tied up again.`
+        : `A new buyer has been secured for the property below you in the chain. You can disregard the earlier note about your buyer pulling out — the onward chain has reformed.`;
+  const follow = `Open the chain to confirm your client's stance and pick the file back up.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
+  return { subject, text, html };
+}
+
+export function buildChainDetachedEmailPayload({
+  recipientAddress,
+  recipientTransactionId,
+  unsubscribeUrl,
+}: CascadePayloadArgs): { subject: string; text: string; html: string } {
+  const subject = `Update on ${recipientAddress} — your chain has been shortened`;
+  const ctaUrl = ctaUrlFor(recipientTransactionId);
+  const lead = `The chain your client's file at ${recipientAddress} was part of has been split. The file above yours has been withdrawn, so your chain now stands on its own.`;
+  const follow = `No action required from your side. Open the chain to see the new shape.`;
+
+  const text = [lead, follow, ``, `Open chain: ${ctaUrl}`, ``, `—`, `Unsubscribe from all Sales Progressor emails: ${unsubscribeUrl}`, `Need help? support@thesalesprogressor.co.uk`].join("\n");
+  const html = shellHtml({
+    heading: subject,
+    body: `<p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 8px;">${escapeHtml(lead)}</p><p style="font-size:15px;color:#4a5162;line-height:1.6;margin:0 0 28px;">${escapeHtml(follow)}</p>`,
+    ctaUrl,
+    unsubscribeUrl,
+  });
+  return { subject, text, html };
+}
+
 export function buildWaitNudgeEmailPayload({
   recipientAddress,
   recipientTransactionId,
@@ -214,12 +280,35 @@ export async function fireChainCascadeNotifications(): Promise<{
     const recipientTransactionId = info?.transactionId ?? null;
     const unsubscribeUrl = buildUserUnsubscribeUrl(record.recipientUserId);
 
+    // BUYER_FOUND variant — look up the recipient's prior LOST_BUYER
+    // response so the copy branches per Ellis-lock 2026-06-05 (WAITING /
+    // REMARKETING / default). WITHDRAWN + BREAK_CHAIN responses are
+    // filtered out at cascade-build time and never reach this loop.
+    let buyerFoundVariant: "default" | "WAITING" | "REMARKETING" = "default";
+    if (record.type === "BUYER_FOUND") {
+      const prior = await prisma.chainNotificationQueue.findFirst({
+        where: {
+          triggeringLinkId: record.triggeringLinkId,
+          recipientLinkId: record.recipientLinkId,
+          type: "LOST_BUYER",
+        },
+        orderBy: { createdAt: "desc" },
+        select: { response: true },
+      });
+      if (prior?.response === "WAITING") buyerFoundVariant = "WAITING";
+      else if (prior?.response === "REMARKETING") buyerFoundVariant = "REMARKETING";
+    }
+
     const payload =
       record.type === "LOST_BUYER"
         ? buildLostBuyerEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl })
         : record.type === "LOST_PURCHASE"
           ? buildLostPurchaseEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl })
-          : buildAskedToWaitEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl });
+          : record.type === "ASKED_TO_WAIT"
+            ? buildAskedToWaitEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl })
+            : record.type === "BUYER_FOUND"
+              ? buildBuyerFoundEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl, variant: buyerFoundVariant })
+              : buildChainDetachedEmailPayload({ recipientAddress, recipientTransactionId, unsubscribeUrl });
 
     try {
       await sendChainEmail({ to: record.recipientEmail, subject: payload.subject, text: payload.text, html: payload.html });
@@ -231,13 +320,12 @@ export async function fireChainCascadeNotifications(): Promise<{
       sent++;
 
       // Companion push to the same recipient (gated on their per-event toggle).
-      // Wait-nudge is handled by the sendChainWaitNudges path below — only the
-      // three primary types fire here.
+      // Wait-nudge is handled by the sendChainWaitNudges path below.
       pushChainEvent({
         recipientUserId: record.recipientUserId,
         transactionId: recipientTransactionId,
         propertyAddress: recipientAddress,
-        kind: record.type as "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT",
+        kind: record.type as "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT" | "BUYER_FOUND" | "CHAIN_DETACHED",
       }).catch(() => {});
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "send error";
