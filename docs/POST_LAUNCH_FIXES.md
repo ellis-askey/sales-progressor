@@ -2,6 +2,17 @@
 
 ---
 
+## OPEN FOLLOW-UPS (filed during the demo system build, 2026-06-05)
+
+### Gate `/agent/polish/*` and `/agent/audit/*` from production agents
+Both subtrees ship live and are agent-reachable through the middleware allow-list ([middleware.ts:161](middleware.ts#L161) permits the whole `/agent` prefix). `/agent/polish/*` contains 12+ design previews (transaction-detail, hub, work-queue, transaction-list, new-sale-v2, comms, analytics, claim-flow, completions, to-do, chain-bottleneck-demo, chain-walkthrough, predicted-exchange-demo, slowness-demo, staleness-demo) and `/agent/audit/*` carries three designer audit galleries (before-after, icons, overlays). PAGE_LIST.md does not mention either. Surfaced in [docs/DEMO_FEATURE_INVENTORY.md](docs/DEMO_FEATURE_INVENTORY.md) Docs gaps section.
+**Suggested options:** (a) move both subtrees under `/agent/system-preview/*` to keep them out of the agent-prefix net; (b) add an explicit middleware deny-list for `/agent/polish` and `/agent/audit` that 404s for non-internal roles; (c) feature-flag them on `process.env.NEXT_PUBLIC_SHOW_DEV_PAGES==="true"` and unset in production. Decision deferred — not blocking the demo.
+
+### Confirm nothing links to bare `/agent/settings`
+The file `app/agent/settings/page.tsx` no longer exists; [next.config.ts:33-36](next.config.ts#L33-L36) issues a 301 redirect `/agent/settings → /agent/account/profile`. So any stale link still resolves cleanly — but PAGE_LIST.md still lists "Settings" as position 13 and the path may appear in marketing emails, retention emails, or old chase templates. Grep email templates + retention copy for `/agent/settings` and either update the link to `/agent/account/profile` or document that the redirect is permanent and the link is safe.
+
+---
+
 ## LOGGED BUNDLED CHANGES (billing-logic changes that didn't get their own commit)
 
 Going forward, billing-logic changes get their own commits — never folded into a UI/migration commit — so they stay independently revertable once payments are live. The entries below predate that rule and are logged here for traceability.
