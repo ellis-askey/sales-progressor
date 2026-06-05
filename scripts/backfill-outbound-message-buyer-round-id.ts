@@ -52,7 +52,13 @@ type UnmatchedRow = {
   msgId: string;
   type: string;
   contactIdsCount: number;
-  reason: "no-contacts" | "missing-contact" | "mixed-roles" | "mixed-rounds" | "all-null-round";
+  reason:
+    | "no-contacts"
+    | "missing-contact"
+    | "no-purchaser"   // no purchaser contacts at all (all-vendor, all-solicitor, etc.)
+    | "mixed-roles"    // truly mixed: at least one purchaser + at least one other role
+    | "mixed-rounds"
+    | "all-null-round";
 };
 
 async function main() {
@@ -68,11 +74,9 @@ async function main() {
     orderBy: { createdAt: "asc" },
   });
 
-  if (candidates.length === 0) {
-    console.log("No OutboundMessage rows with NULL buyerRoundId. Nothing to do.");
-    await prisma.$disconnect();
-    return;
-  }
+  // Note: do NOT early-return on zero candidates — the report file is the
+  // durable audit artifact and must be written even for "nothing to do"
+  // runs. The empty-list branches in the report builder handle this.
 
   // Batch-load all contacts referenced across all candidate rows so we
   // don't hammer the DB with one query per row. ~50 candidate rows times
@@ -99,8 +103,19 @@ async function main() {
       continue;
     }
     const contacts = resolved as { id: string; roleType: string; buyerRoundId: string | null }[];
-    const allPurchaser = contacts.every((c) => c.roleType === "purchaser");
+    const purchaserCount = contacts.filter((c) => c.roleType === "purchaser").length;
+    const allPurchaser = purchaserCount === contacts.length;
+    if (purchaserCount === 0) {
+      // No purchaser contacts at all — vendor-only, solicitor-only, etc.
+      // File-level by design; not attributable to any sale.
+      unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "no-purchaser" });
+      continue;
+    }
     if (!allPurchaser) {
+      // Truly mixed: at least one purchaser + at least one other role.
+      // Under the locked Phase-2 rule these stay file-level; pending a
+      // possible Ellis-approved refinement to attribute via the
+      // purchaser side when unambiguous.
       unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "mixed-roles" });
       continue;
     }
@@ -203,7 +218,7 @@ async function main() {
       // For high-volume buckets (no-contacts, mixed-roles) just count;
       // for low-volume ones (mixed-rounds, all-null-round, missing-contact)
       // list each row for manual review.
-      const lowVolume = ["mixed-rounds", "all-null-round", "missing-contact"].includes(reason);
+      const lowVolume = ["mixed-rounds", "all-null-round", "missing-contact", "mixed-roles"].includes(reason);
       if (lowVolume) {
         for (const u of rows) {
           lines.push(`    ${u.msgId}  type=${u.type}  contactIds=${u.contactIdsCount}`);

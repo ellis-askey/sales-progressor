@@ -91,11 +91,10 @@ async function main() {
     orderBy: { createdAt: "asc" },
   });
 
-  if (candidates.length === 0) {
-    console.log("No purchaser contacts with NULL buyerRoundId. Nothing to do.");
-    await prisma.$disconnect();
-    return;
-  }
+  // Note: do NOT early-return on zero candidates — the prod runs need a
+  // durable report artifact on disk regardless of result. The report
+  // builder below handles empty stamped + unmatched arrays correctly and
+  // writes the "(none)" placeholder.
 
   // Group by transaction, then resolve each candidate against its tx's rounds.
   const byTx = new Map<string, typeof candidates>();
