@@ -38,7 +38,7 @@ The category fault — Claude Code allowlist files being committable in the firs
 | Ellis lane | Repo visibility decision (flip private / record decision to remain public). | ☐ Pending, timestamp: __TBD__ |
 | Ellis lane | Third staging password rotation (so no AI-visible values exist). | ☐ Pending, timestamp: __TBD__ |
 | Post-rotation | Append the four second-rotation staging values to `KNOWN_WEAK_PASSWORDS` in `scripts/prod-check-weak-credentials.ts`. NOT before the rotation lands — active values never go on the burn list (invariant in that file). | ☐ Pending |
-| Ellis lane | Marketing-site repo location confirmed; scan executed if any public repo backs it. | ☐ Pending, location: __TBD__, scan result: __TBD__ |
+| 2026-06-05, CC reconciliation | Marketing-site repo location confirmed; scan executed if any public repo backs it. **Location:** local-only directory at `c:\Users\ellis\Downloads\Sales Prog App\marketing-site\`, sibling to the main app repo. **Not a git repository** (no `.git/`, no remote configured). Vercel-linked via project `prj_K4OBGqE16RXKiLhlLJZRjDi8rRkn` (team `team_X1VHOhasSVDrgzRotdlUl13A`, project name `marketing-site`) — deploys are CLI-only, no GitHub integration → no public git history exposure. **Scan result:** manual pattern pass clean against `*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,html}` + `.env*` files (excluding `node_modules`, `.next`, `.vercel`), matching `postgresql://…` / `SG\.…` / `AKIA…` / `sk_live_…` / `ghp_…` / `xox[bp]-…` / `BEGIN … PRIVATE KEY` / JWT shapes — zero hits. No `.env*` files at the top level. | ✓ 2026-06-05 |
 | Ellis lane | Supabase log review: any anomalous connections from non-Vercel / non-Ellis IPs during the 44-day window. | ☐ Pending, outcome: __TBD__ |
 
 ## Guardrails shipped as a result of this incident
@@ -56,7 +56,7 @@ These are the category-level fixes that hold after the incident closes:
 - [ ] Has the prod Postgres password been rotated? Timestamp: __TBD__
 - [ ] Has the repo been flipped private? Decision + timestamp: __TBD__
 - [ ] Supabase log review for the 44-day window — anomalous connections seen? __TBD__ (expected: none, given operator-only key)
-- [ ] Marketing-site source location confirmed and scanned where applicable: __TBD__
+- [x] Marketing-site source location confirmed and scanned where applicable: **local-only, no git remote, no public exposure; pattern scan clean** — CC closed 2026-06-05.
 
 ## Sign-off
 
