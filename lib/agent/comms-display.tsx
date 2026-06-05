@@ -34,9 +34,11 @@ const BADGE_LABELS: Record<string, [string, string]> = {
 
 const CHANNEL_ICONS: Record<string, string> = {
   email: "✉", phone: "☎", sms: "💬", voicemail: "📱", whatsapp: "💚", post: "📮",
-  // Portal pill icon — same "speech bubble" feel as SMS but distinct
-  // enough at small sizes.
-  portal: "💌",
+  // Portal pill icon — globe glyph for the web-portal register, neutral
+  // and consistent with the existing professional-file badge set. (Voice-
+  // passed 2026-06-05: 💌 was rejected as wrong-register for an estate-
+  // agency file detail.)
+  portal: "🌐",
 };
 
 export function getCommBadge(entry: CommBadgeInput): BadgeInfo {
