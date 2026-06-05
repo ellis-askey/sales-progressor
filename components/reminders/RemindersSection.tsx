@@ -638,10 +638,23 @@ export function RemindersSection({
   function handleComplete(logId: string, taskId: string) {
     setHiddenIds((prev) => new Set([...prev, logId]));
     setLoading(taskId);
-    toast.success("Marked done");
     startTransition(async () => {
-      try { await completeTaskAction(taskId, pathname); }
-      finally { setLoading(null); }
+      try {
+        const result = await completeTaskAction(taskId, pathname);
+        if ("blocked" in result && result.blocked) {
+          // Server refused to confirm the milestone because an earlier
+          // one in the chain isn't done yet. Un-hide the row and toast
+          // the reason so the agent knows what to action.
+          setHiddenIds((prev) => { const next = new Set(prev); next.delete(logId); return next; });
+          const names = result.missing.map((m) => m.name);
+          const msg = names.length === 1
+            ? `Can't confirm yet. "${names[0]}" needs to be confirmed first.`
+            : `Can't confirm yet. These earlier milestones need confirming first: ${names.join(", ")}.`;
+          toast.error(msg);
+        } else {
+          toast.success("Marked done");
+        }
+      } finally { setLoading(null); }
     });
   }
 

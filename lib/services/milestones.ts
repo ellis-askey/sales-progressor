@@ -555,23 +555,35 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   const activeBuyerRoundId = txRowForScope?.activeBuyerRoundId ?? null;
   const scope = forRound(activeBuyerRoundId, input.transactionId);
 
-  // Prerequisite guard
+  // Prerequisite guard. When prereqs aren't met we throw a structured
+  // error so the UI (the ReminderCard Done button) can surface a toast
+  // naming the specific missing milestone instead of silently failing
+  // and looping (the original bug behind the 46 Ramilles Close
+  // "kept clicking Done" report).
   const prereqCodes = DIRECT_PREREQUISITES[def.code] ?? [];
   if (prereqCodes.length > 0) {
     const prereqDefs = await db.milestoneDefinition.findMany({
       where: { code: { in: prereqCodes } },
-      select: { id: true },
+      select: { id: true, code: true, name: true },
     });
-    const satisfied = await db.milestoneCompletion.count({
+    const satisfiedRows = await db.milestoneCompletion.findMany({
       where: {
         transactionId: input.transactionId,
         milestoneDefinitionId: { in: prereqDefs.map((d) => d.id) },
         state: { in: ["complete", "not_required"] },
         ...milestoneScopeWhere(scope),
       },
+      select: { milestoneDefinitionId: true },
     });
-    if (satisfied < prereqDefs.length) {
-      throw new Error("Prerequisites not complete — confirm earlier milestones first");
+    const satisfiedIds = new Set(satisfiedRows.map((r) => r.milestoneDefinitionId));
+    const missing = prereqDefs
+      .filter((d) => !satisfiedIds.has(d.id))
+      .map((d) => ({ code: d.code, name: d.name }));
+    if (missing.length > 0) {
+      throw Object.assign(new Error("PREREQUISITES_NOT_COMPLETE"), {
+        targetCode: def.code,
+        missing,
+      });
     }
   }
 

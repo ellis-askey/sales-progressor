@@ -9,7 +9,20 @@ import { prisma } from "@/lib/prisma";
 import { touchLastActivity } from "@/lib/services/activity";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 
-export async function completeTaskAction(taskId: string, pathname: string) {
+export type CompleteTaskResult =
+  | { ok: true }
+  | {
+      blocked: true;
+      reason: "prerequisites_not_complete";
+      // Caller surfaces these to the user via a toast so they know
+      // exactly which earlier milestone needs confirming first.
+      missing: { code: string; name: string }[];
+    };
+
+export async function completeTaskAction(
+  taskId: string,
+  pathname: string,
+): Promise<CompleteTaskResult> {
   const session = await requireSession();
   const { transactionId, reminderLogId, targetMilestoneCode } = await completeChaseTask(
     taskId,
@@ -30,7 +43,27 @@ export async function completeTaskAction(taskId: string, pathname: string) {
         });
         // completeMilestone auto-closes the reminder log via autoCompleteRemindersForMilestone
       } catch (err) {
-        // Prerequisite not met or already complete — close reminder log directly as fallback
+        const e = err as Error & { missing?: { code: string; name: string }[] };
+        if (e.message === "PREREQUISITES_NOT_COMPLETE") {
+          // Caller can't confirm yet because an earlier milestone is
+          // still outstanding. Do NOT force-close the reminder log —
+          // that was the old behaviour and it caused the regen loop
+          // (engine immediately created a fresh log on next eval).
+          // Instead, leave the log active; the engine's new prereq gate
+          // (lib/services/reminders.ts) will deactivate it on this same
+          // eval pass since the prereqs are still unmet. Return
+          // structured so the UI can toast the reason.
+          void evaluateTransactionReminders(transactionId).catch(console.error);
+          revalidatePath(pathname, "page");
+          return {
+            blocked: true,
+            reason: "prerequisites_not_complete",
+            missing: e.missing ?? [],
+          };
+        }
+        // Any other error: keep the original fallback — close the log so
+        // the row doesn't loop. Real errors are rare; this preserves
+        // existing recovery behaviour.
         await prisma.reminderLog.update({
           where: { id: reminderLogId },
           data: { status: "completed", statusReason: "Chase task marked done" },
@@ -43,6 +76,7 @@ export async function completeTaskAction(taskId: string, pathname: string) {
   // Activate any downstream reminders whose anchor milestone just completed
   void evaluateTransactionReminders(transactionId).catch(console.error);
   revalidatePath(pathname, "page");
+  return { ok: true };
 }
 
 export async function snoozeTaskAction(taskId: string, snoozeHours: number, pathname: string) {

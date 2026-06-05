@@ -10,6 +10,7 @@ import { toUKDateStr, formatDate } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, recordManualChaseAction, advanceChaseTaskAction } from "@/app/actions/tasks";
 import { ReminderCard } from "@/components/reminders/ReminderCard";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
@@ -705,6 +706,7 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const [optimisticSnoozeAdd, setOptimisticSnoozeAdd] = useState(0);
+  const { toast } = useAgentToast();
 
   // Pill nav: clicking a summary pill anchor-scrolls here and expands the matching section
   useEffect(() => {
@@ -802,7 +804,28 @@ export function AgentRemindersList({ logs, hideChase }: { logs: AgentReminderLog
     if (logId) setExitingIds((prev) => { const next = new Set(prev); next.add(logId); return next; });
     setTimeout(() => {
       hideByTaskId(taskId);
-      act(taskId, () => completeTaskAction(taskId, "/agent/work-queue"));
+      // Bypass `act` so we can read the action's discriminated result.
+      // If the server reports the milestone can't be confirmed because
+      // an earlier one is still outstanding, we un-hide the row and toast
+      // the reason so the agent knows what to action next.
+      setLoading(taskId);
+      startTransition(async () => {
+        try {
+          const result = await completeTaskAction(taskId, "/agent/work-queue");
+          if ("blocked" in result && result.blocked) {
+            // Un-hide the row + clear the exit animation so it reappears.
+            if (logId) {
+              setHiddenIds((prev) => { const next = new Set(prev); next.delete(logId); return next; });
+              setExitingIds((prev) => { const next = new Set(prev); next.delete(logId); return next; });
+            }
+            const names = result.missing.map((m) => m.name);
+            const msg = names.length === 1
+              ? `Can't confirm yet. "${names[0]}" needs to be confirmed first.`
+              : `Can't confirm yet. These earlier milestones need confirming first: ${names.join(", ")}.`;
+            toast.error(msg);
+          }
+        } finally { setLoading(null); }
+      });
     }, 150);
   }
   function handleSnooze(taskId: string, hours: number) {

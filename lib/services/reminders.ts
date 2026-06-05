@@ -9,6 +9,7 @@ import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type A
 import { toUKDateStr } from "@/lib/utils";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 
 // ─── UK chase-time helper ───────────────────────────────────────────────────
 //
@@ -491,6 +492,32 @@ export async function evaluateTransactionReminders(transactionId: string) {
       if (targetCompletion && (targetCompletion.state === "complete" || targetCompletion.state === "not_required")) {
         await deactivateLog(transactionId, rule.id, "Target milestone confirmed", assignedUserId);
         continue;
+      }
+
+      // Prerequisite gate: don't surface a chase for a milestone whose
+      // direct prereqs aren't yet complete or not-required. Without this
+      // the engine generated a reminder the agent couldn't action — the
+      // milestone-level confirm path blocks on the same prereqs, so the
+      // Done click would silently fail and the row immediately
+      // regenerated. See the 46 Ramilles Close incident (PM7 reminder
+      // looped while PM4 was still available). The target milestone-confirmation
+      // path is the authoritative prereq check; we mirror it here so the
+      // chase never appears in the first place.
+      const prereqCodes = DIRECT_PREREQUISITES[rule.targetMilestoneCode] ?? [];
+      if (prereqCodes.length > 0) {
+        const unmet = prereqCodes.filter((code) => {
+          const c = completionByCode.get(code);
+          return !c || (c.state !== "complete" && c.state !== "not_required");
+        });
+        if (unmet.length > 0) {
+          await deactivateLog(
+            transactionId,
+            rule.id,
+            `Awaiting prerequisite milestone${unmet.length === 1 ? "" : "s"}: ${unmet.join(", ")}`,
+            assignedUserId,
+          );
+          continue;
+        }
       }
     }
 
