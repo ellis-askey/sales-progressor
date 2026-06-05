@@ -153,7 +153,7 @@ export default async function HubPreviewPage() {
                 color: "var(--agent-text-primary)",
                 letterSpacing: "var(--agent-tracking-tight)",
               }}>
-                {isProgressor ? "No assigned files yet." : "Your pipeline starts here."}
+                {isProgressor ? "No assigned files yet." : "Add your first sale to start your pipeline."}
               </p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
                 {isProgressor

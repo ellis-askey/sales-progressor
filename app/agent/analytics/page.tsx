@@ -30,7 +30,7 @@ function fmtOwnerLine(t: { serviceType: string | null; agentUser: { name: string
   if (t.assignedUser) {
     return { line: `${fmtNameShort(t.assignedUser.name)} · ${ROLE_LABEL[t.assignedUser.role] ?? t.assignedUser.role}`, awaiting: false };
   }
-  return { line: "Awaiting assignment", awaiting: true };
+  return { line: "Not yet assigned", awaiting: true };
 }
 
 function calcFeeIncVat(t: { agentFeeAmount: number | null; agentFeePercent: unknown; agentFeeIsVatInclusive: boolean | null; purchasePrice: number | null }): number | null {
@@ -106,7 +106,7 @@ export default async function AgentAnalyticsPage({
               Analytics will appear here as you submit sales.
             </p>
             <p style={{ margin: "0 auto 20px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-              Once your first file is submitted, you&apos;ll see pipeline value, fee tracking, conversion rates, and monthly trends.
+              After you submit your first file, this page shows pipeline value, fee tracking, conversion rates and monthly trends.
             </p>
             {session.user.role !== "sales_progressor" && session.user.role !== "viewer" && (
               <Link

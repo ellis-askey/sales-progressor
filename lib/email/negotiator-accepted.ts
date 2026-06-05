@@ -28,7 +28,7 @@ export async function sendNegotiatorAcceptedEmail(
   const text = [
     `Hi ${directorName},`,
     ``,
-    `Great news — ${negotiatorName} has accepted your invitation and set up their account at ${agencyName}.`,
+    `${negotiatorName} has accepted your invitation and set up their account at ${agencyName}.`,
     ``,
     `They can now log in and start managing files.`,
     ``,
@@ -55,7 +55,7 @@ export async function sendNegotiatorAcceptedEmail(
                 Hi ${escapeHtml(directorName)},
               </p>
               <p style="font-size: 15px; color: #4A3329; line-height: 1.5; margin: 0 0 20px;">
-                Great news — <strong>${escapeHtml(negotiatorName)}</strong> has accepted your invitation and set up their account at <strong>${escapeHtml(agencyName)}</strong>.
+                <strong>${escapeHtml(negotiatorName)}</strong> has accepted your invitation and set up their account at <strong>${escapeHtml(agencyName)}</strong>.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
                 They can now log in and start managing files alongside your team.

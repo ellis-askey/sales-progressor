@@ -80,7 +80,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
             </h2>
             <p className="text-sm mt-1 text-[var(--agent-text-secondary,rgba(15,23,42,0.65))]">
               Master switch for the automated client-chase pipeline. When off, no chase
-              emails are sent on any file in your agency. Files still surface as manual
+              emails are sent on any file in your agency. Files still appear as manual
               tasks in the team's reminders list.
             </p>
           </div>
