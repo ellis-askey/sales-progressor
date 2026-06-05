@@ -156,6 +156,33 @@ If a term appears on this list and sounds wrong in context, flag it in Stage 3 r
 - **No exclamation marks anywhere.** Already listed under tone calibration; restated here so the email + push sub-sections inherit it explicitly.
 - These bans apply to **agent-facing** strings (every surface listed in `docs/VOICE_AUDIT_AGENT_SURFACES.md`). The **portal-facing register** (push notifications to buyers/sellers, portal emails, portal UI) may use a deliberately warmer tone — that register is owned by the portal pass, not this doc. If you're writing copy that fires to the portal audience, follow the portal voice doc, not this one.
 
+### Em dash as a prose joiner — banned (added 2026-06-05, agent voice sweep, option B)
+
+The em dash (—) **must not** be used as a prose joiner in agent-facing strings. Use a full stop, comma or colon to mark the pause, depending on what the sentence actually wants:
+
+- **Two complete thoughts** → full stop. "Couldn't save draft. Try again."
+- **Subordinate clause / qualifier** → comma. "Exchanged, due."
+- **Lead-in + content** → colon. "Step 1 of 2: your details."
+
+The em dash also reads inconsistently across email clients, terminal toasts and older browsers — a plain punctuation mark is more durable.
+
+**Sanctioned (allowed) uses** — these stay:
+
+1. **Email signatures** — e.g. `"— The Sales Progressor team"` at the foot of every retention / acceptance email.
+2. **Sender display names** — e.g. `"Rachel — Sales Progressor"`, `"Ellis — Sales Progressor"`.
+3. **Null/empty placeholders for data** — e.g. `tx.agency?.name ?? "—"`, `<span aria-hidden>—</span>`, `placeholder="£—"`.
+4. **True parenthetical pairs already documented in approved copy** — matched-pair em dashes that genuinely interrupt a sentence and resume it (rare; flag in Stage 3 if you think you have one).
+
+Anything outside those four is a prose joiner: rewrite it.
+
+**Before / after example (from the 2026-06-05 sweep):**
+
+| Before | After |
+|---|---|
+| "Couldn't save draft — try again" | "Couldn't save draft. Try again." |
+| "Auto chases paused — system-wide" | "Auto chases paused, system-wide" |
+| "Conversion funnel — last month" | "Conversion funnel: last month" |
+
 ### Exception block — founder-signed retention emails (added 2026-06-05, agent voice sweep)
 
 The retention email family (`lib/emails/retention/index.ts`) is signed personally by a founder ("Ellis", "Rachel") and uses a personal register: first person, contractions, warmth. That register is sanctioned. **However**, the bans on exclamation marks, slang idioms ("drop you a line", "your end", "this one's on us") and "Congratulations" still apply — personal does not mean colloquial. Calibration examples from the 2026-06-05 sweep, all under `lib/emails/retention/index.ts`:

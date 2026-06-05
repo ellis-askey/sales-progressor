@@ -42,7 +42,7 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
       >
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14, color: "#991b1b" }}>
-            New file creation paused — update your card
+            New file creation paused. Update your card.
           </div>
           <div style={{ fontSize: 13, color: "#7f1d1d", marginTop: 4, lineHeight: 1.5 }}>
             A payment from {failedDate} hasn't been collected. Existing files keep running, but you can't add new sales until the card is updated.
@@ -83,7 +83,7 @@ export async function PaymentBlockBanner({ agencyId }: { agencyId: string }) {
     >
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, fontSize: 14, color: "#92400e" }}>
-          A payment failed — please update your card
+          A payment failed. Please update your card.
         </div>
         <div style={{ fontSize: 13, color: "#78350f", marginTop: 4, lineHeight: 1.5 }}>
           A payment from {failedDate} didn't go through. We'll keep retrying. If it's not resolved by {graceEndDate}, new file creation will be paused.

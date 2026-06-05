@@ -127,7 +127,7 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setFileError("File is too large — maximum 10 MB.");
+      setFileError("File is too large. Maximum size 10 MB.");
       return;
     }
     onFile(file);

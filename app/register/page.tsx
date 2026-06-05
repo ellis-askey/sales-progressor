@@ -189,7 +189,7 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p style={{ margin: "0.35rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
-            {step === 1 ? "Step 1 of 2 — your details" : "Step 2 of 2 — your workspace"}
+            {step === 1 ? "Step 1 of 2: your details" : "Step 2 of 2: your workspace"}
           </p>
         </div>
 

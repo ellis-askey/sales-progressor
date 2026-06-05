@@ -164,7 +164,7 @@ export function ProfileFormPlain({
             margin: 0,
           }}
         >
-          Changing your email updates your login — you&apos;ll need to sign out and back in for it to take effect.
+          Changing your email updates your login. You&apos;ll need to sign out and back in for it to take effect.
         </p>
       )}
 

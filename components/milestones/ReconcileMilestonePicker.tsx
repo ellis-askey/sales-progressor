@@ -350,7 +350,7 @@ function Section({
                 <span className="claim-reconcile-row-name">
                   {m.name}
                   {isAutoSet && (
-                    <span className="claim-reconcile-row-autoset"> (auto-set — change to override)</span>
+                    <span className="claim-reconcile-row-autoset"> (auto-set, change to override)</span>
                   )}
                   {!isUnlocked && (
                     <span className="claim-reconcile-row-locked"> (tick previous milestones first)</span>

@@ -85,8 +85,8 @@ export function TeamListView({
               onClick={() => onToggleViewAll?.(m)}
               title={
                 m.canViewAllFiles
-                  ? "Can see all agency files — click to restrict"
-                  : "Can only see own files — click to allow all"
+                  ? "Can see all agency files. Click to restrict."
+                  : "Can only see own files. Click to allow all."
               }
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                 m.canViewAllFiles

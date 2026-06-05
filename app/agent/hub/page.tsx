@@ -563,7 +563,7 @@ export default async function HubPreviewPage() {
                     />
                     <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>
                       <strong>{pipelineStats.stalled.count} files need chasing</strong>
-                      {" — "}
+                      {", "}
                       <span style={{ color: "var(--agent-text-secondary)" }}>nothing logged in 14+ days</span>
                     </span>
                   </div>
@@ -687,7 +687,7 @@ export default async function HubPreviewPage() {
               ))}
               {next7Days > 0 && (
                 <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", fontWeight: 500 }}>
-                  {next7Days === 1 ? "1 exchange this week — check files are ready." : `${next7Days} exchanges this week — check all files are ready.`}
+                  {next7Days === 1 ? "1 exchange this week. Check files are ready." : `${next7Days} exchanges this week. Check all files are ready.`}
                 </p>
               )}
             </div>
@@ -766,7 +766,7 @@ export default async function HubPreviewPage() {
                         {serviceSplit.outsourced} {serviceSplit.outsourced === 1 ? "file" : "files"}
                       </strong>
                       {savedHours > 0 && (
-                        <> — saving you around{" "}
+                        <>, saving you around{" "}
                           <strong style={{ color: "var(--agent-coral-deep)" }}>
                             {savedHours} hours
                           </strong>{" "}

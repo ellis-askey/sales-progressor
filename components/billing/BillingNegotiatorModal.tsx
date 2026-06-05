@@ -38,7 +38,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
       const res = await fetch("/api/agent/promote-to-director", { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Couldn't update your role — try again");
+        setError(data.error ?? "Couldn't update your role. Try again.");
         setSubmitting(false);
         return;
       }
@@ -46,7 +46,7 @@ export function BillingNegotiatorModal({ open, onClose }: Props) {
       // Billing link starts working as a real link.
       window.location.href = "/agent/account/billing";
     } catch {
-      setError("Couldn't reach the server — check your connection and try again");
+      setError("Couldn't reach the server. Check your connection and try again.");
       setSubmitting(false);
     }
   }

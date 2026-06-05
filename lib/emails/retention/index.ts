@@ -63,7 +63,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   const text = [
     `Hi ${firstName},`,
     ``,
-    `Your account is ready. Add your first sale to start using the platform — you only pay when it exchanges.`,
+    `Your account is ready. Add your first sale to start using the platform. You only pay when it exchanges.`,
     ``,
     `Add a sale: ${ctaUrl}`,
     ``,
@@ -74,7 +74,7 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
 
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your account is ready. Add your first sale to start using the platform — you only pay when it exchanges.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your account is ready. Add your first sale to start using the platform. You only pay when it exchanges.</p>`,
     ctaUrl ? ctaButton("Add a sale →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">Reply to this email if you need a hand getting set up.</p>`,
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,
@@ -191,7 +191,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
   const text = [
     `Hi ${firstName},`,
     ``,
-    `Contracts have exchanged on ${address} — your first sale through Sales Progressor.`,
+    `Contracts have exchanged on ${address}, your first sale through Sales Progressor.`,
     ``,
     `An invoice for £59 will follow shortly.`,
     ``,
@@ -202,7 +202,7 @@ export function buildFirstExchange(vars: TemplateVars): RetentionEmailResult {
 
   const bodyHtml = [
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Hi ${firstName},</p>`,
-    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Contracts have exchanged on ${address} — your first sale through Sales Progressor.</p>`,
+    `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Contracts have exchanged on ${address}, your first sale through Sales Progressor.</p>`,
     `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">An invoice for £59 will follow shortly.</p>`,
     ctaUrl ? ctaButton("View the file →", ctaUrl) : "",
     `<p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6">— The Sales Progressor team</p>`,

@@ -40,12 +40,12 @@ const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; lab
 // catch the exhaustiveness gap at compile time too).
 function fallbackChipText(kind: string): string {
   switch (kind) {
-    case "client_opted_out":          return "Client opted out — manual";
-    case "max_chases_exhausted":      return "Chased twice — manual";
-    case "days_cap_exhausted":        return "14d silent — manual";
-    case "no_email_on_contact":       return "No email — manual";
-    case "no_portalToken_on_contact": return "No portal — manual";
-    case "client_emails_paused":      return "Client emails paused — manual";
+    case "client_opted_out":          return "Client opted out (manual)";
+    case "max_chases_exhausted":      return "Chased twice (manual)";
+    case "days_cap_exhausted":        return "14d silent (manual)";
+    case "no_email_on_contact":       return "No email (manual)";
+    case "no_portalToken_on_contact": return "No portal (manual)";
+    case "client_emails_paused":      return "Client emails paused (manual)";
     default:                          return "Manual handoff";
   }
 }

@@ -159,7 +159,7 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
             </p>
           ) : (
             <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", fontStyle: "italic", lineHeight: 1.4 }}>
-              Postcode-level data — no specific property matched yet
+              Postcode-level data. No specific property matched yet.
             </p>
           )}
         </div>

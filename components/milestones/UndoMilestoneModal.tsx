@@ -85,7 +85,7 @@ export function UndoMilestoneModal({
             <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
             <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
               {hasCascade
-                ? `${milestoneName} — what next?`
+                ? `${milestoneName}. What next?`
                 : `Undo "${milestoneName}"?`}
             </p>
           </div>
@@ -104,7 +104,7 @@ export function UndoMilestoneModal({
             /* No cascade — simple confirmation */
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <p style={{ fontSize: 14, color: "rgba(15,23,42,0.60)", margin: 0 }}>
-                This step is undone — steps that follow stay as they are.
+                This step is undone. Steps that follow stay as they are.
               </p>
               <div style={{ borderRadius: 12, border: "0.5px solid rgba(15,23,42,0.08)", background: "rgba(15,23,42,0.02)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={{ textAlign: "center" }}>
@@ -139,13 +139,13 @@ export function UndoMilestoneModal({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo this step only</p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 4, marginBottom: 0 }}>
-                      This step is undone — steps that follow stay as they are.
+                      This step is undone. Steps that follow stay as they are.
                     </p>
                     <p style={{ fontSize: 12, color: "rgba(15,23,42,0.55)", marginTop: 6, marginBottom: 0 }}>
                       Progress: <span style={{ fontWeight: 500 }}>{undoData.currentPercent}% → {undoData.targetOnlyPercent}%</span>
                     </p>
                     <p style={{ fontSize: 12, color: "#ea580c", marginTop: 6, marginBottom: 0 }}>
-                      {undoData.cascade.length} linked step{undoData.cascade.length !== 1 ? "s" : ""} stayed complete — you may want to re-check them later.
+                      {undoData.cascade.length} linked step{undoData.cascade.length !== 1 ? "s" : ""} stayed complete. You may want to re-check them later.
                     </p>
                   </div>
                 </div>

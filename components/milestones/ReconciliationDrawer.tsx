@@ -133,7 +133,7 @@ export function ReconciliationDrawer({
                 className="agent-focus"
                 style={{ border: "0.5px solid rgba(15,23,42,0.15)", borderRadius: 8, padding: "8px 12px", fontSize: 14, width: "100%", background: "white", color: "rgba(15,23,42,0.85)" }}
               />
-              <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginTop: 4, marginBottom: 0 }}>Filled with today&apos;s date — change if it was different</p>
+              <p style={{ fontSize: 11, color: "rgba(15,23,42,0.40)", marginTop: 4, marginBottom: 0 }}>Filled with today&apos;s date. Change if it was different.</p>
             </div>
             {isExchangeFlow && (
               <div>
@@ -187,7 +187,7 @@ export function ReconciliationDrawer({
                     {item.eventDateRequired && reconciledIds.has(item.id) && (
                       <div style={{ marginTop: 8, marginLeft: 26 }}>
                         <label style={{ display: "block", fontSize: 11, color: "rgba(15,23,42,0.50)", marginBottom: 4 }}>
-                          {getEventDateLabel(item.code)} — leave blank to exclude
+                          {getEventDateLabel(item.code)}. Leave blank to exclude.
                         </label>
                         <input
                           type="date"

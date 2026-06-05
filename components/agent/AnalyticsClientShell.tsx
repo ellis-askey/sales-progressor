@@ -260,10 +260,10 @@ export function AnalyticsClientShell({
     }
 
     const chartTitle =
-      period === "week"  ? "Files submitted — last 7 days" :
-      period === "month" ? "Files submitted — last 6 months" :
-      period === "year"  ? "Files submitted — last 12 months" :
-                           "Files submitted — all time (last 12 months)";
+      period === "week"  ? "Files submitted: last 7 days" :
+      period === "month" ? "Files submitted: last 6 months" :
+      period === "year"  ? "Files submitted: last 12 months" :
+                           "Files submitted: all time (last 12 months)";
 
     const periodLabel = PERIODS.find(p2 => p2.key === period)?.label ?? "Month";
     const periodWord  = period === "week" ? "week" : period === "month" ? "month" : "year";
@@ -413,7 +413,7 @@ export function AnalyticsClientShell({
       {periodTx.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="agent-glass" style={{ padding: "16px 20px" }}>
-            <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel — {periodLabel.toLowerCase()}</p>
+            <p className="agent-eyebrow" style={{ marginBottom: 12 }}>Conversion funnel: {periodLabel.toLowerCase()}</p>
             <SubmissionFunnel data={funnelData} />
           </div>
           <div className="agent-glass" style={{ padding: "16px 20px" }}>
@@ -516,7 +516,7 @@ export function AnalyticsClientShell({
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>No exchanges predicted this month</p>
             ) : thisMonthFees.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-                {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} predicted —{" "}
+                {thisMonthForecastTx.length} file{thisMonthForecastTx.length !== 1 ? "s" : ""} predicted:{" "}
                 <a href="#missing-fees" style={{ color: "var(--agent-coral-deep)", textDecoration: "none", fontWeight: 600 }}>set fees to see amount</a>
               </p>
             ) : (
@@ -548,7 +548,7 @@ export function AnalyticsClientShell({
         </div>
         <div className="agent-glass" style={{ padding: "18px 22px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <p className="agent-eyebrow">Monthly activity — last 12 months</p>
+            <p className="agent-eyebrow">Monthly activity: last 12 months</p>
             <div style={{ display: "flex", gap: 12 }}>
               {[{ label: "Created", color: "var(--agent-coral)" }, { label: "Exchanged", color: "var(--agent-warning)" }].map(({ label, color }) => (
                 <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-muted)" }}>
@@ -656,7 +656,7 @@ export function AnalyticsClientShell({
       {/* ── Referral income ────────────────────────────────────────────────── */}
       {referredTxs.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <p className="agent-eyebrow" style={{ paddingLeft: 2 }}>Referral income — {periodLabel.toLowerCase()}</p>
+          <p className="agent-eyebrow" style={{ paddingLeft: 2 }}>Referral income: {periodLabel.toLowerCase()}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="agent-glass" style={{ padding: "18px 22px" }}>
               <p className="agent-eyebrow" style={{ marginBottom: 2 }}>In pipeline</p>
@@ -665,7 +665,7 @@ export function AnalyticsClientShell({
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{inPipelineTxs.length} file{inPipelineTxs.length !== 1 ? "s" : ""}{noFeeReferralCount > 0 && ` · ${noFeeReferralCount} without a fee recorded`}</p>
             </div>
             <div className="agent-glass" style={{ padding: "18px 22px" }}>
-              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchanged — due</p>
+              <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Exchanged, due</p>
               <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--agent-text-muted)" }}>Payable on/after completion</p>
               <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-warning)", letterSpacing: "-0.02em" }}>{duePence > 0 ? fmtGBP(duePence) : "—"}</p>
               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{dueTxs.length} file{dueTxs.length !== 1 ? "s" : ""}</p>

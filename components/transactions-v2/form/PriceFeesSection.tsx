@@ -126,14 +126,14 @@ export function PriceFeesSection({
     onPurchasePriceChange(v);
     onEdit("purchasePricePence");
     if (!v || v === 0) { setPriceWarning(null); return; }
-    if (v > 5_000_000_000) setPriceWarning("Over £50 million — double-check the figure.");
+    if (v > 5_000_000_000) setPriceWarning("Over £50 million. Double-check the figure.");
     else if (v >= 1_000_000) setPriceWarning(null);
   }
 
   function handlePriceBlur() {
     const v = purchasePricePence;
     if (v && v > 0 && v < 1_000_000) {
-      setPriceWarning("Under £10,000 — double-check the figure.");
+      setPriceWarning("Under £10,000. Double-check the figure.");
     }
   }
 
@@ -273,7 +273,7 @@ export function PriceFeesSection({
           </p>
         )}
 
-        <FieldHint source={agentFeeMemoSource} notOnMemosText="Not on memos — still needed" />
+        <FieldHint source={agentFeeMemoSource} notOnMemosText="Not on memos, still needed" />
       </div>
 
       {/* G5.3 — Net to agency strip */}
@@ -291,9 +291,9 @@ export function PriceFeesSection({
       }}>
         <span style={{ fontWeight: 500 }}>Net to agency: </span>
         {!purchasePricePence ? (
-          <span style={{ color: "var(--nv2-text-ghost)" }}>— Add a sale price to calculate</span>
+          <span style={{ color: "var(--nv2-text-ghost)" }}>Add a sale price to calculate</span>
         ) : netPence == null ? (
-          <span style={{ color: "var(--nv2-text-ghost)" }}>— Add an agent fee to calculate</span>
+          <span style={{ color: "var(--nv2-text-ghost)" }}>Add an agent fee to calculate</span>
         ) : (
           <>
             <strong style={{ color: "var(--nv2-text-primary)" }}>{fmt(netPence)}</strong>

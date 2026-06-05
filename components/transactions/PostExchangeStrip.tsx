@@ -24,7 +24,7 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
     <div className="glass-card">
       <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900/90">Exchanged — Awaiting Completion</p>
+          <p className="text-sm font-semibold text-slate-900/90">Exchanged, awaiting completion</p>
           <p className="text-xs text-slate-900/40 mt-0.5">Files that have exchanged but not yet completed</p>
         </div>
         <span className="text-xs font-medium text-emerald-600 bg-emerald-50/60 px-2.5 py-1 rounded-full">

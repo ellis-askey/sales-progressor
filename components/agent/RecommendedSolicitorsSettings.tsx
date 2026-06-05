@@ -162,7 +162,7 @@ export function RecommendedSolicitorsSettings({
       {pendingFirm && (
         <div className="rounded-xl border border-blue-200/60 bg-blue-50/30 p-4 space-y-3">
           <p className="text-xs font-semibold text-slate-900/70">
-            Adding <span className="text-blue-700">{pendingFirm.name}</span> — enter case handler details
+            Adding <span className="text-blue-700">{pendingFirm.name}</span>: enter case handler details
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
