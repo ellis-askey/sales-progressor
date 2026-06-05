@@ -121,9 +121,15 @@ export async function listTransactions(
       : null;
 
     // daysStuckOnMilestone: frozen while the file is on hold — otherwise it
-    // would keep ticking even though no work can happen.
-    const daysStuckOnMilestone = lastMilestoneAt && tx.status !== "on_hold"
-      ? Math.floor((Date.now() - new Date(lastMilestoneAt).getTime()) / 86400000)
+    // would keep ticking even though no work can happen. Pass 3c: also
+    // clamped forward to the active round's createdAt — a relist IS
+    // progress; surviving vendor VMs from before the relist would
+    // otherwise read "stuck N days" on a fresh sale.
+    const stuckRef = lastMilestoneAt && tx.activeBuyerRound?.createdAt
+      ? new Date(Math.max(new Date(lastMilestoneAt).getTime(), tx.activeBuyerRound.createdAt.getTime()))
+      : lastMilestoneAt;
+    const daysStuckOnMilestone = stuckRef && tx.status !== "on_hold"
+      ? Math.floor((Date.now() - new Date(stuckRef).getTime()) / 86400000)
       : null;
 
     // Activity-verb derivation — timestamp-only "latest event wins" rule (v1).

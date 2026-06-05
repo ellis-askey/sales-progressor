@@ -120,7 +120,10 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     }
   }
 
-  // Overdue milestone: no new milestone in ≥21 days, not near completion
+  // Overdue milestone: no new milestone in ≥21 days, not near completion.
+  // Pass 3c: clamp the "last milestone" reference forward to the active
+  // round's createdAt — a relist is itself progress, so surviving vendor
+  // VMs from before the relist don't read "overdue" on a fresh sale.
   if (tx.status === "active") {
     const completedCount = tx._count.milestoneCompletions;
     const sorted = [...tx.milestoneCompletions].sort(
@@ -128,7 +131,10 @@ function detectFlags(tx: TxData): DetectedFlag[] {
     );
     const lastMilestoneAt = sorted[0]?.completedAt;
     if (lastMilestoneAt && completedCount > 0 && completedCount < 35) {
-      const daysSince = Math.floor((now - new Date(lastMilestoneAt).getTime()) / 86400000);
+      const reference = tx.activeRoundCreatedAt
+        ? new Date(Math.max(new Date(lastMilestoneAt).getTime(), tx.activeRoundCreatedAt.getTime()))
+        : new Date(lastMilestoneAt);
+      const daysSince = Math.floor((now - reference.getTime()) / 86400000);
       if (daysSince >= 21) {
         flags.push({ kind: "overdue_milestone", context: `No milestone completed in ${daysSince} days` });
       }

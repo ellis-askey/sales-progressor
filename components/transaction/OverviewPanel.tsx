@@ -133,6 +133,21 @@ export async function OverviewPanel({
   currentUserName,
   recommendedFirms,
 }: Props) {
+  // Pass 3c: pre-load the active round's createdAt so progress + risk
+  // calculations can anchor on the active sale's start. Without this the
+  // Overview right-rail reads "off track / 8 weeks elapsed" on a freshly-
+  // relisted file (the Pass 3b page-level fix isn't enough — Overview
+  // recomputes progress in this component using its own anchor).
+  const activeRound = await prisma.propertyTransaction
+    .findUnique({
+      where: { id: transaction.id },
+      select: { activeBuyerRound: { select: { createdAt: true } } },
+    })
+    .then((r) => r?.activeBuyerRound ?? null)
+    .catch(() => null);
+  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
+  const progressAnchor = activeRoundCreatedAt ?? transaction.createdAt;
+
   const [
     milestoneData,
     reminderLogs,
@@ -176,12 +191,12 @@ export async function OverviewPanel({
   const allCompletions = allMilestones
     .map((m) => m.completion)
     .filter((c): c is NonNullable<typeof c> => c != null);
-  const effectiveStartDate = computeEffectiveStartDate(transaction.createdAt, allCompletions);
+  const effectiveStartDate = computeEffectiveStartDate(progressAnchor, allCompletions);
   const holdInput = { status: transaction.status, holdPeriods: transaction.holdPeriods };
   const progress = calculateProgress(
     (milestoneData?.vendor ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
     (milestoneData?.purchaser ?? []).map((m) => ({ weight: Number(m.weight), isComplete: m.isComplete, isNotRequired: m.isNotRequired })),
-    transaction.createdAt,
+    progressAnchor,
     transaction.overridePredictedDate ?? null,
     milestoneData ? {
       completedMilestoneCodes,
@@ -228,8 +243,16 @@ export async function OverviewPanel({
     .filter((m) => m.isComplete && m.completion?.completedAt)
     .sort((a, b) => new Date(b.completion!.completedAt!).getTime() - new Date(a.completion!.completedAt!).getTime())[0];
   const lastMilestoneCompletedAt = lastMilestoneCompletion?.completion?.completedAt ?? null;
-  const daysStuckOnMilestone = lastMilestoneCompletedAt
-    ? Math.floor((Date.now() - new Date(lastMilestoneCompletedAt).getTime()) / 86400000)
+  // Pass 3c: clamp "days stuck on milestone" forward to the active round's
+  // createdAt. A relist IS progress on the file — the surviving vendor
+  // VM completedAts pre-date the new sale and would otherwise read e.g.
+  // "stuck 52 days" the instant the new buyer walks in. Ellis-locked
+  // 2026-06-05 after the courtyard relist surfaced the leak.
+  const stuckReference = lastMilestoneCompletedAt && activeRoundCreatedAt
+    ? new Date(Math.max(new Date(lastMilestoneCompletedAt).getTime(), activeRoundCreatedAt.getTime()))
+    : lastMilestoneCompletedAt;
+  const daysStuckOnMilestone = stuckReference
+    ? Math.floor((Date.now() - new Date(stuckReference).getTime()) / 86400000)
     : null;
   const lastActivityMs = activityEntries.length > 0
     ? new Date((activityEntries[0] as { at: Date }).at).getTime()
