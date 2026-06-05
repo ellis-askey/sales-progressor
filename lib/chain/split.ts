@@ -90,10 +90,14 @@ export async function splitChainAtBoundary(
   }
 
   // Orphan = every link strictly past the boundary in the orphan direction.
+  // Position convention: dbPosition 0 = TOP of chain (see findNearestClaimedLink
+  // in withdrawal.ts for the full note). UPWARD orphan = upstream segment
+  // detaches = positions LOWER than ours. DOWNWARD orphan = downstream
+  // segment = positions HIGHER than ours.
   const positionFilter =
     args.orphanDirection === "UPWARD"
-      ? { gt: withdrawing.position }
-      : { lt: withdrawing.position };
+      ? { lt: withdrawing.position }
+      : { gt: withdrawing.position };
 
   const orphans = await db.chainLink.findMany({
     where: { chainId: withdrawing.chainId, position: positionFilter },
@@ -103,6 +107,9 @@ export async function splitChainAtBoundary(
       claimedByUserId: true,
       claimedBy: { select: { email: true } },
     },
+    // Closest-to-boundary first: UPWARD orphans render highest position
+    // first (closest below our boundary going up); DOWNWARD orphans render
+    // lowest first (closest below us going down).
     orderBy: { position: args.orphanDirection === "UPWARD" ? "desc" : "asc" },
   });
 

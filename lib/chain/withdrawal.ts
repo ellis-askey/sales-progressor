@@ -50,12 +50,26 @@ export async function findNearestClaimedLink(
   fromPosition: number,
   direction: ChainDirection,
 ): Promise<NearestClaimed | null> {
+  // Position convention in the codebase: dbPosition 0 = TOP of the chain
+  // (confirmed by createChainV2 — "above stubs at positions 0..n-1" — and
+  // displayChainPosition's "DB position 0 (top of chain)" comment). The
+  // widget renders position ASC, so position 0 is at the top of the visible
+  // list = top of the chain hierarchy.
+  //
+  // UPWARD means "walk toward the top of the chain" = walk toward LOWER
+  // positions. Pre-arc the code used `gt: fromPosition` for UPWARD which
+  // walked toward HIGHER positions — opposite of the intent. The bug
+  // didn't surface in pre-launch testing because every rehearsal chain
+  // was only two links wide; direction couldn't be wrong when there was
+  // only one neighbour to reach. Caught in the closed-loop arc walkthrough
+  // when F2's 4-link chain put the bug on screen (BUYER_WITHDREW sent
+  // LOST_BUYER to the agent BELOW Emily instead of Tom above her).
   const links = await prisma.chainLink.findMany({
     where: {
       chainId,
-      position: direction === "UPWARD" ? { gt: fromPosition } : { lt: fromPosition },
+      position: direction === "UPWARD" ? { lt: fromPosition } : { gt: fromPosition },
     },
-    orderBy: { position: direction === "UPWARD" ? "asc" : "desc" },
+    orderBy: { position: direction === "UPWARD" ? "desc" : "asc" },
     select: {
       id: true,
       position: true,
