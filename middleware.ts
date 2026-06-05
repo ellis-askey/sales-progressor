@@ -208,6 +208,6 @@ export const config = {
     // and privacy were already excluded; cookie-policy, legal (covers both
     // /legal and /legal/dpa), and billing-terms added 2026-05-25 when the new
     // policy pack shipped.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|api/auth|api/portal|api/register|api/seed-demo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };
