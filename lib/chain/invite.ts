@@ -167,12 +167,12 @@ function buildInviteHtml(v: {
     <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#1a1d29">You're #${v.linkPosition} of ${v.totalLinks} in this chain</p>
     <p style="margin:0;font-size:12px;color:#8b91a3">${v.claimedCount} ${claimedSuffix} already tracking this chain together</p>
   </div>
-  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Claim your spot and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.</p>
+  <p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Claim your place and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.</p>
   <p style="margin:0 0 28px">
     <a href="${v.claimUrl}" style="display:inline-block;background:#FF6B4A;color:#fff;padding:13px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Claim this sale</a>
   </p>
   <p style="margin:0 0 16px;font-size:12px;color:#8b91a3">If the button doesn't work, copy and paste this link into your browser:<br><a href="${v.claimUrl}" style="color:#3b82f6;word-break:break-all">${v.claimUrl}</a></p>
-  <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Not the right agent? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">This isn't mine →</a></p>
+  <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Not the right agent for this sale? <a href="${v.declineUrl}" style="color:#8b91a3;text-decoration:underline">Decline this invite →</a></p>
   <p style="margin:0;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
   <p style="margin:24px 0 0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </div>
@@ -200,11 +200,11 @@ They're tracking the sale of ${v.originatorAddress} and have linked your sale at
 
 You're #${v.linkPosition} of ${v.totalLinks} in this chain. ${v.claimedCount} agent${v.claimedCount !== 1 ? "s are" : " is"} already tracking it together.
 
-Claim your spot and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.
+Claim your place and you'll see how every sale in the chain is progressing in real time. Fewer chase calls, no more guessing where the holdup is, faster exchanges for everyone.
 
 Claim this sale: ${v.claimUrl}
 
-Not the right agent? Decline here: ${v.declineUrl}
+Not the right agent for this sale? Decline this invite: ${v.declineUrl}
 
 Need help? support@thesalesprogressor.co.uk
 `;
@@ -247,11 +247,11 @@ export async function handleBouncedInvite(email: string): Promise<void> {
     await sendEmail({
       to: originatorEmail,
       subject: `Chain invite to ${email} couldn't be delivered`,
-      text: `Hi ${originatorName},\n\nThe chain invite you sent to ${email} for ${address} bounced — the email address couldn't be reached.\n\nMost often this is a typo. Open the chain drawer on your transaction page to update the address and resend.\n\nsupport@thesalesprogressor.co.uk`,
+      text: `Hi ${originatorName},\n\nThe chain invite you sent to ${email} for ${address} bounced. The email address couldn't be reached.\n\nMost often this is a typo. Open the chain on the file to update the address and resend.\n\nsupport@thesalesprogressor.co.uk`,
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a1d29;background:#fff">
 <p style="margin:0 0 16px;font-size:15px">Hi ${originatorName},</p>
-<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${email}</strong> for <strong>${address}</strong> bounced — the email address couldn't be reached.</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Most often this is a typo. Open the chain drawer on your transaction page to update the address and resend.</p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#4a5162">The chain invite you sent to <strong>${email}</strong> for <strong>${address}</strong> bounced. The email address couldn't be reached.</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.7;color:#4a5162">Most often this is a typo. Open the chain on the file to update the address and resend.</p>
 <p style="margin:0 0 24px;font-size:12px;color:#8b91a3">Need help? <a href="mailto:support@thesalesprogressor.co.uk" style="color:#8b91a3">support@thesalesprogressor.co.uk</a></p>
 <p style="margin:0;font-size:11px;color:#c0c4d0;text-align:center">Powered by <a href="https://www.thesalesprogressor.co.uk" style="color:#c0c4d0;text-decoration:none">Sales Progressor</a></p>
 </body></html>`,

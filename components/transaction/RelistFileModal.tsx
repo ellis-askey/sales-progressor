@@ -447,7 +447,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
                     { value: "none",     label: "No — first-time buyer or cash buyer", helper: "Chain ends below us. Nothing to attach." },
                     { value: "internal", label: "Yes — managed by another Sales Progressor agent", helper: "We'll send them a chain invite by email." },
                     { value: "external", label: "Yes — managed by an external agency", helper: "We'll send a stub invite to their agent." },
-                    { value: "unknown",  label: "Don't know yet — set up later", helper: "File flagged. The hub will prompt until cleared." },
+                    { value: "unknown",  label: "Don't know yet — set up later", helper: "We'll keep a reminder on your hub until it's set up." },
                   ] as const).map((opt) => (
                     <button
                       key={opt.value}
@@ -751,7 +751,7 @@ function ConfirmStage({
         }}
       >
         
-        The previous buyer's portal link will land on a "this link is no longer active" page. Their progress is kept in the file's history but won't drive anything new.
+        The previous buyer's portal link will land on a "this link is no longer active" page. Their progress is kept in the file's history but has no effect on the new sale.
       </div>
 
       {error && (
