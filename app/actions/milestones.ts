@@ -88,9 +88,22 @@ export async function confirmMilestoneAction(input: {
     counterDefId = counterDef?.id;
   }
 
-  // Primary + bilateral counterpart writes in a single atomic transaction
+  // Primary + bilateral counterpart writes in a single atomic transaction.
+  //
+  // Prereq-gate UX (2026-06-05): completeMilestone throws a structured
+  // `PREREQUISITES_NOT_COMPLETE` Error with { targetCode, missing } when
+  // the user clicks Confirm on a milestone whose direct prereqs aren't yet
+  // committed (the rapid-click race surfaced on 14 Cedar Green when VM5 was
+  // clicked 6s after VM4). In production, Next.js wraps thrown Server
+  // Action errors in a generic digest message — the structured `missing`
+  // payload is stripped before it reaches the client, so the row would
+  // show a useless "An error occurred in the Server Components render"
+  // line. Catch that specific error here and convert it to a discriminated
+  // failure return; the client can render "Confirm '<missing>' first."
   const confirmer = { kind: "user" as const, id: session.user.id, name: session.user.name ?? "" };
-  const result = await prisma.$transaction(async (ptx) => {
+  let result;
+  try {
+    result = await prisma.$transaction(async (ptx) => {
     const primary = await completeMilestone({
       transactionId: input.transactionId,
       milestoneDefinitionId: input.milestoneDefinitionId,
@@ -131,7 +144,19 @@ export async function confirmMilestoneAction(input: {
     }
 
     return primary;
-  });
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === "PREREQUISITES_NOT_COMPLETE") {
+      const e = err as Error & { targetCode?: string; missing?: { code: string; name: string }[] };
+      return {
+        ok: false as const,
+        kind: "prereqs_missing" as const,
+        targetCode: e.targetCode,
+        missing: e.missing ?? [],
+      };
+    }
+    throw err;
+  }
 
   // Single revalidate after all DB writes (primary + bilateral counterpart)
   revalidateTx(input.transactionId);
@@ -332,6 +357,7 @@ export async function confirmMilestoneAction(input: {
 
   const isExchangeCode = def?.code === "VM19" || def?.code === "PM26";
   return {
+    ok: true as const,
     triggeredCelebration: isExchangeCode,
     propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
     notifications,
