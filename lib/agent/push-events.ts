@@ -142,29 +142,34 @@ export async function pushChainEvent(args: {
   recipientUserId: string;
   transactionId: string | null;
   propertyAddress: string;
-  kind: "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT" | "WAIT_NUDGE" | "DECLINE";
+  // Closed-loop arc (2026-06-05) — BUYER_FOUND + CHAIN_DETACHED added.
+  // BUYER_FOUND surfaces "the chain has reformed" with a "tap to review"
+  // cue (most agents will want to confirm their stance). CHAIN_DETACHED
+  // is informational — no action required from the recipient, hence the
+  // softer "your chain has shortened" body.
+  kind: "LOST_BUYER" | "LOST_PURCHASE" | "ASKED_TO_WAIT" | "WAIT_NUDGE" | "DECLINE" | "BUYER_FOUND" | "CHAIN_DETACHED";
 }): Promise<void> {
   try {
     const prefs = await getNotificationPrefs(args.recipientUserId);
     if (!prefs.push.chainEvent) return;
 
     const titleMap: Record<typeof args.kind, string> = {
-      LOST_BUYER:    "Chain update: the buyer has pulled out",
-      LOST_PURCHASE: "Chain update: the purchase has fallen through",
-      ASKED_TO_WAIT: "Chain update: can your client wait?",
-      WAIT_NUDGE:    "Still waiting on this chain",
-      DECLINE:       "Chain invite declined",
+      LOST_BUYER:     "Chain update: the buyer has pulled out",
+      LOST_PURCHASE:  "Chain update: the purchase has fallen through",
+      ASKED_TO_WAIT:  "Chain update: can your client wait?",
+      WAIT_NUDGE:     "Still waiting on this chain",
+      DECLINE:        "Chain invite declined",
+      BUYER_FOUND:    "Chain update: a new buyer has been secured below you",
+      CHAIN_DETACHED: "Chain update: your chain has been shortened",
     };
-    // Most chain events benefit from a clear "tap to respond" cue in the
-    // body — the user almost always needs to do something next. The nudge
-    // gets a softer "an update is needed" framing; decline stays bare since
-    // it's informational only.
     const bodyMap: Record<typeof args.kind, string> = {
-      LOST_BUYER:    `${shortAddress(args.propertyAddress)} · tap to respond`,
-      LOST_PURCHASE: `${shortAddress(args.propertyAddress)} · tap to respond`,
-      ASKED_TO_WAIT: `${shortAddress(args.propertyAddress)} · tap to respond`,
-      WAIT_NUDGE:    `${shortAddress(args.propertyAddress)} · an update is needed`,
-      DECLINE:       shortAddress(args.propertyAddress),
+      LOST_BUYER:     `${shortAddress(args.propertyAddress)} · tap to respond`,
+      LOST_PURCHASE:  `${shortAddress(args.propertyAddress)} · tap to respond`,
+      ASKED_TO_WAIT:  `${shortAddress(args.propertyAddress)} · tap to respond`,
+      WAIT_NUDGE:     `${shortAddress(args.propertyAddress)} · an update is needed`,
+      DECLINE:        shortAddress(args.propertyAddress),
+      BUYER_FOUND:    `${shortAddress(args.propertyAddress)} · tap to review`,
+      CHAIN_DETACHED: `${shortAddress(args.propertyAddress)} · your chain has shortened`,
     };
 
     const base = process.env.NEXTAUTH_URL ?? "";

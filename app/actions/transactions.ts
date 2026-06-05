@@ -14,18 +14,94 @@ import { evaluateTransactionReminders, createInitialRemindersInline } from "@/li
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
 import { logActivity } from "@/lib/services/activity";
 import { sendCompletionSurveys } from "@/lib/services/survey";
-import { cascadeChainWithdrawal } from "@/lib/chain/withdrawal";
+import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
+import { splitChainAtBoundary } from "@/lib/chain/split";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
 import { pushFileAssigned } from "@/lib/agent/push-events";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { findFirstPairwiseConflict } from "@/lib/contacts/dedupe";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
-import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide } from "@prisma/client";
+import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide, WithdrawalReason, ChainDirection } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 type ContactInput = { name: string; phone?: string; email?: string; roleType: ContactRole };
 
 const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Closed-loop chain arc (2026-06-05) — direction-cascade rules locked in by
+// the spec. Each WithdrawalReason picks which way the LOST_BUYER /
+// LOST_PURCHASE cascade walks AND which side detaches as an orphan chain.
+//
+//   BUYER_WITHDREW       → upward cascade, downstream detaches
+//   SELLER_WITHDREW      → downward cascade, upstream detaches
+//   CHAIN_COLLAPSE_ABOVE → no cascade (upstream already cascading), downstream detaches
+//   OTHER                → both directions cascade, neither side detaches
+const CHAIN_CASCADE_RULES: Record<WithdrawalReason, {
+  cascadeDirections: ChainDirection[];
+  orphanDirection: ChainDirection | null;
+}> = {
+  BUYER_WITHDREW:       { cascadeDirections: ["UPWARD"],             orphanDirection: "DOWNWARD" },
+  SELLER_WITHDREW:      { cascadeDirections: ["DOWNWARD"],           orphanDirection: "UPWARD"   },
+  CHAIN_COLLAPSE_ABOVE: { cascadeDirections: [],                     orphanDirection: "DOWNWARD" },
+  OTHER:                { cascadeDirections: ["UPWARD", "DOWNWARD"], orphanDirection: null       },
+};
+
+// Build the per-round chain snapshot persisted to BuyerRound.chainSnapshot
+// at the moment of withdraw. Captures the chain shape as it stood when the
+// agent clicked Confirm — neighbours, current withdrawal statuses, claim
+// state. Open notifications are NOT captured here (the queue is the source
+// of truth for those, and the drawer queries it directly at render time).
+// The detachedSegment field is added later by the post-commit split path.
+async function buildChainSnapshotForWithdrawal(
+  chainLinkId: string,
+  reason: WithdrawalReason | null,
+): Promise<Prisma.InputJsonValue> {
+  const link = await prisma.chainLink.findUnique({
+    where: { id: chainLinkId },
+    select: { id: true, chainId: true, position: true },
+  });
+  if (!link) return { error: "link_not_found" } as Prisma.InputJsonValue;
+
+  const neighbours = await prisma.chainLink.findMany({
+    where: { chainId: link.chainId },
+    select: {
+      id: true,
+      position: true,
+      withdrawalStatus: true,
+      claimedByUserId: true,
+      claimedBy: { select: { name: true, email: true, agency: { select: { name: true } } } },
+      transactionId: true,
+      transaction: { select: { propertyAddress: true } },
+      stubPropertyAddress: true,
+      stubAgencyName: true,
+      stubAgentName: true,
+    },
+    orderBy: { position: "asc" },
+  });
+
+  return {
+    chainId: link.chainId,
+    ourLinkId: link.id,
+    ourPosition: link.position,
+    withdrawalReason: reason,
+    capturedAt: new Date().toISOString(),
+    neighbours: neighbours.map((n) => ({
+      linkId: n.id,
+      position: n.position,
+      withdrawalStatus: n.withdrawalStatus,
+      claimedByUserId: n.claimedByUserId,
+      claimedAgentName: n.claimedBy?.name ?? null,
+      claimedAgencyName: n.claimedBy?.agency?.name ?? null,
+      claimedTransactionId: n.transactionId,
+      claimedAddress: n.transaction?.propertyAddress ?? null,
+      stubAddress: n.stubPropertyAddress,
+      stubAgencyName: n.stubAgencyName,
+      stubAgentName: n.stubAgentName,
+    })),
+    detachedSegment: null as { chainId: string; splitAt: string } | null,
+  } as Prisma.InputJsonValue;
+}
 
 export async function createTransactionAction(input: {
   propertyAddress: string;
@@ -376,12 +452,24 @@ export async function changeStatusAction(
   // to come back to this file. NULL = indefinite (no auto-surface). Used
   // by the hub's expired-holds card.
   plannedEndAt?: Date | string | null,
+  // Closed-loop chain arc (2026-06-05). Required when status === "withdrawn"
+  // and the file has a chainLinkId — drives cascade direction in
+  // cascadeChainWithdrawal and orphan-segment detachment in
+  // splitChainAtBoundary. Caller (StatusControl) collects via the
+  // structured radio picker in the withdraw modal.
+  withdrawalReason: WithdrawalReason | null = null,
 ) {
   const session = await requireSession();
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, status: true, chainLinkId: true, activeBuyerRoundId: true },
+    select: {
+      id: true,
+      status: true,
+      chainLinkId: true,
+      activeBuyerRoundId: true,
+      agencyId: true,
+    },
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.status === status) return;
@@ -455,14 +543,45 @@ export async function changeStatusAction(
     holdsClosed: number;
   };
 
+  // Closed-loop chain arc (2026-06-05): build the chainSnapshot BEFORE the
+  // $transaction opens, so we capture the chain shape as it stood at the
+  // moment of the withdraw click (before any link state mutates). The
+  // snapshot is persisted onto the active BuyerRound inside the
+  // transaction. Only built when status === "withdrawn" AND the file has
+  // a chainLinkId — there's nothing chain-shaped to snapshot otherwise.
+  let chainSnapshotForRound: Prisma.InputJsonValue | null = null;
+  if (status === "withdrawn" && tx.chainLinkId) {
+    chainSnapshotForRound = await buildChainSnapshotForWithdrawal(
+      tx.chainLinkId,
+      withdrawalReason,
+    );
+  }
+
   const cancellationSummary = await prisma.$transaction(async (ptx): Promise<CancellationSummary | null> => {
     await ptx.propertyTransaction.update({
       where: { id: transactionId },
       data: {
         status,
         fallThroughReason: status === "withdrawn" ? (fallThroughReason ?? null) : null,
+        // Structured withdrawal classification (closed-loop arc 2026-06-05).
+        // Nulled on any non-withdrawn status change so a previously-
+        // withdrawn-then-relisted-then-paused file doesn't carry a stale
+        // reason forward.
+        withdrawalReason: status === "withdrawn" ? withdrawalReason : null,
       },
     });
+
+    // Persist the chain snapshot to the active BuyerRound. The round
+    // stays "active" until the file is relisted (at which point the
+    // existing STEP 1 archive logic carries the snapshot into the drawer).
+    // If the file is withdrawn but never relisted, the snapshot still
+    // sits on the round for any future drawer / audit access.
+    if (chainSnapshotForRound !== null && tx.activeBuyerRoundId) {
+      await ptx.buyerRound.update({
+        where: { id: tx.activeBuyerRoundId },
+        data: { chainSnapshot: chainSnapshotForRound },
+      });
+    }
     if (enteringHold) {
       await ptx.transactionHoldPeriod.create({
         data: {
@@ -593,7 +712,60 @@ export async function changeStatusAction(
   }
 
   if (status === "withdrawn" && tx.chainLinkId) {
-    cascadeChainWithdrawal(tx.chainLinkId).catch(console.error);
+    // Closed-loop chain arc (2026-06-05). The cascade direction(s) AND the
+    // orphan-segment detachment side are both derived from the structured
+    // WithdrawalReason chosen in the modal. Defaults fall back to OTHER
+    // (cascade both, no split) for legacy callers / safety — the StatusControl
+    // form requires a reason before Confirm is enabled.
+    const reasonForCascade = withdrawalReason ?? "OTHER";
+    const rule = CHAIN_CASCADE_RULES[reasonForCascade];
+    void (async () => {
+      try {
+        if (rule.cascadeDirections.length > 0) {
+          await cascadeChainWithdrawal(tx.chainLinkId!, rule.cascadeDirections);
+        } else {
+          // CHAIN_COLLAPSE_ABOVE — just mark our link WITHDRAWN locally;
+          // upstream cascade is already in motion and shouldn't be doubled.
+          await prisma.chainLink.update({
+            where: { id: tx.chainLinkId! },
+            data: { withdrawalStatus: "WITHDRAWN" },
+          });
+        }
+        if (rule.orphanDirection) {
+          const splitResult = await splitChainAtBoundary({
+            withdrawingLinkId: tx.chainLinkId!,
+            orphanDirection: rule.orphanDirection,
+            agencyId: tx.agencyId,
+            withdrawingTransactionId: transactionId,
+          });
+          // Fold the split metadata back into the round's chainSnapshot so
+          // the drawer's "Chain at withdrawal" section can render the
+          // detached-segment banner without a second query.
+          if (splitResult.kind === "split" && tx.activeBuyerRoundId) {
+            const round = await prisma.buyerRound.findUnique({
+              where: { id: tx.activeBuyerRoundId },
+              select: { chainSnapshot: true },
+            });
+            const current = (round?.chainSnapshot as Record<string, unknown> | null) ?? {};
+            await prisma.buyerRound.update({
+              where: { id: tx.activeBuyerRoundId },
+              data: {
+                chainSnapshot: {
+                  ...current,
+                  detachedSegment: {
+                    chainId: splitResult.orphanChainId,
+                    splitAt: new Date().toISOString(),
+                    notifiedRecipientLinkId: splitResult.notifiedRecipientLinkId,
+                  },
+                } as Prisma.InputJsonValue,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[changeStatusAction] chain cascade/split failed", err);
+      }
+    })();
   }
 
   revalidateTx(transactionId);
@@ -1859,6 +2031,17 @@ const RELIST_RESET_VM_CODES = [
 // with how a fresh file would render it.
 const RELIST_EXCHANGE_GATE_CODES = new Set(["VM18"]);
 
+// Closed-loop chain arc (2026-06-05): the relist modal collects the new
+// buyer's onward-sale status via a required radio step. The action turns
+// that into one of four outcomes: nothing-to-do (first-time buyer),
+// invite a fellow Sales Progressor agent, send a stub invite to an
+// external agent, or flag chainSetupPending for the hub prompt.
+export type OnwardSaleInput =
+  | { kind: "none" }
+  | { kind: "internal"; agentEmail: string }
+  | { kind: "external"; agencyName: string; agentName: string; agentEmail: string }
+  | { kind: "unknown" };
+
 export async function relistTransactionAction(input: {
   transactionId: string;
   newBuyer: { name: string; email?: string | null; phone?: string | null };
@@ -1867,6 +2050,12 @@ export async function relistTransactionAction(input: {
   newPurchaserSolicitorContactId?: string | null;
   newBrokerFirmId?: string | null;
   newBrokerContactId?: string | null;
+  // Null when the file isn't in a chain (the modal hides the section).
+  // Required when the file IS in a chain — server validates via the modal's
+  // own gate, but defaults to "unknown" if a caller forgets (safety:
+  // flagging chainSetupPending is better than silently leaving an
+  // orphaned chain link untouched).
+  onwardSale?: OnwardSaleInput | null;
 }): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
   const session = await requireSession();
   return relistTransactionImpl(input, {
@@ -1896,6 +2085,7 @@ export async function relistTransactionImpl(
     newPurchaserSolicitorContactId?: string | null;
     newBrokerFirmId?: string | null;
     newBrokerContactId?: string | null;
+    onwardSale?: OnwardSaleInput | null;
   },
   session: RelistSessionLike,
 ): Promise<{ newRoundId: string; newContactId: string; newRoundNumber: number }> {
@@ -2301,13 +2491,72 @@ export async function relistTransactionImpl(
       data: { endedAt: new Date(), endedById: session.userId },
     });
 
-    // STEP 12 — clear chainLink.withdrawalStatus if set. The file is back;
-    // no cascade fires (the chain-cascade trigger is in withdraw, not here).
+    // STEP 12a — clear chainLink.withdrawalStatus if set. Closed-loop arc
+    // (2026-06-05): the BUYER_FOUND cascade fires post-commit; the orphan
+    // detachment from withdraw stays as-is (their split chain has its own
+    // life now). We're only reactivating OUR link.
     if (tx.chainLinkId) {
       await ptx.chainLink.update({
         where: { id: tx.chainLinkId },
         data: { withdrawalStatus: null, withdrawalRespondedAt: null },
       });
+    }
+
+    // STEP 12b — closed-loop chain arc (2026-06-05): handle the new buyer's
+    // onward sale per the modal's required radio step. Four paths:
+    //   none     — first-time / cash buyer; chain ends below us; flag false
+    //   internal — another SP agent's email; stub link at pos K-1 + invite
+    //   external — external agency stub; stub link at pos K-1 + invite
+    //   unknown  — chainSetupPending=true; hub prompt surfaces until cleared
+    //   (skipped) — modal didn't render the section (file not in a chain);
+    //               nothing to do.
+    let onwardStubLinkId: string | null = null;
+    let onwardInviteTargetEmail: string | null = null;
+    if (tx.chainLinkId && input.onwardSale) {
+      const onward = input.onwardSale;
+      const ourLink = await ptx.chainLink.findUnique({
+        where: { id: tx.chainLinkId },
+        select: { chainId: true, position: true },
+      });
+      if (ourLink) {
+        if (onward.kind === "unknown") {
+          await ptx.propertyTransaction.update({
+            where: { id: tx.id },
+            data: { chainSetupPending: true },
+          });
+        } else if (onward.kind === "internal" || onward.kind === "external") {
+          // Position K-1 — directly below us. The withdraw-side split
+          // detached the prior K-1 into its own chain, so this slot is
+          // free. Belt-and-braces: check for any pre-existing link at
+          // that position before insert (defensive against a rare race
+          // where two relists happen concurrently — last-write loses
+          // the slot, but the chain stays consistent).
+          const collision = await ptx.chainLink.findFirst({
+            where: { chainId: ourLink.chainId, position: ourLink.position - 1 },
+            select: { id: true },
+          });
+          if (!collision) {
+            const stub = await ptx.chainLink.create({
+              data: {
+                chainId: ourLink.chainId,
+                position: ourLink.position - 1,
+                createdByUserId: session.userId,
+                stubAgentEmail: onward.agentEmail,
+                stubAgencyName: onward.kind === "external" ? onward.agencyName : null,
+                stubAgentName: onward.kind === "external" ? onward.agentName : null,
+                stubPropertyAddress: null, // we don't know the buyer's address yet
+                inviteStatus: "NOT_SENT",
+              },
+              select: { id: true },
+            });
+            onwardStubLinkId = stub.id;
+            onwardInviteTargetEmail = onward.agentEmail;
+          }
+        }
+        // onward.kind === "none" → no-op (chain ends here; the existing
+        // walker behaviour treats no-link-below as the same as a stub
+        // with no claim).
+      }
     }
 
     // STEP 13 — internal note.
@@ -2335,6 +2584,11 @@ export async function relistTransactionImpl(
         cancelledLogs: cancelledLogsResult.count,
         holdsClosed: holdsClosedResult.count,
       },
+      // Closed-loop chain arc (2026-06-05): carry the new onward stub
+      // link (if created) out so the post-commit BUYER_FOUND + invite
+      // send paths can reference it without re-querying.
+      onwardStubLinkId,
+      onwardInviteTargetEmail,
     };
   });
 
@@ -2344,6 +2598,66 @@ export async function relistTransactionImpl(
   void evaluateTransactionReminders(tx.id).catch((err) => {
     console.error("[relist] reminder re-evaluation failed", err);
   });
+
+  // STEP 12c — closed-loop chain arc (2026-06-05): BUYER_FOUND cascade
+  // upward + chain-invite if the relist modal collected an onward agent.
+  //
+  // BUYER_FOUND walks the same upward path as the original LOST_BUYER,
+  // sending per-response variant copy. Silent for WITHDRAW + BREAK_CHAIN
+  // responders (per Ellis-lock 2026-06-05); fires for everyone else.
+  //
+  // Chain invite uses the existing sendChainInvite helper that powers
+  // the chain-build flow, so external agents land in the same accept-
+  // or-decline pipeline they would from a manual chain build. Internal
+  // SP agents receive the same invite email — they accept via the
+  // existing token flow and one of their files links to position K-1.
+  if (tx.chainLinkId) {
+    void cascadeChainBuyerFound(tx.chainLinkId).catch((err) => {
+      console.error("[relist] BUYER_FOUND cascade failed", err);
+    });
+  }
+  if (result.onwardStubLinkId && result.onwardInviteTargetEmail) {
+    const inviteLinkId = result.onwardStubLinkId;
+    void (async () => {
+      try {
+        const stubLink = await prisma.chainLink.findUnique({
+          where: { id: inviteLinkId },
+          select: {
+            id: true,
+            stubAgentEmail: true,
+            stubAgentName: true,
+            stubPropertyAddress: true,
+            stubAgencyName: true,
+            inviteStatus: true,
+            inviteResendCount: true,
+            chain: {
+              select: {
+                createdByUserId: true,
+                links: {
+                  select: {
+                    position: true,
+                    transactionId: true,
+                    transaction: { select: { propertyAddress: true } },
+                    stubPropertyAddress: true,
+                  },
+                  orderBy: { position: "asc" },
+                },
+              },
+            },
+          },
+        });
+        if (stubLink && stubLink.stubAgentEmail) {
+          await sendChainInvite({
+            link: stubLink,
+            sentByUserId: session.userId,
+            sentByName: session.userName,
+          });
+        }
+      } catch (err) {
+        console.error("[relist] onward chain invite failed", err);
+      }
+    })();
+  }
 
   // Intro email to the new buyer — outsourced only. The orchestrator's
   // per-contact outsourceIntroSentAt dedup means the vendor (already
@@ -2491,6 +2805,35 @@ export async function acknowledgeRelistAction(roundId: string): Promise<void> {
   });
   try {
     revalidatePath("/agent/hub");
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes("static generation store")) throw err;
+  }
+}
+
+// Closed-loop chain arc (2026-06-05). Clears the chainSetupPending flag
+// once the agent has either set up the new buyer's onward chain (via the
+// chain widget on the file detail) OR confirmed there isn't one.
+// Surfaced from the hub's "Complete chain setup" card AND a manual button
+// on the file's chain widget. Idempotent.
+export async function clearChainSetupPendingAction(transactionId: string): Promise<void> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, chainSetupPending: true },
+  });
+  if (!tx) throw new Error("Not found");
+  if (!tx.chainSetupPending) return; // idempotent
+
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { chainSetupPending: false },
+  });
+
+  try {
+    revalidatePath("/agent/hub");
+    revalidateTx(transactionId);
   } catch (err) {
     if (!(err instanceof Error) || !err.message.includes("static generation store")) throw err;
   }

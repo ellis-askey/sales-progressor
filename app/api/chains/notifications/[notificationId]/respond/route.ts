@@ -13,6 +13,14 @@ const VALID_RESPONSES_BY_TYPE: Record<ChainNotificationType, ResponseStatus[]> =
   LOST_BUYER: ["REMARKETING", "WITHDRAW"],
   LOST_PURCHASE: ["REMARKETING", "BREAK_CHAIN", "WITHDRAW"],
   ASKED_TO_WAIT: ["WAITING", "WITHDRAW"],
+  // Closed-loop arc (2026-06-05): BUYER_FOUND + CHAIN_DETACHED are
+  // informational by design — no response options. The chain widget
+  // surfaces them as read-only "we told you" cards; if the agent wants
+  // to act on the news, they go into their own file and use the normal
+  // controls (relist, withdraw, status changes). The API rejects any
+  // attempted response on these types with a 400.
+  BUYER_FOUND: [],
+  CHAIN_DETACHED: [],
 };
 
 // Map the agent's chosen status to the ChainWithdrawalStatus enum value stored

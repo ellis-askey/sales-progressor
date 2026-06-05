@@ -950,3 +950,65 @@ export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<
     };
   });
 }
+
+// ─── Chain setup pending (closed-loop chain arc 2026-06-05) ────────────────
+// Files where the relist modal collected "Don't know yet" for the new
+// buyer's onward sale. The hub surfaces a prompt until the agent either
+// attaches a chain link below their position or explicitly confirms there
+// isn't one. Mirrors the visibility scope of getHubRelistsToAcknowledge.
+
+export type HubChainSetupPending = {
+  transactionId: string;
+  propertyAddress: string;
+  agencyName: string | null;
+  newBuyerName: string | null;
+  flaggedAt: Date;
+};
+
+export async function getHubChainSetupPending(vis: AgentVisibility): Promise<HubChainSetupPending[]> {
+  // Mirrors the visibility branches used by other hub services. Internal
+  // staff: admin sees all, SP sees assigned. Agent callers: scoped to
+  // their own agency / firm.
+  let txWhere: Prisma.PropertyTransactionWhereInput;
+  if (vis.internalMode === "admin_all") {
+    txWhere = { status: "active", chainSetupPending: true };
+  } else if (vis.internalMode === "assigned") {
+    txWhere = { status: "active", chainSetupPending: true, assignedUserId: vis.userId };
+  } else if (vis.seeAll) {
+    txWhere = vis.firmName
+      ? { status: "active", chainSetupPending: true, agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { status: "active", chainSetupPending: true, agencyId: vis.agencyId };
+  } else {
+    txWhere = { status: "active", chainSetupPending: true, agencyId: vis.agencyId, agentUserId: vis.userId };
+  }
+
+  const txs = await prisma.propertyTransaction.findMany({
+    where: txWhere,
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      propertyAddress: true,
+      updatedAt: true,
+      agency: { select: { name: true } },
+      activeBuyerRoundId: true,
+    },
+  });
+  if (txs.length === 0) return [];
+
+  const roundIds = txs.map((t) => t.activeBuyerRoundId).filter((id): id is string => id !== null);
+  const purchasers = await prisma.contact.findMany({
+    where: { buyerRoundId: { in: roundIds }, roleType: "purchaser" },
+    orderBy: { createdAt: "asc" },
+    select: { name: true, buyerRoundId: true },
+  });
+  const purchaserByRound = new Map(purchasers.map((c) => [c.buyerRoundId ?? "", c.name]));
+
+  return txs.map((t) => ({
+    transactionId: t.id,
+    propertyAddress: t.propertyAddress,
+    agencyName: t.agency?.name ?? null,
+    newBuyerName: t.activeBuyerRoundId ? purchaserByRound.get(t.activeBuyerRoundId) ?? null : null,
+    flaggedAt: t.updatedAt,
+  }));
+}

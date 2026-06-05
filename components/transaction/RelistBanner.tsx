@@ -14,9 +14,14 @@ type Props = {
   show: boolean;
   transactionId: string;
   previousPurchasePrice: number | null;
+  // Closed-loop chain arc (2026-06-05): when true, the relist modal asks
+  // the agent about the new buyer's onward sale and handles the chain
+  // attachment (internal invite / external stub invite / flag pending).
+  // When false (file isn't in a chain), the section is hidden entirely.
+  inChain: boolean;
 };
 
-export function RelistBanner({ show, transactionId, previousPurchasePrice }: Props) {
+export function RelistBanner({ show, transactionId, previousPurchasePrice, inChain }: Props) {
   const [open, setOpen] = useState(false);
   if (!show) return null;
   return (
@@ -33,6 +38,7 @@ export function RelistBanner({ show, transactionId, previousPurchasePrice }: Pro
         open={open}
         transactionId={transactionId}
         previousPurchasePrice={previousPurchasePrice}
+        inChain={inChain}
         onClose={() => setOpen(false)}
       />
     </>
