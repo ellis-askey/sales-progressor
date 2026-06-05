@@ -41,8 +41,25 @@ export async function getPortalMessages(
 }
 
 export async function getAllPortalThreads(transactionId: string): Promise<ContactThread[]> {
+  // Phase-2 PR 4 (PortalMessage scoping): scope the contact query so
+  // dead-round purchaser threads (fell-through buyers) don't surface on
+  // the live tx. Non-purchaser roles pass through — they're file-level
+  // by design across all sales.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
+  const activeBuyerRoundId = tx?.activeBuyerRoundId ?? null;
+
   const contacts = await prisma.contact.findMany({
-    where: { propertyTransactionId: transactionId },
+    where: {
+      propertyTransactionId: transactionId,
+      OR: [
+        { roleType: { not: "purchaser" as const } },
+        { buyerRoundId: null },
+        ...(activeBuyerRoundId ? [{ buyerRoundId: activeBuyerRoundId }] : []),
+      ],
+    },
     select: { id: true, name: true, roleType: true },
     orderBy: { createdAt: "asc" },
   });
