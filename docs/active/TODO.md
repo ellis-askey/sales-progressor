@@ -2,6 +2,216 @@
 
 ---
 
+## Phase-2 arc — BuyerRound per-sale scoping for remaining models
+
+Filed 2026-06-05 as part of the Section 2 Contact-scoping PR. Branch
+`feat/buyer-round-phase2-scoping` cuts from `staging` AFTER Section 2
+(Contact A1+B3) is verified on staging AND on prod. No Phase-2 PR starts
+before that gate (Ellis-locked).
+
+One PR per model, in this order — worst-first, ranked by the cost of a
+fell-through buyer's content leaking onto the live file. Reframed
+2026-06-05 by the fall-through ledger audit (see
+`C:\Users\ellis\.claude\plans\phase-2-fall-through-ledger-audit.md`):
+
+1. **Fall-through cancellation (reframed scope)** — the ledger audit
+   established that `relistTransactionImpl` already cancels open
+   buyer-side `ReminderLog` + `ChaseTask` at relist time (STEPS 11A-D,
+   `app/actions/transactions.ts:2134-2190`). PR 1's real scope:
+   - Mirror that cancellation into `changeStatusAction` for the
+     withdraw-only path (withdraw-no-relist files were leaving open
+     chases firing forever).
+   - Emit `Event(type="reminder_cancelled_at_fall_through",
+     metadata={ hookPoint, ... })` audit rows at BOTH hook points.
+   - **Semantic alignment** — change relist STEP 11D from
+     `status="inactive", statusReason="Buyer round archived on relist"`
+     to `status="cancelled", statusReason="sale fell through"`. **Must
+     ship pre-launch — after prod has data this becomes a migration.**
+   - Close open `TransactionHoldPeriod` rows at both hook points
+     (`endedAt=now, endedById=session.user.id`, idempotent
+     `where endedAt IS NULL`). A withdrawn file isn't paused, it's
+     dead; agent reopens on the new sale if needed.
+   - Fold in **GAP-4** (agent search Contact scoping) — surface
+     old-buyer Contact rows as clearly previous-round (muted, with a
+     "Sale {n} · fell through" sub-line) unless labelling is
+     disproportionate effort, in which case fall back to hide.
+2. **PR 1.5 — queue-time send gate + mirror attribution fix (NEW)**
+   — Same fall-through invariant, separate review. Two changes to
+   `lib/email/outboundQueue.ts`:
+   - The drain skips rows where `recipientContactId` resolves to a
+     Contact whose `buyerRoundId !== tx.activeBuyerRoundId` AND
+     `roleType="purchaser"`. Mark `errorAt=now,
+     error="recipient round archived"` (keeps audit trail) rather
+     than delete.
+   - The OutboundMessage CLIENT_CHASE mirror stamps to
+     `Contact.buyerRoundId` (the contact's actual round) instead of
+     `tx.activeBuyerRoundId`. Closes the dead-buyer-receives-chase
+     scenario and the new-round mis-attribution.
+3. **`TransactionDocument`** — read-path filter + targeted backfill
+   (rule: `contactId` resolves to purchaser-role Contact → stamp with
+   that Contact's `buyerRoundId`; else NULL). Includes voice-pass on
+   the drawer caveat string ("Documents on this file are not tied to a
+   specific sale…") which becomes incorrect after this PR.
+4. **`OutboundMessage`** — read-path filter (activity timeline +
+   `/agent/automated-emails` list + **the `/api/agent/notifications`
+   bell-count route at lines 34-43 — GAP-5**) + targeted backfill.
+   Bundles the `logAutomatedEmail` write-path gap fix
+   (`lib/services/portal.ts:138-161` doesn't stamp today).
+5. **`PortalMessage`** — read-path filter + purchaser-only targeted
+   backfill (solicitor / broker portal sends stay file-level, known
+   limitation flagged in the PR description). Drawer integration:
+   folded into the existing Communications section with a "Portal"
+   channel pill via `lib/agent/comms-display.tsx` — no new drawer
+   section.
+6. **`ReminderLog`** — read-path filter (belt-and-braces after PR 1 +
+   archived-drawer visibility) + targeted backfill. NO new drawer
+   section (decision noted in PR description as chosen, not
+   forgotten — the chase-generated comms already surface in the
+   drawer's Communications section).
+7. **`ChaseTask`** — read-path filter + backfill (inherits from
+   parent `ReminderLog` post-PR-6). NO new drawer section, same
+   rationale as PR 6.
+
+Each PR follows the same template: read-path scoping + targeted
+backfill script + structured stamped/unmatched report + staging-first
+verification + Ellis browser gate on the Emily relist fixture (live
+Contacts shows active-round only; Sale 1 drawer + Sale 2 drawer hard
+gates). Each PR ships to prod before the next is cut. No schema
+migrations (`ChaseTask.statusReason` not added per Ellis-locked
+decision — parent-log reason + Event metadata is sufficient).
+
+Re-instatement on un-archive is out of scope for this arc. The
+`statusReason="sale fell through"` discriminator is preserved if it's
+ever revisited.
+
+Full plan including audit findings:
+`C:\Users\ellis\.claude\plans\are-the-documents-clickable-downloadable-encapsulated-lighthouse.md`.
+
+---
+
+## Phase-3 arc — (a)-CLASS aggregate restructuring — ✅ SHIPPED 2026-06-05
+
+Cut on `feat/buyer-round-phase3-aggregates`, shipped to staging in
+commit `796721e feat(buyer-round): Phase-3 — cross-tx aggregate
+restructure ((a)-CLASS resolved)` + verification harness extension
+`bdb4088 test(buyer-round): Phase-3 harness assertions — 32/32 PASS`.
+
+**Insurance sentence — RETIRED**:
+
+> ~~Hub pipeline, hub recent activity, analytics, completions, comms
+> dashboard, and work-queue item counts remain inflated by
+> archived-round milestone completions until the Phase-3 (a)-CLASS
+> aggregate restructure lands.~~ — closed 2026-06-05.
+
+**How it was solved**: new shared module `lib/services/round-scope.ts`
+exposes `roundScopedOR(activeRoundIds)` + `contactRoundScopedOR(...)`
++ `loadActiveRoundIds(whereClause)`. Each cross-tx aggregate surface
+now pre-loads the active-round-id set for its scope, then feeds that
+set into an OR clause on the nested MC / Contact / ChaseTask /
+OutboundMessage filter. BuyerRound ids are globally unique cuids → the
+`buyerRoundId IN [active set]` test is equivalent to "this row's
+buyerRoundId === its own tx's activeBuyerRoundId".
+
+**Surfaces patched** (all in this same arc):
+- `lib/services/transactions.ts` — listTransactions,
+  listTransactionsByScope, getExchangedNotCompleting,
+  getCompletingFilesDetailed: contacts + MC + chaseTasks +
+  communications all scoped.
+- `lib/services/hub.ts` — getHubPipelineStats, getHubFilteredIds,
+  getMonthExchangingIds, getHubWeeklyForecast, getHubRecentActivity:
+  every MC `some/none` filter + the cross-tx OutboundMessage findFirst
+  scoped.
+- `lib/services/analytics.ts` — getAnalytics, getMonthlyActivity,
+  getSolicitorExchangeStats, getFilesAtRisk: every cross-tx MC + the
+  cross-tx ChaseTask filter scoped.
+- `lib/services/work-queue.ts` — getWorkQueueItems: the per-tx MC
+  include scoped (hasExchanged derivation now ignores archived-round
+  PM26/VM19).
+- `lib/services/agent.ts` — getAgentTransactions,
+  getAgentCompletions, getAgentMilestoneActivity (comms dashboard):
+  MC includes + the top-level cross-tx milestoneCompletion findMany
+  all scoped via the two-step pattern.
+
+**Cross-tx Contact list reads** that Section 2's
+`scopeContactsToActiveRound` couldn't reach (line 42 listTransactions,
+line 322 listTransactionsByScope, line 555
+getExchangedNotCompleting, line 657 getCompletingFilesDetailed —
+GAP-3 from the fall-through ledger audit) are closed in the same arc.
+
+**Verification** (`scripts/verify-phase-2-read-shape.ts`, 32/32 PASS
+on the Emily relist fixture):
+- cross-tx exchanged-MC count is scoped (scoped ≤ unscoped)
+- 12 fall-through-round MCs measured on the fixture — these are the
+  rows Phase-3 hides from aggregate dashboards
+- cross-tx Contact count is scoped agency-wide (86 → 84: Marcus +
+  Terry correctly excluded from cross-tx aggregates)
+
+**Per-site grep**: every restructured filter site carries `// PHASE 1
+4d (a)-CLASS resolved — Phase-3 OR scope below.` so future
+contributors find every patched location at a glance.
+
+---
+
+## Vercel silently skipping auto-builds for some pushes
+
+Filed 2026-06-04 from the commit 6b fix-up. Commit `fbea564` was pushed to `feat/buyer-round-phase1-uniqueness` and Vercel did NOT trigger a build. The previous push on the same branch (`b700fa7`) had been built within seconds. A manual `vercel` invocation deployed the missing commit successfully (deployment `dlxiqgxwu`).
+
+**Symptom:** `git push` returns success, the remote branch advances, but `vercel ls --yes` shows no new build for that SHA. Other recent pushes deployed normally — this isn't a project-wide hang, it's per-push.
+
+**Hypotheses (none verified):**
+- Vercel GitHub integration webhook missed or got rate-limited.
+- Some build-step ignore logic in Vercel saw the change as a no-op (the fix-up touched two `.tsx` files + a `.md` — should not be skipped).
+- Branch protection or a webhook config change broke the trigger.
+
+**Impact:** The deploy pipeline silently dropping a commit is a runbook risk. If this recurs at the prod cutover, an approved release SHA could be in the repo while a stale build is live. Detection requires explicitly comparing the deployed commit hash to the approved one.
+
+**Mitigations already in place:**
+- Prod release runbook Step 2 now MANDATES the hash-match check between approved SHA and `/api/healthz`-reported deployed SHA.
+- Until this is root-caused, after every push run `vercel ls --yes | head -3` and confirm the top entry's age matches the push you just made.
+
+**Fix targets:**
+1. Verify the GitHub → Vercel webhook is healthy and not paused.
+2. Add a healthz endpoint that exposes `commitSha` (if not already there) so the runbook check is one curl.
+3. Once root-caused: add a post-push CI step that triggers a manual `vercel deploy` if no auto-build appears within 60 seconds.
+
+**Priority:** Pre-prod must-investigate. Deploy reliability is a security property — silent skip = silent staleness.
+
+---
+
+## Dev server fails on Windows under Turbopack — Tailwind content scanner ENOENT
+
+Filed 2026-06-04 from the commit 6b smoke-test attempt. Blocks local rendered verification on Windows; CI / Vercel deploy unaffected (different runtime). Surfaces as a 500 on every authenticated route.
+
+**Symptom:**
+
+```
+HTTP 500 on every /agent/* route
+Error: ./app/globals.css
+Error evaluating Node.js code
+Error: ENOENT: no such file or directory, stat
+  'C:\Users\ellis\Downloads\Sales Prog App\full\app\billing-terms\page.tsx'
+  at resolveChangedFiles (node_modules/tailwindcss/lib/lib/content.js:236:36)
+```
+
+**Confirmed environmental, not a real missing file:**
+- `ls app/billing-terms/page.tsx` returns the file (last touched commit `6187598`).
+- `next-env.d.ts` got auto-rewritten to `./.next/dev/types/routes.d.ts` (was `./.next/types/...`). Possibly a Next.js / Turbopack version interaction.
+- Stack frame is inside `tailwindcss/lib/lib/content.js` — Tailwind v3's file watcher choking on a Windows-pathed entry under Turbopack.
+
+**Working theories:**
+1. Tailwind v3 + Turbopack on Windows: `content.js` constructs paths with mixed separators (`\` vs `/`) and `fs.statSync` fails on the combination. Test by upgrading to Tailwind v4 OR switching dev away from `turbopack`.
+2. Stale Tailwind cache from a previous run that referenced a now-moved file. Test by deleting `.next/` and `node_modules/.cache/`.
+3. Next.js 16.2.4 `dev` build configuration drift in `tsconfig` (note next-env.d.ts auto-rewrite). Test by pinning Next or comparing to a teammate's working setup.
+
+**Impact and workaround:**
+- Cannot smoke-test UI changes locally on Windows.
+- Vercel deploy preview is the verification path until this is fixed.
+- Affected commits documented as such (commit 6b verified on deploy, not local).
+
+**Priority:** Pre-launch must-fix. The current workaround (deploy-to-verify) is slow and tools-around-the-edges; rendered local verification is the right loop for UI work.
+
+---
+
 ## FileTimeSession — privacy / GDPR (pre-launch required)
 
 Filed 2026-05-15. Review before first paying customer.

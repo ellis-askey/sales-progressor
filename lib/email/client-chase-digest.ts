@@ -355,6 +355,9 @@ export async function enqueueClientChaseDigest(input: {
         id: true,
         propertyAddress: true,
         agency: { select: { name: true } },
+        // Phase 1 commit 4c: needed by the ClientChaseState upsert
+        // below so purchaser-contact rows get round-stamped.
+        activeBuyerRoundId: true,
       },
     }),
     prisma.contact.findUnique({
@@ -435,6 +438,17 @@ export async function enqueueClientChaseDigest(input: {
   // Update ClientChaseState for each milestone in the digest. Upsert so the
   // first chase for a (transaction, contact, milestone) tuple creates the
   // row; subsequent chases bump chaseCount + lastChasedAt.
+  //
+  // Phase 1 commit 4c attribution: stamp the active round on rows where
+  // the contact is a purchaser (Phase 0 backfill rule). Vendor and
+  // solicitor rows stay file-level. Read activeBuyerRoundId off the
+  // transaction parameter rather than re-fetching — the caller already
+  // selected it (or, for callers that don't, we degrade to null which
+  // is the file-level / legacy behaviour).
+  const activeBuyerRoundId =
+    (transaction as { activeBuyerRoundId?: string | null }).activeBuyerRoundId ?? null;
+  const stampRoundId = contact.roleType === "purchaser" ? activeBuyerRoundId : null;
+
   const now = new Date();
   for (const code of milestoneCodes) {
     await prisma.clientChaseState.upsert({
@@ -453,6 +467,7 @@ export async function enqueueClientChaseDigest(input: {
         firstChasedAt: now,
         lastChasedAt: now,
         status: "active",
+        buyerRoundId: stampRoundId,
       },
       update: {
         chaseCount: { increment: 1 },

@@ -112,6 +112,12 @@ export default async function OverviewPage({
       _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true },
     }),
     // Stuck transactions in main DB: active/on_hold with no milestone in last 14 days
+    // PHASE 1 4d/4e (a)-CLASS — cross-tx Prisma nested where can't
+    // reference parent activeBuyerRoundId. Command Centre dashboard
+    // display only, no action surface. A relisted file's archived-
+    // round PM completion could mask the new round's silence here;
+    // acceptable for the overview widget but flagged for Phase 2 if
+    // the metric ever drives action.
     prisma.propertyTransaction.count({
       where: {
         status: { in: ["active", "on_hold"] },

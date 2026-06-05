@@ -6,7 +6,19 @@ import { prisma } from "@/lib/prisma";
 
 export type AgentSearchResult = {
   transactions: { id: string; address: string; status: string }[];
-  contacts:     { id: string; name: string; role: string; transactionId: string; address: string }[];
+  contacts:     {
+    id: string;
+    name: string;
+    role: string;
+    transactionId: string;
+    address: string;
+    // Phase-2 PR 1 (GAP-4): purchaser-role contacts whose buyerRoundId
+    // doesn't match the transaction's activeBuyerRoundId belong to a
+    // previous (fell-through) sale. The row is still returned so the agent
+    // can find them, but the frontend renders the row muted with a
+    // "previous sale" sub-line. null = current/active contact.
+    previousSale: { roundNumber: number } | null;
+  }[];
   solicitors:   { id: string; name: string; fileCount: number }[];
 };
 
@@ -58,7 +70,12 @@ export async function GET(req: NextRequest) {
       take: 6,
       select: {
         id: true, name: true, roleType: true, propertyTransactionId: true,
-        transaction: { select: { propertyAddress: true } },
+        // Phase-2 PR 1 (GAP-4): pull the contact's buyerRound + the
+        // transaction's active round so we can label previous-round
+        // purchaser contacts on the frontend.
+        buyerRoundId: true,
+        buyerRound: { select: { roundNumber: true } },
+        transaction: { select: { propertyAddress: true, activeBuyerRoundId: true } },
       },
     }),
     prisma.solicitorFirm.findMany({
@@ -73,10 +90,26 @@ export async function GET(req: NextRequest) {
 
   const result: AgentSearchResult = {
     transactions: transactions.map((t) => ({ id: t.id, address: t.propertyAddress, status: t.status })),
-    contacts: contacts.map((c) => ({
-      id: c.id, name: c.name, role: c.roleType,
-      transactionId: c.propertyTransactionId, address: c.transaction.propertyAddress,
-    })),
+    contacts: contacts.map((c) => {
+      // GAP-4 labelling: a purchaser contact with a buyerRoundId that
+      // doesn't match the transaction's activeBuyerRoundId belongs to a
+      // fall-through sale. Non-purchaser roles (vendor / solicitor /
+      // broker) are file-level by design — always treated as current.
+      const isPreviousPurchaser =
+        c.roleType === "purchaser" &&
+        c.buyerRoundId !== null &&
+        c.buyerRoundId !== c.transaction.activeBuyerRoundId;
+      return {
+        id: c.id,
+        name: c.name,
+        role: c.roleType,
+        transactionId: c.propertyTransactionId,
+        address: c.transaction.propertyAddress,
+        previousSale: isPreviousPurchaser && c.buyerRound
+          ? { roundNumber: c.buyerRound.roundNumber }
+          : null,
+      };
+    }),
     solicitors: solicitors.map((s) => ({
       id: s.id, name: s.name,
       fileCount: s._count.vendorForTransactions + s._count.purchaserForTransactions,

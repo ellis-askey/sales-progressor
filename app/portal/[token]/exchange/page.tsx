@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPortalData, getPortalMilestones } from "@/lib/services/portal";
+import { getPortalData, getPortalMilestones, portalOwnSideScope } from "@/lib/services/portal";
 import { P } from "@/components/portal/portal-ui";
 
 function fmtDate(d: Date | string) {
@@ -80,12 +80,13 @@ export default async function PortalExchangePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const data = await getPortalData(token);
-  if (!data) notFound();
+  const result = await getPortalData(token);
+  if (!result || result.kind === "deadRound") notFound();
+  const data = result.data;
 
   const { contact, transaction } = data;
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
-  const milestones = await getPortalMilestones(transaction.id, side);
+  const milestones = await getPortalMilestones(transaction.id, side, portalOwnSideScope(contact, transaction));
 
   const hasExchanged = milestones.some(
     (m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete

@@ -299,17 +299,47 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               </div>
             )}
 
-            <div className="flex gap-2 pt-1">
+            {/* CTAs follow the canonical SwitchServiceTypeModal / RelistFileModal
+             *  pattern (padding 8/14, font 13, radius 8, no flex-1 stretch).
+             *  Confirm keeps a red background on purpose — withdrawal is
+             *  destructive — but matches the primary CTA's shape and weight. */}
+            <div className="flex items-center justify-end gap-2 pt-1">
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="flex-1 agent-btn-ghost-bordered"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--agent-text-secondary, #4b5563)",
+                  background: "transparent",
+                  border: "0.5px solid var(--agent-border-default, rgba(0,0,0,0.12))",
+                  cursor: "pointer",
+                }}
+                className="hover:bg-black/[0.04]"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={confirmWithdrawal}
                 disabled={!reason || (reason === "Other" && !customReason.trim())}
-                className="flex-1 py-2 text-sm font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: "var(--agent-danger, #C73E3E)",
+                  border: "none",
+                  cursor: (!reason || (reason === "Other" && !customReason.trim())) ? "default" : "pointer",
+                  opacity: (!reason || (reason === "Other" && !customReason.trim())) ? 0.5 : 1,
+                  minWidth: 150,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 Confirm withdrawal
               </button>

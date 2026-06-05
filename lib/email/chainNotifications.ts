@@ -647,7 +647,18 @@ export async function maybeEnqueueCelebration(transactionId: string): Promise<vo
   });
   if (chain?.celebrationSentAt != null) return;
 
-  // Check all claimed links have VM20 or PM27 complete
+  // PHASE 1 4d (b)-CLASS — chain celebration trigger. Decides whether
+  // to fire celebration emails to every chain mate when the full chain
+  // completes. Cross-tx Prisma include can't reference parent
+  // activeBuyerRoundId; under-scoping would let an archived round's
+  // VM20/PM27 trigger the celebration on the new round's still-
+  // active file. The relist precondition (exchangedAt IS NULL) makes
+  // this impossible in practice — a VM20/PM27 file has already
+  // exchanged and can't be relisted — but per the user's rule for
+  // (b)-class detection surfaces, defence-in-depth is mandatory.
+  // Restructured as two-step: fetch claimed links + tx ids, then a
+  // single raw SQL with the per-tx OR clause that the Prisma cross-
+  // tx limitation prevents.
   const claimedLinks = await prisma.chainLink.findMany({
     where: { chainId, inviteStatus: "CLAIMED", transactionId: { not: null } },
     select: {
@@ -655,13 +666,8 @@ export async function maybeEnqueueCelebration(transactionId: string): Promise<vo
       claimedBy: { select: { email: true } },
       transaction: {
         select: {
-          milestoneCompletions: {
-            where: {
-              state: "complete",
-              milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
-            },
-            select: { id: true },
-          },
+          id: true,
+          activeBuyerRoundId: true,
         },
       },
     },
@@ -669,8 +675,29 @@ export async function maybeEnqueueCelebration(transactionId: string): Promise<vo
 
   if (claimedLinks.length === 0) return;
 
+  const linkTxIds = claimedLinks
+    .map((l) => l.transaction?.id)
+    .filter((x): x is string => typeof x === "string");
+  const completedTxIds = new Set<string>();
+  if (linkTxIds.length > 0) {
+    const rows = await prisma.$queryRaw<{ transactionId: string }[]>`
+      SELECT DISTINCT mc."transactionId"
+      FROM "MilestoneCompletion" mc
+      JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
+      JOIN "MilestoneDefinition" md ON mc."milestoneDefinitionId" = md.id
+      WHERE mc."transactionId" = ANY(${linkTxIds})
+        AND mc.state = 'complete'
+        AND md.code IN ('VM20', 'PM27')
+        AND (
+          mc."buyerRoundId" IS NULL
+          OR mc."buyerRoundId" = pt."activeBuyerRoundId"
+        )
+    `;
+    for (const r of rows) completedTxIds.add(r.transactionId);
+  }
+
   const allCompleted = claimedLinks.every(
-    (l) => (l.transaction?.milestoneCompletions?.length ?? 0) > 0,
+    (l) => (l.transaction?.id ? completedTxIds.has(l.transaction.id) : false),
   );
   if (!allCompleted) return;
 

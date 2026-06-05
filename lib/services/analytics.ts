@@ -2,9 +2,24 @@ import { prisma } from "@/lib/prisma";
 import { calculateOurFee } from "@/lib/services/fees";
 import type { AgentVisibility } from "./agent";
 import type { Prisma, TransactionStatus } from "@prisma/client";
+import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 
 // "draft" exists in the DB enum but may not be in the generated Prisma client yet
 const DRAFT = "draft" as TransactionStatus;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
+//
+// Every cross-tx milestoneCompletions filter in this file is augmented
+// with `OR: roundScopedOR(activeRoundIds)`. The per-function
+// `loadActiveRoundIds(txWhere)` pre-load establishes the set of valid
+// active round ids; the OR clause scopes each MC nested filter to
+// (file-level vendor rows) UNION (rows whose buyerRoundId matches an
+// in-scope tx's activeBuyerRoundId).
+//
+// Per-site comment `// PHASE 1 4d (a)-CLASS resolved` is retained on the
+// lines where the OR was added so a grep finds every restructured site.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Shared visibility where ───────────────────────────────────────────────────
 
@@ -51,13 +66,14 @@ export type AnalyticsData = {
 };
 
 export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
+  // Phase-3 (a)-CLASS resolved: pre-load active round ids for the cross-tx
+  // MC include below.
+  const txWhere = { agencyId, status: { not: "draft" as const }, isMigrated: false };
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
   const [transactions, exchangeDefs] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      // isMigrated: false → exclude admin-migrated historical files from
-      // averages. Their milestone completedAt timestamps are user-supplied
-      // estimates, not real-time signals; averaging them against organic
-      // files pollutes "average days to exchange" etc.
-      where: { agencyId, status: { not: "draft" }, isMigrated: false },
+      where: txWhere,
       select: {
         id: true,
         status: true,
@@ -68,8 +84,9 @@ export async function getAnalytics(agencyId: string): Promise<AnalyticsData> {
         agency: { select: { feeTier: true, legacyOutsourcedFeePence: true } },
         agentFeeAmount: true,
         agentFeePercent: true,
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
-          where: { state: "complete" },
+          where: { state: "complete", OR: roundScopedOR(activeRoundIds) },
           select: { milestoneDefinitionId: true, completedAt: true },
         },
       },
@@ -291,20 +308,24 @@ export async function getMonthlyActivity(vis: AgentVisibility): Promise<MonthlyA
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
+  // Phase-3 (a)-CLASS resolved: pre-load active round ids for the cross-tx MC findMany below.
+  const trendTxWhere = { ...txWhere, status: { not: "draft" as const }, isMigrated: false };
+  const activeRoundIds = await loadActiveRoundIds(trendTxWhere);
+
   const [txsInWindow, exchangesInWindow] = await Promise.all([
     prisma.propertyTransaction.findMany({
-      // isMigrated:false — monthly created/exchanged trend must reflect
-      // activity in THIS system, not backdated historical data.
-      where: { ...txWhere, status: { not: "draft" }, isMigrated: false, createdAt: { gte: windowStart } },
+      where: { ...trendTxWhere, createdAt: { gte: windowStart } },
       select: { createdAt: true },
     }),
+    // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
     prisma.milestoneCompletion.findMany({
       where: {
-        transaction: { ...txWhere, status: { not: "draft" }, isMigrated: false },
+        transaction: trendTxWhere,
         milestoneDefinitionId: { in: exchangeDefIds },
         state: "complete",
         reconciledAtClaim: false,
         completedAt: { gte: windowStart, lt: windowEnd },
+        OR: roundScopedOR(activeRoundIds),
       },
       select: { completedAt: true },
     }),
@@ -338,15 +359,20 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
+  // Phase-3 (a)-CLASS resolved: pre-load active round ids for the cross-tx MC filter below.
+  const stTxWhere = { ...txWhere, isMigrated: false };
+  const activeRoundIds = await loadActiveRoundIds(stTxWhere);
+
   const txs = await prisma.propertyTransaction.findMany({
     where: {
-      ...txWhere,
-      // Migrated files have user-supplied completedAt estimates; excluding
-      // them keeps per-solicitor avgDaysToExchange honest.
-      isMigrated: false,
+      ...stTxWhere,
       OR: [{ vendorSolicitorFirmId: { not: null } }, { purchaserSolicitorFirmId: { not: null } }],
       milestoneCompletions: {
-        some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
+        some: {
+          milestoneDefinitionId: { in: exchangeDefIds },
+          state: "complete",
+          OR: roundScopedOR(activeRoundIds),
+        },
       },
     },
     select: {
@@ -354,7 +380,11 @@ export async function getSolicitorExchangeStats(vis: AgentVisibility): Promise<S
       vendorSolicitorFirm:    { select: { id: true, name: true } },
       purchaserSolicitorFirm: { select: { id: true, name: true } },
       milestoneCompletions: {
-        where: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
+        where: {
+          milestoneDefinitionId: { in: exchangeDefIds },
+          state: "complete",
+          OR: roundScopedOR(activeRoundIds),
+        },
         select: { completedAt: true },
         orderBy: { completedAt: "asc" },
         take: 1,
@@ -613,12 +643,14 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
   const [overdueChaseTasks, stalledTxs, missingEventDateTxs] = await Promise.all([
-    // Pending chase tasks past their due date, on active files only
+    // Phase-3: pre-load active round ids for the cross-tx CT + MC filters below.
+    // (Defined OUTSIDE the array via an IIFE so it sequences before these calls.)
     prisma.chaseTask.findMany({
       where: {
         status: "pending",
         dueDate: { lt: now },
         transaction: { ...txWhere, status: "active" },
+        OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere, status: "active" as const })),
       },
       select: { transactionId: true },
     }),
@@ -628,12 +660,14 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
         ...txWhere,
         status: "active",
         createdAt: { lte: sevenDaysAgo },
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
-          none: { state: "complete", completedAt: { gte: fourteenDaysAgo } },
+          none: { state: "complete", completedAt: { gte: fourteenDaysAgo }, OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere, status: "active" as const })) },
         },
         NOT: {
-          milestoneCompletions: {
-            some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete" },
+          // PHASE 1 4d (a)-CLASS — see file banner.
+        milestoneCompletions: {
+            some: { milestoneDefinitionId: { in: exchangeDefIds }, state: "complete", OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere, status: "active" as const })) },
           },
         },
       },
@@ -644,11 +678,13 @@ export async function getFilesAtRisk(vis: AgentVisibility): Promise<FilesAtRiskD
       where: {
         ...txWhere,
         status: "active",
+        // PHASE 1 4d (a)-CLASS — see file banner.
         milestoneCompletions: {
           some: {
             state: "complete",
             eventDate: null,
             milestoneDefinition: { eventDateRequired: true },
+            OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere, status: "active" as const })),
           },
         },
       },

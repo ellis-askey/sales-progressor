@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "purchaseType is required (mortgage, cash_buyer, or cash_from_proceeds)" }, { status: 400 });
     }
 
-    let result: { transactionId: string };
+    let result: { transactionId: string; activeBuyerRoundId: string };
     try {
       result = await prisma.$transaction(async (tx) => {
         // Payments: refuse new files if the agency has an overdue failed
@@ -169,6 +169,23 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Phase 1: create Round 1 and stamp activeBuyerRoundId inside the
+      // same $transaction. Claim is a transaction-create path; the
+      // createTransaction service wires this for the standard flow but
+      // this route uses inline prisma writes — mirror the wiring here.
+      const round = await tx.buyerRound.create({
+        data: {
+          transactionId: newTxn.id,
+          roundNumber: 1,
+          status: "active",
+          purchasePrice: null,
+          purchaserSolicitorFirmId: null,
+          purchaserSolicitorContactId: null,
+          brokerFirmId: null,
+          brokerContactId: null,
+        },
+      });
+
       await tx.chainLink.update({
         where: { id: link.id },
         data: {
@@ -181,10 +198,10 @@ export async function POST(req: NextRequest) {
 
       await tx.propertyTransaction.update({
         where: { id: newTxn.id },
-        data: { chainLinkId: link.id },
+        data: { chainLinkId: link.id, activeBuyerRoundId: round.id },
       });
 
-      return { transactionId: newTxn.id };
+      return { transactionId: newTxn.id, activeBuyerRoundId: round.id };
       });
     } catch (err) {
       if (err instanceof PaymentBlockedError) {
@@ -196,12 +213,14 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    // Initialize milestone completions outside the transaction (uses global prisma client)
+    // Initialize milestone completions outside the transaction (uses global prisma client).
+    // Pass activeBuyerRoundId so PM-side rows are round-stamped per the Phase 0/1 attribution rule.
     await initializeMilestoneCompletions(
       result.transactionId,
       tenure as Tenure,
       purchaseType as PurchaseType,
       session.user.id,
+      result.activeBuyerRoundId,
     );
 
     // Apply claim-time reconciliation if agent selected "Already in progress" on the

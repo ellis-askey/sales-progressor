@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sales Progressor - Feature and functionality reference</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+  @page :first { margin: 0; }
+  html { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1f2937; font-size: 10.5pt; line-height: 1.45; }
+  body { margin: 0; }
+
+  /* Title page */
+  .cover {
+    height: 297mm; width: 210mm; box-sizing: border-box;
+    padding: 48mm 24mm; background: linear-gradient(180deg, #1e2d4a 0%, #182338 100%);
+    color: #f7f3ed; page-break-after: always;
+    display: flex; flex-direction: column;
+  }
+  .cover .brand { font-size: 11pt; letter-spacing: 0.16em; text-transform: uppercase; color: #ff8d72; font-weight: 600; }
+  .cover h1 { font-size: 34pt; line-height: 1.1; margin: 24pt 0 12pt; font-weight: 700; }
+  .cover .subtitle { font-size: 14pt; color: #cbd5e1; margin-bottom: 64pt; }
+  .cover .meta { margin-top: auto; font-size: 10pt; color: #94a3b8; }
+  .cover .meta strong { color: #f7f3ed; font-weight: 600; }
+  .cover .meta .row { margin: 4pt 0; }
+
+  /* Body */
+  h1.section { font-size: 22pt; margin: 0 0 6pt; color: #0f172a; }
+  h1.section + p.lead { font-size: 11pt; color: #475569; margin: 0 0 16pt; }
+  .section-break { page-break-before: always; }
+
+  h2 { font-size: 15pt; margin: 22pt 0 6pt; color: #1e2d4a; border-bottom: 1px solid #e2e8f0; padding-bottom: 4pt; }
+  h3 { font-size: 12pt; margin: 14pt 0 4pt; color: #1e2d4a; }
+  h4 { font-size: 10.5pt; margin: 10pt 0 4pt; color: #334155; }
+
+  p { margin: 4pt 0 8pt; }
+  ul, ol { margin: 4pt 0 8pt; padding-left: 18pt; }
+  li { margin: 2pt 0; }
+  code { font-family: "SF Mono", Consolas, monospace; background: #f1f5f9; padding: 0.5pt 4pt; border-radius: 3pt; font-size: 9pt; color: #334155; }
+  .path { font-family: "SF Mono", Consolas, monospace; font-size: 8.5pt; color: #64748b; }
+
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 12pt; font-size: 9pt; }
+  th { background: #f1f5f9; text-align: left; padding: 5pt 7pt; border-bottom: 1.5px solid #cbd5e1; color: #0f172a; font-weight: 600; vertical-align: top; }
+  td { padding: 5pt 7pt; border-bottom: 0.5px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  .callout { border-left: 3px solid #ff8d72; background: #fff8f3; padding: 8pt 12pt; margin: 10pt 0; border-radius: 0 4pt 4pt 0; font-size: 9.5pt; }
+  .callout strong { color: #c2410c; }
+
+  .note { font-size: 9pt; color: #64748b; font-style: italic; margin-top: 4pt; }
+
+  /* TOC */
+  .toc { padding: 14pt 0; }
+  .toc h1 { font-size: 22pt; margin: 0 0 14pt; color: #0f172a; }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li { font-size: 10.5pt; margin: 5pt 0; padding-left: 0; }
+  .toc li.l1 { font-weight: 600; margin-top: 10pt; color: #1e2d4a; }
+  .toc li.l2 { margin-left: 16pt; color: #475569; }
+
+  .pill { display: inline-block; padding: 1pt 6pt; border-radius: 10pt; font-size: 8pt; font-weight: 600; }
+  .pill-now { background: #dcfce7; color: #166534; }
+  .pill-future { background: #fef3c7; color: #92400e; }
+  .pill-internal { background: #e0e7ff; color: #3730a3; }
+
+  table.compact td, table.compact th { padding: 3pt 5pt; font-size: 8.5pt; }
+
+  /* Avoid splitting key blocks */
+  h2, h3, h4 { break-after: avoid; }
+  table { break-inside: avoid-page; }
+  .callout { break-inside: avoid; }
+
+  .footer-note { font-size: 8.5pt; color: #94a3b8; margin-top: 20pt; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ============== COVER ============== -->
+<div class="cover">
+  <div class="brand">Sales Progressor</div>
+  <h1>Feature and functionality reference</h1>
+  <div class="subtitle">A complete capabilities inventory of what agents, sellers, and buyers get from the app.</div>
+  <div class="meta">
+    <div class="row"><strong>Date</strong>&nbsp; 3 June 2026</div>
+    <div class="row"><strong>Reflects commit</strong>&nbsp; <code>3dea586</code></div>
+    <div class="row"><strong>Source</strong>&nbsp; audited from the codebase, not from product copy</div>
+  </div>
+</div>
+
+<!-- ============== TOC ============== -->
+<div class="toc section-break">
+  <h1>Contents</h1>
+  <ol>
+    <li class="l1">How to read this document</li>
+    <li class="l1">Part 1 - What each audience gets</li>
+    <li class="l2">1.1 Agents</li>
+    <li class="l2">1.2 Sellers</li>
+    <li class="l2">1.3 Buyers</li>
+    <li class="l1">Part 2 - Cross-cutting capabilities</li>
+    <li class="l2">2.1 Emails sent</li>
+    <li class="l2">2.2 Reminders and notifications</li>
+    <li class="l2">2.3 The sale lifecycle and its steps</li>
+    <li class="l2">2.4 The client portal</li>
+    <li class="l2">2.5 Chain handling, invites, and claiming</li>
+    <li class="l2">2.6 Billing and charging</li>
+    <li class="l2">2.7 Accounts and access</li>
+    <li class="l2">2.8 Data, integrations, and app extras</li>
+    <li class="l1">Appendix A - Internal roles (admin, sales progressor, super admin)</li>
+    <li class="l1">Appendix B - Needs verifying</li>
+  </ol>
+</div>
+
+<!-- ============== HOW TO READ ============== -->
+<div class="section-break">
+<h1 class="section">How to read this document</h1>
+<p class="lead">A capabilities inventory built by reading the salesprogressor codebase, not by paraphrasing the marketing site.</p>
+
+<p>The vocabulary is the product's own. A piece of work in progress is a <strong>sale</strong> or a <strong>file</strong>, never a "transaction" (the code uses that word but the customers do not). The discrete pieces of progress on a sale are <strong>steps</strong>, never "milestones" (the code uses that word too). The product is <strong>Sales Progressor</strong> or <strong>the app</strong>, never a "platform".</p>
+
+<p>Prices come from <code>lib/billing/fee.ts</code>. Sales Progressor is not VAT registered today, so every fee quoted is the actual headline price. Charging fires on <strong>exchange</strong>, not on completion.</p>
+
+<p>Two callouts are used through the document:</p>
+<ul>
+  <li><span class="pill pill-now">SHIPS NOW</span> The capability is live in the codebase at commit <code>3dea586</code>.</li>
+  <li><span class="pill pill-future">PLANNED</span> The schema or scaffolding exists but the capability is not yet wired through to users.</li>
+  <li><span class="pill pill-internal">INTERNAL</span> The capability is for Sales Progressor's own staff, not agents or clients.</li>
+</ul>
+
+<p>The end of the document lists items the audit surfaced but could not fully confirm from the code. Treat that appendix as the to-do list for the next pass.</p>
+</div>
+
+<!-- ================================================== -->
+<!-- ============== PART 1: AUDIENCES ================= -->
+<!-- ================================================== -->
+
+<div class="section-break">
+<h1 class="section">Part 1 - What each audience gets</h1>
+<p class="lead">Three audiences run through the product. Agents work in the full app; sellers and buyers experience it through the portal and the emails.</p>
+
+<!-- ============== AGENTS ============== -->
+<h2>1.1 Agents</h2>
+
+<p>Agents are customer-agency staff: <strong>directors</strong> and <strong>negotiators</strong> at an estate agency that bought into the app. They sign in at <code>portal.thesalesprogressor.co.uk</code> and land in the agent app at <code>/agent/*</code>. The agent app is the full product surface.</p>
+
+<h3>Sidebar nav</h3>
+<p>Every agent gets the same primary menu (some items are role gated):</p>
+<table>
+  <tr><th style="width: 22%">Menu item</th><th style="width: 22%">Route</th><th>What it does</th></tr>
+  <tr><td>Hub</td><td><code>/agent/hub</code></td><td>The home page. Pipeline health, what needs attention today, momentum.</td></tr>
+  <tr><td>Reminders</td><td><code>/agent/work-queue</code></td><td>The day's chase list. Hidden for the internal admin role.</td></tr>
+  <tr><td>Completions</td><td><code>/agent/completions</code></td><td>Exchanged files tracking through to completion day.</td></tr>
+  <tr><td>To-Do</td><td><code>/agent/to-do</code></td><td>Manual tasks the agent or the progressor team have queued.</td></tr>
+  <tr><td>Updates</td><td><code>/agent/comms</code></td><td>A feed of every step confirmation across the pipeline.</td></tr>
+  <tr><td>Auto emails</td><td><code>/agent/automated-emails</code></td><td>Pending, sent, errored, and forecast client chase emails.</td></tr>
+  <tr><td>All Files / My Files</td><td><code>/agent/transactions</code></td><td>The full list of sales, with status tabs and time-based filters.</td></tr>
+  <tr><td>Analytics</td><td><code>/agent/analytics</code></td><td>KPI dashboard and pipeline charts.</td></tr>
+  <tr><td>Partners</td><td><code>/agent/partners</code></td><td>Solicitor directory and broker settings.</td></tr>
+  <tr><td>Account</td><td><code>/agent/account/profile</code></td><td>Name, email, notification preferences.</td></tr>
+  <tr><td>Billing</td><td><code>/agent/account/billing</code></td><td>Director only. Payment method, terms acceptance, invoice history.</td></tr>
+</table>
+
+<h3>The Hub <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>The agent's home page assembles a daily snapshot of the business. The strip across the top shows four pipeline-health figures:</p>
+<ul>
+  <li><strong>Active files</strong> - count of sales in the active state.</li>
+  <li><strong>Exchanging soon</strong> - sales whose expected exchange date falls in the next 30 days.</li>
+  <li><strong>Need attention</strong> - the count of unique files with reminders that are due today, overdue, or escalated. The figure turns red when any reminder is escalated, amber otherwise.</li>
+  <li><strong>Pipeline value</strong> - the sum of purchase prices across all active sales.</li>
+</ul>
+<p>Beneath that strip, the hub renders:</p>
+<ul>
+  <li>A <strong>Needs your attention</strong> card listing up to three of the day's most urgent reminders.</li>
+  <li>A <strong>Coming up</strong> strip: how many sales are exchanging this week, completing this week, and the value closing this month.</li>
+  <li>A <strong>Stalled files</strong> warning: how many files have not seen a step completion in 14 or more days.</li>
+  <li>A <strong>Momentum ring</strong> showing pace versus the previous month.</li>
+  <li>An <strong>Exchange forecast</strong> showing exchange volume across the next four weeks.</li>
+  <li>A <strong>Service split</strong> donut: how many of the active files are self managed versus outsourced to the Sales Progressor team.</li>
+  <li>A <strong>Recent activity</strong> feed of the last few step confirmations.</li>
+  <li>A <strong>Diary</strong> showing today's expected exchanges and completions.</li>
+  <li>An <strong>Unassigned files</strong> widget for directors (files without an owner).</li>
+  <li>An <strong>Expired holds</strong> widget that surfaces on-hold files past their planned end date.</li>
+</ul>
+<p>An empty-state variant appears when the agent has no active sales.</p>
+
+<h3>All Files / My Files <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>The same route renders one of two titles depending on visibility. Directors and admin see <strong>All Files</strong> across the agency; negotiators see <strong>My Files</strong> scoped to their own sales unless their director has flipped the <code>canViewAllFiles</code> flag. The list supports:</p>
+<ul>
+  <li>Status tabs: active, on hold, completed, withdrawn, draft.</li>
+  <li>Time-based filters: exchanging this week, completing this week, closing this month, exchanging in the next 30 days (the hub strip cards deep-link into these filters).</li>
+  <li>Free-text search across property address.</li>
+  <li>Columns: address, progress percentage, expected exchange date, owner, status.</li>
+  <li>An <strong>Exchange forecast</strong> month-pill strip across the top.</li>
+  <li>A <strong>New sale</strong> call to action.</li>
+</ul>
+
+<h3>The sale detail page <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>Every individual sale gets its own page at <code>/agent/transactions/[id]</code> with a header strip, a sidebar, and a tabbed body.</p>
+<p>The <strong>header</strong> shows the property address, the agency, the sale status (active, on hold, completed, withdrawn), the tenure (freehold or leasehold), the purchase type (mortgage, cash buyer, cash from proceeds), and a service-type pill (Self managed or With progressor). Admins can click the service-type pill to flip a file mid-flight; the pill becomes interactive only for them. A back link returns to the file list.</p>
+<p>The <strong>sidebar</strong> holds:</p>
+<ul>
+  <li>Purchase price, tenure, purchase type.</li>
+  <li>Predicted completion date.</li>
+  <li>Agent fee, referral fee, broker referral fee.</li>
+  <li>Key dates strip.</li>
+  <li>A <strong>file time tracker</strong> showing how many hours the agent and the progressor team have spent on this file.</li>
+  <li>The <strong>next step</strong> widget.</li>
+  <li>Exchange and completion status badges.</li>
+</ul>
+<p>The body is tabbed:</p>
+<ul>
+  <li><strong>Overview</strong> - contacts (vendor, purchaser, solicitors, broker), next step, active reminders, recent activity, the property chain, risk score, property intelligence, and internal notes.</li>
+  <li><strong>Steps</strong> - vendor and purchaser step panels side by side. Each row shows the step's friendly name, status (complete, available, locked, not required), the date it was completed, grace days remaining if a reminder is attached, and a client-chase state chip if the system is chasing a client on this step.</li>
+  <li><strong>Reminders</strong> - the list of reminder rules attached to this file, their due dates, status, snoozed state, chase task counts, and controls for marking done, snoozing, waking, or chasing. A pause toggle stops automated client emails for this file without affecting the agent reminder.</li>
+  <li><strong>To-Do</strong> - manual tasks specific to this file, including "ask the progressor" requests from agents to the internal team.</li>
+  <li><strong>Activity</strong> - a timeline of step completions, internal notes, contact edits, and automated email logs.</li>
+</ul>
+
+<h3>Reminders (the work queue) <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>The work queue is what an agent opens first thing in the morning. It groups the day's reminders by urgency:</p>
+<ul>
+  <li><strong>Escalated</strong> in red - the system has chased the limit and not heard back.</li>
+  <li><strong>Overdue</strong> in orange.</li>
+  <li><strong>Due today</strong> in amber.</li>
+  <li><strong>Coming up</strong> across the next few business days.</li>
+</ul>
+<p>Each row shows the property address, the reminder name, the next due date, the count of times this has been chased, and a fallback-kind chip if the automated client chase could not run (for example the contact has no email on file, or the file has automated chases paused). From the row the agent can mark done, snooze, wake, or record a chase. A header strip shows stat pills (X overdue, Y due today, Z coming up).</p>
+
+<h3>Completions <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>After exchange a file leaves the day-to-day work queue and lives in Completions. The page groups exchanged files by completion urgency: overdue, this week, next week, later, no date set. Each row carries the address, completion date, purchase price, the fees billed on this file, and both solicitor firms. A summary line totals the file count, fees, and total sale value.</p>
+
+<h3>Updates <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>An app-wide feed of every step that has been confirmed. Grouped by day (Today, Yesterday, This week, Last week, and so on), then by file. Each row shows the date and time, the step name, the side (Sale or Purchase), who confirmed it, and a portal-confirmation badge when the client did the confirming. A filter toggle switches between "All steps" and "Client confirmations only".</p>
+
+<h3>Auto emails <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>A full feed of the automated client chase system. The page is scoped per role and shows four buckets:</p>
+<ul>
+  <li><strong>Pending</strong> - emails queued to send.</li>
+  <li><strong>Sent</strong> - the last 30 days of delivered chases.</li>
+  <li><strong>Errored</strong> - sends that failed (bounced, no email on file, etc.).</li>
+  <li><strong>Upcoming forecast</strong> - the next 14 days of expected chases.</li>
+</ul>
+<p>For each row the agent sees the file, the email status, the recipient, the send time, and the error reason if any. Directors can scope to "mine only" or the whole agency.</p>
+
+<h3>To-Do <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>Manual tasks separated into:</p>
+<ul>
+  <li><strong>My to-dos</strong> - tasks the agent has created for themselves.</li>
+  <li><strong>With progressor / From agents</strong> - the cross-team request inbox. An agent on an outsourced file can flag a question to the progressor team and the progressor sees it here.</li>
+  <li><strong>Overdue</strong> - the running list of things past their due date.</li>
+</ul>
+
+<h3>Partners <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>Two halves to one page:</p>
+<ul>
+  <li><strong>Solicitor directory</strong> - every solicitor firm contacted on an active file, grouped by firm, with contact details, active file count, referral count, and chips to jump straight to the file.</li>
+  <li><strong>Broker settings</strong> (director only) - preferred mortgage broker firm, contact, website, referral fee; plus a recommended-solicitors list with default referral fee fields.</li>
+</ul>
+
+<h3>Analytics <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>KPI cards (files created, exchanged, completed, completion rate, average time to exchange, average fees), an optional team-member filter for directors, and charts for monthly activity, KPI trends, files at risk (stalled 14 or more days), and referral income broken down by solicitor and broker.</p>
+
+<h3>New sale <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>A guided form at <code>/agent/transactions/new-v2</code>. The agent enters:</p>
+<ul>
+  <li>Property address.</li>
+  <li>Purchase price.</li>
+  <li>Tenure (freehold or leasehold).</li>
+  <li>Purchase type (mortgage, cash buyer, cash from proceeds).</li>
+  <li>Share of freehold flag.</li>
+  <li>Vendor and purchaser solicitor selections.</li>
+  <li>Mortgage broker (if applicable).</li>
+  <li>Service type (self managed or outsourced to Sales Progressor).</li>
+  <li>Notes.</li>
+</ul>
+<p>If outsourced is picked the form adds an assignment step. The director-level billing gate blocks the form if the agency's trial has ended and no payment method is on file. Internal staff bypass this gate.</p>
+
+<h3>Account and notifications <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>At <code>/agent/account/profile</code> an agent can change their name, email, and email-notification preferences (weekly brief, chain notifications, and similar opt-outs).</p>
+
+<h3>Director-only surfaces <span class="pill pill-now">SHIPS NOW</span></h3>
+<p>Directors get extra controls that negotiators do not see:</p>
+<ul>
+  <li><strong>Billing</strong> at <code>/agent/account/billing</code>. Payment-method capture via Stripe, terms acceptance, the current month's running total, this month's trial savings, pending credits, and a history of issued invoices.</li>
+  <li><strong>Automation settings</strong> at <code>/agent/settings/automation</code>. The master toggle that switches the automated client chase on or off for the agency, plus per-step grace days and repeat-every-days. Hard-coded ceilings of two chases maximum and 14 days of silence cap the engine.</li>
+  <li><strong>Team management</strong> at <code>/agent/account/team</code>. Invite negotiators, manage their <code>canViewAllFiles</code> flag, resend or cancel pending invites.</li>
+  <li><strong>Mortgage broker and recommended solicitors</strong> settings on the Partners page.</li>
+</ul>
+
+<!-- ============== SELLERS ============== -->
+<h2 style="margin-top: 28pt">1.2 Sellers</h2>
+
+<p>Sellers (vendors in the code) do not get a full Sales Progressor account. They access the app two ways: through their <strong>portal</strong> link, and through the <strong>emails</strong> the app sends them.</p>
+
+<h3>What the seller portal gives them <span class="pill pill-now">SHIPS NOW</span></h3>
+
+<p>The portal lives at <code>/portal/[token]</code>. The token is the seller's contact-level token (no password). It is mobile first, sized for a phone, and installable as a progressive web app.</p>
+
+<table>
+  <tr><th style="width: 24%">Tab</th><th>What the seller sees and can do</th></tr>
+  <tr><td><strong>Home</strong></td><td>Overall progress ring; the next action card (the highest-priority step they can confirm); a "key dates" panel; a "recent activity" snapshot; contextual pro tips; a feedback widget; and a banner once the file has exchanged or completed.</td></tr>
+  <tr><td><strong>Progress</strong></td><td>The full step-by-step checklist grouped by phase. Each row shows status (done, pending, not applicable), the friendly label, who is responsible (you, your solicitor, the agent), the typical duration, the date completed if done, and any event date that has been recorded. Both sides of the chain are visible labelled "Sale" / "Purchase" so each side sees the whole picture.</td></tr>
+  <tr><td><strong>Updates</strong></td><td>A timeline of activity grouped by date: step confirmations and outbound messages from the agent (each carrying a method badge: email, phone, SMS, voicemail, WhatsApp, post).</td></tr>
+  <tr><td><strong>Respond</strong></td><td>The deep-link destination from a chase email. Shows the steps that are currently being waited on. For each row the seller can tap "Yes this is done", "Tell us when" (set an expected date), or "Leave a note" (free text to the agent).</td></tr>
+  <tr><td><strong>Exchange</strong></td><td>Appears once the file has exchanged. A vendor-specific pre-exchange checklist (post redirect, packing, cancelling direct debits), an exchange-day checklist (utility meter reads, keys/fobs/remotes, appliance manuals, service records, clearing the property), and post-exchange guidance (the solicitor's statement, mortgage redemption, capital-gains-tax pointers).</td></tr>
+  <tr><td><strong>Complete</strong></td><td>Appears once the file has completed. Vendor-specific final checklist and what-happens-next guidance.</td></tr>
+</table>
+
+<h3>Actions a seller can take from the portal</h3>
+<ul>
+  <li><strong>Confirm a step.</strong> The portal shows a confirm button for steps that are available to the seller. The portal cannot confirm the six agent-only steps (VM18, PM25, VM19, PM26, VM20, PM27).</li>
+  <li><strong>Set an expected date.</strong> When the agent does not yet know when a step will happen, the seller can supply one.</li>
+  <li><strong>Leave a note.</strong> Free text addressed to the agent. Lands in the agent's notifications bell and on the file's activity feed.</li>
+  <li><strong>Upload a survey report.</strong> Up to three files at a time, up to 10MB each, PDF/JPG/PNG/DOCX. Stored to the file in Supabase storage.</li>
+  <li><strong>Explain an email.</strong> The seller can paste a confusing email from their solicitor and the app returns a four-section plain-English breakdown (what they are saying, what you need to do, deadlines, things to flag). Rate limited to three explanations per contact per hour.</li>
+  <li><strong>Install the portal as a PWA.</strong> Web push opt-in is supported.</li>
+  <li><strong>Unsubscribe.</strong> Every chase email carries an unsubscribe link. Clicking it stops chase emails and weekly updates but does not block the portal itself.</li>
+</ul>
+
+<h3>What a seller receives by email <span class="pill pill-now">SHIPS NOW</span></h3>
+<table>
+  <tr><th>Email</th><th>When</th><th>What it does</th></tr>
+  <tr><td>Portal invite</td><td>Agent presses "Send invite" against the contact row</td><td>Personal greeting, "track your sale online", a single button to the portal home.</td></tr>
+  <tr><td>Step confirmation</td><td>When the other side of the file confirms a step</td><td>"Your solicitor has issued the draft contract pack", and so on. Plain-English description plus context.</td></tr>
+  <tr><td>Client chase digest</td><td>Daily 08:30 cron when one or more steps are sitting on the seller</td><td>Subject is address first. Lists the items waiting on the seller. CTA is a single link to the Respond page in the portal.</td></tr>
+  <tr><td>Client weekly update</td><td>Saturdays 09:00</td><td>A status email if no recent activity has happened (gentle reassurance).</td></tr>
+  <tr><td>Exchange celebration</td><td>VM19 confirmed (first time per file)</td><td>"Contracts exchanged" with the next-steps overview.</td></tr>
+  <tr><td>Completion survey</td><td>Fire-and-forget after VM20 is confirmed</td><td>Short feedback survey.</td></tr>
+  <tr><td>Withdrawal cascade</td><td>If the file or a chain partner withdraws</td><td>The agent sees this; the seller is told via the agent.</td></tr>
+</table>
+<p class="note">Full descriptions of these emails appear in section 2.1.</p>
+
+<h3>What sellers do NOT have</h3>
+<ul>
+  <li>No login. Token in URL only.</li>
+  <li>No editing of their own name, phone, or solicitor contact (these are agent-side fields).</li>
+  <li>No direct messaging into the portal beyond "leave a note" on a chase response.</li>
+  <li>No download UI for documents they have uploaded (those go through the agent).</li>
+</ul>
+
+<!-- ============== BUYERS ============== -->
+<h2 style="margin-top: 28pt">1.3 Buyers</h2>
+
+<p>Buyers (purchasers in the code) use the same portal surface as sellers, with role-specific copy and a different set of steps. The differences are not cosmetic: the buyer's process is genuinely different.</p>
+
+<h3>How the buyer's portal differs <span class="pill pill-now">SHIPS NOW</span></h3>
+<ul>
+  <li><strong>Language</strong>: "Your purchase of..." instead of "Your sale of...". Tips and checklists rewritten throughout.</li>
+  <li><strong>Steps</strong>: the buyer follows PM1 through PM27 (27 steps), versus the seller's 20.</li>
+  <li><strong>Mortgage-related steps</strong>: PM5 (mortgage application), PM6 (lender valuation), PM11 (mortgage offer) appear only for mortgage buyers. They auto-skip for cash buyers.</li>
+  <li><strong>Searches</strong>: PM8 (orders searches) and PM13 (receives search results) are purchaser-only.</li>
+  <li><strong>Survey</strong>: PM9 (book a Level 2 or 3 survey) is the only step in the whole system that the user can opt to mark as not required from the portal.</li>
+  <li><strong>Deposit</strong>: PM24 (transfer the deposit) auto-skips when the buyer's deposit comes from a concurrent sale's equity (cash from proceeds).</li>
+  <li><strong>Exchange and completion checklists</strong> are rewritten for the buyer: collect keys, take meter readings, buildings insurance, check items left, transferring the balance to the solicitor, broadband, change of address list, post redirect.</li>
+  <li><strong>Post-completion guidance</strong> differs: the buyer is told about Land Registry, Stamp Duty, council tax setup, and confirming insurance is active.</li>
+</ul>
+
+<h3>What buyers receive by email</h3>
+<p>The same set as sellers, with buyer-specific copy. The portal invite, step confirmations, chase digests, weekly updates, exchange celebration, and completion survey are all sent to both sides where applicable. The chase digest tone branches on whether the buyer is being asked to do something themselves ("Yes this is done") or whether the system is nudging on something sitting with their solicitor or lender ("Yes this is already done").</p>
+
+</div>
+
+<!-- ================================================== -->
+<!-- ============== PART 2: CROSS-CUTTING ============= -->
+<!-- ================================================== -->
+
+<div class="section-break">
+<h1 class="section">Part 2 - Cross-cutting capabilities</h1>
+<p class="lead">Capabilities that span audiences: emails, reminders, the step engine, the portal, chain handling, billing, accounts.</p>
+
+<!-- ============== EMAILS ============== -->
+<h2>2.1 Emails sent</h2>
+
+<p>Every outgoing email passes through SendGrid. Most lifecycle emails are written to an <code>OutboundEmailQueue</code> table first and a draining cron picks them up during business hours; a few high-priority emails send synchronously. The complete list of outgoing emails follows. Internal-staff-only emails are tagged <span class="pill pill-internal">INTERNAL</span> and full descriptions live in Appendix A.</p>
+
+<h3>Client and agent emails (the lifecycle set)</h3>
+<table>
+  <tr><th>Email</th><th>Trigger</th><th>Recipient</th><th>Purpose</th><th>Key content</th></tr>
+  <tr><td>Portal invite</td><td>Agent clicks "Send invite" against a contact on the file page</td><td>Vendor or purchaser</td><td>Get the client into the portal</td><td>Personal greeting, "track your {sale/purchase} online", button to portal home, agency name and contact details.</td></tr>
+  <tr><td>Step confirmation (single)</td><td>A step is confirmed on a file</td><td>Other contacts on the file (vendor, purchaser, solicitor, broker)</td><td>Let everyone on the file know progress has happened</td><td>Step name, plain-English description, next step context. One email per step.</td></tr>
+  <tr><td>Step confirmation (digest)</td><td>Two or more confirmations have stacked up for the same recipient inside the 3-minute drain window</td><td>Other contacts on the file</td><td>Avoid email spam when several steps tick in quick succession</td><td>Batched digest of all unsent confirmations.</td></tr>
+  <tr><td>Client chase digest</td><td>Cron at 08:30 UK Mon-Sat. Fires when steps are due and the contact has not engaged with the portal in 14 days</td><td>Vendor or purchaser</td><td>Move things along when the client is who's holding the file up</td><td>Subject is address first. Sectioned by tone: items the client needs to do (DIY) versus items the solicitor or lender is holding (NUDGE). Single CTA to the Respond page. Unsubscribe link.</td></tr>
+  <tr><td>Client weekly update</td><td>Cron at 09:00 UK Saturday</td><td>Vendor or purchaser</td><td>Reassure the client when nothing has moved recently</td><td>Short status summary. No CTA pressure.</td></tr>
+  <tr><td>Exchange celebration</td><td>VM19 or PM26 confirmed (once per file)</td><td>Vendor or purchaser on this file, plus the agents on chain-mate files</td><td>Tell everyone the contract has exchanged</td><td>"Contracts exchanged on {address}". For clients: next-steps overview. For chain mates: address of the file that exchanged.</td></tr>
+  <tr><td>Completion celebration</td><td>VM20 or PM27 confirmed</td><td>Same audience as above</td><td>Tell everyone the sale has completed</td><td>"Completed on {address}".</td></tr>
+  <tr><td>Whole-chain celebration</td><td>Every claimed link in the chain has hit completion</td><td>The agents on every claimed file in the chain (one each)</td><td>Mark the chain finishing</td><td>One-time per chain. Guarded against duplicates.</td></tr>
+  <tr><td>Completion survey</td><td>VM20 confirmed, fire-and-forget</td><td>Vendor and purchaser</td><td>Get feedback</td><td>Short feedback request.</td></tr>
+  <tr><td>Manual chase email</td><td>Agent sends from the file page</td><td>Any contact on the file</td><td>Agent-composed chase</td><td>Free-form, agent-authored.</td></tr>
+  <tr><td>Explain an email confirmation</td><td>Returned to the same browser session</td><td>Vendor or purchaser</td><td>Plain-English breakdown of solicitor jargon</td><td>Not an email send; rendered into the portal in a modal. Listed for completeness.</td></tr>
+</table>
+
+<h3>Chain notifications</h3>
+<table>
+  <tr><th>Email</th><th>Trigger</th><th>Recipient</th><th>Purpose</th><th>Key content</th></tr>
+  <tr><td>Chain invite</td><td>Agent presses "invite" against a stub link in a chain</td><td>The agent at the other end (the counter-party agency)</td><td>Pull the other agent into the chain</td><td>Originator's agency, property addresses on both sides, chain position, a Claim button and a Decline button. Token-signed URLs.</td></tr>
+  <tr><td>Chain invite decline notification</td><td>Counter-party clicks Decline</td><td>The originating agent</td><td>Tell the originator the other side has declined</td><td>Identity of the recipient who declined.</td></tr>
+  <tr><td>Chain exchange notification</td><td>VM19 or PM26 fires on any chain-linked file</td><td>Every claimed chain mate (agent)</td><td>Tell the chain that one file has exchanged</td><td>Address of the exchanged file.</td></tr>
+  <tr><td>Chain completion notification</td><td>VM20 or PM27 fires on a chain-linked file</td><td>Every claimed chain mate</td><td>Tell the chain that one file has completed</td><td>Address of the completed file.</td></tr>
+  <tr><td>Lost buyer</td><td>A file in the chain transitions to withdrawn</td><td>The nearest upward claimed chain mate</td><td>Tell the agent above that their buyer has pulled out</td><td>Address. Asks for a decision: remarket, wait, or withdraw.</td></tr>
+  <tr><td>Lost purchase</td><td>A file in the chain transitions to withdrawn</td><td>The nearest downward claimed chain mate</td><td>Tell the agent below that the property has fallen through</td><td>Address. Asks for a decision.</td></tr>
+  <tr><td>Asked to wait</td><td>The chain is being reformed after a fall-through</td><td>The next claimed mate</td><td>Confirm the client is willing to wait</td><td>Address. Asks for response.</td></tr>
+  <tr><td>Wait nudge</td><td>14 days after an Asked-to-wait with no response</td><td>The same recipient</td><td>One-shot reminder</td><td>"Still waiting on {address}?" Sent at most once per row.</td></tr>
+</table>
+
+<h3>Account and access emails</h3>
+<table>
+  <tr><th>Email</th><th>Trigger</th><th>Recipient</th><th>Purpose</th><th>Key content</th></tr>
+  <tr><td>Activation (day 1)</td><td>Sign-up completes via password or OAuth</td><td>The new user</td><td>Welcome and orientation</td><td>"Welcome to Sales Progressor", what to do next.</td></tr>
+  <tr><td>Claim welcome</td><td>A new user finishes signing up via a chain claim link</td><td>The new user</td><td>Welcome customised to the file they just claimed</td><td>Property-aware welcome. Deduplicated against the generic activation email via <code>welcomeEmailSentAt</code>.</td></tr>
+  <tr><td>Stuck on day 3</td><td>Retention sweep cron at 09:00 UK</td><td>The user</td><td>Re-engage users who haven't confirmed a step</td><td>Activation nudge.</td></tr>
+  <tr><td>Quiet at 30 days</td><td>Retention sweep cron</td><td>The user</td><td>Reach out to dormant accounts</td><td>Check-in.</td></tr>
+  <tr><td>First exchange</td><td>The agency's first ever exchange</td><td>The user who created the file</td><td>Celebrate the agency's first exchange</td><td>Congratulations message.</td></tr>
+  <tr><td>Send-to-us drop (21 days)</td><td>Retention sweep cron, outsourced files only</td><td>The user</td><td>Drag a stalled outsourced sign-up over the line</td><td>Specific to the outsourced funnel.</td></tr>
+  <tr><td>Last touch (60 days)</td><td>Retention sweep cron</td><td>The user</td><td>Final retention email before pause</td><td>Stop sending after this.</td></tr>
+  <tr><td>Director invitation</td><td>A negotiator invites a director into a new agency</td><td>Director recruit</td><td>Get a director onto an empty agency</td><td>Personal greeting, accept link, 7-day expiry.</td></tr>
+  <tr><td>Negotiator invitation</td><td>A director invites a negotiator</td><td>Negotiator recruit</td><td>Add an agent to the agency</td><td>Personal greeting, accept link, 7-day expiry.</td></tr>
+  <tr><td>Password reset</td><td>User requests a reset</td><td>The user</td><td>Reset password</td><td>One-hour-expiry token URL.</td></tr>
+  <tr><td>DNS setup instructions</td><td>Agent triggers from the email-domain page</td><td>Whoever the agent nominates as their DNS admin</td><td>Get SPF/DKIM records onto the agency's sending domain</td><td>Step-by-step DNS guide.</td></tr>
+  <tr><td>Domain broken alert</td><td>Daily 02:00 check finds an authentication failure</td><td>The agency owner</td><td>Tell them sending will fall back</td><td>Which record broke.</td></tr>
+</table>
+
+<h3>Agent operations emails</h3>
+<table>
+  <tr><th>Email</th><th>Trigger</th><th>Recipient</th><th>Purpose</th><th>Key content</th></tr>
+  <tr><td>Agent weekly brief</td><td>Cron at 07:00 UK Monday</td><td>Director or negotiator (per-user opt-in)</td><td>Catch the agent up on what needs attention this week</td><td>Files needing attention; exchanges and completions approaching; a "you have N files all progressing normally" reassurance line.</td></tr>
+</table>
+
+<h3>Internal staff emails</h3>
+<p>Daily brief, weekly review, morning digest, medians ready, content batch: see <strong>Appendix A</strong>.</p>
+
+<!-- ============== REMINDERS ============== -->
+<h2>2.2 Reminders and notifications</h2>
+
+<p>The reminder engine is the system that turns "files are happening" into "the agent has a single list of what to do today". It is a three-layer cascade:</p>
+
+<ol>
+  <li><strong>ReminderRule</strong> - configuration. There is one rule per chase scenario the founder has decided is worth chasing. Each rule has a grace-days value (how long after the anchor date before the first chase), a repeat-every-days value (how long between chases), an escalate-after-chases count, and a flag for whether it requires exchange-readiness.</li>
+  <li><strong>ReminderLog</strong> - per-file state. The engine creates one log row per applicable rule per active file. The log holds the next due date and the active/snoozed/completed status.</li>
+  <li><strong>ChaseTask</strong> - the agent's work item. When a log goes due, a task is spawned. The task is what the agent actually interacts with on the work queue.</li>
+</ol>
+
+<h3>How a reminder advances</h3>
+<ul>
+  <li>The engine evaluates every active sale against every active rule each weekday morning at 06:00 UK.</li>
+  <li>For each rule, it resolves the anchor date (the completion date of the target step, or the file's creation date as a fallback).</li>
+  <li>First due date = anchor + grace days, normalised to 06:00 UK on that calendar day.</li>
+  <li>If the file is not yet exchange-ready and the rule requires it, the log stays dormant.</li>
+  <li>If the target step is already complete or not required, the log is deactivated.</li>
+  <li>When the agent records a chase, the log's next due date advances by the repeat-every-days value.</li>
+  <li>Once chase count crosses the escalate-after-chases threshold and the grace window has elapsed since the last chase, the row is flagged Escalated. The agent sees a red row.</li>
+  <li>The agent can snooze the row, mark it done, or wake it back up.</li>
+</ul>
+
+<h3>Where reminders surface</h3>
+<ul>
+  <li><strong>Hub - Needs your attention card.</strong> Up to three rows pulled by urgency.</li>
+  <li><strong>Hub - Need attention pipeline stat.</strong> The count of unique files with actionable reminders.</li>
+  <li><strong>Reminders page (work queue).</strong> The full list.</li>
+  <li><strong>File detail Reminders tab.</strong> The reminders attached to one file.</li>
+  <li><strong>File row badges.</strong> A staleness pill shows "Awaiting N days" on the file lists.</li>
+</ul>
+
+<h3>Automated client chase</h3>
+<p>When the work queue would otherwise spawn a manual task, the automated client chase tries to do the chase itself. The daily cron at 08:30 UK Mon-Sat groups due items per contact and sends one digest per contact. The chase tone branches on what the step is sitting on: "Yes this is done" for items the client has to do, "Yes this is already done" for items sitting with the solicitor or lender. If the chase cannot run (the contact has unsubscribed, has no email, has hit the max-chase cap, has been silent for over 14 days, has had emails paused, or has no portal token), the engine creates an agent fallback task instead with a labelled fallback-kind chip.</p>
+
+<h3>Notifications outside the reminder engine</h3>
+<ul>
+  <li><strong>In-app notifications bell.</strong> The internal staff dashboard has a bell that surfaces unread notifications. The confirmed type today is <code>portal_milestone_confirm</code> (a client confirmed a step from the portal). Other notification types fire too but the complete enum was not fully traced.</li>
+  <li><strong>Push notifications.</strong> The portal supports web push via VAPID. The agent app exposes a push subscription mechanism but the live triggers were not exhaustively traced.</li>
+  <li><strong>SendGrid event webhook.</strong> Delivery, deferral, and bounce events come back from SendGrid and are written against the originating queue rows.</li>
+</ul>
+
+<h3>The cron index</h3>
+<p>Twenty-four crons are scheduled in <code>vercel.json</code>. They fall into three groups: lifecycle (move sales forwards), maintenance (keep the data clean), and internal insight (feed the founder dashboards).</p>
+<table class="compact">
+  <tr><th>Cron</th><th>Schedule</th><th>What it does</th><th>Audience</th></tr>
+  <tr><td>/api/reminders/run</td><td>04:00 Mon-Sat</td><td>Evaluates every active file against every reminder rule. Creates and updates ReminderLog rows; spawns ChaseTask rows for newly-due logs.</td><td>Agents</td></tr>
+  <tr><td>/api/cron/morning-digest</td><td>08:00 Mon-Fri</td><td>Daily summary email to the team. <span class="pill pill-internal">INTERNAL</span></td><td>Internal staff and directors</td></tr>
+  <tr><td>/api/cron/agent-weekly-brief</td><td>07:00 Mon</td><td>Builds and sends the Monday weekly brief.</td><td>Agents</td></tr>
+  <tr><td>/api/cron/client-weekly-update</td><td>09:00 Sat</td><td>Weekly reassurance update to vendors and purchasers when their file has been quiet.</td><td>Buyers, sellers</td></tr>
+  <tr><td>/api/cron/check-domains</td><td>02:00 daily</td><td>Validates SendGrid DNS auth on each agency sending domain. Emails the owner if it breaks.</td><td>Agents (alert only)</td></tr>
+  <tr><td>/api/cron/detect-problems</td><td>03:00 daily</td><td>Runs the problem-detection scan; writes ProblemFlag rows for stale/anomalous files.</td><td>Agents (read via UI)</td></tr>
+  <tr><td>/api/cron/retention-sweep</td><td>09:00 daily</td><td>Drives the activation funnel emails (day 1, day 3, day 21, day 30, day 60).</td><td>Agents</td></tr>
+  <tr><td>/api/cron/backfill-mode-profile</td><td>04:00 daily</td><td>Backfills agency mode profile data. <span class="pill pill-internal">INTERNAL</span></td><td>System only</td></tr>
+  <tr><td>/api/cron/rollup-metrics</td><td>02:00 daily</td><td>Yesterday's daily metric row; rolls 13 weeks of WeeklyCohort. <span class="pill pill-internal">INTERNAL</span></td><td>System only</td></tr>
+  <tr><td>/api/cron/signals</td><td>03:00 daily</td><td>Anomaly detection across the pipeline. <span class="pill pill-internal">INTERNAL</span></td><td>Command Centre</td></tr>
+  <tr><td>/api/cron/daily-brief</td><td>06:00 daily</td><td>AI-generated signal digest for the founder. <span class="pill pill-internal">INTERNAL</span></td><td>Founder</td></tr>
+  <tr><td>/api/cron/weekly-review</td><td>07:00 Mon</td><td>AI-generated 7-day signal and experiment review. <span class="pill pill-internal">INTERNAL</span></td><td>Founder</td></tr>
+  <tr><td>/api/cron/content-topics</td><td>04:30 daily</td><td>Suggests LinkedIn post topics from recent activity. <span class="pill pill-internal">INTERNAL</span></td><td>Founder</td></tr>
+  <tr><td>/api/cron/content-batch</td><td>06:30 daily</td><td>Bundles approved draft posts into an email to the inbox. <span class="pill pill-internal">INTERNAL</span></td><td>Founder</td></tr>
+  <tr><td>/api/cron/data-retention</td><td>01:00 Sun</td><td>Anonymises non-superadmin users inactive 3+ years with no active sales.</td><td>Compliance</td></tr>
+  <tr><td>/api/cron/file-time-close</td><td>03:00 daily</td><td>Closes stale file-time-tracking sessions.</td><td>System only</td></tr>
+  <tr><td>/api/cron/drain-outbound-email</td><td>Hourly Mon-Sat</td><td>Drains the outbound email queue (everything except step-confirmation digests).</td><td>All recipients</td></tr>
+  <tr><td>/api/cron/send-milestone-digests</td><td>Every 3 minutes</td><td>High-frequency drain of step-confirmation emails. Groups by recipient and digests when N is at least 2.</td><td>Buyers, sellers</td></tr>
+  <tr><td>/api/cron/drain-withdrawal-notifications</td><td>Hourly Mon-Sat</td><td>Drains the chain withdrawal notification queue; fires wait-nudge after 14 days of silence.</td><td>Agents</td></tr>
+  <tr><td>/api/cron/medians-ready-check</td><td>09:00 daily</td><td>One-shot. When 50+ files have completed at least one step, emails superadmins a median-duration comparison. <span class="pill pill-internal">INTERNAL</span></td><td>Founder</td></tr>
+  <tr><td>/api/cron/client-chase</td><td>08:30 Mon-Sat</td><td>The automated client chase engine entry point. Enqueues chase digest per contact, runs the escalation pass, and creates agent fallback tasks when chases cannot fire.</td><td>Buyers, sellers, agents (fallback)</td></tr>
+  <tr><td>/api/cron/accrue-invoices</td><td>03:00 daily</td><td>Per-agency reconciliation of the current month's building invoice against billed exchanges. Applies any unapplied credit notes.</td><td>Directors (read), system</td></tr>
+  <tr><td>/api/cron/check-failed-payments</td><td>04:00 daily</td><td>Flips agency new-file creation to blocked once a failed payment is 7 days overdue.</td><td>Directors, system</td></tr>
+  <tr><td>/api/cron/issue-invoices</td><td>05:00 on the 1st</td><td>Flips prior-month building invoices to issued; pushes to Stripe for auto-collection.</td><td>Directors, system</td></tr>
+</table>
+
+</div>
+
+<div class="section-break">
+
+<!-- ============== LIFECYCLE + STEPS ============== -->
+<h2>2.3 The sale lifecycle and its steps</h2>
+
+<p>A sale moves through one of five states and is shaped by two orthogonal axes: <strong>service type</strong> (self managed or outsourced to Sales Progressor) and <strong>tenure plus purchase type</strong> (which determines which steps auto-skip).</p>
+
+<h3>The lifecycle states</h3>
+<table>
+  <tr><th>State</th><th>What it means</th><th>What the system does</th></tr>
+  <tr><td><strong>draft</strong></td><td>Created but not yet submitted to the live process</td><td>Hidden from internal-staff search by default.</td></tr>
+  <tr><td><strong>active</strong></td><td>Live and progressing</td><td>Picked up by the reminder engine, the chase cron, the hub stats, the weekly briefs.</td></tr>
+  <tr><td><strong>on_hold</strong></td><td>Paused (e.g. renegotiating, awaiting a client decision)</td><td>A TransactionHoldPeriod row is opened. Time-based signals freeze. Reminders stop. Audit fields record who started and ended the hold and an optional planned-end date so expired holds surface again.</td></tr>
+  <tr><td><strong>completed</strong></td><td>Both exchange and completion steps confirmed on both sides</td><td>Terminal. Triggers the completion survey.</td></tr>
+  <tr><td><strong>withdrawn</strong></td><td>Fell through</td><td>Terminal. Optional <code>fallThroughReason</code> stored. The chain withdrawal cascade fires if the file was linked.</td></tr>
+</table>
+
+<h3>The service types</h3>
+<table>
+  <tr><th>Service type</th><th>Fee at exchange</th><th>Who confirms steps</th></tr>
+  <tr><td>Self managed</td><td><strong>&pound;59</strong> per file</td><td>The agent themselves</td></tr>
+  <tr><td>Outsourced to Sales Progressor</td><td><strong>&pound;250</strong> (up to &pound;349,999), <strong>&pound;300</strong> (&pound;350,000 to &pound;499,999), <strong>&pound;350</strong> (&pound;500,000 and above)</td><td>The internal sales-progressor team</td></tr>
+</table>
+
+<h3>Auto-skip rules</h3>
+<p>Three rules determine which steps are auto-marked "not required" at file creation. They re-evaluate when the agent edits the sale details mid-flight.</p>
+<ul>
+  <li><strong>Tenure = freehold</strong>: VM8, VM9, PM12 auto-skip (no management pack on freeholds).</li>
+  <li><strong>Purchase type = cash buyer</strong>: PM5, PM6, PM11 auto-skip (no mortgage application, lender valuation, or mortgage offer).</li>
+  <li><strong>Purchase type = cash from proceeds</strong>: PM5, PM6, PM11 auto-skip, plus PM24 (the deposit transfer step is skipped because the deposit comes out of concurrent sale equity).</li>
+</ul>
+
+<h3>The full step list - Vendor side</h3>
+<table class="compact">
+  <tr><th>Code</th><th>Name</th><th>Blocks exchange</th><th>Prerequisite</th></tr>
+  <tr><td>VM1</td><td>Seller has instructed their solicitor</td><td>yes</td><td>-</td></tr>
+  <tr><td>VM2</td><td>Seller has received the memorandum of sale</td><td>yes</td><td>-</td></tr>
+  <tr><td>VM3</td><td>Seller has received the welcome pack from their solicitor</td><td>yes</td><td>VM1</td></tr>
+  <tr><td>VM4</td><td>Seller has completed ID and AML checks with their solicitor</td><td>yes</td><td>VM3</td></tr>
+  <tr><td>VM5</td><td>Seller has received the property information forms from their solicitor</td><td>yes</td><td>VM4</td></tr>
+  <tr><td>VM6</td><td>Seller has returned completed property information forms to their solicitor</td><td>yes</td><td>VM5</td></tr>
+  <tr><td>VM7</td><td>Seller's solicitor has issued the draft contract pack</td><td>yes</td><td>VM6</td></tr>
+  <tr><td>VM8</td><td>Seller's solicitor has requested the management pack</td><td>yes</td><td>-</td></tr>
+  <tr><td>VM9</td><td>Seller's solicitor has received the management pack</td><td>yes</td><td>VM8</td></tr>
+  <tr><td>VM10</td><td>Seller's solicitor has received initial enquiries</td><td>yes</td><td>VM7</td></tr>
+  <tr><td>VM11</td><td>Seller has provided initial replies to their solicitor</td><td>yes</td><td>VM10</td></tr>
+  <tr><td>VM12</td><td>Seller's solicitor has issued initial responses to the buyer's solicitor</td><td>yes</td><td>VM11</td></tr>
+  <tr><td>VM13</td><td>Seller's solicitor has received additional enquiries</td><td>yes</td><td>VM10</td></tr>
+  <tr><td>VM14</td><td>Seller has provided additional replies to their solicitor</td><td>yes</td><td>VM13</td></tr>
+  <tr><td>VM15</td><td>Seller's solicitor has issued additional responses to the buyer's solicitor</td><td>yes</td><td>VM14</td></tr>
+  <tr><td>VM16</td><td>Seller's solicitor has issued contract documents to the seller</td><td>yes</td><td>VM7</td></tr>
+  <tr><td>VM17</td><td>Seller's solicitor has received signed contract documents back from the seller</td><td>yes</td><td>VM16</td></tr>
+  <tr><td>VM18</td><td>Seller's solicitor has confirmed readiness to exchange (gate)</td><td>no</td><td>-</td></tr>
+  <tr><td>VM19</td><td>Seller has received confirmation that contracts have exchanged</td><td>no</td><td>VM18</td></tr>
+  <tr><td>VM20</td><td>Seller has received confirmation that the sale has completed</td><td>no</td><td>VM19</td></tr>
+</table>
+
+<h3>The full step list - Purchaser side</h3>
+<table class="compact">
+  <tr><th>Code</th><th>Name</th><th>Blocks exchange</th><th>Prerequisite</th></tr>
+  <tr><td>PM1</td><td>Buyer has instructed their solicitor</td><td>yes</td><td>-</td></tr>
+  <tr><td>PM2</td><td>Buyer has received the memorandum of sale</td><td>yes</td><td>-</td></tr>
+  <tr><td>PM3</td><td>Buyer has completed ID and AML checks with their solicitor</td><td>yes</td><td>PM1</td></tr>
+  <tr><td>PM4</td><td>Buyer has paid money on account to their solicitor</td><td>yes</td><td>PM1</td></tr>
+  <tr><td>PM5</td><td>Buyer has submitted their mortgage application</td><td>yes</td><td>-</td></tr>
+  <tr><td>PM6</td><td>Lender valuation has been booked</td><td>yes</td><td>PM5</td></tr>
+  <tr><td>PM7</td><td>Buyer's solicitor has received the draft contract pack</td><td>yes</td><td>PM4</td></tr>
+  <tr><td>PM8</td><td>Buyer's solicitor has ordered searches</td><td>yes</td><td>PM7</td></tr>
+  <tr><td>PM9</td><td>Buyer has booked a Level 2 or Level 3 survey</td><td>yes</td><td>-</td></tr>
+  <tr><td>PM10</td><td>Buyer has received the survey report</td><td>yes</td><td>PM9</td></tr>
+  <tr><td>PM11</td><td>Buyer's solicitor has received the mortgage offer</td><td>yes</td><td>PM6</td></tr>
+  <tr><td>PM12</td><td>Buyer's solicitor has received the management pack from the seller's solicitor</td><td>yes</td><td>VM9</td></tr>
+  <tr><td>PM13</td><td>Buyer's solicitor has received the search results</td><td>yes</td><td>PM8</td></tr>
+  <tr><td>PM14</td><td>Buyer's solicitor has raised initial enquiries to the seller's solicitor</td><td>yes</td><td>PM7</td></tr>
+  <tr><td>PM15</td><td>Buyer's solicitor has received initial replies from the seller's solicitor</td><td>yes</td><td>PM14</td></tr>
+  <tr><td>PM16</td><td>Buyer's solicitor has reviewed the initial replies</td><td>yes</td><td>PM15</td></tr>
+  <tr><td>PM17</td><td>Buyer's solicitor has raised additional enquiries</td><td>yes</td><td>PM14</td></tr>
+  <tr><td>PM18</td><td>Buyer's solicitor has received additional replies</td><td>yes</td><td>PM17</td></tr>
+  <tr><td>PM19</td><td>Buyer's solicitor has reviewed the additional replies</td><td>yes</td><td>PM18</td></tr>
+  <tr><td>PM20</td><td>Buyer's solicitor has confirmed all enquiries are now satisfied</td><td>yes</td><td>PM19</td></tr>
+  <tr><td>PM21</td><td>Buyer has received the final report from their solicitor</td><td>yes</td><td>PM20</td></tr>
+  <tr><td>PM22</td><td>Buyer's solicitor has issued contract documents to the buyer</td><td>yes</td><td>PM21</td></tr>
+  <tr><td>PM23</td><td>Buyer's solicitor has received the signed contract documents back from the buyer</td><td>yes</td><td>PM22</td></tr>
+  <tr><td>PM24</td><td>Buyer has transferred the deposit</td><td>yes</td><td>PM23</td></tr>
+  <tr><td>PM25</td><td>Buyer's solicitor has confirmed readiness to exchange (gate)</td><td>no</td><td>-</td></tr>
+  <tr><td>PM26</td><td>Buyer has received confirmation that contracts have exchanged</td><td>no</td><td>PM25</td></tr>
+  <tr><td>PM27</td><td>Buyer has received confirmation that the sale has completed</td><td>no</td><td>PM26</td></tr>
+</table>
+
+<h3>What fires when a step is confirmed</h3>
+<p>Every step confirmation runs an atomic cascade:</p>
+<ol>
+  <li>The step's direct dependents are unlocked.</li>
+  <li>Any reminder logs targeting this step are auto-completed.</li>
+  <li>The exchange gate (VM18 on the vendor side, PM25 on the purchaser side) is re-evaluated: if every blocking step on that side is now complete or not required, the gate unlocks.</li>
+  <li>Any out-of-order completion flags downstream resolve themselves when their prerequisite chain catches up.</li>
+  <li>The file's <code>lastActivityAt</code> is touched.</li>
+  <li>An event row is written to the audit ledger.</li>
+  <li>An email is enqueued to the other contacts on the file (single confirmation email, or a digest if more pile up inside three minutes).</li>
+</ol>
+
+<h3>The bilateral pairs</h3>
+<p>Four steps are bilateral: confirming one half of a pair confirms the other inside the same database transaction.</p>
+<ul>
+  <li><strong>VM19 (exchange, vendor side) ↔ PM26 (exchange, purchaser side)</strong>.</li>
+  <li><strong>VM20 (completion, vendor side) ↔ PM27 (completion, purchaser side)</strong>.</li>
+</ul>
+
+<h3>Exchange (the billing trigger)</h3>
+<p>VM19 or PM26 confirming sets <code>exchangedAt</code> on the file. If <code>freeOnExchange</code> is true (trial file), the engine stops there. Otherwise the file's purchase price is snapshotted into <code>priceAtExchange</code> and <code>billedAtExchange</code> is stamped. The snapshot is what the running total and the invoice line use from this point on. Subsequent price edits on the file do not change the fee.</p>
+
+<h3>Completion</h3>
+<p>VM20 or PM27 has no billing side effect (billing was already stamped at exchange). It fires a chain completion notification to claimed chain mates and, if every claimed link in the chain has now completed, enqueues a whole-chain celebration email (one per agent, guarded against duplicates).</p>
+
+<h3>Withdrawal and reversal</h3>
+<p>Setting the file's status to <code>withdrawn</code> records the optional fall-through reason, writes an internal note on the activity feed, and fires the chain withdrawal cascade (Lost buyer, Lost purchase, Asked to wait emails) if the file is chain-linked. Note: this does <em>not</em> reverse billing. If the file had already exchanged, the fee stays on the invoice.</p>
+<p>If the agent instead <em>undoes</em> VM19 or PM26, the billing reversal helper fires. If the invoice is still in its "building" state for the current month, the file simply drops off it. If the invoice has already been issued, a credit note is written and applied to the next month's invoice.</p>
+
+<!-- ============== PORTAL ============== -->
+<h2>2.4 The client portal</h2>
+
+<p>Full detail of what buyers and sellers see appears in sections 1.2 and 1.3. This section covers the portal as a system.</p>
+
+<h3>Authentication</h3>
+<p>Token in URL. Each <code>Contact</code> row carries a unique <code>portalToken</code>. Tokens persist indefinitely; there is no expiry or scheduled rotation in code. Tokens are generated by the agent from the file detail page via the <code>generatePortalTokenAction</code> server action; the token is then included in the portal invite email. There is no self-serve "re-request a portal link" mechanism for a contact; the agent has to regenerate.</p>
+
+<h3>Per-contact and per-token rate limiting</h3>
+<p>Portal-invite emails and explain-an-email calls are rate-limited per token to prevent abuse. The explain-an-email feature caps at three calls per contact per hour.</p>
+
+<h3>Document uploads</h3>
+<p>The Home page exposes an upload widget for the survey report. Submissions hit <code>/api/portal/documents?token=...</code>. Validation: PDF/JPG/PNG/DOCX, 10MB ceiling, up to three files per upload. Storage in Supabase at <code>{transactionId}/{timestamp}-{random}.{ext}</code>. A <code>TransactionDocument</code> row is created and a <code>file_uploaded</code> event is recorded. The portal itself does not let the user download what they uploaded; that surface is agent-only.</p>
+
+<h3>PWA and push</h3>
+<p>The portal has a Web App Manifest at <code>/api/portal/manifest/[token]</code> and supports the install prompt. Web push opt-in is supported via VAPID. The portal sets <code>viewport: { maximumScale: 1, userScalable: false }</code> and respects <code>env(safe-area-inset-bottom)</code> for notch clearance.</p>
+
+<h3>Unsubscribe</h3>
+<p>Every chase email carries an HMAC-signed unsubscribe link. Clicking sets the contact's <code>unsubscribedAt</code> timestamp. The portal stays accessible. The respond page renders an "opt-out" banner but still lets the contact confirm steps, set dates, or leave notes manually. There is no re-subscribe UI; the agent has to flip the flag.</p>
+
+<!-- ============== CHAIN ============== -->
+<h2>2.5 Chain handling, invites, and claiming</h2>
+
+<p>Chain handling is one of the harder problems the app solves and one of the larger code surfaces.</p>
+
+<h3>The data model</h3>
+<p>A <strong>PropertyChain</strong> groups multiple <strong>ChainLink</strong> rows, one per position in the chain. Each link is either a <em>stub</em> (just an address and counter-party agent details, no real file behind it) or <em>claimed</em> (linked to a real PropertyTransaction). A file knows which chain link is its active one via <code>chainLinkId</code>.</p>
+
+<h3>Inviting the other agent</h3>
+<p>The originating agent adds a stub for the upward or downward neighbour and presses "invite". The system generates a token (7-day expiry on first send, 14 days on resend) and sends a <strong>chain invite</strong> email to the counter-party agent with two CTAs: Claim and Decline. The chain invite email lists the originator's agency, both property addresses, and the chain position.</p>
+
+<h3>Declining</h3>
+<p>Clicking Decline lands on a public page and writes back to the link without authentication. A decline notification fires to the originating agent.</p>
+
+<h3>Claiming</h3>
+<p>Clicking Claim lands on <code>/claim</code>. If the counter-party already has an account they sign in; if not they sign up via <code>/claim/signup</code> (which posts to <code>/api/register</code> with a <code>claimSignup</code> flag so the generic activation email is suppressed). After authentication the form posts to <code>/api/claim</code> with one of two actions:</p>
+<ul>
+  <li><strong>create</strong> - a new sale is created on the counter-party's agency from the stub data.</li>
+  <li><strong>link</strong> - an existing sale on the counter-party's agency is linked to the chain.</li>
+</ul>
+<p>Either action verifies the user's email matches the stub email, asserts the new agency can create files (payment block check), stamps <code>firstSubmissionAt</code> if this is the agency's first sale, sets the link's <code>transactionId</code>, <code>claimedByUserId</code>, <code>claimedAt</code>, and flips the invite status to CLAIMED. The <strong>claim welcome</strong> email then fires - a property-aware welcome distinct from the generic activation email.</p>
+
+<h3>Reconciling history at claim</h3>
+<p>If the counter-party indicates "already in progress", they can retroactively mark steps as completed on the new file at the point of claim (e.g. "exchanged 3 days ago"). The reconciliation runs fire-and-forget after the main claim commits.</p>
+
+<h3>Step notifications across the chain</h3>
+<p>When VM19, PM26, VM20, or PM27 fires on any chain-linked file, the engine looks up every other CLAIMED link on the same chain (excluding the originating link) and enqueues a chain exchange or completion notification to each one. Recipients with suppressed addresses or per-user chain-email opt-outs are skipped. The deduplication key is (sourceId, recipient, emailType) so a duplicate notification cannot fire for the same chain event.</p>
+
+<h3>Withdrawal cascade</h3>
+<p>When a chain-linked file is withdrawn, <code>cascadeChainWithdrawal</code> queues:</p>
+<ul>
+  <li><strong>Lost buyer</strong> to the nearest upward claimed mate.</li>
+  <li><strong>Lost purchase</strong> to the nearest downward claimed mate.</li>
+  <li><strong>Asked to wait</strong> if the chain is being reformed.</li>
+</ul>
+<p>Recipients can respond with REMARKETING (will wait), WITHDRAW, or implicitly WAITING. If 14 days pass with no response, a single <strong>wait nudge</strong> fires. There is no further chasing after the nudge.</p>
+
+<h3>Whole-chain celebration</h3>
+<p>When every claimed link in the chain has reached completion, one celebration email goes to each claimed agent. Guarded by <code>chain.celebrationSentAt</code> so it cannot fire twice.</p>
+
+</div>
+
+<div class="section-break">
+
+<!-- ============== BILLING ============== -->
+<h2>2.6 Billing and charging</h2>
+
+<p>Sales Progressor is <strong>not VAT registered today</strong>. Every price quoted in the app is the actual price. Charging fires on <strong>exchange</strong>, not on completion.</p>
+
+<h3>The fee schedule</h3>
+<table>
+  <tr><th>Service</th><th>Fee</th><th>Notes</th></tr>
+  <tr><td>Self managed (in-house file)</td><td><strong>&pound;59</strong> per file</td><td>The agent confirms steps themselves.</td></tr>
+  <tr><td>Outsourced - up to &pound;349,999</td><td><strong>&pound;250</strong> per file</td><td>Banded on the purchase price snapshotted at exchange.</td></tr>
+  <tr><td>Outsourced - &pound;350,000 to &pound;499,999</td><td><strong>&pound;300</strong> per file</td><td></td></tr>
+  <tr><td>Outsourced - &pound;500,000 and above</td><td><strong>&pound;350</strong> per file</td><td></td></tr>
+</table>
+<p class="note">Source of truth: <code>lib/billing/fee.ts</code>. The VAT-split helper in the same file is dormant today; when Sales Progressor registers for VAT the split is automatically applied.</p>
+
+<h3>The trial</h3>
+<p>Every new agency gets a <strong>14-day trial</strong>. The clock starts on the agency's first sale (<code>firstSubmissionAt</code> is stamped at that moment). Any file that exchanges inside that 14-day window has its <code>freeOnExchange</code> flag set true at creation time and is exchanged without billing. The file still appears on the running total page, surfaced as "Free - trial" with the fee that would have applied so the director can see what the trial gave away.</p>
+
+<h3>The director's running total</h3>
+<p>The billing page at <code>/agent/account/billing</code> shows:</p>
+<ul>
+  <li>This month's metrics strip: total charges so far, exchange count, in-house versus outsourced split, lifetime trial savings, lifetime billed amount.</li>
+  <li>The current month's building invoice with line items (billed exchanges, trial exchanges marked free, pending credits). A "preview PDF" button renders the building invoice via the server-side PDF helper.</li>
+  <li>The history of past issued invoices with status (issued, paid, failed) and totals.</li>
+  <li>The payment-method panel, with the right action surfaced based on state: pending (terms not seeded), add card (acknowledged but no Stripe customer), card on file (Stripe customer attached).</li>
+  <li>Trial state and acknowledgement status.</li>
+</ul>
+
+<h3>The acknowledgement gate</h3>
+<p>Before the director can capture a payment method they must read and acknowledge the active terms version. The <code>TermsVersion</code> table holds the canonical commercial-terms document. The latest row with <code>effectiveFrom &le; now</code> is the active version. The director's page renders a four-state machine for the payment-method panel:</p>
+<ol>
+  <li><strong>stripe_not_configured</strong> - the env vars are missing. Should not happen in production.</li>
+  <li><strong>pending</strong> - no terms version is seeded.</li>
+  <li><strong>disclosure</strong> - terms exist, the director has not yet clicked acknowledge.</li>
+  <li><strong>card_form</strong> - acknowledged, ready for Stripe card capture.</li>
+</ol>
+<p>The acknowledgement audit row denormalises the user's name and email at the point of acknowledgement for GDPR robustness. When the founder publishes a new terms version with a later <code>effectiveFrom</code>, a fresh acknowledgement is required.</p>
+
+<h3>How invoices accrue and issue</h3>
+<table>
+  <tr><th>Stage</th><th>What happens</th><th>Cron</th></tr>
+  <tr><td>Exchange</td><td>The file's price is snapshotted into <code>priceAtExchange</code>. <code>billedAtExchange</code> is stamped. Bilateral pair re-entry is guarded.</td><td>None - fires synchronously inside the step confirmation</td></tr>
+  <tr><td>Daily accrual</td><td>For each agency with billed exchanges in the current Europe/London month, the open "building" invoice is reconciled against the billed-exchange rows. Orphan lines (from reversals) are removed; new lines are added; unapplied credit notes are applied as <code>credit_applied</code> lines (negative).</td><td>/api/cron/accrue-invoices, 03:00 daily</td></tr>
+  <tr><td>Monthly issuance</td><td>On the 1st of each month, every prior-month building invoice flips to "issued". A Stripe invoice is created with collection_method=charge_automatically and the Stripe invoice ID is persisted. Zero-net invoices are marked issued without a Stripe call.</td><td>/api/cron/issue-invoices, 05:00 on the 1st</td></tr>
+  <tr><td>Stripe payment webhook</td><td>Successful payment marks the invoice paid and clears any agency-level failure flags. Failure marks the invoice failed and stamps <code>paymentFailedAt</code> on the agency once per month.</td><td>Webhook</td></tr>
+  <tr><td>Failed-payment guardrail</td><td>If the failed-payment timestamp is more than 7 days old, the agency's <code>newFileCreationBlockedAt</code> is set. New sales and chain claim "create" actions are then blocked until payment succeeds.</td><td>/api/cron/check-failed-payments, 04:00 daily</td></tr>
+</table>
+
+<h3>Credit notes and reversals</h3>
+<p>If VM19 or PM26 is undone <em>after</em> the file's invoice has been issued, a CreditNote is written for the full gross fee, marked as unapplied. The next accrual run picks it up and writes a <code>credit_applied</code> line on the agency's current building invoice. If the file is undone <em>before</em> issuance (still in the same calendar month), the file simply drops off the building invoice and no credit note is needed.</p>
+
+<h3>Mid-flight service-type switching</h3>
+<p>An admin can flip a file from self managed to outsourced or back via the pill in the file's header. The action also clears the assigned progressor user when switching to self managed, sets <code>progressedBy</code>, and writes an internal note on the activity feed. Reminders, hub bucketing, and billing all read <code>serviceType</code> live, so the new behaviour applies from the moment of the switch.</p>
+
+<h3>Lifetime metrics</h3>
+<p>Lifetime totals shown on the billing page read from issued and paid invoice lines (history), not from a live recompute. Trial-savings totals are read from <code>PropertyTransaction</code> rows with <code>freeOnExchange = true</code> and <code>exchangedAt</code> set, computing what would have been charged via <code>computeFee()</code>.</p>
+
+<!-- ============== ACCOUNTS ============== -->
+<h2>2.7 Accounts and access</h2>
+
+<h3>Sign-up</h3>
+<p>An agency creates itself through one of three paths:</p>
+<ul>
+  <li><strong>Self-serve password</strong> at <code>/signup</code>. The form posts to <code>/api/register</code>, which validates the inputs and calls <code>createDirectorWithAgency</code>, atomically creating the Agency row and the first User. Password is bcrypted before storage. The generic activation email is sent on success unless this is a claim signup.</li>
+  <li><strong>Google OAuth</strong> via NextAuth. The Prisma adapter creates the user on first sign-in. The user is then routed to <code>/signup/complete</code> to fill in agency name and role.</li>
+  <li><strong>Azure AD OAuth</strong> via NextAuth. Same flow as Google.</li>
+</ul>
+<p>OAuth providers use <code>allowDangerousEmailAccountLinking: true</code> because both Google and Microsoft verify email ownership before issuing the token. The Account table links the OAuth identity to the User row.</p>
+
+<h3>Inviting team members</h3>
+<table>
+  <tr><th>Direction</th><th>Trigger</th><th>Email</th><th>Expiry</th></tr>
+  <tr><td>Director invites negotiator</td><td>Director adds a negotiator on the team page</td><td>Negotiator invitation email with accept link</td><td>7 days; resend extends</td></tr>
+  <tr><td>Negotiator invites director</td><td>Only possible if the agency has no director</td><td>Director invitation email with accept link</td><td>7 days; resend extends</td></tr>
+</table>
+<p>The invitee lands at <code>/invite-negotiator/[token]</code> or <code>/invite/[token]</code> and can accept via password or OAuth. Accept atomically creates the user, marks the invitation as accepted, and inherits the inviter's <code>firmName</code>. Both invitation models support cancel and resend.</p>
+
+<h3>Authentication</h3>
+<ul>
+  <li>NextAuth with three providers: Credentials, Google, Azure AD.</li>
+  <li>JWT session strategy. The jwt callback populates user id, role, agencyId, firmName, and a <code>needsSignupCompletion</code> flag.</li>
+  <li>Credentials authorize is rate-limited per IP via <code>checkAuthLimit</code>.</li>
+  <li>Login success and failure events are written to the Event audit ledger with IP metadata.</li>
+</ul>
+
+<h3>Password reset</h3>
+<p>POST to <code>/api/auth/forgot-password</code> generates a 1-hour-expiry VerificationToken keyed on (email, token) and sends the reset email. The endpoint always returns 200 to avoid email enumeration. The reset link lands at <code>/reset-password?token=...&email=...</code> which posts to <code>/api/auth/reset-password</code> to apply the new bcrypted password and delete the token.</p>
+
+<h3>Multi-firm under one agency</h3>
+<p>Two soft-scoping fields control visibility:</p>
+<ul>
+  <li><strong>firmName</strong> on User and Agency. Inherited from the director when a negotiator accepts an invitation. Currently only used in the chain invite email subject and a couple of display surfaces; does not drive file visibility.</li>
+  <li><strong>canViewAllFiles</strong> on User. Set by directors on a per-negotiator basis. A negotiator with the flag set sees the full agency pipeline rather than just their own files. The flag is read by every list query and write guard.</li>
+</ul>
+
+<h3>Visibility by role</h3>
+<p>The canonical helper is <code>lib/security/access-scope.ts</code>. It returns one of three shapes:</p>
+<ul>
+  <li><strong>all</strong> - admin and superadmin see every file across every agency.</li>
+  <li><strong>assigned</strong> - sales progressor sees only files where <code>assignedUserId</code> matches.</li>
+  <li><strong>agency</strong> - director and negotiator see files in their agency (negotiators further scoped to their own unless <code>canViewAllFiles</code> is set).</li>
+</ul>
+
+<h3>Audit ledger</h3>
+<p>Every meaningful action is written to the <code>Event</code> table via <code>recordEvent</code>. The helper is fire-and-forget so a logging failure cannot break the user action. EventType categories include auth events (login, password reset, invite, accept), agency events (created, mode changed, archived), transaction events (created, archived, status changed), step events (confirmed, marked not required, reversed, exchange gate unlocked, contracts exchanged, sale completed), comms events (chase sent, chase message generated, email parse attempted), file events (uploaded, deleted), feedback (submitted), and admin events (admin login, admin action performed).</p>
+
+<h3>Data retention</h3>
+<p>The data-retention cron runs every Sunday at 01:00. It anonymises non-superadmin users with <code>updatedAt</code> older than 3 years who have no active sessions and no active or on-hold sales. Email is replaced with <code>anon-{id}@deleted.invalid</code>, name is replaced with "Anonymised User", and personal fields (phone, password hash, TOTP secret) are nulled. A <code>?dryRun=true</code> query parameter returns eligible users without writing.</p>
+
+<!-- ============== EXTRAS ============== -->
+<h2>2.8 Data, integrations, and app extras</h2>
+
+<h3>Integrations</h3>
+<table>
+  <tr><th>Service</th><th>What it does in the app</th><th>Status</th></tr>
+  <tr><td>Supabase (Postgres + Storage)</td><td>Primary database; portal file uploads</td><td>Live</td></tr>
+  <tr><td>SendGrid</td><td>All outbound email; bounce/deferral/delivery webhook</td><td>Live</td></tr>
+  <tr><td>Anthropic Claude</td><td>Chase message generation, content drafting, explain-an-email, founder insights</td><td>Live</td></tr>
+  <tr><td>Stripe</td><td>Payment method capture and invoice collection for agency billing</td><td>Live</td></tr>
+  <tr><td>Vercel cron</td><td>All 24 scheduled jobs</td><td>Live</td></tr>
+  <tr><td>Land Registry SPARQL</td><td>Property price history shown in the property-intel panel</td><td>Live</td></tr>
+  <tr><td>EPC Register</td><td>Energy performance data on the property panel</td><td>Live</td></tr>
+  <tr><td>Replicate (FLUX)</td><td>AI image generation for marketing posts <span class="pill pill-internal">INTERNAL</span></td><td>Pending API token</td></tr>
+  <tr><td>PostHog EU</td><td>Product analytics</td><td>Pending DPA + key</td></tr>
+  <tr><td>Upstash Redis</td><td>Rate limiting</td><td>Pending account; feature-flagged off</td></tr>
+</table>
+
+<h3>Multi-tenancy</h3>
+<p>Customer-agency data is scoped by <code>agencyId</code>. Internal staff (admin, sales progressor, superadmin) have <code>agencyId = null</code> and are scoped through the access-scope helper instead. Every multi-tenant read or write goes through <code>scopeTransactionWhere</code>, <code>scopeOwnershipWhere</code>, or one of the relation-specific scope helpers.</p>
+
+<h3>Push notifications and PWA</h3>
+<p>The portal has full PWA manifest support and Web Push opt-in via VAPID. The agent app exposes a push subscription mechanism but the full set of in-product push triggers was not exhaustively traced and is listed in the "needs verifying" appendix.</p>
+
+</div>
+
+<!-- ================================================== -->
+<!-- ============== APPENDIX A: INTERNAL ============== -->
+<!-- ================================================== -->
+
+<div class="section-break">
+<h1 class="section">Appendix A - Internal roles</h1>
+<p class="lead">For completeness: what Sales Progressor's own staff get. Not for the customer-facing inventory.</p>
+
+<h3>The three internal roles</h3>
+<table>
+  <tr><th>Role</th><th>Surface</th><th>Brief</th></tr>
+  <tr><td><code>sales_progressor</code></td><td>The agent app, scoped to assigned files</td><td>The progression team. Confirms steps on outsourced files on behalf of agents.</td></tr>
+  <tr><td><code>admin</code></td><td>The agent app, scoped to all files</td><td>Founder / senior internal. Sees every agency's files.</td></tr>
+  <tr><td><code>superadmin</code></td><td>Command Centre at <code>/command/*</code></td><td>Founder. The only role with access to the app's own internal analytics, the audit trail, and the experiment manager.</td></tr>
+</table>
+
+<h3>The Command Centre <span class="pill pill-internal">INTERNAL</span></h3>
+<table>
+  <tr><th>Page</th><th>Purpose</th></tr>
+  <tr><td>/command/overview</td><td>Platform-health snapshot. KPI deltas, "what changed" widget, mode toggle, agency filter, severity badges, recent deployments.</td></tr>
+  <tr><td>/command/health</td><td>Job status table. Recent job runs. Deployment history.</td></tr>
+  <tr><td>/command/activity</td><td>Raw transactional event log.</td></tr>
+  <tr><td>/command/audit</td><td>Audit trail of data changes per resource.</td></tr>
+  <tr><td>/command/automations</td><td>Client-chase automation overview and per-step engagement stats.</td></tr>
+  <tr><td>/command/content</td><td>Editorial content hub. Draft and published templates and guidance.</td></tr>
+  <tr><td>/command/content/topics</td><td>Topic taxonomy and per-step copy assignments.</td></tr>
+  <tr><td>/command/content/voice</td><td>Brand voice guidelines.</td></tr>
+  <tr><td>/command/content/engagement/[id]</td><td>Per-draft engagement analytics.</td></tr>
+  <tr><td>/command/experiments</td><td>A/B test manager.</td></tr>
+  <tr><td>/command/retention</td><td>Churn analysis and retention levers per agency.</td></tr>
+  <tr><td>/command/growth</td><td>Activation funnel, self-serve onboarding, expansion revenue.</td></tr>
+  <tr><td>/command/friction</td><td>Feature adoption, error rates, usage gaps.</td></tr>
+  <tr><td>/command/insights</td><td>Data-warehouse insights and custom dashboards.</td></tr>
+  <tr><td>/command/outbound</td><td>Outbound marketing hub. Campaigns, messaging variants.</td></tr>
+  <tr><td>/command/revenue</td><td>MRR, ARR, churn, LTV, CAC.</td></tr>
+  <tr><td>/command/setup-2fa, /command/auth/step-up</td><td>TOTP setup and step-up verification before protected routes.</td></tr>
+</table>
+
+<h3>Internal-only emails <span class="pill pill-internal">INTERNAL</span></h3>
+<table>
+  <tr><th>Email</th><th>Trigger</th><th>Recipient</th><th>Purpose</th></tr>
+  <tr><td>Morning digest</td><td>08:00 Mon-Fri</td><td>Sales progressors, admin, directors per agency</td><td>Daily file summary, exchange forecast, momentum.</td></tr>
+  <tr><td>Daily founder brief</td><td>06:00 daily</td><td>Founder</td><td>AI-generated signal digest.</td></tr>
+  <tr><td>Weekly founder review</td><td>07:00 Monday</td><td>Founder</td><td>AI-generated 7-day signal and experiment review.</td></tr>
+  <tr><td>Medians ready</td><td>09:00 daily (one-shot)</td><td>Superadmins</td><td>50-file threshold crossed; per-step median-duration comparison.</td></tr>
+  <tr><td>Content batch</td><td>06:30 daily</td><td>Founder inbox</td><td>Bundles approved draft posts.</td></tr>
+</table>
+
+<h3>Service-type switching <span class="pill pill-internal">INTERNAL</span></h3>
+<p>Admin only. The pill on the file header opens a confirm-and-switch modal that posts to <code>switchServiceTypeAction</code>. The action only fires for active files; completed, withdrawn, draft, and on-hold files are deliberately not switchable through the UI. Activity-feed audit row is written.</p>
+
+</div>
+
+<!-- ================================================== -->
+<!-- ============== APPENDIX B: VERIFY ================ -->
+<!-- ================================================== -->
+
+<div class="section-break">
+<h1 class="section">Appendix B - Needs verifying</h1>
+<p class="lead">Items the sweep surfaced but could not fully confirm from the code. The next pass should resolve these.</p>
+
+<ol>
+  <li><strong>Notification bell - full enum of types.</strong> The audit confirmed <code>portal_milestone_confirm</code> and "portal chase note" as notification types. Other notification kinds are referenced in code but the complete enum was not exhaustively traced. Recommend a focused sweep of every call to <code>notifyPortal*</code> and <code>notify*</code> in <code>lib/services</code> to lock the list.</li>
+  <li><strong>Push notification trigger inventory.</strong> The agent app sets up a push-subscription mechanism but the complete set of in-product push events was not traced. Likely small (probably a handful of escalation and portal-confirm events) but should be confirmed.</li>
+  <li><strong>Backfill mode profile cron.</strong> The cron exists at <code>/api/cron/backfill-mode-profile</code> and runs daily at 04:00. What it backfills and against what data was not fully traced.</li>
+  <li><strong>Daily brief and weekly review output shape.</strong> The internal-founder briefs are confirmed to fire but whether they email, render to the Command Centre dashboard, or both was not fully traced.</li>
+  <li><strong>Mid-flight service-type switch and the fee at exchange.</strong> The fee helper takes the live <code>serviceType</code> from the file at billing time. If an admin flips the service type <em>after</em> the file has exchanged, the accrual recomputes the fee against the new service type. There is no <code>serviceTypeAtExchange</code> snapshot equivalent to the <code>priceAtExchange</code> snapshot. Confirm whether this is intentional or a gap to close.</li>
+  <li><strong>Portal token rotation policy.</strong> Tokens persist indefinitely with no automatic rotation. If a token leaks the agent must regenerate manually. Confirm whether a rotation cron, a user-side "request a new link" button, or a TTL is wanted.</li>
+  <li><strong>Two-way portal messaging.</strong> The portal supports "leave a note" on the respond page (one-way to the agent) and the Updates tab shows messages from the agent (read only). Full two-way messaging is not implemented. Confirm whether this is the intent.</li>
+  <li><strong>Bilateral chain notifications for steps other than exchange and completion.</strong> The schema reserves capacity for bilateral coordination on other step pairs. The current code only fires on VM19/PM26 and VM20/PM27. Confirm whether more bilateral pairs are planned.</li>
+  <li><strong>GDPR hard delete.</strong> The data-retention cron anonymises after 3 years. Comments in code reference a <code>/api/gdpr/delete</code> hard-delete endpoint but it was not located in the current tree. Confirm whether it exists and what it does.</li>
+  <li><strong>Email verification on signup.</strong> The <code>User.emailVerified</code> field exists but is populated only by NextAuth OAuth. Password sign-ups do not currently require email verification. Confirm whether that should change.</li>
+  <li><strong>Director-only billing UI - the polish vs production paths.</strong> Two billing UI routes were found: <code>/agent/account/billing</code> and <code>/agent/polish/billing-hub-v2</code>. Confirm which is live in production and remove the other from the doc if appropriate.</li>
+  <li><strong>The drain crons skip Sunday on most queues.</strong> Drain-outbound-email and drain-withdrawal-notifications both run hourly Mon-Sat. Confirm this is intentional (UK weekend operations) versus a configuration drift.</li>
+  <li><strong>Outsourced-fee bands and "legacy" agencies.</strong> The agent-admin page mentions an Agency fee override for "legacy" outsourced files. The override mechanism was referenced but not fully audited. Confirm what an override does to the standard banded fee.</li>
+  <li><strong>The polish and preview routes.</strong> A handful of routes under <code>/agent/polish/*</code>, <code>/agent/audit/*</code>, <code>/agent/system-preview/*</code>, <code>/agent/anim-preview</code>, <code>/agent/hub-preview</code>, <code>/agent/analytics-preview</code> exist as polish or staging surfaces. They are not customer-facing and have not been listed individually in Part 1. Confirm they should stay out of the customer-facing inventory.</li>
+</ol>
+
+<p class="footer-note">End of document. Reflects commit <code>3dea586</code>, dated 3 June 2026.</p>
+
+</div>
+
+</body>
+</html>

@@ -8,6 +8,7 @@ import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 // ─── UK chase-time helper ───────────────────────────────────────────────────
 //
@@ -120,13 +121,37 @@ export async function getReminderLogsForTransaction(
 ): Promise<ReminderLogWithRule[]> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
-    select: { id: true },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Round-scoped: orphan-cleanup must match the chase engine's view of
+  // "this milestone is satisfied" exactly — the engine reads active
+  // round PMs + vendor file-level via forRound (line ~322), and so
+  // must this filter or we'd surface logs whose target is satisfied
+  // in an archived round (false-positive orphan).
+  const scope = forRound(tx.activeBuyerRoundId, transactionId);
+
   const [logs, completedCodes] = await Promise.all([
     prisma.reminderLog.findMany({
-      where: { transactionId },
+      // Phase-2 PR 5 (ReminderLog read-path scoping): belt-and-braces
+      // beyond PR 1's cancellation. PR 1 marks old-round PM logs as
+      // status="cancelled" at fall-through and relist; the work-queue
+      // surfaces filter on status="active" so don't see them. THIS
+      // surface (file-detail reminders tab) doesn't filter on status —
+      // it shows the full reminder ledger for the file — so an old-
+      // round log that PR 1 missed (e.g. a regression in the
+      // cancellation logic, or a row created out of the normal flow)
+      // would otherwise still render here. The OR filter scopes
+      // visible rows to file-level (vendor rules, NULL by design) +
+      // active-round purchaser rules.
+      where: {
+        transactionId,
+        OR: [
+          { buyerRoundId: null },
+          ...(tx.activeBuyerRoundId ? [{ buyerRoundId: tx.activeBuyerRoundId }] : []),
+        ],
+      },
       orderBy: { nextDueDate: "asc" },
       include: {
         reminderRule: {
@@ -150,7 +175,11 @@ export async function getReminderLogsForTransaction(
       // Both complete AND not_required count as "this milestone is satisfied".
       // The engine treats them equivalently at evaluateTransactionReminders
       // line ~304, and so must the read-time filter.
-      where: { transactionId, state: { in: ["complete", "not_required"] } },
+      where: {
+        transactionId,
+        state: { in: ["complete", "not_required"] },
+        ...milestoneScopeWhere(scope),
+      },
       select: { state: true, milestoneDefinition: { select: { code: true } } },
     }).then((rows) => new Map(rows.map((r) => [r.milestoneDefinition.code, r.state]))),
   ]);
@@ -228,6 +257,15 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
       : { ...baseTxWhere, agentUserId: vis.userId };
   }
 
+  // PHASE 1 (b)-CLASS — drives chase decisions, restructured as
+  // two-step. The orphan filter below removes stale logs whose target
+  // milestone is already satisfied; under-scoping the satisfied check
+  // (archived rounds' completions) would falsely mark a current
+  // round's reminder as orphan and hide it from the agent, so the
+  // satisfied-codes-per-tx must be round-scoped. Prisma's nested
+  // where can't reference the parent tx's activeBuyerRoundId, so we
+  // fetch the logs (without the MC include), then per-tx fetch the
+  // round-scoped satisfied codes in a single batch query.
   const logs = await prisma.reminderLog.findMany({
     where: { status: "active", transaction: txWhere },
     include: {
@@ -252,28 +290,51 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
         select: {
           id: true,
           propertyAddress: true,
+          activeBuyerRoundId: true,
           contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true } },
-          // Pulled solely so we can filter out orphan logs whose target
-          // milestone is already complete OR not_required (migration race,
-          // edit-while-on-hold, etc.). Read-only — the per-file
-          // getReminderLogsForTransaction does the DB cleanup.
-          milestoneCompletions: {
-            where: { state: { in: ["complete", "not_required"] } },
-            select: { milestoneDefinition: { select: { code: true } } },
-          },
         },
       },
     },
     orderBy: { nextDueDate: "asc" },
   });
 
-  // Filter orphan logs: rule has targetMilestoneCode that's already complete
-  // on this transaction. Don't write here — the work queue is hot. The DB
-  // heals when the per-file page next loads.
+  // Step 2: build a per-tx round-scoped map of satisfied codes via raw
+  // SQL DISTINCT so the per-tx OR clause can reference the parent.
+  // Pre-relist (one round) this returns the same set as the prior
+  // nested include; post-relist it correctly excludes archived rounds'
+  // satisfied codes from the orphan check.
+  const txInfo = new Map(
+    logs.map((l) => [l.transaction.id, l.transaction.activeBuyerRoundId]),
+  );
+  const txIds = Array.from(txInfo.keys());
+  const satisfiedByTx = new Map<string, Set<string>>(txIds.map((id) => [id, new Set<string>()]));
+  if (txIds.length > 0) {
+    const rows = await prisma.$queryRaw<{ transactionId: string; code: string }[]>`
+      SELECT mc."transactionId", md.code
+      FROM "MilestoneCompletion" mc
+      JOIN "MilestoneDefinition" md ON mc."milestoneDefinitionId" = md.id
+      JOIN "PropertyTransaction" pt ON mc."transactionId" = pt.id
+      WHERE mc."transactionId" = ANY(${txIds})
+        AND mc.state IN ('complete', 'not_required')
+        AND (
+          mc."buyerRoundId" IS NULL
+          OR mc."buyerRoundId" = pt."activeBuyerRoundId"
+        )
+    `;
+    for (const r of rows) {
+      satisfiedByTx.get(r.transactionId)?.add(r.code);
+    }
+  }
+
+  // Filter orphan logs: rule has targetMilestoneCode that's already
+  // satisfied (complete/NR) on this transaction's active round (or
+  // vendor file-level). Don't write here — the work queue is hot. The
+  // DB heals when the per-file getReminderLogsForTransaction next loads.
   const visibleLogs = logs.filter((l) => {
     const target = l.reminderRule.targetMilestoneCode;
     if (!target) return true;
-    return !l.transaction.milestoneCompletions.some((c) => c.milestoneDefinition.code === target);
+    const codes = satisfiedByTx.get(l.transaction.id);
+    return !codes?.has(target);
   });
 
   const todayUKStr = toUKDateStr(new Date());
@@ -297,12 +358,26 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
 export async function getChaseTasksForTransaction(transactionId: string, scope: AccessScope) {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Phase-2 PR 6 (ChaseTask read-path scoping): belt-and-braces after PR 1
+  // cancellation + PR 5 ReminderLog scoping. PR 1 marks old-round buyer-
+  // side ChaseTasks as status="cancelled" at withdraw/relist; PR 5 hides
+  // old-round ReminderLog rows so the parent include is naturally
+  // scoped. THIS surface (per-tx ChaseTask fetch, used by the chase-
+  // management views) returns the full ledger for the file regardless
+  // of status — without the OR filter, an old-round chase that PR 1
+  // missed (regression, out-of-flow row) would still render.
   return prisma.chaseTask.findMany({
-    where: { transactionId },
+    where: {
+      transactionId,
+      OR: [
+        { buyerRoundId: null },
+        ...(tx.activeBuyerRoundId ? [{ buyerRoundId: tx.activeBuyerRoundId }] : []),
+      ],
+    },
     orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
     include: {
       reminderLog: {
@@ -316,28 +391,50 @@ export async function getChaseTasksForTransaction(transactionId: string, scope: 
 // ─── Core engine ──────────────────────────────────────────────────────────────
 
 export async function evaluateTransactionReminders(transactionId: string) {
+  // CRITICAL ROUND-SCOPING: this is the chase engine. Reading archived
+  // rounds' PMs here would cause every rule to misfire post-relist:
+  // a target marked complete on the OLD round would deactivate the
+  // rule on the CURRENT round; an anchor from the OLD round would
+  // mis-date the next-due-date. The completionBy* maps below MUST
+  // contain only vendor file-level + active round PMs.
+  //
+  // Two-step fetch: parent row first (gives us activeBuyerRoundId),
+  // then a round-scoped MilestoneCompletion fetch using forRound. The
+  // include syntax can't reference the parent's column in its nested
+  // where, so the split is unavoidable for round-correctness.
   const transaction = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    include: {
-      milestoneCompletions: {
-        include: { milestoneDefinition: true },
-      },
+    select: {
+      id: true,
+      status: true,
+      assignedUserId: true,
+      activeBuyerRoundId: true,
+      createdAt: true,
     },
   });
 
   if (!transaction) return;
   if (transaction.status !== "active") return;
 
+  const scopedCompletions = await prisma.milestoneCompletion.findMany({
+    where: {
+      transactionId,
+      ...milestoneScopeWhere(forRound(transaction.activeBuyerRoundId, transactionId)),
+    },
+    include: { milestoneDefinition: true },
+  });
+  // Repackaged into the shape the rest of this function consumed
+  // before the refactor. Keeps the downstream code unchanged.
   const assignedUserId = transaction.assignedUserId ?? "";
 
   // Build completion map: milestoneDefinitionId -> completion
   const completionByDefId = new Map(
-    transaction.milestoneCompletions.map((c) => [c.milestoneDefinitionId, c])
+    scopedCompletions.map((c) => [c.milestoneDefinitionId, c])
   );
 
   // Build completion map by code: code -> completion
   const completionByCode = new Map(
-    transaction.milestoneCompletions.map((c) => [c.milestoneDefinition.code, c])
+    scopedCompletions.map((c) => [c.milestoneDefinition.code, c])
   );
 
   // Exchange readiness: all blocksExchange milestones complete or not-required
@@ -495,6 +592,13 @@ export async function evaluateTransactionReminders(transactionId: string) {
         }
       }
     } else {
+      // Commit 4c-followup (2026-06-04) — stamp buyerRoundId per the same
+      // rule createInitialRemindersInline uses: PM-targeted rules get the
+      // active round's id; VM-targeted (and untargeted) rules stay file-
+      // level. Without this stamp, the relist action's round-keyed
+      // cancellation sweep can't find engine-created PM ReminderLogs on
+      // a subsequent relist — they'd survive to fire about a dead buyer.
+      const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
       await prisma.reminderLog.create({
         data: {
           transactionId,
@@ -502,6 +606,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
           status: "active",
           nextDueDate: firstDueDate,
           sourceDateUsed: anchorDate,
+          buyerRoundId: isPurchaserTarget ? (transaction.activeBuyerRoundId ?? null) : null,
         },
       });
       await writeEngineAudit(
@@ -563,6 +668,9 @@ export async function evaluateTransactionReminders(transactionId: string) {
       }
     } else {
       if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
+        // Commit 4c-followup — inherit the buyerRoundId from the parent
+        // ReminderLog (now correctly stamped above). Same rule as the
+        // ChaseTask.createMany in createInitialRemindersInline.
         await prisma.chaseTask.create({
           data: {
             transactionId,
@@ -572,6 +680,7 @@ export async function evaluateTransactionReminders(transactionId: string) {
             status: "pending",
             priority: "normal",
             chaseCount: 0,
+            buyerRoundId: log.buyerRoundId,
           },
         });
         // No audit entry — duplicates the "Automated chase scheduled…"
@@ -588,7 +697,13 @@ export async function createInitialRemindersInline(
   transactionId: string,
   createdAt: Date,
   assignedUserId: string | null,
-  completedMilestoneCodes: string[] = []
+  completedMilestoneCodes: string[] = [],
+  // Phase 1 commit 3: when supplied, purchaser-targeted rules
+  // (targetMilestoneCode starts with 'PM') get their ReminderLog and
+  // any inline-created ChaseTask stamped with this round id. Vendor-
+  // targeted rules stay file-level. Same attribution rule as Phase 0
+  // backfill.
+  buyerRoundId?: string | null
 ): Promise<void> {
   const rules = await prisma.reminderRule.findMany({
     where: { isActive: true, anchorMilestoneId: null, requiresExchangeReady: false },
@@ -608,19 +723,21 @@ export async function createInitialRemindersInline(
       // Normalise to 06:00 UK on the resulting day so the chase is live
       // before the working day starts (rather than inheriting createdAt's hour).
       const normalised = setUkChaseTime(dueDate);
+      const isPurchaserTarget = rule.targetMilestoneCode?.startsWith("PM") ?? false;
       return {
         transactionId,
         reminderRuleId: rule.id,
         status: "active" as const,
         nextDueDate: normalised,
         sourceDateUsed: createdAt,
+        buyerRoundId: isPurchaserTarget ? (buyerRoundId ?? null) : null,
       };
     }),
   });
 
   const logs = await prisma.reminderLog.findMany({
     where: { transactionId, reminderRuleId: { in: eligibleRules.map((r) => r.id) }, status: "active" },
-    select: { id: true, nextDueDate: true },
+    select: { id: true, nextDueDate: true, buyerRoundId: true },
   });
 
   const nowUKStr = toUKDateStr(new Date());
@@ -636,6 +753,9 @@ export async function createInitialRemindersInline(
       status: "pending" as const,
       priority: "normal" as const,
       chaseCount: 0,
+      // Inherit attribution from the parent ReminderLog (same rule as
+      // Phase 0's ChaseTask backfill).
+      buyerRoundId: log.buyerRoundId,
     })),
   });
 }
@@ -1020,13 +1140,16 @@ export async function createAgentChaseTaskForMilestone(
   const { transactionId, milestoneCode, kind } = input;
 
   // Resolve the file's agent / progressor — the task gets assigned to them.
+  // Commit 4c-followup — also fetch activeBuyerRoundId for round stamping.
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { agentUserId: true, assignedUserId: true },
+    select: { agentUserId: true, assignedUserId: true, activeBuyerRoundId: true },
   });
   if (!tx) return null;
   const assignedToId = tx.assignedUserId ?? tx.agentUserId;
   if (!assignedToId) return null;
+  // PM-targeted fallback rows stamp the active round; VM-targeted stay file-level.
+  const stampRoundId = milestoneCode.startsWith("PM") ? (tx.activeBuyerRoundId ?? null) : null;
 
   // Find the active ReminderRule that targets this milestone. If multiple
   // rules target the same code (rare), use the first — matches the existing
@@ -1064,6 +1187,8 @@ export async function createAgentChaseTaskForMilestone(
           nextDueDate: today,
           sourceDateUsed: today,
           statusReason: FALLBACK_REASON[kind],
+          // Commit 4c-followup — same PM*-targeted → active round stamp.
+          buyerRoundId: stampRoundId,
         },
         select: { id: true },
       });
@@ -1091,6 +1216,8 @@ export async function createAgentChaseTaskForMilestone(
           priority: "normal",
           chaseCount: 0,
           fallbackKind: kind,
+          // Commit 4c-followup — inherit the parent ReminderLog's stamp.
+          buyerRoundId: stampRoundId,
         },
         select: { id: true },
       });

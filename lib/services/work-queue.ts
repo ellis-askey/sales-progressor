@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
 import type { TransactionStatus } from "@prisma/client";
+import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 
 const DRAFT = "draft" as TransactionStatus;
 
@@ -73,8 +74,12 @@ export async function getWorkQueueItems(vis: AgentVisibility): Promise<WorkQueue
       createdAt: true,
       agentUser: { select: { id: true, name: true } },
       contacts: { select: { name: true, roleType: true } },
+      // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below. The
+      // archived-round PM26/VM19 of a relisted file no longer makes
+      // hasExchanged read true; the OR clause restricts MC visibility
+      // to file-level (vendor) + active-round rows.
       milestoneCompletions: {
-        where: { state: "complete" },
+        where: { state: "complete", OR: roundScopedOR(await loadActiveRoundIds({ ...txWhereWorkQueue(vis), status: "active" as TransactionStatus })) },
         select: {
           milestoneDefinitionId: true,
           completedAt: true,

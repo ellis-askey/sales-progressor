@@ -12,6 +12,7 @@ import {
   bulkCompleteMilestones,
 } from "@/lib/services/milestones";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -78,8 +79,18 @@ export async function POST(req: NextRequest) {
         }, ptx);
 
         if (counterDefId) {
+          const apiTxRow = await ptx.propertyTransaction.findUnique({
+            where: { id: transactionId },
+            select: { activeBuyerRoundId: true },
+          });
+          const apiScope = forRound(apiTxRow?.activeBuyerRoundId ?? null, transactionId);
           const alreadyDone = await ptx.milestoneCompletion.findFirst({
-            where: { transactionId, milestoneDefinitionId: counterDefId, state: "complete" },
+            where: {
+              transactionId,
+              milestoneDefinitionId: counterDefId,
+              state: "complete",
+              ...milestoneScopeWhere(apiScope),
+            },
           });
           if (!alreadyDone) {
             await completeMilestone({

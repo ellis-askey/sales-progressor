@@ -43,6 +43,11 @@ e2e/.auth/
 
 # Claude Code working directories and session scratch files
 .claude/worktrees/
+# Claude Code permission allowlists — can contain inline command strings
+# that include credentials (the prod Postgres URL leaked via this file's
+# initial commit on 2026-04-21; finding 2026-06-04). Local-only from now.
+.claude/settings.json
+.claude/settings.local.json
 .env*.local
 
 # TypeScript incremental build cache
@@ -53,9 +58,15 @@ tsconfig.tsbuildinfo
 
 # Playwright screenshots (ephemeral test output)
 e2e/screenshots/
+scripts/screenshots/
 
 # Debug trace JSON from one-off scripts (ephemeral)
 logs/
 
 # Office app lockfiles (e.g. Word "~$..." while a doc is open)
 ~$*
+
+# Parity-harness snapshots — staging DB dumps. Can include real-looking
+# UK addresses from test fixtures; never commit. Reproduce at any
+# revision via scripts/parity-harness-mc-reads.ts.
+scripts/snapshots/

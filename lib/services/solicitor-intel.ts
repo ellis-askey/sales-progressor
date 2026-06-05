@@ -26,6 +26,16 @@ export async function getSolicitorIntel(firmId: string): Promise<SolicitorIntel 
       // isMigrated:false on both sides — solicitor performance averages
       // (avgWeeksToExchange, avgDaysSearches) would be polluted by backdated
       // migration files whose timestamps were estimates, not real signals.
+      // PHASE 1 4d (a)-CLASS — per-solicitor-firm performance averages
+      // for the Command Centre solicitor-intel page. Cross-tx Prisma
+      // include limitation: nested where can't reference parent row's
+      // activeBuyerRoundId. Display only; no action surface — agents
+      // see solicitor avg weeks-to-exchange / avg-days-search-turnaround
+      // but no comms / chases / billing fire from this read. Phase 2
+      // ticket: when relisted files exist, accept that an archived
+      // round's VM12/PM16/PM9/PM10 timestamps could pollute the firm's
+      // averages and decide whether to restructure or carry the
+      // distortion. Pre-relist parity: byte-identical.
       vendorForTransactions: {
         where: { isMigrated: false },
         select: {

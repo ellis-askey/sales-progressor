@@ -4,6 +4,26 @@ import type { AgentVisibility } from "./agent";
 import type { FlagKind } from "./problem-detection";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
+import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE-3 (cross-tx aggregate restructure, 2026-06-05) — (a)-CLASS RESOLVED.
+//
+// Every cross-tx `milestoneCompletions: { some/none: ... }` filter in this
+// file is now augmented with `OR: roundScopedOR(activeRoundIds)` — the
+// two-step pattern from lib/services/round-scope.ts. The per-function
+// `loadActiveRoundIds(txWhere)` pre-load establishes the set of valid
+// active round ids; the OR clause then scopes each MC nested filter to
+// (file-level vendor rows) UNION (rows whose buyerRoundId matches an
+// in-scope tx's activeBuyerRoundId).
+//
+// Pre-Phase-3 (the original (a)-CLASS): the archived-round PM26/VM19/
+// PM27/VM20 of a relisted file could match these filters, inflating
+// "stalled" / "exchanging this week" / closing-this-month counts. The
+// per-site comment `// PHASE 1 4d (a)-CLASS` is retained on the lines
+// where the OR was added so a grep over the file finds every restructured
+// site at a glance.
+// ─────────────────────────────────────────────────────────────────────────────
 
 const SEVERITY_MAP: Record<FlagKind, "overdue" | "watch" | "attention"> = {
   chase_unanswered:          "overdue",
@@ -53,6 +73,8 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
   const txWhere = buildTxWhere(vis);
+  // Phase-3: pre-load active round ids for every cross-tx MC filter below.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const [
     activeCount,
@@ -89,17 +111,18 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     }),
 
     // ── Coming up: exchanging this week ────────────────────────────────────────
-    // Active txns where expectedExchangeDate falls in next 7 days AND VM19/PM26 not yet complete
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
         expectedExchangeDate: { gte: now, lte: in7Days },
         NOT: {
+          // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
             some: {
               state: "complete",
               milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+              OR: roundScopedOR(activeRoundIds),
             },
           },
         },
@@ -108,17 +131,18 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     }),
 
     // ── Coming up: completing this week ───────────────────────────────────────
-    // Active txns where completionDate falls in next 7 days AND VM20/PM27 not yet complete
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
         completionDate: { gte: now, lte: in7Days },
         NOT: {
+          // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
             some: {
               state: "complete",
               milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
+              OR: roundScopedOR(activeRoundIds),
             },
           },
         },
@@ -127,17 +151,18 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     }),
 
     // ── Coming up: closing this month (purchase price sum) ────────────────────
-    // Active txns where expectedExchangeDate is in current calendar month, VM19/PM26 not complete
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
         expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
         NOT: {
+          // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
             some: {
               state: "complete",
               milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+              OR: roundScopedOR(activeRoundIds),
             },
           },
         },
@@ -146,40 +171,41 @@ export async function getHubPipelineStats(vis: AgentVisibility) {
     }),
 
     // ── Stalled: active, not exchanged, no genuine milestone in 14 days ───────
-    // "Genuine" = reconciledAtExchange AND reconciledAtClaim both false. For
-    // reconciled-at-claim completions, we instead check eventDate (the real-world
-    // date the agent backdated to). A file with recent backdated activity is NOT stalled.
     prisma.propertyTransaction.findMany({
       where: {
         ...txWhere,
         status: "active",
         // No genuine (non-reconciled) completion in last 14 days
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
           none: {
             state: "complete",
             completedAt: { gte: fourteenDaysAgo },
             reconciledAtExchange: false,
             reconciledAtClaim: false,
+            OR: roundScopedOR(activeRoundIds),
           },
         },
-        // AND no recent backdated (reconciledAtClaim) completion either — eventDate within 14 days counts as activity
         AND: [
           {
+            // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
             milestoneCompletions: {
               none: {
                 state: "complete",
                 reconciledAtClaim: true,
                 eventDate: { gte: fourteenDaysAgo },
+                OR: roundScopedOR(activeRoundIds),
               },
             },
           },
         ],
-        // Not already exchanged
         NOT: {
+          // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
           milestoneCompletions: {
             some: {
               state: "complete",
               milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+              OR: roundScopedOR(activeRoundIds),
             },
           },
         },
@@ -240,10 +266,12 @@ export async function getHubFilteredIds(
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   const txWhere = buildTxWhere(vis);
 
+  // Phase-3: same pre-load + OR scoping as getHubPipelineStats.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
   let where: Prisma.PropertyTransactionWhereInput;
 
   if (filter === "exchanging-next-30-days") {
-    // Mirrors hub.ts:63–72 — active files with expected/override exchange date in next 30 days
     where = {
       ...txWhere,
       status: "active",
@@ -253,46 +281,49 @@ export async function getHubFilteredIds(
       ],
     };
   } else if (filter === "exchanging-this-week") {
-    // Mirrors hub.ts:83–98
     where = {
       ...txWhere,
       status: "active",
       expectedExchangeDate: { gte: now, lte: in7Days },
       NOT: {
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
           some: {
             state: "complete",
             milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            OR: roundScopedOR(activeRoundIds),
           },
         },
       },
     };
   } else if (filter === "completing-this-week") {
-    // Mirrors hub.ts:101–117
     where = {
       ...txWhere,
       status: "active",
       completionDate: { gte: now, lte: in7Days },
       NOT: {
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
           some: {
             state: "complete",
             milestoneDefinition: { code: { in: ["VM20", "PM27"] } },
+            OR: roundScopedOR(activeRoundIds),
           },
         },
       },
     };
   } else {
-    // closing-this-month — mirrors hub.ts:119–136
     where = {
       ...txWhere,
       status: "active",
       expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth },
       NOT: {
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
           some: {
             state: "complete",
             milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            OR: roundScopedOR(activeRoundIds),
           },
         },
       },
@@ -321,6 +352,9 @@ export async function getMonthExchangingIds(
   const endOfMonth   = new Date(year, month + 1, 0, 23, 59, 59, 999);
   const txWhere = buildTxWhere(vis);
 
+  // Phase-3 OR scope for the not-yet-exchanged check.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
   const where: Prisma.PropertyTransactionWhereInput = {
     ...txWhere,
     status: "active",
@@ -329,10 +363,12 @@ export async function getMonthExchangingIds(
       { overridePredictedDate: { gte: startOfMonth, lte: endOfMonth } },
     ],
     NOT: {
+      // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
       milestoneCompletions: {
         some: {
           state: "complete",
           milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+          OR: roundScopedOR(activeRoundIds),
         },
       },
     },
@@ -448,6 +484,11 @@ export async function getHubMomentum(vis: AgentVisibility) {
   });
   const exchangeDefIds = exchangeDefs.map((d) => d.id);
 
+  // PHASE 1 4d (a)-CLASS — see file banner. Cross-tx count of
+  // exchange-marker completions; can over-count post-relist by
+  // including an archived round's previous PM26/VM19 alongside the
+  // new round's. exchangedAt-canonical principle (relist precondition)
+  // prevents the practical case.
   const [thisMonth, lastMonth] = await Promise.all([
     prisma.milestoneCompletion.count({
       where: {
@@ -499,6 +540,8 @@ export async function getHubWeeklyForecast(
 
   const cutoff = weeks[NUM_WEEKS - 1].end;
   const txWhere = buildTxWhere(vis);
+  // Phase-3 OR scope for the not-yet-exchanged check.
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
 
   const transactions = await prisma.propertyTransaction.findMany({
     where: {
@@ -509,10 +552,12 @@ export async function getHubWeeklyForecast(
         { expectedExchangeDate: { gte: now, lte: cutoff } },
       ],
       NOT: {
+        // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
         milestoneCompletions: {
           some: {
             state: "complete",
             milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+            OR: roundScopedOR(activeRoundIds),
           },
         },
       },
@@ -704,10 +749,19 @@ export async function getHubRecentActivity(
 ): Promise<RecentActivity> {
   const txWhere = buildTxWhere(vis);
   const txFilter = { ...txWhere, status: { not: "draft" as never } };
+  // Phase-3: scope the cross-tx OutboundMessage + MilestoneCompletion
+  // reads below to active round + file-level. Pre-Phase-3 the latest
+  // archived-buyer comm or PM could win as "most recent activity" on a
+  // relisted file.
+  const activeRoundIds = await loadActiveRoundIds(txFilter);
 
   const [recentComm, recentMilestone] = await Promise.all([
     prisma.outboundMessage.findFirst({
-      where: { transaction: txFilter, type: { in: ["outbound", "inbound"] } },
+      where: {
+        transaction: txFilter,
+        type: { in: ["outbound", "inbound"] },
+        OR: roundScopedOR(activeRoundIds),
+      },
       orderBy: { createdAt: "desc" },
       select: {
         type: true,
@@ -717,8 +771,13 @@ export async function getHubRecentActivity(
         transaction: { select: { id: true, propertyAddress: true } },
       },
     }),
+    // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
     prisma.milestoneCompletion.findFirst({
-      where: { transaction: txFilter, state: "complete" },
+      where: {
+        transaction: txFilter,
+        state: "complete",
+        OR: roundScopedOR(activeRoundIds),
+      },
       orderBy: { completedAt: "desc" },
       select: {
         completedAt: true,
@@ -785,4 +844,109 @@ export async function getHubUnassignedFiles(vis: AgentVisibility): Promise<HubUn
     agencyName: f.agency?.name ?? null,
     createdAt: f.createdAt,
   }));
+}
+
+// ─── Hub card: outsourced files with an unacknowledged relist ───
+// Phase 1 commit 8b (Ellis approval, 2026-06-04).
+//
+// Surface files where:
+//   - serviceType = "outsourced"
+//   - status = "active"
+//   - the ACTIVE round has roundNumber > 1 (so this came from a relist,
+//     not a fresh file)
+//   - that round's relistAcknowledgedAt IS NULL (no one has clicked
+//     Acknowledge yet)
+//
+// Visibility mirrors the assign card:
+//   - assigned SP (internalMode = "assigned"): sees only files
+//     assigned to them
+//   - admin_all: sees every unacknowledged-relisted outsourced file,
+//     including files that were withdrawn before being assigned and
+//     have assignedUserId = null (the "fall into a void" case Ellis
+//     called out)
+//   - agency callers (no internalMode): no visibility — this card
+//     surfaces operational state for the SP team, not the agency
+//
+// Each round needs its own click — a second relist creates a fresh
+// BuyerRound with relistAcknowledgedAt = NULL by default, so the
+// card naturally re-raises without any reset code.
+export type HubRelistAck = {
+  // transaction (the address + agency the card shows)
+  transactionId: string;
+  propertyAddress: string;
+  agencyName: string | null;
+  // round-acknowledgement key (what Acknowledge stamps)
+  roundId: string;
+  roundNumber: number;
+  newBuyerName: string;     // purchaser Contact stamped to this round
+  archivedAt: Date | null;   // when the previous round closed
+  relistedAt: Date;          // BuyerRound.createdAt — when round was opened
+};
+
+export async function getHubRelistsToAcknowledge(vis: AgentVisibility): Promise<HubRelistAck[]> {
+  // Build the visibility-scoped tx filter using the same pattern as the
+  // assign card. Agency callers see nothing here.
+  let txWhere: Prisma.PropertyTransactionWhereInput;
+  if (vis.internalMode === "admin_all") {
+    txWhere = { serviceType: "outsourced", status: "active" };
+  } else if (vis.internalMode === "assigned") {
+    txWhere = { serviceType: "outsourced", status: "active", assignedUserId: vis.userId };
+  } else {
+    return [];
+  }
+
+  // Round-side filter: roundNumber > 1 AND relistAcknowledgedAt IS NULL.
+  // We query BuyerRound directly (not PropertyTransaction) so the
+  // partial index on relistAcknowledgedAt IS NULL is hit.
+  const rounds = await prisma.buyerRound.findMany({
+    where: {
+      relistAcknowledgedAt: null,
+      roundNumber: { gt: 1 },
+      // The active round on this tx — there's only ever one round per
+      // tx with activeForTransaction relation set. The transaction-side
+      // filter scopes this to the right visibility set.
+      activeForTransaction: { is: txWhere },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+    select: {
+      id: true,
+      roundNumber: true,
+      createdAt: true,
+      archivedAt: true,
+      transactionId: true,
+    },
+  });
+  if (rounds.length === 0) return [];
+
+  // Pull the rest in one batch — transaction (for address + agency name)
+  // and purchaser Contact (for buyer name).
+  const txIds = rounds.map((r) => r.transactionId);
+  const [txs, contacts] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: { id: { in: txIds } },
+      select: { id: true, propertyAddress: true, agency: { select: { name: true } } },
+    }),
+    prisma.contact.findMany({
+      where: { buyerRoundId: { in: rounds.map((r) => r.id) }, roleType: "purchaser" },
+      orderBy: { createdAt: "asc" },
+      select: { name: true, buyerRoundId: true },
+    }),
+  ]);
+  const txById = new Map(txs.map((t) => [t.id, t]));
+  const buyerByRound = new Map(contacts.map((c) => [c.buyerRoundId ?? "", c.name]));
+
+  return rounds.map((r) => {
+    const tx = txById.get(r.transactionId);
+    return {
+      transactionId: r.transactionId,
+      propertyAddress: tx?.propertyAddress ?? "(unknown address)",
+      agencyName: tx?.agency?.name ?? null,
+      roundId: r.id,
+      roundNumber: r.roundNumber,
+      newBuyerName: buyerByRound.get(r.id) ?? "(no buyer recorded)",
+      archivedAt: null, // previous round's archivedAt, not this one's
+      relistedAt: r.createdAt,
+    };
+  });
 }

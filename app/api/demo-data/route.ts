@@ -21,14 +21,29 @@ export async function POST() {
   ];
 
   for (const d of DEMO) {
-    const tx = await prisma.propertyTransaction.create({
-      data: {
-        propertyAddress: d.address,
-        agencyId: session.user.agencyId,
-        assignedUserId: session.user.id,
-        purchasePrice: d.price,
-        status: "active",
-      },
+    // Phase 1: Round 1 + activeBuyerRoundId wired inside the create tx.
+    const tx = await prisma.$transaction(async (ptx) => {
+      const created = await ptx.propertyTransaction.create({
+        data: {
+          propertyAddress: d.address,
+          agencyId: session.user.agencyId,
+          assignedUserId: session.user.id,
+          purchasePrice: d.price,
+          status: "active",
+        },
+      });
+      const round = await ptx.buyerRound.create({
+        data: {
+          transactionId: created.id,
+          roundNumber: 1,
+          status: "active",
+          purchasePrice: created.purchasePrice,
+        },
+      });
+      return ptx.propertyTransaction.update({
+        where: { id: created.id },
+        data: { activeBuyerRoundId: round.id },
+      });
     });
 
     await prisma.contact.createMany({
@@ -39,6 +54,7 @@ export async function POST() {
           email: d.vendor.email,
           phone: d.vendor.phone,
           roleType: "vendor",
+          buyerRoundId: null,
         },
         {
           propertyTransactionId: tx.id,
@@ -46,6 +62,7 @@ export async function POST() {
           email: d.purchaser.email,
           phone: d.purchaser.phone,
           roleType: "purchaser",
+          buyerRoundId: tx.activeBuyerRoundId,
         },
       ],
     });
