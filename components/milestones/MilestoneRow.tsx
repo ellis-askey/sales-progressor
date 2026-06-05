@@ -185,7 +185,22 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           milestoneDefinitionId: def.id,
           eventDate: eventDate || null,
         });
-        if (result.triggeredCelebration && result.propertyAddress) {
+        // Prereq gate (2026-06-05): the action returns a structured failure
+        // when the user clicks Confirm before a prereq has been committed
+        // (rapid-click race — see app/actions/milestones.ts). Render the
+        // specific missing-step name so the agent knows what to do next,
+        // instead of the generic Next.js production error wrapper.
+        if (result.ok === false) {
+          if (result.kind === "prereqs_missing") {
+            const first = result.missing[0];
+            const msg = first
+              ? `Confirm "${first.name}" first.`
+              : "An earlier step needs to be confirmed first.";
+            addOptimistic("reverse");
+            setError(msg);
+            return;
+          }
+        } else if (result.triggeredCelebration && result.propertyAddress) {
           setCelebrationAddress(result.propertyAddress);
           setCelebrating(true);
         } else {

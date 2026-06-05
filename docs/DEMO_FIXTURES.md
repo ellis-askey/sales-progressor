@@ -44,9 +44,9 @@ All addresses are synthetic. All contact + login emails use `.test` TLDs (RFC 67
 | **Tenure × purchase** | freehold × mortgage |
 | **Price** | £695,000 |
 | **Owner** | James Patel (negotiator) |
-| **Status** | active, every blocksExchange milestone complete or NR; VM18 + PM25 available; **VM19/PM26 NOT confirmed** |
-| **What it demonstrates** | The exchange-ready state — both exchange gates sit available, waiting for confirmation |
-| **Use it for** | **Confirm VM19 live in the demo for the confetti moment.** Do NOT preconfirm. |
+| **Status** | active, every blocksExchange milestone complete or NR; **VM18 + PM25 (the gates) already confirmed**; **VM19 + PM26 sit as the next available step on each side** |
+| **What it demonstrates** | Exchange-ready — both gates confirmed, both sides waiting on the actual exchange confirmation |
+| **Use it for** | **Confirm VM19 (or PM26) live in the demo for the confetti moment.** Do NOT preconfirm. Verified end-to-end 2026-06-05 against the post-fix seed — both the bilateral pair completion and the engine side-effects fire cleanly. |
 
 ### Active files (×4)
 | Address | Tenure × purchase | Price | Owner | What it demonstrates |
@@ -85,10 +85,10 @@ These four URLs are bookmarkable for the live demo. Visit each in an incognito w
 
 | Role | Contact | URL |
 |---|---|---|
-| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/d20cc3c8-d2ee-4d5e-8e44-e4c033d80855` |
-| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/864303b8-3ddd-4ecd-9b52-c90ed8248bc7` |
-| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/db0e4498-64c4-4907-aef3-0c1953a87014` |
-| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/bebc2cf4-5d0e-4999-80b8-9ea0819f0d19` |
+| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/e03c88cb-503f-4649-8e4b-22120866b512` |
+| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/2c117916-74d9-4c44-a652-f40dab56d6b9` |
+| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/0816aee8-c176-435a-a352-a556400b5b7c` |
+| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/3553517f-6ebd-4385-80bc-d9aa6fca43c0` |
 
 **Tom Clarke is the lead purchaser** — has the two active ClientChaseState rows so `/portal/<token>/respond` shows two milestones (PM5 mortgage application, PM7 contract pack) for him to confirm live.
 
@@ -161,6 +161,18 @@ Not exposed as a script — `runSeedDemo` always tears down first then reseeds. 
 npm run demo:verify
 ```
 Read-only. Prints the manifest snapshot above plus fresh portal tokens.
+
+---
+
+## After every reseed: refresh your browser
+
+Every `demo:seed` / `demo:reset` / Reset Demo button click **deletes the entire Fairview Estates agency** (including all 15 transactions and their contacts) and creates fresh ones with new ids. **If you have a transaction page open in your browser from a previous seed, every action on that page will fail** with a Next.js prod-build error like:
+
+> "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details."
+
+That's `getExchangeReconciliationList` (or any other action) throwing `Transaction not found` because the id in your URL no longer exists. **Fix: close the tab and re-open the file from `/agent/transactions`.** Verified 2026-06-05 — this exact symptom from the original demo screenshot was a stale URL from the first seed; the fresh seed's 8 Elmwood confirms VM19/PM26 cleanly end-to-end.
+
+> If you click the Reset Demo button in the Command Centre while a demo tab is open on a transaction, the same thing will happen — re-navigate via `/agent/transactions` after the reset finishes.
 
 ---
 
