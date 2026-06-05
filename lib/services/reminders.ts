@@ -358,12 +358,26 @@ export async function getAgentReminderLogs(vis: AgentVisibility) {
 export async function getChaseTasksForTransaction(transactionId: string, scope: AccessScope) {
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: { id: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
+  // Phase-2 PR 6 (ChaseTask read-path scoping): belt-and-braces after PR 1
+  // cancellation + PR 5 ReminderLog scoping. PR 1 marks old-round buyer-
+  // side ChaseTasks as status="cancelled" at withdraw/relist; PR 5 hides
+  // old-round ReminderLog rows so the parent include is naturally
+  // scoped. THIS surface (per-tx ChaseTask fetch, used by the chase-
+  // management views) returns the full ledger for the file regardless
+  // of status — without the OR filter, an old-round chase that PR 1
+  // missed (regression, out-of-flow row) would still render.
   return prisma.chaseTask.findMany({
-    where: { transactionId },
+    where: {
+      transactionId,
+      OR: [
+        { buyerRoundId: null },
+        ...(tx.activeBuyerRoundId ? [{ buyerRoundId: tx.activeBuyerRoundId }] : []),
+      ],
+    },
     orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
     include: {
       reminderLog: {
