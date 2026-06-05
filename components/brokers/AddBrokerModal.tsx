@@ -97,9 +97,14 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
   }
 
   return createPortal(
+    // zIndex 2000 — must sit above any parent modal that invokes the
+    // BrokerPicker. Same fix as AddFirmModal (Ellis bug report
+    // 2026-06-05): the relist modal's backdrop sits at zIndex 1500,
+    // so any nested add-broker modal at the default 50 renders
+    // behind it and reads as "doesn't open".
     <div
       data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
       <div className="fixed inset-0 agent-backdrop-overlay" />
 
