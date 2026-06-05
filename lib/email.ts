@@ -79,10 +79,17 @@ export async function sendChainEmail({
     console.log(`[EMAIL_SANDBOX] to=${to} subject="${subject}"`);
   }
 
+  // Staging-only BCC: when CHAIN_EMAIL_BCC is set (e.g. ellisaskey@googlemail.com
+  // on the staging Vercel env), every chain email is BCC'd to that address so
+  // the closed-loop arc walkthrough can review the actual sent copy without
+  // logging into each neighbour agent's inbox. Prod doesn't set this var.
+  const chainBcc = process.env.CHAIN_EMAIL_BCC?.trim();
+
   await sgMail.send({
     to,
     from: from ?? DEFAULT_FROM,
     replyTo: replyTo ?? "support@thesalesprogressor.co.uk",
+    ...(chainBcc ? { bcc: chainBcc } : {}),
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),

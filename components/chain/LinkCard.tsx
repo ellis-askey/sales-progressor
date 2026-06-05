@@ -197,7 +197,21 @@ export function LinkCard({
         </p>
       )}
 
-      {/* Withdrawn state */}
+      {/* Withdrawn state. Two sources can fire this pill:
+        *   1. transaction.status === "withdrawn" — the canonical fact
+        *      that the sale is dead.
+        *   2. link.withdrawalStatus === "WITHDRAWN" — the cascade walker's
+        *      denormalised cache (set when a chain neighbour responded
+        *      WITHDRAW to a notification, or when this link was the
+        *      cascade trigger).
+        *
+        * Closed-loop chain arc (2026-06-05) — for the trigger link both
+        * are true at once and the pre-arc code rendered TWO identical
+        * "Withdrawn" badges stacked. Collapse to a single render: the
+        * transaction.status pill wins when both fire; the
+        * link.withdrawalStatus pill renders only when the file itself is
+        * still active (the agent has personally withdrawn from the chain
+        * but their file continues). */}
       {link.transaction?.status === "withdrawn" && (
         <span style={{
           display: "inline-block",
@@ -219,7 +233,7 @@ export function LinkCard({
        *  the per-direction state passed via `directional`. Fallback to the
        *  single denormalised link.withdrawalStatus when `directional` is
        *  omitted (e.g. an older caller). */}
-      {link.withdrawalStatus === "WITHDRAWN" ? (
+      {link.withdrawalStatus === "WITHDRAWN" && link.transaction?.status !== "withdrawn" ? (
         <Badge kind="WITHDRAWN" />
       ) : directional ? (
         <>

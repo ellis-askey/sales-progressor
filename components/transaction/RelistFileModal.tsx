@@ -228,9 +228,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl w-full"
+        className="relative bg-white rounded-2xl w-full flex flex-col"
         style={{
           maxWidth: stage === "form" ? 520 : 560,
+          // Cap modal height to the viewport (minus the outer p-4 padding on
+          // each side) so the new onward-sale step doesn't push the header
+          // and footer off-screen. Body section below gets flex:1 + scroll
+          // so it pages internally — header / footer stay sticky.
+          maxHeight: "calc(100vh - 32px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
@@ -293,9 +298,11 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — flex:1 + overflow-y:auto so the body scrolls internally
+          * when the form is taller than the viewport (the new onward-sale
+          * step pushed total height past ~700px on shorter monitors). */}
         {stage === "form" ? (
-          <div className="px-5 py-5 space-y-4">
+          <div className="px-5 py-5 space-y-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
             {/* Buyer details */}
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
@@ -644,7 +651,7 @@ function ConfirmStage({
 }) {
   const priceChanged = newPrice !== null && previousPrice !== null && newPrice !== previousPrice;
   return (
-    <div className="px-5 py-5 space-y-4">
+    <div className="px-5 py-5 space-y-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
       <p className="text-sm" style={{ color: "var(--agent-text-primary, #1a1d29)" }}>
         
         You're relisting this sale with <strong>{buyerName}</strong>
