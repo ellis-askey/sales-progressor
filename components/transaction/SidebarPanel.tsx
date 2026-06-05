@@ -72,6 +72,21 @@ export async function SidebarPanel({
   agencyId,
   agentSlot,
 }: Props) {
+  // Pass 3 B5: pre-load the active round's createdAt so the FileTimeSession
+  // query below can scope its `startedAt >= ...` filter. Without this, a
+  // relisted file accumulates the previous buyer's onboarding minutes into
+  // the live "time on file" reading. FileTimeSession has no buyerRoundId of
+  // its own (would need a migration + backfill); timestamp-based scope is
+  // accurate enough.
+  const activeRound = await prisma.propertyTransaction
+    .findUnique({
+      where: { id: transaction.id },
+      select: { activeBuyerRound: { select: { createdAt: true } } },
+    })
+    .then((r) => r?.activeBuyerRound ?? null)
+    .catch(() => null);
+  const activeRoundCreatedAt = activeRound?.createdAt ?? null;
+
   const [milestoneData, brokerRow, fileTimeSessions, assignedUser, agentUser, recommendedFirms] = await Promise.all([
     getMilestonesCached(transaction.id, agencyId).catch(() => null),
 
@@ -89,7 +104,12 @@ export async function SidebarPanel({
     }).catch(() => null),
 
     prisma.fileTimeSession.findMany({
-      where: { transactionId: transaction.id },
+      where: {
+        transactionId: transaction.id,
+        // Pass 3 B5: only count sessions inside the active sale's window.
+        // Legacy files with no active round fall back to "all sessions".
+        ...(activeRoundCreatedAt ? { startedAt: { gte: activeRoundCreatedAt } } : {}),
+      },
       select: {
         totalEngagedSeconds: true,
         lastActivityAt: true,

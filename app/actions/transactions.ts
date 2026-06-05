@@ -2181,13 +2181,20 @@ export async function relistTransactionImpl(
     // the file's "last activity" stayed at the withdraw timestamp even
     // though we just relisted, mis-ranking it on the SP's queue.
     const updatedPrice = input.newPurchasePrice ?? tx.purchasePrice;
+    // Pass 3 B8: default exchange forecast = relist + 12 weeks (the pacing
+    // assumption baked into the progress formula). Replaces the previous null
+    // write that left the forecast page blank until a milestone update.
+    // Pass 3 B6: clear clientEmailsPaused — the toggle reflects a stance on
+    // the previous buyer; it should not survive into the new sale. pausedAt /
+    // pausedById are kept as historical audit; the boolean is the live flag.
+    const forecastExpected = new Date(newRound.createdAt.getTime() + 84 * 86400000);
     await ptx.propertyTransaction.update({
       where: { id: tx.id },
       data: {
         status: "active",
         activeBuyerRoundId: newRound.id,
         fallThroughReason: null,
-        expectedExchangeDate: null,
+        expectedExchangeDate: forecastExpected,
         completionDate: null,
         purchasePrice: updatedPrice,
         purchaserSolicitorFirmId: input.newPurchaserSolicitorFirmId ?? null,
@@ -2195,6 +2202,7 @@ export async function relistTransactionImpl(
         brokerFirmId: input.newBrokerFirmId ?? null,
         brokerContactId: input.newBrokerContactId ?? null,
         lastActivityAt: new Date(),
+        clientEmailsPaused: false,
       },
     });
 
