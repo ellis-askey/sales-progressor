@@ -16,6 +16,8 @@
     "db:push": "prisma db push",
     "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:studio": "prisma studio",
+    "demo:seed":  "dotenv -e .env --override -- ts-node --transpile-only --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\",\\\"moduleResolution\\\":\\\"node\\\",\\\"esModuleInterop\\\":true,\\\"baseUrl\\\":\\\".\\\",\\\"paths\\\":{\\\"@/*\\\":[\\\"./*\\\"]}}\" -r tsconfig-paths/register scripts/seed-demo.ts",
+    "demo:reset": "dotenv -e .env --override -- ts-node --transpile-only --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\",\\\"moduleResolution\\\":\\\"node\\\",\\\"esModuleInterop\\\":true,\\\"baseUrl\\\":\\\".\\\",\\\"paths\\\":{\\\"@/*\\\":[\\\"./*\\\"]}}\" -r tsconfig-paths/register scripts/reset-demo.ts",
     "test": "jest",
     "test:consent": "jest __tests__/analytics/posthog-consent.test.ts"
   },
