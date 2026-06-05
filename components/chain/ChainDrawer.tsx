@@ -463,6 +463,37 @@ export function ChainDrawer({
                 </div>
               )}
 
+              {/* Chain-split banner — closed-loop chain arc (2026-06-05).
+                * Surfaces when a withdraw cascade detached part of the chain
+                * into its own PropertyChain row. Direction reads "above" /
+                * "below" the agent's perspective so it's obvious WHICH end
+                * left — pre-arc agents couldn't tell their chain had been
+                * shortened at all. */}
+              {chain.detachedSegment && chain.detachedSegment.count > 0 && (
+                <div style={{
+                  marginBottom: 12,
+                  padding: "10px 12px",
+                  background: "rgba(245,158,11,0.08)",
+                  border: "0.5px solid rgba(245,158,11,0.25)",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}>
+                  <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↯</span>
+                  <p style={{ fontSize: 12, color: "rgb(146, 78, 4)", margin: 0, lineHeight: 1.5 }}>
+                    <strong>Chain split.</strong>{" "}
+                    {chain.detachedSegment.count} sale{chain.detachedSegment.count !== 1 ? "s" : ""}{" "}
+                    {chain.detachedSegment.direction === "DOWNWARD"
+                      ? "below"
+                      : chain.detachedSegment.direction === "UPWARD"
+                        ? "above"
+                        : "in this chain"}{" "}
+                    detached when a withdraw fired through here. The detached segment now stands as its own chain.
+                  </p>
+                </div>
+              )}
+
               {/* Chain bottleneck banner — only when the chain is intact + a
                * meaningful gap (>7 days) exists between the slowest claimed
                * link and the median of the others. Relative comparison so it's

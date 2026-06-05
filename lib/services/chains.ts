@@ -135,6 +135,22 @@ export type ChainV2 = {
   status: string;
   createdAt: Date;
   links: ChainLinkV2[];
+  // Closed-loop chain arc (2026-06-05). Set when this chain has had one or
+  // more links split off (typically because a withdraw in the cascade tore
+  // the chain in two). Drives the "Chain split — N sales detached" banner
+  // in the ChainDrawer header so the agent has a visible signal that the
+  // chain used to be longer and where the detached segment went.
+  detachedSegment: {
+    count: number;
+    // Most recent split timestamp across all detached links — drives the
+    // banner copy ("split on {date}").
+    splitAt: Date | null;
+    // Direction from the agent's perspective. Inferred from whether the
+    // orphan links were above (UPWARD) or below (DOWNWARD) the surviving
+    // segment by comparing position numbers. Null when the survivor side
+    // has no claimed link to anchor the comparison.
+    direction: "UPWARD" | "DOWNWARD" | null;
+  } | null;
 };
 
 // isChainBroken moved to lib/chain/is-broken.ts so client components can
@@ -390,6 +406,36 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
   });
   if (!chain) return null;
 
+  // Closed-loop chain arc (2026-06-05): detect "this chain used to be
+  // bigger" by looking for ChainLink rows stamped with detachedFromChainId
+  // = our id. If found, build the detachedSegment summary so the drawer
+  // can render a banner. Direction is inferred from positions: orphan
+  // positions outside the surviving range mean above/below accordingly.
+  const detached = await prisma.chainLink.findMany({
+    where: { detachedFromChainId: chain.id },
+    select: { position: true, detachedAt: true },
+    orderBy: { detachedAt: "desc" },
+  });
+  let detachedSegment: ChainV2["detachedSegment"] = null;
+  if (detached.length > 0) {
+    const survivorPositions = chain.links.map((l) => l.position);
+    const minSurvivor = survivorPositions.length > 0 ? Math.min(...survivorPositions) : null;
+    const maxSurvivor = survivorPositions.length > 0 ? Math.max(...survivorPositions) : null;
+    const orphanPositions = detached.map((d) => d.position);
+    const orphanMax = Math.max(...orphanPositions);
+    const orphanMin = Math.min(...orphanPositions);
+    let direction: "UPWARD" | "DOWNWARD" | null = null;
+    if (maxSurvivor !== null && minSurvivor !== null) {
+      if (orphanMax < minSurvivor) direction = "DOWNWARD"; // orphans were below
+      else if (orphanMin > maxSurvivor) direction = "UPWARD"; // orphans were above
+    }
+    detachedSegment = {
+      count: detached.length,
+      splitAt: detached[0].detachedAt ?? null,
+      direction,
+    };
+  }
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
@@ -398,6 +444,7 @@ export async function getChainV2(chainId: string, viewerUserId?: string): Promis
   // for backward-compat with existing consumers (LinkCard, ChainDrawer, etc.).
   return {
     ...chain,
+    detachedSegment,
     links: chain.links.map((l) => {
       if (!l.transaction) {
         return {
