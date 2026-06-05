@@ -212,6 +212,56 @@ export async function drainOutboundQueue(): Promise<{
       continue;
     }
 
+    // Phase-2 PR 1.5 (GAP-2): dead-round recipient gate.
+    //
+    // If the queued email is targeted at a purchaser-role Contact whose
+    // BuyerRound has been archived (sale fell through), skip the send.
+    // The fall-through ledger audit ranked this the worst remaining leak
+    // — a chase queued before withdraw was otherwise sending to the dead
+    // buyer's inbox after relist, and the OutboundMessage mirror was
+    // mis-attributing to the new active round.
+    //
+    // Mark errorAt + a structured errorMessage so the row stays in the
+    // audit trail rather than being silently consumed, but doesn't retry.
+    // Vendor / solicitor / broker contacts pass through unchanged — they
+    // are file-level by design and survive across rounds.
+    //
+    // Fetch the contact-with-tx once here; the CLIENT_CHASE mirror below
+    // reuses it to stamp buyerRoundId from the contact's actual round
+    // (rather than tx.activeBuyerRoundId) — belt-and-braces against any
+    // future regression of this gate.
+    let recipientContact: {
+      roleType: string;
+      buyerRoundId: string | null;
+      transaction: { activeBuyerRoundId: string | null };
+    } | null = null;
+    if (record.recipientContactId) {
+      recipientContact = await prisma.contact.findUnique({
+        where: { id: record.recipientContactId },
+        select: {
+          roleType: true,
+          buyerRoundId: true,
+          transaction: { select: { activeBuyerRoundId: true } },
+        },
+      });
+      if (
+        recipientContact &&
+        recipientContact.roleType === "purchaser" &&
+        recipientContact.buyerRoundId !== null &&
+        recipientContact.buyerRoundId !== recipientContact.transaction.activeBuyerRoundId
+      ) {
+        await prisma.outboundEmailQueue.update({
+          where: { id: record.id },
+          data: { errorAt: new Date(), errorMessage: "recipient_round_archived" },
+        });
+        console.log(
+          `[EMAIL_SKIP] type=${record.emailType} ${recipientLogId} reason=recipient_round_archived buyerRoundId=${recipientContact.buyerRoundId}`,
+        );
+        skipped++;
+        continue;
+      }
+    }
+
     const payload = record.payload as Record<string, unknown>;
     try {
       await sendChainEmail({
@@ -243,26 +293,25 @@ export async function drainOutboundQueue(): Promise<{
       // so a mirror failure must not break the drain. (See same gap in
       // lib/email/milestone-digest-drain.ts — separate cron, handled in a
       // follow-up.)
-      if (record.emailType === "CLIENT_CHASE" && record.recipientContactId) {
+      if (record.emailType === "CLIENT_CHASE" && record.recipientContactId && recipientContact) {
         // sourceId format from client-chase-digest.ts:387 is
         // `{transactionId}:{contactId}:{yyyy-mm-dd}`.
         const transactionId = record.sourceId.split(":")[0];
         if (transactionId) {
-          // Phase 1 commit 4d — stamp activeBuyerRoundId at send time
-          // for purchaser-contact comms. Vendor / solicitor / broker
-          // contacts stay file-level. Same Phase 0 attribution rule.
-          const [contact, txRow] = await Promise.all([
-            prisma.contact.findUnique({
-              where: { id: record.recipientContactId },
-              select: { roleType: true },
-            }),
-            prisma.propertyTransaction.findUnique({
-              where: { id: transactionId },
-              select: { activeBuyerRoundId: true },
-            }),
-          ]);
+          // Phase-2 PR 1.5 (GAP-2 mirror attribution fix): stamp the
+          // mirror to the CONTACT's actual buyerRoundId, not
+          // tx.activeBuyerRoundId. For active-round contacts these are
+          // the same value, so for the common case nothing changes. The
+          // dead-round gate above has already skipped contacts whose
+          // round is archived — the contact-keyed stamp here is
+          // defence-in-depth against any future gate regression: if a
+          // dead-round chase somehow leaked through, its mirror would
+          // at least attribute to the right round.
+          //
+          // Same Phase 0 attribution rule: vendor / solicitor / broker
+          // contacts stay file-level (NULL).
           const stampRoundId =
-            contact?.roleType === "purchaser" ? txRow?.activeBuyerRoundId ?? null : null;
+            recipientContact.roleType === "purchaser" ? recipientContact.buyerRoundId : null;
 
           await prisma.outboundMessage.create({
             data: {
