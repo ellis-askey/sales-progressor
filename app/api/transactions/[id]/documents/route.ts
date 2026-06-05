@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
-import { uploadToStorage, getSignedUrl } from "@/lib/supabase-storage";
+import { uploadToStorage } from "@/lib/supabase-storage";
 
 const ALLOWED_MIME = new Set([
   "application/pdf",
@@ -29,22 +29,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
   if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const docs = await prisma.transactionDocument.findMany({
-    where: { transactionId: id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true, filename: true, storagePath: true, fileSize: true,
-      mimeType: true, source: true, createdAt: true,
-      contact: { select: { name: true, roleType: true } },
-    },
-  });
-
-  const withUrls = await Promise.all(
-    docs.map(async (d) => ({
-      ...d,
-      signedUrl: await getSignedUrl(d.storagePath).catch(() => null),
-    }))
-  );
+  // Phase-2 PR 2 (TransactionDocument scoping): same OR filter the
+  // file-detail DocumentsSection uses — file-level + active-round
+  // purchaser uploads only. Routed through the shared service helper so
+  // the two surfaces stay in lockstep.
+  const { listLiveTransactionDocuments } = await import("@/lib/services/transaction-documents");
+  const withUrls = await listLiveTransactionDocuments(id);
 
   return NextResponse.json(withUrls);
 }

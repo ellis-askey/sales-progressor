@@ -253,14 +253,34 @@ export async function getArchivedRoundData(
   };
 }
 
-// Document-pane data: file-level only by design. Caveat copy is applied
-// in the component, not the fetcher. (No round filter on the query.)
+// Document-pane data for the archived-round drawer.
+//
+// Phase-2 PR 2 (TransactionDocument scoping): combine file-level docs
+// (MoS, admin uploads, vendor/solicitor/broker portal uploads — all
+// NULL buyerRoundId by design) with THIS specific round's purchaser
+// uploads. Previously this returned every doc on the file regardless of
+// round, which the caveat string ("Documents on this file are not tied
+// to a specific sale...") then explained away. Now that the live-tx
+// reads scope out fall-through buyer uploads, the drawer is the only
+// surface that should show them — and the right scope is "this round
+// only" so opening Sale 1's drawer doesn't surface Sale 2's docs and
+// vice versa.
+//
 // Returns rows enriched with a Supabase signed URL so the drawer can
 // render each filename as a Download link — same pattern as
 // components/transaction/DocumentsSection.tsx.
-export async function getFileLevelDocumentsForArchive(transactionId: string) {
+export async function getFileLevelDocumentsForArchive(
+  transactionId: string,
+  roundId: string,
+) {
   const docs = await prisma.transactionDocument.findMany({
-    where: { transactionId },
+    where: {
+      transactionId,
+      OR: [
+        { buyerRoundId: null },     // file-level shared (MoS, admin, etc.)
+        { buyerRoundId: roundId },  // this round's purchaser uploads
+      ],
+    },
     select: {
       id: true,
       filename: true,

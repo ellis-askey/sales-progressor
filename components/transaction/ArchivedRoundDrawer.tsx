@@ -601,11 +601,19 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                 )}
               </StaggerSection>
 
-              {/* Documents on this file */}
+              {/* Documents during this sale */}
               <StaggerSection delayMs={320}>
-                <SectionHeader title="Documents on this file" />
+                <SectionHeader title="Documents during this sale" />
                 <p className="px-4" style={{ margin: 0, marginBottom: 8, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-                  Documents on this file are not tied to a specific sale. The memorandum of sale and any agent uploads are shared across sales; the list below is everything attached to the file.
+                  {/* Phase-2 PR 2 voice-pass: the drawer's documents pane now
+                      combines file-level shared docs (MoS, agent uploads)
+                      with THIS round's purchaser uploads only — so opening
+                      Sale 1's drawer no longer surfaces Sale 2's docs. The
+                      previous copy ("not tied to a specific sale...") was
+                      written when this fetcher returned every doc on the
+                      file; it has been replaced for this PR. FLAGGED FOR
+                      VOICE-PASS — Ellis may revise wording. */}
+                  Documents shared across all sales (Memorandum of Sale, agent uploads) plus what {buyerName} uploaded during this sale.
                 </p>
                 {data.fileDocuments.length === 0 ? (
                   <Empty text="No documents on this file." />
