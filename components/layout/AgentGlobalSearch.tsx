@@ -216,16 +216,30 @@ export function AgentGlobalSearch() {
             )}
             {results!.contacts.length > 0 && (
               <SearchSection label="Clients">
-                {results!.contacts.map((c, i) => (
-                  <SearchRow
-                    key={c.id}
-                    label={c.name}
-                    sub={`${c.role} · ${c.address}`}
-                    selected={selected === results!.transactions.length + i}
-                    onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
-                    onMouseEnter={() => setSelected(results!.transactions.length + i)}
-                  />
-                ))}
+                {results!.contacts.map((c, i) => {
+                  // GAP-4 labelling: purchaser contacts from a previous
+                  // (fell-through) sale render with a "Sale N · fell
+                  // through" sub-line and a danger-tinted subColor so the
+                  // agent sees at-a-glance that this is historic, but the
+                  // row is still findable + clickable (lands them on the
+                  // file, where Section 2 already hides the contact from
+                  // the live Contacts panel).
+                  const sub = c.previousSale
+                    ? `${c.role} · Sale ${c.previousSale.roundNumber} · fell through · ${c.address}`
+                    : `${c.role} · ${c.address}`;
+                  const subColor = c.previousSale ? "var(--agent-danger, #C73E3E)" : undefined;
+                  return (
+                    <SearchRow
+                      key={c.id}
+                      label={c.name}
+                      sub={sub}
+                      subColor={subColor}
+                      selected={selected === results!.transactions.length + i}
+                      onClick={() => navigate(`/agent/transactions/${c.transactionId}`)}
+                      onMouseEnter={() => setSelected(results!.transactions.length + i)}
+                    />
+                  );
+                })}
               </SearchSection>
             )}
             {results!.solicitors.length > 0 && (
