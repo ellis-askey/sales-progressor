@@ -586,11 +586,14 @@ const BROKER_FIRM = {
 const PROGRESSION: Record<TxBucket, string[]> = {
   hero:                ["VM1", "VM2", "VM3", "VM4", "VM5", "PM1", "PM2", "PM3", "PM4"],
 
-  // Exchange-ready: every blocksExchange milestone complete or NR.
-  // Auto-NR on freehold × mortgage handles VM8 + VM9. We complete the rest.
+  // Exchange-ready: every blocksExchange milestone complete or NR, AND both
+  // exchange gates (VM18 + PM25) confirmed — so the next step on each side
+  // is the actual exchange (VM19 / PM26). Auto-NR on freehold × mortgage
+  // handles VM8 + VM9. VM19 / PM26 are deliberately NOT in this list — they
+  // are the live confetti moment.
   exchange_ready:      [
-    "VM1","VM2","VM3","VM4","VM5","VM6","VM7","VM10","VM11","VM12","VM13","VM14","VM15","VM16","VM17",
-    "PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10","PM11","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24",
+    "VM1","VM2","VM3","VM4","VM5","VM6","VM7","VM10","VM11","VM12","VM13","VM14","VM15","VM16","VM17","VM18",
+    "PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10","PM11","PM13","PM14","PM15","PM16","PM17","PM18","PM19","PM20","PM21","PM22","PM23","PM24","PM25",
   ],
   active_exch_today:   ["VM1","VM2","VM3","VM4","VM5","VM6","VM7","VM10","PM1","PM2","PM3","PM4","PM5","PM6","PM7"],
   active_compl_today:  [

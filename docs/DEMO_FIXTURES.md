@@ -44,9 +44,9 @@ All addresses are synthetic. All contact + login emails use `.test` TLDs (RFC 67
 | **Tenure × purchase** | freehold × mortgage |
 | **Price** | £695,000 |
 | **Owner** | James Patel (negotiator) |
-| **Status** | active, every blocksExchange milestone complete or NR; VM18 + PM25 available; **VM19/PM26 NOT confirmed** |
-| **What it demonstrates** | The exchange-ready state — both exchange gates sit available, waiting for confirmation |
-| **Use it for** | **Confirm VM19 live in the demo for the confetti moment.** Do NOT preconfirm. |
+| **Status** | active, every blocksExchange milestone complete or NR; **VM18 + PM25 (the gates) already confirmed**; **VM19 + PM26 sit as the next available step on each side** |
+| **What it demonstrates** | Exchange-ready — both gates confirmed, both sides waiting on the actual exchange confirmation |
+| **Use it for** | **Confirm VM19 (or PM26) live in the demo for the confetti moment.** Do NOT preconfirm. ⚠️ **See "Known issues" below — there's a Server Components render error currently firing in the PM26 reconciliation drawer on staging. If unresolved by demo time, use Plan B: walk through the state visually and pivot to a pre-exchanged file (e.g. 14 Acacia Close) to show the post-exchange UI.** |
 
 ### Active files (×4)
 | Address | Tenure × purchase | Price | Owner | What it demonstrates |
@@ -85,10 +85,10 @@ These four URLs are bookmarkable for the live demo. Visit each in an incognito w
 
 | Role | Contact | URL |
 |---|---|---|
-| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/d20cc3c8-d2ee-4d5e-8e44-e4c033d80855` |
-| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/864303b8-3ddd-4ecd-9b52-c90ed8248bc7` |
-| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/db0e4498-64c4-4907-aef3-0c1953a87014` |
-| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/bebc2cf4-5d0e-4999-80b8-9ea0819f0d19` |
+| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/71aa848a-704c-4465-b239-66f0dd6e91fc` |
+| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/6004cebf-0ad2-4547-a5af-72c7b38d8d2b` |
+| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/05eced7d-1d84-49ed-9d1f-22be0c8ecbee` |
+| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/afb96f2c-e598-459f-9269-7a9b87d39e51` |
 
 **Tom Clarke is the lead purchaser** — has the two active ClientChaseState rows so `/portal/<token>/respond` shows two milestones (PM5 mortgage application, PM7 contract pack) for him to confirm live.
 
@@ -161,6 +161,30 @@ Not exposed as a script — `runSeedDemo` always tears down first then reseeds. 
 npm run demo:verify
 ```
 Read-only. Prints the manifest snapshot above plus fresh portal tokens.
+
+---
+
+## Known issues
+
+### PM26 / VM19 confirmation throws "Server Components render" error on staging (2026-06-05)
+
+**Reproduce:** On any file where VM18 + PM25 are confirmed but VM19 + PM26 are not, click Confirm on PM26 (or VM19). The row's description slot fills with Next.js's prod-build server-component error template:
+
+> "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+
+**Surface vs root cause:** The error text is the default prod message Next.js generates when a server-side throw is wrapped before reaching the client. The client component catches it ([components/milestones/MilestoneRow.tsx:173-176](components/milestones/MilestoneRow.tsx#L173-L176)) and surfaces it via `setError(err.message)`. Two candidate origins:
+
+1. `getExchangeReconciliationList` ([app/actions/milestones.ts:460](app/actions/milestones.ts#L460)) — server action invoked first when PM26 (in `RECONCILIATION_CODES`) is confirmed; throws synchronously on the server.
+2. The page revalidation after the action completes — `revalidateTx` re-runs the StepsPanel server component, which fails downstream.
+
+**Triage needed:** Pull the Vercel staging logs for the failing request (search for the digest hash that the client shows). Likely candidates from static analysis: a Prisma type mismatch with the post-cutover round-scoping, or the chain-notification enqueue throwing when the bilateral counterpart fires.
+
+**Demo workaround:**
+- Pre-record the exchange flow OR walk through the state visually and pivot to a pre-exchanged file (14 Acacia Close, 27 Ivy Terrace, etc.) to show the post-exchange UI.
+- Both VM19 and PM26 are in `RECONCILIATION_CODES` so both will hit the same path — switching which one you click doesn't help.
+- VM20 / PM27 are also in `RECONCILIATION_CODES` — same risk on the completion confirmation. Demo a completed file from the static fixture instead.
+
+**Not a seed bug:** The seed's own VM19/PM26 confirmations (on Sycamore, Larch Way, Maple Drive, Acacia Close, Ivy Terrace, Rowan Gardens, Beech Court, Oakfield Avenue) all succeeded via `completeMilestone()` direct calls — proving the underlying milestone engine works. The bug is in the **agent UI confirm path**, not the engine.
 
 ---
 

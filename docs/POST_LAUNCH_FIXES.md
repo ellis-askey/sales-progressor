@@ -4,6 +4,14 @@
 
 ## OPEN FOLLOW-UPS (filed during the demo system build, 2026-06-05)
 
+### BUG — PM26 / VM19 confirmation throws "Server Components render" error on staging
+**Surface:** `/agent/transactions/[id]` Steps panel. Click Confirm on PM26 (or VM19) on a file where VM18 + PM25 are already complete. The row's description slot fills with Next.js's prod-build server-component error template; the action does not complete. Reproduced 2026-06-05 on staging build for transaction `cmq0z4mbb004mh269emcogvs2` (8 Elmwood Crescent in the demo agency).
+**Probable origins (from static analysis):** (a) `getExchangeReconciliationList` at [app/actions/milestones.ts:460](app/actions/milestones.ts#L460) is the first server action that fires for any `RECONCILIATION_CODES` confirm — throws synchronously, gets wrapped, surfaces as the obfuscated error text via [components/milestones/MilestoneRow.tsx:173-176](components/milestones/MilestoneRow.tsx#L173-L176). (b) revalidation after the confirm — the StepsPanel re-render via `revalidateTx` fails. Need Vercel staging logs (search the client-shown digest hash) to pin down.
+**Not a seed bug:** the underlying `completeMilestone()` engine completes VM19/PM26 fine; the demo seed creates 8 such completions across the fixture and they all rendered cleanly. The bug is in the agent UI confirm path only.
+**Blocks:** Monday client demo's "confetti moment" on 8 Elmwood Crescent. Workaround documented in [docs/DEMO_FIXTURES.md](docs/DEMO_FIXTURES.md) Known Issues — walk the state visually and pivot to a pre-exchanged file.
+
+
+
 ### Gate `/agent/polish/*` and `/agent/audit/*` from production agents
 Both subtrees ship live and are agent-reachable through the middleware allow-list ([middleware.ts:161](middleware.ts#L161) permits the whole `/agent` prefix). `/agent/polish/*` contains 12+ design previews (transaction-detail, hub, work-queue, transaction-list, new-sale-v2, comms, analytics, claim-flow, completions, to-do, chain-bottleneck-demo, chain-walkthrough, predicted-exchange-demo, slowness-demo, staleness-demo) and `/agent/audit/*` carries three designer audit galleries (before-after, icons, overlays). PAGE_LIST.md does not mention either. Surfaced in [docs/DEMO_FEATURE_INVENTORY.md](docs/DEMO_FEATURE_INVENTORY.md) Docs gaps section.
 **Suggested options:** (a) move both subtrees under `/agent/system-preview/*` to keep them out of the agent-prefix net; (b) add an explicit middleware deny-list for `/agent/polish` and `/agent/audit` that 404s for non-internal roles; (c) feature-flag them on `process.env.NEXT_PUBLIC_SHOW_DEV_PAGES==="true"` and unset in production. Decision deferred — not blocking the demo.
