@@ -1,15 +1,20 @@
 // Phase-2 PR 3 backfill: stamp OutboundMessage.buyerRoundId on historical
 // rows whose write-path stamping never ran.
 //
-// Classification rule (Ellis-locked, fall-through ledger audit findings):
-//   - contactIds is a String[] field on OutboundMessage. A row "belongs to"
-//     a sale only if EVERY contactId resolves to a purchaser-role Contact
-//     on the SAME buyerRoundId. Mixed sets (vendor + purchaser in the same
-//     contactIds array, e.g. a "Vendor + buyer agreed to extend exchange
-//     date" note) stay file-level by design.
+// Classification rule (Ellis-locked 2026-06-05, REFINED post-staging-review):
+//   - A row "belongs to" a sale when at least one contact in contactIds[]
+//     is a purchaser-role Contact AND all purchaser-role contacts on the
+//     row share the same non-null buyerRoundId. Other-role co-recipients
+//     (vendor / solicitor / broker) neither stamp nor block — the
+//     purchaser's round attribution is unambiguous.
+//   - Solicitor / vendor-only messages stay file-level (no purchaser
+//     present → cannot be attributed to a single sale).
 //   - createdAt-window inference is NOT used here. Attribution via the
 //     contactIds → Contact relation is unambiguous; window matching would
 //     break the "no guesses, list unmatched" invariant.
+//
+// This refinement mirrors the same change to decideBuyerSideStamp in
+// lib/services/comms.ts — write path and backfill stay in lockstep.
 //
 // Unmatched buckets:
 //   - no-contacts: contactIds is []  → file-level by design (system
@@ -103,41 +108,25 @@ async function main() {
       continue;
     }
     const contacts = resolved as { id: string; roleType: string; buyerRoundId: string | null }[];
-    const purchaserCount = contacts.filter((c) => c.roleType === "purchaser").length;
-    const allPurchaser = purchaserCount === contacts.length;
-    if (purchaserCount === 0) {
+    const purchasers = contacts.filter((c) => c.roleType === "purchaser");
+    if (purchasers.length === 0) {
       // No purchaser contacts at all — vendor-only, solicitor-only, etc.
       // File-level by design; not attributable to any sale.
       unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "no-purchaser" });
       continue;
     }
-    if (!allPurchaser) {
-      // Truly mixed: at least one purchaser + at least one other role.
-      // Under the locked Phase-2 rule these stay file-level; pending a
-      // possible Ellis-approved refinement to attribute via the
-      // purchaser side when unambiguous.
-      unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "mixed-roles" });
-      continue;
-    }
-    const allNullRound = contacts.every((c) => c.buyerRoundId === null);
-    if (allNullRound) {
+    // Refined rule: only the PURCHASER contacts' buyerRoundId matters.
+    // Other-role co-recipients neither stamp nor block.
+    if (purchasers.some((c) => c.buyerRoundId === null)) {
       unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "all-null-round" });
       continue;
     }
-    const distinctRounds = new Set(contacts.map((c) => c.buyerRoundId));
+    const distinctRounds = new Set(purchasers.map((c) => c.buyerRoundId));
     if (distinctRounds.size > 1) {
       unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "mixed-rounds" });
       continue;
     }
-    // distinctRounds.size === 1 and not all-null → exactly one round value
-    // (may be paired with null members; but we already filtered all-null
-    // above, and the every-purchaser-rule means any null+set mix would
-    // still flow here. To be strict: require all-non-null.)
-    if (contacts.some((c) => c.buyerRoundId === null)) {
-      unmatched.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, reason: "mixed-rounds" });
-      continue;
-    }
-    const roundId = contacts[0].buyerRoundId!;
+    const roundId = purchasers[0].buyerRoundId!;
     stamped.push({ msgId: m.id, type: m.type, contactIdsCount: m.contactIds.length, stampedRoundId: roundId });
   }
 

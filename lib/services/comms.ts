@@ -352,14 +352,33 @@ async function decideBuyerSideStamp(input: StampDecisionInput): Promise<boolean>
   if (input.targetSide === "purchaser") return true;
   if (input.targetSide === "vendor") return false;
 
-  // Fallback path: strict all-contactIds-are-purchaser-Contact rule.
+  // Fallback path — refined rule (Ellis-locked 2026-06-05 post-Phase-2-ledger):
+  // stamp when AT LEAST ONE contact is purchaser-role AND all purchaser-role
+  // contacts on the message share the same non-null buyerRoundId. Other-role
+  // co-recipients (vendor / solicitor / broker) neither stamp nor block —
+  // the purchaser's round attribution is unambiguous.
+  //
+  // The previous rule ("ALL contacts purchaser-role") was stricter than the
+  // policy required and had a cost: a message to (active buyer + their
+  // solicitor) stayed file-level, meaning it survived on the live timeline
+  // after that buyer fell through — the exact leak this arc closes. The
+  // ambiguity decision 5 originally guarded against was solicitor-ONLY
+  // attribution; a message that includes an identifiable purchaser is not
+  // ambiguous.
   if (input.contactIds.length === 0) return false;
   const contacts = await prisma.contact.findMany({
     where: { id: { in: input.contactIds } },
-    select: { id: true, roleType: true },
+    select: { id: true, roleType: true, buyerRoundId: true },
   });
   if (contacts.length !== input.contactIds.length) return false;
-  return contacts.every((c) => c.roleType === "purchaser");
+
+  const purchasers = contacts.filter((c) => c.roleType === "purchaser");
+  if (purchasers.length === 0) return false;
+  if (purchasers.some((c) => c.buyerRoundId === null)) return false;
+  const distinctRounds = new Set(purchasers.map((c) => c.buyerRoundId));
+  if (distinctRounds.size > 1) return false;
+
+  return true;
 }
 
 // Derive the chase target side from a chaseTaskId. Returns "purchaser"
