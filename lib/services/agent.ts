@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus } from "@prisma/client";
+import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -88,14 +89,11 @@ export async function getAgentTransactions(vis: AgentVisibility) {
       assignedUser: { select: { id: true, name: true, role: true } },
       agentUser: { select: { id: true, name: true, role: true } },
       contacts: { select: { name: true, roleType: true } },
-      // PHASE 1 (a)-CLASS UNDER-SCOPING — agent dashboard list view.
-      // Cross-tx Prisma include limitation; archived round's PMs can
-      // inflate milestonePercent and the hasExchanged signal on a
-      // relisted file. Agent surface only — does not drive comms or
-      // chase. exchangedAt-canonical principle still applies for the
-      // hasExchanged check downstream. Phase 2 ticket.
+      // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below. Archived-
+      // round PMs no longer inflate milestonePercent or hasExchanged on
+      // a relisted file.
       milestoneCompletions: {
-        where: { state: "complete" },
+        where: { state: "complete", OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere(vis), status: { not: DRAFT } })) },
         select: { milestoneDefinitionId: true, completedAt: true },
       },
     },
@@ -174,12 +172,13 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     where: {
       ...txWhere(vis),
       status: "active",
-      // PHASE 1 (a)-CLASS ACCEPTED: exchangedAt is the canonical
-      // "is this file exchanged?" source of truth; the relist
-      // precondition exchangedAt IS NULL means relisted files cannot
-      // satisfy this some-filter anyway. Cross-tx Prisma limitation.
+      // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
       milestoneCompletions: {
-        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
+        some: {
+          state: "complete",
+          milestoneDefinitionId: { in: exchangeDefIds },
+          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere(vis), status: "active" as TransactionStatus })),
+        },
       },
     },
     select: {
@@ -193,10 +192,13 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       contacts: { select: { name: true, roleType: true } },
       vendorSolicitorFirm:    { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
-      // PHASE 1 (a)-CLASS ACCEPTED: post-exchange filter is gated by
-      // the exchangedAt-canonical principle above.
+      // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
       milestoneCompletions: {
-        where: { state: "complete", milestoneDefinitionId: { in: allPostExchangeDefIds } },
+        where: {
+          state: "complete",
+          milestoneDefinitionId: { in: allPostExchangeDefIds },
+          OR: roundScopedOR(await loadActiveRoundIds({ ...txWhere(vis), status: "active" as TransactionStatus })),
+        },
         select: { milestoneDefinitionId: true, completedAt: true },
       },
     },
@@ -228,25 +230,22 @@ export async function getAgentCompletions(vis: AgentVisibility) {
     });
 }
 
-// PHASE 1 (a)-CLASS UNDER-SCOPING — accepted, documented:
-// Cross-tx findMany with no parent-row reference available in the where
-// clause; this is the Prisma per-tx scoping limitation. Consumer is
-// app/agent/comms/page.tsx (agent comms dashboard activity feed,
-// grouped by day). Agent-facing surface only: drives no chase or comms
-// decisions, not client-visible, not billing-coupled. Post-relist, an
-// archived round's PM completion can appear here as if it were recent
-// activity on the file. This is the "inflated apparent progress"
-// distortion the user flagged; accepted on the dashboard surface and
-// flagged for Phase 2 restructure (two-step: list active tx ids + their
-// activeBuyerRoundIds, then a per-tx scoped milestoneCompletion query).
+// PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
+// Comms dashboard activity feed: a relisted file's archived-round PM
+// no longer appears as recent activity. The two-step pattern (load
+// active round ids first, then filter MC.buyerRoundId IN that set OR
+// NULL) replaces the prior cross-tx under-scope.
 export async function getAgentMilestoneActivity(
   vis: AgentVisibility,
   portalOnly = false,
 ) {
+  const txFilter = { ...txWhere(vis), status: { not: DRAFT } };
+  const activeRoundIds = await loadActiveRoundIds(txFilter);
   return prisma.milestoneCompletion.findMany({
     where: {
-      transaction: { ...txWhere(vis), status: { not: DRAFT } },
+      transaction: txFilter,
       state: "complete",
+      OR: roundScopedOR(activeRoundIds),
       ...(portalOnly ? { confirmedByPortal: true } : {}),
     },
     orderBy: { completedAt: "desc" },

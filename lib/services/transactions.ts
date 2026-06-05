@@ -8,6 +8,7 @@ import { activeElapsedMs } from "@/lib/services/hold-duration";
 import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
 import { recordEvent } from "@/lib/command/events/write";
+import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 
 export async function listTransactions(
   agencyId: string,
@@ -32,6 +33,13 @@ export async function listTransactions(
   } else {
     whereClause = { agencyId, progressedBy: "progressor", status: { not: "draft" } };
   }
+  // Phase-3 (a)-CLASS restructure: pre-load activeBuyerRoundId for every
+  // in-scope tx. The OR clauses on the cross-tx aggregates below use
+  // `buyerRoundId IN [activeRoundIds]` — which is equivalent to "row's
+  // buyerRoundId === its own tx's activeBuyerRoundId" because BuyerRound
+  // ids are globally unique cuids.
+  const activeRoundIds = await loadActiveRoundIds(whereClause);
+
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
@@ -39,25 +47,22 @@ export async function listTransactions(
       agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
-      contacts: { select: { id: true, name: true, roleType: true } },
-      // PHASE 1 (a)-CLASS UNDER-SCOPING — accepted, documented:
-      // This is a cross-tx findMany; Prisma's nested where cannot
-      // reference the parent row's activeBuyerRoundId, so PM rows from
-      // any round (active OR archived) are eligible here. On a relisted
-      // file the archived buyer's most-recent PM completion could win
-      // over the new round's vendor activity, making `lastMilestoneAt`
-      // and the "activity-verb chip" reflect the OLD buyer's progress
-      // and `daysStuckOnMilestone` look fresher than reality. Agent
-      // dashboard surface only — does not drive automated chase
-      // decisions, comms, billing, or portal reads. Phase 2 ticket to
-      // restructure as a two-step (raw SQL DISTINCT ON per-tx with
-      // (buyerRoundId IS NULL OR buyerRoundId = pt.activeBuyerRoundId)).
+      // Phase-3: scope Contact list reads to the active round + file-level.
+      // Pre-Phase-3 the cross-tx include returned every contact regardless
+      // of which buyer round attached them — relisted files showed both
+      // the previous buyer AND the active buyer in list summaries.
+      contacts: {
+        where: { OR: contactRoundScopedOR(activeRoundIds) },
+        select: { id: true, name: true, roleType: true },
+      },
+      // Phase-3: scope MilestoneCompletion to active round + file-level
+      // (vendor). Pre-Phase-3 the archived buyer's most-recent PM could
+      // win as "lastMilestoneAt"/activity-verb on a relisted file. Now
+      // only the active round's PM completions can.
       milestoneCompletions: {
-        where: { state: "complete" },
+        where: { state: "complete", OR: roundScopedOR(activeRoundIds) },
         orderBy: { completedAt: "desc" },
         take: 1,
-        // milestoneDefinition.name joined for the activity-verb chip
-        // ("X confirmed" label per Variant B IA, 2026-05-13).
         select: {
           completedAt: true,
           milestoneDefinition: { select: { name: true } },
@@ -65,14 +70,17 @@ export async function listTransactions(
       },
       _count: {
         select: {
-          // Same (a)-class under-scoping caveat as above — count
-          // includes any round's completes. Pre-relist identical;
-          // post-relist a relisted file shows inflated cumulative count.
-          milestoneCompletions: { where: { state: "complete" } },
+          // Phase-3: count completes for active round + file-level only.
+          // Cumulative inflation from archived rounds resolved.
+          milestoneCompletions: { where: { state: "complete", OR: roundScopedOR(activeRoundIds) } },
         },
       },
       chaseTasks: {
-        where: { status: "pending" },
+        // Phase-3 belt-and-braces: PR 1 cancellation makes old-round
+        // pending tasks status="cancelled" so the status="pending" filter
+        // already excludes them. Adding the OR scope keeps this in
+        // lockstep with the per-tx ChaseTask read in PR 6.
+        where: { status: "pending", OR: roundScopedOR(activeRoundIds) },
         select: {
           id: true,
           dueDate: true,
@@ -83,11 +91,10 @@ export async function listTransactions(
         take: 5,
       },
       // Latest outbound message — joined for the activity-verb chip.
-      // `method` is the granular delivery channel (email/sms/whatsapp/phone/
-      // voicemail/post per CommMethod enum); `channel` is the higher-level
-      // OutboundChannel (email/sms/linkedin/twitter/in_app/other). Both
-      // contribute to the verb mapping below; method wins where present.
+      // Phase-3: scope to active round + file-level so a fall-through
+      // buyer's last chase email doesn't drive the live row's verb chip.
       communications: {
+        where: { OR: roundScopedOR(activeRoundIds) },
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true },
@@ -313,29 +320,32 @@ export async function listTransactionsByScope(scope: AccessScope) {
       ? { ...base, progressedBy: "progressor", status: { not: "draft" } }
       : { ...base, status: { not: "draft" } };
 
+  // Phase-3: same two-step round-id pre-load + OR scoping as listTransactions.
+  const activeRoundIds = await loadActiveRoundIds(whereClause);
+
   const transactions = await prisma.propertyTransaction.findMany({
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
       assignedUser: { select: { id: true, name: true } },
       agentUser: { select: { id: true, name: true, role: true } },
-      contacts: { select: { id: true, name: true, roleType: true } },
-      // PHASE 1 (a)-CLASS UNDER-SCOPING — see equivalent block above.
-      // Agent dashboard, cross-tx Prisma include limitation; documented
-      // for the Phase 2 restructure ticket.
+      contacts: {
+        where: { OR: contactRoundScopedOR(activeRoundIds) },
+        select: { id: true, name: true, roleType: true },
+      },
       milestoneCompletions: {
-        where: { state: "complete" },
+        where: { state: "complete", OR: roundScopedOR(activeRoundIds) },
         orderBy: { completedAt: "desc" },
         take: 1,
         select: { completedAt: true },
       },
       _count: {
         select: {
-          milestoneCompletions: { where: { state: "complete" } },
+          milestoneCompletions: { where: { state: "complete", OR: roundScopedOR(activeRoundIds) } },
         },
       },
       chaseTasks: {
-        where: { status: "pending" },
+        where: { status: "pending", OR: roundScopedOR(activeRoundIds) },
         select: {
           id: true,
           dueDate: true,
@@ -539,27 +549,39 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
   else agentFilter = { progressedBy: "progressor" };
   const baseWhere = scope ? scopeTransactionWhere(scope) : { agencyId, ...agentFilter };
 
+  // Phase-3: scope cross-tx Contact + MC reads to active round + file-level.
+  const txWhere = { ...baseWhere, status: "active" as const };
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
-      ...baseWhere,
-      status: "active",
-      // PHASE 1 (a)-CLASS ACCEPTED: exchangedAt is canonical for
-      // "is this file exchanged?"; pre-relist files have at most one
-      // round so the some-filter and exchangedAt agree. Cross-tx
-      // Prisma limitation; see comment block above.
+      ...txWhere,
+      // Phase-3: "this file has an exchange completion on the ACTIVE round
+      // OR vendor file-level" — restores the original semantic intent of
+      // the (a)-CLASS comment ("exchangedAt is canonical"). A relisted
+      // file's archived buyer's PM26 no longer satisfies this filter.
       milestoneCompletions: {
-        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
+        some: {
+          state: "complete",
+          milestoneDefinitionId: { in: exchangeDefIds },
+          OR: roundScopedOR(activeRoundIds),
+        },
       },
     },
     select: {
       id: true,
       propertyAddress: true,
       completionDate: true,
-      contacts: { select: { name: true, roleType: true } },
-      // Same caveat — completion-side rows are also gated by exchangedAt
-      // being non-null in practice. Phase 2 ticket.
+      contacts: {
+        where: { OR: contactRoundScopedOR(activeRoundIds) },
+        select: { name: true, roleType: true },
+      },
       milestoneCompletions: {
-        where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
+        where: {
+          state: "complete",
+          milestoneDefinitionId: { in: completionDefIds },
+          OR: roundScopedOR(activeRoundIds),
+        },
         select: { id: true },
       },
     },
@@ -635,15 +657,23 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
   const exchangeDefIds = defs.filter((d) => d.code === "VM19" || d.code === "PM26").map((d) => d.id);
   const completionDefIds = defs.filter((d) => d.code === "VM20" || d.code === "PM27").map((d) => d.id);
 
+  // Phase-3: same two-step pattern as getExchangedNotCompleting.
+  const txWhere = {
+    ...scopeTransactionWhere(scope),
+    status: "active" as const,
+    progressedBy: "progressor" as const,
+  };
+  const activeRoundIds = await loadActiveRoundIds(txWhere);
+
   const candidates = await prisma.propertyTransaction.findMany({
     where: {
-      ...scopeTransactionWhere(scope),
-      status: "active",
-      progressedBy: "progressor",
-      // PHASE 1 (a)-CLASS ACCEPTED: same as getExchangedNotCompleting
-      // above — exchangedAt is canonical. Cross-tx Prisma limitation.
+      ...txWhere,
       milestoneCompletions: {
-        some: { state: "complete", milestoneDefinitionId: { in: exchangeDefIds } },
+        some: {
+          state: "complete",
+          milestoneDefinitionId: { in: exchangeDefIds },
+          OR: roundScopedOR(activeRoundIds),
+        },
       },
     },
     select: {
@@ -654,11 +684,16 @@ export async function getCompletingFilesDetailed(scope: AccessScope): Promise<Po
       assignedUser: { select: { name: true } },
       vendorSolicitorFirm: { select: { name: true } },
       purchaserSolicitorFirm: { select: { name: true } },
-      contacts: { select: { name: true, roleType: true } },
-      // PHASE 1 (a)-CLASS ACCEPTED: completion-side rows gated by
-      // exchangedAt in practice. Phase 2 ticket.
+      contacts: {
+        where: { OR: contactRoundScopedOR(activeRoundIds) },
+        select: { name: true, roleType: true },
+      },
       milestoneCompletions: {
-        where: { state: "complete", milestoneDefinitionId: { in: completionDefIds } },
+        where: {
+          state: "complete",
+          milestoneDefinitionId: { in: completionDefIds },
+          OR: roundScopedOR(activeRoundIds),
+        },
         select: { id: true },
       },
     },
