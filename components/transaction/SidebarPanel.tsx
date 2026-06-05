@@ -72,12 +72,12 @@ export async function SidebarPanel({
   agencyId,
   agentSlot,
 }: Props) {
-  // Pass 3 B5: pre-load the active round's createdAt so the FileTimeSession
-  // query below can scope its `startedAt >= ...` filter. Without this, a
-  // relisted file accumulates the previous buyer's onboarding minutes into
-  // the live "time on file" reading. FileTimeSession has no buyerRoundId of
-  // its own (would need a migration + backfill); timestamp-based scope is
-  // accurate enough.
+  // Pass 3c reverts B5: time-on-file stays universal across the whole file's
+  // lifetime, not per-sale. Ellis-locked 2026-06-05 after the courtyard
+  // relist surfaced the mistake — "nothing time-on-file-related should
+  // change" at relist. The activeRound.createdAt fetch is still needed
+  // below for the progress anchor (B3 file-detail), so kept the fetch but
+  // dropped the FileTimeSession scope filter.
   const activeRound = await prisma.propertyTransaction
     .findUnique({
       where: { id: transaction.id },
@@ -104,12 +104,7 @@ export async function SidebarPanel({
     }).catch(() => null),
 
     prisma.fileTimeSession.findMany({
-      where: {
-        transactionId: transaction.id,
-        // Pass 3 B5: only count sessions inside the active sale's window.
-        // Legacy files with no active round fall back to "all sessions".
-        ...(activeRoundCreatedAt ? { startedAt: { gte: activeRoundCreatedAt } } : {}),
-      },
+      where: { transactionId: transaction.id },
       select: {
         totalEngagedSeconds: true,
         lastActivityAt: true,
