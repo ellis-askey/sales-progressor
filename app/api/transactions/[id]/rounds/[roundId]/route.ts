@@ -32,7 +32,7 @@ export async function GET(
   const data = await getArchivedRoundData(id, roundId);
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const fileDocuments = await getFileLevelDocumentsForArchive(id);
+  const fileDocuments = await getFileLevelDocumentsForArchive(id, roundId);
 
   return NextResponse.json({
     ...data,

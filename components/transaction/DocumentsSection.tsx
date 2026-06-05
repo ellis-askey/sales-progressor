@@ -1,5 +1,4 @@
-import { prisma } from "@/lib/prisma";
-import { getSignedUrl } from "@/lib/supabase-storage";
+import { listLiveTransactionDocuments } from "@/lib/services/transaction-documents";
 
 function fileIcon(mimeType: string) {
   if (mimeType === "application/pdf") return "📄";
@@ -19,29 +18,19 @@ function fmtDate(d: Date) {
 type Props = { transactionId: string };
 
 export async function DocumentsSection({ transactionId }: Props) {
-  const docs = await prisma.transactionDocument.findMany({
-    where: { transactionId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true, filename: true, storagePath: true, fileSize: true,
-      mimeType: true, source: true, createdAt: true,
-      contact: { select: { name: true, roleType: true } },
-    },
-  });
+  // Phase-2 PR 2 (TransactionDocument scoping): file-level docs (MoS,
+  // admin, vendor/solicitor/broker portal uploads — all NULL buyerRoundId
+  // by design) plus the active round's purchaser uploads. A fall-through
+  // buyer's uploads (e.g. Marcus's AML pack on a relisted file) live only
+  // in the archived drawer now, not here.
+  const docsWithUrls = await listLiveTransactionDocuments(transactionId);
 
-  if (docs.length === 0) return null;
-
-  const docsWithUrls = await Promise.all(
-    docs.map(async (d) => ({
-      ...d,
-      signedUrl: await getSignedUrl(d.storagePath).catch(() => null),
-    }))
-  );
+  if (docsWithUrls.length === 0) return null;
 
   return (
     <div className="glass-card p-5">
       <p className="glass-section-label text-slate-900/40 mb-4">
-        Documents ({docs.length})
+        Documents ({docsWithUrls.length})
       </p>
       <div className="space-y-2">
         {docsWithUrls.map((doc) => (
