@@ -105,7 +105,15 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
   const ref = useRef<HTMLDivElement>(null);
   const { theme } = usePortalTheme();
 
+  // Outside-click + scroll-close listeners must ONLY attach while the
+  // menu is open. The dropdown is portal'd to document.body, so its
+  // option buttons sit outside `ref` and would otherwise trigger the
+  // "click outside" handler on mousedown, racing the option's onClick
+  // and causing the user to need 2–3 clicks before the snooze landed.
+  // Mirrors the gated pattern used by AgentRemindersList and
+  // RemindersSection's snooze menus.
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
@@ -116,7 +124,7 @@ function SnoozeDropdown({ taskId, onSnooze, disabled }: {
       document.removeEventListener("mousedown", handleClick);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>
@@ -179,7 +187,10 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
   const ref = useRef<HTMLDivElement>(null);
   const { theme } = usePortalTheme();
 
+  // Gated outside-click + scroll listeners — see the matching comment on
+  // SnoozeDropdown above. Same race fixed here.
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
@@ -190,7 +201,7 @@ function KebabMenu({ taskId, isEscalated, disabled, onEscalate, onManualChase }:
       document.removeEventListener("mousedown", handleClick);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [open]);
 
   async function fireAction(key: string, fn: () => void | Promise<void>) {
     setLoadingAction(key);
