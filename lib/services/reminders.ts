@@ -134,7 +134,24 @@ export async function getReminderLogsForTransaction(
 
   const [logs, completedCodes] = await Promise.all([
     prisma.reminderLog.findMany({
-      where: { transactionId },
+      // Phase-2 PR 5 (ReminderLog read-path scoping): belt-and-braces
+      // beyond PR 1's cancellation. PR 1 marks old-round PM logs as
+      // status="cancelled" at fall-through and relist; the work-queue
+      // surfaces filter on status="active" so don't see them. THIS
+      // surface (file-detail reminders tab) doesn't filter on status —
+      // it shows the full reminder ledger for the file — so an old-
+      // round log that PR 1 missed (e.g. a regression in the
+      // cancellation logic, or a row created out of the normal flow)
+      // would otherwise still render here. The OR filter scopes
+      // visible rows to file-level (vendor rules, NULL by design) +
+      // active-round purchaser rules.
+      where: {
+        transactionId,
+        OR: [
+          { buyerRoundId: null },
+          ...(tx.activeBuyerRoundId ? [{ buyerRoundId: tx.activeBuyerRoundId }] : []),
+        ],
+      },
       orderBy: { nextDueDate: "asc" },
       include: {
         reminderRule: {
