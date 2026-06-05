@@ -84,6 +84,55 @@ async function getEmily() {
 
 // ─── Per-fixture builders ────────────────────────────────────────────────
 
+// Wipe every previous closed-loop fixture chain (including orphan chains
+// created by split-on-withdraw) so re-seeds don't leave stale data
+// pointing at deleted transactions or duplicate addresses. Identifies
+// fixture chains by name pattern + agency. Detached orphan chains have
+// null names; we catch them via detachedFromChainId pointing at any
+// fixture chain we're about to nuke.
+async function purgeFixtureChains(emilyAgencyId: string) {
+  // Find all fixture-named chains
+  const fixtureChains = await prisma.propertyChain.findMany({
+    where: {
+      agencyId: emilyAgencyId,
+      OR: [
+        { name: { startsWith: "[Closed-loop fixture]" } },
+        { name: { startsWith: "[Closed-loop fixture:" } },
+      ],
+    },
+    select: { id: true },
+  });
+  const fixtureChainIds = fixtureChains.map((c) => c.id);
+
+  // Find orphan chains spawned from any of those by a previous split.
+  const orphanLinks = await prisma.chainLink.findMany({
+    where: { detachedFromChainId: { in: fixtureChainIds } },
+    select: { chainId: true },
+  });
+  const orphanChainIds = [...new Set(orphanLinks.map((l) => l.chainId))];
+
+  const allChainIds = [...fixtureChainIds, ...orphanChainIds];
+  if (allChainIds.length === 0) return;
+
+  // Null out PropertyTransaction.chainLinkId for any tx claiming a link
+  // in any chain we're about to delete (cascading delete would orphan
+  // the field otherwise).
+  await prisma.propertyTransaction.updateMany({
+    where: { chainLink: { chainId: { in: allChainIds } } },
+    data: { chainLinkId: null },
+  });
+
+  // Drop notifications first — they FK back to chain + link.
+  await prisma.chainNotificationQueue.deleteMany({
+    where: { chainId: { in: allChainIds } },
+  });
+  // Then chains — links cascade via onDelete.
+  await prisma.propertyChain.deleteMany({
+    where: { id: { in: allChainIds } },
+  });
+  console.log(`[seed] Purged ${fixtureChainIds.length} fixture chain(s) + ${orphanChainIds.length} orphan chain(s).`);
+}
+
 async function deleteFixtureByAddress(propertyAddress: string, emilyAgencyId: string) {
   // Wipe any prior fixture with this address so re-runs reset cleanly.
   // Deletes cascade through BuyerRound + Contact + ChainLink relations
@@ -163,13 +212,13 @@ async function build4LinkChainFixture(
     select: { id: true },
   });
 
-  // Position 1 — Alice (unclaimed, stub fields populated to make the
-  // chain look real in the chain widget; no inviteSentAt — the link
-  // is "real-world unclaimed" rather than "invited but pending").
+  // Position 3 — Alice (bottom of chain = highest position number in the
+  // 0-indexed convention where position 0 = TOP of chain). Unclaimed stub,
+  // first-time buyer.
   await prisma.chainLink.create({
     data: {
       chainId: chain.id,
-      position: 1,
+      position: 3,
       stubPropertyAddress: "9 Cedar Court, BS8 1FT",
       stubAgentEmail: "(first-time buyer — no onward sale)",
       stubAgentName: "Alice (FTB)",
@@ -204,6 +253,7 @@ async function build4LinkChainFixture(
     });
     janeTxId = created.id;
   }
+  // Position 2 — Jane (buyer's onward sale, below Emily who's at pos 1).
   const janeLink = await prisma.chainLink.create({
     data: {
       chainId: chain.id,
@@ -236,10 +286,13 @@ async function build4LinkChainFixture(
     },
     select: { id: true, buyerRounds: { select: { id: true } } },
   });
+  // Position 1 — Emily (THIS file). Sits between Tom (top, pos 0) and
+  // Jane (below, pos 2). BUYER_WITHDREW cascade walks UPWARD (toward
+  // lower positions) and finds Tom.
   const emilyLink = await prisma.chainLink.create({
     data: {
       chainId: chain.id,
-      position: 3,
+      position: 1,
       transactionId: emilyTx.id,
       claimedByUserId: emily.id,
       claimedAt: new Date(),
@@ -290,10 +343,12 @@ async function build4LinkChainFixture(
     });
     tomTxId = created.id;
   }
+  // Position 0 — Tom (TOP of chain in the 0-indexed convention).
+  // BUYER_WITHDREW from Emily walks UPWARD to him.
   const tomLink = await prisma.chainLink.create({
     data: {
       chainId: chain.id,
-      position: 4,
+      position: 0,
       transactionId: tomTxId,
       claimedByUserId: neighbourIds.tomId,
       claimedAt: new Date(),
@@ -349,13 +404,13 @@ async function buildPreWithdrawnFixture(
           chainSnapshot: {
             chainId: chain.id,
             ourLinkId: "(set below)",
-            ourPosition: 2,
+            ourPosition: 1,
             withdrawalReason: "BUYER_WITHDREW",
             capturedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
             neighbours: [
               {
                 linkId: "(set below)",
-                position: 3,
+                position: 0,
                 withdrawalStatus: null,
                 claimedByUserId: tomId,
                 claimedAgentName: "Tom Brown",
@@ -375,10 +430,12 @@ async function buildPreWithdrawnFixture(
     select: { id: true, buyerRounds: { select: { id: true } } },
   });
 
+  // 0-indexed position convention: 0 = TOP of chain. Emily sits below Tom
+  // in this 2-link fixture so Emily = 1, Tom = 0.
   const emilyLink = await prisma.chainLink.create({
     data: {
       chainId: chain.id,
-      position: 2,
+      position: 1,
       transactionId: emilyTx.id,
       claimedByUserId: emily.id,
       claimedAt: new Date(),
@@ -420,10 +477,11 @@ async function buildPreWithdrawnFixture(
     });
     tomTx = { id: created.id };
   }
+  // Position 0 — Tom (top of chain).
   const tomLink = await prisma.chainLink.create({
     data: {
       chainId: chain.id,
-      position: 3,
+      position: 0,
       transactionId: tomTx.id,
       claimedByUserId: tomId,
       claimedAt: new Date(),
@@ -464,13 +522,13 @@ async function buildPreWithdrawnFixture(
       chainSnapshot: {
         chainId: chain.id,
         ourLinkId: emilyLink.id,
-        ourPosition: 2,
+        ourPosition: 1,
         withdrawalReason: "BUYER_WITHDREW",
         capturedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         neighbours: [
           {
             linkId: emilyLink.id,
-            position: 2,
+            position: 1,
             withdrawalStatus: "WITHDRAWN",
             claimedByUserId: emily.id,
             claimedAgentName: "Emily Chen",
@@ -483,7 +541,7 @@ async function buildPreWithdrawnFixture(
           },
           {
             linkId: tomLink.id,
-            position: 3,
+            position: 0,
             withdrawalStatus: tomResponse,
             claimedByUserId: tomId,
             claimedAgentName: "Tom Brown",
@@ -506,6 +564,14 @@ async function buildPreWithdrawnFixture(
 async function main() {
   const emily = await getEmily();
   console.log(`Emily: ${emily.id} / agency ${emily.agencyId}`);
+
+  // Purge previous fixture chains (including any orphan chains spawned by
+  // a previous F2 withdraw split) before re-seeding. Without this, every
+  // re-seed pile-up of stale chains in the agency — Emily ends up with
+  // dozens of detached chain rows, ChainLink rows for old fixtures that
+  // share addresses with new ones, and the chain widget gets confused
+  // about which chain is "current".
+  await purgeFixtureChains(emily.agencyId);
 
   // Build the neighbour agents first (idempotent).
   const tomId = await ensureUser({ ...NEIGHBOUR_AGENTS[0] });
