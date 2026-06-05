@@ -10,39 +10,67 @@ Filed 2026-06-05 as part of the Section 2 Contact-scoping PR. Branch
 before that gate (Ellis-locked).
 
 One PR per model, in this order — worst-first, ranked by the cost of a
-fell-through buyer's content leaking onto the live file:
+fell-through buyer's content leaking onto the live file. Reframed
+2026-06-05 by the fall-through ledger audit (see
+`C:\Users\ellis\.claude\plans\phase-2-fall-through-ledger-audit.md`):
 
-1. **Fall-through cancellation** — `changeStatusAction` AND
-   `relistTransactionImpl` cancel open buyer-side PM `ReminderLog` +
-   `ChaseTask` rows at fall-through time. Idempotent in both hook points
-   (re-running on an already-cancelled set is a no-op). Emits `Event`
-   audit rows (`type=reminder_cancelled_at_fall_through`) with `hookPoint`
-   discriminator. Leads the arc because it stops the bleeding before
-   PRs 5/6 even land — cancelled tasks filter out of `status="active"`
-   reads everywhere automatically.
-2. **`TransactionDocument`** — read-path filter + targeted backfill
+1. **Fall-through cancellation (reframed scope)** — the ledger audit
+   established that `relistTransactionImpl` already cancels open
+   buyer-side `ReminderLog` + `ChaseTask` at relist time (STEPS 11A-D,
+   `app/actions/transactions.ts:2134-2190`). PR 1's real scope:
+   - Mirror that cancellation into `changeStatusAction` for the
+     withdraw-only path (withdraw-no-relist files were leaving open
+     chases firing forever).
+   - Emit `Event(type="reminder_cancelled_at_fall_through",
+     metadata={ hookPoint, ... })` audit rows at BOTH hook points.
+   - **Semantic alignment** — change relist STEP 11D from
+     `status="inactive", statusReason="Buyer round archived on relist"`
+     to `status="cancelled", statusReason="sale fell through"`. **Must
+     ship pre-launch — after prod has data this becomes a migration.**
+   - Close open `TransactionHoldPeriod` rows at both hook points
+     (`endedAt=now, endedById=session.user.id`, idempotent
+     `where endedAt IS NULL`). A withdrawn file isn't paused, it's
+     dead; agent reopens on the new sale if needed.
+   - Fold in **GAP-4** (agent search Contact scoping) — surface
+     old-buyer Contact rows as clearly previous-round (muted, with a
+     "Sale {n} · fell through" sub-line) unless labelling is
+     disproportionate effort, in which case fall back to hide.
+2. **PR 1.5 — queue-time send gate + mirror attribution fix (NEW)**
+   — Same fall-through invariant, separate review. Two changes to
+   `lib/email/outboundQueue.ts`:
+   - The drain skips rows where `recipientContactId` resolves to a
+     Contact whose `buyerRoundId !== tx.activeBuyerRoundId` AND
+     `roleType="purchaser"`. Mark `errorAt=now,
+     error="recipient round archived"` (keeps audit trail) rather
+     than delete.
+   - The OutboundMessage CLIENT_CHASE mirror stamps to
+     `Contact.buyerRoundId` (the contact's actual round) instead of
+     `tx.activeBuyerRoundId`. Closes the dead-buyer-receives-chase
+     scenario and the new-round mis-attribution.
+3. **`TransactionDocument`** — read-path filter + targeted backfill
    (rule: `contactId` resolves to purchaser-role Contact → stamp with
    that Contact's `buyerRoundId`; else NULL). Includes voice-pass on
    the drawer caveat string ("Documents on this file are not tied to a
    specific sale…") which becomes incorrect after this PR.
-3. **`OutboundMessage`** — read-path filter (activity timeline +
-   `/agent/automated-emails` list) + targeted backfill. Bundles the
-   `logAutomatedEmail` write-path gap fix
+4. **`OutboundMessage`** — read-path filter (activity timeline +
+   `/agent/automated-emails` list + **the `/api/agent/notifications`
+   bell-count route at lines 34-43 — GAP-5**) + targeted backfill.
+   Bundles the `logAutomatedEmail` write-path gap fix
    (`lib/services/portal.ts:138-161` doesn't stamp today).
-4. **`PortalMessage`** — read-path filter + purchaser-only targeted
+5. **`PortalMessage`** — read-path filter + purchaser-only targeted
    backfill (solicitor / broker portal sends stay file-level, known
    limitation flagged in the PR description). Drawer integration:
    folded into the existing Communications section with a "Portal"
    channel pill via `lib/agent/comms-display.tsx` — no new drawer
    section.
-5. **`ReminderLog`** — read-path filter (belt-and-braces after PR 1 +
+6. **`ReminderLog`** — read-path filter (belt-and-braces after PR 1 +
    archived-drawer visibility) + targeted backfill. NO new drawer
    section (decision noted in PR description as chosen, not
    forgotten — the chase-generated comms already surface in the
    drawer's Communications section).
-6. **`ChaseTask`** — read-path filter + backfill (inherits from
-   parent `ReminderLog` post-PR-5). NO new drawer section, same
-   rationale as PR 5.
+7. **`ChaseTask`** — read-path filter + backfill (inherits from
+   parent `ReminderLog` post-PR-6). NO new drawer section, same
+   rationale as PR 6.
 
 Each PR follows the same template: read-path scoping + targeted
 backfill script + structured stamped/unmatched report + staging-first
@@ -92,6 +120,7 @@ Affected surfaces (from the audit):
 - Work queue items / stale alerts (`lib/services/work-queue.ts:76-92`) — MilestoneCompletion
 - Completions page (`lib/services/agent.ts:173-203`) — MilestoneCompletion
 - Comms dashboard / agent milestone activity (`lib/services/agent.ts:242-259`) — MilestoneCompletion
+- **Cross-tx Contact list reads** (`lib/services/transactions.ts:42, 294, 530, 629`) — Contact (GAP-3 from the fall-through ledger audit 2026-06-05; Section 2's `scopeContactsToActiveRound` only patches the single-tx fetch; list/hub/agency-team `contacts: { select }` includes still leak old-buyer rows)
 
 ---
 
