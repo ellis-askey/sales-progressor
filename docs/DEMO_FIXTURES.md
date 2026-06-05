@@ -46,7 +46,7 @@ All addresses are synthetic. All contact + login emails use `.test` TLDs (RFC 67
 | **Owner** | James Patel (negotiator) |
 | **Status** | active, every blocksExchange milestone complete or NR; **VM18 + PM25 (the gates) already confirmed**; **VM19 + PM26 sit as the next available step on each side** |
 | **What it demonstrates** | Exchange-ready — both gates confirmed, both sides waiting on the actual exchange confirmation |
-| **Use it for** | **Confirm VM19 (or PM26) live in the demo for the confetti moment.** Do NOT preconfirm. ⚠️ **See "Known issues" below — there's a Server Components render error currently firing in the PM26 reconciliation drawer on staging. If unresolved by demo time, use Plan B: walk through the state visually and pivot to a pre-exchanged file (e.g. 14 Acacia Close) to show the post-exchange UI.** |
+| **Use it for** | **Confirm VM19 (or PM26) live in the demo for the confetti moment.** Do NOT preconfirm. Verified end-to-end 2026-06-05 against the post-fix seed — both the bilateral pair completion and the engine side-effects fire cleanly. |
 
 ### Active files (×4)
 | Address | Tenure × purchase | Price | Owner | What it demonstrates |
@@ -85,10 +85,10 @@ These four URLs are bookmarkable for the live demo. Visit each in an incognito w
 
 | Role | Contact | URL |
 |---|---|---|
-| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/71aa848a-704c-4465-b239-66f0dd6e91fc` |
-| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/6004cebf-0ad2-4547-a5af-72c7b38d8d2b` |
-| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/05eced7d-1d84-49ed-9d1f-22be0c8ecbee` |
-| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/afb96f2c-e598-459f-9269-7a9b87d39e51` |
+| Vendor    | David Mitchell | `https://portal.thesalesprogressor.co.uk/portal/e03c88cb-503f-4649-8e4b-22120866b512` |
+| Vendor    | Sarah Mitchell | `https://portal.thesalesprogressor.co.uk/portal/2c117916-74d9-4c44-a652-f40dab56d6b9` |
+| Purchaser | **Tom Clarke** | `https://portal.thesalesprogressor.co.uk/portal/0816aee8-c176-435a-a352-a556400b5b7c` |
+| Purchaser | Emma Clarke | `https://portal.thesalesprogressor.co.uk/portal/3553517f-6ebd-4385-80bc-d9aa6fca43c0` |
 
 **Tom Clarke is the lead purchaser** — has the two active ClientChaseState rows so `/portal/<token>/respond` shows two milestones (PM5 mortgage application, PM7 contract pack) for him to confirm live.
 
@@ -164,27 +164,15 @@ Read-only. Prints the manifest snapshot above plus fresh portal tokens.
 
 ---
 
-## Known issues
+## After every reseed: refresh your browser
 
-### PM26 / VM19 confirmation throws "Server Components render" error on staging (2026-06-05)
+Every `demo:seed` / `demo:reset` / Reset Demo button click **deletes the entire Fairview Estates agency** (including all 15 transactions and their contacts) and creates fresh ones with new ids. **If you have a transaction page open in your browser from a previous seed, every action on that page will fail** with a Next.js prod-build error like:
 
-**Reproduce:** On any file where VM18 + PM25 are confirmed but VM19 + PM26 are not, click Confirm on PM26 (or VM19). The row's description slot fills with Next.js's prod-build server-component error template:
+> "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details."
 
-> "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+That's `getExchangeReconciliationList` (or any other action) throwing `Transaction not found` because the id in your URL no longer exists. **Fix: close the tab and re-open the file from `/agent/transactions`.** Verified 2026-06-05 — this exact symptom from the original demo screenshot was a stale URL from the first seed; the fresh seed's 8 Elmwood confirms VM19/PM26 cleanly end-to-end.
 
-**Surface vs root cause:** The error text is the default prod message Next.js generates when a server-side throw is wrapped before reaching the client. The client component catches it ([components/milestones/MilestoneRow.tsx:173-176](components/milestones/MilestoneRow.tsx#L173-L176)) and surfaces it via `setError(err.message)`. Two candidate origins:
-
-1. `getExchangeReconciliationList` ([app/actions/milestones.ts:460](app/actions/milestones.ts#L460)) — server action invoked first when PM26 (in `RECONCILIATION_CODES`) is confirmed; throws synchronously on the server.
-2. The page revalidation after the action completes — `revalidateTx` re-runs the StepsPanel server component, which fails downstream.
-
-**Triage needed:** Pull the Vercel staging logs for the failing request (search for the digest hash that the client shows). Likely candidates from static analysis: a Prisma type mismatch with the post-cutover round-scoping, or the chain-notification enqueue throwing when the bilateral counterpart fires.
-
-**Demo workaround:**
-- Pre-record the exchange flow OR walk through the state visually and pivot to a pre-exchanged file (14 Acacia Close, 27 Ivy Terrace, etc.) to show the post-exchange UI.
-- Both VM19 and PM26 are in `RECONCILIATION_CODES` so both will hit the same path — switching which one you click doesn't help.
-- VM20 / PM27 are also in `RECONCILIATION_CODES` — same risk on the completion confirmation. Demo a completed file from the static fixture instead.
-
-**Not a seed bug:** The seed's own VM19/PM26 confirmations (on Sycamore, Larch Way, Maple Drive, Acacia Close, Ivy Terrace, Rowan Gardens, Beech Court, Oakfield Avenue) all succeeded via `completeMilestone()` direct calls — proving the underlying milestone engine works. The bug is in the **agent UI confirm path**, not the engine.
+> If you click the Reset Demo button in the Command Centre while a demo tab is open on a transaction, the same thing will happen — re-navigate via `/agent/transactions` after the reset finishes.
 
 ---
 
