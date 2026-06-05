@@ -318,6 +318,69 @@ function check(label: string, pass: boolean, detail?: string) {
   // Unused but referenced for clarity:
   void marcus; void terry;
 
+  // ── Phase-3: cross-tx aggregates ────────────────────────────────────────
+  console.log("");
+  console.log("─ Phase-3: cross-tx aggregate restructure ─");
+  const agencyId = tx.agencyId;
+  const fallThroughRoundIds = fallThroughPurchasers
+    .map((c) => c.buyerRoundId)
+    .filter((id): id is string => id !== null);
+
+  const unscopedExchangedMcs = await prisma.milestoneCompletion.count({
+    where: {
+      transactionId: TX_ID,
+      state: "complete",
+      milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+    },
+  });
+  const scopedExchangedMcs = await prisma.milestoneCompletion.count({
+    where: {
+      transactionId: TX_ID,
+      state: "complete",
+      milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
+      OR: [{ buyerRoundId: null }, ...(activeRound ? [{ buyerRoundId: activeRound }] : [])],
+    },
+  });
+  check(
+    `cross-tx exchanged-MC count is scoped: scoped=${scopedExchangedMcs} ≤ unscoped=${unscopedExchangedMcs}`,
+    scopedExchangedMcs <= unscopedExchangedMcs,
+  );
+
+  const fallThroughRoundMcCount = fallThroughRoundIds.length > 0
+    ? await prisma.milestoneCompletion.count({
+        where: { transactionId: TX_ID, state: "complete", buyerRoundId: { in: fallThroughRoundIds } },
+      })
+    : 0;
+  check(
+    `fall-through-round MCs (informational — Phase-3 hides these from aggregates): ${fallThroughRoundMcCount}`,
+    true,
+    "informational",
+  );
+
+  const agencyActiveRoundIds = (
+    await prisma.propertyTransaction.findMany({ where: { agencyId }, select: { activeBuyerRoundId: true } })
+  )
+    .map((t) => t.activeBuyerRoundId)
+    .filter((id): id is string => id !== null);
+
+  const unscopedContactsAgencyWide = await prisma.contact.count({
+    where: { transaction: { agencyId } },
+  });
+  const scopedContactsAgencyWide = await prisma.contact.count({
+    where: {
+      transaction: { agencyId },
+      OR: [
+        { roleType: { not: "purchaser" as const } },
+        { buyerRoundId: null },
+        { buyerRoundId: { in: agencyActiveRoundIds } },
+      ],
+    },
+  });
+  check(
+    `cross-tx Contact count is scoped: scoped=${scopedContactsAgencyWide} ≤ unscoped=${unscopedContactsAgencyWide}`,
+    scopedContactsAgencyWide <= unscopedContactsAgencyWide,
+  );
+
   // ── PR 1/1.5: queue gate (read-only) ────────────────────────────────────
   console.log("");
   console.log("─ PR 1.5: OutboundEmailQueue dead-round gate behaviour ─");
