@@ -144,11 +144,18 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
   }
 
   return createPortal(
+    // zIndex 2000 — must sit above any parent modal that invokes the
+    // SolicitorPicker. RelistFileModal renders at zIndex 1500 and the
+    // ArchivedRoundDrawer at 1500; the new-firm modal is conceptually
+    // a foreground prompt over whichever surface opened it, so it
+    // needs to outrank them. Pre-2026-06-05 this was 50 — fine on the
+    // new-file page (no parent modal) but invisible-behind-backdrop on
+    // the relist surface (Ellis bug report 2026-06-05).
     <div
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       className="nv2-night"
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
       <div className="fixed inset-0 agent-backdrop-overlay" />
 
