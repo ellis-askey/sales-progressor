@@ -381,7 +381,7 @@ export async function changeStatusAction(
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, status: true, chainLinkId: true },
+    select: { id: true, status: true, chainLinkId: true, activeBuyerRoundId: true },
   });
   if (!tx) throw new Error("Transaction not found");
   if (tx.status === status) return;
@@ -437,7 +437,25 @@ export async function changeStatusAction(
     ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
     : null;
 
-  await prisma.$transaction(async (ptx) => {
+  // Phase-2 PR 1 (fall-through cancellation): when the status flips to
+  // withdrawn, mirror what relistTransactionImpl already does at relist time
+  // — cancel open buyer-side PM ReminderLogs + ChaseTasks for the active
+  // round, AND close any open TransactionHoldPeriods. Mirrored here so the
+  // withdraw-no-relist path is also covered (Ellis can withdraw and never
+  // relist — open chases were previously firing at the dead buyer forever).
+  // Idempotent via the status / endedAt guards: re-running on already-
+  // cancelled / already-closed rows is a no-op.
+  //
+  // Semantics locked by the Phase-2 plan: status="cancelled",
+  // statusReason="sale fell through".
+  type CancellationSummary = {
+    buyerRoundId: string;
+    cancelledLogIds: string[];
+    cancelledChaseIds: string[];
+    holdsClosed: number;
+  };
+
+  const cancellationSummary = await prisma.$transaction(async (ptx): Promise<CancellationSummary | null> => {
     await ptx.propertyTransaction.update({
       where: { id: transactionId },
       data: {
@@ -461,6 +479,56 @@ export async function changeStatusAction(
         data: { endedAt: new Date(), endedById: session.user.id },
       });
     }
+    if (status === "withdrawn" && tx.activeBuyerRoundId) {
+      // 1. Cancel PM-targeted active ReminderLogs for the active buyer round.
+      const logs = await ptx.reminderLog.findMany({
+        where: {
+          transactionId,
+          buyerRoundId: tx.activeBuyerRoundId,
+          status: "active",
+          reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
+        },
+        select: { id: true },
+      });
+      const cancelledLogIds = logs.map((l) => l.id);
+      if (cancelledLogIds.length > 0) {
+        await ptx.reminderLog.updateMany({
+          where: { id: { in: cancelledLogIds } },
+          data: { status: "cancelled", statusReason: "sale fell through" },
+        });
+      }
+      // 2. Cancel pending ChaseTasks under those logs.
+      let cancelledChaseIds: string[] = [];
+      if (cancelledLogIds.length > 0) {
+        const tasks = await ptx.chaseTask.findMany({
+          where: { reminderLogId: { in: cancelledLogIds }, status: "pending" },
+          select: { id: true },
+        });
+        cancelledChaseIds = tasks.map((t) => t.id);
+        if (cancelledChaseIds.length > 0) {
+          await ptx.chaseTask.updateMany({
+            where: { id: { in: cancelledChaseIds } },
+            data: { status: "cancelled" },
+          });
+        }
+      }
+      // 3. Close any open TransactionHoldPeriods. Belt-and-braces beyond
+      //    the existing leavingHold path — that path only fires when the
+      //    PREVIOUS status was on_hold. A file that was active with a stale
+      //    open hold row (defensive — shouldn't happen via the normal flow)
+      //    still gets closed here. Idempotent via where endedAt IS NULL.
+      const holdResult = await ptx.transactionHoldPeriod.updateMany({
+        where: { transactionId, endedAt: null },
+        data: { endedAt: new Date(), endedById: session.user.id },
+      });
+      return {
+        buyerRoundId: tx.activeBuyerRoundId,
+        cancelledLogIds,
+        cancelledChaseIds,
+        holdsClosed: holdResult.count,
+      };
+    }
+    return null;
   });
 
   // Command Centre event log. Fires once per status mutation. Note: sale_completed
@@ -476,13 +544,33 @@ export async function changeStatusAction(
     metadata: { from: tx.status, to: status },
   });
   if (status === "withdrawn") {
+    // Extend the existing transaction_archived event metadata with the
+    // cancellation summary captured inside the $transaction above
+    // (Phase-2 PR 1). Doing this here rather than emitting a separate
+    // reminder_cancelled_at_fall_through event avoids a Prisma enum
+    // migration; the existing event already fires per withdraw so the
+    // audit row count stays at 1-per-withdraw.
     await recordEvent({
       type: "transaction_archived",
       agencyId: session.user.agencyId || undefined,
       userId: session.user.id,
       entityType: "PropertyTransaction",
       entityId: transactionId,
-      metadata: fallThroughReason ? { reason: fallThroughReason } : undefined,
+      metadata: {
+        ...(fallThroughReason ? { reason: fallThroughReason } : {}),
+        ...(cancellationSummary
+          ? {
+              cancellation: {
+                hookPoint: "withdraw" as const,
+                reason: "sale fell through",
+                buyerRoundId: cancellationSummary.buyerRoundId,
+                cancelledLogIds: cancellationSummary.cancelledLogIds,
+                cancelledChaseIds: cancellationSummary.cancelledChaseIds,
+                holdsClosed: cancellationSummary.holdsClosed,
+              },
+            }
+          : {}),
+      },
     });
   }
 
@@ -2131,7 +2219,7 @@ export async function relistTransactionImpl(
     // KEY 1 — round-keyed (the bread-and-butter): every pending ChaseTask
     // attributed to the outgoing round, regardless of target code. Catches
     // every buyer-side chase whose write site stamped buyerRoundId correctly.
-    await ptx.chaseTask.updateMany({
+    const cancelledKey1 = await ptx.chaseTask.updateMany({
       where: {
         transactionId: tx.id,
         buyerRoundId: outgoingRound.id,
@@ -2142,7 +2230,7 @@ export async function relistTransactionImpl(
     // KEY 2 — VM-code-keyed (vendor reset codes): VM rows are file-level
     // (buyerRoundId IS NULL by design). Cancel any reset-VM-anchored chase
     // so the engine recomputes against post-reset state.
-    await ptx.chaseTask.updateMany({
+    const cancelledKey2 = await ptx.chaseTask.updateMany({
       where: {
         transactionId: tx.id,
         buyerRoundId: null,
@@ -2166,7 +2254,7 @@ export async function relistTransactionImpl(
     // Also catches unstamped rows from any future write-site regression:
     // the cancellation is correct for ANY pending PM-targeted task at
     // this moment in the $transaction, no matter how it was written.
-    await ptx.chaseTask.updateMany({
+    const cancelledKey3 = await ptx.chaseTask.updateMany({
       where: {
         transactionId: tx.id,
         status: "pending",
@@ -2177,16 +2265,32 @@ export async function relistTransactionImpl(
       data: { status: "cancelled" },
     });
     // Parallel sweep on ReminderLog rows themselves: any "active" PM-targeted
-    // log belongs to the outgoing buyer. Deactivate so the engine's
-    // re-evaluation (post-commit) can create fresh round-N+1 logs without
-    // colliding with stale ones via the findFirst({status:"active"}) check.
-    await ptx.reminderLog.updateMany({
+    // log belongs to the outgoing buyer. Cancel so the engine's re-evaluation
+    // (post-commit) can create fresh round-N+1 logs without colliding with
+    // stale ones via the findFirst({status:"active"}) check.
+    //
+    // SEMANTIC ALIGNMENT (Phase-2 PR 1, Ellis-locked 2026-06-05): pre-2026-06-05
+    // this used status="inactive", statusReason="Buyer round archived on relist".
+    // Aligned to the plan's locked semantics: status="cancelled",
+    // statusReason="sale fell through". Ships pre-launch — after prod has data
+    // this rename would require a migration.
+    const cancelledLogsResult = await ptx.reminderLog.updateMany({
       where: {
         transactionId: tx.id,
         status: "active",
         reminderRule: { targetMilestoneCode: { startsWith: "PM" } },
       },
-      data: { status: "inactive", statusReason: "Buyer round archived on relist" },
+      data: { status: "cancelled", statusReason: "sale fell through" },
+    });
+
+    // GAP-1 closure (Phase-2 PR 1, Ellis-locked: "if unsure: close"). Close
+    // any open TransactionHoldPeriod rows at relist time, belt-and-braces
+    // beyond the withdraw-side closure that changeStatusAction now does.
+    // Idempotent via where endedAt IS NULL — a no-op if the withdraw step
+    // already closed them.
+    const holdsClosedResult = await ptx.transactionHoldPeriod.updateMany({
+      where: { transactionId: tx.id, endedAt: null },
+      data: { endedAt: new Date(), endedById: session.userId },
     });
 
     // STEP 12 — clear chainLink.withdrawalStatus if set. The file is back;
@@ -2210,7 +2314,20 @@ export async function relistTransactionImpl(
       },
     });
 
-    return { newRoundId: newRound.id, newContactId: newContact.id };
+    return {
+      newRoundId: newRound.id,
+      newContactId: newContact.id,
+      // Phase-2 PR 1: carry the cancellation counts out so the post-commit
+      // event metadata can include them. Used only for the audit row at
+      // the recordEvent call below — no behavioural consumer.
+      cancellation: {
+        cancelledChaseRoundKeyed: cancelledKey1.count,
+        cancelledChaseVmKeyed: cancelledKey2.count,
+        cancelledChasePmDefence: cancelledKey3.count,
+        cancelledLogs: cancelledLogsResult.count,
+        holdsClosed: holdsClosedResult.count,
+      },
+    };
   });
 
   // ───── Post-commit fire-and-forget ─────────────────────────────────────
@@ -2296,6 +2413,22 @@ export async function relistTransactionImpl(
       newRoundNumber: nextRoundNumber,
       newBuyerName: input.newBuyer.name,
       priceChanged: input.newPurchasePrice != null && input.newPurchasePrice !== tx.purchasePrice,
+      // Phase-2 PR 1: cancellation summary, mirrored shape to the withdraw
+      // event metadata above so audit consumers can read both paths
+      // uniformly. hookPoint discriminator lets the field tell whether the
+      // cancellation actually caught anything at this hook (the withdraw
+      // step usually catches first; this relist step is idempotent
+      // belt-and-braces and typically reports counts of 0).
+      cancellation: {
+        hookPoint: "relist" as const,
+        reason: "sale fell through",
+        buyerRoundId: outgoingRound.id,
+        cancelledChaseRoundKeyed: result.cancellation.cancelledChaseRoundKeyed,
+        cancelledChaseVmKeyed: result.cancellation.cancelledChaseVmKeyed,
+        cancelledChasePmDefence: result.cancellation.cancelledChasePmDefence,
+        cancelledLogs: result.cancellation.cancelledLogs,
+        holdsClosed: result.cancellation.holdsClosed,
+      },
     },
   });
 
