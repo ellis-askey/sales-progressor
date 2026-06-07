@@ -144,6 +144,14 @@ export async function confirmMilestoneAction(input: {
     }
 
     return primary;
+    }, {
+      // Default 5s is too tight: completeMilestone fans out 6-10 queries per call
+      // and bilateral VM19/PM26 doubles that. Pass 3b/3c + reminder-gate (f325046)
+      // pushed staging over the budget; the failure was P2028 on the side-effect
+      // chain reads. 30s gives the bilateral pair clear runway without changing
+      // semantics. See Vercel runtime log digest 1190048595 (2026-06-07).
+      timeout: 30000,
+      maxWait: 10000,
     });
   } catch (err: unknown) {
     if (err instanceof Error && err.message === "PREREQUISITES_NOT_COMPLETE") {
@@ -739,6 +747,14 @@ export async function confirmExchangeReconciliationAction(input: {
         data: { expectedExchangeDate: new Date(input.eventDate) },
       });
     }
+  }, {
+    // Default 5s is too tight: this block does the outstanding sweep, both
+    // bilateral completeMilestone fan-outs (6-10 queries each), and the
+    // expectedExchangeDate update. The staging deploy hit P2028 at 5333ms
+    // (Vercel log digest 1190048595, 2026-06-07). 30s clears the bilateral
+    // exchange pair without changing semantics.
+    timeout: 30000,
+    maxWait: 10000,
   });
 
   revalidateTx(input.transactionId);
