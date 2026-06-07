@@ -170,6 +170,7 @@ export async function confirmMilestoneAction(input: {
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
+    try {
     const actualDate = new Date(input.eventDate);
     const txData = await prisma.propertyTransaction.findFirst({
       where: { id: input.transactionId },
@@ -184,6 +185,9 @@ export async function confirmMilestoneAction(input: {
         data: { completionDate: actualDate },
       });
       revalidateTx(input.transactionId);
+    }
+    } catch (err) {
+      console.error("[confirmMilestoneAction] completionDate sync failed:", err);
     }
   }
 
@@ -297,61 +301,70 @@ export async function confirmMilestoneAction(input: {
     }
   }
 
-  // Build intent-based notification status (check email addresses without blocking on send)
+  // Build intent-based notification status (check email addresses without blocking on send).
+  // Wrapped in try/catch so any Prisma issue here can't bring the whole
+  // action down with a 500 — the milestone has already saved by the time
+  // we reach this block, and the notifications array is purely advisory
+  // (the actual sends are fire-and-forget elsewhere). Sentry still captures
+  // the error for later triage.
   const notifications: NotificationStatus[] = [];
   if (def) {
-    const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
-    const notifTx = await prisma.propertyTransaction.findUnique({
-      where: { id: input.transactionId },
-      select: {
-        serviceType:  true,
-        assignedUser: { select: { id: true, name: true, email: true } },
-        agentUser:    { select: { id: true, name: true, email: true } },
-        contacts: {
-          where: { roleType: { in: ["vendor", "purchaser"] } },
-          select: { id: true, name: true, email: true, roleType: true },
+    try {
+      const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
+      const notifTx = await prisma.propertyTransaction.findUnique({
+        where: { id: input.transactionId },
+        select: {
+          serviceType:  true,
+          assignedUser: { select: { id: true, name: true, email: true } },
+          agentUser:    { select: { id: true, name: true, email: true } },
+          contacts: {
+            where: { roleType: { in: ["vendor", "purchaser"] } },
+            select: { id: true, name: true, email: true, roleType: true },
+          },
         },
-      },
-    });
-    if (notifTx) {
-      for (const c of notifTx.contacts) {
-        const role = c.roleType as "vendor" | "purchaser";
-        if (!emailCopy[role]) continue;
-        notifications.push({
-          role: role === "vendor" ? "seller" : "buyer",
-          contactId: c.id,
-          contactDisplayName: getDisplayName({ name: c.name }),
-          status: c.email ? "queued" : "skipped_no_email",
-        });
-      }
-      // BUG2 mirror: skip agent notification display when agent is the confirmer (self-managed)
-      const skipAgentNotif = notifTx.serviceType === "self_managed"
-        && session.user.id === notifTx.agentUser?.id;
-      if (emailCopy.vendorAgent && !skipAgentNotif) {
-        if (notifTx.agentUser) {
+      });
+      if (notifTx) {
+        for (const c of notifTx.contacts) {
+          const role = c.roleType as "vendor" | "purchaser";
+          if (!emailCopy[role]) continue;
           notifications.push({
-            role: "agent",
-            contactId: null,
-            contactDisplayName: getDisplayName({ name: notifTx.agentUser.name }),
-            status: notifTx.agentUser.email ? "queued" : "skipped_no_email",
-          });
-        } else {
-          notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
-        }
-      }
-      // BUG2 mirror: skip progressor notification display when SP is the confirmer (outsourced)
-      const skipProgressorNotif = notifTx.serviceType === "outsourced"
-        && session.user.id === notifTx.assignedUser?.id;
-      if (emailCopy.progressor && !skipProgressorNotif) {
-        if (notifTx.assignedUser) {
-          notifications.push({
-            role: "progressor",
-            contactId: null,
-            contactDisplayName: getDisplayName({ name: notifTx.assignedUser.name }),
-            status: notifTx.assignedUser.email ? "queued" : "skipped_no_email",
+            role: role === "vendor" ? "seller" : "buyer",
+            contactId: c.id,
+            contactDisplayName: getDisplayName({ name: c.name }),
+            status: c.email ? "queued" : "skipped_no_email",
           });
         }
+        // BUG2 mirror: skip agent notification display when agent is the confirmer (self-managed)
+        const skipAgentNotif = notifTx.serviceType === "self_managed"
+          && session.user.id === notifTx.agentUser?.id;
+        if (emailCopy.vendorAgent && !skipAgentNotif) {
+          if (notifTx.agentUser) {
+            notifications.push({
+              role: "agent",
+              contactId: null,
+              contactDisplayName: getDisplayName({ name: notifTx.agentUser.name }),
+              status: notifTx.agentUser.email ? "queued" : "skipped_no_email",
+            });
+          } else {
+            notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
+          }
+        }
+        // BUG2 mirror: skip progressor notification display when SP is the confirmer (outsourced)
+        const skipProgressorNotif = notifTx.serviceType === "outsourced"
+          && session.user.id === notifTx.assignedUser?.id;
+        if (emailCopy.progressor && !skipProgressorNotif) {
+          if (notifTx.assignedUser) {
+            notifications.push({
+              role: "progressor",
+              contactId: null,
+              contactDisplayName: getDisplayName({ name: notifTx.assignedUser.name }),
+              status: notifTx.assignedUser.email ? "queued" : "skipped_no_email",
+            });
+          }
+        }
       }
+    } catch (err) {
+      console.error("[confirmMilestoneAction] notifications-status build failed:", err);
     }
   }
 
