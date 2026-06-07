@@ -234,7 +234,7 @@ export async function confirmMilestoneAction(input: {
     // entries match correctly. Strictly no-op when the flag is off (the
     // assembler doesn't construct a FileShape at all in that case).
     const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
-    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code);
+    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
     const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
 
     // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
@@ -744,32 +744,44 @@ export async function confirmExchangeReconciliationAction(input: {
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
 
-  // Completion date sync for VM20/PM27 (confirmed at completion)
+  // Completion date sync for VM20/PM27 (confirmed at completion).
+  // Wrapped — the milestone is already saved by this point; the date
+  // sync is a polish step and must not bring the whole action down.
   if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
-    const actualDate = new Date(input.eventDate);
-    const txData = await prisma.propertyTransaction.findFirst({
-      where: { id: input.transactionId },
-      select: { completionDate: true },
-    });
-    const existingDate = txData?.completionDate;
-    const dateMismatch = !existingDate ||
-      Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
-    if (dateMismatch) {
-      await prisma.propertyTransaction.update({
+    try {
+      const actualDate = new Date(input.eventDate);
+      const txData = await prisma.propertyTransaction.findFirst({
         where: { id: input.transactionId },
-        data: { completionDate: actualDate },
+        select: { completionDate: true },
       });
-      revalidateTx(input.transactionId);
+      const existingDate = txData?.completionDate;
+      const dateMismatch = !existingDate ||
+        Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
+      if (dateMismatch) {
+        await prisma.propertyTransaction.update({
+          where: { id: input.transactionId },
+          data: { completionDate: actualDate },
+        });
+        revalidateTx(input.transactionId);
+      }
+    } catch (err) {
+      console.error("[confirmExchangeReconciliationAction] completionDate sync failed:", err);
     }
   }
 
-  // Expected completion date captured at exchange time (VM19/PM26)
+  // Expected completion date captured at exchange time (VM19/PM26).
+  // Same protection — the exchange already wrote, the predicted-completion
+  // update is a downstream polish step.
   if ((def.code === "VM19" || def.code === "PM26") && input.completionDate) {
-    await prisma.propertyTransaction.update({
-      where: { id: input.transactionId },
-      data: { completionDate: new Date(input.completionDate) },
-    });
-    revalidateTx(input.transactionId);
+    try {
+      await prisma.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { completionDate: new Date(input.completionDate) },
+      });
+      revalidateTx(input.transactionId);
+    } catch (err) {
+      console.error("[confirmExchangeReconciliationAction] expected completionDate update failed:", err);
+    }
   }
 
   // Push notifications (fire-and-forget)
@@ -794,8 +806,12 @@ export async function confirmExchangeReconciliationAction(input: {
 
   // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
   // at the top callsite of sendAdminMilestoneNotificationToPortal above.
+  // isBilateralCounterpartComplete is awaited so we cannot let it throw —
+  // a Prisma blip here would 500 the whole action. Defaults to false on
+  // error, which means the email assembler uses the pre-handoff Section
+  // set (safer than the post-handoff one if state is unclear).
   const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
-  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code);
+  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
   const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
 
   sendAdminMilestoneNotificationToPortal(
