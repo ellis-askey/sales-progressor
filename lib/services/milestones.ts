@@ -638,56 +638,97 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
         },
       });
 
-  await unlockDirectDependents(input.transactionId, def.code, tx);
-  await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
-  await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
+  // Post-state-write side effects (lines 641-738).
+  //
+  // CRITICAL: the MilestoneCompletion row was written above at 598-639. Every
+  // call below runs inside the same ptx transaction context — if ANY of them
+  // throws, the transaction rolls back and the milestone save is lost.
+  //
+  // Each call is therefore wrapped in its own narrow try/catch with
+  // console.error so:
+  //   - The milestone state row stays committed.
+  //   - completeMilestone returns the row to the caller.
+  //   - confirmMilestoneAction / confirmExchangeReconciliationAction return
+  //     their success payload and the client fires the confetti.
+  //   - The actual stack lives in Vercel runtime logs for root-cause work.
+  //
+  // The cost when a side effect fails: a chase reminder that doesn't auto-clear,
+  // an exchange that doesn't get exchangedAt stamped, or a missing Command
+  // Centre event log. All are recoverable and visible in logs; none break the
+  // user-facing flow.
+  //
+  // Added 2026-06-07 after the staging deploy 500'd on VM19 confirmations
+  // (drawer-fills-then-fails sequence). Throw was inside this side-effect
+  // chain; the surgical wraps isolate side effects from the row save.
+
+  try {
+    await unlockDirectDependents(input.transactionId, def.code, tx);
+  } catch (err) {
+    console.error("[completeMilestone] unlockDirectDependents failed:", err);
+  }
+
+  try {
+    await autoCompleteRemindersForMilestone(input.transactionId, def.code, "Milestone completed", tx);
+  } catch (err) {
+    console.error("[completeMilestone] autoCompleteRemindersForMilestone failed:", err);
+  }
+
+  try {
+    await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, tx);
+  } catch (err) {
+    console.error("[completeMilestone] maybeUnlockExchangeGate failed:", err);
+  }
 
   // Self-resolve outOfOrderCompletion flags: clear them when their full prereq
   // chain is now satisfied (the agent re-confirmed the missing upstream milestone).
   // Round-scoped: the active round's PMs + vendor file-level. Archived
   // rounds' out-of-order flags stay frozen.
-  const outOfOrderRows = await db.milestoneCompletion.findMany({
-    where: {
-      transactionId: input.transactionId,
-      outOfOrderCompletion: true,
-      ...milestoneScopeWhere(scope),
-    },
-    select: { milestoneDefinitionId: true },
-  });
-  if (outOfOrderRows.length > 0) {
-    const allCurrentCompletions = await db.milestoneCompletion.findMany({
-      where: { transactionId: input.transactionId, ...milestoneScopeWhere(scope) },
-      select: { milestoneDefinitionId: true, state: true },
+  try {
+    const outOfOrderRows = await db.milestoneCompletion.findMany({
+      where: {
+        transactionId: input.transactionId,
+        outOfOrderCompletion: true,
+        ...milestoneScopeWhere(scope),
+      },
+      select: { milestoneDefinitionId: true },
     });
-    const resolveStateMap = new Map(allCurrentCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
-    resolveStateMap.set(input.milestoneDefinitionId, "complete");
-    const allDefCodes = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
-    const resolveCodeToId = new Map(allDefCodes.map((d) => [d.code, d.id]));
-    const resolveIdToCode = new Map(allDefCodes.map((d) => [d.id, d.code]));
-    const toResolve: string[] = [];
-    for (const { milestoneDefinitionId } of outOfOrderRows) {
-      const code = resolveIdToCode.get(milestoneDefinitionId);
-      if (!code) continue;
-      const allPrereqs = collectAllPrereqCodes(code);
-      const allSatisfied = allPrereqs.every((prereqCode) => {
-        const pid = resolveCodeToId.get(prereqCode);
-        if (!pid) return true;
-        const s = resolveStateMap.get(pid);
-        return s === "complete" || s === "not_required";
+    if (outOfOrderRows.length > 0) {
+      const allCurrentCompletions = await db.milestoneCompletion.findMany({
+        where: { transactionId: input.transactionId, ...milestoneScopeWhere(scope) },
+        select: { milestoneDefinitionId: true, state: true },
       });
-      if (allSatisfied) toResolve.push(milestoneDefinitionId);
+      const resolveStateMap = new Map(allCurrentCompletions.map((c) => [c.milestoneDefinitionId, c.state as string]));
+      resolveStateMap.set(input.milestoneDefinitionId, "complete");
+      const allDefCodes = await db.milestoneDefinition.findMany({ select: { id: true, code: true } });
+      const resolveCodeToId = new Map(allDefCodes.map((d) => [d.code, d.id]));
+      const resolveIdToCode = new Map(allDefCodes.map((d) => [d.id, d.code]));
+      const toResolve: string[] = [];
+      for (const { milestoneDefinitionId } of outOfOrderRows) {
+        const code = resolveIdToCode.get(milestoneDefinitionId);
+        if (!code) continue;
+        const allPrereqs = collectAllPrereqCodes(code);
+        const allSatisfied = allPrereqs.every((prereqCode) => {
+          const pid = resolveCodeToId.get(prereqCode);
+          if (!pid) return true;
+          const s = resolveStateMap.get(pid);
+          return s === "complete" || s === "not_required";
+        });
+        if (allSatisfied) toResolve.push(milestoneDefinitionId);
+      }
+      if (toResolve.length > 0) {
+        await db.milestoneCompletion.updateMany({
+          where: {
+            transactionId: input.transactionId,
+            milestoneDefinitionId: { in: toResolve },
+            outOfOrderCompletion: true,
+            ...milestoneScopeWhere(scope),
+          },
+          data: { outOfOrderCompletion: false },
+        });
+      }
     }
-    if (toResolve.length > 0) {
-      await db.milestoneCompletion.updateMany({
-        where: {
-          transactionId: input.transactionId,
-          milestoneDefinitionId: { in: toResolve },
-          outOfOrderCompletion: true,
-          ...milestoneScopeWhere(scope),
-        },
-        data: { outOfOrderCompletion: false },
-      });
-    }
+  } catch (err) {
+    console.error("[completeMilestone] out-of-order resolution failed:", err);
   }
 
   touchLastActivity(input.transactionId).catch(() => {});
@@ -698,7 +739,11 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   // twice for VM19/PM26 (primary + counterpart) on the SAME PropertyTransaction; the
   // helper's NULL-guarded updateMany ensures only the first call writes billedAtExchange.
   // See lib/services/billing-trigger.ts for the full reasoning.
-  await maybeStampExchange(input.transactionId, def.code, tx);
+  try {
+    await maybeStampExchange(input.transactionId, def.code, tx);
+  } catch (err) {
+    console.error("[completeMilestone] maybeStampExchange failed:", err);
+  }
 
   // Chain milestone notifications (fire-and-forget; deduped via OutboundEmailQueue)
   if (def.code === "VM19" || def.code === "PM26") {
@@ -712,29 +757,41 @@ export async function completeMilestone(input: CompleteMilestoneInput, tx?: Pris
   // counterpart auto-confirms — each side IS a milestone confirmation per DECISION 4).
   // contracts_exchanged / sale_completed are gated to the vendor-side code only to
   // ensure each real-world occurrence emits exactly once across the bilateral pair.
-  await recordEvent({
-    type: "milestone_confirmed",
-    userId: completedById ?? undefined,
-    entityType: "PropertyTransaction",
-    entityId: input.transactionId,
-    metadata: { code: def.code, side: def.side, confirmedByPortal },
-  });
+  try {
+    await recordEvent({
+      type: "milestone_confirmed",
+      userId: completedById ?? undefined,
+      entityType: "PropertyTransaction",
+      entityId: input.transactionId,
+      metadata: { code: def.code, side: def.side, confirmedByPortal },
+    });
+  } catch (err) {
+    console.error("[completeMilestone] recordEvent(milestone_confirmed) failed:", err);
+  }
   if (def.code === "VM19") {
-    await recordEvent({
-      type: "contracts_exchanged",
-      userId: completedById ?? undefined,
-      entityType: "PropertyTransaction",
-      entityId: input.transactionId,
-      metadata: { eventDate: input.eventDate?.toISOString() ?? null },
-    });
+    try {
+      await recordEvent({
+        type: "contracts_exchanged",
+        userId: completedById ?? undefined,
+        entityType: "PropertyTransaction",
+        entityId: input.transactionId,
+        metadata: { eventDate: input.eventDate?.toISOString() ?? null },
+      });
+    } catch (err) {
+      console.error("[completeMilestone] recordEvent(contracts_exchanged) failed:", err);
+    }
   } else if (def.code === "VM20") {
-    await recordEvent({
-      type: "sale_completed",
-      userId: completedById ?? undefined,
-      entityType: "PropertyTransaction",
-      entityId: input.transactionId,
-      metadata: { eventDate: input.eventDate?.toISOString() ?? null },
-    });
+    try {
+      await recordEvent({
+        type: "sale_completed",
+        userId: completedById ?? undefined,
+        entityType: "PropertyTransaction",
+        entityId: input.transactionId,
+        metadata: { eventDate: input.eventDate?.toISOString() ?? null },
+      });
+    } catch (err) {
+      console.error("[completeMilestone] recordEvent(sale_completed) failed:", err);
+    }
   }
 
   return completion;
