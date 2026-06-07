@@ -38,8 +38,8 @@ function buildOpener({
     ? `Hi ${clientFirstName},`
     : "Hi there,";
   const opener = address
-    ? `Great news that the sale at ${address} is agreed. The next stage is getting everything through to completion, and we're already getting things underway.`
-    : "Great news that the sale is agreed. The next stage is getting everything through to completion, and we're already getting things underway.";
+    ? `Good to hear the sale at ${address} is agreed. The next stage is getting everything through to completion, and we're already getting things underway.`
+    : "Good to hear the sale is agreed. The next stage is getting everything through to completion, and we're already getting things underway.";
   return { greeting, opener };
 }
 

@@ -116,10 +116,10 @@ function PauseStatusPill({ pauseState }: { pauseState: PauseState }) {
   if (!pauseState.activePauseReason) return null;
   const label =
     pauseState.activePauseReason === "global"
-      ? "Auto chases paused — system-wide"
+      ? "Auto chases paused, system-wide"
       : pauseState.activePauseReason === "agency"
-      ? `Auto chases paused — agency-wide${pauseState.agencyName ? ` (${pauseState.agencyName})` : ""}`
-      : "Auto chases paused — this file";
+      ? `Auto chases paused, agency-wide${pauseState.agencyName ? ` (${pauseState.agencyName})` : ""}`
+      : "Auto chases paused, this file";
   return (
     <div
       style={{
@@ -407,7 +407,7 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
   const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
   const [open, setOpen] = useState(false);
   const [previewEmailId, setPreviewEmailId] = useState<string | null>(null);
-  const text = fileOnHold ? "Automation paused — file on hold" : summaryText(data);
+  const text = fileOnHold ? "Automation paused, file on hold" : summaryText(data);
   const hasAny = !fileOnHold && (data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0);
 
   return (
@@ -465,7 +465,7 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
                 Automation paused
               </span>
               <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-                This file is on hold — no client chases, no escalations, no scheduled emails will fire until it&apos;s reactivated. Pending sends are held until the file resumes.
+                This file is on hold: no client chases, no escalations, no scheduled emails will fire until it&apos;s reactivated. Pending sends are held until the file resumes.
               </p>
             </div>
           ) : (

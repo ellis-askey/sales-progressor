@@ -38,12 +38,12 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
         });
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          setError(data.error ?? "Couldn't record acknowledgement — try again");
+          setError(data.error ?? "Couldn't record acknowledgement. Try again.");
           return;
         }
         router.refresh();
       } catch {
-        setError("Couldn't reach the server — check your connection and try again");
+        setError("Couldn't reach the server. Check your connection and try again.");
       }
     });
   }
@@ -64,7 +64,7 @@ export function RedesignedDisclosure({ termsVersionId, termsVersionTag, termsSec
           Before we add your card
         </h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          Version <code>{termsVersionTag}</code> — please read and confirm.
+          Version <code>{termsVersionTag}</code>. Please read and confirm.
         </p>
       </div>
 

@@ -179,7 +179,7 @@ export async function OverviewPanel({
     prisma.user.findUnique({
       where: { id: currentUserId },
       select: { chainDeclineNotificationAddress: true, chainDeclineNotificationAt: true },
-    }),
+    }).catch(() => null),
   ]);
 
   // ── Progress + on-track signal (driven by milestones + holds) ──────────

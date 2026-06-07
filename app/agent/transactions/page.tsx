@@ -258,7 +258,7 @@ export default async function AllTransactionsPage({
                 </p>
                 {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
                 <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                  Sales appear here once you submit one. Track milestones, manage chases,
+                  Sales appear here once you submit one. Track steps, manage chases,
                   and progress to exchange.
                 </p>
                 <Link

@@ -14,7 +14,7 @@ export function ClaimedToast({ address }: { address: string }) {
   useEffect(() => {
     if (!fired.current && params.get("claimed") === "1" && params.get("newUser") !== "1") {
       fired.current = true;
-      toast.success("You're in the chain", {
+      toast.success("Chain claimed", {
         description: "Open the chain panel to see how the other sales are progressing.",
         duration: 5000,
       });

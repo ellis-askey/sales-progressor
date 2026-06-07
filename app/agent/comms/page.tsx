@@ -93,7 +93,7 @@ export default async function AgentCommsPage({
             href={filterBase}
             className={`agent-segment-pill agent-segment-pill-sm${!portalOnly ? " on" : ""}`}
           >
-            All milestones
+            All steps
           </Link>
           <Link
             href={`${filterBase}?filter=portal`}

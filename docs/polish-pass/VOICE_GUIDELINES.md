@@ -142,6 +142,59 @@ If a term appears on this list and sounds wrong in context, flag it in Stage 3 r
 
 **Tense:** Present for states ("This file is on hold"). Imperative for actions ("Confirm exchange"). Future for outcomes that follow an action ("We'll notify both parties").
 
+### Banned openers (added 2026-06-05, agent voice sweep)
+
+- **"Great news"** as a sentence or subject opener in agent-facing copy. Lead with the fact. Source: 3 instances caught in 2026-06-05 audit (outsource-intro, director-accepted, negotiator-accepted). If a confirmation is genuinely worth marking, name it: "Confirmed.", "Your account is ready.", "First exchange — your invoice is on its way." Not "Great news — ...".
+
+### Banned verbs (added 2026-06-05, agent voice sweep)
+
+- **"Surface" / "surfacing"** as user-facing verbs. They're data-pipeline jargon — "the system surfaces things it has computed". Use **show**, **flag**, **highlight**, or **appear** depending on what fits. Source: 2 instances caught in 2026-06-05 audit (director-invitation body, AutomationSettingsForm).
+
+### Banned in agent-facing strings (added 2026-06-05, agent voice sweep)
+
+- **No "Congratulations" / "Congrats" anywhere.** The user knows what exchange / completion means.
+- **No exclamation marks anywhere.** Already listed under tone calibration; restated here so the email + push sub-sections inherit it explicitly.
+- These bans apply to **agent-facing** strings (every surface listed in `docs/VOICE_AUDIT_AGENT_SURFACES.md`). The **portal-facing register** (push notifications to buyers/sellers, portal emails, portal UI) may use a deliberately warmer tone — that register is owned by the portal pass, not this doc. If you're writing copy that fires to the portal audience, follow the portal voice doc, not this one.
+
+### Em dash as a prose joiner — banned (added 2026-06-05, agent voice sweep, option B)
+
+The em dash (—) **must not** be used as a prose joiner in agent-facing strings. Use a full stop, comma or colon to mark the pause, depending on what the sentence actually wants:
+
+- **Two complete thoughts** → full stop. "Couldn't save draft. Try again."
+- **Subordinate clause / qualifier** → comma. "Exchanged, due."
+- **Lead-in + content** → colon. "Step 1 of 2: your details."
+
+The em dash also reads inconsistently across email clients, terminal toasts and older browsers — a plain punctuation mark is more durable.
+
+**Sanctioned (allowed) uses** — these stay:
+
+1. **Email signatures** — e.g. `"— The Sales Progressor team"` at the foot of every retention / acceptance email.
+2. **Sender display names** — e.g. `"Rachel — Sales Progressor"`, `"Ellis — Sales Progressor"`.
+3. **Null/empty placeholders for data** — e.g. `tx.agency?.name ?? "—"`, `<span aria-hidden>—</span>`, `placeholder="£—"`.
+4. **True parenthetical pairs already documented in approved copy** — matched-pair em dashes that genuinely interrupt a sentence and resume it (rare; flag in Stage 3 if you think you have one).
+
+Anything outside those four is a prose joiner: rewrite it.
+
+**Before / after example (from the 2026-06-05 sweep):**
+
+| Before | After |
+|---|---|
+| "Couldn't save draft — try again" | "Couldn't save draft. Try again." |
+| "Auto chases paused — system-wide" | "Auto chases paused, system-wide" |
+| "Conversion funnel — last month" | "Conversion funnel: last month" |
+
+### Exception block — founder-signed retention emails (added 2026-06-05, agent voice sweep)
+
+The retention email family (`lib/emails/retention/index.ts`) is signed personally by a founder ("Ellis", "Rachel") and uses a personal register: first person, contractions, warmth. That register is sanctioned. **However**, the bans on exclamation marks, slang idioms ("drop you a line", "your end", "this one's on us") and "Congratulations" still apply — personal does not mean colloquial. Calibration examples from the 2026-06-05 sweep, all under `lib/emails/retention/index.ts`:
+
+| Before | After | Why |
+|---|---|---|
+| Subject: "You're in!" | Subject: "Your account is ready" | Exclamation mark + colloquial contraction. Lead with the fact. |
+| "This one's on us since it came in through the chain. Any sale you add in the next 14 days is on us too..." | "This sale is free because it came in through the chain. Any sale you add in the next 14 days is also free..." | "This one's on us" reads as a mate. State the offer plainly. |
+| Subject: "How are things your end?" | Subject: "How are things going?" | "Your end" is an idiom. Same warmth, plainer English. |
+| "...so I wanted to drop you a line — we haven't had a file from you..." | "...so I wanted to get in touch. We haven't had a file from you..." | "Drop you a line" is idiomatic. Also removes the em dash; a full stop carries the same beat. |
+| "I'm available noon or night, hope to hear from you soon." | "I'm available any time, and I hope to hear from you soon." | "Noon or night" is colloquial; rephrased without losing the personal tone. |
+
 **Portal audience note:** The portal voice shifts from "brisk" to "calm and plain." Buyers and sellers are in a life event. They don't need cheerfulness, but they need more reassurance than agents do. Sentences can be slightly longer. Use "you" and "your" more. Avoid industry timing references that assume knowledge ("exchange in 8 days" → "exchange in 8 days — that's when both sides are legally committed"). Flag these adjustments during portal pass Stage 3; do not pre-write the portal version here.
 
 ---

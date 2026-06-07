@@ -116,7 +116,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Enter postcode — e.g. BS6 7TH"
+          placeholder="Enter postcode (e.g. BS6 7TH)"
           maxLength={8}
           style={{ paddingLeft: 36, height: 38, fontSize: 14 }}
           aria-label="Property postcode lookup"
@@ -144,7 +144,7 @@ export function ResearchPanel({ onSearch, onSearchImmediate, state, onRetry }: P
 
       {/* Explainer */}
       <p style={{ margin: "0 0 14px", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.6 }}>
-        Look up any property to see sale history, EPC rating, and more — before filling in the form.
+        Look up any property to see sale history, EPC rating, and more before filling in the form.
       </p>
 
       {/* You can check list */}

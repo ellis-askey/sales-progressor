@@ -228,7 +228,7 @@ export function Stage1Fields({
       {showContinueButton && (
         <div style={{ paddingTop: 4 }}>
           <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--nv2-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
-            Address, tenure and purchase type are set — add contacts and details
+            Address, tenure and purchase type are set. Add contacts and details.
           </p>
           <button
             type="button"

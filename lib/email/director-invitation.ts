@@ -16,7 +16,7 @@ export async function sendDirectorInvitationEmail(input: DirectorInvitationEmail
 
 ${input.invitedByName} is using Sales Progressor at ${input.agencyName} and wants you set up as director.
 
-It tracks every sale from offer accepted to completion, surfacing the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
+It tracks every sale from offer accepted to completion and flags the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
 
 Set up your account here:
 ${input.acceptUrl}
@@ -44,7 +44,7 @@ This invitation expires in 7 days.`;
                 <strong>${escapeHtml(input.invitedByName)}</strong> is using Sales Progressor at <strong>${escapeHtml(input.agencyName)}</strong> and wants you set up as director.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
-                It tracks every sale from offer accepted to completion, surfacing the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
+                It tracks every sale from offer accepted to completion and flags the deals that are quietly slipping before they fall through. As director you'll see every file across the team in one place.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>

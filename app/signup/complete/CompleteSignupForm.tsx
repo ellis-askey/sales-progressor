@@ -162,7 +162,7 @@ export function CompleteSignupForm({ defaultName, email }: Props) {
                 {email}
               </div>
               <p style={{ fontSize: "11px", color: "rgba(61,31,14,0.45)", marginTop: "4px" }}>
-                Signed in via Google or Microsoft — can't be changed here
+                Signed in via Google or Microsoft. Can't be changed here.
               </p>
             </div>
 

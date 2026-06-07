@@ -62,6 +62,21 @@ const NR_ALLOWED_CASH = new Set(["PM8"]);
 const POST_EXCHANGE_CODES = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const RECONCILIATION_CODES = new Set(["VM19", "PM26", "VM20", "PM27"]);
 
+// Mask the Next.js production server-action error template ("An error
+// occurred in the Server Components render. The specific message is
+// omitted in production builds…"). When a "use server" action throws in
+// prod, the message arriving at the client is that wall of text, which
+// reads as a scary system failure in the row description slot. The agent
+// just needs a plain "didn't work, try again" — the real stack lives in
+// Vercel runtime logs keyed by the digest hash on the original Error.
+function softenServerError(err: unknown, fallback: string): string {
+  const message = err instanceof Error ? err.message : fallback;
+  if (/server components render|digest property/i.test(message)) {
+    return `${fallback} Try again, or refresh the page.`;
+  }
+  return message;
+}
+
 // Relative time formatter for the B6 client-chase chip. "today", "yesterday",
 // "Nd ago" for under a week, then "Nw ago". Used in chip text where the
 // agent wants quick glanceability, not an absolute date.
@@ -172,7 +187,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         })
         .catch((err: unknown) => {
           setLoading(false);
-          setError(err instanceof Error ? err.message : "Could not load reconciliation data");
+          setError(softenServerError(err, "Could not load reconciliation data."));
         });
       return;
     }
@@ -213,8 +228,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           toast.success(def.name, description ? { description } : undefined);
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Could not complete this milestone.";
-        setError(message);
+        setError(softenServerError(err, "Could not complete this step."));
       } finally {
         setLoading(false);
         setEventDate("");
@@ -251,8 +265,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           toast.success(def.name, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} reconciled` } : undefined);
         }
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Could not complete this milestone.";
-        setError(message);
+        setError(softenServerError(err, "Could not complete this step."));
       } finally {
         setLoading(false);
       }
@@ -267,7 +280,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
       setUndoData(data);
       setShowUndoModal(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not load undo information");
+      setError(softenServerError(err, "Could not load undo information."));
     } finally {
       setLoading(false);
     }
@@ -286,8 +299,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           description: count > 0 ? `+${count} linked step${count > 1 ? "s" : ""} also undone` : def.name,
         });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Could not reverse this milestone.";
-        setError(message);
+        setError(softenServerError(err, "Could not undo this step."));
       } finally {
         setLoading(false);
       }
@@ -321,8 +333,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
         });
         toast.success("Skipped");
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Could not mark as not required.";
-        setError(message);
+        setError(softenServerError(err, "Could not skip this step."));
       } finally {
         setLoading(false);
       }

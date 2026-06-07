@@ -170,6 +170,7 @@ export async function confirmMilestoneAction(input: {
 
   // Completion: sync the transaction completionDate if the confirmed date differs
   if ((def?.code === "VM20" || def?.code === "PM27") && input.eventDate) {
+    try {
     const actualDate = new Date(input.eventDate);
     const txData = await prisma.propertyTransaction.findFirst({
       where: { id: input.transactionId },
@@ -184,6 +185,9 @@ export async function confirmMilestoneAction(input: {
         data: { completionDate: actualDate },
       });
       revalidateTx(input.transactionId);
+    }
+    } catch (err) {
+      console.error("[confirmMilestoneAction] completionDate sync failed:", err);
     }
   }
 
@@ -230,7 +234,7 @@ export async function confirmMilestoneAction(input: {
     // entries match correctly. Strictly no-op when the flag is off (the
     // assembler doesn't construct a FileShape at all in that case).
     const confirmerRoute_self = roleToConfirmerRoute(session.user.role);
-    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code);
+    const counterpartComplete_self = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
     const handoffDirection_self = computeHandoffDirection(code, counterpartComplete_self);
 
     // Per-transaction debug toggle (suppressPortalConfirmEmails): when set
@@ -297,61 +301,70 @@ export async function confirmMilestoneAction(input: {
     }
   }
 
-  // Build intent-based notification status (check email addresses without blocking on send)
+  // Build intent-based notification status (check email addresses without blocking on send).
+  // Wrapped in try/catch so any Prisma issue here can't bring the whole
+  // action down with a 500 — the milestone has already saved by the time
+  // we reach this block, and the notifications array is purely advisory
+  // (the actual sends are fire-and-forget elsewhere). Sentry still captures
+  // the error for later triage.
   const notifications: NotificationStatus[] = [];
   if (def) {
-    const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
-    const notifTx = await prisma.propertyTransaction.findUnique({
-      where: { id: input.transactionId },
-      select: {
-        serviceType:  true,
-        assignedUser: { select: { id: true, name: true, email: true } },
-        agentUser:    { select: { id: true, name: true, email: true } },
-        contacts: {
-          where: { roleType: { in: ["vendor", "purchaser"] } },
-          select: { id: true, name: true, email: true, roleType: true },
+    try {
+      const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
+      const notifTx = await prisma.propertyTransaction.findUnique({
+        where: { id: input.transactionId },
+        select: {
+          serviceType:  true,
+          assignedUser: { select: { id: true, name: true, email: true } },
+          agentUser:    { select: { id: true, name: true, email: true } },
+          contacts: {
+            where: { roleType: { in: ["vendor", "purchaser"] } },
+            select: { id: true, name: true, email: true, roleType: true },
+          },
         },
-      },
-    });
-    if (notifTx) {
-      for (const c of notifTx.contacts) {
-        const role = c.roleType as "vendor" | "purchaser";
-        if (!emailCopy[role]) continue;
-        notifications.push({
-          role: role === "vendor" ? "seller" : "buyer",
-          contactId: c.id,
-          contactDisplayName: getDisplayName({ name: c.name }),
-          status: c.email ? "queued" : "skipped_no_email",
-        });
-      }
-      // BUG2 mirror: skip agent notification display when agent is the confirmer (self-managed)
-      const skipAgentNotif = notifTx.serviceType === "self_managed"
-        && session.user.id === notifTx.agentUser?.id;
-      if (emailCopy.vendorAgent && !skipAgentNotif) {
-        if (notifTx.agentUser) {
+      });
+      if (notifTx) {
+        for (const c of notifTx.contacts) {
+          const role = c.roleType as "vendor" | "purchaser";
+          if (!emailCopy[role]) continue;
           notifications.push({
-            role: "agent",
-            contactId: null,
-            contactDisplayName: getDisplayName({ name: notifTx.agentUser.name }),
-            status: notifTx.agentUser.email ? "queued" : "skipped_no_email",
-          });
-        } else {
-          notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
-        }
-      }
-      // BUG2 mirror: skip progressor notification display when SP is the confirmer (outsourced)
-      const skipProgressorNotif = notifTx.serviceType === "outsourced"
-        && session.user.id === notifTx.assignedUser?.id;
-      if (emailCopy.progressor && !skipProgressorNotif) {
-        if (notifTx.assignedUser) {
-          notifications.push({
-            role: "progressor",
-            contactId: null,
-            contactDisplayName: getDisplayName({ name: notifTx.assignedUser.name }),
-            status: notifTx.assignedUser.email ? "queued" : "skipped_no_email",
+            role: role === "vendor" ? "seller" : "buyer",
+            contactId: c.id,
+            contactDisplayName: getDisplayName({ name: c.name }),
+            status: c.email ? "queued" : "skipped_no_email",
           });
         }
+        // BUG2 mirror: skip agent notification display when agent is the confirmer (self-managed)
+        const skipAgentNotif = notifTx.serviceType === "self_managed"
+          && session.user.id === notifTx.agentUser?.id;
+        if (emailCopy.vendorAgent && !skipAgentNotif) {
+          if (notifTx.agentUser) {
+            notifications.push({
+              role: "agent",
+              contactId: null,
+              contactDisplayName: getDisplayName({ name: notifTx.agentUser.name }),
+              status: notifTx.agentUser.email ? "queued" : "skipped_no_email",
+            });
+          } else {
+            notifications.push({ role: "agent", contactId: null, contactDisplayName: "Agent", status: "skipped_no_contact" });
+          }
+        }
+        // BUG2 mirror: skip progressor notification display when SP is the confirmer (outsourced)
+        const skipProgressorNotif = notifTx.serviceType === "outsourced"
+          && session.user.id === notifTx.assignedUser?.id;
+        if (emailCopy.progressor && !skipProgressorNotif) {
+          if (notifTx.assignedUser) {
+            notifications.push({
+              role: "progressor",
+              contactId: null,
+              contactDisplayName: getDisplayName({ name: notifTx.assignedUser.name }),
+              status: notifTx.assignedUser.email ? "queued" : "skipped_no_email",
+            });
+          }
+        }
       }
+    } catch (err) {
+      console.error("[confirmMilestoneAction] notifications-status build failed:", err);
     }
   }
 
@@ -731,32 +744,44 @@ export async function confirmExchangeReconciliationAction(input: {
   revalidateTx(input.transactionId);
   revalidatePath("/portal", "layout");
 
-  // Completion date sync for VM20/PM27 (confirmed at completion)
+  // Completion date sync for VM20/PM27 (confirmed at completion).
+  // Wrapped — the milestone is already saved by this point; the date
+  // sync is a polish step and must not bring the whole action down.
   if ((def.code === "VM20" || def.code === "PM27") && input.eventDate) {
-    const actualDate = new Date(input.eventDate);
-    const txData = await prisma.propertyTransaction.findFirst({
-      where: { id: input.transactionId },
-      select: { completionDate: true },
-    });
-    const existingDate = txData?.completionDate;
-    const dateMismatch = !existingDate ||
-      Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
-    if (dateMismatch) {
-      await prisma.propertyTransaction.update({
+    try {
+      const actualDate = new Date(input.eventDate);
+      const txData = await prisma.propertyTransaction.findFirst({
         where: { id: input.transactionId },
-        data: { completionDate: actualDate },
+        select: { completionDate: true },
       });
-      revalidateTx(input.transactionId);
+      const existingDate = txData?.completionDate;
+      const dateMismatch = !existingDate ||
+        Math.abs(actualDate.getTime() - existingDate.getTime()) > 12 * 3600 * 1000;
+      if (dateMismatch) {
+        await prisma.propertyTransaction.update({
+          where: { id: input.transactionId },
+          data: { completionDate: actualDate },
+        });
+        revalidateTx(input.transactionId);
+      }
+    } catch (err) {
+      console.error("[confirmExchangeReconciliationAction] completionDate sync failed:", err);
     }
   }
 
-  // Expected completion date captured at exchange time (VM19/PM26)
+  // Expected completion date captured at exchange time (VM19/PM26).
+  // Same protection — the exchange already wrote, the predicted-completion
+  // update is a downstream polish step.
   if ((def.code === "VM19" || def.code === "PM26") && input.completionDate) {
-    await prisma.propertyTransaction.update({
-      where: { id: input.transactionId },
-      data: { completionDate: new Date(input.completionDate) },
-    });
-    revalidateTx(input.transactionId);
+    try {
+      await prisma.propertyTransaction.update({
+        where: { id: input.transactionId },
+        data: { completionDate: new Date(input.completionDate) },
+      });
+      revalidateTx(input.transactionId);
+    } catch (err) {
+      console.error("[confirmExchangeReconciliationAction] expected completionDate update failed:", err);
+    }
   }
 
   // Push notifications (fire-and-forget)
@@ -781,8 +806,12 @@ export async function confirmExchangeReconciliationAction(input: {
 
   // Skeleton-mode wiring (added 2026-05-27) — see equivalent comment block
   // at the top callsite of sendAdminMilestoneNotificationToPortal above.
+  // isBilateralCounterpartComplete is awaited so we cannot let it throw —
+  // a Prisma blip here would 500 the whole action. Defaults to false on
+  // error, which means the email assembler uses the pre-handoff Section
+  // set (safer than the post-handoff one if state is unclear).
   const confirmerRoute_re = roleToConfirmerRoute(session.user.role);
-  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code);
+  const counterpartComplete_re = await isBilateralCounterpartComplete(input.transactionId, code).catch(() => false);
   const handoffDirection_re = computeHandoffDirection(code, counterpartComplete_re);
 
   sendAdminMilestoneNotificationToPortal(

@@ -126,7 +126,7 @@ export function Stage2Sections({
       {/* Optional umbrella note — self-progress only */}
       {!isOutsourced && (
         <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--nv2-text-muted)", fontStyle: "italic" }}>
-          Fill in what you have — you can add the rest after creating the file.
+          Fill in what you have. You can add the rest after creating the file.
         </p>
       )}
 

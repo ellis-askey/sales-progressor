@@ -13,7 +13,7 @@ export async function sendDirectorAcceptedEmail(input: DirectorAcceptedEmailInpu
 
   const text = `Hi ${input.negotiatorName},
 
-Great news — ${input.directorName} has accepted your invitation and set up their account at ${input.agencyName}.
+${input.directorName} has accepted your invitation and set up their account at ${input.agencyName}.
 
 They can now see all of your active sales and reach you directly through the platform.
 
@@ -37,7 +37,7 @@ They can now see all of your active sales and reach you directly through the pla
                 Hi ${escapeHtml(input.negotiatorName)},
               </p>
               <p style="font-size: 15px; color: #4A3329; line-height: 1.5; margin: 0 0 20px;">
-                Great news — <strong>${escapeHtml(input.directorName)}</strong> has accepted your invitation and set up their account at <strong>${escapeHtml(input.agencyName)}</strong>.
+                <strong>${escapeHtml(input.directorName)}</strong> has accepted your invitation and set up their account at <strong>${escapeHtml(input.agencyName)}</strong>.
               </p>
               <p style="font-size: 14px; color: #6B5547; line-height: 1.5; margin: 0 0 28px;">
                 They can now see all of your active sales and reach you directly through the platform.

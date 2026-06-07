@@ -117,14 +117,14 @@ export async function SidebarPanel({
       ? prisma.user.findUnique({
           where: { id: transaction.assignedUserId },
           select: { clientType: true, legacyFee: true },
-        })
+        }).catch(() => null)
       : Promise.resolve(null),
 
     transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
           select: { id: true, name: true, email: true, firmName: true },
-        })
+        }).catch(() => null)
       : Promise.resolve(null),
 
     isDirectorRole
@@ -136,9 +136,10 @@ export async function SidebarPanel({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).then((rows: any[]) => rows.map((r) => ({
           id: r.solicitorFirmId as string,
-          name: r.solicitorFirm.name as string,
+          name: r.solicitorFirm?.name as string,
           defaultReferralFeePence: r.defaultReferralFeePence as number | null,
-        })))
+        })).filter((r: { name: string }) => Boolean(r.name)))
+        .catch(() => null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null)
       : Promise.resolve(null as Array<{ id: string; name: string; defaultReferralFeePence: number | null }> | null),
   ]);
 

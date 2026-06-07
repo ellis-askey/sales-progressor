@@ -66,7 +66,7 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
             className="agent-btn-color-primary"
             style={{ width: "100%", padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}
           >
-            Yes — mortgage buyer
+            Yes, mortgage buyer
           </button>
 
           {/* Secondary */}

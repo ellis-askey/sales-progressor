@@ -81,10 +81,10 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
           // fire-and-forget; the row is already animating out
           pauseClientEmails(transactionId).catch(() => {});
         }
-        toast.success(keepEmailsPaused ? "Off hold — emails stay paused" : "Off hold — automation resumed");
+        toast.success(keepEmailsPaused ? "Off hold: emails stay paused" : "Off hold: automation resumed");
         removeRow(transactionId);
       } else {
-        toast.error(result.error ?? "Couldn't reactivate — try again");
+        toast.error(result.error ?? "Couldn't reactivate. Try again.");
       }
     });
   }
@@ -98,7 +98,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
         setExtenderDate("");
         removeRow(transactionId);
       } else {
-        toast.error(result.error ?? "Couldn't extend — try again");
+        toast.error(result.error ?? "Couldn't extend. Try again.");
       }
     });
   }
@@ -220,7 +220,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                 <button
                   onClick={() => handleExtend(item.transactionId, null)}
                   className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
-                  title="Hold indefinitely — won't auto-surface again"
+                  title="Hold indefinitely. Won't auto-surface again."
                 >
                   Indefinitely
                 </button>
@@ -269,7 +269,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
             <div className="px-6 py-5 space-y-3">
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
                 <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>{resumeFor.address}</strong>
-                {" — pick one. You can always change later."}
+                {", pick one. You can always change later."}
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -280,7 +280,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
                 />
                 <ResumeOptionCard
                   title="Reactivate, keep emails paused"
-                  description="File is active again but no client emails fire. Manual chasing only — flip back on from the Automation card any time."
+                  description="File is active again but no client emails fire. Manual chasing only. Flip back on from the Automation card any time."
                   onClick={() => doResume(resumeFor.id, true)}
                 />
               </div>

@@ -41,8 +41,8 @@ export function FieldIndicator({ source, valid }: { source: MemoSource; valid?: 
 
 export function FieldHint({
   source,
-  failedText = "Couldn't read this — add it manually.",
-  notOnMemosText = "Not on memos — please complete",
+  failedText = "Couldn't read this. Add it manually.",
+  notOnMemosText = "Not on memos. Please complete.",
 }: Props) {
   if (source === "failed") {
     return (

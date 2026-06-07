@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
       });
       if (res.status === 429) {
         const data = await res.json().catch(() => ({}));
-        setError(data.message ?? "Too many attempts — please wait a few minutes before trying again.");
+        setError(data.message ?? "Too many attempts. Please wait a few minutes before trying again.");
         return;
       }
       setSent(true);

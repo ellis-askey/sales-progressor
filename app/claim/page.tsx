@@ -192,8 +192,8 @@ export default async function ClaimPage({
             {originatorAgency
               ? `${originatorName} at ${originatorAgency}`
               : originatorName}{" "}
-            has linked {link.stubPropertyAddress ?? "your sale"} to their file. Join to see
-            where the chain stands.
+            has linked {link.stubPropertyAddress ?? "your sale"} to their chain. Join to see
+            how the other sales are progressing.
           </p>
           <div className="claim-hero-rule" />
 

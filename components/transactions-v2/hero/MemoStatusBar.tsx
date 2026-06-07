@@ -300,13 +300,13 @@ export function MemoStatusBar({
           </div>
           {isSlow && (
             <p style={{ margin: "14px 0 0", fontSize: 12, color: "var(--nv2-text-muted)" }}>
-              This is taking a while —{" "}
+              This is taking a while.{" "}
               <button
                 className="agent-link-muted"
                 onClick={onCancel}
                 style={{ fontSize: 12 }}
               >
-                cancel and fill manually
+                Cancel and fill manually
               </button>
               {" "}instead.
             </p>
@@ -319,7 +319,7 @@ export function MemoStatusBar({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <WarningCircle size={16} weight="fill" color="var(--agent-warning)" style={{ flexShrink: 0 }} />
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--nv2-text-primary)" }}>
-            {errorMessage ?? "Couldn't read the memo — fill in the form below"}
+            {errorMessage ?? "Couldn't read the memo. Fill in the form below."}
           </p>
         </div>
       )}

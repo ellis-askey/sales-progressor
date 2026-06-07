@@ -190,7 +190,7 @@ export function SilencedFilesSectionPlain({
               outline: "none",
             }}
           >
-            <option value="">— Choose a file —</option>
+            <option value="">Choose a file</option>
             {available.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.propertyAddress}

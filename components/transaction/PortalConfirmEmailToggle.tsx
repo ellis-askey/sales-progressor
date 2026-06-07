@@ -61,7 +61,7 @@ export function PortalConfirmEmailToggle({
       }}
       title={
         emailsOn
-          ? "Buyer/seller portal confirmation emails will send when milestones are confirmed."
+          ? "Buyer/seller portal confirmation emails will send when steps are confirmed."
           : "Buyer/seller portal confirmation emails are paused for this file. Other side effects (chain notifications, reminders) still run."
       }
     >

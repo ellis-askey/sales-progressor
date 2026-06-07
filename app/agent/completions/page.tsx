@@ -141,8 +141,8 @@ export default async function AgentCompletionsPage() {
               </p>
               <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
                 {isProgressor
-                  ? "Once a file is assigned to you and exchanges, it'll appear here."
-                  : "Once a file exchanges, it'll appear here as it heads toward completion."}
+                  ? "Files appear here once they exchange."
+                  : "Files appear here once they exchange."}
               </p>
             </div>
 

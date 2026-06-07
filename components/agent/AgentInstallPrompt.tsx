@@ -333,7 +333,7 @@ export function AgentPushPrompt() {
         Get notified of updates
       </p>
       <p style={{ fontSize: 12, color: "#7A4A2E", margin: "0 0 14px", lineHeight: 1.5 }}>
-        We&apos;ll alert you when buyers, sellers, or solicitors act — no need to keep checking.
+        We&apos;ll alert you when buyers, sellers, or solicitors act. No need to keep checking.
       </p>
       <div style={{ display: "flex", gap: 8 }}>
         <button
