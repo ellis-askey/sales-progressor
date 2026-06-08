@@ -1,13 +1,24 @@
 // /command/admin/demo — Reset Demo surface.
 //
-// Tears down the "Fairview Estates" demo agency and reseeds it. Superadmin
-// only (the (protected) layout's middleware + assertion gates this). Uses
-// the same safety rails as scripts/seed-demo.ts (see DEMO_FEATURE_INVENTORY.md
-// §E): aborts unless DATABASE_URL contains the staging Supabase project id
-// (and not the production one), and DEMO_SEED_ALLOWED=true is set.
+// Tears down the "Fairview Estates" demo agency on STAGING and reseeds it.
+// Superadmin only (the (protected) layout's middleware + assertion gates
+// this).
 //
-// The action requires a typed "RESET" confirmation in the form below before
-// running.
+// DB URL resolution (see resolveDemoTargetUrl in scripts/seed-demo.ts):
+//   - Production runtime: reads STAGING_DATABASE_URL — the ONLY cross-env
+//     connection in the app. Lets ellis press Reset Demo on prod and have
+//     it target staging.
+//   - Staging runtime: falls through to DATABASE_URL (which is already
+//     staging there) and behaves as before.
+//
+// Safety rails (mirrors assertDemoSafe in the seed):
+//   - target URL must contain the staging Supabase project id
+//   - target URL must NOT contain the production project id (catches a
+//     misconfigured STAGING_DATABASE_URL)
+//   - DEMO_SEED_ALLOWED=true must be set
+//
+// The action requires a typed "RESET" confirmation in the form below
+// before running.
 
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -23,20 +34,33 @@ import { ResetDemoForm } from "./ResetDemoForm";
 const STAGING_PROJECT_ID = "etidawkbqctarmsdjoxp";
 const PROD_PROJECT_ID    = "gmkfustgwipgihpmpjpr";
 
-function checkSafety(): { ok: boolean; reasons: string[] } {
-  const url = process.env.DATABASE_URL ?? "";
+type SafetyStatus = {
+  ok: boolean;
+  reasons: string[];
+  sourceVar: "STAGING_DATABASE_URL" | "DATABASE_URL";
+  isCrossEnv: boolean;
+};
+
+function checkSafety(): SafetyStatus {
+  const stagingOverride = process.env.STAGING_DATABASE_URL ?? "";
+  const fallback        = process.env.DATABASE_URL ?? "";
+  const sourceVar: "STAGING_DATABASE_URL" | "DATABASE_URL" =
+    stagingOverride ? "STAGING_DATABASE_URL" : "DATABASE_URL";
+  const isCrossEnv = Boolean(stagingOverride);
+  const url = stagingOverride || fallback;
   const reasons: string[] = [];
-  if (!url) reasons.push("DATABASE_URL is not set.");
-  if (url.includes(PROD_PROJECT_ID)) {
-    reasons.push("DATABASE_URL points to PRODUCTION. Refusing.");
+
+  if (!url) reasons.push(`${sourceVar} is not set.`);
+  if (url && url.includes(PROD_PROJECT_ID)) {
+    reasons.push(`${sourceVar} points to PRODUCTION. Refusing.`);
   }
-  if (!url.includes(STAGING_PROJECT_ID) && !url.includes(PROD_PROJECT_ID)) {
-    reasons.push(`DATABASE_URL does not contain the staging project id (${STAGING_PROJECT_ID}).`);
+  if (url && !url.includes(STAGING_PROJECT_ID) && !url.includes(PROD_PROJECT_ID)) {
+    reasons.push(`${sourceVar} does not contain the staging project id (${STAGING_PROJECT_ID}).`);
   }
   if (process.env.DEMO_SEED_ALLOWED !== "true") {
-    reasons.push("DEMO_SEED_ALLOWED is not set to 'true'. Set it in the staging Vercel env to enable this surface.");
+    reasons.push("DEMO_SEED_ALLOWED is not set to 'true'. Set it in the Vercel env to enable this surface.");
   }
-  return { ok: reasons.length === 0, reasons };
+  return { ok: reasons.length === 0, reasons, sourceVar, isCrossEnv };
 }
 
 export default async function CommandResetDemoPage() {
@@ -50,8 +74,14 @@ export default async function CommandResetDemoPage() {
       <h1 className="text-[20px] font-semibold text-[#fafafa] tracking-tight mb-1">Reset Demo</h1>
       <p className="text-[13px] text-[#737373] mb-6">
         Tear down the <code className="px-1 py-0.5 bg-[#1a1a1a] border border-[#262626] rounded text-[#a3a3a3] font-mono">{DEMO_AGENCY_NAME}</code> agency
-        on staging and reseed it from <code className="px-1 py-0.5 bg-[#1a1a1a] border border-[#262626] rounded text-[#a3a3a3] font-mono">scripts/seed-demo.ts</code>.
+        on <strong className="text-[#a3a3a3]">staging</strong> ({STAGING_PROJECT_ID}) and reseed it from <code className="px-1 py-0.5 bg-[#1a1a1a] border border-[#262626] rounded text-[#a3a3a3] font-mono">scripts/seed-demo.ts</code>.
         Destructive — every transaction, contact, milestone, reminder, chase task, and message under that agency is deleted before the reseed.
+        {safety.isCrossEnv && (
+          <>
+            {" "}
+            <span className="text-[#fde68a]">Running from the production runtime — production data is not touched.</span>
+          </>
+        )}
       </p>
 
       {/* Safety rail status */}
@@ -60,7 +90,7 @@ export default async function CommandResetDemoPage() {
         <div className={`px-3 py-2.5 rounded-md border ${safety.ok ? "border-[#14532d] bg-[#0c2418]" : "border-[#7c2d12] bg-[#2a1505]"}`}>
           {safety.ok ? (
             <p className="text-[12px] text-[#a7f3d0]">
-              All safety rails pass — staging DB target confirmed, DEMO_SEED_ALLOWED is set.
+              All safety rails pass — targeting staging via <code className="font-mono text-[#bbf7d0]">{safety.sourceVar}</code>, DEMO_SEED_ALLOWED is set.
             </p>
           ) : (
             <>

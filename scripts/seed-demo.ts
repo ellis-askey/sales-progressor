@@ -47,20 +47,38 @@ export const DEMO_NEGOTIATOR_PASSWORD = "FairviewDemo2!";
 
 // ─── Safety rails ────────────────────────────────────────────────────────────
 
-export function assertDemoSafe(): void {
-  const url = process.env.DATABASE_URL ?? "";
-  if (!url) {
-    throw new Error("ABORT: DATABASE_URL is not set.");
+/**
+ * Resolves which DB URL the demo seed should target.
+ *
+ *   - If STAGING_DATABASE_URL is set, use it. This is the production-runtime
+ *     path: prod's DATABASE_URL points at prod, so the Reset Demo server
+ *     action explicitly routes the seed to staging via this env var. The
+ *     ONLY cross-environment connection in the app.
+ *   - Otherwise fall back to DATABASE_URL. This is the staging-runtime path
+ *     (Vercel staging deploy) and the CLI path (npm run demo:seed against a
+ *     .env that's already staging).
+ *
+ * The returned URL is then validated by assertDemoSafe — so a misconfigured
+ * STAGING_DATABASE_URL pointing at prod by accident still gets blocked.
+ */
+export function resolveDemoTargetUrl(): string {
+  return process.env.STAGING_DATABASE_URL ?? process.env.DATABASE_URL ?? "";
+}
+
+export function assertDemoSafe(url?: string): void {
+  const target = url ?? process.env.DATABASE_URL ?? "";
+  if (!target) {
+    throw new Error("ABORT: target DB URL is not set.");
   }
-  if (url.includes(PROD_PROJECT_ID)) {
+  if (target.includes(PROD_PROJECT_ID)) {
     throw new Error(
-      "ABORT: DATABASE_URL points to PRODUCTION. Demo seed is staging-only.",
+      "ABORT: target DB URL points to PRODUCTION. Demo seed is staging-only.",
     );
   }
-  if (!url.includes(STAGING_PROJECT_ID)) {
+  if (!target.includes(STAGING_PROJECT_ID)) {
     throw new Error(
-      `ABORT: DATABASE_URL must contain the staging Supabase project id (${STAGING_PROJECT_ID}). ` +
-      "Point DATABASE_URL at your staging connection string before running the demo seed.",
+      `ABORT: target DB URL must contain the staging Supabase project id (${STAGING_PROJECT_ID}). ` +
+      "Set STAGING_DATABASE_URL (production runtime) or point DATABASE_URL at staging (CLI).",
     );
   }
   if (process.env.DEMO_SEED_ALLOWED !== "true") {
