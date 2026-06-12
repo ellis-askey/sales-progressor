@@ -52,7 +52,14 @@ export async function handleExchangeReversal(
       exchangedAt: true,
       billedAtExchange: true,
       priceAtExchange: true,
-      agency: { select: { vatRegisteredAt: true, vatRateBps: true } },
+      agency: {
+        select: {
+          vatRegisteredAt: true,
+          vatRateBps: true,
+          feeTier: true,
+          legacyOutsourcedFeePence: true,
+        },
+      },
     },
   });
   if (!txn) return;
@@ -100,7 +107,17 @@ export async function handleExchangeReversal(
   // month's invoice; the VAT side of the credit follows automatically when
   // accrual writes the credit_applied line back through computeFee against
   // the agency's VAT state at that future moment.
-  const fee = computeFee(txn.serviceType, txn.priceAtExchange, txn.agency ?? null);
+  // Split the agency row into the two shapes computeFee expects: VAT state
+  // and the fee-tier override. Both must be honoured — without the override,
+  // a legacy agency's credit would mirror the standard sliding scale, not
+  // the £220-style flat fee that was actually billed.
+  const vat = txn.agency
+    ? { vatRegisteredAt: txn.agency.vatRegisteredAt, vatRateBps: txn.agency.vatRateBps }
+    : null;
+  const feeOverride = txn.agency
+    ? { feeTier: txn.agency.feeTier, legacyOutsourcedFeePence: txn.agency.legacyOutsourcedFeePence }
+    : null;
+  const fee = computeFee(txn.serviceType, txn.priceAtExchange, vat, feeOverride);
   const today = new Date().toISOString().slice(0, 10);
   await db.creditNote.create({
     data: {

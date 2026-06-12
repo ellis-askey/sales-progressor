@@ -53,12 +53,25 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
 
   for (const agencyId of agencyIds) {
     await prisma.$transaction(async (tx) => {
-      // VAT state for this agency — passed to computeFee for line splitting.
-      // Per-agency lookup (cheap) so a flip mid-month is honoured on next run.
-      const agencyVat = await tx.agency.findUnique({
+      // VAT state + fee-tier override for this agency — both passed to
+      // computeFee. Per-agency lookup (cheap) so a mid-month flip (VAT
+      // registration OR moving an agency to "legacy" pricing) is honoured
+      // on the next run.
+      const agencyRow = await tx.agency.findUnique({
         where: { id: agencyId },
-        select: { vatRegisteredAt: true, vatRateBps: true },
+        select: {
+          vatRegisteredAt: true,
+          vatRateBps: true,
+          feeTier: true,
+          legacyOutsourcedFeePence: true,
+        },
       });
+      const agencyVat = agencyRow
+        ? { vatRegisteredAt: agencyRow.vatRegisteredAt, vatRateBps: agencyRow.vatRateBps }
+        : null;
+      const feeOverride = agencyRow
+        ? { feeTier: agencyRow.feeTier, legacyOutsourcedFeePence: agencyRow.legacyOutsourcedFeePence }
+        : null;
 
       // Ensure the open invoice exists (single row enforced by
       // @@unique([agencyId, monthStart])).
@@ -117,7 +130,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
       // Add missing lines for newly-billed transactions.
       for (const t of billedTxns) {
         if (existingByTxId.has(t.id)) continue;
-        const fee = computeFee(t.serviceType, t.priceAtExchange, agencyVat ?? null);
+        const fee = computeFee(t.serviceType, t.priceAtExchange, agencyVat, feeOverride);
         await tx.invoiceLine.create({
           data: {
             invoiceId: invoice.id,

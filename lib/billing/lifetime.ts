@@ -40,19 +40,29 @@ export async function getLifetimeMetrics(agencyId: string): Promise<LifetimeMetr
   const billedLifetimePence = billedAgg._sum.totalPence ?? 0;
 
   // Trial-given-away: lifetime sum. Reads PropertyTransaction directly since
-  // trial files never appear on invoices.
+  // trial files never appear on invoices. Fee tier override applies so a
+  // legacy agency's "saved via trial" reflects what they ACTUALLY would have
+  // paid (their flat fee), not the standard sliding scale.
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { vatRegisteredAt: true, vatRateBps: true },
+    select: {
+      vatRegisteredAt: true,
+      vatRateBps: true,
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+    },
   });
   const vat = agency ?? null;
+  const feeOverride = agency
+    ? { feeTier: agency.feeTier, legacyOutsourcedFeePence: agency.legacyOutsourcedFeePence }
+    : null;
   const trials = await prisma.propertyTransaction.findMany({
     where: { agencyId, freeOnExchange: true, exchangedAt: { not: null } },
     select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
   });
   let savedViaTrialLifetimePence = 0;
   for (const t of trials) {
-    const fee = computeFee(t.serviceType, t.priceAtExchange ?? t.purchasePrice, vat);
+    const fee = computeFee(t.serviceType, t.priceAtExchange ?? t.purchasePrice, vat, feeOverride);
     savedViaTrialLifetimePence += fee.totalPence;
   }
 
