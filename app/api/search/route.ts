@@ -4,6 +4,21 @@ import { authOptions } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere } from "@/lib/security/access-scope";
+import { phoneSearchVariants } from "@/lib/utils";
+
+/** Name OR phone(any-format) lookup clauses for a Contact search.
+ *  Phones in the DB are stored in international form (+447...), but agents
+ *  type domestic form (07...) into the search box — phoneSearchVariants
+ *  enumerates the equivalent representations so either form finds either. */
+function contactSearchClauses(q: string): Prisma.ContactWhereInput[] {
+  const clauses: Prisma.ContactWhereInput[] = [
+    { name: { contains: q, mode: "insensitive" } },
+  ];
+  for (const v of phoneSearchVariants(q)) {
+    clauses.push({ phone: { contains: v, mode: "insensitive" } });
+  }
+  return clauses;
+}
 
 export type SearchResult = {
   transactions: { id: string; address: string; status: string; assignedName: string | null }[];
@@ -50,7 +65,7 @@ export async function GET(req: NextRequest) {
     prisma.contact.findMany({
       where: {
         transaction: { ...txScopeWhere, ...draftFilter },
-        name: { contains: q, mode: "insensitive" },
+        OR: contactSearchClauses(q),
       },
       orderBy: { createdAt: "desc" },
       take: 6,
