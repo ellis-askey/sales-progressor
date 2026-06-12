@@ -423,6 +423,10 @@ export async function evaluateTransactionReminders(transactionId: string) {
       assignedUserId: true,
       activeBuyerRoundId: true,
       createdAt: true,
+      // Post-exchange completion-anchored rules (VM20 / PM27) read this
+      // instead of the exchange milestone's completedAt so the reminder
+      // fires on the agreed completion day, not the morning after exchange.
+      completionDate: true,
       // Pass 3 B7: used to clamp vendor-reset-rule anchors forward at
       // relist so the new chase clock doesn't open 47 days overdue.
       activeBuyerRound: { select: { createdAt: true } },
@@ -575,6 +579,26 @@ export async function evaluateTransactionReminders(transactionId: string) {
       anchorDate = transaction.createdAt;
     }
 
+    // Completion-anchored rules (VM20 / PM27): the anchor milestone is the
+    // exchange (VM19/PM26) — kept above as a gate so the reminder only
+    // exists post-exchange — but the actual due date measures from the
+    // agreed completion date stamped on the transaction at exchange time.
+    // Without this branch, the engine would chase the solicitor for sale-
+    // completion confirmation the morning after exchange, days before
+    // completion is even meant to happen (Akeman Residential pair, 2026-06).
+    if (rule.useCompletionDate) {
+      if (!transaction.completionDate) {
+        await deactivateLog(
+          transactionId,
+          rule.id,
+          "Awaiting completion date — exchange not yet recorded",
+          assignedUserId,
+        );
+        continue;
+      }
+      anchorDate = transaction.completionDate;
+    }
+
     // Pass 3 B7: vendor chase clock reset at relist. If this rule TARGETS a
     // vendor milestone that gets reset by relist, AND the computed anchor
     // pre-dates the active round's start, clamp the anchor forward to the
@@ -637,12 +661,28 @@ export async function evaluateTransactionReminders(transactionId: string) {
         select: { id: true },
       });
       if (!hasChases) {
-        // Update if due date shifted significantly (e.g. event_date changed)
+        // Update if due date shifted significantly (e.g. event_date changed,
+        // or — as of the useCompletionDate rule — the anchor moved from
+        // exchange-day to the agreed completion date).
         const diff = Math.abs(existingLog.nextDueDate.getTime() - firstDueDate.getTime());
         if (diff > 60 * 60 * 1000) {
           await prisma.reminderLog.update({
             where: { id: existingLog.id },
             data: { nextDueDate: firstDueDate, sourceDateUsed: anchorDate },
+          });
+          // Keep any pending ChaseTask in sync. While chaseCount=0 the task
+          // date belongs to the engine alongside nextDueDate; without this
+          // an already-created today-dated task lingers in DB even after
+          // the reminder shifts to a future day. The work-queue UI reads
+          // from ReminderLog so the user-visible bucket is correct either
+          // way — this keeps the underlying ChaseTask row truthful.
+          await prisma.chaseTask.updateMany({
+            where: {
+              reminderLogId: existingLog.id,
+              status: "pending",
+              chaseCount: 0,
+            },
+            data: { dueDate: firstDueDate },
           });
           await writeEngineAudit(
             transactionId,

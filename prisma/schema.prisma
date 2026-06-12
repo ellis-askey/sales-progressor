@@ -791,6 +791,12 @@ model ReminderRule {
   escalateAfterChases   Int      @default(3)
   requiresExchangeReady Boolean  @default(false)
   useEventDate          Boolean  @default(false)
+  // When true, the engine anchors on PropertyTransaction.completionDate
+  // instead of the anchor milestone's completedAt. The anchorMilestoneId
+  // still gates the reminder's existence (e.g. VM20 only activates after
+  // VM19 is complete), but the actual due date is measured from the
+  // agreed completion date stored at exchange. Used by VM20 / PM27.
+  useCompletionDate     Boolean  @default(false)
   isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
