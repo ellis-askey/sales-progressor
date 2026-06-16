@@ -1,8 +1,31 @@
-# Drawers & Modals — Design Proposal
+# Modal & Drawer System — Sales Progressor
 
-**Status:** Approved with refinements — implementation in progress.
-**Audit source:** `docs/DRAWERS_MODALS_AUDIT.md`
-**Date:** 2026-05-08 | **Refinements applied:** 2026-05-08
+**Status:** Approved, locked. Body below is the 2026-05-08 design proposal verbatim — moved from `docs/active/drawers-modals/design-proposal.md` to `docs/reference/MODAL_DRAWER_SYSTEM.md` on 2026-06-07 to match its authority (1,224 lines of locked decisions, not a work-in-progress).
+
+**Audit source:** [`docs/DRAWERS_MODALS_AUDIT.md`](../DRAWERS_MODALS_AUDIT.md)
+**Date:** 2026-05-08 | **Refinements applied:** 2026-05-08 | **Relocated:** 2026-06-07
+
+---
+
+## TL;DR — read this before any modal or drawer work
+
+**What this doc is.** The single source of truth for modal and drawer design in the agent app. Eight shared primitives. Locked decisions on chrome, animation, theming, scroll, stacking.
+
+**The eight primitives** (§1): Drawer, Modal, Header (three variants), Body, Footer (four CTA patterns), Backdrop, Accent line, Close button. Every modal and drawer in the app is some combination of these.
+
+**Three locked rules every new modal or drawer must follow:**
+- **Backdrop:** `agent-backdrop-overlay` class — `rgba(0,0,0,0.35)` + 4px blur + 200ms ease entrance (§5).
+- **Animation:** `agent-modal-in` / `agent-drawer-in` at **280ms `cubic-bezier(0.34, 1.56, 0.64, 1)`** spring overshoot (§6). Known outlier: `agent-system.css` currently ships 240ms — Phase 2 migration target.
+- **Theming:** `data-theme={theme}` attribute drives the surface tokens (§7). `data-night` / `nv2-night` (StatusControl, SwitchServiceTypeModal) is deprecated, grandfathered in those two only.
+
+**Required chrome on every modal and drawer:**
+- 2px coral accent line on the top edge (`var(--agent-coral-deep)`)
+- Phosphor `X` close button, `rounded-lg` ghost (8px radius)
+- Esc handler that calls `onClose`
+- Header sticky (`flex-shrink-0`), body scrollable (`flex-1 overflow-y-auto`), footer sticky (`flex-shrink-0`)
+- Z-index per the escalation rule in [DESIGN_TOKENS.md](DESIGN_TOKENS.md#z-index--modal-escalation-rule-locked) (50 default, 1500 above page overlays, 2000 stacked modal)
+
+**For the index of who-uses-what**, see [MODAL_DRAWER_INDEX.md](MODAL_DRAWER_INDEX.md). Reference implementations: [`AddBrokerModal`](../../components/brokers/AddBrokerModal.tsx) (canonical modal), [`RelistFileModal`](../../components/transaction/RelistFileModal.tsx) (multi-stage form), [`ChainDrawer`](../../components/chain/ChainDrawer.tsx) (canonical drawer).
 
 ---
 

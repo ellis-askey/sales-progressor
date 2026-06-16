@@ -35,9 +35,9 @@ Anything currently being built, or a checklist that gets ticked off over time.
 - [`active/package-d/`](active/package-d/) — outsourced workflow build (the "Known gap" in CLAUDE.md).
   - [`scope.md`](active/package-d/scope.md) — pre-build spec.
   - [`outsourced-workflow-audit.md`](active/package-d/outsourced-workflow-audit.md) — current-state audit.
-- [`active/drawers-modals/`](active/drawers-modals/) — drawer/modal standardisation.
+- [`active/drawers-modals/`](active/drawers-modals/) — drawer/modal standardisation audit.
   - [`audit.md`](active/drawers-modals/audit.md) — every drawer + modal in the agent app.
-  - [`design-proposal.md`](active/drawers-modals/design-proposal.md) — proposed unified pattern.
+  - Locked design system relocated to [`reference/MODAL_DRAWER_SYSTEM.md`](reference/MODAL_DRAWER_SYSTEM.md) (2026-06-07).
 
 ---
 
