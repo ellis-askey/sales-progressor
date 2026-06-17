@@ -11,7 +11,12 @@
 //   - Active (sale > 1): "Sale N with {buyerName}"
 //                        (hover hint: "The previous buyer fell through;
 //                         view that sale.")
-//   - Withdrawn:         "Sale N with {buyerName} · fell through {date}"
+//   - Withdrawn:         "Sale N with {buyerName} · fell through"
+//                        (no date — the active round isn't archived at
+//                         withdraw time, so we have no canonical
+//                         archivedAt to render. The "Withdrawn" pill
+//                         elsewhere carries the state; activity feed
+//                         carries the date.)
 //
 // Hover-reveal (added 2026-06-04, voice-passed): on hover/focus the
 // chip rolls forward around its horizontal axis (rotateX 180deg) —
@@ -38,11 +43,6 @@ type Props = {
   buyerRounds: Array<{ id: string; roundNumber: number; status: string; archivedAt: Date | null }>;
 };
 
-function fmtShortDate(d: Date | null): string {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
 export function RoundChip({ transactionId, status, activeRoundNumber, activeBuyerName, buyerRounds }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -64,9 +64,19 @@ export function RoundChip({ transactionId, status, activeRoundNumber, activeBuye
   // as a user-facing noun ("sale" instead); "withdrew"/"closed" become
   // "fell through" for the fall-through event; em dash → middle dot.
   // Schema field is still `roundNumber` (internal).
+  //
+  // Withdrawn semantics: when a sale falls through without (yet) being
+  // relisted, the round itself stays status="active" — only the tx
+  // status flips to "withdrawn", and the round's archivedAt is set at
+  // relist time, not withdraw time. Pairing activeBuyerName with
+  // mostRecentArchived.roundNumber/archivedAt therefore produced labels
+  // like "Sale 1 with {round 2 buyer} · fell through {round 1 date}"
+  // — see 2026-06-17 inspection of cmpmjsnfd0052ltxowy2ss249. Use the
+  // active round's identity for the label; the archived drawer still
+  // surfaces prior sales via the click target.
   const buyerLabel = activeBuyerName ?? "no buyer yet";
-  const chipLabel = isWithdrawn && mostRecentArchived
-    ? `Sale ${mostRecentArchived.roundNumber} with ${buyerLabel} · fell through ${fmtShortDate(mostRecentArchived.archivedAt)}`
+  const chipLabel = isWithdrawn
+    ? `Sale ${activeRoundNumber} with ${buyerLabel} · fell through`
     : `Sale ${activeRoundNumber} with ${buyerLabel}`;
 
   // Long-form text used in the drawer header — voice-passed.

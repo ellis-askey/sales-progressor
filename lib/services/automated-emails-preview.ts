@@ -462,41 +462,53 @@ export async function getAutomatedEmailsForTransaction(
 
   const upcoming: UpcomingChase[] = [];
 
+  // Both Kind 1 (REPEAT) and Kind 2 (FIRST) below are gated on
+  // transaction.status === "active". The live chase cron only walks
+  // active transactions (lib/services/client-chase-cron.ts line ~177),
+  // so previewing chases on withdrawn / on_hold / completed files would
+  // surface predictions the cron will never fire — exactly the
+  // "Upcoming, dated in the past, on a withdrawn file" symptom from
+  // cmpmjsnfd0052ltxowy2ss249 (2026-06-17). Kind 2 already had this
+  // gate; Kind 1 didn't.
+  const txIsChaseable = transaction && transaction.status === "active";
+
   // ── Kind 1: REPEAT chases from active CCS rows ──────────────────────
   const liveRepeatByCode = new Map<string, number>();
   for (const r of chaseableRules) {
     if (r.targetMilestoneCode) liveRepeatByCode.set(r.targetMilestoneCode, r.repeatEveryDays);
   }
-  for (const row of allCcsRows) {
-    if (row.status !== "active") continue;
-    if (row.chaseCount <= 0 || row.chaseCount >= CLIENT_CHASE_COUNT_CAP) continue;
-    if (!row.lastChasedAt) continue;
-    // Engagement gate
-    if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
-    // Snooze suppression — match the cron's chase-skip behaviour.
-    if (snoozedCodes.has(row.milestoneCode)) continue;
-    const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
-    if (repeat == null) continue;
-    const candidate = addDays(row.lastChasedAt, repeat);
-    // Normalise to 09:30 UK so the preview matches the actual send time
-    // (cron uses setUkChaseTime when scheduling chase tasks).
-    const predicted = setUkChaseTime(nextNonSundayFrom(candidate));
-    if (predicted > upcomingHorizon) continue;
-    upcoming.push({
-      contactId: row.contactId,
-      contactName: row.contact?.name ?? "(unknown)",
-      contactRole: row.contact?.roleType ?? "",
-      milestoneCode: row.milestoneCode,
-      milestoneLabel: getMilestoneCopy(row.milestoneCode).label,
-      predictedFireDate: predicted,
-      chaseNumber: row.chaseCount + 1,
-    });
+  if (txIsChaseable) {
+    for (const row of allCcsRows) {
+      if (row.status !== "active") continue;
+      if (row.chaseCount <= 0 || row.chaseCount >= CLIENT_CHASE_COUNT_CAP) continue;
+      if (!row.lastChasedAt) continue;
+      // Engagement gate
+      if (row.lastEngagedAt && row.lastEngagedAt > row.lastChasedAt) continue;
+      // Snooze suppression — match the cron's chase-skip behaviour.
+      if (snoozedCodes.has(row.milestoneCode)) continue;
+      const repeat = snapTiming(row.milestoneCode).repeatEveryDays ?? liveRepeatByCode.get(row.milestoneCode);
+      if (repeat == null) continue;
+      const candidate = addDays(row.lastChasedAt, repeat);
+      // Normalise to 09:30 UK so the preview matches the actual send time
+      // (cron uses setUkChaseTime when scheduling chase tasks).
+      const predicted = setUkChaseTime(nextNonSundayFrom(candidate));
+      if (predicted > upcomingHorizon) continue;
+      upcoming.push({
+        contactId: row.contactId,
+        contactName: row.contact?.name ?? "(unknown)",
+        contactRole: row.contact?.roleType ?? "",
+        milestoneCode: row.milestoneCode,
+        milestoneLabel: getMilestoneCopy(row.milestoneCode).label,
+        predictedFireDate: predicted,
+        chaseNumber: row.chaseCount + 1,
+      });
+    }
   }
 
   // ── Kind 2: FIRST chases (milestone available, no CCS row yet) ──────
   // Requires the transaction to be active (closed/declined files don't
-  // chase) — short-circuit if status differs.
-  if (transaction && transaction.status === "active") {
+  // chase) — short-circuit if status differs. Same gate as Kind 1 above.
+  if (txIsChaseable) {
     const exchangeReady = Array.from(blockerDefIds).every((defId) => {
       const c = completionByDefId.get(defId);
       return c && (c.state === "complete" || c.state === "not_required");

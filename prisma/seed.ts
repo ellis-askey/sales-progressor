@@ -350,7 +350,7 @@ async function main() {
     { name: "Chase: Signed contracts returned by seller",                      targetMilestoneCode: "VM17", anchorCode: "VM16",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller's solicitor ready to exchange",                     targetMilestoneCode: "VM18", anchorCode: "VM17",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: true,  useEventDate: false },
     { name: "Chase: Contracts exchanged (seller)",                             targetMilestoneCode: "VM19", anchorCode: "VM18",  graceDays: 1,  repeatEveryDays: 2,  escalateAfterChases: 1, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Sale completed (seller)",                                  targetMilestoneCode: "VM20", anchorCode: "VM19",  graceDays: 1,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Sale completed (seller)",                                  targetMilestoneCode: "VM20", anchorCode: "VM19",  graceDays: 0,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, useCompletionDate: true },
     { name: "Chase: Buyer instructed solicitor",                               targetMilestoneCode: "PM1",  anchorCode: null,    graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer MOS received",                                       targetMilestoneCode: "PM2",  anchorCode: null,    graceDays: 0,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer ID & AML completed",                                 targetMilestoneCode: "PM3",  anchorCode: "PM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
@@ -377,7 +377,7 @@ async function main() {
     { name: "Chase: Deposit transferred by buyer",                             targetMilestoneCode: "PM24", anchorCode: "PM23",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer's solicitor ready to exchange",                      targetMilestoneCode: "PM25", anchorCode: "PM24",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 3, requiresExchangeReady: true,  useEventDate: false },
     { name: "Chase: Contracts exchanged (buyer)",                              targetMilestoneCode: "PM26", anchorCode: "PM25",  graceDays: 1,  repeatEveryDays: 2,  escalateAfterChases: 1, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Purchase completed",                                       targetMilestoneCode: "PM27", anchorCode: "PM26",  graceDays: 1,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Purchase completed",                                       targetMilestoneCode: "PM27", anchorCode: "PM26",  graceDays: 0,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, useCompletionDate: true },
   ];
 
   for (const rule of rules) {

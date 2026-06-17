@@ -29,6 +29,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Script run artifacts — see scripts/output/. Never committed.
+scripts/output/
+
 # Editor
 .vscode/
 .idea/

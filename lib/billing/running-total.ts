@@ -62,12 +62,23 @@ export type RunningTotal = {
 export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = new Date()): Promise<RunningTotal> {
   const { start, end } = billingMonthRange(now);
 
-  // Pull the agency's VAT state once — applies to all this agency's lines.
+  // Pull the agency's VAT state + fee tier override once — both apply to all
+  // this agency's lines. The fee tier handles legacy agencies (locked-in flat
+  // fee instead of the £250/£300/£350 sliding scale); without it, the page
+  // and the issued invoice would silently overcharge them.
   const agency = await prisma.agency.findUnique({
     where: { id: agencyId },
-    select: { vatRegisteredAt: true, vatRateBps: true },
+    select: {
+      vatRegisteredAt: true,
+      vatRateBps: true,
+      feeTier: true,
+      legacyOutsourcedFeePence: true,
+    },
   });
   const vat = agency ?? null;
+  const feeOverride = agency
+    ? { feeTier: agency.feeTier, legacyOutsourcedFeePence: agency.legacyOutsourcedFeePence }
+    : null;
   const vatActive = agency !== null && agency.vatRegisteredAt !== null && agency.vatRateBps !== null && agency.vatRateBps > 0;
 
   // Source of truth: PropertyTransaction rows that have a billing stamp in
@@ -97,7 +108,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
   const lines: RunningTotalLine[] = [];
 
   for (const r of rows) {
-    const fee = computeFee(r.serviceType, r.priceAtExchange, vat);
+    const fee = computeFee(r.serviceType, r.priceAtExchange, vat, feeOverride);
     totalPence += fee.totalPence;
     subtotalPence += fee.amountPence;
     vatPence += fee.vatPence;
@@ -130,7 +141,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
   for (const r of trialRows) {
     // priceAtExchange isn't set for trial files (PR 3 stops at exchangedAt for them),
     // so fall back to purchasePrice for the "would have charged" estimate.
-    const fee = computeFee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, vat);
+    const fee = computeFee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, vat, feeOverride);
     trialValuePence += fee.totalPence;
   }
 

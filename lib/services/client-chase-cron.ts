@@ -181,10 +181,19 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       agencyId: true,
       clientEmailsPaused: true,
       chaseRuleSnapshot: true,
+      // Needed for the purchaser contact-scoping below. After a relist,
+      // old buyers stay attached to the file (Contact.propertyTransactionId
+      // doesn't change) but on the archived round. Without this filter,
+      // findDueClientChases would treat them as eligible purchasers and
+      // fire chases at the wrong person (Bug uncovered 2026-06-17 on
+      // cmpmjsnfd0052ltxowy2ss249 — Nick Poole was chased twice after
+      // Hiranya's relist landed).
+      activeBuyerRoundId: true,
     },
   });
   if (transactions.length === 0) return [];
   const txIds = transactions.map((t) => t.id);
+  const activeRoundByTx = new Map(transactions.map((t) => [t.id, t.activeBuyerRoundId]));
 
   // Per-agency master toggle: if Agency.chaseEmailsEnabled = false, every
   // chase on every file in that agency is skipped (digest-level kill switch).
@@ -239,7 +248,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
         OR mc."buyerRoundId" = pt."activeBuyerRoundId"
       )
   `;
-  const contacts = await prisma.contact.findMany({
+  const rawContacts = await prisma.contact.findMany({
     where: {
       propertyTransactionId: { in: txIds },
       roleType: { in: ["vendor", "purchaser"] },
@@ -253,7 +262,17 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       email: true,
       propertyTransactionId: true,
       roleType: true,
+      buyerRoundId: true,
     },
+  });
+  // Purchaser scoping: vendors are file-level (buyerRoundId IS NULL), but
+  // purchasers belong to a specific buyer round. After a relist, the old
+  // buyer's contact row stays attached to the file with the archived
+  // round's id — those contacts must NOT be chased. Vendor side is
+  // unaffected (vendors carry across rounds).
+  const contacts = rawContacts.filter((c) => {
+    if (c.roleType !== "purchaser") return true;
+    return c.buyerRoundId === activeRoundByTx.get(c.propertyTransactionId);
   });
   const states = await prisma.clientChaseState.findMany({
     where: { transactionId: { in: txIds } },

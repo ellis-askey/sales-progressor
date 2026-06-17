@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { prisma } from "@/lib/prisma";
+import { phoneSearchVariants } from "@/lib/utils";
 
 export type AgentSearchResult = {
   transactions: { id: string; address: string; status: string }[];
@@ -23,6 +25,20 @@ export type AgentSearchResult = {
 };
 
 const INTERNAL_ROLES = ["admin", "superadmin", "sales_progressor"];
+
+/** Name OR phone(any-format) lookup clauses for a Contact search.
+ *  Phones in the DB are stored in international form (+447...), but agents
+ *  type domestic form (07...) into the search box — phoneSearchVariants
+ *  enumerates the equivalent representations so either form finds either. */
+function contactSearchClauses(q: string): Prisma.ContactWhereInput[] {
+  const clauses: Prisma.ContactWhereInput[] = [
+    { name: { contains: q, mode: "insensitive" } },
+  ];
+  for (const v of phoneSearchVariants(q)) {
+    clauses.push({ phone: { contains: v, mode: "insensitive" } });
+  }
+  return clauses;
+}
 
 export async function GET(req: NextRequest) {
   const session = await requireSession();
@@ -64,7 +80,7 @@ export async function GET(req: NextRequest) {
     prisma.contact.findMany({
       where: {
         transaction: txWhere,
-        name: { contains: q, mode: "insensitive" },
+        OR: contactSearchClauses(q),
       },
       orderBy: { createdAt: "desc" },
       take: 6,

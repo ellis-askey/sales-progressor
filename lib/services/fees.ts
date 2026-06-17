@@ -2,6 +2,7 @@
 // Fee calculation and progress/exchange prediction logic.
 
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
+import { computeFee } from "@/lib/billing/fee";
 
 
 // ─── Fee calculation ──────────────────────────────────────────────────────────
@@ -13,7 +14,10 @@ import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
  *   1. Per-agency legacy override — set via /agent/admin, sticks to the customer
  *      regardless of which SP handles the file. Highest precedence.
  *   2. Per-SP legacy fee — existing User-level model, retained for back-compat.
- *   3. Standard sliding scale based on purchase price (£250 / £300 / £350).
+ *   3. Standard sliding scale based on purchase price — delegated to
+ *      lib/billing/fee.ts:computeFee so the UI and the issued invoice always
+ *      agree. (Previously the ladder was duplicated here, which is exactly
+ *      the bug class that bit the per-agency override in the billing system.)
  *
  * Self-managed (£59) is hardcoded in the call site (TransactionSidebar) and
  * never calls this function — the agency override does NOT apply there.
@@ -48,14 +52,12 @@ export function calculateOurFee(
     return { fee: legacyFee, label: formatFee(legacyFee) };
   }
 
-  // 3. Standard sliding scale.
+  // 3. Standard sliding scale — delegated to computeFee. Null-guard before
+  // delegation so we keep the "price not set" UI label; computeFee would
+  // fall back to the bottom band on null, which is wrong for display.
   if (!purchasePrice) return { fee: null, label: "Standard — price not set" };
-
-  const priceGBP = purchasePrice / 100;
-
-  if (priceGBP < 350000) return { fee: 25000, label: formatFee(25000) }; // £250
-  if (priceGBP < 500000) return { fee: 30000, label: formatFee(30000) }; // £300
-  return { fee: 35000, label: formatFee(35000) };                         // £350
+  const { totalPence } = computeFee("outsourced", purchasePrice, null, null);
+  return { fee: totalPence, label: formatFee(totalPence) };
 }
 
 /**

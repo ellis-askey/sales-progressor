@@ -540,6 +540,7 @@ export async function changeStatusAction(
     buyerRoundId: string;
     cancelledLogIds: string[];
     cancelledChaseIds: string[];
+    cancelledClientChaseStateCount: number;
     holdsClosed: number;
   };
 
@@ -631,7 +632,21 @@ export async function changeStatusAction(
           });
         }
       }
-      // 3. Close any open TransactionHoldPeriods. Belt-and-braces beyond
+      // 3. Cancel active ClientChaseState rows on this transaction. The
+      //    file is dead — no further client chases should fire, whether
+      //    or not a relist follows. Without this, stale "active" rows
+      //    survive and the agent's Reminders tab keeps surfacing them as
+      //    "Upcoming (predicted)" with dates in the past (the prediction
+      //    code in lib/services/automated-emails-preview.ts walks active
+      //    CCS rows). Covers vendor + purchaser sides — vendor CCS gets
+      //    cancelled too since the file as a whole is dead.
+      //    Idempotent via status="active" precondition.
+      const ccsResult = await ptx.clientChaseState.updateMany({
+        where: { transactionId, status: "active" },
+        data: { status: "cancelled" },
+      });
+
+      // 4. Close any open TransactionHoldPeriods. Belt-and-braces beyond
       //    the existing leavingHold path — that path only fires when the
       //    PREVIOUS status was on_hold. A file that was active with a stale
       //    open hold row (defensive — shouldn't happen via the normal flow)
@@ -644,6 +659,7 @@ export async function changeStatusAction(
         buyerRoundId: tx.activeBuyerRoundId,
         cancelledLogIds,
         cancelledChaseIds,
+        cancelledClientChaseStateCount: ccsResult.count,
         holdsClosed: holdResult.count,
       };
     }
@@ -685,6 +701,7 @@ export async function changeStatusAction(
                 buyerRoundId: cancellationSummary.buyerRoundId,
                 cancelledLogIds: cancellationSummary.cancelledLogIds,
                 cancelledChaseIds: cancellationSummary.cancelledChaseIds,
+                cancelledClientChaseStateCount: cancellationSummary.cancelledClientChaseStateCount,
                 holdsClosed: cancellationSummary.holdsClosed,
               },
             }

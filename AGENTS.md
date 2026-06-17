@@ -1,6 +1,6 @@
-# CLAUDE.md — Sales Progressor
+# AGENTS.md — Sales Progressor
 
-**This file is the persistent context for every Claude Code session in this repo.**
+**This file is the persistent context for every Codex session in this repo.**
 **Always read this file before taking any action. Re-read at the start of any new task.**
 
 Last updated: 2026-05-23 (Package D shipped; staging→prod clean break promoted)
@@ -80,7 +80,7 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   - Staging project ID: `etidawkbqctarmsdjoxp` (eu-west-1)
 - **Auth**: NextAuth.js (Credentials provider, JWT strategy)
 - **Email**: SendGrid via `@sendgrid/mail`
-- **AI**: Anthropic Claude (Haiku 4.5 for chase + content drafting; Opus 4.7 for weekly insight reviews)
+- **AI**: Anthropic Codex (Haiku 4.5 for chase + content drafting; Opus 4.7 for weekly insight reviews)
 - **Hosting**: Vercel
 - **File storage**: Supabase Storage
 - **Image generation**: `next/og` (Edge runtime), Replicate FLUX (AI photography)
@@ -152,7 +152,7 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | **Before committing or declaring done** | [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md) |
 | **How to add a new screen / primitive / modal / email / migration** | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) |
 | **Recurring decisions log** (z-index, terminology sweeps, env-var conventions) | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
-| Role architecture | This file (CLAUDE.md, the table above) — verified against prod DB 2026-05-03 |
+| Role architecture | This file (AGENTS.md, the table above) — verified against prod DB 2026-05-03 |
 | Milestone engine state machine | `docs/MILESTONES_SPEC_v1.md` |
 | Milestone weights and gating | `docs/MILESTONES_WEIGHTS_v1.md` |
 | Command Centre product spec | `docs/admin/ADMIN_01_SPEC.md` (and ADMIN_02–10 for subsystems) |
@@ -178,7 +178,7 @@ Before writing code that affects a documented system, read the relevant spec doc
 - Run relevant tests if they exist
 - Never say "shipped" or "done" without evidence: PR URL, file paths, test output, or screenshots
 - For visual changes, post a screenshot — visual quality cannot be verified by tsc
-- **Stage everything before commit.** Run `git add -u` (or `git add <explicit paths>`) before EVERY `git commit`. Never rely on `git mv` auto-staging to catch content edits made in the same session. The half-state where moves get committed but content edits don't is the worst failure mode for a revert: an `--undo` would unmove files while leaving sed-driven path updates pointing at the un-moved (now nonexistent) paths. Burned by this on 2026-05-21 during the docs reorg — the moves landed in `7351ef0` but the sed sweeps and CLAUDE.md updates were left unstaged, requiring a supplementary `6721aa7` to complete the arc.
+- **Stage everything before commit.** Run `git add -u` (or `git add <explicit paths>`) before EVERY `git commit`. Never rely on `git mv` auto-staging to catch content edits made in the same session. The half-state where moves get committed but content edits don't is the worst failure mode for a revert: an `--undo` would unmove files while leaving sed-driven path updates pointing at the un-moved (now nonexistent) paths. Burned by this on 2026-05-21 during the docs reorg — the moves landed in `7351ef0` but the sed sweeps and AGENTS.md updates were left unstaged, requiring a supplementary `6721aa7` to complete the arc.
 
 ### Rule 3 — Migrations to staging first
 
@@ -319,7 +319,7 @@ This project has had recurring scope drift in past CC sessions. To prevent it:
 | Service | Purpose | Status |
 |---|---|---|
 | Supabase | Database + file storage | Live |
-| Anthropic Claude | AI chase, content drafting, insights | Live |
+| Anthropic Codex | AI chase, content drafting, insights | Live |
 | SendGrid | Transactional email | Live (sender: `updates@thesalesprogressor.co.uk`) |
 | Vercel | Hosting + cron + analytics | Live |
 | Land Registry SPARQL | UK property price history | Live (public, no auth) |
@@ -344,6 +344,6 @@ When adding a new integration, surface it in `docs/active/ELLIS_MANUAL_TODO.md` 
 
 ## When this file changes
 
-If you make changes that affect the architecture, file structure, role model, or rules above — propose an update to this file in the same PR. Surface "I'm proposing to update CLAUDE.md because…" in the response.
+If you make changes that affect the architecture, file structure, role model, or rules above — propose an update to this file in the same PR. Surface "I'm proposing to update AGENTS.md because…" in the response.
 
-This file should stay accurate. A stale CLAUDE.md is worse than no CLAUDE.md.
+This file should stay accurate. A stale AGENTS.md is worse than no AGENTS.md.

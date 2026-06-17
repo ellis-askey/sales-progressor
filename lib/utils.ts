@@ -136,6 +136,60 @@ export function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+/**
+ * Build a list of phone-search variants to OR-search a stored phone field.
+ *
+ * The search box gets used with whatever format the agent types — typically a
+ * UK mobile in domestic form (07700900123 or 07700 900 123). But phone numbers
+ * in the database are stored in international form (+447700900123). A naive
+ * `contains` against the typed query never matches.
+ *
+ * This helper turns the user's typed query into every representation the same
+ * underlying digits could plausibly take in storage, so a single OR'd `contains`
+ * lookup finds the contact regardless of which format their phone was saved in.
+ *
+ * Returns an empty array when the query doesn't look phone-like (no digits, or
+ * fewer than 4 contiguous digits), so callers can short-circuit and fall back
+ * to name-only search without polluting the query plan.
+ */
+export function phoneSearchVariants(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  // Strip whitespace + common separators, preserve "+" so prefix detection works.
+  const tight = trimmed.replace(/[\s\-().]/g, "");
+  const digitsOnly = tight.replace(/[^\d]/g, "");
+  // Need at least 4 digits to be a meaningful phone fragment — anything shorter
+  // would cross-match unrelated numbers (e.g. "07" would match every UK mobile).
+  if (digitsOnly.length < 4) return [];
+
+  // Canonical UK domestic form: replace any +44 / 0044 prefix with a leading 0.
+  let canonical = tight;
+  if (canonical.startsWith("+44")) canonical = "0" + canonical.slice(3);
+  else if (canonical.startsWith("0044")) canonical = "0" + canonical.slice(4);
+  canonical = canonical.replace(/^\+/, "");
+
+  const variants = new Set<string>();
+  variants.add(tight);       // exact (handles already-formatted stored values)
+  variants.add(digitsOnly);  // digits with no separators, no prefix decisions
+  variants.add(canonical);   // UK domestic with leading 0
+
+  // If the canonical form looks like a full UK number with a leading 0, also
+  // generate its international representations so a domestic-typed query finds
+  // an internationally-stored value (and vice versa).
+  if (canonical.startsWith("0") && canonical.length >= 5) {
+    const withoutLeading = canonical.slice(1);
+    variants.add(withoutLeading);            // e.g. 7700900123
+    variants.add("+44" + withoutLeading);    // e.g. +447700900123
+    variants.add("0044" + withoutLeading);   // e.g. 00447700900123
+    variants.add("44" + withoutLeading);     // e.g. 447700900123 (matches stored "+447..." via substring)
+  }
+
+  // Drop anything too short to be useful (re-enforces the 4-digit floor after
+  // prefix stripping turned "07" into "7").
+  return [...variants].filter((v) => v.length >= 4);
+}
+
 /** Human-readable labels for transaction statuses */
 export const STATUS_LABELS: Record<TransactionStatus, string> = {
   draft:     "Draft",

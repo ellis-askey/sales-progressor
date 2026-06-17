@@ -16,7 +16,7 @@
 // VAT (at 20%). Without it, vatPence = 0 and amountPence = total. Cleanly
 // flippable via a single config field on Agency.
 
-import type { ServiceType } from "@prisma/client";
+import type { ClientType, ServiceType } from "@prisma/client";
 
 const IN_HOUSE_FEE_PENCE = 5900;   // £59 inclusive (NOT VAT-registered today)
 const OUTSOURCED_BAND_LOW_PENCE   = 25000; // £250 (price ≤ £349,999)
@@ -37,6 +37,18 @@ export type VatInput = {
   vatRateBps: number | null; // basis points: 2000 = 20%
 } | null;
 
+/**
+ * Per-agency outsourced-fee override — captured from Agency.feeTier +
+ * Agency.legacyOutsourcedFeePence. When feeTier is "legacy" and the pence
+ * value is set, that flat amount replaces the £250/£300/£350 sliding scale
+ * for outsourced files. Self-managed (£59) is never affected — matches the
+ * policy in lib/services/fees.ts:calculateOurFee.
+ */
+export type AgencyFeeOverride = {
+  feeTier: ClientType;
+  legacyOutsourcedFeePence: number | null;
+} | null;
+
 export type FeeResult = {
   /** Ex-VAT portion (when registered) OR full inclusive amount (when not). */
   amountPence: number;
@@ -49,13 +61,35 @@ export type FeeResult = {
   bandLabel: string;
 };
 
-function grossFee(serviceType: ServiceType, priceAtExchangePence: number | null): { totalPence: number; kind: FeeKind; bandLabel: string } {
+function grossFee(
+  serviceType: ServiceType,
+  priceAtExchangePence: number | null,
+  agencyOverride: AgencyFeeOverride,
+): { totalPence: number; kind: FeeKind; bandLabel: string } {
   if (serviceType === "self_managed") {
     return { totalPence: IN_HOUSE_FEE_PENCE, kind: "in_house_fee", bandLabel: "In-house file" };
   }
-  // Outsourced. priceAtExchange should not be null for a billed outsourced
-  // file (PR 3's stamp captures it), but defend defensively by treating null
-  // as the bottom band rather than throwing.
+  // Outsourced. Per-agency legacy override wins when configured — the agency
+  // pays a flat fee regardless of sale price. Self-managed (£59) is
+  // intentionally unaffected above.
+  if (agencyOverride?.feeTier === "legacy") {
+    if (agencyOverride.legacyOutsourcedFeePence != null) {
+      return {
+        totalPence: agencyOverride.legacyOutsourcedFeePence,
+        kind: "outsourced_fee",
+        bandLabel: "Outsourced — legacy fixed fee",
+      };
+    }
+    // Data error: legacy tier without a configured pence amount. Falling
+    // through to the sliding scale at least emits a known-good number;
+    // a thrown error here would brick the accrual cron. Surface loudly.
+    console.warn(
+      "[billing/fee] Agency feeTier='legacy' but legacyOutsourcedFeePence is null — falling back to sliding scale.",
+    );
+  }
+  // priceAtExchange should not be null for a billed outsourced file (PR 3's
+  // stamp captures it), but defend defensively by treating null as the
+  // bottom band rather than throwing.
   const priceGBP = (priceAtExchangePence ?? 0) / 100;
   if (priceGBP < BAND_MID_THRESHOLD_GBP) {
     return { totalPence: OUTSOURCED_BAND_LOW_PENCE, kind: "outsourced_fee", bandLabel: "Outsourced — up to £349,999" };
@@ -83,8 +117,9 @@ export function computeFee(
   serviceType: ServiceType,
   priceAtExchangePence: number | null,
   vat: VatInput = null,
+  agencyOverride: AgencyFeeOverride = null,
 ): FeeResult {
-  const { totalPence, kind, bandLabel } = grossFee(serviceType, priceAtExchangePence);
+  const { totalPence, kind, bandLabel } = grossFee(serviceType, priceAtExchangePence, agencyOverride);
 
   const vatActive = vat !== null && vat.vatRegisteredAt !== null && vat.vatRateBps !== null && vat.vatRateBps > 0;
   if (!vatActive) {

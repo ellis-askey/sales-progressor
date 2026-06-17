@@ -192,10 +192,17 @@ async function main() {
   // dueDate (2026-04-19), so it reads as "47d overdue" on the risk
   // popover and the file-detail Reminders surface. Forward-clamp those
   // ChaseTask.dueDate values to match the log's clamped nextDueDate.
+  // Scope to vendor-reset rules only (same as B7), and chaseCount=0
+  // (never chased). This excludes the normal "chase has been sent, next
+  // iteration scheduled" rows where dueDate is the historical past-chase
+  // date and nextDueDate has rolled forward by repeatEveryDays — those
+  // are correct as-is. We're targeting just the freshly-created
+  // post-relist rows whose dueDate inherited the broken pre-clamp anchor.
   const allActiveLogs = await prisma.reminderLog.findMany({
     where: {
       status: "active",
       transactionId: { in: [...txById.keys()] },
+      reminderRule: { targetMilestoneCode: { in: [...RELIST_RESET_VM_CODES] } },
     },
     select: {
       id: true,
@@ -209,6 +216,7 @@ async function main() {
     where: {
       transactionId: { in: [...txById.keys()] },
       status: "pending",
+      chaseCount: 0,
       reminderLogId: { in: allActiveLogs.map((l) => l.id) },
     },
     select: { id: true, transactionId: true, reminderLogId: true, dueDate: true },
