@@ -700,6 +700,11 @@ export async function logPortalMilestoneConfirm(
       // Nullable on the schema; null short-circuits the assembler path.
       tenure: true,
       purchaseType: true,
+      // Added 2026-06-17: VM19.vendorAgent ("Completion is set for
+      // {completionDate}.") references the recorded completion date.
+      // Without this select the var is undefined and the placeholder
+      // renders literally — see comment on completionDateVar below.
+      completionDate: true,
       assignedUser: { select: { id: true, name: true, email: true } },
       agentUser: { select: { id: true, name: true, email: true } },
       contacts: {
@@ -852,7 +857,14 @@ export async function logPortalMilestoneConfirm(
         ? " No physical visit to the property is needed — the assessment is conducted remotely."
         : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
       : "";
-    const portalVars = { address, eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote };
+    // Mirrors the {completionDate} handling in sendRichMilestoneEmails —
+    // see the comment there. Same fallback string so the portal-confirmed
+    // and admin-confirmed exchange emails render identically when no
+    // completion date is on record.
+    const portalCompletionDateVar = tx.completionDate
+      ? new Date(tx.completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+      : "a date to be confirmed";
+    const portalVars = { address, eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar };
 
     // Use the same per-recipient rich emails as the admin-confirmation flow.
     // This sends the correct copy to both sides — vendor gets their copy, purchaser gets theirs.
@@ -874,7 +886,7 @@ export async function logPortalMilestoneConfirm(
       if (!copy) continue;
       const greeting  = buildGreeting(c.name);
       const portalUrl = `${base}/portal/${c.portalToken}/progress`;
-      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote } });
+      const html      = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar } });
       const subject   = interpolate(copy.subject, portalVars);
       const text      = [greeting, "", interpolate(copy.opening, portalVars), "", interpolate(copy.whatHappened, portalVars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, portalVars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
       sendEmail({ to: c.email, subject, html, text, replyTo }).catch(() => {});
@@ -891,7 +903,7 @@ export async function logPortalMilestoneConfirm(
       const greeting = buildGreeting(tx.agentUser.name);
       const subject  = interpolate(agentCopy.subject, portalVars);
       const text     = [greeting, "", interpolate(agentCopy.whatHappened, portalVars)].join("\n");
-      const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote } });
+      const html     = richMilestoneEmailHtml({ greeting, copy: agentCopy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: portalEventDateVar, eventDateClause: portalEventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: portalCompletionDateVar } });
       sendEmail({ to: tx.agentUser.email, subject, html, text, replyTo }).catch(() => {});
     }
   } else {
@@ -1482,6 +1494,16 @@ async function sendRichMilestoneEmails(
       ? " No physical visit to the property is needed — the assessment is conducted remotely."
       : " A surveyor acting for the lender will visit to value the property — access has been arranged, so nothing else for you to do right now."
     : "";
+  // {completionDate} — referenced by VM19.vendorAgent ("Completion is set
+  // for {completionDate}.") and any future exchange/completion copy that
+  // needs the recorded completion date. tx.completionDate is loaded above
+  // and is nullable: if unset, we render a soft fallback so the sentence
+  // still scans. Without this var the interpolate() helper falls through
+  // to the literal "{completionDate}" placeholder in the email body
+  // (regression surfaced 2026-06-17 on the VM19 exchange-confirmed email).
+  const completionDateVar = tx.completionDate
+    ? new Date(tx.completionDate).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "a date to be confirmed";
 
   // Bilateral pair-complete suppression. See computeBilateralSuppressedRecipient
   // for the rule. When a bilateral milestone fires in INVERSE direction,
@@ -1522,10 +1544,10 @@ async function sendRichMilestoneEmails(
     if (!copy) continue;
 
     const greeting = buildGreeting(c.name);
-    const vars     = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
+    const vars     = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar };
     const portalUrl = `${base}/portal/${c.portalToken}/progress`;
 
-    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
+    const html = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: portalUrl, progressorName, progressorEmail, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar } });
     const subject = interpolate(copy.subject, vars);
     const text = [greeting, "", interpolate(copy.opening, vars), "", interpolate(copy.whatHappened, vars), ...(copy.whatNext ? ["", interpolate(copy.whatNext, vars)] : []), "", `${copy.action ?? "View your portal"}: ${portalUrl}`].join("\n");
 
@@ -1597,9 +1619,9 @@ async function sendRichMilestoneEmails(
   const vendorAgentCopy = resolveRecipientCopy(milestoneCode, "vendorAgent", emailCopy, fileShape);
   if (tx.agentUser?.email && vendorAgentCopy && !skipAgentEmail) {
     const copy    = vendorAgentCopy;
-    const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
+    const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar };
     const greeting = buildGreeting(tx.agentUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: false, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars)].join("\n");
     sendEmail({ to: tx.agentUser.email, subject, text, html, replyTo }).catch(() => {});
@@ -1610,9 +1632,9 @@ async function sendRichMilestoneEmails(
   const progressorCopy = resolveRecipientCopy(milestoneCode, "progressor", emailCopy, fileShape);
   if (tx.assignedUser?.email && progressorCopy && !skipProgressorEmail) {
     const copy    = progressorCopy;
-    const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote };
+    const vars    = { address, eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar };
     const greeting = buildGreeting(tx.assignedUser.name);
-    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote } });
+    const html    = richMilestoneEmailHtml({ greeting, copy, address, ctaUrl: dashUrl, progressorName, progressorEmail, isProgressor: true, serviceType, extraVars: { eventDate: eventDateVar, eventDateClause, purchaserPhysicalNote, vendorVisitNote, completionDate: completionDateVar } });
     const subject = interpolate(copy.subject, vars);
     const text    = [greeting, "", interpolate(copy.whatHappened, vars), `View: ${dashUrl}`].join("\n");
     sendEmail({ to: tx.assignedUser.email, subject, text, html, replyTo }).catch(() => {});
