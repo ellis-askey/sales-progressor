@@ -85,7 +85,13 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const recentActivity = timeline.slice(0, 3);
 
   const stage = detectStage(milestones, side);
-  const tips  = getStageTips(stage, side, token);
+  // Per-tip refinement: pass the customer's actual completed-milestone
+  // set so getStageTips can hide tips whose underlying milestone has
+  // already been ticked (e.g. "your lender will book a valuation" once
+  // PM6 is complete). Without this, the stage gets us into the right
+  // pool but individual tips can still talk about completed events.
+  const doneCodes = new Set(milestones.filter((m) => m.isComplete).map((m) => m.code));
+  const tips  = getStageTips(stage, side, token, doneCodes);
 
   return (
     <div className="space-y-4">

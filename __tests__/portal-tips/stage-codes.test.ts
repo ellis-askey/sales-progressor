@@ -17,7 +17,7 @@
  * and assert the right stage comes back.
  */
 
-import { detectStage, STAGE_TRIGGER_CODES, type PortalRole } from "@/lib/portal-tips";
+import { detectStage, getStageTips, STAGE_TRIGGER_CODES, type PortalRole } from "@/lib/portal-tips";
 
 // Codes the portal-tips file relies on must all be real milestone codes.
 // This is a subset of the full 47-code canonical schema (we only care
@@ -90,5 +90,76 @@ describe("portal-tips detectStage", () => {
     const ms = mk(["VM1", "VM10", "VM18", "PM1"]);
     expect(detectStage(ms, "vendor")).toBe("pre_exchange");
     expect(detectStage(ms, "purchaser")).toBe("early");
+  });
+});
+
+describe("portal-tips per-tip milestone filtering", () => {
+  // Stable token so the picked-offset is deterministic across runs.
+  const token = "test-token";
+
+  it("hides the lender-valuation tip once PM6 is complete (the 2026-06-19 bug)", () => {
+    // Purchaser in "early" stage with PM6 (lender valuation booked) done.
+    // The lender-valuation tip in this stage carries hideOnceDone: ["PM6"]
+    // and must not appear in the picked output.
+    const done = new Set(["PM1", "PM6"]);
+    const tips = getStageTips("early", "purchaser", token, done);
+    const texts = tips.map((t) => t.text).join("\n");
+    expect(texts).not.toMatch(/mortgage lender will book a valuation/i);
+  });
+
+  it("shows the lender-valuation tip before PM6 is complete", () => {
+    // Same stage, but PM6 not yet done. The tip remains in the pool
+    // and is eligible for picking. We exhaust the rotation by trying
+    // multiple tokens to guarantee at least one render includes it.
+    const done = new Set(["PM1"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "purchaser", t, done)) {
+        seen.add(tip.text);
+      }
+    }
+    expect([...seen].some((s) => /mortgage lender will book a valuation/i.test(s))).toBe(true);
+  });
+
+  it("hides the searches tip once PM13 (search results received) is done", () => {
+    const done = new Set(["PM1", "PM13"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /Searches are ordered by your solicitor/i.test(s))).toBe(false);
+  });
+
+  it("requires PM6 before the mortgage-offer tip appears", () => {
+    // Active stage. The mortgage-offer tip carries requires: ["PM6"].
+    // Without PM6, it must never show.
+    const done = new Set(["PM1", "PM14"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f", "g", "h"]) {
+      for (const tip of getStageTips("active", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /mortgage offer should follow/i.test(s))).toBe(false);
+  });
+
+  it("shows the mortgage-offer tip once PM6 is complete and PM11 is not", () => {
+    const done = new Set(["PM1", "PM6", "PM14"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f", "g", "h"]) {
+      for (const tip of getStageTips("active", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /mortgage offer should follow/i.test(s))).toBe(true);
+  });
+
+  it("falls back to empty when every tip in the pool is filtered out", () => {
+    // Purchaser onboarding pool has 3 'both' + 1 'purchaser' tips with
+    // hideOnceDone of [VM3,PM3], [VM4,PM3], (none), [PM5]. Mark PM3 + PM5
+    // done and the only survivor is tip 3 (general framing). Still
+    // returns something — true empty only happens if even the
+    // unconditional tips get gated, which today's pool doesn't allow.
+    const done = new Set(["PM3", "PM5"]);
+    const tips = getStageTips("onboarding", "purchaser", token, done);
+    expect(tips.length).toBeGreaterThan(0);
+    // The unconditional "memo of sale not binding" tip must be among them.
+    expect(tips.some((t) => /memorandum of sale is not a binding contract/i.test(t.text))).toBe(true);
   });
 });
