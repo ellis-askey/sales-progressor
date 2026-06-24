@@ -99,8 +99,12 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
   early: {
     both: [],
     vendor: [
+      // requires VM8 (mgmt pack requested) so the tip never claims
+      // "has been requested" before the request has actually been made.
+      // Surfaced by the 2026-06-24 audit on 11 prod files.
       {
         text: "If your property is leasehold or share of freehold, a management pack has been requested from your freeholder or managing agent. These can take 4 to 8 weeks. This is one of the most common causes of delays.",
+        requires: ["VM8"],
         hideOnceDone: ["VM9"],
       },
       // General chain advice, no specific milestone trigger.
@@ -109,15 +113,24 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
       },
     ],
     purchaser: [
+      // requires PM8 (searches ordered) so "Searches are ordered" isn't
+      // claimed before the order actually goes in. 4 prod files were
+      // showing this prematurely as of 2026-06-24.
       {
         text: "Searches are ordered by your solicitor and typically take 2 to 6 weeks depending on the local authority. There's nothing you need to do, just be patient during this phase.",
+        requires: ["PM8"],
         hideOnceDone: ["PM13"],
       },
-      // THE BUG: this used to fire even after the valuation was booked.
-      // PM6 = "Lender valuation has been booked".
+      // requires PM5 (mortgage application submitted) — without that the
+      // tip pre-empts the lender process and tells the customer about
+      // an event that isn't yet scheduled.
+      // hideOnceDone extended to include PM11 (mortgage offer received)
+      // as a defensive belt: in the unusual case where PM6 is skipped
+      // but PM11 lands, the valuation chapter is closed.
       {
         text: "Your mortgage lender will book a valuation of the property. This is not a structural survey. It's purely for the lender's purposes and won't tell you anything about the condition of the property.",
-        hideOnceDone: ["PM6"],
+        requires: ["PM5"],
+        hideOnceDone: ["PM6", "PM11"],
       },
       {
         text: "Consider booking an independent survey. A RICS HomeBuyer Report (Level 2) costs around £400 to £700 and covers the condition of the property in detail, something the lender's valuation does not do. It's there for your peace of mind.",
@@ -142,8 +155,11 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
       },
     ],
     purchaser: [
+      // requires PM8 (searches ordered) so "Once search results arrive"
+      // isn't said before searches have even been ordered.
       {
         text: "Once search results arrive, your solicitor will review them and flag anything that needs attention. Most searches come back clean, but they may raise points worth querying.",
+        requires: ["PM8"],
         hideOnceDone: ["PM13"],
       },
       // requires PM6 (valuation booked) so the tip doesn't fire while
@@ -167,9 +183,14 @@ const TIPS: Record<PortalStage, { both: TipDef[]; vendor: TipDef[]; purchaser: T
       },
     ],
     vendor: [
+      // hide on VM16 (contract documents ISSUED to the seller), not VM17
+      // (signed back). The tip says "your solicitor will send you the
+      // contract to sign", and the "will send" copy goes stale the
+      // moment the contract has been sent (VM16), not when it comes
+      // back signed (VM17).
       {
         text: "Your solicitor will send you the contract to sign before exchange. Check the completion date, price, and included fixtures match what was agreed.",
-        hideOnceDone: ["VM17"],
+        hideOnceDone: ["VM16"],
       },
     ],
     purchaser: [
