@@ -98,20 +98,29 @@ describe("portal-tips per-tip milestone filtering", () => {
   const token = "test-token";
 
   it("hides the lender-valuation tip once PM6 is complete (the 2026-06-19 bug)", () => {
-    // Purchaser in "early" stage with PM6 (lender valuation booked) done.
-    // The lender-valuation tip in this stage carries hideOnceDone: ["PM6"]
+    // Purchaser in "early" stage with PM5 + PM6 (lender valuation booked)
+    // done. The lender-valuation tip carries hideOnceDone: ["PM6", "PM11"]
     // and must not appear in the picked output.
-    const done = new Set(["PM1", "PM6"]);
+    const done = new Set(["PM1", "PM5", "PM6"]);
     const tips = getStageTips("early", "purchaser", token, done);
     const texts = tips.map((t) => t.text).join("\n");
     expect(texts).not.toMatch(/mortgage lender will book a valuation/i);
   });
 
-  it("shows the lender-valuation tip before PM6 is complete", () => {
-    // Same stage, but PM6 not yet done. The tip remains in the pool
-    // and is eligible for picking. We exhaust the rotation by trying
-    // multiple tokens to guarantee at least one render includes it.
-    const done = new Set(["PM1"]);
+  it("hides the lender-valuation tip once PM11 (mortgage offer) is complete (defensive)", () => {
+    // Defensive case: PM11 received but PM6 not on record. The tip
+    // still hides because hideOnceDone includes PM11.
+    const done = new Set(["PM1", "PM5", "PM11"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /mortgage lender will book a valuation/i.test(s))).toBe(false);
+  });
+
+  it("shows the lender-valuation tip after PM5 but before PM6", () => {
+    // PM5 is now a requires precondition. PM5 done, PM6 not done → tip visible.
+    const done = new Set(["PM1", "PM5"]);
     const seen = new Set<string>();
     for (const t of ["a", "b", "c", "d", "e", "f"]) {
       for (const tip of getStageTips("early", "purchaser", t, done)) {
@@ -121,13 +130,67 @@ describe("portal-tips per-tip milestone filtering", () => {
     expect([...seen].some((s) => /mortgage lender will book a valuation/i.test(s))).toBe(true);
   });
 
+  it("hides the lender-valuation tip when PM5 not yet submitted (2026-06-24 audit)", () => {
+    // requires: ["PM5"] — without mortgage submitted, the tip pre-empts
+    // the lender process and must not fire.
+    const done = new Set(["PM1"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /mortgage lender will book a valuation/i.test(s))).toBe(false);
+  });
+
   it("hides the searches tip once PM13 (search results received) is done", () => {
-    const done = new Set(["PM1", "PM13"]);
+    // PM8 done (precondition) + PM13 done (stale).
+    const done = new Set(["PM1", "PM8", "PM13"]);
     const seen = new Set<string>();
     for (const t of ["a", "b", "c", "d", "e", "f"]) {
       for (const tip of getStageTips("early", "purchaser", t, done)) seen.add(tip.text);
     }
     expect([...seen].some((s) => /Searches are ordered by your solicitor/i.test(s))).toBe(false);
+  });
+
+  it("hides the searches tip when PM8 not yet ordered (2026-06-24 audit)", () => {
+    // requires: ["PM8"] — without searches actually ordered, "Searches
+    // are ordered" must not be claimed.
+    const done = new Set(["PM1"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "purchaser", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /Searches are ordered by your solicitor/i.test(s))).toBe(false);
+  });
+
+  it("hides the management-pack tip when VM8 not yet requested (2026-06-24 audit)", () => {
+    // requires: ["VM8"] — without the request actually made, "has been
+    // requested" must not be claimed.
+    const done = new Set(["VM1"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "vendor", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /management pack has been requested/i.test(s))).toBe(false);
+  });
+
+  it("shows the management-pack tip after VM8 requested but before VM9 received", () => {
+    const done = new Set(["VM1", "VM8"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("early", "vendor", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /management pack has been requested/i.test(s))).toBe(true);
+  });
+
+  it("hides the vendor 'contract to sign' tip on VM16 (issued, not VM17 signed-back)", () => {
+    // The tip says "will send you the contract to sign". Once VM16 fires
+    // (contract issued to seller), the "will send" claim is stale.
+    const done = new Set(["VM1", "VM10", "VM18", "VM16"]);
+    const seen = new Set<string>();
+    for (const t of ["a", "b", "c", "d", "e", "f"]) {
+      for (const tip of getStageTips("pre_exchange", "vendor", t, done)) seen.add(tip.text);
+    }
+    expect([...seen].some((s) => /will send you the contract to sign/i.test(s))).toBe(false);
   });
 
   it("requires PM6 before the mortgage-offer tip appears", () => {
