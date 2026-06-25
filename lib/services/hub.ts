@@ -694,7 +694,12 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
           { overridePredictedDate: { gte: windowStart, lte: windowEnd } },
         ],
       },
-      select: { id: true, propertyAddress: true, expectedExchangeDate: true, overridePredictedDate: true },
+      select: {
+        id: true, propertyAddress: true,
+        expectedExchangeDate: true, overridePredictedDate: true,
+        // Needed for the placeholder check below.
+        twelveWeekTarget: true, activeBuyerRoundId: true,
+      },
     }),
     prisma.propertyTransaction.findMany({
       where: {
@@ -715,9 +720,88 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
     if (!isToday(tx.completionDate)) continue;
     if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "completion", transactionId: tx.id, address: tx.propertyAddress }); }
   }
+
+  // ── Exchange "today" guard ────────────────────────────────────────
+  // expectedExchangeDate defaults to createdAt + 84 days at file
+  // creation (see createTransaction in transactions.ts). For files
+  // that aren't actively maintained it rolls around as "12-week
+  // placeholder == today" with no actual progress toward exchange,
+  // and used to falsely surface in the diary. Surfaced 2026-06-25 by
+  // Ellis on 54 Launcelot Road, BR1 5DZ — mid-enquiries, ~9 weeks
+  // out, still being shown as "Exchange" today.
+  //
+  // Rule:
+  //   - overridePredictedDate === today          → fire (explicit forecast)
+  //   - expectedExchangeDate === today AND
+  //       (VM18 done OR PM25 done OR VM19 done OR PM26 done) → fire
+  //       (the file is genuinely near or past exchange)
+  //   - expectedExchangeDate === today AND
+  //       expectedExchangeDate === twelveWeekTarget AND
+  //       no ready-to-exchange milestones → SKIP (placeholder lie)
+  const exchangeIdsTodayByPlaceholder: string[] = [];
+  const exchangeFireQueue: typeof exchanges = [];
   for (const tx of exchanges) {
-    const exDate = tx.overridePredictedDate ?? tx.expectedExchangeDate;
-    if (!isToday(exDate)) continue;
+    if (isToday(tx.overridePredictedDate)) {
+      exchangeFireQueue.push(tx);
+      continue;
+    }
+    if (!isToday(tx.expectedExchangeDate)) continue;
+    // expectedExchangeDate is today. Check if it's the placeholder.
+    const isPlaceholder = !!(
+      tx.twelveWeekTarget &&
+      tx.expectedExchangeDate &&
+      Math.abs(tx.twelveWeekTarget.getTime() - tx.expectedExchangeDate.getTime()) < 24 * 60 * 60 * 1000
+    );
+    if (isPlaceholder) {
+      exchangeIdsTodayByPlaceholder.push(tx.id);
+    } else {
+      exchangeFireQueue.push(tx);
+    }
+  }
+
+  // Look up ready-to-exchange milestone state in one bulk query for
+  // the placeholder candidates. Round-scoped: PM25/PM26 must be on
+  // the active buyer round; vendor codes are file-level.
+  if (exchangeIdsTodayByPlaceholder.length > 0) {
+    const txById = new Map(exchanges.map((t) => [t.id, t]));
+    const readyDefs = await prisma.milestoneDefinition.findMany({
+      where: { code: { in: ["VM18", "PM25", "VM19", "PM26"] } },
+      select: { id: true, code: true },
+    });
+    const codeByDefId = new Map(readyDefs.map((d) => [d.id, d.code]));
+    const comps = await prisma.milestoneCompletion.findMany({
+      where: {
+        transactionId: { in: exchangeIdsTodayByPlaceholder },
+        state: "complete",
+        milestoneDefinitionId: { in: readyDefs.map((d) => d.id) },
+      },
+      select: { transactionId: true, milestoneDefinitionId: true, buyerRoundId: true },
+    });
+    const doneByTx = new Map<string, Set<string>>();
+    for (const c of comps) {
+      const tx = txById.get(c.transactionId);
+      if (!tx) continue;
+      const code = codeByDefId.get(c.milestoneDefinitionId);
+      if (!code) continue;
+      // Round-scope filter: vendor codes file-level (buyerRoundId null),
+      // purchaser codes must match active round.
+      if (code.startsWith("PM") && c.buyerRoundId !== tx.activeBuyerRoundId) continue;
+      const set = doneByTx.get(c.transactionId) ?? new Set<string>();
+      set.add(code);
+      doneByTx.set(c.transactionId, set);
+    }
+    for (const txId of exchangeIdsTodayByPlaceholder) {
+      const done = doneByTx.get(txId) ?? new Set<string>();
+      if (done.has("VM18") || done.has("PM25") || done.has("VM19") || done.has("PM26")) {
+        const tx = txById.get(txId);
+        if (tx) exchangeFireQueue.push(tx);
+      }
+      // else: it's a stale 12-week placeholder, file isn't near
+      // exchange. Skip the diary entry.
+    }
+  }
+
+  for (const tx of exchangeFireQueue) {
     if (!seen.has(tx.id)) { seen.add(tx.id); items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress }); }
   }
   return items;
