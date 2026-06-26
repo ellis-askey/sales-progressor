@@ -126,6 +126,12 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | `/agent/settings` redirect | Confirm nothing in email templates or retention copy still references the bare path | migrate | filed 2026-06-05 | Existing entry |
 | Predicted exchange date doesn't recalibrate in first week | Edge case from `B5 (partial)` in POST_LAUNCH_FIXES.md. Behavioural improvement, not a bug | defer-Q3-2026 | filed 2026-04-? | Existing entry |
 
+### Multi-tenant scope review (Phase 1)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| `app/api/notifications/portal/route.ts` | Counts ALL portal-originated internal notes platform-wide for the SP bell. Allowlisted in `__tests__/multi-tenant/access-scope-coverage.test.ts`. Review whether the count should be scoped per agency for non-superadmin SPs | tbd | 2026-06-26 | Surfaced by Phase 1 multi-tenant test |
+
 ### From this session's audits (June 2026)
 
 | Surface | Opportunity | Decision | Filed | Notes |
