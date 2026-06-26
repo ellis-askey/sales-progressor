@@ -104,24 +104,30 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 
 Patterns that are duplicated multiple times across domain folders and should become primitives. Listed in **extraction priority** (most duplicated first). Phase 2 of [BUILD_PLAN.md](../BUILD_PLAN.md) walks this list.
 
-### 2.1 `Card` — HIGHEST priority
+### 2.1 `Card` ✓ shipped 2026-06-26 (Phase 2 Week 4)
 
-- **Current state:** 56 files use the `glass-card` utility class directly. 15 bespoke `*Card.tsx` files in domain folders. No primitive exists.
-- **Why it matters:** the card surface is the most-rendered visual element in the agent app. Inconsistent padding, shadows, border radii, and hover states across consumers.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Card.tsx](../../components/ui/Card.tsx).
+- **API:**
   ```tsx
-  <Card variant="glass" | "solid" padding="sm" | "md" | "lg" interactive>
-    <Card.Header>...</Card.Header>
-    <Card.Body>...</Card.Body>
-    <Card.Footer>...</Card.Footer>
+  <Card
+    variant="glass" | "solid"        // glass = backdrop-filter + gradient (default); solid = white surface
+    padding="none" | "sm" | "md" | "lg"
+    interactive                       // cursor + hover shadow + focus-within ring
+    loading                           // skeleton overlay, content stays visible underneath
+    className                         // passthrough for additional utilities
+  >
+    {children}
   </Card>
   ```
-- **States:** default, hover (when `interactive`), focus-within, loading (skeleton overlay), error.
-- **Migration order:**
-  1. Build primitive
-  2. Migrate hub cards first (ExpiredHoldsCard, HubEmptyWelcomeCard) — single-route, low blast radius
-  3. Migrate transaction sidebar cards
-  4. Migrate portal cards (PortalNextActionCard, ExplainEmailCard) — customer-facing, do last with most care
+- **States rendered in gallery:** default, hover, focus-within, loading, all padding sizes, both variants, mobile 375px.
+- **Gallery:** [/dev/gallery/card](../../app/dev/gallery/card/page.tsx). Blocked in production.
+- **Visual regression:** [e2e/gallery-card.spec.ts](../../e2e/gallery-card.spec.ts). Captures every state.
+- **Compound parts (`Card.Header`, `Card.Body`, `Card.Footer`):** intentionally NOT shipped in Phase 2 Week 4. Sub-parts emerge from the first real surface remediation that needs them (Law 14 — never roll a primitive without writing down what it is first; sub-parts will get their own catalog entries when designed from a real consumer).
+- **Migration footprint:** 56 files using `glass-card` utility class directly + 15 bespoke `*Card.tsx` files. Each migration is hand-rolled per consumer (Law 16). Order:
+  1. ✓ Gallery (proof consumer, 2026-06-26)
+  2. Hub cards (ExpiredHoldsCard, HubEmptyWelcomeCard) — single-route, low blast radius
+  3. Transaction sidebar cards
+  4. Portal cards (PortalNextActionCard, ExplainEmailCard) — customer-facing, do last with most care
 - **Estimate:** 1 week to build + gallery; 2 weeks to migrate consumers (interleaved with other Phase 3 work).
 
 ### 2.2 `Modal` — HIGH priority
