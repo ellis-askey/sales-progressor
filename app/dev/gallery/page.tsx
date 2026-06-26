@@ -25,35 +25,52 @@ export default function GalleryIndex() {
   if (process.env.NODE_ENV === "production") notFound();
 
   return (
-    <main className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-            Dev only · blocked in production
-          </p>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+    <main style={{ minHeight: "100vh", padding: "48px 32px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <header style={{ marginBottom: 40 }}>
+          <h1 style={{
+            margin: 0,
+            fontSize: 32,
+            fontWeight: 700,
+            color: "var(--agent-text-primary)",
+            letterSpacing: "var(--agent-tracking-tight)",
+          }}>
             Canonical primitives
           </h1>
-          <p className="text-base text-slate-600 leading-relaxed">
-            Every primitive in <code className="text-sm bg-slate-200 px-1 rounded">components/ui/</code>{" "}
-            rendered in every state. This page is the Phase 2 acceptance gate.
+          <p style={{
+            margin: "8px 0 0",
+            fontSize: 15,
+            color: "var(--agent-text-secondary)",
+            lineHeight: 1.6,
+          }}>
+            Every primitive in <code style={{ fontSize: 13, background: "rgba(15,23,42,0.06)", padding: "1px 6px", borderRadius: 4 }}>components/ui/</code> rendered in every state. Phase 2 acceptance gate.
           </p>
         </header>
 
         <section>
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+          <p style={{
+            margin: "0 0 16px",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--agent-text-muted)",
+          }}>
             Shipped ({PRIMITIVES.length})
-          </h2>
-          <ul className="space-y-2">
+          </p>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             {PRIMITIVES.map((p) => (
               <li key={p.name}>
-                <Link
-                  href={p.path}
-                  className="block p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-slate-900">{p.name}</span>
-                    <span className="text-xs text-slate-500">{p.status}</span>
+                <Link href={p.path} className="glass-card" style={{
+                  display: "block",
+                  padding: "16px 20px",
+                  borderRadius: 12,
+                  textDecoration: "none",
+                  color: "var(--agent-text-primary)",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{p.status}</span>
                   </div>
                 </Link>
               </li>

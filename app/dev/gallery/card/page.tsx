@@ -14,19 +14,32 @@ export default function CardGallery() {
   if (process.env.NODE_ENV === "production") notFound();
 
   return (
-    <main className="min-h-screen bg-slate-100 p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <main style={{ minHeight: "100vh", padding: "48px 32px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", flexDirection: "column", gap: 40 }}>
         <header>
-          <Link href="/dev/gallery" className="text-sm text-slate-500 hover:text-slate-700">
+          <Link href="/dev/gallery" style={{
+            fontSize: 13,
+            color: "var(--agent-text-muted)",
+            textDecoration: "none",
+          }}>
             ← All primitives
           </Link>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">Card</h1>
-          <p className="mt-2 text-base text-slate-600">
-            Glass or solid surface wrapper. Replaces 56 inline{" "}
-            <code className="text-sm bg-slate-200 px-1 rounded">
-              {`<div className="glass-card">`}
-            </code>{" "}
-            usages.
+          <h1 style={{
+            margin: "8px 0 0",
+            fontSize: 32,
+            fontWeight: 700,
+            color: "var(--agent-text-primary)",
+            letterSpacing: "var(--agent-tracking-tight)",
+          }}>
+            Card
+          </h1>
+          <p style={{
+            margin: "8px 0 0",
+            fontSize: 15,
+            color: "var(--agent-text-secondary)",
+            lineHeight: 1.6,
+          }}>
+            Glass or solid surface wrapper. Replaces 56 inline <code style={{ fontSize: 13, background: "rgba(15,23,42,0.06)", padding: "1px 6px", borderRadius: 4 }}>{`<div className="glass-card">`}</code> usages.
           </p>
         </header>
 
@@ -103,10 +116,19 @@ function Section({
 }) {
   return (
     <section>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+      <p style={{
+        margin: 0,
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "var(--agent-text-muted)",
+      }}>
         {title}
       </p>
-      <p className="text-sm text-slate-600 mb-3">{subtitle}</p>
+      <p style={{ margin: "4px 0 12px", fontSize: 13, color: "var(--agent-text-secondary)" }}>
+        {subtitle}
+      </p>
       {children}
     </section>
   );
@@ -115,10 +137,21 @@ function Section({
 function CardContent({ label }: { label: string }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-slate-900">{label}</p>
-      <p className="text-xs text-slate-600 mt-1">
-        Card surface with sample content. The body of a real consumer would
-        contain a heading, body text, and optional actions.
+      <p style={{
+        margin: 0,
+        fontSize: 14,
+        fontWeight: 600,
+        color: "var(--agent-text-primary)",
+      }}>
+        {label}
+      </p>
+      <p style={{
+        margin: "4px 0 0",
+        fontSize: 12,
+        color: "var(--agent-text-secondary)",
+        lineHeight: 1.5,
+      }}>
+        Card surface with sample content. The body of a real consumer would contain a heading, body text, and optional actions.
       </p>
     </div>
   );
