@@ -3,7 +3,7 @@
 **This file is the persistent context for every Claude Code session in this repo.**
 **Always read this file before taking any action. Re-read at the start of any new task.**
 
-Last updated: 2026-05-23 (Package D shipped; staging→prod clean break promoted)
+Last updated: 2026-06-26 (Phase 0 of the discipline migration — Laws 1-21 established. See [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the full migration roadmap.)
 
 ---
 
@@ -16,7 +16,7 @@ The customer is an estate agency. Two service tiers:
 - **Self-managed (£59 per sale, charged on exchange)** — agency uses the platform themselves to manage their own files. **Fully functional today.**
 - **Outsourced (£250+ per sale, charged on exchange)** — Sales Progressor's internal team progresses the file on the agency's behalf. **Fully functional today** (Package D shipped 2026-05-03; access scope helper at `lib/security/access-scope.ts`).
 
-Current stage: pre-launch, ~5 test users, no paying customers.
+Current stage: pre-launch, ~5 test users, no paying customers. Phase 0 of the discipline migration in progress as of 2026-06-26.
 
 ---
 
@@ -111,6 +111,7 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   /milestones            Milestone engine UI (agent app)
   /transaction           Transaction-related agent UI
   /portal                Buyer/seller portal UI
+  /ui                    Canonical primitives (see docs/reference/COMPONENT_LIBRARY_CATALOG.md)
 /lib                     Server-side utilities, services, helpers
   /command               Command-Centre-specific server code
     /content             Content drafting, voice, image generation
@@ -121,10 +122,14 @@ The Command Centre has no separate shell component. Its layout is assembled inli
   /schema.prisma         Single source of truth for data model
   /migrations            Prisma migrations — apply to staging first
 /docs                    Specs, scope documents, audit reports
-  README.md              Top-level navigation index
-  /active                Open plans + ongoing ops (ELLIS_MANUAL_TODO, TODO, package-d, etc.)
+  BUILD_PLAN.md          The discipline-migration roadmap (Phase 0 - Phase 6)
+  POLISH_TBD.md          Deferred polish backlog with tracked decisions
+  /reference             Always-live guides
+    COMPONENT_LIBRARY_CATALOG.md   Closed catalog of every primitive + every duplicated pattern
+    COMPONENT_LIBRARY.md           Developer reference for canonical patterns
+    DESIGN_TOKENS.md, VOICE.md, MOTION_GUIDE.md, HOVER_STATES.md, MODAL_DRAWER_*.md
+  /active                Open plans + ongoing ops
   /done                  Shipped work, grouped by feature/arc
-  /reference             Always-live guides (PRODUCT_TRUTH, AGENT_SECURITY, etc.)
   /meta                  Housekeeping + retired prompts
   /admin                 Command Centre specifications (ADMIN_01–10)
   /chain-feature         10-part chain reference series (inter-linked)
@@ -143,8 +148,11 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 
 | Topic | Source of truth |
 |---|---|
+| **The discipline migration roadmap** (what's being remediated next) | [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) |
+| **Deferred polish backlog** (decisions on what gets fixed, grandfathered, or deferred) | [`docs/POLISH_TBD.md`](docs/POLISH_TBD.md) |
+| **Component catalog** (closed list of canonical primitives + to-extract + grandfathered) | [`docs/reference/COMPONENT_LIBRARY_CATALOG.md`](docs/reference/COMPONENT_LIBRARY_CATALOG.md) |
+| **Component developer reference** (how to use the canonical patterns) | [`docs/reference/COMPONENT_LIBRARY.md`](docs/reference/COMPONENT_LIBRARY.md) |
 | **Any visual decision** (colour, spacing, radius, shadow, motion, z-index) | [`docs/reference/DESIGN_TOKENS.md`](docs/reference/DESIGN_TOKENS.md) + [`design/tokens.ts`](design/tokens.ts) |
-| **Any new component** (button, modal, card, banner, badge) | [`docs/reference/COMPONENT_LIBRARY.md`](docs/reference/COMPONENT_LIBRARY.md) |
 | **Any modal or drawer** | [`docs/reference/MODAL_DRAWER_INDEX.md`](docs/reference/MODAL_DRAWER_INDEX.md) → [`MODAL_DRAWER_SYSTEM.md`](docs/reference/MODAL_DRAWER_SYSTEM.md) |
 | **Any user-facing string** | [`docs/reference/VOICE.md`](docs/reference/VOICE.md) |
 | **Any animation or transition** | [`docs/reference/MOTION_GUIDE.md`](docs/reference/MOTION_GUIDE.md) |
@@ -166,103 +174,288 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 
 ---
 
-## Development rules
+# Laws
 
-### Rule 1 — Read source-of-truth first
+The 21 binding laws of this codebase. Numbered. Enforced where possible mechanically (pre-commit / CI / ESLint), otherwise by code review and self-discipline. Every law states **how it is enforced** in its own text.
 
-Before writing code that affects a documented system, read the relevant spec doc above. Quote the specific section in your commit message. If no source-of-truth doc exists for what you're about to build, surface that fact and ask whether to proceed.
+Laws apply to every session — Claude Code, human contributors, future tooling. The first action of any non-trivial task is to re-read this section.
 
-### Rule 2 — Verify before claiming done
+If a law needs to change, it changes through a documented amendment: PR titled `laws: amend Law X — <reason>`, body explains old/new wording and cost of each, founder sign-off in the PR thread. See "Migration & override" at the bottom of this section.
 
-- Run `npx tsc --noEmit` before committing
-- Run relevant tests if they exist
-- Never say "shipped" or "done" without evidence: PR URL, file paths, test output, or screenshots
-- For visual changes, post a screenshot — visual quality cannot be verified by tsc
-- **Stage everything before commit.** Run `git add -u` (or `git add <explicit paths>`) before EVERY `git commit`. Never rely on `git mv` auto-staging to catch content edits made in the same session. The half-state where moves get committed but content edits don't is the worst failure mode for a revert: an `--undo` would unmove files while leaving sed-driven path updates pointing at the un-moved (now nonexistent) paths. Burned by this on 2026-05-21 during the docs reorg — the moves landed in `7351ef0` but the sed sweeps and CLAUDE.md updates were left unstaged, requiring a supplementary `6721aa7` to complete the arc.
+## Law 1 — Source-of-truth first
 
-### Rule 3 — Migrations to staging first
+Before writing code that affects a documented system, read the relevant spec doc in [docs/reference/](docs/reference/). Quote the specific section in the commit message. If no spec exists for what's about to be built, surface that fact and ask whether to proceed before any code change.
 
-Database migrations apply to **staging Supabase first**, verified, then production. Never both at once. Migration filenames are date-prefixed (`YYYYMMDDHHMMSS_descriptive_name`).
+**Enforcement:** PR description must cite the spec section or include the line "no spec — confirmed scope with founder on <date>".
 
-### Rule 4 — Look before you create
+## Law 2 — Verify before claiming done
 
-Search the codebase before creating new files. If a similar component, helper, hook, or pattern exists, extend it rather than duplicating.
+- `npx tsc --noEmit` must be clean before commit.
+- Relevant tests must pass.
+- Never say "shipped" or "done" without evidence: PR URL, file paths, test output, or screenshots.
+- For visual changes: screenshot required. Type checking does not verify visual correctness.
+- **Stage every file before commit.** Run `git add <explicit paths>` (or `git add -u`) before every `git commit`. Never rely on `git mv` auto-staging. (Burned by this on 2026-05-21.)
 
-### Rule 5 — One concern per PR
+**Enforcement:** pre-commit hook runs tsc; CI runs tests; PR template requires evidence section.
 
-Each PR addresses one concern. If you find yourself thinking "while I'm here I should also fix..." — do not. File the thought in the active follow-ups doc.
+## Law 3 — Migrations to staging first
 
-### Rule 6 — Push back when scope drifts
+Database migrations apply to **staging Supabase first**, verified, then to production. Never both at once. Migration filenames are `YYYYMMDDHHMMSS_descriptive_name`.
 
-If the user asks for something that:
+**Enforcement:** CI step asserts no unapplied prod migration newer than the latest staging-applied migration.
 
-- Contradicts a source-of-truth doc
-- Falls outside the active package's scope
-- Mixes concerns that should be separate PRs
-- Has unstated edge cases that need decisions
+## Law 4 — Look before you create
 
-…say so in plain English. Don't silently expand scope or guess at unstated requirements.
+Search the codebase before creating a new file. If a similar component, helper, hook, or pattern exists, extend it. Never duplicate. **No new files in `components/<domain>/` for a pattern that already exists in `components/ui/`.** No new files in `lib/services/` for behaviour already in an existing service.
 
-### Rule 7 — Multi-tenant safety (non-negotiable)
+**Enforcement:** PR template includes "did you search for an existing version" checkbox. Code review.
 
-For customer agency data: every database query must filter by `agencyId` derived from the authenticated session.
+## Law 5 — One concern per PR
 
-For routes accepting client-supplied IDs: verify the resource belongs to the authenticated user's scope BEFORE acting on it. Use the access scope helper from `lib/security/access-scope.ts` (`scopeOwnershipWhere(scope, id)` for single-tx guards, `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models). Do NOT introduce ad-hoc inline `findFirst({ where: { id, agencyId } })` checks — they break for internal staff.
+Each PR addresses one concern. "While I'm here I'll also fix..." is a violation. File the temptation in [docs/POLISH_TBD.md](docs/POLISH_TBD.md) instead.
 
-For internal staff (where `agencyId = null`): **agencyId-based filtering does not apply**. The access scope helper handles this — `sales_progressor` is scoped by `assignedUserId`, `admin` / `superadmin` see everything. Always go through the helper rather than building your own visibility logic.
+**Enforcement:** code review. PR template includes "this PR addresses exactly one concern: ___".
 
-A query that doesn't have a clear access model is a tenant isolation hole. There are no exceptions outside Command Centre routes (which use `commandDb` with explicit superadmin context).
+## Law 6 — Push back when scope drifts
 
-### Rule 8 — Command Centre isolation
+If a request contradicts a spec, falls outside the active package, mixes concerns that should be separate PRs, or has unstated edge cases — say so in plain English. Don't silently expand scope or guess. Surface contradictions rather than reconciling them quietly.
+
+**Enforcement:** self-discipline. Reinforced in CLAUDE.md re-reads.
+
+## Law 7 — Multi-tenant safety (non-negotiable)
+
+For customer agency data: every database query filters by `agencyId` derived from the authenticated session. For routes accepting client-supplied IDs: verify the resource belongs to the authenticated user's scope BEFORE acting. Use the access scope helper at [lib/security/access-scope.ts](lib/security/access-scope.ts):
+
+- `scopeTransactionWhere(scope)` for lists
+- `scopeOwnershipWhere(scope, id)` for single-tx guards
+- `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models
+
+**Never** introduce ad-hoc inline `findFirst({ where: { id, agencyId } })` — they break for internal staff (`agencyId = null`).
+
+For internal staff: agencyId filtering doesn't apply. `sales_progressor` scoped by `assignedUserId`. `admin` / `superadmin` see everything via the helper.
+
+**A query that doesn't have a clear access model is a tenant isolation hole.** No exceptions outside `/app/command/*` (which uses `commandDb` with explicit superadmin context).
+
+**Enforcement:** automated test asserts every list endpoint goes through the access scope helper. Pre-commit hook flags new `findFirst({ where: { ..., agencyId: ... } })` patterns that don't use the helper.
+
+## Law 8 — Command Centre isolation
 
 Code under `/lib/command/` and `/app/command/` is superadmin-only.
 
-- Do not import from `/lib/command/*` into agent app or internal dashboard code
-- Do not import agent app or dashboard business logic into `/lib/command/*` unless it's a genuinely shared utility (e.g. `lib/email.ts`, `lib/prisma.ts`)
-- Command Centre uses `commandDb` from `lib/command/prisma.ts` for queries that need superadmin context
+- Do not import from `/lib/command/*` into agent app or internal dashboard code.
+- Do not import agent app or dashboard business logic into `/lib/command/*` unless it's a genuinely shared utility (e.g. `lib/email.ts`, `lib/prisma.ts`).
+- Command Centre uses `commandDb` from [lib/command/prisma.ts](lib/command/prisma.ts) for queries needing superadmin context.
 
-### Rule 9 — Brand consistency
+**Enforcement:** ESLint rule on import paths.
 
-Three distinct visual surfaces for logged-in users. Do not mix tokens between them:
+## Law 9 — Brand consistency
 
-- **Agent app** (`AgentShell`): warm cream, coral primary (`#FF6B4A`), glass cards, humanist sans-serif. Source: `app/globals.css` and `docs/VISUAL_DIRECTION.md`
-- **Internal dashboard** (`AppShell`): dark photo backdrop with near-black overlay, glass sidebar (`glass-sidebar` utility class), used by admin and sales_progressor. Source: `components/layout/AppShell.tsx`
-- **Command Centre**: utilitarian dark, near-black background (`#0a0a0a`), hairline borders (`#262626`), blue accent (`#2563eb`) for active nav, solid surfaces (no glass), Lucide icons. Layout assembled inline in `app/command/(protected)/layout.tsx` using `CommandSidebar` from `components/command/CommandSidebar.tsx`. Source: `docs/admin/ADMIN_01_SPEC.md`
+Three distinct visual surfaces for logged-in users. Never mix tokens between them:
 
-For social card templates (in `/lib/command/content/images/`): inherit from the marketing site's dark hero (navy + coral).
+| Surface | Shell | Visual system |
+|---|---|---|
+| Agent app | [`AgentShell`](components/layout/AgentShell.tsx) | Warm cream, coral primary `#FF6B4A`, glass cards, humanist sans-serif |
+| Internal dashboard | [`AppShell`](components/layout/AppShell.tsx) | Dark photo backdrop with near-black overlay, glass sidebar |
+| Command Centre | Inline in [`app/command/(protected)/layout.tsx`](app/command/(protected)/layout.tsx) | Utilitarian dark `#0a0a0a`, hairline borders `#262626`, blue accent `#2563eb`, solid surfaces (no glass), Lucide icons |
 
-### Rule 10 — Show raw evidence when stakes are high
+Social card templates in [/lib/command/content/images/](lib/command/content/images/) inherit from the marketing site's dark hero (navy + coral).
+
+**Enforcement:** code review. Components in `components/layout/` are the gate for visual systems.
+
+## Law 10 — Show raw evidence when stakes are high
 
 For architectural questions, role/permission questions, schema questions, or anything where being wrong has compounding cost:
 
-- Quote the actual file content verbatim
-- Run the actual database query and show the result
-- Don't summarise. Don't interpret. Show the raw text or output
+- Quote the actual file content verbatim.
+- Run the actual database query and show the result.
+- Don't summarise. Don't interpret. Show the raw text or output.
 
-This rule was added because two CC sessions made confident architectural claims that turned out to be partly wrong. The fix is to demand raw evidence rather than digested interpretation.
+When the founder asks "show me how X works": show file paths, line numbers, and direct quotes. Save interpretation for after the evidence is on screen.
 
-When the user asks "show me how X works," show file paths, line numbers, and direct quotes. Save interpretation for after the evidence is on screen.
+**Enforcement:** self-discipline. Added because two CC sessions made confident architectural claims that turned out to be wrong.
 
-### Rule 11 — Ask when unclear
+## Law 11 — Ask when unclear
 
-If a decision is needed and not documented anywhere:
+If a decision is needed and not documented anywhere: pause. State the decision in plain English. Offer 2–3 reasonable options with pros/cons. Wait for guidance. Don't guess. Don't proceed silently. Don't fabricate a decision and bury it in a commit.
 
-- Pause
-- State the decision in plain English
-- Offer 2–3 reasonable options with pros/cons
-- Wait for guidance
+**Enforcement:** self-discipline.
 
-Don't guess. Don't proceed silently. Don't fabricate a decision and bury it in a commit.
+## Law 12 — Definition of Done
 
-### Rule 12 — Definition of Done
-
-Every commit and every component checks against [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md).
+Every commit and every component checks against [docs/DEFINITION_OF_DONE.md](docs/DEFINITION_OF_DONE.md):
 
 - If a component doesn't have hover / focus / active / disabled states, it isn't done.
-- If a string hasn't been voice-passed against [`docs/reference/VOICE.md`](docs/reference/VOICE.md), it isn't done.
-- If a modal doesn't use the canonical pattern from [`docs/reference/MODAL_DRAWER_SYSTEM.md`](docs/reference/MODAL_DRAWER_SYSTEM.md), it isn't done.
-- If a commit changes a CSS token without updating [`design/tokens.ts`](design/tokens.ts) in the same commit, it isn't done.
+- If a string hasn't been voice-passed against [docs/reference/VOICE.md](docs/reference/VOICE.md), it isn't done.
+- If a modal doesn't use the canonical pattern from [docs/reference/MODAL_DRAWER_SYSTEM.md](docs/reference/MODAL_DRAWER_SYSTEM.md), it isn't done.
+- If a commit changes a CSS token without updating [design/tokens.ts](design/tokens.ts), it isn't done.
 - If a UI element ships without loading, empty, error, and first-time states, it isn't done.
+
+**Enforcement:** PR template DoD checklist. Code review.
+
+---
+
+## Law 13 — Never half-build
+
+No dead controls. No no-op links. No buttons that do nothing. No `disabled` placeholders standing in for "we'll wire this up later". No dashed-border "coming soon" boxes.
+
+Every UI element either:
+- works for real against the live data layer, OR
+- works against a typed mock service in [lib/services/](lib/services/) that returns data in the production shape, marked with `// lands: <phase or date>` so future readers know why it's mocked
+
+If a feature lands in a later phase, **the seam is real**: the service exists, the types exist, the component renders against the service. The only thing that's not yet live is the data source.
+
+**Why:** the half-built dashed-box pattern is the single biggest reason features feel less complete than they should. We don't ship "coming soon" — we ship working seams.
+
+**Enforcement:** pre-commit grep sweep for:
+- `onClick={() => {}}` and `onClick={() => undefined}` (literal no-ops)
+- `// TODO: wire up` / `// TODO: implement` in committed code
+- `disabled` props paired with `title="Coming soon"` or similar
+
+## Law 14 — Every UI element is a library component
+
+If a pattern exists in [components/ui/](components/ui/), you use it. If a pattern doesn't exist but is duplicated elsewhere in `components/<domain>/`, you propose adding it to [docs/reference/COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md) **before** building. Never roll a new primitive without writing down what it is first.
+
+Domain-specific components stay in their domain folder, but the domain folder must have a `README.md` listing every component and one-line "why this is domain-specific, not a primitive."
+
+**Exception:** the grandfather rule (Law 19) allows existing duplicate patterns to remain in place until their surface comes up for remediation.
+
+**Enforcement:** pre-commit hook checks new files in `components/<domain>/` against the catalog's "to-extract" list — if a canonical primitive exists for the pattern, the commit is blocked.
+
+## Law 15 — Scripts must justify
+
+Every new file in [scripts/](scripts/) must:
+
+- Have an entry in [docs/SCRIPTS_REGISTRY.md](docs/SCRIPTS_REGISTRY.md) recording: purpose, lifetime (one-shot / ongoing), author, date, deletion criteria.
+- Pass the "could this be a feature, an admin action, an npm script, or a test instead?" check. If yes, it goes there, not in `scripts/`.
+- If one-shot: a deletion ticket exists at commit time, referenced in the registry entry.
+
+**Why:** the `scripts/` directory grew to 155 files. Most were one-off band-aids that never got cleaned up. The cost is invisible until the directory becomes the basement where bugs hide. Target post-Phase-4: ≤ 15 files.
+
+**Enforcement:** pre-commit hook fails if a new `scripts/` file lacks a SCRIPTS_REGISTRY entry.
+
+## Law 16 — No bulk rewrites
+
+No automated find/replace across multiple files. No `sed` sweeps. No bulk codemod. No mass-renames via regex.
+
+Every change is **hand-rolled**, **one consumer at a time**, in a **single reviewable PR**. Reversibility per file is a feature, not a nice-to-have.
+
+**Exception:** a single explicit rename via the IDE's rename-symbol tool, scoped to a single symbol, is acceptable if visually reviewed before commit.
+
+**Enforcement:** self-discipline. Reinforced by Law 5 (one concern per PR) — a bulk rewrite is by definition many concerns.
+
+## Law 17 — Behavioural baseline before remediation
+
+Before any [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) Phase 3 surface remediation begins, capture a baseline:
+
+- Every route fetched on page load
+- Every server action called
+- Every click handler and its observable effect
+- Every email / push / DB side-effect
+- Screenshots: desktop 1280px AND mobile 375px, happy + error states
+
+An E2E Playwright happy-path test must exist for the surface. If it doesn't, **write the test first** as part of the same PR series.
+
+After the work: re-capture the baseline. Diffs are reviewed. Any unexplained behavioural diff is a regression.
+
+**Enforcement:** PR template for Phase 3 surface work requires baseline doc link.
+
+## Law 18 — Visual + behavioural regression in CI
+
+Three layers:
+
+1. **Visual regression** — Playwright `toHaveScreenshot()` covers every canonical primitive in `components/ui/` rendered in every state in `/dev/gallery`, at desktop 1280px and mobile 375px. Diff threshold tight (~0.1%). Runs on every PR.
+2. **Behavioural regression** — Playwright happy-path E2E test per Phase-3-completed surface. Login → navigate → click primary CTA → assert side-effect. Runs on every PR.
+3. **Multi-tenant safety regression** — automated test asserts every list endpoint goes through the access scope helper from Law 7. Runs on every PR.
+
+Visual diff failures block the PR. No override.
+
+**Enforcement:** CI. Cannot merge to master if any of the three layers fails.
+
+## Law 19 — Grandfather generously
+
+When a bespoke pattern can't be migrated to a canonical primitive without risking behavioural change:
+
+- Mark it `outlier-grandfathered` in [docs/reference/COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md).
+- File a POLISH_TBD entry with `decision: deferred because <reason>`.
+- Move on.
+
+Grandfathered items are reviewed quarterly. They either get bumped to active migration or stay grandfathered for another quarter. "Can't safely migrate" is a **valid final answer**. Forced migrations break things. We don't break things to win.
+
+**Enforcement:** self-discipline. The pressure to "do it properly" is the rewrite trap — Law 19 is the safety valve.
+
+## Law 20 — No hard-coded demo data
+
+- No hard-coded seeded customer names in user-facing copy.
+- No hard-coded agency names in user-facing copy.
+- No hard-coded demo addresses in user-facing copy outside seed files and Playwright tests.
+- Strings that inject names use the standard interpolation: `{address}`, `{name}`, `{firstName}`.
+
+**Enforcement:** pre-commit grep sweep for known demo strings outside whitelisted directories (`scripts/seed-*`, `__tests__/`, `e2e/`).
+
+## Law 21 — Voice gate on user-facing strings
+
+Every user-facing string passes [docs/reference/VOICE.md](docs/reference/VOICE.md):
+
+- No em-dashes in prose (banned 2026-06-07).
+- No exclamation marks in client-facing copy.
+- No system self-references ("the system", "the platform", "automatically"). Use "we'll" instead.
+- No hedging language ("kind of", "perhaps", "we think", "should be").
+- No "round" as a user-facing noun (use "sale").
+- No titles (Mr./Mrs./Miss/Dr.) in rendered names.
+- No technical codes (status enums, milestone IDs) surfaced to users.
+- No "delete" in user-facing strings — use "remove".
+
+**Enforcement:** pre-commit grep sweep for em-dashes in committed `*.tsx` / `*.ts` strings outside comments. Other voice rules enforced by code review.
+
+---
+
+## Migration & override
+
+If a law needs to change, it changes through a documented amendment:
+
+1. PR titled `laws: amend Law X — <reason>`.
+2. Body explains the change, the cost of the old wording, and the explicit cost of the new wording.
+3. Founder sign-off in the PR thread.
+4. Merged to master.
+
+Overrides for a single PR exist in genuine emergencies:
+
+- Commit message includes `LAWS-OVERRIDE: <law-number> <one-line reason>`.
+- Override logged in [docs/LAW_OVERRIDES.md](docs/LAW_OVERRIDES.md).
+- Reviewed at the next quarterly review. If overrides for a given law exceed 2 in a quarter, the law itself is reviewed.
+
+Pre-commit hooks ship in **warn-only mode for two weeks** after introduction. If zero false positives in that window, they flip to block mode.
+
+---
+
+# Hard rules — absolute (never violated)
+
+These are non-negotiable absolutes. Distinct from Laws because they have no override mechanism — they cannot be overridden by any rationale.
+
+- Never commit `.env` or any file containing secrets.
+- Never auto-publish to social platforms (LinkedIn, Twitter, Instagram, TikTok) without per-post user confirmation.
+- Never delete user data without explicit confirmation; default to anonymisation.
+- Never add a new third-party integration without surfacing it in [docs/active/ELLIS_MANUAL_TODO.md](docs/active/ELLIS_MANUAL_TODO.md) (env vars, signup steps, DPA requirements).
+- Never bypass the multi-tenancy model (covered by Law 7).
+- Never mark something "done" that hasn't been verified (covered by Law 2).
+- Never invent brand colours, fonts, or logo assets. Extract from existing codebase or pause and ask.
+- Never ship migrations to production without staging verification first (covered by Law 3).
+
+---
+
+# Anti-drift discipline
+
+The habits that keep the Laws from rotting. Read in conjunction with the Laws above.
+
+1. **Re-read this file at the start of any non-trivial task.**
+2. **Re-read the active package scope doc** if one exists.
+3. **Quote the relevant law in commit messages** to prove it was read.
+4. **File temptations as POLISH_TBD entries**, don't ship them (Law 5).
+5. **Surface contradictions, don't reconcile silently** (Law 6).
+6. **Hard pauses are mandatory pauses**, not "optional checkpoints I can skip if I'm confident."
+7. **Show raw evidence, not interpretation** (Law 10).
+8. **Component canonicalisation.** Before creating any new UI element, check [docs/reference/COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md). If a canonical pattern exists, use it. If one doesn't, add it to the catalog *before* building (Law 14).
+9. **Grandfather rule** (Law 19). Known outliers in existing code are listed in COMPONENT_LIBRARY_CATALOG.md / DESIGN_TOKENS.md / VOICE.md as grandfathered. Do not refactor old code as a side effect of new work. Existing cleanup is commissioned separately through [BUILD_PLAN.md](docs/BUILD_PLAN.md).
 
 ---
 
@@ -280,37 +473,6 @@ For every PR or significant change, your response includes:
 For routine read-only operations (reading a file, running a search), keep response minimal.
 
 For multi-PR runs with autonomous gates: one-line acknowledgement per PR ("PR XX shipped"), full checkpoint at hard pauses only.
-
----
-
-## Anti-drift discipline
-
-This project has had recurring scope drift in past CC sessions. To prevent it:
-
-1. **Re-read this file at the start of any non-trivial task**
-2. **Re-read the active package scope doc** if one exists
-3. **Quote the relevant spec section in commit messages** to prove it was read
-4. **File temptations as follow-ups, don't ship them**
-5. **Surface contradictions, don't reconcile silently**
-6. **Hard pauses are mandatory pauses**, not "optional checkpoints I can skip if I'm confident"
-7. **Show raw evidence, not interpretation, when stakes are high** (see Rule 10)
-8. **Component canonicalisation.** Before creating any new UI element, check [`docs/reference/COMPONENT_LIBRARY.md`](docs/reference/COMPONENT_LIBRARY.md). If a canonical pattern exists, use it. If one doesn't, add it to COMPONENT_LIBRARY.md *before* building — never roll a new primitive without writing down what it is first.
-9. **Grandfather rule.** Known outliers in existing code are listed in COMPONENT_LIBRARY.md / DESIGN_TOKENS.md / VOICE.md as "known outlier — grandfathered, do not refactor without explicit instruction". Do not fix old code as a side effect of new work. Existing-app cleanup is commissioned separately as Phase 2.
-
----
-
-## Hard rules — never violated
-
-- Never commit `.env` or any file containing secrets
-- Never auto-publish to social platforms (LinkedIn, Twitter, Instagram, TikTok) without per-post user confirmation
-- Never delete user data without explicit confirmation; default to anonymisation
-- Never add a new third-party integration without surfacing it in `docs/active/ELLIS_MANUAL_TODO.md` (env vars, signup steps, DPA requirements)
-- Never bypass the multi-tenancy model:
-  - For customer agency data: filter by `agencyId`
-  - For internal staff data: build explicit access paths (`assignedUserId`, role-based admin queries) — never assume agencyId filtering applies
-- Never mark something "done" that hasn't been verified
-- Never invent brand colours, fonts, or logo assets — extract from existing codebase or pause and ask
-- Never ship migrations to production without staging verification first
 
 ---
 
@@ -344,6 +506,8 @@ When adding a new integration, surface it in `docs/active/ELLIS_MANUAL_TODO.md` 
 
 ## When this file changes
 
-If you make changes that affect the architecture, file structure, role model, or rules above — propose an update to this file in the same PR. Surface "I'm proposing to update CLAUDE.md because…" in the response.
+If you make changes that affect the architecture, file structure, role model, or Laws above — propose an update to this file in the same PR. Surface "I'm proposing to update CLAUDE.md because…" in the response.
+
+For Laws specifically: amendments follow the "Migration & override" mechanism above. PR titled `laws: amend Law X — <reason>`.
 
 This file should stay accurate. A stale CLAUDE.md is worse than no CLAUDE.md.
