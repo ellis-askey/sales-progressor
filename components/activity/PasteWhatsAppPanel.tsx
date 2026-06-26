@@ -16,6 +16,7 @@ import {
   undoWhatsAppImportAction,
 } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export type ImportableContact = {
   id: string;
@@ -79,11 +80,12 @@ function autoMap(sender: string, contacts: ImportableContact[]): SenderResolutio
       } catch {/* ignore */}
     }
   } else {
-    // Try name match — first-name-only, case-insensitive
+    // Try name match — first-name-only, case-insensitive. Title-aware so
+    // "Mr John" pasted on WhatsApp matches contact "Mr John Crowther" by John.
     const senderLower = sender.toLowerCase().trim();
-    const senderFirst = senderLower.split(/\s+/)[0];
+    const senderFirst = senderLower ? extractFirstName(senderLower) : "";
     for (const c of contacts) {
-      const contactFirst = c.name.toLowerCase().trim().split(/\s+/)[0];
+      const contactFirst = c.name.trim() ? extractFirstName(c.name).toLowerCase() : "";
       if (contactFirst && (senderFirst === contactFirst || senderLower === c.name.toLowerCase())) {
         return { kind: "contact", contactId: c.id };
       }

@@ -28,6 +28,21 @@ export default async function RevenuePage({
         </p>
       </div>
 
+      {/* ── Headline: total fee in pipeline (all active sales) ────── */}
+      <section>
+        <div className="bg-gradient-to-br from-blue-950/40 to-neutral-900 border border-blue-900/50 rounded-xl px-6 py-5">
+          <p className="text-[11px] font-semibold text-blue-300 uppercase tracking-wider">
+            Total fee in pipeline · all active sales
+          </p>
+          <p className="mt-2 text-5xl font-semibold tabular-nums text-blue-300">
+            {formatGBP(data.pipelineAllActive.totalPence)}
+          </p>
+          <p className="mt-1.5 text-sm text-neutral-400">
+            Expected fees across {data.pipelineAllActive.fileCount} active file{data.pipelineAllActive.fileCount === 1 ? "" : "s"}, regardless of when they&apos;re predicted to exchange. The full book.
+          </p>
+        </div>
+      </section>
+
       {/* ── Hero KPIs ─────────────────────────────────────────────── */}
       <section>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">

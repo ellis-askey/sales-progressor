@@ -9,5 +9,9 @@ module.exports = {
 
     // Prevent importing command centre internals from outside app/command or lib/command.
     "local-rules/no-command-import-outside": "warn",
+
+    // Prevent the "Hi Mr," bug: naive first-token name extraction.
+    // Reach for extractFirstName from @/lib/contacts/displayName instead.
+    "local-rules/no-naive-name-split": "error",
   },
 };

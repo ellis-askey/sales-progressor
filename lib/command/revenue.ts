@@ -101,6 +101,11 @@ export type RevenueDashboardData = {
   scope: RevenueScope;
   /** Hero KPIs (cross-agency, scope-aware). */
   banked: { totalPence: number; fileCount: number; agencyCount: number };
+  /** Sum of expected fees across EVERY active (non-exchanged, non-withdrawn)
+   *  file in scope, regardless of predicted exchange date. The "total fee in
+   *  pipeline" headline number. Includes files in this-month/next/after/later
+   *  AND the at-risk bucket. */
+  pipelineAllActive: PipelineBucket;
   pipelineThisMonth: PipelineBucket;
   forecastTotalThisMonth: { totalPence: number };
   trialValueThisMonth: { totalPence: number; fileCount: number };
@@ -145,6 +150,7 @@ export type AgencyRevenueDetailData = {
     createdAt: Date;
   };
   banked: { totalPence: number; fileCount: number };
+  pipelineAllActive: PipelineBucket;
   pipelineThisMonth: PipelineBucket;
   pipelineNextMonth: PipelineBucket;
   pipelineMonthAfter: PipelineBucket;
@@ -445,6 +451,7 @@ export async function getRevenueDashboard(
   // ── Pipeline + at-risk (per-file prediction) ────────────────────────────────
   let pipelineThis = 0, pipelineNext = 0, pipelineAfter = 0, pipelineRisk = 0;
   let pipelineThisCount = 0, pipelineNextCount = 0, pipelineAfterCount = 0, pipelineRiskCount = 0;
+  let pipelineAllSum = 0, pipelineAllCount = 0;
   const pipelineThisByAgency = new Map<string, { sum: number; count: number }>();
   const activeCountByAgency = new Map<string, number>();
 
@@ -470,6 +477,11 @@ export async function getRevenueDashboard(
       vatOf(f.agency),
       feeOverrideOf(f.agency),
     );
+
+    // Headline total: every active file counts, regardless of bucket
+    // (including "later" rows, which we drop from the timed buckets below).
+    pipelineAllSum += fee.totalPence;
+    pipelineAllCount += 1;
 
     const bucket = bucketForPrediction(predicted, now, monthStart, nextMonthStart, monthAfterStart, monthAfterEnd);
     if (bucket === "past") {
@@ -554,6 +566,7 @@ export async function getRevenueDashboard(
       fileCount: bankedFileCount,
       agencyCount: bankedAgencyCount,
     },
+    pipelineAllActive: { totalPence: pipelineAllSum, fileCount: pipelineAllCount },
     pipelineThisMonth: { totalPence: pipelineThis, fileCount: pipelineThisCount },
     forecastTotalThisMonth: { totalPence: bankedTotalPence + pipelineThis },
     trialValueThisMonth: { totalPence: trialValuePence, fileCount: trialRows.length },
@@ -697,6 +710,7 @@ export async function getAgencyRevenueDetail(
   // Pipeline + at-risk + active files list
   let pipeThis = 0, pipeNext = 0, pipeAfter = 0, pipeRisk = 0;
   let pipeThisC = 0, pipeNextC = 0, pipeAfterC = 0, pipeRiskC = 0;
+  let pipeAllSum = 0, pipeAllCount = 0;
   const activeFileRows: ActiveFileRow[] = [];
   for (const f of activeFiles) {
     const completedCodes = f.milestoneCompletions.map((c) => c.milestoneDefinition.code);
@@ -710,6 +724,8 @@ export async function getAgencyRevenueDetail(
     };
     const predicted = calculatePhaseAwarePrediction(phaseInput, f.createdAt, f.overridePredictedDate);
     const expected = fee(f.serviceType, f.purchasePrice);
+    pipeAllSum += expected.totalPence;
+    pipeAllCount += 1;
     const bucket = bucketForPrediction(predicted, now, monthStart, nextMonthStart, monthAfterStart, monthAfterEnd);
     if (bucket === "past") { pipeRisk += expected.totalPence; pipeRiskC += 1; }
     else if (bucket === "this") { pipeThis += expected.totalPence; pipeThisC += 1; }
@@ -763,6 +779,7 @@ export async function getAgencyRevenueDetail(
       createdAt: agency.createdAt,
     },
     banked: { totalPence: bankedSum, fileCount: bankedRows.length },
+    pipelineAllActive: { totalPence: pipeAllSum, fileCount: pipeAllCount },
     pipelineThisMonth: { totalPence: pipeThis, fileCount: pipeThisC },
     pipelineNextMonth: { totalPence: pipeNext, fileCount: pipeNextC },
     pipelineMonthAfter: { totalPence: pipeAfter, fileCount: pipeAfterC },

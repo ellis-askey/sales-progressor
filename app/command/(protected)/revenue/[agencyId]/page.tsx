@@ -97,9 +97,10 @@ export default async function AgencyRevenueDrillPage({
             sub={`${data.pipelineThisMonth.fileCount} predicted to exchange in ${monthLabel}`}
           />
           <Kpi
-            label="Active files"
-            value={String(data.activeFiles.length)}
-            sub={`${data.pipelineAtRisk.fileCount} past predicted exchange`}
+            label="Pipeline (all active)"
+            value={formatGBP(data.pipelineAllActive.totalPence)}
+            sub={`${data.pipelineAllActive.fileCount} active file${data.pipelineAllActive.fileCount === 1 ? "" : "s"} · ${data.pipelineAtRisk.fileCount} past predicted`}
+            tone="forecast"
           />
           <Kpi
             label="Trial saved (lifetime)"
@@ -165,10 +166,11 @@ function Kpi({
   label, value, sub, tone = "default",
 }: {
   label: string; value: string; sub: string;
-  tone?: "default" | "primary" | "muted";
+  tone?: "default" | "primary" | "forecast" | "muted";
 }) {
   const valueClass =
     tone === "primary" ? "text-emerald-400" :
+    tone === "forecast" ? "text-blue-400" :
     tone === "muted" ? "text-neutral-400" :
     "text-neutral-100";
   return (
