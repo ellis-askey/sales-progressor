@@ -208,6 +208,10 @@ export const config = {
     // and privacy were already excluded; cookie-policy, legal (covers both
     // /legal and /legal/dpa), and billing-terms added 2026-05-25 when the new
     // policy pack shipped.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    // /dev/* is excluded so the canonical-primitive gallery at /dev/gallery/*
+    // can be reached without auth. Prod-blocked at the page level via
+    // process.env.NODE_ENV === "production" → notFound() per Phase 2 of
+    // docs/BUILD_PLAN.md. Added 2026-06-26 with the Card primitive.
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|portal|dev|api/auth|api/portal|api/register|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };
