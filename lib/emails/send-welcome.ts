@@ -17,6 +17,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { buildActivationDay1 } from "@/lib/emails/retention";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
   try {
@@ -42,7 +43,7 @@ export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
       return;
     }
 
-    const firstName = user.name?.split(/\s+/)[0] ?? "there";
+    const firstName = user.name?.trim() ? extractFirstName(user.name) : "there";
     const ctaUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/new-v2`;
 
     const built = buildActivationDay1({ firstName, ctaUrl });

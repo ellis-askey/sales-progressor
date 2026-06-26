@@ -33,6 +33,7 @@ import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { buildOutsourceIntroEmail } from "@/lib/emails/outsource-intro-template";
 import { deliverAtInsideWorkingWindow } from "@/lib/emails/working-hours";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 const DEFAULT_FROM_ADDRESS = "updates@thesalesprogressor.co.uk";
 
@@ -78,14 +79,6 @@ function splitAgentName(name: string | null | undefined): {
     firstName: parts[0],
     lastName: parts.slice(1).join(" "),
   };
-}
-
-// First name from a contact's "name" field. Same shape as splitAgentName
-// but only returns the first token (or null when nothing usable is left).
-function firstNameOf(name: string | null | undefined): string | null {
-  const trimmed = name?.trim() ?? "";
-  if (!trimmed) return null;
-  return trimmed.split(/\s+/)[0];
 }
 
 export async function sendOutsourceIntroForTransaction(
@@ -179,7 +172,9 @@ export async function sendOutsourceIntroForTransaction(
       }
 
       const built = buildOutsourceIntroEmail({
-        clientFirstName: firstNameOf(contact.name),
+        // Title-aware: "Mr John Crowther" → "John", "Mr Crowther" → "Mr Crowther",
+        // empty → null (triggers the template's "Hi there," fallback).
+        clientFirstName: contact.name?.trim() ? extractFirstName(contact.name) : null,
         address: tx.propertyAddress || null,
         agentFirstName,
         agentLastName,

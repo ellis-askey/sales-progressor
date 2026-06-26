@@ -17,6 +17,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { buildClaimWelcome } from "@/lib/emails/retention";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type ClaimWelcomeArgs = {
   userId: string;
@@ -46,7 +47,7 @@ export async function sendClaimWelcomeIfNotSent(args: ClaimWelcomeArgs): Promise
       return;
     }
 
-    const firstName = user.name?.split(/\s+/)[0] ?? "there";
+    const firstName = user.name?.trim() ? extractFirstName(user.name) : "there";
     const ctaUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/${transactionId}`;
 
     const built = buildClaimWelcome({

@@ -24,6 +24,7 @@ import {
   portalLeaveChaseNoteAction,
 } from "@/app/actions/portal";
 import { getPortalAgentOnlyCopy } from "@/lib/chase/portal-agent-only-copy";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 type Who = "you" | "solicitor" | "lender";
 
@@ -198,7 +199,7 @@ export function RespondList({
     if (items.length === 0) return "";
     const hasDiy = items.some((i) => i.who === "you");
     const hasNudge = items.some((i) => i.who !== "you");
-    const first = contactName.split(" ")[0];
+    const first = extractFirstName(contactName);
     if (hasDiy && hasNudge) {
       return `Hi ${first}, some of these are yours; the rest are sitting with other parties. Update us on whatever you can.`;
     }

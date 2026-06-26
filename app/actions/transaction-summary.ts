@@ -13,6 +13,7 @@
 
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { getTransactionByScope } from "@/lib/services/transactions";
 import { getMilestonesForTransaction } from "@/lib/services/milestones";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
@@ -205,7 +206,9 @@ function shortenAddress(full: string): string {
 }
 
 function firstNameOf(fullName: string): string {
-  return (fullName.trim().split(/\s+/)[0] ?? "").trim();
+  // Title-aware: "Mr John Crowther" → "John". Otherwise redaction would scrub
+  // every "Mr" wholesale from prompt context, blowing past the safelist.
+  return fullName.trim() ? extractFirstName(fullName).trim() : "";
 }
 
 // Replace any of the supplied first names with "[redacted]" (whole-word, case-
