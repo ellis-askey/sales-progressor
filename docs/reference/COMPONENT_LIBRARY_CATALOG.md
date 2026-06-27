@@ -147,13 +147,33 @@ Patterns that are duplicated multiple times across domain folders and should bec
 - **Migration order:** lowest-stakes first (EmailPreviewModal, AddBrokerModal, AddFirmModal). Highest-stakes last (RelistFileModal, ReconciliationModal). Some may be **grandfathered** if their behaviour can't be safely matched.
 - **Estimate:** 1 week to build + gallery; 4 weeks to migrate (1 modal per day-ish, with verification).
 
-### 2.3 `Banner` — HIGH priority (`AgentBanner` exists, under-adopted)
+### 2.3 `Banner` ✓ shipped 2026-06-27 (Phase 2 Week 5-6)
 
-- **Current state:** `AgentBanner` exists in `components/ui/`. 12 bespoke banner files exist in domain folders that don't use it.
-- **Why it matters:** voice consistency, icon consistency, action button styling, dismissibility. The "This sale fell through" banner versus "Trial expired" banner currently have different shapes.
-- **Action:** migrate the 12 bespoke banners to wrap `AgentBanner`. Some may need new variant props (e.g. dismissible, with action, with secondary action) — extend the primitive rather than fork.
-- **Bespoke banners to migrate:** ChainDeclineBanner, DirectorJoinedBanner, CookieConsentBanner, PaymentBlockBanner, TrialBannerWithModal, ExchangeBanner, ChainSetupFailedBanner, FileHealthBanner, OnHoldBanner, ReconcileLaterBanner, RelistBanner, OutsourcedBanner.
-- **Estimate:** 0 weeks to build (exists). 1 week to extend props + migrate 12 consumers.
+- **Status:** canonical. Re-exported as `Banner` from `AgentBanner` at [components/ui/Banner.tsx](../../components/ui/Banner.tsx). New code uses `Banner`; existing `AgentBanner` imports keep working (Law 16).
+- **API (unchanged from AgentBanner, validated against all 8 active consumers):**
+  ```tsx
+  <Banner
+    kind="info" | "warning" | "danger" | "success"
+    icon={<Icon />}                       // Phosphor recommended; tinted with kind colour
+    title="..."
+    body="..."                            // optional
+    action={{ label, onClick }}           // optional
+    dismissible={{ onDismiss }}           // optional
+    className="mb-4"                      // optional
+  />
+  ```
+- **Audit correction:** the original catalog claimed 12 bespoke banners to migrate. Re-audit (2026-06-27) found 8 of those already use AgentBanner — they're canonical consumers, not migration targets. Real footprint is 4 non-consumers, each with a documented decision:
+
+  | File | Decision | Reason |
+  |---|---|---|
+  | `components/portal/ExchangeBanner.tsx` | grandfather (portal-specific) | Uses `portal-ui` palette. Portal is a separate visual system (Law 9). |
+  | `components/billing/PaymentBlockBanner.tsx` | migrate-candidate (Phase 3) | Inline CSS implementation; could collapse to `kind="warning"` and `kind="danger"`. Defer to billing-surface Phase 3 remediation. |
+  | `components/billing/TrialBannerWithModal.tsx` | grandfather | Composite — banner + embedded modal trigger. Not a pure banner. |
+  | `components/analytics/CookieConsentBanner.tsx` | grandfather | Full-page ICO-compliant consent prompt with multiple equal CTAs. Different primitive class entirely. |
+
+- **Gallery:** [/dev/gallery/banner](../../app/dev/gallery/banner/page.tsx). Renders all 4 kinds + action + dismissible + action+dismissible + title-only.
+- **Visual regression:** [e2e/gallery-banner.spec.ts](../../e2e/gallery-banner.spec.ts).
+- **Active canonical consumers (8, already migrated):** ChainDeclineBanner, DirectorJoinedBanner, ChainSetupFailedBanner, FileHealthBanner, OnHoldBanner, ReconcileLaterBanner, RelistBanner, OutsourcedBanner.
 
 ### 2.4 `Drawer` / `Sheet` — HIGH priority
 
