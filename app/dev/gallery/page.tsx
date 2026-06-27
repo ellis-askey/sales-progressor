@@ -17,8 +17,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 const PRIMITIVES: Array<{ name: string; path: string; status: string }> = [
-  { name: "Card", path: "/dev/gallery/card", status: "shipped 2026-06-26" },
-  // Future: Button, Banner, Pill, Modal, Drawer, Accordion, Skeleton, Toast
+  { name: "Card",   path: "/dev/gallery/card",   status: "shipped 2026-06-26" },
+  { name: "Button", path: "/dev/gallery/button", status: "shipped 2026-06-27" },
+  // Future: Banner, Pill, Modal, Drawer, Accordion, Skeleton, Toast
 ];
 
 export default function GalleryIndex() {

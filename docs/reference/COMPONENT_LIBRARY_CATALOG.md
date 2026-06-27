@@ -170,18 +170,29 @@ Patterns that are duplicated multiple times across domain folders and should bec
 - **Bespoke drawers to migrate:** AddNodeDrawer, ChainDrawer, ChaseDrawer, ReconciliationDrawer, ArchivedRoundDrawer, EditSaleDetailsDrawer.
 - **Estimate:** 1 week to build + gallery; 2 weeks to migrate.
 
-### 2.5 `Button` — HIGH priority (CSS class only, no primitive)
+### 2.5 `Button` ✓ shipped 2026-06-27 (Phase 2 Week 5)
 
-- **Current state:** 54 files use the `agent-btn` utility class directly. No `Button` primitive.
-- **Why it matters:** spinner-on-loading, disabled appearance, danger variant, hover/focus/active states all replicated in CSS class combinations.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Button.tsx](../../components/ui/Button.tsx).
+- **API:**
   ```tsx
-  <Button variant="primary" | "secondary" | "ghost" | "danger" size="sm" | "md" | "lg" loading disabled>
-    Click me
+  <Button
+    variant="primary" | "secondary" | "ghost" | "danger"
+    size="xs" | "sm" | "md" | "lg"
+    loading                              // spinner + auto-disabled, width preserved
+    disabled                             // standard HTML
+    onClick                              // standard HTML
+    type="button" | "submit" | "reset"   // defaults to "button" (form-safe)
+  >
+    {children}
   </Button>
   ```
-- **States:** default, hover, focus, active, disabled, loading.
-- **Estimate:** 0.5 week to build; 2 weeks to migrate consumers (mostly mechanical class → component swap).
+- **States rendered in gallery:** the full variant × size matrix (16 buttons), disabled per variant, loading per variant, with-icon (leading + trailing), focus-visible, hover (primary), mobile 375px.
+- **Gallery:** [/dev/gallery/button](../../app/dev/gallery/button/page.tsx). Blocked in production.
+- **Visual regression:** [e2e/gallery-button.spec.ts](../../e2e/gallery-button.spec.ts). Loading state uses `animations: disabled` to capture the spinner statically.
+- **Deliberate scope limits (locked Week 5):**
+  - **`<button>` element only.** Link-shaped buttons that today use `<Link className="agent-btn">` stay grandfathered until a separate `ButtonLink` primitive ships. Polymorphic `<button>`/`<a>` types pull in significant complexity for marginal value.
+  - **`agent-btn-color-primary` escape hatch NOT exposed.** That class exists to defeat Tailwind cascade pollution in specific modal contexts (see [COMPONENT_LIBRARY.md](COMPONENT_LIBRARY.md) buttons section). Consumers who need it stay on the raw className pattern and are grandfathered.
+- **Migration footprint:** 54 files using `agent-btn`. Each migration is hand-rolled per consumer (Law 16). Order TBD; mechanical class → component swap for most.
 
 ### 2.6 `Accordion` (section disclosure) — MEDIUM priority
 
