@@ -3,12 +3,17 @@
 // Renders Banner in every kind × content shape. Captures the visual
 // regression target.
 //
+// "use client" because Banner accepts onClick / onDismiss handler props
+// (the action and dismissible slots). Server components can't pass
+// function props across the boundary.
+//
 // Blocked in production at the page level.
+"use client";
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Banner } from "@/components/ui/Banner";
-import { Info, Warning, XCircle, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { Info, Warning, XCircle, CheckCircle } from "@phosphor-icons/react";
 
 export default function BannerGallery() {
   if (process.env.NODE_ENV === "production") notFound();
