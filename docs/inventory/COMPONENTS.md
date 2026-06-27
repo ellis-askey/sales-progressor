@@ -6,13 +6,13 @@ Powers the [Component Library Catalog](../reference/COMPONENT_LIBRARY_CATALOG.md
 
 ## Summary
 
-- **Total components:** 284
-- **Canonical** (in `components/ui/`): 11
+- **Total components:** 285
+- **Canonical** (in `components/ui/`): 12
 - **To extract** (duplicated pattern, needs a primitive): 121
 - **Domain-specific** (genuinely one-of-a-kind): 150
 - **Outlier (grandfathered)** (known wrong, do not migrate): 2
 
-Ratio canonical:bespoke = 11:273 (healthy ≈ 1:2; today ≈ 1:25).
+Ratio canonical:bespoke = 12:273 (healthy ≈ 1:2; today ≈ 1:23).
 
 ---
 
@@ -20,6 +20,7 @@ Ratio canonical:bespoke = 11:273 (healthy ≈ 1:2; today ≈ 1:25).
 
 - `components/ui/AgentBanner.tsx`
 - `components/ui/Avatar.tsx`
+- `components/ui/Banner.tsx`
 - `components/ui/Button.tsx`
 - `components/ui/Card.tsx`
 - `components/ui/EmptyState.tsx`

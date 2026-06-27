@@ -19,7 +19,8 @@ import { notFound } from "next/navigation";
 const PRIMITIVES: Array<{ name: string; path: string; status: string }> = [
   { name: "Card",   path: "/dev/gallery/card",   status: "shipped 2026-06-26" },
   { name: "Button", path: "/dev/gallery/button", status: "shipped 2026-06-27" },
-  // Future: Banner, Pill, Modal, Drawer, Accordion, Skeleton, Toast
+  { name: "Banner", path: "/dev/gallery/banner", status: "shipped 2026-06-27 (alias of AgentBanner)" },
+  // Future: Pill, Modal, Drawer, Accordion, Skeleton, Toast
 ];
 
 export default function GalleryIndex() {
