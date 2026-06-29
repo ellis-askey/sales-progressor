@@ -130,22 +130,36 @@ Patterns that are duplicated multiple times across domain folders and should bec
   4. Portal cards (PortalNextActionCard, ExplainEmailCard) — customer-facing, do last with most care
 - **Estimate:** 1 week to build + gallery; 2 weeks to migrate consumers (interleaved with other Phase 3 work).
 
-### 2.2 `Modal` — HIGH priority
+### 2.2 `Modal` ✓ shipped 2026-06-29 (Phase 2 Week 6-7)
 
-- **Current state:** 18 bespoke modal components. The existing [docs/reference/MODAL_DRAWER_SYSTEM.md](../reference/MODAL_DRAWER_SYSTEM.md) documents the pattern but no extracted primitive enforces it.
-- **Why it matters:** modal z-index, backdrop, escape-key behaviour, focus trap, scroll lock — all replicated bespoke per file. The 2026-06-05 z-index escalation incident (see [DECISIONS.md](../DECISIONS.md)) was caused by this.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Modal.tsx](../../components/ui/Modal.tsx).
+- **API:**
   ```tsx
-  <Modal open={open} onClose={onClose} size="sm" | "md" | "lg" zLayer="default" | "escalated" | "deep">
-    <Modal.Header title="..." onClose />
-    <Modal.Body>...</Modal.Body>
-    <Modal.Footer>...</Modal.Footer>
+  <Modal
+    open
+    onClose
+    ariaLabel="..."                                  // required for screen readers
+    size="sm" | "md" | "lg"                          // 384 / 448 / 512px max-width
+    surface="solid" | "glass"                        // workflow vs in-shell
+    zLayer="default" | "escalated" | "deep"          // 50 / 1500 / 2000
+    dismissOnBackdrop                                // default true
+    showCloseButton                                  // default true; false for required-action flows
+  >
+    <Modal.Header>{...}</Modal.Header>
+    <Modal.Body>{scrollable content}</Modal.Body>
+    <Modal.Footer>{actions}</Modal.Footer>
   </Modal>
   ```
-- **States:** closed, opening (animation), open, closing, error (form submission failure), loading (action in flight).
-- **Existing 18 bespoke modals to migrate:** WelcomeModal, BillingNegotiatorModal, TrialBannerWithModal, TrialExpiredModal, AddBrokerModal, EmailPreviewModal, MortgageModal, ReconciliationModal, SurveyNrConfirmModal, UndoMilestoneModal, AddFirmModal, AutomationStopModal, ClaimWelcomeModal, RelistFileModal, SwitchServiceTypeModal, DuplicateAddressModal, ChangeFileModal, NavAwayModal.
-- **Migration order:** lowest-stakes first (EmailPreviewModal, AddBrokerModal, AddFirmModal). Highest-stakes last (RelistFileModal, ReconciliationModal). Some may be **grandfathered** if their behaviour can't be safely matched.
-- **Estimate:** 1 week to build + gallery; 4 weeks to migrate (1 modal per day-ish, with verification).
+- **What the primitive owns:** createPortal to document.body, agent-backdrop-overlay, 2px coral accent line on the top edge, agent-modal-in animation, Phosphor X close button in top-right, Escape key handler, backdrop click handler (configurable), body scroll lock, initial focus to first focusable child, focus restoration to trigger on close. Z-index per [DESIGN_TOKENS.md §z-index](DESIGN_TOKENS.md#z-index--modal-escalation-rule-locked).
+- **States rendered in gallery:** sizes (sm/md/lg) + surfaces (solid/glass) + dismiss controls (no backdrop / no close button) + nested z-layer (escalated modal on top of default) + long content scroll + mobile 375px.
+- **Gallery:** [/dev/gallery/modal](../../app/dev/gallery/modal/page.tsx).
+- **Visual regression:** [e2e/gallery-modal.spec.ts](../../e2e/gallery-modal.spec.ts). Animations disabled in screenshots. Behavioural tests cover Escape + backdrop click dismiss + dismissOnBackdrop=false ignoring the click.
+- **Deliberate scope limits (locked Week 6-7):**
+  - **No full focus trap.** Initial focus + restoration only — matches the existing canonical pattern in `AddBrokerModal`. None of the 18 bespoke modals have a focus trap today. Adding one is an accessibility upgrade that should apply uniformly during Phase 3 surface remediation, not bolted on now per Law 16.
+  - **No `Modal.Confirm` / `Modal.Wizard` / `Modal.Form` compounds.** Emerge from real consumers per Law 14.
+- **Migration footprint:** 18 bespoke modals (full list below). Each migration is hand-rolled per consumer (Law 16). Order: lowest-stakes first (EmailPreviewModal, AddBrokerModal, AddFirmModal). Highest-stakes last (RelistFileModal, ReconciliationModal). Some may be **grandfathered** under Law 19 if their behaviour can't be safely matched.
+
+  WelcomeModal, BillingNegotiatorModal, TrialBannerWithModal, TrialExpiredModal, AddBrokerModal, EmailPreviewModal, MortgageModal, ReconciliationModal, SurveyNrConfirmModal, UndoMilestoneModal, AddFirmModal, AutomationStopModal, ClaimWelcomeModal, RelistFileModal, SwitchServiceTypeModal, DuplicateAddressModal, ChangeFileModal, NavAwayModal.
 
 ### 2.3 `Banner` ✓ shipped 2026-06-27 (Phase 2 Week 5-6)
 
