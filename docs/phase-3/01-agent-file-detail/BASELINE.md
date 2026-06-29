@@ -200,6 +200,16 @@ For each row above:
 
 These are pinned to compare against post-remediation captures.
 
+### 6.3 Autonomous capture attempt (2026-06-29) — BLOCKED on credentials
+
+Attempted Playwright autonomous capture using the existing `e2e/helpers.ts` login flow with `USERS.director` (`taylor@akeman-residential.co.uk`). The local `.env.test.local` provides `TEST_PASSWORD=password` which the staging auth handler rejects as "Incorrect email or password." Without the correct password for the staging Taylor account, the capture can't run.
+
+To unblock either:
+- Set `TEST_DIRECTOR_PASSWORD` in `.env.test.local` with the real staging password (treats this as a per-machine secret), OR
+- Capture manually per the instructions in §6.2 above
+
+A reusable autonomous-capture spec is **not** committed pending unblock — per [Law 13](../../../CLAUDE.md#law-13--never-half-build), a spec that always fails on first run is a dead control. When credentials are available we add the spec back as part of the visual regression CI work (Phase 5).
+
 ---
 
 ## 7. Inventory of components used on this surface (canonical migration targets)
