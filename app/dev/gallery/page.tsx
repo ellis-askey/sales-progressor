@@ -22,8 +22,9 @@ const PRIMITIVES: Array<{ name: string; path: string; status: string }> = [
   { name: "Banner", path: "/dev/gallery/banner", status: "shipped 2026-06-27 (alias of AgentBanner)" },
   { name: "Pill",   path: "/dev/gallery/pill",   status: "shipped 2026-06-27" },
   { name: "Modal",  path: "/dev/gallery/modal",  status: "shipped 2026-06-29" },
-  { name: "Drawer", path: "/dev/gallery/drawer", status: "shipped 2026-06-29" },
-  // Future: Accordion, Skeleton, Toast
+  { name: "Drawer",    path: "/dev/gallery/drawer",    status: "shipped 2026-06-29" },
+  { name: "Accordion", path: "/dev/gallery/accordion", status: "shipped 2026-06-29" },
+  // Future: Skeleton, Toast
 ];
 
 export default function GalleryIndex() {
