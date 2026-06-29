@@ -25,6 +25,13 @@ export const USERS = {
   // Agent accounts (customer agencies)
   director:   process.env.TEST_DIRECTOR_EMAIL   ?? "taylor@akeman-residential.co.uk",
   negotiator: process.env.TEST_NEGOTIATOR_EMAIL ?? null as string | null,  // deferred
+
+  // Phase 3 dedicated staging director (seeded by
+  // scripts/seed-playwright-director.ts). Password matches the shared
+  // TEST_PASSWORD env var. Attached to whichever staging agency has
+  // visible active files at seed time. Use this for autonomous
+  // Playwright capture work that needs guaranteed-working credentials.
+  phase3Director: "playwright-baseline@thesalesprogressor.test",
 }
 
 // ── Login helper ──────────────────────────────────────────────────────────────

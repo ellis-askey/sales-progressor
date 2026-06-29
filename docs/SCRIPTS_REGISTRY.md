@@ -40,6 +40,14 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** permanent. Re-run during Phase 4 culls and quarterly thereafter.
 - **Justification:** same as components inventory — a maintenance tool that powers a docs artifact.
 
+### scripts/seed-playwright-director.ts
+
+- **Purpose:** Creates or refreshes a dedicated staging director user (`playwright-baseline@thesalesprogressor.test`) with a known password matching `TEST_PASSWORD`. Used by `e2e/baseline-file-detail.spec.ts` for autonomous Playwright screenshot capture and surface-1 E2E coverage.
+- **Lifetime:** `ongoing`
+- **Author:** CC (Phase 3 Step 1), 2026-06-29
+- **Deletion criteria:** delete only if Phase 3 surface remediation is complete AND the autonomous capture spec is also deleted.
+- **Justification:** seeds an idempotent, scoped test user. Refuses to run against prod DB at runtime (checks `DATABASE_URL` host before any write). Not a feature, not an npm script — proper one-shot/ongoing staging-only seeder.
+
 ### scripts/inventory/surfaces.ts
 
 - **Purpose:** Walks `app/` for `page.tsx` files and emits `docs/inventory/SURFACES.md` listing every route with audience role and rough complexity score.
