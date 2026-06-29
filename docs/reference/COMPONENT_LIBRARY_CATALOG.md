@@ -249,19 +249,31 @@ Patterns that are duplicated multiple times across domain folders and should bec
   - **`agent-btn-color-primary` escape hatch NOT exposed.** That class exists to defeat Tailwind cascade pollution in specific modal contexts (see [COMPONENT_LIBRARY.md](COMPONENT_LIBRARY.md) buttons section). Consumers who need it stay on the raw className pattern and are grandfathered.
 - **Migration footprint:** 54 files using `agent-btn`. Each migration is hand-rolled per consumer (Law 16). Order TBD; mechanical class → component swap for most.
 
-### 2.6 `Accordion` (section disclosure) — MEDIUM priority
+### 2.6 `Accordion` ✓ shipped 2026-06-29 (Phase 2 Week 8)
 
-- **Current state:** 15 files use the `agent-acc-*` CSS classes (`.agent-acc-hdr`, `.agent-acc`, `.agent-acc-in`). No primitive.
-- **Why it matters:** open/close animation, click handler, keyboard support (Enter/Space toggle), aria-expanded, focus ring — replicated 15 ways.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Accordion.tsx](../../components/ui/Accordion.tsx).
+- **API:**
   ```tsx
+  // Uncontrolled
   <Accordion defaultOpen>
-    <Accordion.Header>Pending now</Accordion.Header>
+    <Accordion.Header>...</Accordion.Header>
+    <Accordion.Body>...</Accordion.Body>
+  </Accordion>
+
+  // Controlled
+  <Accordion open={open} onOpenChange={setOpen}>
+    <Accordion.Header showChevron={false}>...</Accordion.Header>
     <Accordion.Body>...</Accordion.Body>
   </Accordion>
   ```
-- **Used by:** RemindersSection, AutomatedEmailsCard, hub accordions, file detail sections.
-- **Estimate:** 0.5 week to build; 1 week to migrate.
+- **What the primitive owns:** uses the existing `agent-acc-*` CSS classes (`.agent-acc-hdr`, `.agent-acc`, `.agent-acc-in`) defined in agent-system.css. The CSS does the grid-template-rows 0fr→1fr animation (200ms open, 150ms close) so no JS height calculation. Primitive adds: controlled + uncontrolled state management, ARIA wiring (`role=button`, `aria-expanded`, `aria-controls`, `aria-labelledby`, `aria-hidden` on the region), keyboard support (Enter + Space toggle), built-in CaretDown chevron that rotates 180° on open (suppressable via `showChevron={false}`), and `useId` for stable ARIA cross-references.
+- **States rendered in gallery:** uncontrolled closed + open + no-chevron + keyboard-focusable + controlled mirroring (one `open` state drives two accordions) + mobile 375px.
+- **Gallery:** [/dev/gallery/accordion](../../app/dev/gallery/accordion/page.tsx).
+- **Visual regression:** [e2e/gallery-accordion.spec.ts](../../e2e/gallery-accordion.spec.ts). Behavioural tests cover click toggle, Enter key, Space key, and the controlled-mode mirroring.
+- **Deliberate scope limits (locked Week 8):**
+  - **No multi-section accordion group** (where only one section is open at a time). None of the 15 existing consumers need it; emerge from real consumer per Law 14.
+  - **No collapsing animation prop overrides.** Use the existing CSS durations (200/150ms) for consistency.
+- **Migration footprint:** 15 files using `agent-acc-*` classes raw. Each migration is hand-rolled per consumer (Law 16). Order: mostly mechanical — swap the manual `useState` + `aria-expanded` + `onClick` boilerplate for `<Accordion>` + `<Accordion.Header>` + `<Accordion.Body>`. Used by: RemindersSection, AutomatedEmailsCard, hub accordions, file detail sections.
 
 ### 2.7 `Pill` ✓ shipped 2026-06-27 (Phase 2 Week 6)
 
