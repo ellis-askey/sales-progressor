@@ -303,11 +303,37 @@ Patterns that are duplicated multiple times across domain folders and should bec
   | `components/layout/StatPill.tsx` | grandfather + refactor to compose Pill (Phase 3) | Link-shaped (anchor element). Pill doesn't render as `<a>` — composer wraps in a Link. |
   | `components/transaction/RoundChip.tsx` | grandfather (locked Phase 0) | Hover-reveal flip animation is too specific to encode in Pill's variant set. Re-evaluated at the quarterly review. |
 
-### 2.8 `Toast` — MEDIUM priority
+### 2.8 `Toast` ✓ shipped 2026-06-29 (Phase 2 Week 8-9)
 
-- **Current state:** `AgentToaster` exists as the toast renderer. 2 bespoke toast components (ClaimedToast, NewTransactionToast) use bespoke styling.
-- **Action:** extract a `Toast` primitive that the `AgentToaster` renders. Migrate the 2 bespoke ones.
-- **Estimate:** 0.5 week.
+- **Status:** canonical. Re-exported as `Toast` namespace from the existing `AgentToaster` at [components/ui/Toast.tsx](../../components/ui/Toast.tsx). New code uses `ToastProvider` + `useToast`; existing `AgentToaster` + `useAgentToast` imports keep working (Law 16).
+- **API (unchanged from AgentToaster):**
+  ```tsx
+  // Provider — mounted at app/agent/layout.tsx in production
+  import { ToastProvider } from "@/components/ui/Toast";
+  <ToastProvider>{children}</ToastProvider>
+
+  // Consumer — triggered from any descendant
+  import { useToast } from "@/components/ui/Toast";
+  const { toast } = useToast();
+  toast.success("Sale saved");
+  toast.info("Reminder queued", { description: "...", duration: 4000 });
+  toast.warning("Solicitor delayed");
+  toast.error("Save failed", { description: "..." });
+
+  // Action toast
+  toast.info("Dismissed", { action: { label: "Undo", onClick: () => {} } });
+
+  // Persistent (no auto-dismiss)
+  toast.warning("Keeps showing", { duration: 0 });
+
+  // Replace-by-id (instead of stacking)
+  toast.info("Syncing", { id: "sync", duration: 0 });
+  toast.success("Synced", { id: "sync" });  // replaces the previous
+  ```
+- **States rendered in gallery:** four types (success/info/warning/error) + with-description + with-action + persistent + replace-by-id + stacking-3.
+- **Gallery:** [/dev/gallery/toast](../../app/dev/gallery/toast/page.tsx). Wraps interactive demos in its own `<ToastProvider>` instance (the agent layout mounts the global one in production).
+- **Visual regression:** [e2e/gallery-toast.spec.ts](../../e2e/gallery-toast.spec.ts). Behavioural tests cover persistent stay-on-screen and stacking.
+- **Bespoke consumers to migrate:** ClaimedToast, NewTransactionToast (2 files). Each composes the same toast call but with bespoke styling — migrating to `toast.success(...)` or `toast.info(...)` collapses them to a single line per consumer. Each migration is hand-rolled per Law 16.
 
 ### 2.9 `Section` — MEDIUM priority
 
@@ -328,11 +354,23 @@ Patterns that are duplicated multiple times across domain folders and should bec
 - **Decide later:** form work is below-the-line for Phase 2. Estimate after Phase 3 starts — many of the bespoke forms are about to be remediated as part of surface remediation, so the canonical form primitives can emerge from that work rather than being designed in vacuum.
 - **Estimate:** TBD.
 
-### 2.11 `Skeleton` / `LoadingState` — LOW priority
+### 2.11 `Skeleton` ✓ shipped 2026-06-29 (Phase 2 Week 8-9)
 
-- **Current state:** 4 files use `animate-pulse` for skeletons. SpLoadingShell + PanelSkeletons exist as bespoke. No primitive.
-- **Action:** extract a `Skeleton` primitive with variants (line, block, circle, card). Migrate 4 inline pulse usages.
-- **Estimate:** 0.5 week.
+- **Status:** canonical. Lives at [components/ui/Skeleton.tsx](../../components/ui/Skeleton.tsx).
+- **API:**
+  ```tsx
+  <Skeleton variant="line"   width="80%" />        // 12px-tall row, percent or px width
+  <Skeleton variant="block"  width="50%" height={140} />
+  <Skeleton variant="circle" width={48} />         // avatar / role icon
+  <Skeleton variant="card" />                      // compound: circle + 3 lines inside a glass-card
+  ```
+- **What the primitive owns:** the shimmer gradient + animation, sensible default sizes per variant, ARIA `aria-hidden` (skeletons are visual-only — screen readers shouldn't announce them). Animation uses the existing `agent-shimmer` keyframe in agent-system.css which honours `prefers-reduced-motion` at the OS level.
+- **States rendered in gallery:** line (3 widths) + block (default + custom) + circle (4 sizes) + card (compound) + a real-world composed row (avatar + two lines + action block).
+- **Gallery:** [/dev/gallery/skeleton](../../app/dev/gallery/skeleton/page.tsx).
+- **Visual regression:** [e2e/gallery-skeleton.spec.ts](../../e2e/gallery-skeleton.spec.ts). All captures disable animations so shimmer doesn't diff every run.
+- **Deliberate scope limits (locked Week 8-9):**
+  - **No `pulse` vs `wave` toggle.** Only the shimmer-wave animation ships, matching the existing `animate-pulse` usages. A `pulse` variant emerges from a real consumer per Law 14.
+- **Migration footprint:** 4 files use `animate-pulse` raw. `PanelSkeletons.tsx` and `SpLoadingShell.tsx` are bespoke consumers that encode panel-grid layout knowledge — they stay as domain-specific composers and wrap `Skeleton` for the individual rows. Each migration is hand-rolled per Law 16.
 
 ### 2.12 `Tabs` — LOW priority
 
