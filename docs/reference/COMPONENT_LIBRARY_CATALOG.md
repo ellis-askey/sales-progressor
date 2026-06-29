@@ -228,18 +228,33 @@ Patterns that are duplicated multiple times across domain folders and should bec
 - **Used by:** RemindersSection, AutomatedEmailsCard, hub accordions, file detail sections.
 - **Estimate:** 0.5 week to build; 1 week to migrate.
 
-### 2.7 `Pill` — MEDIUM priority
+### 2.7 `Pill` ✓ shipped 2026-06-27 (Phase 2 Week 6)
 
-- **Current state:** `StatusBadge` exists. 4 bespoke pill/chip components: DeltaPill, LastContactedPill, StatPill, RoundChip.
-- **Decision (locked 2026-06-26):** one `Pill` primitive with variants. `StatusBadge` is absorbed and re-exported as a `Pill variant="status"` alias for backwards compatibility during migration.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Pill.tsx](../../components/ui/Pill.tsx).
+- **API:**
   ```tsx
-  <Pill variant="status" | "delta" | "stat" | "info" | "round" tone="default" | "warning" | "danger" | "success">
-    Active
+  <Pill
+    tone="default" | "muted" | "info" | "success" | "warning" | "danger"
+    size="sm" | "md"
+    outline                              // 1px border instead of tinted bg
+    onClick                              // optional, makes it interactive
+  >
+    {children}                           // label, glyph, dot — consumer composes
   </Pill>
   ```
-- **Migration order:** extract `Pill` first; alias `StatusBadge` → `Pill variant="status"`; migrate 4 bespoke pills next.
-- **Estimate:** 0.5 week.
+- **Design call:** the original Phase 0 decision said "one Pill primitive with variants (status / delta / stat / info / round)". On building Week 6, those "variants" turned out to be different *consumers* with different business logic (delta arithmetic, relative-date bands, status enum mapping), not different visual styles. Resolution: **tone covers the colour axis; consumers compose their own glyphs via children.** The 4 bespoke pill files stay as domain-specific composers wrapping Pill, not subsumed into variants.
+- **States rendered in gallery:** 6 tones × 2 sizes (12 pills) + outline per tone (6) + composed examples (with arrow up/down, dot, "not contacted" outline) + real-world examples mirroring DeltaPill / LastContactedPill / StatPill.
+- **Gallery:** [/dev/gallery/pill](../../app/dev/gallery/pill/page.tsx).
+- **Visual regression:** [e2e/gallery-pill.spec.ts](../../e2e/gallery-pill.spec.ts).
+- **Migration footprint (refined):**
+
+  | File | Decision | Reason |
+  |---|---|---|
+  | `components/ui/StatusBadge.tsx` | re-implement internally using Pill (follow-up commit) | Existing API stays, internals converge on Pill so visual treatment is consistent. |
+  | `components/analytics/DeltaPill.tsx` | grandfather + refactor to compose Pill (Phase 3) | Encodes business logic (diff arithmetic, arrow direction). Wraps Pill, doesn't get subsumed. |
+  | `components/contacts/LastContactedPill.tsx` | grandfather + refactor to compose Pill (Phase 3) | Encodes UK-calendar-day band computation. Wraps Pill. |
+  | `components/layout/StatPill.tsx` | grandfather + refactor to compose Pill (Phase 3) | Link-shaped (anchor element). Pill doesn't render as `<a>` — composer wraps in a Link. |
+  | `components/transaction/RoundChip.tsx` | grandfather (locked Phase 0) | Hover-reveal flip animation is too specific to encode in Pill's variant set. Re-evaluated at the quarterly review. |
 
 ### 2.8 `Toast` — MEDIUM priority
 
