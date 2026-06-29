@@ -189,20 +189,41 @@ Patterns that are duplicated multiple times across domain folders and should bec
 - **Visual regression:** [e2e/gallery-banner.spec.ts](../../e2e/gallery-banner.spec.ts).
 - **Active canonical consumers (8, already migrated):** ChainDeclineBanner, DirectorJoinedBanner, ChainSetupFailedBanner, FileHealthBanner, OnHoldBanner, ReconcileLaterBanner, RelistBanner, OutsourcedBanner.
 
-### 2.4 `Drawer` / `Sheet` — HIGH priority
+### 2.4 `Drawer` ✓ shipped 2026-06-29 (Phase 2 Week 7-8)
 
-- **Current state:** 6 bespoke drawer components. Documented pattern in [docs/reference/MODAL_DRAWER_SYSTEM.md](../reference/MODAL_DRAWER_SYSTEM.md), no extracted primitive.
-- **Why it matters:** same as Modal — z-index, backdrop, escape, focus, scroll lock. Mobile drawer-from-bottom variant especially needs canonical motion.
-- **API sketch:**
+- **Status:** canonical. Lives at [components/ui/Drawer.tsx](../../components/ui/Drawer.tsx).
+- **API:**
   ```tsx
-  <Drawer open onClose side="right" | "bottom" size="sm" | "md" | "lg">
-    <Drawer.Header />
-    <Drawer.Body />
-    <Drawer.Footer />
+  <Drawer
+    open
+    onClose
+    ariaLabel="..."                                  // required for screen readers
+    size="sm" | "md" | "lg" | "xl"                   // 440 / 460 / 480 / 560px
+    zLayer="default" | "escalated" | "deep"          // 50 / 1500 / 2000
+    dismissOnBackdrop                                // default true
+    showCloseButton                                  // default true
+    isTopmost                                        // default true; pass false on the back drawer of a stack
+  >
+    <Drawer.Header>{...}</Drawer.Header>
+    <Drawer.Body>{scrollable content}</Drawer.Body>
+    <Drawer.Footer>{actions}</Drawer.Footer>
   </Drawer>
   ```
-- **Bespoke drawers to migrate:** AddNodeDrawer, ChainDrawer, ChaseDrawer, ReconciliationDrawer, ArchivedRoundDrawer, EditSaleDetailsDrawer.
-- **Estimate:** 1 week to build + gallery; 2 weeks to migrate.
+- **What the primitive owns** (matches MODAL_DRAWER_SYSTEM §1.1 spec): createPortal, agent-backdrop-overlay, right-anchored full-height panel, glass surface (rgba 0.92 + blur 32 + saturate 1.8), 2px coral accent line on top, agent-drawer-in slide animation, X close button, Escape key handler, backdrop click handler, body scroll lock, initial focus + restoration, z-index per locked rule.
+- **Stacked-drawer accent rule:** when a drawer sits behind another drawer (e.g. AddNodeDrawer opened on top of ChainDrawer), the back drawer drops its coral accent line via `isTopmost={false}` so the two accents don't visually collide. Spec §1.1, implemented as a prop.
+- **States rendered in gallery:** all 4 sizes + dismiss controls (no backdrop dismiss, no close button) + stacked drawers (outer + inner with isTopmost) + long content scroll + mobile 375px.
+- **Gallery:** [/dev/gallery/drawer](../../app/dev/gallery/drawer/page.tsx).
+- **Visual regression:** [e2e/gallery-drawer.spec.ts](../../e2e/gallery-drawer.spec.ts). Behavioural tests cover Escape + backdrop click + `dismissOnBackdrop=false` ignore.
+- **Deliberate scope limits (locked Week 7-8):**
+  - **`hasUnsavedSections` + close prompt NOT in the primitive.** Domain-specific flow that composes around the primitive. See `EditSaleDetailsDrawer` for the prompt UX.
+  - **No bottom-sheet variant.** Catalog sketch mentioned `side="bottom"`; spec only documents right-anchored. Bottom-sheet emerges from a real consumer per Law 14.
+  - **No mobile-specific layout.** Spec flags this for a future mobile pass; primitive clamps width to viewport.
+  - **No full focus trap.** Initial focus + restoration only, same trade-off as Modal.
+- **Migration footprint:** 6 bespoke drawers. Each migration is hand-rolled per consumer (Law 16). Order: lowest-stakes first (ArchivedRoundDrawer is mostly read-only display; EditSaleDetailsDrawer is the highest-stakes due to per-section unsaved state).
+
+  AddNodeDrawer, ChainDrawer, ChaseDrawer, ReconciliationDrawer, ArchivedRoundDrawer, EditSaleDetailsDrawer.
+
+- **Drawer + Modal share ~30 lines of overlay logic** (portal mount, escape, scroll lock, focus management, backdrop click). Acceptable duplication for Phase 2. If a third overlay primitive emerges, extract a shared `useOverlay` hook.
 
 ### 2.5 `Button` ✓ shipped 2026-06-27 (Phase 2 Week 5)
 
