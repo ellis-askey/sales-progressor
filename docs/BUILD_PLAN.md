@@ -20,10 +20,10 @@ A phased migration to bring Sales Progressor to the discipline standard of the C
 
 | Phase | Name | Weeks | Gate | Status |
 |---|---|---|---|---|
-| 0 | Constitution & docs | 1 | Founder sign-off on 4 docs | **IN PROGRESS** (this draft) |
-| 1 | Inventory + regression harness | 2-3 | Census docs approved, harness running in CI | not started |
-| 2 | Canonical primitives + gallery | 4-9 | `/dev/gallery` walked + approved by founder on desktop + mobile | not started |
-| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | not started |
+| 0 | Constitution & docs | 1 | Founder sign-off on 4 docs | ✓ **DONE** 2026-06-26 |
+| 1 | Inventory + regression harness | 2-3 | Census docs approved, harness running in CI | ✓ **DONE** 2026-06-26 (visual regression deferred to Phase 5) |
+| 2 | Canonical primitives + gallery | 4-9 | `/dev/gallery` walked + approved by founder on desktop + mobile | ✓ **DONE** 2026-06-29 (9 galleries, 18 canonical primitives) |
+| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surface 1 (agent file detail) baseline doc 2026-06-29 |
 | 4 | Scripts cull (interleaved from Wk 8) | 8-26 | `scripts/` ≤ 15 files | not started |
 | 5 | Gates + enforcement | 27 | Pre-commit hooks + CI checks live (warn-only → block after 2 weeks) | not started |
 | 6 | Polish pass (ongoing) | 28+ | Healthy steady state | not started |
