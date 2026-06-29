@@ -20,7 +20,8 @@ const PRIMITIVES: Array<{ name: string; path: string; status: string }> = [
   { name: "Card",   path: "/dev/gallery/card",   status: "shipped 2026-06-26" },
   { name: "Button", path: "/dev/gallery/button", status: "shipped 2026-06-27" },
   { name: "Banner", path: "/dev/gallery/banner", status: "shipped 2026-06-27 (alias of AgentBanner)" },
-  // Future: Pill, Modal, Drawer, Accordion, Skeleton, Toast
+  { name: "Pill",   path: "/dev/gallery/pill",   status: "shipped 2026-06-27" },
+  // Future: Modal, Drawer, Accordion, Skeleton, Toast
 ];
 
 export default function GalleryIndex() {
