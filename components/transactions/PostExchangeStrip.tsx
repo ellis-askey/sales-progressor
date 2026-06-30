@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
 import type { PostExchangeGroup } from "@/lib/services/transactions";
 import { toUKDateStr } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
   const total = groups.reduce((n, g) => n + g.transactions.length, 0);
 
   return (
-    <div className="glass-card">
+    <Card padding="none">
       <div className="px-5 py-4 border-b border-white/20 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-900/90">Exchanged, awaiting completion</p>
@@ -97,6 +98,6 @@ export function PostExchangeStrip({ groups, basePath = "/transactions" }: Props)
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
