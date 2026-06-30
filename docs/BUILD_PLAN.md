@@ -168,7 +168,7 @@ Order locked at Phase 0 sign-off: internal surfaces first (agent app for directo
 |---|---|---|---|---|---|
 | 1 | Agent file detail | `/agent/transactions/[id]` | director, negotiator (also viewed by SP, admin) | Where agents and SPs live daily. Highest-touch internal surface | 2 wks — **✓ DONE 2026-06-30** (14 PRs: Wave A1-A4 panels + Wave B1-B9 modals/drawer + Wave C voice; founder sign-off via /dev/sheets gallery review). No flag flip needed - shipped ship-and-watch per PLAN clause. |
 | 2 | Hub | `/agent/hub` | director, negotiator (SP / admin via internal-visibility resolver) | Daily landing for everyone except superadmin | 1 wk — **✓ DONE 2026-06-30** (1 PR: D1 loading skeleton Bar → Skeleton primitive). Founder picked Option B: hub chrome (`agent-glass*`) grandfathered pending Card primitive `variant="agent-glass"` extension. |
-| 3 | Reminders | `/agent/reminders` | director, negotiator, SP, admin | Adjacent to daily work | 1 wk |
+| 3 | Reminders / work queue | `/agent/work-queue` | director, negotiator, SP, admin | Adjacent to daily work. Page heading is "Reminders"; the route slug differs. | 1 wk |
 | 4 | Transaction list | `/agent/transactions` | director, negotiator, SP, admin | Every navigation touches it | 1 wk |
 | 5 | To-Do | `/agent/to-do` | director, negotiator, SP, admin | Operational | 0.5 wk |
 | 6 | Completions | `/agent/completions` | director, negotiator, SP, admin | Tied to revenue | 0.5 wk |
