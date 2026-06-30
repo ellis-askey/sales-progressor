@@ -40,6 +40,7 @@ import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
 import { TransactionNotes } from "@/components/transaction/TransactionNotes";
+import { Card } from "@/components/ui/Card";
 import type { PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
 // Match the canonical Prisma include shape used by getTransaction +
@@ -311,7 +312,7 @@ export async function OverviewPanel({
       <RemindersWidget reminders={topReminders} totalActive={actionableCount} />
       <RecentActivityWidget entries={activityEntries} />
 
-      <div id="chain-section" className="glass-card overflow-hidden rounded-[12px]">
+      <Card id="chain-section" padding="none">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
           <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)", margin: 0 }}>Property chain</h3>
           <ViewChainButton
@@ -328,7 +329,7 @@ export async function OverviewPanel({
             }
           />
         </div>
-      </div>
+      </Card>
 
       <SolicitorSection
         transactionId={transaction.id}

@@ -2,6 +2,7 @@
 
 import { useTabContext } from "./TabContext";
 import { relativeDate } from "@/lib/utils";
+import { Card } from "@/components/ui/Card";
 import type { ActivityEntry } from "@/lib/services/comms";
 
 type Props = {
@@ -19,7 +20,7 @@ export function RecentActivityWidget({ entries }: Props) {
   const recent = entries.slice(0, 3);
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <Card padding="none">
       <div className="agent-card-hdr">
         <h3 className="agent-card-title">Recent activity</h3>
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11 }}>
@@ -56,6 +57,6 @@ export function RecentActivityWidget({ entries }: Props) {
           })}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
