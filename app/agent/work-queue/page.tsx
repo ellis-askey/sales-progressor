@@ -10,8 +10,30 @@ import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
+
+// Bespoke composer per Skeleton.tsx's contract — encodes empty-state
+// ghost layout. Inner rows wrap the canonical Skeleton primitive
+// (mirrors PanelSkeletons.tsx from Wave A4 + hub loading.tsx from
+// Surface 2 D1).
+function Bar({ width, height, mt = 0, mb = 0, radius = 6 }: {
+  width: string | number;
+  height: number;
+  mt?: number;
+  mb?: number;
+  radius?: number | string;
+}) {
+  return (
+    <Skeleton
+      variant="block"
+      width={width}
+      height={height}
+      style={{ borderRadius: radius, marginTop: mt, marginBottom: mb, display: "block" }}
+    />
+  );
+}
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -113,7 +135,7 @@ export default async function WorkQueuePage() {
                 <div key={groupLabel}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-muted)" }}>{groupLabel}</span>
-                    <div className="agent-skeleton" style={{ height: 18, width: 22, borderRadius: 99 }} />
+                    <Bar width={22} height={18} radius={99} />
                   </div>
                   <div className="agent-glass-strong" style={{ borderRadius: 12, overflow: "hidden" }}>
                     {Array.from({ length: rows }).map((_, i) => (
@@ -122,10 +144,10 @@ export default async function WorkQueuePage() {
                         borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                       }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="agent-skeleton" style={{ height: 12, width: "55%", borderRadius: 6, marginBottom: 7 }} />
-                          <div className="agent-skeleton" style={{ height: 10, width: "38%", borderRadius: 6 }} />
+                          <Bar width="55%" height={12} mb={7} />
+                          <Bar width="38%" height={10} />
                         </div>
-                        <div className="agent-skeleton" style={{ height: 20, width: 76, borderRadius: 6, flexShrink: 0 }} />
+                        <Bar width={76} height={20} />
                       </div>
                     ))}
                   </div>

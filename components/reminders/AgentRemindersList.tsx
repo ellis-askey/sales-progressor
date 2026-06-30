@@ -13,6 +13,7 @@ import { ReminderCard } from "@/components/reminders/ReminderCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { RoleIcon } from "@/components/ui/RoleIcon";
+import { Button } from "@/components/ui/Button";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
@@ -52,15 +53,15 @@ function fallbackChipText(kind: string): string {
 function fallbackChipTitle(kind: string): string {
   switch (kind) {
     case "client_opted_out":
-      return "Client chased automatically, then opted out. Now manual — please follow up.";
+      return "We chased the client, then they opted out. Follow up manually.";
     case "max_chases_exhausted":
-      return "Client was chased twice automatically with no response. Manual chase needed.";
+      return "We chased the client twice with no response. Follow up manually.";
     case "days_cap_exhausted":
-      return "Client has been silent for 14 days since the first chase. Manual chase needed.";
+      return "Client has been silent for 14 days since the first chase. Follow up manually.";
     case "no_email_on_contact":
-      return "Can't chase automatically — the client contact has no email address. Manual chase needed.";
+      return "We can't chase this client: no email on file. Follow up manually.";
     case "no_portalToken_on_contact":
-      return "Can't chase automatically — the client contact has no portal access. Manual chase needed.";
+      return "We can't chase this client: no portal access. Follow up manually.";
     case "client_emails_paused":
       return "Client emails are paused on this file. Chase manually if needed.";
     default:
@@ -159,7 +160,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
         onClick={() => {
           if (!open && !closing && ref.current) {
             const r = ref.current.getBoundingClientRect();
@@ -168,11 +169,12 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: {
           if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         disabled={disabled}
-        className="agent-btn agent-btn-sm agent-btn-ghost"
+        variant="ghost"
+        size="sm"
         style={{ whiteSpace: "nowrap" }}
       >
         <Clock size={12} weight="regular" /> Snooze all
-      </button>
+      </Button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         // Outer wrapper: positioning transform (translateY(-100%) anchors
         // bottom edge above trigger). Inner box: slide-in animation. They
@@ -245,7 +247,7 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
         onClick={() => {
           if (!open && !closing && ref.current) {
             const r = ref.current.getBoundingClientRect();
@@ -254,11 +256,12 @@ function RowSnoozeMenu({ taskId, onSnooze }: {
           if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         title="Snooze"
-        className="agent-btn agent-btn-sm agent-btn-secondary"
+        variant="secondary"
+        size="sm"
         style={{ flexShrink: 0 }}
       >
         <Clock size={12} weight="regular" />
-      </button>
+      </Button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         // See SideSnoozeMenu above for why the positioning transform and the
         // animation class MUST live on different elements.
@@ -486,15 +489,16 @@ function SideColumn({
                 ↻ Chased
               </button>
               {/* OLD: title="Confirm milestone done" — Rule 2 schema jargon (milestone → step) */}
-              <button
+              <Button
                 onClick={() => handleComplete(task.id)}
                 disabled={loading === task.id || isExiting}
                 title="Mark step done"
-                className="agent-btn agent-btn-sm agent-btn-secondary"
+                variant="secondary"
+                size="sm"
                 style={{ flexShrink: 0, whiteSpace: "nowrap" }}
               >
                 <CheckCircle size={12} weight="fill" /> Done
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -531,13 +535,13 @@ function SideColumn({
           borderTop: `0.5px solid var(--agent-border-subtle)`,
           display: "flex", gap: 6, alignItems: "center",
         }}>
-          <button
+          <Button
             onClick={() => setDrawerOpen(true)}
-            className="agent-btn agent-btn-sm agent-btn-primary"
+            size="sm"
             style={{ flex: 1, whiteSpace: "nowrap" }}
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
-          </button>
+          </Button>
           <SideSnoozeMenu
             logIds={allLogIds}
             taskIds={allTaskIds}

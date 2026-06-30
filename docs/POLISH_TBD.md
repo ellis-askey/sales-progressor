@@ -163,6 +163,15 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | [app/agent/hub/page.tsx](../app/agent/hub/page.tsx) "Add a sale" + "New sale" `<Link className="agent-btn">` instances (3) | Migrate to canonical `<ButtonLink>` primitive | grandfather | 2026-06-30 | Button primitive renders `<button>` only. Link-shaped buttons explicitly out-of-scope per `components/ui/Button.tsx` comment. Three hub instances are link-styled buttons that need a `ButtonLink` primitive to migrate cleanly. Existing class is correct + safe. Re-evaluated 2026-09-26 |
 | [app/agent/hub/page.tsx](../app/agent/hub/page.tsx) inline empty-state lines (3 of 4) | Migrate to canonical `<EmptyState compact>` | grandfather | 2026-06-30 | "All files have recent activity", "All files are self-managed", welcome-state composer. Each is a single-line text inside an existing card. EmptyState compact (w-8 icon + py-6 + sm-font) is visually heavier and would regress the dense card-row look. Same call as RecentActivityWidget grandfather from Wave A2. Re-evaluated 2026-09-26 |
 
+### Phase 3 Surface 3 grandfathers (reminders / work queue)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| `agent-glass-strong` chrome on Surface 3 (7 instances across `app/agent/work-queue/page.tsx`, `AgentRemindersList.tsx`, `ReminderCard.tsx`, `FileAlertsStrip.tsx`) | Migrate to canonical `<Card variant="...">` | grandfather | 2026-06-30 | Same `agent-glass*` vs `glass-card` mismatch as Surface 2. Decision aligned with Surface 2's Option B per founder sign-off. Surface 3 is now the **second consumer** of the agent-glass system — when a third consumer arrives, the Card-primitive `variant="agent-glass"` extension becomes the clean default. Re-evaluated 2026-09-26 |
+| [components/reminders/AgentRemindersList.tsx](../components/reminders/AgentRemindersList.tsx) group section accordion (line ~977) | Migrate to canonical `Accordion.Header` | grandfather | 2026-06-30 | Two-zone header (label + count badge) — same Accordion.Header layout collision as Wave A3/A4 group accordions. Surfaced during Surface 3 audit. Re-evaluated 2026-09-26 |
+| [components/reminders/FileAlertsStrip.tsx](../components/reminders/FileAlertsStrip.tsx) strip body accordion (line ~77) | Migrate to canonical `Accordion.Body` | grandfather | 2026-06-30 | Header has internal toggle button (headless-body pattern). Same primitive gap as ManualTaskList "Done" body grandfathered in Wave A3. Re-evaluated 2026-09-26 |
+| Snooze + escalate popovers — 4 `createPortal` calls (2 in `AgentRemindersList`, 2 in `ReminderCard`) | Build `<Popover>` primitive then migrate | defer-Q3-2026 | 2026-06-30 | No canonical `<Popover>` primitive exists yet. Different from Modal (anchored to a trigger, not centred/right-anchored). Pattern: open/close state + position via `getBoundingClientRect` + `createPortal`. Currently only the reminders surface uses this — wait for a second/third consumer per Law 14 trigger before building the primitive |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
