@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { X, CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 import { titleCase, normalizePhone } from "@/lib/utils";
 
 type Handler = { id: string; name: string; phone: string | null; email: string | null };
@@ -50,18 +50,13 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
     }
   }
 
+  // Modal primitive auto-focuses the first focusable on open; we additionally
+  // select() the prefilled firm name so the user can type to replace. setTimeout
+  // ensures we run AFTER Modal's focus effect so the selection isn't cleared.
   useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    const t = setTimeout(() => inputRef.current?.select(), 0);
+    return () => clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,117 +91,112 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
     }
   }
 
-  return createPortal(
-    // zIndex 2000 — must sit above any parent modal that invokes the
-    // BrokerPicker. Same fix as AddFirmModal (Ellis bug report
-    // 2026-06-05): the relist modal's backdrop sits at zIndex 1500,
-    // so any nested add-broker modal at the default 50 renders
-    // behind it and reads as "doesn't open".
-    <div
-      data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+  // zLayer="deep" (=2000) - this modal can be invoked from the BrokerPicker
+  // inside RelistFileModal which sits at the "escalated" 1500 layer. Bug
+  // baseline 2026-06-05 (Ellis).
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      ariaLabel="Add mortgage broker"
+      size="md"
+      zLayer="deep"
+      dismissOnBackdrop={false}
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" />
+      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <Modal.Header>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add mortgage broker</h2>
+        </Modal.Header>
 
-      <div
-        className="rounded-2xl w-full max-w-md"
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-          <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add mortgage broker</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
-            <X size={16} weight="bold" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* Firm name — required */}
-          <div>
-            <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-              Brokerage name
-              {firmValid
-                ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                : touched.firm && firmName.trim().length < 2
-                  ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
-                  : null}
-            </label>
-            <input
-              ref={inputRef}
-              value={firmName}
-              onChange={(e) => setFirmName(e.target.value)}
-              onBlur={blurFirm}
-              placeholder="e.g. Bright Future Mortgages"
-              required
-              className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-            />
-          </div>
-
-          {/* Broker contact — optional */}
-          <div>
-            <p className="agent-section-label mb-3">Broker contact</p>
-            <div className="space-y-3">
-              {/* Full name + Mobile on same row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                    Full name
-                    {nameValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
-                  </label>
-                  <input
-                    value={handlerName}
-                    onChange={(e) => setHandlerName(e.target.value)}
-                    onBlur={blurName}
-                    placeholder="e.g. James Morris"
-                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                    Contact number
-                    {phoneValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
-                  </label>
-                  <input
-                    type="tel"
-                    value={handlerPhone}
-                    onChange={(e) => setHandlerPhone(e.target.value)}
-                    onBlur={blurPhone}
-                    placeholder="07700 900 000"
-                    className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
-                  />
-                </div>
-              </div>
-              {/* Email — full width */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <Modal.Body>
+            <div className="space-y-5">
+              {/* Firm name — required */}
               <div>
                 <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                  Email
-                  {emailValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                  Brokerage name
+                  {firmValid
+                    ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                    : touched.firm && firmName.trim().length < 2
+                      ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                      : null}
                 </label>
                 <input
-                  type="email"
-                  value={handlerEmail}
-                  onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
-                  onBlur={blurEmail}
-                  placeholder="j.morris@broker.co.uk"
-                  className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${emailError ? " agent-input-error" : ""}`}
+                  ref={inputRef}
+                  value={firmName}
+                  onChange={(e) => setFirmName(e.target.value)}
+                  onBlur={blurFirm}
+                  placeholder="e.g. Bright Future Mortgages"
+                  required
+                  className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
                 />
-                {emailError && <p className="agent-helper-error">{emailError}</p>}
               </div>
+
+              {/* Broker contact — optional */}
+              <div>
+                <p className="agent-section-label mb-3">Broker contact</p>
+                <div className="space-y-3">
+                  {/* Full name + Mobile on same row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                        Full name
+                        {nameValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                      </label>
+                      <input
+                        value={handlerName}
+                        onChange={(e) => setHandlerName(e.target.value)}
+                        onBlur={blurName}
+                        placeholder="e.g. James Morris"
+                        className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                        Contact number
+                        {phoneValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                      </label>
+                      <input
+                        type="tel"
+                        value={handlerPhone}
+                        onChange={(e) => setHandlerPhone(e.target.value)}
+                        onBlur={blurPhone}
+                        placeholder="07700 900 000"
+                        className="glass-input agent-focus w-full px-3 py-2.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {/* Email — full width */}
+                  <div>
+                    <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                      Email
+                      {emailValid && <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />}
+                    </label>
+                    <input
+                      type="email"
+                      value={handlerEmail}
+                      onChange={(e) => { setHandlerEmail(e.target.value); setEmailError(null); }}
+                      onBlur={blurEmail}
+                      placeholder="j.morris@broker.co.uk"
+                      className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${emailError ? " agent-input-error" : ""}`}
+                    />
+                    {emailError && <p className="agent-helper-error">{emailError}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5">{error}</p>
+              )}
             </div>
-          </div>
+          </Modal.Body>
 
-          {error && (
-            <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5">{error}</p>
-          )}
-
-          <div className="flex gap-3 pt-1">
+          {/* Cancel link-style + Save flex-1 primary. Both keep their existing
+              raw classes - the Save button uses agent-btn-color-primary which
+              is the escape-hatch class Button.tsx explicitly grandfathered
+              (cascade-pollution workaround for modal context). Cancel is a
+              ghost link variant the Button primitive doesn't expose. */}
+          <Modal.Footer style={{ padding: "16px 24px 20px", gap: 12, justifyContent: undefined }}>
             <button
               type="button"
               onClick={onClose}
@@ -221,10 +211,9 @@ export function AddBrokerModal({ prefillName, onClose, onCreated }: Props) {
             >
               {loading ? "Saving…" : "Save brokerage"}
             </button>
-          </div>
+          </Modal.Footer>
         </form>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
