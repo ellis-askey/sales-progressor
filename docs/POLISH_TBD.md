@@ -141,6 +141,14 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | `tx.completionDate` shown as "Awaiting exchange" pre-exchange — verb tense matches "Awaiting" but neighbour fields are noun-tense | Unify with rest of sidebar's voice (e.g. "Not set until exchange") | tbd | 2026-06-19 | Voice-pass during file-detail Phase 3 |
 | Portal tip cards desktop / mobile layout uses `flex gap-3 overflow-x-auto` (horizontal scroll) | Reconsider whether horizontal scroll is the right gesture or vertical-stack is more discoverable | tbd | 2026-06-19 | Bundle with portal Phase 3 |
 
+### Phase 3 Surface 1 grandfathers (file-detail remediation)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| [components/transaction/RelistFileModal.tsx](../components/transaction/RelistFileModal.tsx) | Migrate to canonical `Modal` primitive | grandfather | 2026-06-29 | Multi-stage form with branching paths for chain vs no-chain, onward sale options, and stub-link creation. Migration during Phase 3 Surface 1 carries unacceptable behavioural-diff risk. Per [PLAN.md §"What I'm proposing to grandfather"](phase-3/01-agent-file-detail/PLAN.md). Re-evaluated next quarterly review (2026-09-26) |
+| [components/milestones/ReconciliationDrawer.tsx](../components/milestones/ReconciliationDrawer.tsx) | Migrate to canonical `Drawer` primitive | grandfather | 2026-06-29 | Reconciliation flow has unique business logic (per-milestone reconcile checkbox, commit-all rollback path, post-commit ExchangeCelebration handoff). Behavioural-diff risk too high to bundle into Phase 3 Surface 1. Re-evaluated 2026-09-26 |
+| [components/transaction/EditSaleDetailsDrawer.tsx](../components/transaction/EditSaleDetailsDrawer.tsx) | Migrate to canonical `Drawer` primitive | grandfather | 2026-06-29 | Per-section unsaved-state with three-option close prompt (Save all / Discard / Keep editing). Composer pattern doesn't fit `<Drawer>` cleanly without prompt logic spilling into the primitive. Re-evaluated 2026-09-26 |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
