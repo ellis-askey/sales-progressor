@@ -1,8 +1,18 @@
 # Phase 3 · Surface 1 · Agent File Detail · Remediation Plan
 
 **Companion to:** [BASELINE.md](BASELINE.md) (what the surface looks like today) and [AUDIT.md](AUDIT.md) (every gap mapped against DoD).
-**Status:** awaiting founder sign-off. **No code changes until this doc is approved.**
-**Drafted:** 2026-06-29.
+**Status:** **APPROVED 2026-06-30.** Founder signed off on all five questions as-is. Gate is open. Wave A1 ships next session.
+**Drafted:** 2026-06-29. **Approved:** 2026-06-30.
+
+## Sign-off record
+
+| Decision | Founder answer |
+|---|---|
+| PR sequence (Wave A bundled, Wave B individual, Wave C voice) | **Approved as-is** — 14 PRs total |
+| Three grandfathered files (RelistFileModal, ReconciliationDrawer, EditSaleDetailsDrawer) | **Approved all three** — filed in [POLISH_TBD.md "Phase 3 Surface 1 grandfathers"](../../POLISH_TBD.md#phase-3-surface-1-grandfathers-file-detail-remediation) |
+| Feature flag `CANONICAL_FILE_DETAIL_V2` | **Dual-render + per-agency rollout** (Akeman first, 48h, then global) |
+| Rollout pace (per-agency staged) | **Approved** — Akeman 48h monitor before global |
+| Cadence (8 sessions / ~2 weeks) | **Approved** — default plan |
 
 This plan is the **hard gate** before any code touches the surface. Once you approve, we ship the migration PRs in order. Anything that varies from this plan during implementation comes back to you for re-approval.
 
@@ -171,18 +181,6 @@ Only after exit criteria 1-6 do we flip the flag in production (criterion 7).
 
 ---
 
-## What I need from you before code lands
+## Sign-off
 
-A simple yes/no on each of these:
-
-1. **The PR sequence above** — does Wave A bundling + Wave B individual + Wave C voice match your preferences? Or should we do everything as individual PRs (more sessions, finer granularity)?
-
-2. **The three grandfather decisions** — RelistFileModal, ReconciliationDrawer, EditSaleDetailsDrawer staying bespoke for this remediation. Approve, or force-migrate one or more?
-
-3. **The feature flag (`CANONICAL_FILE_DETAIL_V2`)** — keep the dual-render approach, or ship-and-watch with a quick-revert plan?
-
-4. **Per-agency rollout (Akeman first, 48h, then global)** — acceptable, or do you want global from day one?
-
-5. **The 8-session estimate** — appropriate, or would you rather sprint shorter / spread longer?
-
-Once you've answered the five questions (even brief yes/no), the gate opens and Wave A1 ships in the next session.
+Recorded at top of doc. All five questions approved as-is on 2026-06-30. **Gate open.** Wave A1 (PropertyHero + SidebarPanel `glass-card` → `Card` migration) is the next code change.
