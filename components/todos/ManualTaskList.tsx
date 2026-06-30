@@ -255,7 +255,7 @@ export function ManualTaskList({
       {myVisible.length === 0 ? (
         <div style={{ padding: "28px 16px", textAlign: "center" }}>
           <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
-            {filter === "open" ? "Nothing to do — nice." : "No tasks yet."}
+            {filter === "open" ? "Nothing to do. Nice." : "No tasks yet."}
           </p>
         </div>
       ) : (

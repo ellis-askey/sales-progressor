@@ -80,7 +80,7 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
           <>
             <Modal.Body>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
-                Pick one — you can always change later.
+                Pick one. You can always change later.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
@@ -92,7 +92,7 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                 />
                 <ChooserCard
                   title="Put file on hold"
-                  description="Freezes everything — no emails, no reminders, no escalations until you reactivate."
+                  description="Freezes everything: no emails, no reminders, no escalations until you reactivate."
                   onClick={() => setStep("hold-date")}
                   disabled={isPending}
                 />
@@ -115,7 +115,7 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
           <>
             <Modal.Body>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
-                We&apos;ll surface this file on the hub when the date arrives — so it doesn&apos;t get forgotten.
+                We&apos;ll surface this file on the hub when the date arrives, so it doesn&apos;t get forgotten.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>

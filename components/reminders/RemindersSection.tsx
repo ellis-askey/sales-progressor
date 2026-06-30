@@ -37,15 +37,15 @@ function fallbackChipText(kind: string): string {
 function fallbackChipTitle(kind: string): string {
   switch (kind) {
     case "client_opted_out":
-      return "Client chased automatically, then opted out. Now manual — please follow up.";
+      return "We chased the client, then they opted out. Follow up manually.";
     case "max_chases_exhausted":
-      return "Client was chased twice automatically with no response. Manual chase needed.";
+      return "We chased the client twice with no response. Follow up manually.";
     case "days_cap_exhausted":
       return "Client has been silent for 14 days since the first chase. Manual chase needed.";
     case "no_email_on_contact":
-      return "Can't chase automatically — the client contact has no email address. Manual chase needed.";
+      return "We can't chase this client: no email on file. Follow up manually.";
     case "no_portalToken_on_contact":
-      return "Can't chase automatically — the client contact has no portal access. Manual chase needed.";
+      return "We can't chase this client: no portal access. Follow up manually.";
     case "client_emails_paused":
       return "Client emails are paused on this file. Chase manually if needed.";
     default:

@@ -135,7 +135,7 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
         : handlers[0] ?? null;
       onCreated({ id: data.id, name: data.name }, handler);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong — try again");
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setLoading(false);
     }
   }
