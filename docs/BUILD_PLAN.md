@@ -23,7 +23,7 @@ A phased migration to bring Sales Progressor to the discipline standard of the C
 | 0 | Constitution & docs | 1 | Founder sign-off on 4 docs | ✓ **DONE** 2026-06-26 |
 | 1 | Inventory + regression harness | 2-3 | Census docs approved, harness running in CI | ✓ **DONE** 2026-06-26 (visual regression deferred to Phase 5) |
 | 2 | Canonical primitives + gallery | 4-9 | `/dev/gallery` walked + approved by founder on desktop + mobile | ✓ **DONE** 2026-06-29 (9 galleries, 18 canonical primitives) |
-| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surface 1 ✓ + Surface 2 ✓ DONE 2026-06-30; Surface 3 (Reminders) next |
+| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surfaces 1+2+3 ✓ DONE 2026-06-30; Surface 4 (transaction list) next |
 | 4 | Scripts cull (interleaved from Wk 8) | 8-26 | `scripts/` ≤ 15 files | not started |
 | 5 | Gates + enforcement | 27 | Pre-commit hooks + CI checks live (warn-only → block after 2 weeks) | not started |
 | 6 | Polish pass (ongoing) | 28+ | Healthy steady state | not started |
@@ -168,7 +168,7 @@ Order locked at Phase 0 sign-off: internal surfaces first (agent app for directo
 |---|---|---|---|---|---|
 | 1 | Agent file detail | `/agent/transactions/[id]` | director, negotiator (also viewed by SP, admin) | Where agents and SPs live daily. Highest-touch internal surface | 2 wks — **✓ DONE 2026-06-30** (14 PRs: Wave A1-A4 panels + Wave B1-B9 modals/drawer + Wave C voice; founder sign-off via /dev/sheets gallery review). No flag flip needed - shipped ship-and-watch per PLAN clause. |
 | 2 | Hub | `/agent/hub` | director, negotiator (SP / admin via internal-visibility resolver) | Daily landing for everyone except superadmin | 1 wk — **✓ DONE 2026-06-30** (1 PR: D1 loading skeleton Bar → Skeleton primitive). Founder picked Option B: hub chrome (`agent-glass*`) grandfathered pending Card primitive `variant="agent-glass"` extension. |
-| 3 | Reminders / work queue | `/agent/work-queue` | director, negotiator, SP, admin | Adjacent to daily work. Page heading is "Reminders"; the route slug differs. | 1 wk |
+| 3 | Reminders / work queue | `/agent/work-queue` | director, negotiator, SP, admin | Adjacent to daily work. Page heading is "Reminders"; the route slug differs. | 1 wk — **✓ DONE 2026-06-30** (1 PR: E1 voice sweep + 4 Button swaps + Skeleton primitive). Founder picked Option B (chrome grandfather, consistent with Surface 2). |
 | 4 | Transaction list | `/agent/transactions` | director, negotiator, SP, admin | Every navigation touches it | 1 wk |
 | 5 | To-Do | `/agent/to-do` | director, negotiator, SP, admin | Operational | 0.5 wk |
 | 6 | Completions | `/agent/completions` | director, negotiator, SP, admin | Tied to revenue | 0.5 wk |
