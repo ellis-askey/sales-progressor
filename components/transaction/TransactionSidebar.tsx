@@ -8,6 +8,7 @@ import { formatElapsedDays } from "@/lib/utils";
 import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
 import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { EditSaleDetailsDrawer } from "@/components/transaction/EditSaleDetailsDrawer";
+import { Card } from "@/components/ui/Card";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType } from "@prisma/client";
 
@@ -239,7 +240,7 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
     <div className="hidden md:block space-y-4">
 
       {/* Progress card */}
-      <div className="glass-card rounded-[12px] p-4">
+      <Card>
         <p className="agent-sidebar-label mb-4">Progress</p>
 
         <div className="flex items-center gap-4">
@@ -260,11 +261,11 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
             Transaction stage: <span style={{ fontWeight: 600 }}>{PHASE_LABELS[progress.fileLevelPhase]}</span>
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Time on file card */}
       {fileTime && fileTime.totalSeconds > 0 && (
-        <div className="glass-card rounded-[12px] p-4">
+        <Card>
           <p className="agent-sidebar-label mb-3">Time on file</p>
 
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>
@@ -303,11 +304,11 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
               <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{fmtRelative(fileTime.lastActiveAt)}</span>
             ) : null}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Exchange dates card */}
-      <div className="glass-card rounded-[12px] px-4 py-3">
+      <Card padding="none" className="px-4 py-3">
         <p className="agent-sidebar-label mb-4">Exchange Forecast</p>
 
         <div className="space-y-3">
@@ -402,21 +403,21 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Agent card */}
       {agentUser && (
-        <div className="glass-card rounded-[12px] p-5">
+        <Card padding="none" className="p-5">
           <p className="agent-sidebar-label mb-3">Agent</p>
           <p className="text-sm font-semibold text-slate-900/90">{agentUser.name}</p>
           {agentUser.firmName && <p className="text-xs text-slate-900/60">{agentUser.firmName}</p>}
           <p className="text-xs text-slate-900/40 mt-0.5">{agentUser.email}</p>
           {agentSlot && <div className="mt-3">{agentSlot}</div>}
-        </div>
+        </Card>
       )}
 
       {/* Price & fees card */}
-      <div className="glass-card rounded-[12px] px-4 py-3">
+      <Card padding="none" className="px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <p className="agent-sidebar-label">Fee Breakdown</p>
           {canEditSaleDetails && (
@@ -492,7 +493,7 @@ export function TransactionSidebar({ transaction, assignedUser, agencyFeeOverrid
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </div>
 
     {/* ── Mobile unified card — <768px ─────────────────────────────────────── */}
