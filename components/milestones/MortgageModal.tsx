@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 
 interface MortgageModalProps {
   onConfirmMortgage: () => void;
@@ -13,53 +12,32 @@ interface MortgageModalProps {
 export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel }: MortgageModalProps) {
   const { theme } = usePortalTheme();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
-  return createPortal(
-    <div
-      data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
+  return (
+    <Modal
+      open={true}
+      onClose={onCancel}
+      ariaLabel="Is this buyer now using a mortgage?"
+      size="sm"
+      dismissOnBackdrop={false}
+      showCloseButton={false}
     >
-      {/* Backdrop — does not dismiss on click; user must choose one of three options */}
-      <div className="fixed inset-0 agent-backdrop-overlay" />
-
-      {/* Card */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          width: "100%",
-          maxWidth: 380,
-          margin: "0 16px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-      >
-        {/* Header — no X, 2a non-dismissible */}
-        <div style={{ padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
+      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <Modal.Header>
           <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
             Is this buyer now using a mortgage?
           </p>
-        </div>
+        </Modal.Header>
 
-        {/* Body */}
-        <div style={{ padding: "14px 20px 4px" }}>
+        <Modal.Body>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.45)", lineHeight: 1.6, margin: 0 }}>
             This re-opens the mortgage steps and updates the purchase type.
           </p>
-        </div>
+        </Modal.Body>
 
-        {/* Footer — three-tier stacked */}
-        <div style={{ padding: "14px 20px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Three-tier stacked footer overrides Modal.Footer's default right-
+            aligned row. Cancel uses agent-btn-ghost-bordered (Button primitive
+            doesn't expose it; grandfathered). */}
+        <Modal.Footer style={{ padding: "14px 20px 20px", display: "flex", flexDirection: "column", gap: 8, justifyContent: undefined }}>
           {/* Primary */}
           <button
             onClick={onConfirmMortgage}
@@ -97,9 +75,8 @@ export function MortgageModal({ onConfirmMortgage, onConfirmReinstate, onCancel 
           >
             Cancel
           </button>
-        </div>
+        </Modal.Footer>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
