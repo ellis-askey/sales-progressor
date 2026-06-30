@@ -2,21 +2,21 @@
 // boundaries. Each one renders the rough silhouette of its target
 // content so the page doesn't flash empty regions while panels stream.
 //
-// Visual cue is the existing `agent-skeleton` utility class — already
-// used by loading.tsx, so the look matches what the user sees today.
+// Bespoke domain composer per Skeleton.tsx's own contract — encodes
+// panel-grid layout knowledge that isn't a primitive concern. Wraps
+// the canonical Skeleton primitive for individual pulse rows.
 
 import React from "react";
+import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 function Bar({ width, height = 14, mt = 0 }: { width: string | number; height?: number; mt?: number }) {
   return (
-    <div
-      className="agent-skeleton"
-      style={{
-        width,
-        height,
-        borderRadius: 6,
-        marginTop: mt,
-      }}
+    <Skeleton
+      variant="block"
+      width={width}
+      height={height}
+      style={{ borderRadius: 6, marginTop: mt, display: "block" }}
     />
   );
 }
@@ -47,20 +47,20 @@ export function TabPanelSkeleton({ rows = 5, withHero = false }: { rows?: number
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {withHero && (
-        <div className="glass-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <Card padding="none" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           <Bar width="40%" height={16} />
           <Bar width="80%" />
-        </div>
+        </Card>
       )}
       {Array.from({ length: rows }).map((_, i) => (
-        <div
+        <Card
           key={i}
-          className="glass-card"
+          padding="none"
           style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}
         >
           <Bar width="70%" height={14} />
           <Bar width="50%" height={12} />
-        </div>
+        </Card>
       ))}
     </div>
   );
