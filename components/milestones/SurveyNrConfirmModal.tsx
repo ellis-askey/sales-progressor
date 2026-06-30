@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 
 interface SurveyNrConfirmModalProps {
   onConfirm: () => void;
@@ -12,50 +11,32 @@ interface SurveyNrConfirmModalProps {
 export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmModalProps) {
   const { theme } = usePortalTheme();
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
-  return createPortal(
-    <div data-theme={theme} style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {/* Backdrop — does not dismiss on click; this is a destructive confirmation */}
-      <div className="fixed inset-0 agent-backdrop-overlay" />
-
-      {/* Card */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          width: "100%",
-          maxWidth: 380,
-          margin: "0 16px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-      >
-        {/* Header — no X, 2a non-dismissible */}
-        <div style={{ padding: "16px 20px", borderBottom: "0.5px solid rgba(15,23,42,0.06)" }}>
+  return (
+    <Modal
+      open={true}
+      onClose={onCancel}
+      ariaLabel="Skip the private survey?"
+      size="sm"
+      dismissOnBackdrop={false}
+      showCloseButton={false}
+    >
+      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <Modal.Header>
           <p style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>
             Skip the private survey?
           </p>
-        </div>
+        </Modal.Header>
 
-        {/* Body */}
-        <div style={{ padding: "16px 20px" }}>
+        <Modal.Body>
           <p style={{ fontSize: 13, color: "rgba(15,23,42,0.55)", lineHeight: 1.6, margin: 0 }}>
             Confirm the buyer isn&apos;t getting a private Level 2 or Level 3 survey. The survey report step is also skipped.
           </p>
-        </div>
+        </Modal.Body>
 
-        {/* Footer — right-aligned row: Cancel left, Primary right */}
-        <div style={{ padding: "0 20px 20px", display: "flex", gap: 12 }}>
+        {/* Footer: Cancel left (96px fixed width) + Primary right (flex-1).
+            Cancel keeps its inline mouseenter/leave hover handlers - flagged
+            as a preserved grandfather in the Phase 3 PLAN. */}
+        <Modal.Footer style={{ padding: "0 20px 20px", gap: 12, justifyContent: undefined }}>
           <button
             onClick={onCancel}
             style={{
@@ -76,9 +57,8 @@ export function SurveyNrConfirmModal({ onConfirm, onCancel }: SurveyNrConfirmMod
           >
             Yes, skip these
           </button>
-        </div>
+        </Modal.Footer>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
