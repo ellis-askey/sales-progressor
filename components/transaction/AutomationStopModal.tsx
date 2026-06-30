@@ -10,10 +10,10 @@
 // parent can pass it through to putFileOnHold. Pause path doesn't carry a
 // date; onPick fires with choice="pause" + plannedEndAt=null.
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { X, ArrowRight } from "@phosphor-icons/react";
+import { useState } from "react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 
 type Choice = "pause" | "hold";
 
@@ -43,17 +43,6 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
   const [step, setStep] = useState<"choose" | "hold-date">("choose");
   const [customDate, setCustomDate] = useState("");
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        if (step === "hold-date") setStep("choose");
-        else onClose();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, step]);
-
   function handleHoldIndefinite() {
     onPick("hold", null);
   }
@@ -64,49 +53,32 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
     onPick("hold", d);
   }
 
-  return createPortal(
-    <div
-      data-theme={theme}
-      data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+  // Note: previously Escape on hold-date stepped back to "choose"; the
+  // canonical Modal primitive's Escape always closes. Use the explicit
+  // "Back" button on the hold-date step for in-modal back nav. Accepted
+  // canonical shift.
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      ariaLabel={step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
+      size="md"
+      zLayer="escalated"
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} style={{ zIndex: 0 }} />
-
       <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          width: "100%",
-          maxWidth: 460,
-          margin: "0 16px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
+        data-theme={theme}
+        data-night={isNight ? "" : undefined}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px",
-            borderBottom: "0.5px solid rgba(15,23,42,0.08)",
-          }}
-        >
+        <Modal.Header>
           <p style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
             {step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
           </p>
-          <button onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
-            <X size={16} weight="bold" />
-          </button>
-        </div>
+        </Modal.Header>
 
         {step === "choose" && (
           <>
-            <div style={{ padding: "14px 20px 4px" }}>
+            <Modal.Body>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
                 Pick one — you can always change later.
               </p>
@@ -125,9 +97,9 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                   disabled={isPending}
                 />
               </div>
-            </div>
+            </Modal.Body>
 
-            <div style={{ padding: "14px 20px 20px", display: "flex", justifyContent: "flex-end" }}>
+            <Modal.Footer style={{ padding: "14px 20px 20px", justifyContent: "flex-end" }}>
               <button
                 onClick={onClose}
                 className="agent-link"
@@ -135,13 +107,13 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
               >
                 Cancel
               </button>
-            </div>
+            </Modal.Footer>
           </>
         )}
 
         {step === "hold-date" && (
           <>
-            <div style={{ padding: "14px 20px 4px" }}>
+            <Modal.Body>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
                 We&apos;ll surface this file on the hub when the date arrives — so it doesn&apos;t get forgotten.
               </p>
@@ -183,9 +155,9 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
                   </button>
                 </div>
               </div>
-            </div>
+            </Modal.Body>
 
-            <div style={{ padding: "14px 20px 20px", display: "flex", justifyContent: "space-between" }}>
+            <Modal.Footer style={{ padding: "14px 20px 20px", justifyContent: "space-between" }}>
               <button
                 onClick={() => setStep("choose")}
                 className="agent-link"
@@ -200,12 +172,11 @@ export function AutomationStopModal({ onPick, onClose, isPending }: Props) {
               >
                 Cancel
               </button>
-            </div>
+            </Modal.Footer>
           </>
         )}
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }
 
@@ -264,4 +235,3 @@ function ChooserCard({
     </button>
   );
 }
-
