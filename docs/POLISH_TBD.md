@@ -181,6 +181,13 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | Surface 4 `<Link className="agent-btn">` instances (2: `page.tsx:150` and `:266`, both "New sale") | Migrate to canonical `<ButtonLink>` primitive | grandfather | 2026-06-30 | Extends Surface 2 entry. Total Link-styled `agent-btn` instances now: 5 across hub + transactions list. ButtonLink primitive remains pending |
 | TransactionRowView "—" placeholder cells (lines 408, 415) + ForecastStrip empty-month "—" (line 110) | Voice rule exemption — non-prose typography placeholder | grandfather | 2026-06-30 | Same exception VOICE.md grants the "Chased — next in {n} days" toast. Single-character em-dash used as a "no value" affordance, not prose. No action |
 
+### Phase 3 Surface 5 grandfathers (to-do)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| [components/agent/AgentTodoList.tsx](../components/agent/AgentTodoList.tsx) `agent-glass-strong` empty-state card (L143) | Migrate to `<Card variant="agent-glass">` | grandfather | 2026-06-30 | Surface 5 is now the **fourth consumer** of `agent-glass*`. Law 14 trigger for the Card primitive `variant="agent-glass"` extension is now strongly active (page + hub + work-queue + transactions list + to-do = 4 surfaces). Queue extension for the next primitive-batch session. Re-evaluated 2026-09-26 |
+| [components/agent/AgentTodoList.tsx](../components/agent/AgentTodoList.tsx) "Show N completed" accordion (L329) | Migrate to canonical `Accordion.Body` | grandfather | 2026-06-30 | Headless-body pattern — toggle is an external button at L320, not a clickable header. Same primitive gap as ManualTaskList "Done" body grandfathered in Wave A3 and FileAlertsStrip in Wave E1. Re-evaluated 2026-09-26 |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
