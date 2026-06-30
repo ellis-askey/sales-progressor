@@ -137,7 +137,7 @@ export default async function AllTransactionsPage({
       <PageHeader
         title={isDirector || isAdminPowers ? "All Files" : "My Files"}
         subtitle={
-          isAdminPowers                      ? "Every file across the platform." :
+          isAdminPowers                      ? "Every file across every agency." :
           isDirector                         ? "Every file across the agency." :
           session.user.role === "sales_progressor" ? "Files assigned to you." :
           "Files assigned to you."

@@ -172,6 +172,15 @@ The `Decision` field must be set when the item is added. `tbd` is acceptable for
 | [components/reminders/FileAlertsStrip.tsx](../components/reminders/FileAlertsStrip.tsx) strip body accordion (line ~77) | Migrate to canonical `Accordion.Body` | grandfather | 2026-06-30 | Header has internal toggle button (headless-body pattern). Same primitive gap as ManualTaskList "Done" body grandfathered in Wave A3. Re-evaluated 2026-09-26 |
 | Snooze + escalate popovers — 4 `createPortal` calls (2 in `AgentRemindersList`, 2 in `ReminderCard`) | Build `<Popover>` primitive then migrate | defer-Q3-2026 | 2026-06-30 | No canonical `<Popover>` primitive exists yet. Different from Modal (anchored to a trigger, not centred/right-anchored). Pattern: open/close state + position via `getBoundingClientRect` + `createPortal`. Currently only the reminders surface uses this — wait for a second/third consumer per Law 14 trigger before building the primitive |
 
+### Phase 3 Surface 4 grandfathers (transaction list)
+
+| Surface | Opportunity | Decision | Filed | Notes |
+|---|---|---|---|---|
+| `agent-glass-strong` chrome on Surface 4 (3 instances: `app/agent/transactions/page.tsx:233`, `TransactionListWithSearch.tsx:682`, `TransactionTable.tsx:116`) | Migrate to canonical `<Card variant="...">` | grandfather | 2026-06-30 | Same `agent-glass*` vs `glass-card` mismatch as Surfaces 2 + 3. Aligned with Surface 2's Option B per founder sign-off. Surface 4 is now the **third consumer** of the agent-glass system — Law 14 trigger for the Card primitive's `variant="agent-glass"` extension is now active; queue for next primitive-extension batch. Re-evaluated 2026-09-26 |
+| Filter / sort / search popovers — 6 `createPortal` calls on Surface 4 (4 in `TransactionListWithSearch`, 1 in `TransactionRowView`, 1 in `RiskBadgeWithPopover`) | Migrate to `<Popover>` primitive when built | defer-Q3-2026 | 2026-06-30 | Extends Surface 3 popover entry. Surface 4 brings total to 10 popovers across 6 files (4 reminders + 6 transactions). Strong Law-14 trigger for the Popover primitive; queued |
+| Surface 4 `<Link className="agent-btn">` instances (2: `page.tsx:150` and `:266`, both "New sale") | Migrate to canonical `<ButtonLink>` primitive | grandfather | 2026-06-30 | Extends Surface 2 entry. Total Link-styled `agent-btn` instances now: 5 across hub + transactions list. ButtonLink primitive remains pending |
+| TransactionRowView "—" placeholder cells (lines 408, 415) + ForecastStrip empty-month "—" (line 110) | Voice rule exemption — non-prose typography placeholder | grandfather | 2026-06-30 | Same exception VOICE.md grants the "Chased — next in {n} days" toast. Single-character em-dash used as a "no value" affordance, not prose. No action |
+
 ### Architectural / process polish
 
 | Surface | Opportunity | Decision | Filed | Notes |
