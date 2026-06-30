@@ -4,15 +4,10 @@
 // (self_managed ↔ outsourced). Rendered by PropertyHero for admin viewers
 // only. The auth gate lives both at the call site (button only renders for
 // admin) and inside switchServiceTypeAction (hasAdminPowers check).
-//
-// Modal pattern matches components/transaction/AiSummaryButton.tsx —
-// createPortal + usePortalTheme so agent CSS variables resolve, Escape +
-// backdrop click to dismiss, agent-modal-in animation.
 
 import { useEffect, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 import { switchServiceTypeAction } from "@/app/actions/transactions";
 
 type ServiceType = "self_managed" | "outsourced";
@@ -48,16 +43,6 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
     if (open) setError(null);
   }, [open, target]);
 
-  // Escape to dismiss.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !isPending) onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose, isPending]);
-
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
@@ -70,57 +55,33 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
     });
   }
 
+  // Guarded close so escape / backdrop / X don't interrupt the server
+  // action mid-flight. Mirrors the pre-canonical guarded handlers.
+  function safeClose() {
+    if (!isPending) onClose();
+  }
+
   if (!open) return null;
 
-  return createPortal(
-    <div
-      data-theme={theme}
-      data-night={isNight ? "" : undefined}
-      className="nv2-night fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 1500 }}
-      onClick={isPending ? undefined : onClose}
+  return (
+    <Modal
+      open={open}
+      onClose={safeClose}
+      ariaLabel={title}
+      size="md"
+      zLayer="escalated"
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl w-full max-w-md"
-        style={{
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        data-theme={theme}
+        data-night={isNight ? "" : undefined}
+        className="nv2-night"
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: "rgba(0,0,0,0.06)" }}
-        >
-          <p className="text-sm font-semibold text-slate-900">{title}</p>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            disabled={isPending}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "transparent",
-              border: "none",
-              cursor: isPending ? "default" : "pointer",
-              color: "var(--agent-text-muted, #6b7280)",
-              opacity: isPending ? 0.4 : 1,
-            }}
-            className="hover:bg-black/[0.05]"
-          >
-            <X size={14} weight="bold" />
-          </button>
-        </div>
+        <Modal.Header>
+          <p className="text-sm font-semibold text-slate-900" style={{ margin: 0 }}>{title}</p>
+        </Modal.Header>
 
-        {/* Body */}
-        <div className="px-5 py-5">
+        <Modal.Body>
           <p className="text-sm leading-relaxed" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
             {body}
           </p>
@@ -133,16 +94,12 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
               {error}
             </p>
           )}
-        </div>
+        </Modal.Body>
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-2 px-5 py-3 border-t"
-          style={{ borderColor: "rgba(0,0,0,0.06)" }}
-        >
+        <Modal.Footer style={{ padding: "12px 20px 16px" }}>
           <button
             type="button"
-            onClick={onClose}
+            onClick={safeClose}
             disabled={isPending}
             style={{
               padding: "8px 14px",
@@ -195,9 +152,8 @@ export function SwitchServiceTypeModal({ open, transactionId, current, onClose }
             )}
             {isPending ? "Switching…" : confirmLabel}
           </button>
-        </div>
+        </Modal.Footer>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }
