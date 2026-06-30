@@ -6,6 +6,7 @@ import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { AgentBanner } from "@/components/ui/AgentBanner";
+import { Card } from "@/components/ui/Card";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
@@ -235,7 +236,7 @@ export function MilestonePanel({
         />
       ) : (
         /* ── Progress bar card ───────────────────────────────────────────────── */
-        <div className="glass-card mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
+        <Card padding="none" className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Exchange progress</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
@@ -251,7 +252,7 @@ export function MilestonePanel({
             )}
           </div>
           <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>{doneAll} of {totalAll} steps complete</p>
-        </div>
+        </Card>
       )}
 
       {/* ── Side tabs ─────────────────────────────────────────────────────────── */}
@@ -278,9 +279,9 @@ export function MilestonePanel({
 
       {/* ── Milestone list ─────────────────────────────────────────────────────── */}
       {milestones.length === 0 ? (
-        <div className="glass-card px-5 py-8 text-center text-sm text-slate-900/40">
+        <Card padding="none" className="px-5 py-8 text-center text-sm text-slate-900/40">
           No milestones found
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {sectionDefs.map((section) => {
@@ -299,7 +300,7 @@ export function MilestonePanel({
             const isCollapsed = collapsed[section.label] ?? false;
 
             return (
-              <div key={section.label} className="glass-card overflow-hidden rounded-[12px]">
+              <Card key={section.label} padding="none">
                 <button
                   type="button"
                   onClick={() => toggleSection(section.label)}
@@ -371,13 +372,13 @@ export function MilestonePanel({
                     ) : null}
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
 
           {/* ── Skipped / Not-required section ──────────────────────────────── */}
           {nrMilestones.length > 0 && (
-            <div className="glass-card overflow-hidden rounded-[12px]">
+            <Card padding="none">
               <button
                 type="button"
                 onClick={() => setNrCollapsed((p) => !p)}
@@ -404,7 +405,7 @@ export function MilestonePanel({
                   ))}
                 </div>
               </div>
-            </div>
+            </Card>
           )}
         </div>
       )}
