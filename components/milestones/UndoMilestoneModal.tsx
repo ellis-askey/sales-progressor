@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { useState } from "react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 import type { UndoImpact } from "@/app/actions/milestones";
 
 type UndoMode = "target_only" | "cascade";
@@ -29,14 +28,6 @@ export function UndoMilestoneModal({
   const [undoMode, setUndoMode] = useState<UndoMode>("target_only");
   const [cascadeExpanded, setCascadeExpanded] = useState(false);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
   const hasCascade = undoData.cascade.length > 0;
 
   function optionStyle(mode: UndoMode): React.CSSProperties {
@@ -54,52 +45,25 @@ export function UndoMilestoneModal({
     };
   }
 
-  return createPortal(
-    <div
-      data-theme={theme}
-      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+  return (
+    <Modal
+      open={true}
+      onClose={onCancel}
+      ariaLabel="Undo step"
+      size="md"
+      dismissOnBackdrop={false}
     >
-      {/* Backdrop — does not dismiss on click */}
-      <div className="fixed inset-0 agent-backdrop-overlay" />
+      <div data-theme={theme} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <Modal.Header>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
+          <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
+            {hasCascade
+              ? `${milestoneName}. What next?`
+              : `Undo "${milestoneName}"?`}
+          </p>
+        </Modal.Header>
 
-      {/* Card */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          borderRadius: 20,
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          width: "100%",
-          maxWidth: 448,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-          maxHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "0.5px solid rgba(15,23,42,0.06)", flexShrink: 0, gap: 12 }}>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Undo step</h3>
-            <p style={{ fontSize: 13, color: "rgba(15,23,42,0.50)", marginTop: 4, marginBottom: 0 }}>
-              {hasCascade
-                ? `${milestoneName}. What next?`
-                : `Undo "${milestoneName}"?`}
-            </p>
-          </div>
-          <button
-            onClick={onCancel}
-            aria-label="Close"
-            className="agent-icon-btn agent-icon-btn-md"
-          >
-            <X size={16} weight="bold" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
+        <Modal.Body>
           {!hasCascade ? (
             /* No cascade — simple confirmation */
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -209,10 +173,15 @@ export function UndoMilestoneModal({
               </label>
             </div>
           )}
-        </div>
+        </Modal.Body>
 
-        {/* Footer — Cancel left, Undo right (V1 right-aligned row) */}
-        <div style={{ padding: "12px 24px 20px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 12, flexShrink: 0 }}>
+        {/* Footer overrides Modal.Footer's default flex-end + gap-8 with a
+            two-button-equal-width layout (flex-1 on each child + gap 12).
+            Both buttons keep their bespoke variants - Cancel uses
+            agent-btn-ghost-bordered (Button primitive doesn't expose the
+            variant; grandfathered in POLISH_TBD) and Undo keeps its
+            orange-500 -> orange-600 inline pair. */}
+        <Modal.Footer style={{ padding: "12px 24px 20px", gap: 12, justifyContent: undefined }}>
           <button
             onClick={onCancel}
             disabled={isPending}
@@ -245,9 +214,8 @@ export function UndoMilestoneModal({
               ? `Undo step and ${undoData.cascade.length} linked step${undoData.cascade.length !== 1 ? "s" : ""}`
               : "Undo step"}
           </button>
-        </div>
+        </Modal.Footer>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
