@@ -11,7 +11,28 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
+import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
+
+// Bespoke composer per Skeleton.tsx's contract — encodes the
+// completions ghost layout. Inner pulses wrap canonical Skeleton.
+function Bar({ width, height, mt = 0, mb = 0, radius = 4 }: {
+  width: string | number;
+  height: number;
+  mt?: number;
+  mb?: number;
+  radius?: number | string;
+}) {
+  return (
+    <Skeleton
+      variant="block"
+      width={width}
+      height={height}
+      style={{ borderRadius: radius, marginTop: mt, marginBottom: mb, display: "block" }}
+    />
+  );
+}
 
 function fmtCompact(pence: number) {
   const pounds = pence / 100;
@@ -113,7 +134,7 @@ export default async function AgentCompletionsPage() {
       <PageHeader
         title="Completions"
         subtitle={
-          isAdmin      ? "All exchanged files across the platform." :
+          isAdmin      ? "All exchanged files across every agency." :
           isProgressor ? "Your assigned outsourced files, tracking to completion." :
                          "Exchanged files, tracking to completion."
         }
@@ -154,25 +175,25 @@ export default async function AgentCompletionsPage() {
               <div className="agent-glass" style={{ overflow: "hidden" }}>
                 <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <div className="agent-skeleton" style={{ width: 10, height: 10, borderRadius: "50%" }} />
-                    <div className="agent-skeleton" style={{ height: 11, width: 80, borderRadius: 4 }} />
+                    <Skeleton variant="circle" width={10} style={{ display: "block" }} />
+                    <Bar width={80} height={11} />
                   </div>
-                  <div className="agent-skeleton" style={{ height: 11, width: 64, borderRadius: 4 }} />
+                  <Bar width={64} height={11} />
                 </div>
                 <div className="agent-acc open">
                   <div className="agent-acc-in">
                     <div className="agent-acc-body">
                       <div className="space-y-2">
                         {[200, 240].map((w, i) => (
-                          <div key={i} className="glass-card overflow-hidden">
+                          <Card key={i} padding="none">
                             <div className="px-5 py-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
                               <div>
-                                <div className="agent-skeleton" style={{ height: 13, width: w, borderRadius: 6, marginBottom: 5 }} />
-                                <div className="agent-skeleton" style={{ height: 11, width: 110, borderRadius: 6 }} />
+                                <Bar width={w} height={13} radius={6} mb={5} />
+                                <Bar width={110} height={11} radius={6} />
                               </div>
-                              <div className="agent-skeleton" style={{ height: 22, width: 52, borderRadius: 99 }} />
+                              <Bar width={52} height={22} radius={99} />
                             </div>
-                          </div>
+                          </Card>
                         ))}
                       </div>
                     </div>
@@ -183,10 +204,10 @@ export default async function AgentCompletionsPage() {
               <div className="agent-glass" style={{ overflow: "hidden" }}>
                 <div className="agent-acc-hdr" style={{ pointerEvents: "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                    <div className="agent-skeleton" style={{ width: 10, height: 10, borderRadius: "50%" }} />
-                    <div className="agent-skeleton" style={{ height: 11, width: 140, borderRadius: 4 }} />
+                    <Skeleton variant="circle" width={10} style={{ display: "block" }} />
+                    <Bar width={140} height={11} />
                   </div>
-                  <div className="agent-skeleton" style={{ height: 11, width: 56, borderRadius: 4 }} />
+                  <Bar width={56} height={11} />
                 </div>
               </div>
             </div>
