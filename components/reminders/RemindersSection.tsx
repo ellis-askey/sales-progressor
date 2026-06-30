@@ -15,6 +15,8 @@ import { RoleIcon } from "@/components/ui/RoleIcon";
 import type { AutomatedEmailsPreview } from "@/lib/services/automated-emails-preview";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 // Per-fallback-kind chip text + tooltip. Mirrors the canonical versions in
 // components/reminders/AgentRemindersList.tsx (kept duplicated here to keep
@@ -267,7 +269,7 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
         onClick={() => {
           if (disabled) return;
           if (!open && !closing && ref.current) {
@@ -277,10 +279,11 @@ function SideSnoozeMenu({ logIds, taskIds, onSnoozeAll, disabled }: { logIds: st
           if (open) { close(); } else { setClosing(false); setOpen(true); }
         }}
         disabled={disabled}
-        className="agent-btn agent-btn-sm agent-btn-ghost"
+        variant="ghost"
+        size="sm"
       >
         🕐 Snooze
-      </button>
+      </Button>
       {(open || closing) && pos && typeof document !== "undefined" && createPortal(
         // See RowSnoozeMenu above for why the positioning transform and the
         // animation class MUST live on different elements.
@@ -495,12 +498,13 @@ function ColumnSection({
       {/* Footer: Chase + Snooze all */}
       {openTasks.length > 0 && (
         <div style={{ padding: "8px 12px", borderTop: "0.5px solid rgba(15,23,42,0.06)", display: "flex", gap: 6, alignItems: "center" }}>
-          <button
+          <Button
             onClick={() => setDrawerOpen(true)}
-            className="agent-btn agent-btn-sm agent-btn-primary flex-1"
+            size="sm"
+            className="flex-1"
           >
             {milestones.length === 1 ? "Chase" : `Chase all (${milestones.length})`}
-          </button>
+          </Button>
           <SideSnoozeMenu logIds={allLogIds} taskIds={allTaskIds} onSnoozeAll={handleSnoozeAll} disabled={loading !== null} />
         </div>
       )}
@@ -782,10 +786,10 @@ export function RemindersSection({
 
       {/* Empty state */}
       {activeLogs.length === 0 && snoozedLogs.length === 0 && completedLogs.length === 0 && (
-        <div className="glass-card px-5 py-8 text-center">
+        <Card padding="none" className="px-5 py-8 text-center">
           <p className="text-sm text-slate-900/40">No active reminders</p>
           <p className="text-xs text-slate-900/30 mt-1">Reminders are set up — they&apos;ll appear here as they come due.</p>
-        </div>
+        </Card>
       )}
 
       {/* All reminder sections wrapped together so when Snoozed or
@@ -805,7 +809,7 @@ export function RemindersSection({
         const sellerLogs  = logs.filter((l) => !l.reminderRule.targetMilestoneCode?.startsWith("PM"));
 
         return (
-          <div key={groupKey} className="glass-card overflow-hidden rounded-[12px]">
+          <Card key={groupKey} padding="none">
             <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
               <div className="flex items-center gap-2">
                 <span className={`agent-acc-title ${cfg.labelCls}`}>{cfg.label}</span>
@@ -827,14 +831,14 @@ export function RemindersSection({
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         );
       })}
       </div>
 
       {/* Snoozed */}
       {snoozedLogs.length > 0 && (
-        <div className="glass-card overflow-hidden rounded-[12px]">
+        <Card padding="none">
           <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-purple-700">Snoozed</span>
@@ -877,12 +881,12 @@ export function RemindersSection({
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Completed */}
       {completedLogs.length > 0 && (
-        <div className="glass-card overflow-hidden rounded-[12px]">
+        <Card padding="none">
           <div className="agent-acc-hdr" style={{ borderBottom: "none" }}>
             <div className="flex items-center gap-2">
               <span className="agent-acc-title text-slate-900/50">Completed</span>
@@ -906,7 +910,7 @@ export function RemindersSection({
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
       </div>
     </section>

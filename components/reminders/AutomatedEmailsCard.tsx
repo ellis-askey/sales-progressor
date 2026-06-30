@@ -21,6 +21,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { getShortName } from "@/lib/contacts/displayName";
 import { EmailPreviewModal } from "@/components/email/EmailPreviewModal";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
+import { Card } from "@/components/ui/Card";
 import type {
   AutomatedEmailsPreview,
   DeliveryStatus,
@@ -411,7 +412,7 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
   const hasAny = !fileOnHold && (data.pending.length > 0 || data.sentToday.length > 0 || data.upcoming.length > 0);
 
   return (
-    <div className="glass-card overflow-hidden rounded-[12px] mb-3">
+    <Card padding="none" className="mb-3">
       <div
         className="agent-acc-hdr"
         style={{ cursor: "pointer", borderBottom: open ? undefined : "none" }}
@@ -577,6 +578,6 @@ export function AutomatedEmailsCard({ data, transactionId, optimisticallySnoozed
           onClose={() => setPreviewEmailId(null)}
         />
       )}
-    </div>
+    </Card>
   );
 }
