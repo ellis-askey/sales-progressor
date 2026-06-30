@@ -53,9 +53,8 @@
 //     per the audit table approved by Ellis 2026-06-04. No paraphrasing.
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react/dist/ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Drawer } from "@/components/ui/Drawer";
 import { getCommBadge, AuthorPill } from "@/lib/agent/comms-display";
 
 type Props = {
@@ -299,7 +298,6 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
   const [data, setData] = useState<ArchivedRoundPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
 
   // Default to the most recent archived round.
   useEffect(() => {
@@ -312,7 +310,6 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
   useEffect(() => {
     if (!open) {
       setSelectedRoundId(null);
-      setClosing(false);
     }
   }, [open]);
 
@@ -332,24 +329,11 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
     return () => { cancelled = true; };
   }, [open, selectedRoundId, transactionId]);
 
-  // Two-step exit: apply agent-drawer-out for 200ms, then unmount.
-  function doClose() {
-    setClosing(true);
-    setTimeout(() => { setClosing(false); onClose(); }, 200);
-  }
-
-  // Escape to dismiss.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") doClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  if (!open) return null;
+  // Canonical-shift: the pre-canonical implementation ran a 200ms slide-out
+  // animation before unmounting via setClosing(true) + setTimeout. The Drawer
+  // primitive closes instantly on Escape/X/backdrop. Accepted alignment with
+  // the canonical drawer chrome (the slide-in animation is preserved by the
+  // primitive's agent-drawer-in class).
 
   const buyer = data?.buyerContacts.find((c) => c.roleType === "purchaser") ?? null;
   // Locked header copy. Use a colon (not the previous em dash) so the
@@ -364,31 +348,20 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
   // Snapshot rows (already sorted server-side by orderIndex).
   const snapshotRows = data?.round.vendorMilestoneSnapshot ?? [];
 
-  return createPortal(
-    <div
-      data-theme={theme}
-      data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", justifyContent: "flex-end" }}
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      ariaLabel={data ? header : "Previous sale record"}
+      size="xl"
+      zLayer="escalated"
     >
-      {/* Backdrop — click to dismiss (drawer is read-only, no in-progress data) */}
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
-
-      {/* Panel */}
       <div
-        style={{
-          position: "relative", zIndex: 1, height: "100%", width: 560, maxWidth: "100vw",
-          background: "var(--agent-surface-elevated)",
-          borderLeft: "0.5px solid rgba(0,0,0,0.08)",
-          boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
-          animation: closing
-            ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
-            : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
-          display: "flex", flexDirection: "column", overflow: "hidden",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        data-theme={theme}
+        data-night={isNight ? "" : undefined}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", flexShrink: 0, gap: 12 }}>
+        <Drawer.Header style={{ padding: "0 20px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               {header}
@@ -399,10 +372,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               </p>
             )}
           </div>
-          <button type="button" onClick={doClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-sm">
-            <X size={14} weight="bold" />
-          </button>
-        </div>
+        </Drawer.Header>
 
         {/* Sale-switcher pill group. Only renders when there's more than
             one archived sale; mirrors the channel-selector pattern in
@@ -443,8 +413,9 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
           </div>
         )}
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        {/* Body — content uses its own section padding so we override the
+            primitive's default 20px 24px with 0. */}
+        <Drawer.Body style={{ padding: 0 }}>
           {loading && (
             <div className="px-5 py-6">
               <p className="text-xs" style={{ color: "var(--agent-text-muted)" }}>Loading…</p>
@@ -716,10 +687,9 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
               </StaggerSection>
             </>
           )}
-        </div>
+        </Drawer.Body>
       </div>
-    </div>,
-    document.body,
+    </Drawer>
   );
 }
 
