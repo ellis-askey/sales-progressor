@@ -124,6 +124,11 @@ export default function GalleryIndex() {
           }}>
             Every primitive in <code style={{ fontSize: 13, background: "rgba(15,23,42,0.06)", padding: "1px 6px", borderRadius: 4 }}>components/ui/</code> rendered in every state. Phase 2 acceptance gate.
           </p>
+          <p style={{ margin: "10px 0 0", fontSize: 13 }}>
+            <Link href="/dev/sheets" style={{ color: "var(--agent-coral, #FF6B4A)", fontWeight: 600, textDecoration: "none" }}>
+              See the file-detail modals + drawers gallery →
+            </Link>
+          </p>
         </header>
 
         {/* ── Shipped this phase ───────────────────────────────────── */}
