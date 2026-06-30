@@ -5,7 +5,38 @@ import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
+import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
+
+// Bespoke composer per Skeleton.tsx's contract — encodes the to-do
+// ghost layout. Inner pulses wrap the canonical Skeleton primitive.
+// Mirrors hub loading.tsx (Surface 2 D1) + work-queue (Surface 3 E1).
+function Bar({ width, height, mt = 0, mb = 0, radius = 4, flex, maxWidth }: {
+  width: string | number;
+  height: number;
+  mt?: number;
+  mb?: number;
+  radius?: number | string;
+  flex?: number;
+  maxWidth?: number | string;
+}) {
+  return (
+    <Skeleton
+      variant="block"
+      width={width}
+      height={height}
+      style={{
+        borderRadius: radius,
+        marginTop: mt,
+        marginBottom: mb,
+        display: "block",
+        ...(flex !== undefined && { flex }),
+        ...(maxWidth !== undefined && { maxWidth }),
+      }}
+    />
+  );
+}
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -148,7 +179,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
           <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Nothing here yet.</p>
           <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
             {isInternal
-              ? "Add an internal to-do above — visible to your whole internal team."
+              ? "Add an internal to-do above. Visible to your whole internal team."
               : "Add a task or send your progressor a request."}
           </p>
         </div>
@@ -156,24 +187,24 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
         {/* Ghost to-do section preview — abstract skeleton bars only, no fake content */}
         <div style={{ opacity: 0.35, pointerEvents: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 2px", marginBottom: 12 }}>
-            <div className="agent-skeleton" style={{ width: 60, height: 13, borderRadius: 4 }} />
-            <div className="agent-skeleton" style={{ width: 20, height: 18, borderRadius: 99 }} />
+            <Bar width={60} height={13} />
+            <Bar width={20} height={18} radius={99} />
           </div>
-          <div className="glass-card" style={{ overflow: "hidden" }}>
+          <Card padding="none">
             <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-              <div className="agent-skeleton" style={{ width: 150, height: 13, borderRadius: 4 }} />
+              <Bar width={150} height={13} />
             </div>
             {[100, 140].map((w, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
                 borderBottom: i === 0 ? "0.5px solid var(--agent-border-subtle)" : "none",
               }}>
-                <div className="agent-skeleton" style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0 }} />
-                <div className="agent-skeleton" style={{ flex: 1, height: 13, borderRadius: 4, maxWidth: w }} />
-                <div className="agent-skeleton" style={{ width: 36, height: 11, borderRadius: 4, flexShrink: 0 }} />
+                <Skeleton variant="circle" width={18} style={{ flexShrink: 0, display: "block" }} />
+                <Bar width="auto" height={13} flex={1} maxWidth={w} />
+                <Bar width={36} height={11} />
               </div>
             ))}
-          </div>
+          </Card>
         </div>
       </div>
     );
@@ -219,7 +250,7 @@ export function AgentTodoList({ initialTasks, role }: { initialTasks: Task[]; ro
           onToggleShowDone={() => setShowInternalDone((v) => !v)}
           onToggle={handleToggle}
           isProgressorView={isProgressor}
-          emptyText="No internal to-dos yet — add one above to get started."
+          emptyText="No internal to-dos yet. Add one above to get started."
         />
       )}
 
@@ -301,11 +332,11 @@ function Section({
 
       {/* Upcoming / open groups */}
       {!hasOpen ? (
-        <div className="glass-card" style={{ padding: "28px 20px", textAlign: "center" }}>
+        <Card padding="none" style={{ padding: "28px 20px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>
             {emptyText ?? (progressor ? "All caught up." : "All clear.")}
           </p>
-        </div>
+        </Card>
       ) : openGroups.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {openGroups.map((group) => (
@@ -348,7 +379,7 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
   isProgressorView?: boolean;
 }) {
   return (
-    <div className="glass-card" style={{ overflow: "hidden", opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
+    <Card padding="none" style={{ opacity: dimmed ? 0.7 : 1, boxShadow: overdue ? "inset 3px 0 0 var(--agent-danger)" : undefined }}>
       <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
         {group.transactionId ? (
           <Link
@@ -374,7 +405,7 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
           />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
