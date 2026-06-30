@@ -10,6 +10,7 @@ import {
   GROUP_STYLES,
   type CompletionFileRow,
 } from "@/components/completions/CompletionFileRowView";
+import { Button } from "@/components/ui/Button";
 
 export type { CompletionFileRow };
 
@@ -118,8 +119,8 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                               onChange={(e) => setDateValue(e.target.value)}
                               autoFocus
                             />
-                            <button
-                              className="agent-btn agent-btn-sm agent-btn-primary"
+                            <Button
+                              size="sm"
                               disabled={!dateValue || isPending}
                               onClick={() => {
                                 startTransition(async () => {
@@ -130,7 +131,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
                               }}
                             >
                               {isPending ? "Saving…" : "Set date"}
-                            </button>
+                            </Button>
                             <button
                               className="agent-link agent-link-muted"
                               style={{ fontSize: 11 }}

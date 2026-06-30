@@ -23,7 +23,7 @@ A phased migration to bring Sales Progressor to the discipline standard of the C
 | 0 | Constitution & docs | 1 | Founder sign-off on 4 docs | ✓ **DONE** 2026-06-26 |
 | 1 | Inventory + regression harness | 2-3 | Census docs approved, harness running in CI | ✓ **DONE** 2026-06-26 (visual regression deferred to Phase 5) |
 | 2 | Canonical primitives + gallery | 4-9 | `/dev/gallery` walked + approved by founder on desktop + mobile | ✓ **DONE** 2026-06-29 (9 galleries, 18 canonical primitives) |
-| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surfaces 1+2+3+4+5 ✓ DONE 2026-06-30; Surface 6 (Completions) next |
+| 3 | Surface remediation | 10-26 | Per-surface acceptance (11 surfaces, ~1 week each) | **IN PROGRESS** — Surfaces 1+2+3+4+5+6 ✓ DONE 2026-06-30; Surface 7 (Auto-emails) next |
 | 4 | Scripts cull (interleaved from Wk 8) | 8-26 | `scripts/` ≤ 15 files | not started |
 | 5 | Gates + enforcement | 27 | Pre-commit hooks + CI checks live (warn-only → block after 2 weeks) | not started |
 | 6 | Polish pass (ongoing) | 28+ | Healthy steady state | not started |
@@ -171,7 +171,7 @@ Order locked at Phase 0 sign-off: internal surfaces first (agent app for directo
 | 3 | Reminders / work queue | `/agent/work-queue` | director, negotiator, SP, admin | Adjacent to daily work. Page heading is "Reminders"; the route slug differs. | 1 wk — **✓ DONE 2026-06-30** (1 PR: E1 voice sweep + 4 Button swaps + Skeleton primitive). Founder picked Option B (chrome grandfather, consistent with Surface 2). |
 | 4 | Transaction list | `/agent/transactions` | director, negotiator, SP, admin | Every navigation touches it | 1 wk — **✓ DONE 2026-06-30** (1 tiny PR F1: PostExchangeStrip glass-card → Card + voice swap "the platform" → "every agency"). Already mostly canonical (uses EmptyState + PageHeader). Chrome decision inherited from Surfaces 2/3 (Option B). Surface 4 was the third consumer of agent-glass — Law 14 trigger now active for `variant="agent-glass"` extension. |
 | 5 | To-Do | `/agent/to-do` | director, negotiator, SP, admin | Operational | 0.5 wk — **✓ DONE 2026-06-30** (1 PR G1: 2 voice swaps + 3 Card swaps + Skeleton primitive in ghost preview). 4th consumer of `agent-glass-strong` — Law 14 trigger strongly active for `variant="agent-glass"` extension. |
-| 6 | Completions | `/agent/completions` | director, negotiator, SP, admin | Tied to revenue | 0.5 wk |
+| 6 | Completions | `/agent/completions` | director, negotiator, SP, admin | Tied to revenue | 0.5 wk — **✓ DONE 2026-06-30** (1 PR H1: voice swap + 1 Card + 1 Button + Skeleton primitive sweep). 5th consumer of `agent-glass*` — Card primitive `variant="agent-glass"` extension now overwhelmingly justified. New CardLink-pending grandfather filed. |
 | 7 | Auto-emails | `/agent/auto-emails`, `/agent/transactions/[id]?tab=reminders` | director, negotiator, SP, admin | Touched a lot in recent sessions | 0.5 wk |
 | 8 | Internal dashboard | `/dashboard` | SP, admin, superadmin | SP / admin landing — distinct from agent hub | 1 wk |
 | 9 | Other agent admin | `/agent/account/*`, `/agent/admin`, `/agent/analytics`, `/agent/partners`, `/agent/my-files` | director, negotiator (mostly) | Lower urgency, bundled | 2 wks |
