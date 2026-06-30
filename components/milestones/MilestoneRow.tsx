@@ -15,6 +15,7 @@ import { ReconciliationDrawer } from "@/components/milestones/ReconciliationDraw
 import type { ReconciliationItem } from "@/components/milestones/ReconciliationDrawer";
 import type { SlownessSignal, StalenessSignal } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
+import { Button } from "@/components/ui/Button";
 
 type Props = {
   def: Omit<MilestoneDefinition, "weight"> & {
@@ -463,13 +464,14 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                     className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
                   />
                 </div>
-                <button
+                <Button
+                  size="sm"
                   onClick={() => doComplete()}
                   disabled={(!eventDate && !(isPM6 && desktopValuation)) || loading || isPending}
-                  className="agent-btn agent-btn-sm agent-btn-primary mt-5"
+                  className="mt-5"
                 >
                   Confirm
-                </button>
+                </Button>
                 <button
                   onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); }}
                   className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}
@@ -500,8 +502,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
                   placeholder="e.g. No survey needed" autoFocus
                   className="glass-input w-full px-2 py-1.5 text-sm" />
               </div>
-              <button onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
-                className="agent-btn agent-btn-sm agent-btn-primary mt-5">Confirm</button>
+              <Button size="sm" onClick={() => doNotRequired()} disabled={loading || !notRequiredReason.trim()}
+                className="mt-5">Confirm</Button>
               <button onClick={() => { setShowNotRequired(false); setNotRequiredReason(""); }} className="mt-5 agent-link agent-link-muted" style={{ fontSize: 11 }}>Cancel</button>
             </div>
           )}
@@ -512,14 +514,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onNRStart, on
           {!isDone && !showEventDate && !showNotRequired && !showCounterpartNotice && (
             <>
               {effectivelyAvailable && (
-                <button
+                <Button
+                  size="sm"
                   onClick={handleConfirmClick}
                   disabled={loading || isPending}
-                  className="ms-appear agent-btn agent-btn-sm agent-btn-primary"
+                  className="ms-appear"
                   style={{ minWidth: 76 }}
                 >
                   {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
-                </button>
+                </Button>
               )}
               {effectivelyAvailable && canBeNR && (
                 <button

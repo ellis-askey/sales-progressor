@@ -5,6 +5,7 @@ import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
 import { useTabBadge } from "@/components/transaction/PropertyFileTabs";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Card } from "@/components/ui/Card";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 function timeAgo(date: Date): string {
@@ -230,7 +231,7 @@ export function ManualTaskList({
   const agentDone = agentTasks.filter((t) => t.status === "done");
 
   const myTasksCard = (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <Card padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
@@ -286,11 +287,11 @@ export function ManualTaskList({
           </button>
         </div>
       )}
-    </div>
+    </Card>
   );
 
   const agentRequestsCard = agentTasks.length > 0 ? (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <Card padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
@@ -338,7 +339,7 @@ export function ManualTaskList({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   ) : null;
 
   const internalOpen = internalTasks.filter((t) => t.status === "open");
@@ -349,7 +350,7 @@ export function ManualTaskList({
   // signal — see app/agent/transactions/[id]/page.tsx where perspective is
   // derived from isInternalStaff).
   const internalTasksCard = perspective === "progressor" ? (
-    <div className="glass-card overflow-hidden rounded-[12px]">
+    <Card padding="none">
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "0.5px solid var(--agent-border-default)" }}
@@ -402,7 +403,7 @@ export function ManualTaskList({
           )}
         </div>
       )}
-    </div>
+    </Card>
   ) : null;
 
   return (

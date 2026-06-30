@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 
 export function AddManualTaskForm({
   transactionId,
@@ -159,9 +160,9 @@ export function AddManualTaskForm({
         <button type="button" onClick={handleCancel} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
           Cancel
         </button>
-        <button type="submit" disabled={saving || !title.trim()} className="agent-btn agent-btn-sm agent-btn-primary">
+        <Button type="submit" size="sm" disabled={saving || !title.trim()}>
           {saving ? "Saving…" : "Add"}
-        </button>
+        </Button>
       </div>
     </form>
   );
