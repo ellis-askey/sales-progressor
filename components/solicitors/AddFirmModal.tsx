@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { X, CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Modal } from "@/components/ui/Modal";
 import { titleCase, normalizePhone } from "@/lib/utils";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 
@@ -57,24 +57,21 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
     }
   }
 
+  // Modal primitive auto-focuses the first focusable on open. We additionally:
+  // - When firm is locked (adding to existing firm), redirect focus to the
+  //   handler name input instead of the readonly firm input.
+  // - When firm is editable, select() the prefill so typing replaces it.
+  // setTimeout(0) ensures we run AFTER Modal's focus effect.
   useEffect(() => {
-    // When firm is locked (adding a handler to an existing firm), skip
-    // focusing the firm name field — go straight to the handler name input.
-    if (lockFirm) {
-      handlerInputRef.current?.focus();
-    } else {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
+    const t = setTimeout(() => {
+      if (lockFirm) {
+        handlerInputRef.current?.focus();
+      } else {
+        inputRef.current?.select();
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, [lockFirm]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   function clearFieldError(field: string) {
     setErrors((prev) => {
@@ -143,136 +140,126 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
     }
   }
 
-  return createPortal(
-    // zIndex 2000 — must sit above any parent modal that invokes the
-    // SolicitorPicker. RelistFileModal renders at zIndex 1500 and the
-    // ArchivedRoundDrawer at 1500; the new-firm modal is conceptually
-    // a foreground prompt over whichever surface opened it, so it
-    // needs to outrank them. Pre-2026-06-05 this was 50 — fine on the
-    // new-file page (no parent modal) but invisible-behind-backdrop on
-    // the relist surface (Ellis bug report 2026-06-05).
-    <div
-      data-theme={theme}
-      data-night={isNight ? "" : undefined}
-      className="nv2-night"
-      style={{ position: "fixed", inset: 0, zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+  // zLayer="deep" (=2000) - this modal is invoked from SolicitorPicker
+  // which may sit inside RelistFileModal or ArchivedRoundDrawer (both at
+  // 1500). Same fix as AddBrokerModal (Ellis bug report 2026-06-05).
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      ariaLabel={lockFirm ? "Add case handler" : "Add solicitor firm"}
+      size="md"
+      zLayer="deep"
+      dismissOnBackdrop={false}
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" />
-
       <div
-        className="rounded-2xl w-full max-w-md"
-        style={{
-          position: "relative",
-          zIndex: 1,
-          background: "var(--agent-surface-elevated)",
-          border: "0.5px solid rgba(0,0,0,0.08)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        data-theme={theme}
+        data-night={isNight ? "" : undefined}
+        className="nv2-night"
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", height: 56, padding: "0 20px", borderBottom: "0.5px solid rgba(0,0,0,0.08)", gap: 12 }}>
-          <h2 style={{ flex: 1, margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{lockFirm ? "Add case handler" : "Add solicitor firm"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="agent-icon-btn agent-icon-btn-md">
-            <X size={16} weight="bold" />
-          </button>
-        </div>
+        <Modal.Header>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>{lockFirm ? "Add case handler" : "Add solicitor firm"}</h2>
+        </Modal.Header>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          {/* Firm name */}
-          <div>
-            <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-              Firm name
-              {firmValid
-                ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                : touched.firm && firmName.trim().length < 2
-                  ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
-                  : null}
-            </label>
-            <input
-              ref={inputRef}
-              value={firmName}
-              onChange={(e) => { setFirmName(e.target.value); clearFieldError("firmName"); }}
-              onBlur={blurFirm}
-              placeholder="e.g. Carter & Wells Solicitors"
-              readOnly={lockFirm}
-              className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.firmName ? " agent-input-error" : ""}${lockFirm ? " !bg-white/30 !text-slate-900/60" : ""}`}
-            />
-            {errors.firmName && <p className="agent-helper-error">{errors.firmName}</p>}
-          </div>
-
-          {/* Case handler */}
-          <div>
-            <p className="agent-section-label mb-3">Case handler</p>
-            <div className="space-y-3">
-              {/* Full name + Direct line on same row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                    Full name
-                    {nameValid
-                      ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                      : touched.name && handlerName.trim().length < 2
-                        ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
-                        : null}
-                  </label>
-                  <input
-                    ref={handlerInputRef}
-                    value={handlerName}
-                    onChange={(e) => { setHandlerName(e.target.value); clearFieldError("handlerName"); }}
-                    onBlur={blurName}
-                    placeholder="e.g. Sarah Patel"
-                    className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerName ? " agent-input-error" : ""}`}
-                  />
-                  {errors.handlerName && <p className="agent-helper-error">{errors.handlerName}</p>}
-                </div>
-                <div>
-                  <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                    Direct line
-                    {phoneValid
-                      ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                      : touched.phone && !phoneValid
-                        ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
-                        : null}
-                  </label>
-                  <input
-                    type="tel"
-                    value={handlerPhone}
-                    onChange={(e) => { setHandlerPhone(e.target.value); clearFieldError("handlerPhone"); }}
-                    onBlur={blurPhone}
-                    placeholder="020 7946 0000"
-                    className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerPhone ? " agent-input-error" : ""}`}
-                  />
-                  {errors.handlerPhone && <p className="agent-helper-error">{errors.handlerPhone}</p>}
-                </div>
-              </div>
-              {/* Email — full width */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <Modal.Body>
+            <div className="space-y-5">
+              {/* Firm name */}
               <div>
                 <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
-                  Email
-                  {emailValid
+                  Firm name
+                  {firmValid
                     ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
-                    : touched.email && !emailValid
+                    : touched.firm && firmName.trim().length < 2
                       ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
                       : null}
                 </label>
                 <input
-                  type="text"
-                  value={handlerEmail}
-                  onChange={(e) => { setHandlerEmail(e.target.value); clearFieldError("handlerEmail"); }}
-                  onBlur={blurEmail}
-                  placeholder="s.patel@firm.co.uk"
-                  className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerEmail ? " agent-input-error" : ""}`}
+                  ref={inputRef}
+                  value={firmName}
+                  onChange={(e) => { setFirmName(e.target.value); clearFieldError("firmName"); }}
+                  onBlur={blurFirm}
+                  placeholder="e.g. Carter & Wells Solicitors"
+                  readOnly={lockFirm}
+                  className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.firmName ? " agent-input-error" : ""}${lockFirm ? " !bg-white/30 !text-slate-900/60" : ""}`}
                 />
-                {errors.handlerEmail && <p className="agent-helper-error">{errors.handlerEmail}</p>}
+                {errors.firmName && <p className="agent-helper-error">{errors.firmName}</p>}
               </div>
+
+              {/* Case handler */}
+              <div>
+                <p className="agent-section-label mb-3">Case handler</p>
+                <div className="space-y-3">
+                  {/* Full name + Direct line on same row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                        Full name
+                        {nameValid
+                          ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                          : touched.name && handlerName.trim().length < 2
+                            ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                            : null}
+                      </label>
+                      <input
+                        ref={handlerInputRef}
+                        value={handlerName}
+                        onChange={(e) => { setHandlerName(e.target.value); clearFieldError("handlerName"); }}
+                        onBlur={blurName}
+                        placeholder="e.g. Sarah Patel"
+                        className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerName ? " agent-input-error" : ""}`}
+                      />
+                      {errors.handlerName && <p className="agent-helper-error">{errors.handlerName}</p>}
+                    </div>
+                    <div>
+                      <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                        Direct line
+                        {phoneValid
+                          ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                          : touched.phone && !phoneValid
+                            ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                            : null}
+                      </label>
+                      <input
+                        type="tel"
+                        value={handlerPhone}
+                        onChange={(e) => { setHandlerPhone(e.target.value); clearFieldError("handlerPhone"); }}
+                        onBlur={blurPhone}
+                        placeholder="020 7946 0000"
+                        className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerPhone ? " agent-input-error" : ""}`}
+                      />
+                      {errors.handlerPhone && <p className="agent-helper-error">{errors.handlerPhone}</p>}
+                    </div>
+                  </div>
+                  {/* Email — full width */}
+                  <div>
+                    <label className="flex items-center text-xs font-semibold text-slate-900/65 mb-1.5">
+                      Email
+                      {emailValid
+                        ? <CheckCircle size={13} weight="fill" color="#059669" style={{ marginLeft: 4, flexShrink: 0 }} />
+                        : touched.email && !emailValid
+                          ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-coral-deep)", display: "inline-block", marginLeft: 4, flexShrink: 0 }} />
+                          : null}
+                    </label>
+                    <input
+                      type="text"
+                      value={handlerEmail}
+                      onChange={(e) => { setHandlerEmail(e.target.value); clearFieldError("handlerEmail"); }}
+                      onBlur={blurEmail}
+                      placeholder="s.patel@firm.co.uk"
+                      className={`glass-input agent-focus w-full px-3 py-2.5 text-sm${errors.handlerEmail ? " agent-input-error" : ""}`}
+                    />
+                    {errors.handlerEmail && <p className="agent-helper-error">{errors.handlerEmail}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {error && <p className="agent-helper-error" style={{ fontSize: 12 }}>{error}</p>}
             </div>
-          </div>
+          </Modal.Body>
 
-          {error && <p className="agent-helper-error" style={{ fontSize: 12 }}>{error}</p>}
-
-          <div className="flex gap-3 pt-1">
+          <Modal.Footer style={{ padding: "16px 24px 20px", gap: 12, justifyContent: undefined }}>
             <button
               type="button"
               onClick={onClose}
@@ -292,10 +279,9 @@ export function AddFirmModal({ prefillName, onClose, onCreated, lockFirm = false
                 <>Save firm</>
               )}
             </button>
-          </div>
+          </Modal.Footer>
         </form>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }
