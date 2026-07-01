@@ -37,3 +37,27 @@ Pre-move safety checks:
 - No references in `vercel.json` crons for the 38 archived files
 - No CI workflows (no `.github/workflows/`)
 - Full grep of `app/`, `lib/`, `components/`, `__tests__/`, `e2e/` for `@/scripts/<name>` imports on the 38 remaining archived files — clean
+
+### Wave K2 — 2026-07-01
+
+Follow-up cull, 84 scripts moved. Hard-delete target: **2026-07-15**. Two sub-batches:
+
+**K2a — 43 keep-as-is one-shots the heuristic missed** — pattern-matched one-shot names that the census classifier put in `keep-as-is` but are structurally identical to K1's archive-deletes:
+
+- 4 versioned `insert-prod-terms-v1/v2/v3` + `insert-staging-terms-v1` (v4 is latest, older are one-time)
+- 3 `parity-*` / `probe-*` audit scripts
+- 4 `reconcile-*` / `resync-*` one-shot syncs
+- 3 file-specific: `put-tresco-on-hold`, `reset-and-seed-emily-staging`, `reset-item-8-staging`
+- 9 `seed-*` scenario-specific one-shots (cotham, cutover, darnley, pending-chase-emails, staging-payments-tour, staging-spot-check, trial-expired-account, two-round-fixture, completions)
+- 3 `update-*-terms-*` one-time term rephrases
+- 3 `test-*` / `trace-*` one-off dev tools
+- 3 `verify-*` staging PR verifications
+- Rest: `apply-chase-timings-update`, `chase-engine-busiest-file`, `cleanup-feedback-screenshots`, `clear-trial-expired-acknowledgements`, `create-claim-fixture`, `delete-staging-terms-v1`, `demo-purchaser-solicitor-chase-stamp`, `list-milestone-defs`, `manual-drain-milestone-digests`, `prod-check-weak-credentials`, `rotate-staging-test-passwords`, `screenshot-audit-gallery`, `spot-check-payments-tour`, `staging-billing-state`, `swap-env-once`
+
+**K2b — 41 promote-test scripts archived (deferred to Jest)** — the census `promote-test` category. Their verification logic is preserved in `_archive/` as reference material for when the Jest test is actually written. Promoting each into a proper Jest test is a much bigger task per script; archiving them clears the surface area while keeping the code recoverable.
+
+Includes: all `verify-a2/a3/a4/a5/a5-precheck/a6/b1/b2/b2-precheck/b3/b4/b5/b6/b7/6b-playwright/8-playwright/buyer-round-phase0/commit3-create-flow/honest-chase-count/hub-card-playwright/hub-card-rehearsal/hub-diary/milestone-scope/payments-scaffolding-staging/phase-2-read-shape/pr2-pr8-staging/reconcile-state/resync-state/summary-grammar` + all `check-*` verification scripts + `smoke-check.js`.
+
+Pre-move safety checks:
+- All 84 moves grep-clean across `app/`, `lib/`, `components/`, `__tests__/`, `e2e/`
+- No `package.json` or `vercel.json` references
