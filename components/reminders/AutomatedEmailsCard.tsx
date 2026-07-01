@@ -82,7 +82,7 @@ function formatTime(d: Date): string {
 }
 
 function formatDayAndTime(d: Date, now: Date = new Date(), missedSlot = false): string {
-  if (missedSlot) return `earlier today (didn't fire)`;
+  if (missedSlot) return `waiting to send`;
   const startOfNow = new Date(now);
   startOfNow.setUTCHours(0, 0, 0, 0);
   const startOfTarget = new Date(d);

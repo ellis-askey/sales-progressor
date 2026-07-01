@@ -1,4 +1,4 @@
-// Data sweep — cancel stale ClientChaseState rows. Two flavours:
+// Data sweep — cancel stale ClientChaseState rows. Three flavours:
 //
 //   (a) "Old buyer" — purchaser CCS where contact.buyerRoundId
 //       != tx.activeBuyerRoundId. Caused by the chase cron's
@@ -9,6 +9,13 @@
 //       the withdraw flow didn't cancel CCS rows. Excludes
 //       on_hold by design — those resume on unpause
 //       (see app/actions/automation.ts unpauseFile).
+//   (c) "Milestone complete" — active CCS row whose target
+//       milestone is already state='complete' or 'not_required'.
+//       Bug C's footprint: completeMilestone() didn't cancel CCS
+//       until 2026-07-01. The row survives, kept surfacing ghost
+//       "chase X of 2" predictions in /agent/transactions/[id]'s
+//       Upcoming strip even though the milestone was long done.
+//       Fix landed at lib/services/milestones.ts:671 area.
 //
 // Behaviour: dry-run by default. Pass `--commit` to actually write.
 // Idempotent via status='active' precondition.
@@ -37,11 +44,20 @@ async function main() {
       ccs."milestoneCode" AS milestone_code, ccs."chaseCount" AS chase_count,
       CASE
         WHEN pt.status::text IN ('withdrawn', 'completed') THEN 'dead_file'
+        WHEN mc.state::text IN ('complete', 'not_required') THEN 'milestone_complete'
         ELSE 'old_buyer'
       END AS reason
     FROM "ClientChaseState" ccs
     JOIN "Contact" c ON c.id = ccs."contactId"
     JOIN "PropertyTransaction" pt ON pt.id = ccs."transactionId"
+    -- Join to the milestone completion row for this tx + code.
+    -- The join is via the milestone definition's code, then to the
+    -- completion row for the same transaction. Rows without a matching
+    -- MilestoneCompletion (very rare) are treated as "not complete".
+    LEFT JOIN "MilestoneDefinition" md ON md.code = ccs."milestoneCode"
+    LEFT JOIN "MilestoneCompletion" mc
+      ON mc."transactionId" = ccs."transactionId"
+     AND mc."milestoneDefinitionId" = md.id
     WHERE ccs.status = 'active'
       AND (
         pt.status::text IN ('withdrawn', 'completed')
@@ -50,6 +66,7 @@ async function main() {
           AND c."buyerRoundId" IS NOT NULL
           AND c."buyerRoundId" IS DISTINCT FROM pt."activeBuyerRoundId"
         )
+        OR mc.state::text IN ('complete', 'not_required')
       )
     ORDER BY ccs."transactionId", c.name, ccs."milestoneCode"
   `;

@@ -22,6 +22,7 @@ import { requireSession } from "@/lib/session";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { AgencyFeeCard } from "./AgencyFeeCard";
 
 const ADMIN_PAGE_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
@@ -120,11 +121,11 @@ export default async function AgentAdminPage() {
       />
 
       {/* ── Card 2 — Milestone definitions (read-only) */}
-      <div className="glass-card rounded-[12px] p-5">
+      <Card padding="none" className="rounded-[12px] p-5">
         <div className="mb-4">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Milestone definitions</p>
           <p className="agent-card-subtitle">
-            {milestoneDefs.length} definitions across vendor and purchaser sides. Read-only — the engine
+            {milestoneDefs.length} definitions across vendor and purchaser sides. Read-only. The engine
             is the source of truth.
           </p>
         </div>
@@ -133,7 +134,7 @@ export default async function AgentAdminPage() {
           {[{ label: "Vendor side", defs: vendorDefs }, { label: "Purchaser side", defs: purchaserDefs }].map(({ label, defs }) => (
             <div key={label}>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-900/45 mb-2">{label}</p>
-              <div className="glass-card overflow-hidden" style={{ borderRadius: 10 }}>
+              <Card padding="none" style={{ borderRadius: 10 }}>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/20 bg-white/10">
@@ -158,14 +159,14 @@ export default async function AgentAdminPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* ── Card 3 — Reminder rules (read-only) */}
-      <div className="glass-card rounded-[12px] p-5">
+      <Card padding="none" className="rounded-[12px] p-5">
         <div className="mb-4">
           <p className="agent-eyebrow" style={{ marginBottom: 2 }}>Reminder rules</p>
           <p className="agent-card-subtitle">
@@ -183,7 +184,7 @@ export default async function AgentAdminPage() {
             <div key={label}>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-900/45 mb-0.5">{label}</p>
               <p className="text-xs text-slate-900/40 mb-2">{sublabel}</p>
-              <div className="glass-card overflow-hidden" style={{ borderRadius: 10 }}>
+              <Card padding="none" style={{ borderRadius: 10 }}>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/20 bg-white/10">
@@ -224,11 +225,11 @@ export default async function AgentAdminPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       </div>
     </div>

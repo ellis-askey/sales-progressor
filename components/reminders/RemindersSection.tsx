@@ -6,7 +6,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { usePathname } from "next/navigation";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
-import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction, wakeupReminderAction, escalateTaskAction, runReminderEngineAction, advanceChaseTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import type { Contact } from "@/components/reminders/ReminderCard";
@@ -356,6 +356,12 @@ function ColumnSection({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rowsRef] = useAutoAnimate<HTMLDivElement>();
+  const pathname = usePathname();
+  // "Chase now" drawer for reminders that don't have a task yet (start-early
+  // path). Holds the freshly-created ChaseTask id returned by the server so
+  // the same ChaseDrawer component can render it as a single-log chase.
+  const [earlyChase, setEarlyChase] = useState<{ logId: string; taskId: string; name: string; chaseCount: number } | null>(null);
+  const [earlyChaseLoading, setEarlyChaseLoading] = useState<string | null>(null);
   // Optimistic chase-count overlay per task. Click the ↻ Chased button →
   // counter bumps in the UI immediately; the server action runs in
   // background. When the props refresh (server data lands), the prop
@@ -490,6 +496,27 @@ function ColumnSection({
                   </button>
                 </>
               )}
+              {!task && log.status === "active" && (
+                <button
+                  onClick={async () => {
+                    if (earlyChaseLoading) return;
+                    setEarlyChaseLoading(log.id);
+                    try {
+                      const { taskId } = await chaseNowFromLogAction(log.id, pathname);
+                      setEarlyChase({ logId: log.id, taskId, name: stripChase(log.reminderRule.name), chaseCount: 0 });
+                    } catch (err) {
+                      console.error("[RemindersSection] chaseNowFromLog failed", err);
+                    } finally {
+                      setEarlyChaseLoading(null);
+                    }
+                  }}
+                  disabled={earlyChaseLoading === log.id}
+                  title="Chase this client now, before its scheduled start date"
+                  style={{ fontSize: 10, fontWeight: 600, color: "var(--agent-text-muted)", padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)", cursor: earlyChaseLoading === log.id ? "wait" : "pointer", flexShrink: 0, whiteSpace: "nowrap", opacity: earlyChaseLoading === log.id ? 0.5 : 1 }}
+                >
+                  {earlyChaseLoading === log.id ? "…" : "→ Chase now"}
+                </button>
+              )}
             </div>
           );
         })}
@@ -523,6 +550,22 @@ function ColumnSection({
             // Bulk chase via drawer — pass log IDs too so all rows hide.
             openTasks.forEach(({ log, task }) => handleChased(task.id, log.id));
             setDrawerOpen(false);
+          }}
+        />
+      )}
+
+      {earlyChase && (
+        <ChaseDrawer
+          chaseTaskId={earlyChase.taskId}
+          transactionId={transactionId}
+          propertyAddress={propertyAddress}
+          milestoneName={earlyChase.name}
+          chaseCount={earlyChase.chaseCount}
+          contacts={effectiveContacts}
+          onClose={() => setEarlyChase(null)}
+          onSent={() => {
+            handleChased(earlyChase.taskId, earlyChase.logId);
+            setEarlyChase(null);
           }}
         />
       )}

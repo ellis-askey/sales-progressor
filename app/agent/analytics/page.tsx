@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility, getAgentTransactions, getAgencyTeam } from "@/lib/services/agent";
@@ -96,7 +97,7 @@ export default async function AgentAnalyticsPage({
       <>
         <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
         <div className="px-4 py-5 sm:px-8 flex flex-col" style={{ gap: 18 }}>
-          <div className="glass-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+          <Card padding="none" style={{ padding: "48px 24px", textAlign: "center" }}>
             <svg width="32" height="32" viewBox="0 0 48 48" fill="none" style={{ margin: "0 auto 16px", display: "block", opacity: 0.45 }} aria-hidden="true">
               <rect x="6"  y="30" width="10" height="12" rx="2" fill="var(--agent-coral)" />
               <rect x="19" y="20" width="10" height="22" rx="2" fill="var(--agent-coral)" />
@@ -117,7 +118,7 @@ export default async function AgentAnalyticsPage({
                 + Submit your first sale
               </Link>
             )}
-          </div>
+          </Card>
 
           {/* Ghost analytics preview */}
           <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 18 }}>
