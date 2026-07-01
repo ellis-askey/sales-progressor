@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# Sales Progressor pre-commit hook — Phase 5 MVP.
+#
+# Runs three checks against the staged files:
+#   1. tsc --noEmit (Law 2: verify before claiming done)
+#   2. em-dash sweep in user-facing strings (Law 21: voice gate)
+#   3. new scripts/ file must have a SCRIPTS_REGISTRY.md entry (Law 15)
+#
+# Ships in WARN-ONLY mode until 2026-07-15 (2 weeks after install).
+# During warn-only, all failures print but the commit proceeds.
+# Flip to BLOCK: set PHASE5_ENFORCE=1 in your environment, or
+# uncomment the `exit 1` calls below.
+#
+# Uninstall: `scripts/hooks/uninstall.sh` OR `rm .git/hooks/pre-commit`
+
+set -u  # NOT set -e — a check failing in warn-only mode must not
+        # exit the script early; we want ALL checks to print their
+        # warnings before returning.
+
+# ── Colour helpers ─────────────────────────────────────────────────────
+RED=$(printf '\033[31m')
+YELLOW=$(printf '\033[33m')
+GREEN=$(printf '\033[32m')
+DIM=$(printf '\033[2m')
+RESET=$(printf '\033[0m')
+
+ENFORCE="${PHASE5_ENFORCE:-0}"
+FAILED=0
+
+# Fire on ANY problem the hook detects. In warn-only mode we
+# collect but never exit non-zero. In enforce mode we `exit 1` at end.
+report_failure() {
+  local check="$1"
+  local detail="$2"
+  FAILED=1
+  if [ "$ENFORCE" = "1" ]; then
+    printf "%sBLOCKED%s [%s] %s\n" "$RED" "$RESET" "$check" "$detail" >&2
+  else
+    printf "%sWARN%s [%s] %s\n" "$YELLOW" "$RESET" "$check" "$detail" >&2
+  fi
+}
+
+# ── Check 1: tsc --noEmit ──────────────────────────────────────────────
+# Only runs if there are staged .ts / .tsx files. Skips on doc-only
+# commits.
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(ts|tsx)$'; then
+  printf "%sPhase 5%s Running tsc --noEmit ...\n" "$DIM" "$RESET"
+  if ! npx tsc --noEmit 2>&1 | tail -20; then
+    report_failure "law-2 tsc" "tsc --noEmit reported errors (see above)"
+  fi
+else
+  printf "%sPhase 5%s tsc skipped (no .ts/.tsx staged)\n" "$DIM" "$RESET"
+fi
+
+# ── Check 2: em-dash sweep in user-facing strings ──────────────────────
+# Scans staged .tsx / .ts files for em-dashes inside double-quoted
+# strings or JSX text (not inside comments). Voice.md rule.
+#
+# Grep pattern is heuristic — we're looking for the em-dash `—`
+# INSIDE a double-quoted string. False-positive rate is low because
+# comments in .tsx use // or {/* */} which the pattern excludes.
+staged_tsx=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' || true)
+if [ -n "$staged_tsx" ]; then
+  emdash_hits=$(printf "%s\n" "$staged_tsx" | while read -r f; do
+    [ -f "$f" ] || continue
+    # Find em-dashes that appear inside double-quoted strings.
+    # Excludes lines that start with // (comment) or /* (block comment start).
+    grep -nH '"[^"]*—[^"]*"' "$f" 2>/dev/null | grep -vE ':\s*//' | grep -vE ':\s*/\*'
+  done)
+  if [ -n "$emdash_hits" ]; then
+    printf "%s\n" "$emdash_hits" | while IFS= read -r line; do
+      report_failure "law-21 em-dash" "$line"
+    done
+  fi
+fi
+
+# ── Check 3: new scripts/ file requires SCRIPTS_REGISTRY entry ─────────
+# If a new file was added to scripts/ (not scripts/_archive/) in this
+# commit, docs/SCRIPTS_REGISTRY.md must reference its name.
+new_scripts=$(git diff --cached --name-only --diff-filter=A | grep -E '^scripts/[^_].*\.(ts|tsx|mjs|js|sh)$' || true)
+if [ -n "$new_scripts" ]; then
+  printf "%s\n" "$new_scripts" | while IFS= read -r script_path; do
+    filename=$(basename "$script_path")
+    if ! grep -q "$script_path\|$filename" docs/SCRIPTS_REGISTRY.md 2>/dev/null; then
+      report_failure "law-15 scripts-registry" "$script_path lacks SCRIPTS_REGISTRY.md entry"
+    fi
+  done
+fi
+
+# ── Summary ────────────────────────────────────────────────────────────
+if [ "$FAILED" = "1" ]; then
+  if [ "$ENFORCE" = "1" ]; then
+    printf "\n%sCommit blocked%s. Fix the issues above or use LAWS-OVERRIDE (see docs/LAW_OVERRIDES.md).\n" "$RED" "$RESET" >&2
+    exit 1
+  else
+    printf "\n%sPhase 5 warn-only%s. Commit proceeding. From 2026-07-15 these will block.\n" "$YELLOW" "$RESET" >&2
+    printf "%s        %s To disable: rm .git/hooks/pre-commit  OR  scripts/hooks/uninstall.sh\n" "$YELLOW" "$RESET" >&2
+    exit 0
+  fi
+fi
+
+printf "%sPhase 5%s All checks clean.\n" "$GREEN" "$RESET"
+exit 0

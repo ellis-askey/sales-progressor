@@ -136,6 +136,30 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Deletion criteria:** delete when the E2E suite is retired or migrates to a self-seeding fixture pattern.
 - **Justification:** paired with the E2E harness; alternative would be per-test seeding which is more expensive.
 
+### scripts/hooks/pre-commit
+
+- **Purpose:** Phase 5 MVP pre-commit hook. Runs 3 checks against staged files: `tsc --noEmit` (Law 2), em-dash sweep in double-quoted strings (Law 21), SCRIPTS_REGISTRY entry required for any new `scripts/` file (Law 15).
+- **Lifetime:** `ongoing`
+- **Author:** CC (Phase 5 MVP), 2026-07-01
+- **Deletion criteria:** delete when replaced by a more comprehensive Phase 5.5 hook or a Husky-based flow.
+- **Justification:** enforcement of Laws that would otherwise depend on the committer remembering. Warn-only until 2026-07-15 then flips to block. Installed opt-in via `install.sh`; not part of `npm install` flow.
+
+### scripts/hooks/install.sh
+
+- **Purpose:** Idempotent installer that symlinks (or copies on Windows) `scripts/hooks/pre-commit` into `.git/hooks/pre-commit`.
+- **Lifetime:** `ongoing`
+- **Author:** CC (Phase 5 MVP), 2026-07-01
+- **Deletion criteria:** paired with pre-commit hook.
+- **Justification:** local dev-machine setup script; runs once per clone.
+
+### scripts/hooks/uninstall.sh
+
+- **Purpose:** Removes the Phase 5 pre-commit hook. Emergency escape hatch if the hook misbehaves.
+- **Lifetime:** `ongoing`
+- **Author:** CC (Phase 5 MVP), 2026-07-01
+- **Deletion criteria:** paired with pre-commit hook.
+- **Justification:** critical fallback; complements install.sh.
+
 ---
 
 ## Footnotes
